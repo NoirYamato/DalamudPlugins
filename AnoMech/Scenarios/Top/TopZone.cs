@@ -12,6 +12,7 @@ public sealed class TopZone : IZone
     public static readonly TopZone Instance = new();
     public static readonly Phase P2 = new(Instance, "P2", 78, BgmId.TopP2,
         arenaMapEffectOverrides: new Dictionary<byte, ushort> { [0x0A] = 1 });
+    public static readonly Phase P3 = new(Instance, "P3", TopP3Constants.Weather, TopP3Constants.Bgm);
     public static readonly Phase P5 = new(Instance, "P5", 174, BgmId.TopP5);
     public static readonly Phase P6 = new(Instance, "P6", 175, BgmId.TopP6);
 

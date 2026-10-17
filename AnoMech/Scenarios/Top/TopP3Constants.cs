@@ -1,0 +1,72 @@
+namespace AnoMech.Scenarios.Top;
+
+// NoirMech's TOP P3 ids, kept out of TopConstants so upstream release merges stay clean.
+public static class TopP3Constants
+{
+    public const uint OmegaP3 = 15717;                              // BNpcBase, ModelChara 3775, hitbox 12.5
+    public const byte Weather = 79;                                 // UNVERIFIED
+    public const ushort Bgm = 966;                                  // UNVERIFIED
+
+    public static class P3ActionId
+    {
+        public const uint HelloWorld = 31573;                       // boss->self, 5s raidwide that applies every debuff
+        public const uint LatentDefect = 31599;                     // boss->self, 9s visual, one per tower set
+        public const uint RedTower = 31583;                         // Cascading Latent Defect, helper 10s, r6, omen 443
+        public const uint BlueTower = 31584;                        // Latent Performance Defect, helper 10s, r6, omen 454
+        public const uint RedTowerUnsoaked = 31585;                 // range-100 wipe
+        public const uint BlueTowerUnsoaked = 31586;
+        public const uint RedTowerStatusExpired = 31581;            // range-100 wipe
+        public const uint BlueTowerStatusExpired = 31582;
+        public const uint Stack = 31574;                            // Critical Synchronization Bug, r5
+        public const uint Defamation = 31575;                       // Critical Overflow Bug, r20
+        public const uint RedRotExplosion = 31578;                  // Critical Underflow Bug, r5
+        public const uint BlueRotExplosion = 31579;                 // Critical Performance Bug, r5
+        public const uint LatentSynchronizationBugExpired = 31576;
+        public const uint LatentDefectExpired = 31577;
+        public const uint CriticalError = 31588;                    // boss->self, 8s raidwide
+        public const uint OversampledWaveCannonEast = 31595;        // boss->self, 10s; monitors on the boss's right
+        public const uint OversampledWaveCannonWest = 31596;        // monitors on the boss's left
+    }
+
+    public static class P3StatusId
+    {
+        public const ushort SynchronizationCodeSmell = 3436;
+        public const ushort OverflowCodeSmell = 3437;
+        public const ushort UnderflowCodeSmell = 3438;              // becomes red rot
+        public const ushort PerformanceCodeSmell = 3439;            // becomes blue rot
+        public const ushort LocalCodeSmell = 3503;
+        public const ushort RemoteCodeSmell = 3441;
+        public const ushort CriticalSynchronizationBug = 3524;      // stack
+        public const ushort CriticalOverflowBug = 3525;             // defamation
+        public const ushort RedRot = 3526;                          // Critical Underflow Bug
+        public const ushort BlueRot = 3429;                         // Critical Performance Bug
+        public const ushort LocalRegression = 3529;                 // breaks when the pair comes together
+        public const ushort RemoteRegression = 3530;                // breaks when the pair moves apart
+        public const ushort LatentSynchronizationBug = 3434;        // cleansed by taking a stack
+        public const ushort LatentDefect = 3527;                    // cleansed by taking a defamation
+        public const ushort RedTowerDebuff = 3528;                  // cleansed by the holder's own red rot exploding
+        public const ushort BlueTowerDebuff = 3435;
+        public const ushort SynchronizationDebugger = 3430;
+        public const ushort OverflowDebugger = 3431;
+        public const ushort UnderflowDebugger = 3432;               // immune to red rot
+        public const ushort PerformanceDebugger = 3433;             // immune to blue rot
+    }
+
+    public static class P3Geometry
+    {
+        public const float TowerRingRadius = 13.7f;                 // UNVERIFIED, measured from guide drawings
+        public const float RotContactRadius = 1.5f;                 // UNVERIFIED, must stay under the 2.5y a stack partner stands off
+        public const float RemoteRegressionBreakDistance = 12f;     // UNVERIFIED, breaks above
+        public const float LocalRegressionBreakDistance = 9f;       // UNVERIFIED, breaks below
+    }
+
+    public static class P3Duration
+    {
+        public const float CodeSmell = 3f;
+        public const float Rot = 27f;
+        public const float Regression = 10f;
+        public const float LatentSynchronizationBug = 69f;
+        public const float LatentDefect = 26f;                      // UNVERIFIED
+        public const float TowerDebuff = 12f;                       // UNVERIFIED
+    }
+}
