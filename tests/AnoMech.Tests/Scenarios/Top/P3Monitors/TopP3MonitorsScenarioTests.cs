@@ -1,6 +1,8 @@
 using System.Numerics;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
+using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P3Monitors;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
@@ -30,11 +32,14 @@ public class TopP3MonitorsScenarioTests
             .Overrides<TopP3MonitorsStateOverrides>(o => TopP3MonitorsLpduAiTests.Pin(o, OmegaMonitor.West, Monitors,
                                                                                       [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]));
 
-    [TestCase(OmegaMonitor.West)]
-    [TestCase(OmegaMonitor.East)]
-    public void EveryMonitorHitsItsTwoLpduTargets(OmegaMonitor omega)
+    // Omega's cast only draws its monitor; the circles follow the state's side. The two must agree,
+    // or players read the monitor and stand in the wrong half.
+    [TestCase(OmegaMonitor.West, TopP3Constants.P3ActionId.OversampledWaveCannonWest)]
+    [TestCase(OmegaMonitor.East, TopP3Constants.P3ActionId.OversampledWaveCannonEast)]
+    public void EveryMonitorHitsItsTwoLpduTargets(OmegaMonitor omega, uint omegaCast)
     {
         var picks = new List<PartyRole>();
+        var omegaCasts = new List<string>();
         var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = MainTank,
@@ -44,10 +49,13 @@ public class TopP3MonitorsScenarioTests
             {
                 if (!p.Crossed(11.5f)) return;
                 picks.AddRange(HitTargets(p));
+                var omegaId = p.World.Children.OfType<SimEnemy>().Single(e => e.BNpcBaseId == TopP3Constants.OmegaP3).EntityId.ToString("X8");
+                omegaCasts.AddRange(p.Fake.Timeline.Rows.Where(row => row["kind"] == "cast" && row["actor"] == omegaId).Select(row => row["id"]));
             },
         });
 
         Assert.That(run.Passed, run.ToString);
+        Assert.That(omegaCasts, Is.EqualTo(new[] { $"{omegaCast}" }), "Omega's casts");
         Assert.That(picks, Has.Count.EqualTo(8));
         var pairs = picks.Chunk(2).Select(pair => pair.Order().ToArray()).ToList();
         Assert.That(pairs[0], Is.EqualTo(new[] { MeleeDpsA, PhysRangedDps }), "Omega's monitor");
