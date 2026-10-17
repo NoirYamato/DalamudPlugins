@@ -59,7 +59,8 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private const float ArriveBeforeTethersGoLive = 0.3f;
     private const float TetherBreakMargin = 0.3f;
     private const float TowersAt = 1f, TetheredPairsLatestAt = 5f, PassAt = 10.3f, RemotePopsAt = 12.3f, LocalPopsAt = 15f;
-    private const float RemoteHasPoppedBy = 14f, LocalHasPoppedBy = 17.5f;
+    private const float RemotePopsLatestAt = 13.5f, LocalPopsLatestAt = 17f;
+    private const float RemotePopsWithin = 1.7f, LocalPopsWithin = 2.5f, RemotePopVulnLasts = 1.2f;
 
     private static readonly PartyRole[] MonitorsLineUpNorthToSouth =
         [RegenHealer, ShieldHealer, MainTank, OffTank, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
@@ -75,6 +76,8 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private TopP3HelloWorldTraffic traffic = null!;
     private readonly Dictionary<PartyRole, bool> onRightSide = new();
     private readonly HashSet<int> stretchedSets = [];
+    private readonly HashSet<(int Set, PartyRole Role)> remotePopsSent = [], localPopsSent = [];
+    private readonly Dictionary<int, float> remoteTetherBrokeAt = new();
     private int towersUp;
     private bool linedUp;
 
@@ -85,6 +88,9 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         traffic = new TopP3HelloWorldTraffic(world, SoakersStayInTheirOwnTowerOnly);
         onRightSide.Clear();
         stretchedSets.Clear();
+        remotePopsSent.Clear();
+        localPopsSent.Clear();
+        remoteTetherBrokeAt.Clear();
         towersUp = 0;
         linedUp = false;
         world.Events.Add(0.5f, LooseSpread);
@@ -97,8 +103,14 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
                 world.Events.Add(t, () => TetheredPairsStretchOnceTheSoakersAreInPlace(n));
             world.Events.Add(start + TetheredPairsLatestAt, () => TetheredPairsStretch(n));
             world.Events.Add(start + PassAt, () => PassRotsOnOrStartSpreading(n));
-            world.Events.Add(start + RemotePopsAt, () => PopRemoteTetherAndSpreadOldRots(n));
-            world.Events.Add(start + LocalPopsAt, () => PopLocalTetherClearOfExplodingRots(n));
+            for (var t = start + RemotePopsAt; t < start + RemotePopsLatestAt; t += PollSeconds)
+                world.Events.Add(t, () => PopRemoteTetherAndSpreadOldRotsOnceTheirPassIsDone(n));
+            world.Events.Add(start + RemotePopsLatestAt, () => PopRemoteTetherAndSpreadOldRots(n, ready: _ => true));
+            for (var t = start + RemotePopsAt; t < start + LocalPopsLatestAt; t += PollSeconds)
+                world.Events.Add(t, () => NoteWhenTheRemoteTetherBroke(n));
+            for (var t = start + LocalPopsAt; t < start + LocalPopsLatestAt; t += PollSeconds)
+                world.Events.Add(t, () => PopLocalTetherOnceTheRemoteVulnHasWornOff(n));
+            world.Events.Add(start + LocalPopsLatestAt, () => PopLocalTetherClearOfExplodingRots(n, ready: _ => true));
         }
         for (var t = 100f; t < LastLineUpPoll; t += PollSeconds)
             world.Events.Add(t, LineUpForMonitorsOnceTheLastRotsHaveGoneOff);
@@ -146,8 +158,11 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             _ => null,
         }, deadline: SetStarts[set - 1] + 12f, tether: role => TetherHoldsUntilItsPop(set, role, from: SetStarts[set - 1] + PassAt));
 
-    private void PopRemoteTetherAndSpreadOldRots(int set)
-        => Send(set, role => (state.RoleIn(set, role), IsLastSet(set)) switch
+    private void PopRemoteTetherAndSpreadOldRotsOnceTheirPassIsDone(int set)
+        => PopRemoteTetherAndSpreadOldRots(set, ready: role => IsTheHuman(role) || HasDoneItsPass(set, role));
+
+    private void PopRemoteTetherAndSpreadOldRots(int set, Func<PartyRole, bool> ready)
+        => SendOnce(set, remotePopsSent, ready, role => (state.RoleIn(set, role), IsLastSet(set)) switch
         {
             (HelloWorldRole.Remote, false) => At(set, role, RemotePopped),
             (HelloWorldRole.Stack, false) => At(set, role, StackSpreadingRot),
@@ -155,11 +170,15 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             (HelloWorldRole.Remote, true) => At(set, role, LastRemotePopped),
             _ => null,
         }, deadline: SetStarts[set - 1] + 14.9f, tether: role => state.RoleIn(set, role) == HelloWorldRole.Remote
-            ? RemoteTetherHasPopped(set, role)
+            ? RemoteTetherHasPopped(role)
             : TetherHoldsUntilItsPop(set, role, from: SetStarts[set - 1] + RemotePopsAt));
 
-    private void PopLocalTetherClearOfExplodingRots(int set)
-        => Send(set, role => (state.RoleIn(set, role), IsLastSet(set)) switch
+    private void PopLocalTetherOnceTheRemoteVulnHasWornOff(int set)
+        => PopLocalTetherClearOfExplodingRots(set, ready: role => IsTheHuman(role) || state.RoleIn(set, role) != HelloWorldRole.Local
+                                                                  || IsLastSet(set) || RemoteVulnHasWornOff(set));
+
+    private void PopLocalTetherClearOfExplodingRots(int set, Func<PartyRole, bool> ready)
+        => SendOnce(set, localPopsSent, ready, role => (state.RoleIn(set, role), IsLastSet(set)) switch
         {
             (HelloWorldRole.Local, false) => At(set, role, LocalPopped),
             (HelloWorldRole.Remote, false) => At(set, role, RemoteBackInStackLane),
@@ -186,15 +205,46 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         _ => null,
     };
 
-    private Tether? RemoteTetherHasPopped(int set, PartyRole role)
+    private Tether? RemoteTetherHasPopped(PartyRole role)
         => new Tether(Partner(role), P3Geometry.RemoteRegressionBreakDistance + TetherBreakMargin, float.MaxValue,
-                      SetStarts[set - 1] + RemoteHasPoppedBy, SetStarts[set - 1] + RemoteHasPoppedBy);
+                      world.Events.Elapsed + RemotePopsWithin, world.Events.Elapsed + RemotePopsWithin);
 
     private Tether? LocalTetherHasPopped(int set, PartyRole role)
         => state.RoleIn(set, role) == HelloWorldRole.Local && !IsLastSet(set)
             ? new Tether(Partner(role), 0f, P3Geometry.LocalRegressionBreakDistance - TetherBreakMargin,
-                         SetStarts[set - 1] + LocalHasPoppedBy, SetStarts[set - 1] + LocalHasPoppedBy)
+                         world.Events.Elapsed + LocalPopsWithin, world.Events.Elapsed + LocalPopsWithin)
             : null;
+
+    private bool HasDoneItsPass(int set, PartyRole role) => (state.RoleIn(set, role), IsLastSet(set)) switch
+    {
+        (HelloWorldRole.Local, false) => HoldsItsRot(role, state.DefamationColour),
+        (HelloWorldRole.Remote, false) => HoldsItsRot(role, state.StackColour),
+        (HelloWorldRole.Stack, false) => HoldsItsRot(Side(set, HelloWorldRole.Remote, onRightSide[role]), state.StackColour),
+        _ => true,
+    };
+
+    private bool HoldsItsRot(PartyRole role, HelloWorldColour colour) => !Member(role).IsAlive() || Member(role).HasStatus(colour.RotStatusId);
+
+    private void NoteWhenTheRemoteTetherBroke(int set)
+    {
+        if (!remoteTetherBrokeAt.ContainsKey(set)
+            && state.WithRole(set, HelloWorldRole.Remote).All(role => !Member(role).IsAlive() || !Member(role).HasStatus(P3StatusId.RemoteRegression)))
+            remoteTetherBrokeAt[set] = world.Events.Elapsed;
+    }
+
+    private bool RemoteVulnHasWornOff(int set)
+        => remoteTetherBrokeAt.TryGetValue(set, out var brokeAt) && world.Events.Elapsed >= brokeAt + RemotePopVulnLasts;
+
+    private bool IsTheHuman(PartyRole role) => role == world.Party.PlayerRole;
+
+    private void SendOnce(int set, HashSet<(int Set, PartyRole Role)> sent, Func<PartyRole, bool> ready, Func<PartyRole, Vector2?> destination,
+                          float deadline, Func<PartyRole, Tether?> tether)
+    {
+        var going = PerRole.All.Where(role => !sent.Contains((set, role)) && destination(role) is not null && ready(role)).ToList();
+        if (going.Count == 0) return;
+        sent.UnionWith(going.Select(role => (set, role)));
+        Send(set, role => going.Contains(role) ? destination(role) : null, deadline, tether);
+    }
 
     private PartyRole Partner(PartyRole role) => state.WithKit(state.KitOf(role)).Single(r => r != role);
 
