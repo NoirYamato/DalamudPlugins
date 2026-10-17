@@ -6,6 +6,8 @@ using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using static AnoMech.Core.Game.Party.PartyRole;
+using static AnoMech.Scenarios.Top.P3HelloWorld.TopP3HelloWorldTraffic;
+using static AnoMech.Scenarios.Top.TopP3Constants;
 
 namespace AnoMech.Scenarios.Top.P3HelloWorld;
 
@@ -21,7 +23,20 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         public static Spots Mirrored(float degrees, float radius) => new(new(-degrees, radius), new(degrees, radius));
     }
 
-    private static readonly float[] SetStarts = [19.1f, 40.1f, 61.2f, 82.5f];
+    private readonly record struct Cues(float Towers, float TetheredPairsLatest, float TethersGoLive, float Resolve, float Pass,
+                                        float RemotePops, float RemotePopsLatest, float LocalPops, float LocalPopsLatest);
+
+    private static readonly Cues[] SetCues =
+    [
+        new(Towers: 20.1f, TetheredPairsLatest: 24.1f, TethersGoLive: 28f, Resolve: 29.1f, Pass: 29.4f,
+            RemotePops: 31.4f, RemotePopsLatest: 32.6f, LocalPops: 34.1f, LocalPopsLatest: 36.1f),
+        new(Towers: 41.1f, TetheredPairsLatest: 45.1f, TethersGoLive: 49f, Resolve: 50.1f, Pass: 50.4f,
+            RemotePops: 52.4f, RemotePopsLatest: 53.6f, LocalPops: 55.1f, LocalPopsLatest: 57.1f),
+        new(Towers: 62.2f, TetheredPairsLatest: 66.2f, TethersGoLive: 70f, Resolve: 71.2f, Pass: 71.5f,
+            RemotePops: 73.5f, RemotePopsLatest: 74.7f, LocalPops: 76.2f, LocalPopsLatest: 78.2f),
+        new(Towers: 83.5f, TetheredPairsLatest: 87.5f, TethersGoLive: 91f, Resolve: 92.5f, Pass: 92.8f,
+            RemotePops: 94.8f, RemotePopsLatest: 96f, LocalPops: 97.5f, LocalPopsLatest: 99.5f),
+    ];
 
     private static readonly Spots DefamationOuterTowerEdge = Spots.Mirrored(45f, 18.1f);
     private static readonly Spots DefamationTowerCentre = Spots.Mirrored(45f, 13.7f);
@@ -32,7 +47,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
 
     private static readonly Spots RemotePopped = new(new(-141f, 17f), new(149f, 11.6f));
     private static readonly Spots StackSpreadingRot = new(new(-120f, 10f), new(112f, 10f));
-    private static readonly Spots LocalWaitingForVulnsToFade = Spots.Mirrored(42f, 7.7f);
+    private static readonly Spots LocalWaitingForVulnsToFade = new(new(-42f, 7.7f), new(49f, 7.3f));
     private static readonly Spots LocalPopped = Spots.Mirrored(22f, 7.4f);
     private static readonly Spots RemoteBackInStackLane = new(new(-158f, 12f), new(165f, 12f));
 
@@ -43,14 +58,14 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private static readonly Spots LastLocalWaiting = new(new(-167f, 12.9f), new(175f, 12.3f));
 
     private const float SummedWalksThisCloseAreATie = 0.5f;
-    private const float OpeningCrossRadiusClearOfTheLooseSpread = 12f;
-    private const float ReformedCrossRadius = 10f;
-    private static readonly Spots NextDefamationCross = new(new(-45f, ReformedCrossRadius), new(135f, ReformedCrossRadius));
-    private static readonly Spots NextStackCross = new(new(-135f, ReformedCrossRadius), new(45f, ReformedCrossRadius));
-    private const float RotPollSeconds = 0.1f;
-    private const float PollTimeSlack = 0.01f;
-    private const float LastLineUpPoll = 105f;
-    private const float RightStackWaitsForTheCrossingDefamation = 2f;
+    private const float SoakerInPlace = 1f;
+    private const float PollSeconds = 0.1f;
+    private const float RotsGoLive = 8f, WatchTheHumanSeconds = 0.1f;
+    private const float LineUpFrom = 100f, LastLineUpPoll = 105f;
+    private const float SoakersArriveWithin = 7f, ArriveBeforeTethersGoLive = 0.3f, PassesLandWithin = 1.7f;
+    private const float RemotePopsArriveBeforeTheLocalPops = 0.1f;
+    private const float TetherBreakMargin = 0.3f;
+    private const float RemotePopsWithin = 1.7f, LocalPopsWithin = 2.5f, RemotePopVulnLasts = 1.2f;
 
     private static readonly PartyRole[] MonitorsLineUpNorthToSouth =
         [RegenHealer, ShieldHealer, MainTank, OffTank, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
@@ -63,171 +78,207 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
 
     private TopP3HelloWorldState state = null!;
     private SimWorld world = null!;
+    private TopP3HelloWorldTraffic traffic = null!;
     private readonly Dictionary<PartyRole, bool> onRightSide = new();
-    private readonly Dictionary<(int Set, PartyRole Role), float> reformedAt = new();
+    private readonly HashSet<int> stretchedSets = [];
+    private readonly HashSet<(int Set, PartyRole Role)> remotePopsSent = [], localPopsSent = [];
+    private readonly Dictionary<int, float> remoteTetherBrokeAt = new();
     private bool linedUp;
 
     public void Run(TopP3HelloWorldState s, SimWorld w)
     {
         state = s;
         world = w;
+        traffic = new TopP3HelloWorldTraffic(world, holdSpotsThrough: SetCues.Select(cues => cues.Resolve).ToArray());
         onRightSide.Clear();
-        reformedAt.Clear();
+        stretchedSets.Clear();
+        remotePopsSent.Clear();
+        localPopsSent.Clear();
+        remoteTetherBrokeAt.Clear();
         linedUp = false;
-        var ai = new AiManager(world);
-        ai.Move(0.5f, LooseSpread);
-        ai.Move(5f, SplitIntoCardinalCrossByDebuffs);
-        ai.Move(5f, ToUnderTheBoss(PairsWithoutRots), jitter: 0f);
+        world.Events.Add(0.5f, LooseSpread);
         for (var set = 1; set <= TopP3HelloWorldState.Sets; set++)
         {
             var n = set;
-            var start = SetStarts[n - 1];
-            ai.Move(start + 1f, () => SoakersTakeTheirTowers(n));
-            ai.Move(start + 1f, ToUnderTheBoss(() => TetheredPairs(n)), jitter: 0f);
-            ai.Move(start + 5f, () => TetheredPairsFanOutFromUnderTheBoss(n));
-            ai.Move(start + 10.3f, () => PassRotsOnOrStartSpreading(n));
-            ai.Move(start + 12.3f, () => PopRemoteTetherAndSpreadOldRots(n));
-            ai.Move(start + 15f, () => PopLocalTetherClearOfExplodingRots(n));
-            if (n == TopP3HelloWorldState.Sets) continue;
-            for (var t = start + 16.6f; t < SetStarts[n] + 1f; t += RotPollSeconds)
-            {
-                ai.Move(t, () => NextHoldersTakeTheCrossOnceTheOldRotsInTheWayHaveGoneOff(n));
-                ai.Move(t, ToUnderTheBoss(() => OldHoldersWhoseRotsHaveGoneOff(n)), jitter: 0f);
-            }
+            var cues = SetCues[n - 1];
+            world.Events.Add(cues.Towers, () => SoakersTakeTheirTowers(n));
+            Poll(cues.Towers + PollSeconds, cues.TetheredPairsLatest, () => TetheredPairsStretchOnceTheSoakersAreInPlace(n));
+            world.Events.Add(cues.TetheredPairsLatest, () => TetheredPairsStretch(n));
+            world.Events.Add(cues.Pass, () => PassRotsOnOrStartSpreading(n));
+            Poll(cues.RemotePops, cues.RemotePopsLatest, () => PopRemoteTetherAndSpreadOldRotsOnceTheirPassIsDone(n));
+            world.Events.Add(cues.RemotePopsLatest, () => PopRemoteTetherAndSpreadOldRots(n, ready: _ => true));
+            Poll(cues.RemotePops, cues.LocalPopsLatest, () => NoteWhenTheRemoteTetherBroke(n));
+            Poll(cues.LocalPops, cues.LocalPopsLatest, () => PopLocalTetherOnceTheRemoteVulnHasWornOff(n));
+            world.Events.Add(cues.LocalPopsLatest, () => PopLocalTetherClearOfExplodingRots(n, ready: _ => true));
         }
-        for (var t = 100f; t < LastLineUpPoll; t += RotPollSeconds)
-            ai.Move(t, LineUpForMonitorsOnceTheLastRotsHaveGoneOff);
+        Poll(LineUpFrom, LastLineUpPoll, LineUpForMonitorsOnceTheLastRotsHaveGoneOff);
+        Poll(RotsGoLive, LastLineUpPoll, traffic.KeepWatchingTheHuman, every: WatchTheHumanSeconds);
     }
 
-    private IAiMove LooseSpread()
-        => ByRole(role => OnRing(LooseSpreadBearings[role], 8.5f));
-
-    private IAiMove SplitIntoCardinalCrossByDebuffs()
+    private void Poll(float from, float until, Action check, float every = PollSeconds)
     {
-        var defamations = state.WithKit(HelloWorldKit.Defamation);
-        var stacks = state.WithKit(HelloWorldKit.Stack);
-        var defamationAxis = new[] { 0f, 90f }.MinBy(axis => Math.Max(LongestWalkOntoAxis(defamations, axis), LongestWalkOntoAxis(stacks, axis + 90f)));
-        var destinations = new Dictionary<PartyRole, Vector2>();
-        PlaceOntoAxisEnds(defamations, defamationAxis, destinations);
-        PlaceOntoAxisEnds(stacks, defamationAxis + 90f, destinations);
-        return ByRole(role => destinations.TryGetValue(role, out var spot) ? spot : null);
+        for (var t = from; t < until; t += every)
+            world.Events.Add(t, check);
     }
 
-    private IReadOnlyList<PartyRole> PairsWithoutRots()
-        => [.. state.WithKit(HelloWorldKit.RemoteFirst), .. state.WithKit(HelloWorldKit.LocalFirst)];
+    private void LooseSpread()
+        => Send(0, role => OnRing(LooseSpreadBearings[role], 8.5f), deadline: RotsGoLive);
 
-    private IAiMove SoakersTakeTheirTowers(int set)
+    private void SoakersTakeTheirTowers(int set)
     {
         TakeTheClosestSideOfEachPair(set);
-        return ByRole(role => state.RoleIn(set, role) is HelloWorldRole.Defamation or HelloWorldRole.Stack
-            ? ASpot(set, role)
-            : null);
+        traffic.ExpectTheHumanToVisit(TheHumansSpots(set));
+        Send(set, role => IsSoaker(set, role) ? TowerSpot(set, role) : null, deadline: SetCues[set - 1].Towers + SoakersArriveWithin);
     }
 
-    private IReadOnlyList<PartyRole> TetheredPairs(int set)
-        => [.. state.WithRole(set, HelloWorldRole.Remote), .. state.WithRole(set, HelloWorldRole.Local)];
-
-    private IAiMove TetheredPairsFanOutFromUnderTheBoss(int set)
-        => ByRole(role => state.RoleIn(set, role) is HelloWorldRole.Remote or HelloWorldRole.Local
-            ? ASpot(set, role)
-            : null);
-
-    private Vector2 ASpot(int set, PartyRole role) => state.RoleIn(set, role) switch
+    private IEnumerable<Vector2> TheHumansSpots(int set)
     {
-        HelloWorldRole.Defamation => At(set, role, DefamationOuterTowerEdge),
-        HelloWorldRole.Stack => At(set, role, StackInnerTowerEdge),
-        HelloWorldRole.Remote => At(set, role, RemoteInsideStack),
-        _ => At(set, role, IsLastSet(set) ? LastLocalInsideStack : LocalStretchedPastDefamation),
+        var human = world.Party.PlayerRole;
+        return new[] { TowerSpot(set, human), PassSpot(set, human, stackStandsAt: stack => TowerSpot(set, stack)),
+                       RemotePopSpot(set, human), LocalPopSpot(set, human) }.OfType<Vector2>();
+    }
+
+    private void TetheredPairsStretchOnceTheSoakersAreInPlace(int set)
+    {
+        if (SoakersAreInPlace(set)) TetheredPairsStretch(set);
+    }
+
+    private void TetheredPairsStretch(int set)
+    {
+        if (!stretchedSets.Add(set)) return;
+        var cues = SetCues[set - 1];
+        Send(set, role => IsSoaker(set, role) ? null : TowerSpot(set, role), deadline: cues.TethersGoLive - ArriveBeforeTethersGoLive,
+             tether: role => TetherHoldsUntilItsPop(set, role, from: cues.TethersGoLive));
+    }
+
+    private bool SoakersAreInPlace(int set)
+        => PerRole.All.Where(role => IsSoaker(set, role) && Member(role).IsAlive())
+                      .All(role => Vector2.Distance(Flat(Member(role).Position), TowerSpot(set, role)) <= SoakerInPlace);
+
+    private bool IsSoaker(int set, PartyRole role) => state.RoleIn(set, role) is HelloWorldRole.Defamation or HelloWorldRole.Stack;
+
+    private void PassRotsOnOrStartSpreading(int set)
+    {
+        var cues = SetCues[set - 1];
+        Send(set, role => PassSpot(set, role, stackStandsAt: stack => Flat(Member(stack).Position)), deadline: cues.Pass + PassesLandWithin,
+             tether: role => TetherHoldsUntilItsPop(set, role, from: cues.Pass), passesWith: role => PassPartner(set, role));
+    }
+
+    private PartyRole? PassPartner(int set, PartyRole role) => IsLastSet(set) ? null : state.RoleIn(set, role) switch
+    {
+        HelloWorldRole.Remote => Side(set, HelloWorldRole.Stack, onRightSide[role]),
+        HelloWorldRole.Local => Side(set, HelloWorldRole.Defamation, onRightSide[role]),
+        HelloWorldRole.Defamation => Side(set, HelloWorldRole.Local, onRightSide[role]),
+        _ => null,
     };
 
-    private IAiMove PassRotsOnOrStartSpreading(int set)
-        => ByRole(role => state.RoleIn(set, role) switch
-        {
-            HelloWorldRole.Defamation => At(set, role, DefamationTowerCentre),
-            HelloWorldRole.Local when !IsLastSet(set) => At(set, role, DefamationTowerCentre),
-            HelloWorldRole.Remote when !IsLastSet(set) => Flat(SameSide(set, HelloWorldRole.Stack, role).Position),
-            HelloWorldRole.Stack when IsLastSet(set) => At(set, role, LastStackStartingToSpread),
-            _ => null,
-        });
+    private void PopRemoteTetherAndSpreadOldRotsOnceTheirPassIsDone(int set)
+        => PopRemoteTetherAndSpreadOldRots(set, ready: role => HasDoneItsPass(set, role));
 
-    private IAiMove PopRemoteTetherAndSpreadOldRots(int set)
-        => ByRole(role => (state.RoleIn(set, role), IsLastSet(set)) switch
-        {
-            (HelloWorldRole.Remote, false) => At(set, role, RemotePopped),
-            (HelloWorldRole.Stack, false) => At(set, role, StackSpreadingRot),
-            (HelloWorldRole.Local, false) => At(set, role, LocalWaitingForVulnsToFade),
-            (HelloWorldRole.Remote, true) => At(set, role, LastRemotePopped),
-            _ => null,
-        });
+    private void PopRemoteTetherAndSpreadOldRots(int set, Func<PartyRole, bool> ready)
+        => SendOnce(set, remotePopsSent, ready, role => RemotePopSpot(set, role),
+                    deadline: SetCues[set - 1].LocalPops - RemotePopsArriveBeforeTheLocalPops,
+                    tether: role => state.RoleIn(set, role) == HelloWorldRole.Remote
+                        ? RemoteTetherHasPopped(role)
+                        : TetherHoldsUntilItsPop(set, role, from: SetCues[set - 1].RemotePops));
 
-    private IAiMove PopLocalTetherClearOfExplodingRots(int set)
-        => ByRole(role => (state.RoleIn(set, role), IsLastSet(set)) switch
-        {
-            (HelloWorldRole.Local, false) => At(set, role, LocalPopped),
-            (HelloWorldRole.Remote, false) => At(set, role, RemoteBackInStackLane),
-            (HelloWorldRole.Stack, true) => At(set, role, LastStackSpreadRot),
-            (HelloWorldRole.Remote, true) => At(set, role, LastRemoteWaiting),
-            (HelloWorldRole.Local, true) => At(set, role, LastLocalWaiting),
-            _ => null,
-        });
+    private void PopLocalTetherOnceTheRemoteVulnHasWornOff(int set)
+        => PopLocalTetherClearOfExplodingRots(set, ready: role => IsTheHuman(role) || state.RoleIn(set, role) != HelloWorldRole.Local
+                                                                  || IsLastSet(set) || RemoteVulnHasWornOff(set));
 
-    private IAiMove NextHoldersTakeTheCrossOnceTheOldRotsInTheWayHaveGoneOff(int set)
-        => ByRole(role => !reformedAt.ContainsKey((set, role)) && CrossSpotOnceClearOfOldRots(set, role) is { } spot
-            ? ReformNow(set, role, spot)
-            : null);
+    private void PopLocalTetherClearOfExplodingRots(int set, Func<PartyRole, bool> ready)
+        => SendOnce(set, localPopsSent, ready, role => LocalPopSpot(set, role), deadline: SetCues[set - 1].LocalPopsLatest,
+                    tether: role => LocalTetherHasPopped(set, role));
 
-    private Vector2? CrossSpotOnceClearOfOldRots(int set, PartyRole role)
+    private void LineUpForMonitorsOnceTheLastRotsHaveGoneOff()
     {
-        var right = onRightSide[role];
-        return (state.RoleIn(set, role), right) switch
-        {
-            (HelloWorldRole.Local, true) when SetTimeReached(set, 16.6f) && RotHasGoneOff(set, HelloWorldRole.Stack, right)
-                => At(set, role, NextDefamationCross),
-            (HelloWorldRole.Local, false) when SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Defamation, right)
-                => At(set, role, NextDefamationCross),
-            (HelloWorldRole.Remote, false) when SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Stack, right)
-                => At(set, role, NextStackCross),
-            (HelloWorldRole.Remote, true) when SetTimeReached(set, 18.3f)
-                                               && RotHasGoneOff(set, HelloWorldRole.Defamation, right)
-                                               && RotHasGoneOff(set, HelloWorldRole.Stack, right)
-                => At(set, role, NextStackCross),
-            _ => null,
-        };
+        var last = TopP3HelloWorldState.Sets;
+        if (linedUp || !new[] { false, true }.All(right => RotHasGoneOff(last, HelloWorldRole.Defamation, right)
+                                                          && RotHasGoneOff(last, HelloWorldRole.Stack, right)))
+            return;
+        linedUp = true;
+        Send(0, role => OnRing(320f - 15.1f * Array.IndexOf(MonitorsLineUpNorthToSouth, role), 13.15f), deadline: LastLineUpPoll);
     }
 
-    private IReadOnlyList<PartyRole> OldHoldersWhoseRotsHaveGoneOff(int set)
+    private Vector2 TowerSpot(int set, PartyRole role) => At(set, role, SpotsOf(set, state.RoleIn(set, role)));
+
+    private Vector2? PassSpot(int set, PartyRole role, Func<PartyRole, Vector2> stackStandsAt) => state.RoleIn(set, role) switch
     {
-        var going = PerRole.All.Where(role => !reformedAt.ContainsKey((set, role)) && OldHolderMayGoUnderTheBoss(set, role)).ToList();
-        foreach (var role in going) reformedAt[(set, role)] = world.Events.Elapsed;
-        return going;
+        HelloWorldRole.Defamation => At(set, role, DefamationTowerCentre),
+        HelloWorldRole.Local when !IsLastSet(set) => At(set, role, DefamationTowerCentre),
+        HelloWorldRole.Remote when !IsLastSet(set) => stackStandsAt(Side(set, HelloWorldRole.Stack, onRightSide[role])),
+        HelloWorldRole.Stack when IsLastSet(set) => At(set, role, LastStackStartingToSpread),
+        _ => null,
+    };
+
+    private Vector2? RemotePopSpot(int set, PartyRole role) => (state.RoleIn(set, role), IsLastSet(set)) switch
+    {
+        (HelloWorldRole.Remote, false) => At(set, role, RemotePopped),
+        (HelloWorldRole.Stack, false) => At(set, role, StackSpreadingRot),
+        (HelloWorldRole.Local, false) => At(set, role, LocalWaitingForVulnsToFade),
+        (HelloWorldRole.Remote, true) => At(set, role, LastRemotePopped),
+        _ => null,
+    };
+
+    private Vector2? LocalPopSpot(int set, PartyRole role) => (state.RoleIn(set, role), IsLastSet(set)) switch
+    {
+        (HelloWorldRole.Local, false) => At(set, role, LocalPopped),
+        (HelloWorldRole.Remote, false) => At(set, role, RemoteBackInStackLane),
+        (HelloWorldRole.Stack, true) => At(set, role, LastStackSpreadRot),
+        (HelloWorldRole.Remote, true) => At(set, role, LastRemoteWaiting),
+        (HelloWorldRole.Local, true) => At(set, role, LastLocalWaiting),
+        _ => null,
+    };
+
+    private Tether? TetherHoldsUntilItsPop(int set, PartyRole role, float from) => (state.RoleIn(set, role), IsLastSet(set)) switch
+    {
+        (HelloWorldRole.Remote, _) => new Tether(Partner(role), 0f, P3Geometry.RemoteRegressionBreakDistance - TetherBreakMargin, from, SetCues[set - 1].RemotePops),
+        (HelloWorldRole.Local, false) => new Tether(Partner(role), P3Geometry.LocalRegressionBreakDistance + TetherBreakMargin, float.MaxValue, from, SetCues[set - 1].LocalPops),
+        _ => null,
+    };
+
+    private Tether? RemoteTetherHasPopped(PartyRole role)
+        => new Tether(Partner(role), P3Geometry.RemoteRegressionBreakDistance + TetherBreakMargin, float.MaxValue,
+                      world.Events.Elapsed + RemotePopsWithin, world.Events.Elapsed + RemotePopsWithin);
+
+    private Tether? LocalTetherHasPopped(int set, PartyRole role)
+        => state.RoleIn(set, role) == HelloWorldRole.Local && !IsLastSet(set)
+            ? new Tether(Partner(role), 0f, P3Geometry.LocalRegressionBreakDistance - TetherBreakMargin,
+                         world.Events.Elapsed + LocalPopsWithin, world.Events.Elapsed + LocalPopsWithin)
+            : null;
+
+    private bool HasDoneItsPass(int set, PartyRole role) => (state.RoleIn(set, role), IsLastSet(set)) switch
+    {
+        (HelloWorldRole.Local, false) => HoldsItsRot(role, state.DefamationColour),
+        (HelloWorldRole.Remote, false) => HoldsItsRot(role, state.StackColour),
+        (HelloWorldRole.Stack, false) => HoldsItsRot(Side(set, HelloWorldRole.Remote, onRightSide[role]), state.StackColour),
+        _ => true,
+    };
+
+    private bool HoldsItsRot(PartyRole role, HelloWorldColour colour) => !Member(role).IsAlive() || Member(role).HasStatus(colour.RotStatusId);
+
+    private void NoteWhenTheRemoteTetherBroke(int set)
+    {
+        if (!remoteTetherBrokeAt.ContainsKey(set)
+            && state.WithRole(set, HelloWorldRole.Remote).All(role => !Member(role).IsAlive() || !Member(role).HasStatus(P3StatusId.RemoteRegression)))
+            remoteTetherBrokeAt[set] = world.Events.Elapsed;
     }
 
-    private bool OldHolderMayGoUnderTheBoss(int set, PartyRole role)
+    private bool RemoteVulnHasWornOff(int set)
+        => remoteTetherBrokeAt.TryGetValue(set, out var brokeAt) && world.Events.Elapsed >= brokeAt + RemotePopVulnLasts;
+
+    private bool IsTheHuman(PartyRole role) => role == world.Party.PlayerRole;
+
+    private void SendOnce(int set, HashSet<(int Set, PartyRole Role)> sent, Func<PartyRole, bool> ready, Func<PartyRole, Vector2?> destination,
+                          float deadline, Func<PartyRole, Tether?> tether)
     {
-        var right = onRightSide[role];
-        return (state.RoleIn(set, role), right) switch
-        {
-            (HelloWorldRole.Defamation, _) => SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Defamation, right),
-            (HelloWorldRole.Stack, false) => SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Stack, right),
-            (HelloWorldRole.Stack, true) => SetTimeReached(set, 18.6f)
-                                            && RotHasGoneOff(set, HelloWorldRole.Stack, right)
-                                            && RightDefamationHasCrossedPast(set),
-            _ => false,
-        };
+        var going = PerRole.All.Where(role => !sent.Contains((set, role)) && destination(role) is not null && ready(role)).ToList();
+        if (going.Count == 0) return;
+        sent.UnionWith(going.Select(role => (set, role)));
+        Send(set, role => going.Contains(role) ? destination(role) : null, deadline, tether);
     }
 
-    private bool RightDefamationHasCrossedPast(int set)
-        => reformedAt.TryGetValue((set, Side(set, HelloWorldRole.Local, right: true)), out var sent)
-           && world.Events.Elapsed + PollTimeSlack >= sent + RightStackWaitsForTheCrossingDefamation;
-
-    private Vector2 ReformNow(int set, PartyRole role, Vector2 spot)
-    {
-        reformedAt[(set, role)] = world.Events.Elapsed;
-        return spot;
-    }
-
-    private bool SetTimeReached(int set, float offset)
-        => world.Events.Elapsed + PollTimeSlack >= SetStarts[set - 1] + offset;
+    private PartyRole Partner(PartyRole role) => state.WithKit(state.KitOf(role)).Single(r => r != role);
 
     private bool RotHasGoneOff(int set, HelloWorldRole holderRole, bool right)
     {
@@ -235,23 +286,6 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         var colour = holderRole == HelloWorldRole.Defamation ? state.DefamationColour : state.StackColour;
         return !holder.IsAlive() || holder!.HasStatus(colour.DebuggerStatusId);
     }
-
-    private IAiMove LineUpForMonitorsOnceTheLastRotsHaveGoneOff()
-    {
-        var last = TopP3HelloWorldState.Sets;
-        var clear = !linedUp && new[] { false, true }.All(right => RotHasGoneOff(last, HelloWorldRole.Defamation, right)
-                                                                  && RotHasGoneOff(last, HelloWorldRole.Stack, right));
-        if (!clear) return ByRole(_ => null);
-        linedUp = true;
-        return ByRole(role => OnRing(320f - 15.1f * Array.IndexOf(MonitorsLineUpNorthToSouth, role), 13.15f));
-    }
-
-    private Func<IAiMove> ToUnderTheBoss(Func<IReadOnlyList<PartyRole>> who)
-        => () =>
-        {
-            var roles = who();
-            return ByRole(role => roles.Contains(role) ? Vector2.Zero : null);
-        };
 
     private void TakeTheClosestSideOfEachPair(int set)
     {
@@ -271,7 +305,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         }
     }
 
-    private Spots SpotsOf(int set, HelloWorldRole role) => role switch
+    private static Spots SpotsOf(int set, HelloWorldRole role) => role switch
     {
         HelloWorldRole.Defamation => DefamationOuterTowerEdge,
         HelloWorldRole.Stack => StackInnerTowerEdge,
@@ -279,30 +313,22 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         _ => IsLastSet(set) ? LastLocalInsideStack : LocalStretchedPastDefamation,
     };
 
-    private float LongestWalkOntoAxis(IReadOnlyList<PartyRole> pair, float axis)
+    private void Send(int set, Func<PartyRole, Vector2?> destination, float deadline, Func<PartyRole, Tether?>? tether = null,
+                      Func<PartyRole, PartyRole?>? passesWith = null)
     {
-        var ends = AxisEnds(axis);
-        var first = Flat(Member(pair[0]).Position);
-        var second = Flat(Member(pair[1]).Position);
-        return Math.Min(Math.Max(Vector2.Distance(first, ends[0]), Vector2.Distance(second, ends[1])),
-                        Math.Max(Vector2.Distance(first, ends[1]), Vector2.Distance(second, ends[0])));
+        var orders = new Dictionary<PartyRole, Order>();
+        foreach (var role in PerRole.All)
+            if (destination(role) is { } spot)
+                orders[role] = new Order(spot, set == 0 ? Lane.Middle : LaneOf(set, role), tether?.Invoke(role), passesWith?.Invoke(role));
+        traffic.Send(orders, deadline);
     }
 
-    private void PlaceOntoAxisEnds(IReadOnlyList<PartyRole> pair, float axis, Dictionary<PartyRole, Vector2> destinations)
+    private Lane LaneOf(int set, PartyRole role) => state.RoleIn(set, role) switch
     {
-        var ends = AxisEnds(axis);
-        var first = Flat(Member(pair[0]).Position);
-        var second = Flat(Member(pair[1]).Position);
-        var keep = Math.Max(Vector2.Distance(first, ends[0]), Vector2.Distance(second, ends[1]));
-        var swap = Math.Max(Vector2.Distance(first, ends[1]), Vector2.Distance(second, ends[0]));
-        destinations[pair[0]] = keep <= swap ? ends[0] : ends[1];
-        destinations[pair[1]] = keep <= swap ? ends[1] : ends[0];
-    }
-
-    private static Vector2[] AxisEnds(float axis) => [OnRing(axis, OpeningCrossRadiusClearOfTheLooseSpread), OnRing(axis + 180f, OpeningCrossRadiusClearOfTheLooseSpread)];
-
-    private SimCharacter SameSide(int set, HelloWorldRole role, PartyRole of)
-        => Member(Side(set, role, onRightSide[of]));
+        HelloWorldRole.Defamation => Lane.DefamationRing,
+        HelloWorldRole.Stack => Lane.StackRing,
+        _ => Lane.Middle,
+    };
 
     private PartyRole Side(int set, HelloWorldRole role, bool right)
         => state.WithRole(set, role).Single(r => onRightSide[r] == right);
@@ -323,7 +349,4 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private SimCharacter Member(PartyRole role) => world.Party.Get(role)!;
 
     private static Vector2 Flat(Vector3 position) => new(position.X, position.Z);
-
-    private static IAiMove ByRole(Func<PartyRole, Vector2?> destination)
-        => AiMove.Create(PerRole.All.Select(destination).ToArray()).NaturalOrder();
 }
