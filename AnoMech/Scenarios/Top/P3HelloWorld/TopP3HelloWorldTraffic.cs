@@ -15,7 +15,7 @@ namespace AnoMech.Scenarios.Top.P3HelloWorld;
 // part). A bot takes the straight line when it keeps clear of everyone it could swap a rot with,
 // else the earliest clear wait or detour: rot holders round the outside of the boss's hitbox, the
 // defamation rings outside the stack rings, tether players through the middle.
-internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vector2, float, bool> mayStandAsideAt)
+internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyList<float> holdSpotsThrough)
 {
     public enum Lane { Middle, StackRing, DefamationRing }
 
@@ -34,6 +34,7 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, Func<PartyR
     private const float JitterRadius = 0.3f;
     private const float SampleSeconds = 0.05f;
     private const float OffPlanDrift = 1f;
+    private const float HoldSpotsAhead = 1.5f;
 
     // Seconds a route may arrive later and still be preferred: walking over sprinting, and the
     // lanes over any other one-corner detour.
@@ -316,6 +317,11 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, Func<PartyR
         warnedOnOrder[role] = ordersGiven[role];
         DiagnosticLog.Warn($"[P3 Hello World] {(PartyRole)role} {problem}.");
     }
+
+    // From a little before each resolve until it goes off, every bot stands where the resolve needs
+    // it: in its tower, in its stack, clear of the towers it must not soak.
+    private float HoldsItsSpotFrom
+        => holdSpotsThrough.Where(resolve => resolve >= now).DefaultIfEmpty(float.PositiveInfinity).Min() - HoldSpotsAhead;
 
     // AiManager's jitter, from the same stream.
     private Vector2 Jittered(Vector2 spot)

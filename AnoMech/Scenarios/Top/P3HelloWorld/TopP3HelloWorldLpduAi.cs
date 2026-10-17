@@ -57,11 +57,6 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private static readonly Spots LastRemoteWaiting = new(new(-154f, 14.6f), new(153f, 11.9f));
     private static readonly Spots LastLocalWaiting = new(new(-167f, 12.9f), new(175f, 12.3f));
 
-    private static readonly Spots DefamationColourTowers = Spots.Mirrored(45f, P3Geometry.TowerRingRadius);
-    private static readonly Spots StackColourTowers = Spots.Mirrored(135f, P3Geometry.TowerRingRadius);
-    private const float TowerRadius = 6f;
-    private const float TowerEdgeMargin = 0.2f, BackInTheTowerAhead = 1.5f;
-
     private const float SummedWalksThisCloseAreATie = 0.5f;
     private const float SoakerInPlace = 1f;
     private const float PollSeconds = 0.1f;
@@ -88,20 +83,18 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private readonly HashSet<int> stretchedSets = [];
     private readonly HashSet<(int Set, PartyRole Role)> remotePopsSent = [], localPopsSent = [];
     private readonly Dictionary<int, float> remoteTetherBrokeAt = new();
-    private int towersUp;
     private bool linedUp;
 
     public void Run(TopP3HelloWorldState s, SimWorld w)
     {
         state = s;
         world = w;
-        traffic = new TopP3HelloWorldTraffic(world, SoakersAreBackInTheirOwnTowerAsItGoesOff);
+        traffic = new TopP3HelloWorldTraffic(world, holdSpotsThrough: SetCues.Select(cues => cues.Resolve).ToArray());
         onRightSide.Clear();
         stretchedSets.Clear();
         remotePopsSent.Clear();
         localPopsSent.Clear();
         remoteTetherBrokeAt.Clear();
-        towersUp = 0;
         linedUp = false;
         world.Events.Add(0.5f, LooseSpread);
         for (var set = 1; set <= TopP3HelloWorldState.Sets; set++)
@@ -133,7 +126,6 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
 
     private void SoakersTakeTheirTowers(int set)
     {
-        towersUp = set;
         TakeTheClosestSideOfEachPair(set);
         traffic.ExpectTheHumanToVisit(TheHumansSpots(set));
         Send(set, role => IsSoaker(set, role) ? TowerSpot(set, role) : null, deadline: SetCues[set - 1].Towers + SoakersArriveWithin);
@@ -294,24 +286,6 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         var colour = holderRole == HelloWorldRole.Defamation ? state.DefamationColour : state.StackColour;
         return !holder.IsAlive() || holder!.HasStatus(colour.DebuggerStatusId);
     }
-
-    private bool SoakersAreBackInTheirOwnTowerAsItGoesOff(PartyRole role, Vector2 spot, float until)
-    {
-        var set = towersUp;
-        if (set == 0 || !IsSoaker(set, role)) return true;
-        var resolve = SetCues[set - 1].Resolve;
-        if (world.Events.Elapsed > resolve || until < resolve - BackInTheTowerAhead) return true;
-        var soaked = TowerCentreOf(set, role);
-        return TowerCentres(set).All(centre => centre == soaked
-            ? Vector2.Distance(spot, centre) <= TowerRadius - TowerEdgeMargin
-            : Vector2.Distance(spot, centre) >= TowerRadius + TowerEdgeMargin);
-    }
-
-    private IEnumerable<Vector2> TowerCentres(int set)
-        => [OnLayout(set, DefamationColourTowers.L), OnLayout(set, DefamationColourTowers.R), OnLayout(set, StackColourTowers.L), OnLayout(set, StackColourTowers.R)];
-
-    private Vector2 TowerCentreOf(int set, PartyRole role)
-        => At(set, role, state.RoleIn(set, role) == HelloWorldRole.Defamation ? DefamationColourTowers : StackColourTowers);
 
     private void TakeTheClosestSideOfEachPair(int set)
     {

@@ -187,13 +187,14 @@ internal sealed partial class TopP3HelloWorldTraffic
         var round = steppedAsideRound[role] ?? (walking ? Position(role) : homes[role] ?? Position(role));
         var human = plans[Human]!;
         var passed = human.Max(p => p.Arrival);
-        var aside = StepAsideSpots(role, round, human, passed, until: passed + StepBackAfter)
-                    .Select(spot => ClearWalk(role, spot))
-                    .FirstOrDefault(route => route is not null);
+        var holds = passed + StepBackAfter >= HoldsItsSpotFrom;
+        var aside = holds ? null : StepAsideSpots(role, round, human, passed)
+                                   .Select(spot => ClearWalk(role, spot))
+                                   .FirstOrDefault(route => route is not null);
         if (aside is null)
         {
             if (walking) Go(role, onward.Route, lanes[role]);
-            WarnOncePerOrder(role, "has nowhere to step aside from the human");
+            if (!holds) WarnOncePerOrder(role, "has nowhere to step aside from the human");
             return;
         }
         DiagnosticLog.Info($"[P3 Hello World] {(PartyRole)role} steps aside from the human to ({aside.Destination.X:F1},{aside.Destination.Y:F1}).");
@@ -203,12 +204,16 @@ internal sealed partial class TopP3HelloWorldTraffic
         world.Events.Add(Math.Min(passed + StepBackAfter, aside.Arrival + StepBackRetry) - now, () => StepBack(role, version));
     }
 
-    // Until a new order comes, it keeps trying to get back to its spot.
+    // Until a new order comes, it keeps trying to get back to its spot, and goes back anyway in time
+    // for a resolve.
     private void StepBack(int role, int version)
     {
         if (versions[role] != version || !Alive(role) || homes[role] is not { } home) return;
         Observe();
-        if (ClearRoute(role, home, lanes[role], Math.Max(deadlines[role], now + Waits[^1] + 1f)) is { } route)
+        var deadline = Math.Min(Math.Max(deadlines[role], now + Waits[^1] + 1f), HoldsItsSpotFrom);
+        var route = ClearRoute(role, home, lanes[role], deadline);
+        if (route is null && now + StepBackRetry >= HoldsItsSpotFrom) route = BestRoute(role, home, lanes[role], HoldsItsSpotFrom);
+        if (route is not null)
         {
             steppedAsideRound[role] = null;
             Go(role, route, lanes[role]);
@@ -217,13 +222,13 @@ internal sealed partial class TopP3HelloWorldTraffic
     }
 
     // The nearest spots round it that the human's walks pass far enough from.
-    private IEnumerable<Vector2> StepAsideSpots(int role, Vector2 round, Path[] human, float passed, float until)
+    private IEnumerable<Vector2> StepAsideSpots(int role, Vector2 round, Path[] human, float passed)
     {
         var at = Position(role);
         return StepAsideDistances
                .SelectMany(k => Enumerable.Range(0, StepAsideDirections).Select(i => round + k * Heading(360f * i / StepAsideDirections)))
                .Prepend(round)
-               .Where(spot => spot.Length() < TopConstants.Geometry.ArenaRadius - 1f && mayStandAsideAt((PartyRole)role, spot, until))
+               .Where(spot => spot.Length() < TopConstants.Geometry.ArenaRadius - 1f)
                .OrderBy(spot => Vector2.Distance(spot, at))
                .Where(spot => ClosestApproach(spot, human, passed) >= StepAsideClearance);
     }
