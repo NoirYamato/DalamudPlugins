@@ -100,7 +100,7 @@ public class TopP3HelloWorldLpduAiTests
             [OffTank] = (-45, 13.7f), [MainTank] = (45, 13.7f),
             [MeleeDpsB] = (-141, 17f), [MeleeDpsA] = (149, 11.6f),
             [ShieldHealer] = (-120, 10f), [RegenHealer] = (112, 10f),
-            [PhysRangedDps] = (-42, 7.7f), [CasterDps] = (42, 7.7f),
+            [PhysRangedDps] = (-42, 7.7f), [CasterDps] = (49, 7.3f),
         });
 
     [Test]
