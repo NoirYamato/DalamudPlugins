@@ -13,7 +13,8 @@ using Actions = AnoMech.Scenarios.Top.TopP3Actions;
 
 namespace AnoMech.Scenarios.Top.P3HelloWorld;
 
-// Every failure kills whoever is at fault, with the reason, instead of the game's delayed wipes.
+// A mistake kills whoever made it on the spot, with the reason, instead of the game's delayed
+// wipes; only an unsoaked tower and an unbroken regression still take everyone.
 public sealed class TopP3HelloWorldScenario : IScenario
 {
     public string Name => "Hello World";
@@ -251,8 +252,8 @@ public sealed class TopP3HelloWorldScenario : IScenario
     private void ResolveSet(float nextResolve)
     {
         var untilNext = nextResolve - world.Events.Elapsed;
-        var soaks = towers.Select(t => (t.Helper, t.Colour,
-                                        Soakers: t.Helper is { } h ? party.Find.InsideActionAoe(t.Colour.TowerActionId, h.Placement()) : []))
+        var soaks = towers.Where(t => t.Helper is not null)
+                          .Select(t => (t.Helper, t.Colour, Soakers: party.Find.InsideActionAoe(t.Colour.TowerActionId, t.Helper!.Placement())))
                           .ToList();
         var stacks = Alive().Where(m => Held(m).StackBug)
                             .Select(m => (Holder: m, Hits: party.Find.InsideActionAoe(P3ActionId.Stack, m.Placement())))
