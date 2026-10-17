@@ -9,6 +9,8 @@ NoirMech change:
 - TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`, strat index 1),
   `Group => "NA"` on upstream's strat, and no Spotlight in solo runs (a solo stack target stood alone and died);
 - the user pause (below);
+- TOP P3 (below): the Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the `TopZone.P3` phase,
+  and `TopP3Constants.cs` (P3 ids, kept out of upstream's `TopConstants.cs`);
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -51,6 +53,10 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   `-- 'TestRunParameters.Parameter(name="SunnySeeds", value="2000")'` from Git Bash (PowerShell 5.1 strips the
   inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces).
 
+- Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
+  cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
+  development PC.
+
 ## LPDU strat timing
 Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only extra step. The flex has no
 `arrivalTime` so it is done before the dodge is planned: `AiManager`'s deferred `MoveTo` can't be cancelled and
@@ -79,3 +85,20 @@ append new strats rather than reorder (`selectedAi` is an index), and give every
 - A paused run doesn't count toward the streak. Known gaps: knockbacks and carries finish during the pause,
   BGM runs on, short head-marker VFX can expire, and GCD and cooldowns keep running.
 - `tests/AnoMech.Tests/Core/Game/GamePauseTests.cs` covers this headlessly.
+
+## TOP P3
+`Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the `TopZone.P3` phase. Their ids are in
+`TopP3Constants.cs`. Values nobody has measured (weather, BGM, tower ring radius, rot contact radius, tether
+break distances, some durations) are marked UNVERIFIED there; tune them in that one place.
+- Hello World tracks each player's debuffs itself (pairs rotating through defamation, remote tether, stack and
+  local tether; rots spreading on contact; Debuggers as immunity) and decides every kill with a death
+  explanation. Fixed events are absolute time literals in `Run`; expiries that depend on play run from
+  `IScenario.Tick`.
+- Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
+  They plan each walk round everyone's live positions and debuffs, give the human more room than each other
+  (`HumanSwapClearance`), step aside for it, and hold their spots through each resolve. The bots-only soak
+  can't see human conflicts, so change bot movement only with `TopP3HelloWorldLpduHumanTests` green: it
+  scripts the player's seat through every kit, seat, walking style and reaction delay.
+- Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
+  as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
+  arrive.

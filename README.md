@@ -59,6 +59,8 @@ Full steps: https://github.com/NoirYamato/DalamudPlugins
       - NA pf strat
       - EU
         - [\[LPDU\] BPOG/GOPB](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1)
+    - P3 Hello World _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1)
+    - P3 Monitors _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1)
     - P5 Delta _NA pf strats_
     - P5 Sigma _NA pf strats_
     - P5 Omega _NA pf strats_
