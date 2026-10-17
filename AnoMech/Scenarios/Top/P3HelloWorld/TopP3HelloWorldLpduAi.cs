@@ -42,6 +42,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private static readonly Spots LastRemoteWaiting = new(new(-154f, 14.6f), new(153f, 11.9f));
     private static readonly Spots LastLocalWaiting = new(new(-167f, 12.9f), new(175f, 12.3f));
 
+    private const float SummedWalksThisCloseAreATie = 0.5f;
     private const float CardinalCrossRadius = 10f;
     private static readonly Spots NextDefamationCross = new(new(-45f, CardinalCrossRadius), new(135f, CardinalCrossRadius));
     private static readonly Spots NextStackCross = new(new(-135f, CardinalCrossRadius), new(45f, CardinalCrossRadius));
@@ -201,8 +202,9 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             var right = OnLayout(set, spots.R);
             var keep = Vector2.Distance(first, left) + Vector2.Distance(second, right);
             var swap = Vector2.Distance(first, right) + Vector2.Distance(second, left);
-            onRightSide[pair[0]] = swap < keep;
-            onRightSide[pair[1]] = !(swap < keep);
+            var higherPriorityTakesRight = swap < keep - SummedWalksThisCloseAreATie;
+            onRightSide[pair[0]] = higherPriorityTakesRight;
+            onRightSide[pair[1]] = !higherPriorityTakesRight;
         }
     }
 
