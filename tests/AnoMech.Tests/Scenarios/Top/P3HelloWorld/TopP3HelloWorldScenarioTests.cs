@@ -13,7 +13,7 @@ namespace AnoMech.Tests;
 // remote first, R1+R2 local first, and the blue towers at S and W in every set. Set 1 as the AI
 // plays it (x east, z south):
 //
-//   7.9   cross: MT (0,-10), OT (0,10), H1 (-10,0), H2 (10,0); M1 M2 R1 R2 under the boss.
+//   7.9   cross: MT (0,-12), OT (0,12), H1 (-12,0), H2 (12,0); M1 M2 R1 R2 under the boss.
 //   27.9  towers: OT (0,18.1) in the S blue tower, MT (-18.1,0) in the W one, H2 (11.35,-3.91) in
 //         the E red tower, H1 (3.91,-11.35) in the N one; M1 (9.77,-5.87) and M2 (5.87,-9.77) in
 //         the stacks; R1 (6.88,12.42) and R2 (-12.42,-6.88) in OT's and MT's defamations.
@@ -84,6 +84,39 @@ public class TopP3HelloWorldScenarioTests
         => HelloWorld(PhysRangedDps)
             .TeleportAt(33f, to: new(-8, 16))
             .ShouldKill(ActionId.HwTetherFail, PerRole.All);
+
+    // M1 stays on H2 after taking its rot, so M2's pop leaves the remote pair 11.3 apart.
+    [Test]
+    public void UnbrokenRemoteTetherWipesWhenItRunsOut()
+        => HelloWorld(MeleeDpsA)
+            .FreezeAt(31f)
+            .ShouldKill(ActionId.HwTetherFail, PerRole.All);
+
+    // H2 edges toward H1 inside its tower and M1 stands between them, 4.7 from each.
+    [Test]
+    public void TwoStacksKillWhoeverBothHit()
+        => HelloWorld(MeleeDpsA)
+            .TeleportAt(28.5f, to: new(7.39f, -8.21f))
+            .MoveBotAt(28.6f, ShieldHealer, to: new(10.88f, -5.07f))
+            .ShouldKill(P3ActionId.Stack, MeleeDpsA);
+
+    // R1, set 3's left remote, waits clear of every stack, defamation and tower, so MT's stack goes
+    // off alone and nothing cleanses R1.
+    [Test]
+    public void LatentSynchronizationBugKillsWhoeverNoStackHit()
+        => HelloWorld(PhysRangedDps)
+            .TeleportAt(70.5f, to: new(3.54f, -3.54f))
+            .ShouldKill(P3ActionId.Stack, MainTank)
+            .ShouldKill(P3ActionId.LatentSynchronizationBugExpired, PhysRangedDps);
+
+    // H1, set 2's left local, sidesteps the defamations and comes back for its rot, so it never
+    // carries a defamation of its own; neither does M1, whom H1's set-3 defamation should have hit.
+    [Test]
+    public void CriticalErrorKillsWhoeverNeverResolvedADefamation()
+        => HelloWorld(RegenHealer)
+            .MoveBotAt(49.95f, RegenHealer, to: new(3.54f, -3.54f))
+            .MoveBotAt(50.2f, RegenHealer, to: new(6.88f, 12.42f))
+            .ShouldKill(P3ActionId.CriticalError, RegenHealer, MeleeDpsA);
 
     // R1 meets R2 as the remote tether pops: the second Patch lands on the first one's vuln.
     [Test]

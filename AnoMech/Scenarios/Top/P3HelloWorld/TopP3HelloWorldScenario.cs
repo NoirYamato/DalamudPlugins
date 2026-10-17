@@ -14,7 +14,8 @@ using Actions = AnoMech.Scenarios.Top.TopP3Actions;
 namespace AnoMech.Scenarios.Top.P3HelloWorld;
 
 // A mistake kills whoever made it on the spot, with the reason, instead of the game's delayed
-// wipes; only an unsoaked tower and an unbroken regression still take everyone.
+// wipes; only an unsoaked tower, an unbroken regression and two tether breaks within a second
+// still take everyone.
 public sealed class TopP3HelloWorldScenario : IScenario
 {
     public string Name => "Hello World";

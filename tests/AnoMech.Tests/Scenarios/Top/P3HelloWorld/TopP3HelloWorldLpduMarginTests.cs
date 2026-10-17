@@ -66,6 +66,7 @@ public class TopP3HelloWorldLpduMarginTests
         var before = new Dictionary<PartyRole, HashSet<ushort>>();
         var bugHolders = new List<(SimCharacter Holder, bool Defamation)>();
         var breaks = new List<float>();
+        ushort? defamationRot = null;
         return p =>
         {
             var now = new Dictionary<PartyRole, HashSet<ushort>>();
@@ -73,6 +74,9 @@ public class TopP3HelloWorldLpduMarginTests
                 if (p.Member(role) is { } member && member.IsAlive())
                     now[role] = member.ActiveStatuses.Select(s => s.StatusId).ToHashSet();
             var set = SetStarts.Count(start => p.Time >= start);
+            defamationRot ??= now.Values.Where(s => s.Contains(P3StatusId.CriticalOverflowBug))
+                                 .SelectMany(s => s.Where(id => id is P3StatusId.RedRot or P3StatusId.BlueRot))
+                                 .Cast<ushort?>().FirstOrDefault();
 
             foreach (var resolve in Resolves.Where(r => p.Crossed(r - 0.05f)))
             {
@@ -95,6 +99,9 @@ public class TopP3HelloWorldLpduMarginTests
                 {
                     margins.Passes++;
                     if (!InPass(p.Time)) margins.Problems.Add($"seed {seed}: {role} caught a rot at t={p.Time:F2}, outside the passes");
+                    foreach (var rot in statuses.Except(had).Where(id => id is P3StatusId.RedRot or P3StatusId.BlueRot))
+                        if (!statuses.Contains(rot == defamationRot ? P3StatusId.CriticalOverflowBug : P3StatusId.CriticalSynchronizationBug))
+                            margins.Problems.Add($"seed {seed}: {role} took a rot at t={p.Time:F2} meant for the other pass");
                 }
                 if (had.Except(statuses).Any(id => id is P3StatusId.LocalRegression or P3StatusId.RemoteRegression)
                     && breaks.All(b => p.Time - b > 0.01f))
