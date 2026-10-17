@@ -32,6 +32,9 @@ public sealed record HelloWorldColour(
     public static readonly IReadOnlyList<HelloWorldColour> Both = [Red, Blue];
 
     public HelloWorldColour Other => Index == Red.Index ? Blue : Red;
+
+    // The generated one prints Other, whose Other is this colour again, until the stack runs out.
+    public override string ToString() => Index == Red.Index ? "Red" : "Blue";
 }
 
 public sealed class TopP3HelloWorldState
