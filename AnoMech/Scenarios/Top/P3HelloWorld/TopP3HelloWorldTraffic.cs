@@ -27,7 +27,8 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
     public readonly record struct Order(Vector2 Destination, Lane Lane, Tether? Tether = null, PartyRole? PassesWith = null);
 
     private const float RunSpeed = 6.5f, SprintSpeed = AiManager.SprintSpeed;
-    private const float SwapClearance = 2f;
+    // The human can set off at any moment, so a route passing it keeps further away than one passing a bot.
+    private const float SwapClearance = 2f, HumanSwapClearance = 3.5f;
     private const float ExplosionClearance = 6f;
     private const float ExplosionLead = 0.4f, ExplosionTail = 0.1f;
     private const float SettlingAfterArrival = 1f;
@@ -232,9 +233,10 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
 
     private float SwapClearanceOwed(Path route, int other, bool strict)
     {
-        var designed = strict ? SwapClearance : Vector2.Distance(route.Destination, plans[other]![^1].Destination) - 0.05f;
+        var wanted = other == Human ? HumanSwapClearance : SwapClearance;
+        var designed = strict ? wanted : Vector2.Distance(route.Destination, plans[other]![^1].Destination) - 0.05f;
         var already = DistanceTo(route.At(now), plans[other]!, now) - 0.05f;
-        return Math.Min(SwapClearance, Math.Min(designed, already));
+        return Math.Min(wanted, Math.Min(designed, already));
     }
 
     private float TetherShortfall(Path route, Tether rule)
@@ -303,6 +305,8 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
 
     // The two meet at a pass, one walking onto the other to take its rot.
     private bool PassTheirRot(int role, int with) => passesWith[role] == with || passesWith[with] == role;
+
+    private bool HoldsARot(int role) => HelloWorldColour.Both.Any(colour => world.Party.Get(role)!.HasStatus(colour.RotStatusId));
 
     private bool Passes(int holder, int other, HelloWorldColour colour)
     {

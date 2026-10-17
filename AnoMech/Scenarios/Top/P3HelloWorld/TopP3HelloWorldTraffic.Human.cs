@@ -29,6 +29,7 @@ internal sealed partial class TopP3HelloWorldTraffic
     private const float StepAsideClearance = 2.6f;
     private static readonly float[] StepAsideDistances = [1f, 1.5f, 2f, 2.6f, 3.2f, 4f, 5f];
     private const int StepAsideDirections = 16;
+    private const float LaneSlack = 0.5f;
     private const float StepBackAfter = 0.3f, StepBackRetry = 0.5f;
 
     private Vector2? humanDestination;
@@ -221,17 +222,23 @@ internal sealed partial class TopP3HelloWorldTraffic
         else world.Events.Add(StepBackRetry, () => StepBack(role, version));
     }
 
-    // The nearest spots round it that the human's walks pass far enough from.
+    // The nearest spots round it that the human's walks pass far enough from, first those away from
+    // the human's lane: holding a rot it keeps to the outside, without one to the inside.
     private IEnumerable<Vector2> StepAsideSpots(int role, Vector2 round, Path[] human, float passed)
     {
         var at = Position(role);
+        var humanKeepsOutside = HoldsARot(Human);
         return StepAsideDistances
                .SelectMany(k => Enumerable.Range(0, StepAsideDirections).Select(i => round + k * Heading(360f * i / StepAsideDirections)))
                .Prepend(round)
                .Where(spot => spot.Length() < TopConstants.Geometry.ArenaRadius - 1f)
-               .OrderBy(spot => Vector2.Distance(spot, at))
+               .OrderBy(spot => IntoTheHumansLane(spot, round, humanKeepsOutside))
+               .ThenBy(spot => Vector2.Distance(spot, at))
                .Where(spot => ClosestApproach(spot, human, passed) >= StepAsideClearance);
     }
+
+    private static bool IntoTheHumansLane(Vector2 spot, Vector2 round, bool humanKeepsOutside)
+        => humanKeepsOutside ? spot.Length() > round.Length() + LaneSlack : spot.Length() < round.Length() - LaneSlack;
 
     private Path? ClearWalk(int role, Vector2 to)
         => Speeds.Select(speed => Path.Walk(Position(role), now, now, [to], speed))
