@@ -79,13 +79,12 @@ public sealed class TopP3MonitorsScenario : IScenario
     // Every target is picked before the first circle lands, so a death can't change the later picks.
     private void FireMonitors()
     {
-        var alive = party.ActiveMembers().ToList();
-        var targets = MonitorTargets(alive, OmegaSpot, state.OmegaSide, owner: null, world.Rng).ToList();
+        var targets = MonitorTargets(OmegaSpot, state.OmegaSide, owner: null).ToList();
         foreach (var role in state.Monitors.List)
         {
             if (party.Get(role) is not { } owner || !owner.IsAlive()) continue;
             var side = state.SideOf(role);
-            targets.AddRange(MonitorTargets(alive, owner.Placement(), side, owner, world.Rng));
+            targets.AddRange(MonitorTargets(owner.Placement(), side, owner));
             owner.RemoveStatus(side.StatusId());
         }
 
@@ -97,29 +96,6 @@ public sealed class TopP3MonitorsScenario : IScenario
         }
     }
 
-    // The two nearest the owner in its beam; a beam with fewer inside fills up with anyone else
-    // alive, at random. UNVERIFIED which two the game takes when more stand inside: P5's monitors
-    // take two at random from the side instead.
-    internal static IReadOnlyList<T> MonitorTargets<T>(IReadOnlyList<T> alive, Placement ownerPlacement, MonitorSide side, T? owner, Rng rng)
-        where T : class, IPositioned
-    {
-        var candidates = alive.Where(m => !ReferenceEquals(m, owner)).ToList();
-        var picked = candidates.Where(m => InBeam(ownerPlacement, side, m.Position))
-                               .OrderBy(m => ownerPlacement.DistanceSq(m.Position))
-                               .Take(TargetsPerMonitor)
-                               .ToList();
-        if (picked.Count < TargetsPerMonitor)
-            picked.AddRange(rng.Shuffle(candidates.Except(picked)).Take(TargetsPerMonitor - picked.Count));
-        return picked;
-    }
-
-    // The half-plane on `side` of the line through the owner along its facing, with the owner's
-    // right hand where CharacterFind.OnSideN puts it, so P3's monitors aim as P5's do.
-    internal static bool InBeam(Placement owner, MonitorSide side, Vector3 point)
-    {
-        var rightX = -MathF.Cos(owner.Rotation);
-        var rightZ = MathF.Sin(owner.Rotation);
-        var dot = (point.X - owner.Position.X) * rightX + (point.Z - owner.Position.Z) * rightZ;
-        return dot * side.Mul() < 0f;
-    }
+    private IReadOnlyList<SimCharacter> MonitorTargets(Placement source, MonitorSide side, SimCharacter? owner)
+        => party.Find.OnSideN(world.Rng, source, side.Mul(), TargetsPerMonitor, exclude: owner);
 }

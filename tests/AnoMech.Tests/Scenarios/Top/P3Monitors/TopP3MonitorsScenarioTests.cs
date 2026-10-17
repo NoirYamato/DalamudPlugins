@@ -25,11 +25,10 @@ public class TopP3MonitorsScenarioTests
 
     private static readonly PartyRole[] Monitors = [OffTank, MeleeDpsA, PhysRangedDps];
 
-    private static NegativeRun<TopP3MonitorsScenario> Slideshow(PartyRole player, OmegaMonitor omega = OmegaMonitor.West,
-                                                               MonitorSide offTankSide = MonitorSide.Left)
+    private static NegativeRun<TopP3MonitorsScenario> Slideshow(PartyRole player)
         => Negative<TopP3MonitorsScenario>(player)
-            .Overrides<TopP3MonitorsStateOverrides>(o =>
-                TopP3MonitorsLpduAiTests.Pin(o, omega, Monitors, [offTankSide, MonitorSide.Right, MonitorSide.Left]));
+            .Overrides<TopP3MonitorsStateOverrides>(o => TopP3MonitorsLpduAiTests.Pin(o, OmegaMonitor.West, Monitors,
+                                                                                      [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]));
 
     [TestCase(OmegaMonitor.West)]
     [TestCase(OmegaMonitor.East)]
@@ -44,10 +43,7 @@ public class TopP3MonitorsScenarioTests
             Probe = p =>
             {
                 if (!p.Crossed(11.5f)) return;
-                var roleById = PerRole.All.Where(r => p.Member(r) is not null)
-                                      .ToDictionary(r => p.Member(r)!.GameObjectId.ObjectId.ToString("X8"), r => r);
-                picks.AddRange(p.Fake.Timeline.Rows.Where(row => row["kind"] == "ability" && row["id"] == $"{Hit}")
-                                .Select(row => roleById[row["target"]]));
+                picks.AddRange(HitTargets(p));
             },
         });
 
@@ -105,25 +101,52 @@ public class TopP3MonitorsScenarioTests
             .TeleportAt(10.5f, to: new(4, 15))
             .ShouldKill(Hit, MeleeDpsB, CasterDps);
 
-    // Facing north, OffTank's monitor aims toward Omega's beam instead of away from it, missing
-    // ShieldHealer and MainTank and taking the two nearest on that side: RegenHealer, whom
-    // MeleeDpsA's monitor also takes, and MeleeDpsA, whom Omega's does.
+    // Facing north, OffTank's monitor aims toward Omega's beam instead of away from it. It misses
+    // ShieldHealer and MainTank and takes two at random of the five on that side, each of whom
+    // another monitor takes too, so those two die.
     [TestCase(OmegaMonitor.West, MonitorSide.Left)]
     [TestCase(OmegaMonitor.East, MonitorSide.Right)]
-    public void MonitorAimedTheWrongWayHitsSomeoneTwice(OmegaMonitor omega, MonitorSide side)
+    public void MonitorAimedTheWrongWayHitsTwoPlayersTwice(OmegaMonitor omega, MonitorSide side)
     {
         var x = omega == OmegaMonitor.East ? -1f : 1f;
-        Slideshow(OffTank, omega, side)
-            .TeleportAt(10.5f, to: new(10.05f * x, -12.18f), facing: FacingNorth)
-            .ShouldKill(Hit, RegenHealer, MeleeDpsA);
+        PartyRole[] onTheWrongSide = [RegenHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
+        var killed = Enumerable.Range(0, 20).Select(seed =>
+        {
+            var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), 0, seed, new ScenarioRunOptions
+            {
+                PlayerRole = OffTank,
+                WriteArtifactsOnFailure = false,
+                Overrides = o => TopP3MonitorsLpduAiTests.Pin((TopP3MonitorsStateOverrides)o, omega, Monitors,
+                                                              [side, MonitorSide.Right, MonitorSide.Left]),
+                Takeovers = [new Takeover(10.5f, new Vector2(10.05f * x, -12.18f), FacingNorth)],
+            });
+            var dead = run.Deaths.Select(d => d.Role).Order().ToArray();
+            Assert.That(run.Failure, Is.Null, run.ToString);
+            Assert.That(run.Deaths.Select(d => d.ActionId), Has.All.EqualTo(Hit), run.ToString);
+            Assert.That(dead, Has.Length.EqualTo(2), run.ToString);
+            Assert.That(dead, Is.SubsetOf(onTheWrongSide), run.ToString);
+            return string.Join(" ", dead);
+        }).ToList();
+
+        Assert.That(killed.Distinct().Count(), Is.GreaterThan(1), string.Join("; ", killed));
     }
 
-    // ShieldHealer and MainTank crowd OffTank, who is MeleeDpsA's target and aims at them: each of
-    // the three is inside all three circles.
+    // ShieldHealer and MainTank crowd OffTank and stay in its beam: both its circles land on all
+    // three of them.
     [Test]
     public void StackingOnAMonitorPlayerKillsEveryoneInTheCircle()
         => Slideshow(ShieldHealer)
             .TeleportAt(10.5f, to: new(11, -10))
             .MoveBotAt(10.5f, MainTank, to: new(12, -11))
             .ShouldKill(Hit, OffTank, ShieldHealer, MainTank);
+
+    // Who each Oversampled Wave Cannon circle has landed on so far, in the order they fired.
+    internal static List<PartyRole> HitTargets(ScenarioProbe p)
+    {
+        var roleById = PerRole.All.Where(r => p.Member(r) is not null)
+                              .ToDictionary(r => p.Member(r)!.GameObjectId.ObjectId.ToString("X8"), r => r);
+        return p.Fake.Timeline.Rows.Where(row => row["kind"] == "ability" && row["id"] == $"{Hit}")
+                .Select(row => roleById[row["target"]])
+                .ToList();
+    }
 }
