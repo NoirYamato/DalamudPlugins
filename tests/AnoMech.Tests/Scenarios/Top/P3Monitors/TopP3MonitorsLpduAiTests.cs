@@ -7,8 +7,9 @@ using static AnoMech.Core.Game.Party.PartyRole;
 namespace AnoMech.Tests;
 
 // The LPDU slideshow's example (https://ff14.toolboxgaming.space/?id=736282987145761): the line-up
-// runs H1 H2 MT OT M1 M2 R1 R2 north to south and OT, M1 and R1 carry monitors, so they are M1-M3
-// and H1 H2 MT M2 R2 are N1-N5. Spots are written for Omega beaming west; east mirrors x.
+// runs RegenHealer ShieldHealer MainTank OffTank MeleeDpsA MeleeDpsB PhysRangedDps CasterDps north
+// to south, and OffTank, MeleeDpsA and PhysRangedDps carry monitors, so they take spots M1-M3 and
+// the other five N1-N5. Spots are written for Omega beaming west; east mirrors x.
 public class TopP3MonitorsLpduAiTests
 {
     private const int LpduStrat = 0;
@@ -42,8 +43,8 @@ public class TopP3MonitorsLpduAiTests
             [PhysRangedDps] = new(-9.98f, 8.56f), [CasterDps] = new(-7.41f, 10.86f),
         }, destinations: true);
 
-    // M1 aims away from Omega's beam, M2 north and M3 south: a left monitor's owner faces a quarter
-    // turn clockwise from the beam, a right one's a quarter turn counter-clockwise.
+    // Spot M1 aims away from Omega's beam, M2 north and M3 south: a left monitor's owner faces a
+    // quarter turn clockwise from the beam, a right one's a quarter turn counter-clockwise.
     [Test]
     public void TakesTheSlideshowSpotsWhenOmegaBeamsWest()
         => AssertSpots(OmegaMonitor.West, SlideshowMonitors, [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left], at: 10.9f, new()
@@ -67,8 +68,8 @@ public class TopP3MonitorsLpduAiTests
             [OffTank] = South, [MeleeDpsA] = East, [PhysRangedDps] = East,
         });
 
-    // H1, M2 and R2 carry the monitors, so H2 MT OT M1 R1 are N1-N5. The player's own seat holds
-    // M2's monitor and is turned like a bot.
+    // RegenHealer, MeleeDpsB and CasterDps carry the monitors, so the other five take N1-N5 in
+    // line-up order. The player's own seat holds spot M2's monitor and is turned like a bot.
     [TestCase(OmegaMonitor.West, MonitorSide.Right, North, MonitorSide.Left, East, MonitorSide.Right, East)]
     [TestCase(OmegaMonitor.East, MonitorSide.Left, North, MonitorSide.Right, West, MonitorSide.Left, West)]
     public void LabelsFollowTheLineUpNotTheSeats(OmegaMonitor omega, MonitorSide firstSide, float firstFacing,
