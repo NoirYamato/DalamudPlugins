@@ -64,6 +64,7 @@ internal sealed class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vec
     private readonly bool[,] canSwap = new bool[8, 8];
     private readonly List<(int Holder, float Time)> explosions = [];
     private float now;
+    private Vector2? humanDestination;
 
     private int Human => (int)world.Party.PlayerRole;
 
@@ -92,10 +93,24 @@ internal sealed class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vec
         }
     }
 
+    // A human later than the guess, or walking another way, is guessed again from where it is, and
+    // whoever is now in its way gets out of it.
+    public void KeepWatchingTheHuman()
+    {
+        if (!Alive(Human) || humanDestination is not { } destination || plans[Human] is not { } guess) return;
+        var at = Position(Human);
+        if (DistanceTo(at, guess, world.Events.Elapsed) <= OffPlanDrift) return;
+        Observe();
+        if (Vector2.Distance(at, destination) > OffPlanDrift) ExpectTheHumanToWalkStraightTo(destination);
+        foreach (var role in InTheHumansWay(except: []))
+            GetOutOfTheHumansWay(role);
+    }
+
     // The human's seat only follows the order under the debug bot driver, as the soak runs it.
     private void ExpectTheHumanToWalkStraightTo(Vector2 destination)
     {
         var from = Position(Human);
+        humanDestination = destination;
         plans[Human] = Enumerable.Range(0, HumanGuesses)
                                  .Select(i => Path.Walk(from, now, now + HumanLatestStart * i / (HumanGuesses - 1), [destination], RunSpeed))
                                  .ToArray();

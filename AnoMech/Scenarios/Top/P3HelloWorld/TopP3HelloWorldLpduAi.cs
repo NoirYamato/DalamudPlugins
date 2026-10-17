@@ -54,6 +54,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private const float SummedWalksThisCloseAreATie = 0.5f;
     private const float SoakerInPlace = 1f;
     private const float PollSeconds = 0.1f;
+    private const float RotsGoLive = 8f, WatchTheHumanSeconds = 0.2f;
     private const float LastLineUpPoll = 105f;
     private const float ArriveBeforeTethersGoLive = 0.3f;
     private const float TetherBreakMargin = 0.3f;
@@ -101,6 +102,8 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         }
         for (var t = 100f; t < LastLineUpPoll; t += PollSeconds)
             world.Events.Add(t, LineUpForMonitorsOnceTheLastRotsHaveGoneOff);
+        for (var t = RotsGoLive; t < LastLineUpPoll; t += WatchTheHumanSeconds)
+            world.Events.Add(t, traffic.KeepWatchingTheHuman);
     }
 
     private void LooseSpread()
