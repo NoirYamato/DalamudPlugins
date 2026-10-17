@@ -82,7 +82,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
             ((IScenarioAi<TopP3HelloWorldState>)AiStrats[idx]).Run(state, world);
 
         world.Events.Add(0f, SpawnOmegaAndHelpers);
-        world.Events.Add(0f, () => omega?.Cast(Actions.HelloWorld));
+        world.Events.Add(0.1f, () => omega?.Cast(Actions.HelloWorld));
         world.Events.Add(5f, ApplyHelloWorldDebuffs);
         world.Events.Add(8f, () => TurnSmellsIntoBugs(firstResolve: 29.1f));
         world.Events.Add(19.1f, () => StartSet(1));
