@@ -49,7 +49,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private static readonly Spots DefamationColourTowers = Spots.Mirrored(45f, P3Geometry.TowerRingRadius);
     private static readonly Spots StackColourTowers = Spots.Mirrored(135f, P3Geometry.TowerRingRadius);
     private const float TowerRadius = 6f;
-    private const float TowerEdgeMargin = 0.5f;
+    private const float TowerEdgeMargin = 0.2f;
 
     private const float SummedWalksThisCloseAreATie = 0.5f;
     private const float SoakerInPlace = 1f;

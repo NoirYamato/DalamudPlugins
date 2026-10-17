@@ -37,7 +37,9 @@ internal sealed class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vec
     private const float HumanLatestStart = 1f;
     private const int HumanGuesses = 6;
     private const float OffPlanDrift = 1f;
-    private static readonly float[] StepAsideDistances = [2.6f, 3.2f, 4f];
+    private const float StepAsideClearance = 2.6f;
+    private static readonly float[] StepAsideDistances = [1f, 1.5f, 2f, 2.6f, 3.2f, 4f, 5f];
+    private const int StepAsideDirections = 16;
     private const float StepBackAfter = 0.3f;
 
     // Seconds a route may arrive later and still be preferred: walking over sprinting, and the
@@ -143,21 +145,13 @@ internal sealed class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vec
         Go(role, BestRoute(role, home, lanes[role], now + Waits[^1] + 1f), lanes[role]);
     }
 
-    // Square off the human's line, nearest first, or back from where the human will stop.
+    // The nearest spots round it that the human's walk passes far enough from.
     private IEnumerable<Vector2> StepAsideSpots(Vector2 from, Path[] human)
     {
-        var start = human[0].At(now);
-        var end = human[0].Destination;
-        var along = end - start;
-        var closest = start + along * Math.Clamp(Vector2.Dot(from - start, along) / MathF.Max(along.LengthSquared(), 1e-6f), 0f, 1f);
-        var off = from - closest;
-        var side = off.LengthSquared() > 1e-4f ? Vector2.Normalize(off) : Vector2.Normalize(new Vector2(-along.Y, along.X));
-        var back = Vector2.Distance(from, end) > 1e-3f ? Vector2.Normalize(from - end) : side;
         var passed = human.Max(p => p.Arrival);
         return StepAsideDistances
-               .SelectMany(k => new[] { closest + side * k, closest - side * k, end + back * k })
-               .Where(spot => spot.Length() < TopConstants.Geometry.ArenaRadius - 1f
-                              && ClosestApproach(spot, human, passed) >= StepAsideDistances[0] - 0.01f)
+               .SelectMany(k => Enumerable.Range(0, StepAsideDirections).Select(i => from + k * Heading(360f * i / StepAsideDirections)))
+               .Where(spot => spot.Length() < TopConstants.Geometry.ArenaRadius - 1f && ClosestApproach(spot, human, passed) >= StepAsideClearance)
                .OrderBy(spot => Vector2.Distance(spot, from));
     }
 
@@ -420,6 +414,8 @@ internal sealed class TopP3HelloWorldTraffic(SimWorld world, Func<PartyRole, Vec
     private static float Bearing(Vector2 p) => MathF.Atan2(p.X, -p.Y) * 180f / MathF.PI;
 
     private static float Wrap360(float degrees) => (degrees % 360f + 360f) % 360f;
+
+    private static Vector2 Heading(float bearingDegrees) => OnRing(bearingDegrees, 1f);
 
     private static Vector2 OnRing(float bearingDegrees, float radius)
     {
