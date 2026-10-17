@@ -19,45 +19,38 @@ public class TopP3HelloWorldLpduHumanTests
     private static IEnumerable<int> Seeds => Enumerable.Range(1, TestContext.Parameters.Get("HumanSeeds", 10)).Select(i => 11 * i);
     private static readonly float[] ReactionTimes = [0f, 0.5f, 1f];
 
-    // Half as many for each way of playing off the straight walk, the reaction time going round
-    // 0, 0.5 and 1 s from roll to roll.
-    private static IEnumerable<int> FewerSeeds => Seeds.Take((Seeds.Count() + 1) / 2);
+    public enum Style
+    {
+        Straight,
+        // The guides' tethered player stretches once "my rot person actually goes in their tower",
+        // before the soakers have reached the spots the bots wait for.
+        StretchingAsTheSoakersArrive,
+        // Off the guides: drifting one to two yalms off the line, taking the guides' lanes to the
+        // towers (rot holders round the outside of the boss's hitbox, tethered players round the
+        // inside), sprinting everywhere, or setting off ahead of each cue as far as the guides allow.
+        Curving,
+        Lanes,
+        Sprinting,
+        Early,
+    }
 
-    private static IEnumerable<TestCaseData> KitsAndReactionTimes()
-        => from kit in Enum.GetValues<HelloWorldKit>()
-           from late in ReactionTimes
-           select new TestCaseData(kit, late).SetName($"AHumanPlayingTheGuidesIsNeverCaught({kit}, {late:F1}s late)");
+    private static IEnumerable<TestCaseData> Matrix(params Style[] styles)
+        => from style in styles
+           from kit in Enum.GetValues<HelloWorldKit>()
+           from delay in ReactionTimes
+           select new TestCaseData(style, kit, delay).SetName($"{{m}}({style}, {kit}, {delay:F1}s {(style == Style.Early ? "early" : "late")})");
 
-    [TestCaseSource(nameof(KitsAndReactionTimes))]
-    public void AHumanPlayingTheGuidesIsNeverCaught(HelloWorldKit kit, float late)
-        => AssertNeverCaught(kit, Seeds, _ => new Human(_ => late));
+    private static IEnumerable<TestCaseData> GuideStyles() => Matrix(Style.Straight, Style.StretchingAsTheSoakersArrive);
 
-    // What a real player does instead of a straight walk at run speed: sprints, drifts up to two
-    // yalms off the line, or takes the guides' lanes to the towers (rot holders round the outside
-    // of the boss's hitbox, tethered players round the inside).
-    [TestCase(HelloWorldKit.Defamation, Walk.Sprinting)]
-    [TestCase(HelloWorldKit.Stack, Walk.Sprinting)]
-    [TestCase(HelloWorldKit.RemoteFirst, Walk.Sprinting)]
-    [TestCase(HelloWorldKit.LocalFirst, Walk.Sprinting)]
-    [TestCase(HelloWorldKit.Defamation, Walk.Curving)]
-    [TestCase(HelloWorldKit.Stack, Walk.Curving)]
-    [TestCase(HelloWorldKit.RemoteFirst, Walk.Curving)]
-    [TestCase(HelloWorldKit.LocalFirst, Walk.Curving)]
-    [TestCase(HelloWorldKit.Defamation, Walk.Lanes)]
-    [TestCase(HelloWorldKit.Stack, Walk.Lanes)]
-    [TestCase(HelloWorldKit.RemoteFirst, Walk.Lanes)]
-    [TestCase(HelloWorldKit.LocalFirst, Walk.Lanes)]
-    public void AHumanWalkingItsOwnWayIsNeverCaught(HelloWorldKit kit, Walk walk)
-        => AssertNeverCaught(kit, FewerSeeds, roll => new Human(_ => ReactionTimes[roll % ReactionTimes.Length], walk));
+    private static IEnumerable<TestCaseData> OffGuideStyles() => Matrix(Style.Curving, Style.Lanes, Style.Sprinting, Style.Early);
 
-    // The guides' tethered player stretches once "my rot person actually goes in their tower",
-    // before the soakers have reached the spots the bots wait for.
-    [TestCase(HelloWorldKit.Defamation)]
-    [TestCase(HelloWorldKit.Stack)]
-    [TestCase(HelloWorldKit.RemoteFirst)]
-    [TestCase(HelloWorldKit.LocalFirst)]
-    public void AHumanStretchingAsTheSoakersArriveIsNeverCaught(HelloWorldKit kit)
-        => AssertNeverCaught(kit, FewerSeeds, roll => new Human(_ => ReactionTimes[roll % ReactionTimes.Length], StretchWhenSoakersWithin: 4f));
+    [TestCaseSource(nameof(GuideStyles))]
+    public void AHumanPlayingTheGuidesIsNeverCaught(Style style, HelloWorldKit kit, float delay)
+        => AssertNeverCaught(kit, Seeds, Human.For(style, delay));
+
+    [TestCaseSource(nameof(OffGuideStyles))]
+    public void AHumanPlayingItsOwnWayIsNeverCaught(Style style, HelloWorldKit kit, float delay)
+        => AssertNeverCaught(kit, Seeds, Human.For(style, delay));
 
     // A pass a second behind the bots still lands inside the window, and that rot then goes off a
     // second later in the next set, or in the last set as the bots line up for Monitors.
@@ -86,18 +79,27 @@ public class TopP3HelloWorldLpduHumanTests
 
     internal enum Step { Towers, Pass, RemotePops, LocalPops }
 
-    internal sealed record Human(Func<(int Set, Step Step), float> Late, Walk Walk = Walk.Straight, float StretchWhenSoakersWithin = 1f,
-                                 float CurvesUpTo = 2f);
+    // Late is how long after each cue it sets off; a negative one sets off ahead of the cue.
+    internal sealed record Human(Func<(int Set, Step Step), float> Late, Walk Walk = Walk.Straight, float StretchWhenSoakersWithin = 1f)
+    {
+        public static Human For(Style style, float delay) => style switch
+        {
+            Style.StretchingAsTheSoakersArrive => new(_ => delay, StretchWhenSoakersWithin: 4f),
+            Style.Curving => new(_ => delay, Walk.Curving),
+            Style.Lanes => new(_ => delay, Walk.Lanes),
+            Style.Sprinting => new(_ => delay, Walk.Sprinting),
+            Style.Early => new(_ => -delay, StretchWhenSoakersWithin: 4f),
+            _ => new(_ => delay),
+        };
+    }
 
     internal sealed record Outcome(List<string> Problems, Dictionary<int, float?> CaughtRotAt);
 
-    internal static Action<ScenarioProbe>? ScratchWatch;
-
-    private static void AssertNeverCaught(HelloWorldKit kit, IEnumerable<int> seeds, Func<int, Human> humanForRoll)
+    private static void AssertNeverCaught(HelloWorldKit kit, IEnumerable<int> seeds, Human human)
     {
         var problems = (from seat in PerRole.All
-                        from roll in seeds.Select((seed, index) => (seed, index))
-                        from problem in Play(seat, kit, roll.seed, humanForRoll(roll.index)).Problems
+                        from seed in seeds
+                        from problem in Play(seat, kit, seed, human).Problems
                         select problem).ToList();
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
     }
@@ -118,7 +120,6 @@ public class TopP3HelloWorldLpduHumanTests
             Probe = p =>
             {
                 guide.Tick(p);
-                ScratchWatch?.Invoke(p);
                 foreach (var stray in guide.StrayRots(p)) problems.Add($"seed {seed}, {seat} ({kit}): {stray}");
                 foreach (var stray in guide.BotsOffTheirTowerSpots(p)) problems.Add($"seed {seed}, {seat} ({kit}): {stray}");
                 if (guide.HumanCaughtARot(p) is { } set) caught[set] = p.Time;
@@ -163,10 +164,16 @@ public class TopP3HelloWorldLpduHumanTests
             };
             return (HelloWorldRole)(((int)first + set - 1) % 4);
         }
+
+        public ushort DefamationRot => DefamationColour == RotColour.Red ? P3StatusId.RedRot : P3StatusId.BlueRot;
+
+        public ushort StackRot => DefamationColour == RotColour.Red ? P3StatusId.BlueRot : P3StatusId.RedRot;
     }
 
     // What the guides tell one player to do, as degrees from the set's layout (L negative) and
-    // yalms from the centre, from the design's spot table.
+    // yalms from the centre, from the design's spot table. Each walk waits for what the guides
+    // wait for: the towers to show, the soakers to reach theirs, everything to go off before the
+    // pass, the pass before the remote pop, and the remote pop's vuln to wear off before the local one.
     private sealed class Guide(PartyRole seat, Roll roll, Human human, Random rng)
     {
         public static readonly float[] SetStarts = [19.1f, 40.1f, 61.2f, 82.5f];
@@ -175,7 +182,9 @@ public class TopP3HelloWorldLpduHumanTests
         private const float RunSpeed = 6.5f;
         private const float PassWindow = 3.2f;
         private const float Resolve = 10f, OffSpotTolerance = 0.8f, TowersInBy = 8.5f;
+        private const float AfterTheResolve = 0.05f, RemotePopVulnLasts = 1.2f;
         private const float StackLane = 13.5f, InnerLane = 7f, LanesFrom = 4f;
+        private const float LeastCurve = 1f, MostCurve = 2f;
         private static readonly float[] DefamationLanes = [17f, 18.3f];
 
         private static readonly Dictionary<PartyRole, float> LooseSpreadBearings = new()
@@ -184,60 +193,122 @@ public class TopP3HelloWorldLpduHumanTests
             [OffTank] = 180f, [MeleeDpsA] = 225f, [RegenHealer] = 270f, [CasterDps] = 315f,
         };
 
+        private sealed record Leg(int Set, Step Step, float NotBefore, Func<ScenarioProbe, bool> Ready, Func<ScenarioProbe, Vector2> To);
+
+        private static readonly Func<ScenarioProbe, bool> Always = _ => true;
+
         private readonly Dictionary<PartyRole, bool> right = new();
         private readonly Dictionary<PartyRole, HashSet<ushort>> rotsBefore = new();
-        private readonly HashSet<int> stretched = [];
+        private readonly Dictionary<int, float> remoteTetherBrokeAt = new();
+        private readonly Queue<Leg> legs = new();
+        private float? readySince;
         private bool humanHadRot;
-        private (float Depart, Func<ScenarioProbe, Vector2> To, Step Step, int Set)? pending;
         private (float Depart, Vector2[] Points, float Speed)? walking;
+        private const float RoundClearance = 2.5f, SoakerSettledWithin = 1.5f;
 
         public void Tick(ScenarioProbe p)
         {
-            var me = p.Member(seat)!;
-            if (!me.IsAlive()) return;
-            if (p.Crossed(LooseSpreadAt)) WalkAt(LooseSpreadAt + human.Late((0, Step.Towers)), _ => OnRing(LooseSpreadBearings[seat], 8.5f), Step.Towers, 0);
+            if (!p.Member(seat).IsAlive()) return;
+            if (p.Crossed(LooseSpreadAt))
+                legs.Enqueue(new Leg(0, Step.Towers, LooseSpreadAt + Math.Max(0f, Late(0, Step.Towers)), Always, _ => OnRing(LooseSpreadBearings[seat], 8.5f)));
             for (var set = 1; set <= 4; set++)
             {
-                var n = set;
-                var start = SetStarts[n - 1];
-                if (p.Crossed(start + TowersAt))
+                if (p.Crossed(SetStarts[set - 1] + TowersAt + Math.Min(0f, Late(set, Step.Towers))))
                 {
-                    TakeTheClosestSides(p, n);
-                    if (IsSoaker(n, seat)) WalkAt(start + TowersAt + human.Late((n, Step.Towers)), _ => TowerSpot(n, seat), Step.Towers, n);
+                    TakeTheClosestSides(p, set);
+                    PlanTheSet(set);
                 }
-                if (!IsSoaker(n, seat) && p.Time >= start + TowersAt && p.Time < start + PassAt && !stretched.Contains(n)
-                    && (p.Time >= start + TetheredLatestAt || SoakersInPlace(p, n)))
-                {
-                    stretched.Add(n);
-                    WalkAt(p.Time + human.Late((n, Step.Towers)), _ => TowerSpot(n, seat), Step.Towers, n);
-                }
-                if (p.Crossed(start + PassAt) && PassSpot(n) is { } pass)
-                    WalkAt(start + PassAt + human.Late((n, Step.Pass)), pass, Step.Pass, n);
-                if (p.Crossed(start + RemotePopsAt) && RemotePopSpot(n) is { } c)
-                    WalkAt(start + RemotePopsAt + human.Late((n, Step.RemotePops)), _ => c, Step.RemotePops, n);
-                if (p.Crossed(start + LocalPopsAt) && LocalPopSpot(n) is { } d)
-                    WalkAt(start + LocalPopsAt + human.Late((n, Step.LocalPops)), _ => d, Step.LocalPops, n);
+                NoteWhenTheRemoteTetherBroke(p, set);
             }
             Advance(p);
         }
 
-        // The next walk is aimed when it sets off, so a walk onto a player goes to where they stand then.
-        private void WalkAt(float depart, Func<ScenarioProbe, Vector2> to, Step step, int set)
-            => pending = (depart, to, step, set);
+        private float Late(int set, Step step) => human.Late((set, step));
 
+        private void PlanTheSet(int set)
+        {
+            var start = SetStarts[set - 1];
+            legs.Enqueue(IsSoaker(set, seat)
+                ? new Leg(set, Step.Towers, Math.Max(start, start + TowersAt + Late(set, Step.Towers)), Always, _ => TowerSpot(set, seat))
+                : new Leg(set, Step.Towers, start + TowersAt, p => p.Time >= start + TetheredLatestAt || SoakersInPlace(p, set), _ => TowerSpot(set, seat)));
+            if (PassSpot(set) is { } pass)
+                legs.Enqueue(new Leg(set, Step.Pass, Math.Max(start + Resolve + AfterTheResolve, start + PassAt + Late(set, Step.Pass)), Always, pass));
+            if (RemotePopSpot(set) is { } c)
+                legs.Enqueue(new Leg(set, Step.RemotePops, start + RemotePopsAt + Late(set, Step.RemotePops), p => HasDoneItsPass(p, set), _ => c));
+            if (LocalPopSpot(set) is { } d)
+                legs.Enqueue(new Leg(set, Step.LocalPops, start + LocalPopsAt + Late(set, Step.LocalPops), p => RemoteVulnHasWornOff(p, set), _ => d));
+        }
+
+        // A walk sets off once its cue has come and what it waits for has happened, a reaction time
+        // after both, and is aimed when it sets off, so a walk onto a player goes to where they stand then.
         private void Advance(ScenarioProbe p)
         {
             var me = p.Member(seat)!;
-            if (pending is { } next && p.Time >= next.Depart)
+            if (legs.TryPeek(out var next))
             {
-                var route = Route(Flat(me.Position), next.To(p), next.Step, next.Set);
-                walking = (p.Time, route, Pace(route, next.Step, next.Set, p.Time));
-                pending = null;
+                readySince ??= next.Ready(p) ? p.Time : null;
+                if (readySince is { } ready && p.Time >= Math.Max(next.NotBefore, ready + Math.Max(0f, Late(next.Set, next.Step))))
+                {
+                    legs.Dequeue();
+                    readySince = null;
+                    var to = next.To(p);
+                    var route = RoundWhoeverStandsInTheWay(p, Route(Flat(me.Position), to, next.Step, next.Set), to, next.Set);
+                    walking = (p.Time, route, Pace(route, next.Step, next.Set, p.Time));
+                }
             }
             if (walking is not { } w) return;
             var (at, arrived) = Along(w.Points, (p.Time - w.Depart) * w.Speed);
             me.SetPosition(new Vector3(at.X, 0f, at.Y));
             if (arrived) walking = null;
+        }
+
+        // Like a player, the human sets off round a soaker standing on its tower spot in the way of a
+        // straight walk, whom it could catch a rot from or give one to, instead of walking through them:
+        // a soaker holds its tower, so it won't step aside the way the other bots do. It passes on
+        // whichever side leaves the most room, and only if that beats the straight walk.
+        private Vector2[] RoundWhoeverStandsInTheWay(ScenarioProbe p, Vector2[] route, Vector2 to, int set)
+        {
+            if (route.Length != 2 || set == 0) return route;
+            var from = route[0];
+            var along = to - from;
+            if (along.LengthSquared() < 1f) return route;
+            var others = PerRole.All.Where(r => r != seat && p.Member(r).IsAlive() && IsSoaker(set, r) && CouldSwapARot(p, r))
+                                .Select(r => (Role: r, At: Flat(p.Member(r)!.Position)))
+                                .Where(o => Vector2.Distance(o.At, to) >= 0.5f && OnOneOfItsTowerSpots(set, o.Role, o.At))
+                                .Select(o => o.At)
+                                .ToList();
+            float Room(Vector2[] walk) => others.Count == 0 ? float.MaxValue
+                : others.Min(at => walk.Zip(walk.Skip(1), (a, b) => DistanceToSegment(at, a, b)).Min());
+            var straight = Room(route);
+            if (straight >= RoundClearance) return route;
+            var inTheWay = others.Where(at => DistanceToSegment(at, from, to) < RoundClearance)
+                                 .MinBy(at => Vector2.Dot(at - from, along));
+            var side = Vector2.Normalize(new Vector2(-along.Y, along.X));
+            var best = new[] { 1f, -1f }.Select(s => new[] { from, inTheWay + side * s * RoundClearance, to })
+                                        .MaxBy(Room)!;
+            return Room(best) > straight ? best : route;
+        }
+
+        private bool OnOneOfItsTowerSpots(int set, PartyRole role, Vector2 at)
+        {
+            var (l, r) = ASpots(set, roll.RoleIn(set, role));
+            return Math.Min(Vector2.Distance(at, l), Vector2.Distance(at, r)) <= SoakerSettledWithin;
+        }
+
+        private static float DistanceToSegment(Vector2 point, Vector2 a, Vector2 b)
+        {
+            var ab = b - a;
+            var u = ab.LengthSquared() < 1e-6f ? 0f : Math.Clamp(Vector2.Dot(point - a, ab) / ab.LengthSquared(), 0f, 1f);
+            return Vector2.Distance(point, a + ab * u);
+        }
+
+        private bool CouldSwapARot(ScenarioProbe p, PartyRole other)
+        {
+            var (me, them) = (p.Member(seat)!, p.Member(other)!);
+            bool Catches(SimCharacter from, SimCharacter to, ushort rot, ushort debugger)
+                => from.HasStatus(rot) && !to.HasStatus(rot) && !to.HasStatus(debugger);
+            return Catches(them, me, P3StatusId.RedRot, P3StatusId.UnderflowDebugger) || Catches(me, them, P3StatusId.RedRot, P3StatusId.UnderflowDebugger)
+                   || Catches(them, me, P3StatusId.BlueRot, P3StatusId.PerformanceDebugger) || Catches(me, them, P3StatusId.BlueRot, P3StatusId.PerformanceDebugger);
         }
 
         // A lane long enough to miss the towers at run speed is sprinted.
@@ -257,7 +328,7 @@ public class TopP3HelloWorldLpduHumanTests
             {
                 case Walk.Curving when length > 1f:
                     var side = rng.Next(2) == 0 ? -1f : 1f;
-                    var bulge = Math.Min(human.CurvesUpTo, length / 4f);
+                    var bulge = Math.Min(LeastCurve + (MostCurve - LeastCurve) * (float)rng.NextDouble(), length / 4f);
                     var normal = new Vector2(-(to - from).Y, (to - from).X) / length * side;
                     return Enumerable.Range(0, 17).Select(i => i / 16f)
                                      .Select(u => from + (to - from) * u + normal * (bulge * 4f * u * (1f - u))).ToArray();
@@ -306,6 +377,30 @@ public class TopP3HelloWorldLpduHumanTests
         private bool SoakersInPlace(ScenarioProbe p, int set)
             => PerRole.All.Where(r => IsSoaker(set, r) && p.Member(r).IsAlive())
                           .All(r => Vector2.Distance(Flat(p.Member(r)!.Position), TowerSpot(set, r)) <= human.StretchWhenSoakersWithin);
+
+        // The remote pair takes its rot from the stacks, a stack waits for its remote to have it,
+        // and the local waits for the rot it takes from its defamation.
+        private bool HasDoneItsPass(ScenarioProbe p, int set) => (roll.RoleIn(set, seat), set == 4) switch
+        {
+            (HelloWorldRole.Remote, false) => Holds(p, seat, roll.StackRot),
+            (HelloWorldRole.Stack, false) => Holds(p, SameSide(set, HelloWorldRole.Remote), roll.StackRot),
+            (HelloWorldRole.Local, false) => Holds(p, seat, roll.DefamationRot),
+            _ => true,
+        };
+
+        private static bool Holds(ScenarioProbe p, PartyRole role, ushort rot) => !p.Member(role).IsAlive() || p.Member(role)!.HasStatus(rot);
+
+        private bool RemoteVulnHasWornOff(ScenarioProbe p, int set)
+            => roll.RoleIn(set, seat) != HelloWorldRole.Local || set == 4
+               || remoteTetherBrokeAt.TryGetValue(set, out var broke) && p.Time >= broke + RemotePopVulnLasts;
+
+        private void NoteWhenTheRemoteTetherBroke(ScenarioProbe p, int set)
+        {
+            if (remoteTetherBrokeAt.ContainsKey(set) || p.Time < SetStarts[set - 1] + Resolve) return;
+            if (PerRole.All.Where(r => roll.RoleIn(set, r) == HelloWorldRole.Remote)
+                           .All(r => !p.Member(r).IsAlive() || !p.Member(r)!.HasStatus(P3StatusId.RemoteRegression)))
+                remoteTetherBrokeAt[set] = p.Time;
+        }
 
         private bool IsSoaker(int set, PartyRole role) => roll.RoleIn(set, role) is HelloWorldRole.Defamation or HelloWorldRole.Stack;
 
@@ -368,7 +463,6 @@ public class TopP3HelloWorldLpduHumanTests
         public IEnumerable<string> StrayRots(ScenarioProbe p)
         {
             var strays = new List<string>();
-            var defamationRot = roll.DefamationColour == RotColour.Red ? P3StatusId.RedRot : P3StatusId.BlueRot;
             var set = SetStarts.Count(start => p.Time >= start);
             foreach (var role in PerRole.All)
             {
@@ -377,8 +471,8 @@ public class TopP3HelloWorldLpduHumanTests
                 if (rotsBefore.TryGetValue(role, out var had) && p.Time > 8.5f)
                     foreach (var rot in rots.Except(had))
                     {
-                        var expected = rot == defamationRot ? HelloWorldRole.Local : HelloWorldRole.Remote;
-                        var inPass = set is >= 1 and <= 3 && p.Time >= SetStarts[set - 1] + PassAt && p.Time <= SetStarts[set - 1] + PassAt + PassWindow;
+                        var expected = rot == roll.DefamationRot ? HelloWorldRole.Local : HelloWorldRole.Remote;
+                        var inPass = set is >= 1 and <= 3 && p.Time >= SetStarts[set - 1] + Resolve && p.Time <= SetStarts[set - 1] + PassAt + PassWindow;
                         if (!inPass || roll.RoleIn(set, role) != expected)
                             strays.Add($"{role} caught a rot at t={p.Time:F2} (set {set} {roll.RoleIn(Math.Max(set, 1), role)})");
                     }
@@ -387,17 +481,37 @@ public class TopP3HelloWorldLpduHumanTests
             return strays;
         }
 
-        // However the bots dodged the human on the way, each stands on its own spot when the set
-        // resolves.
+        // However the bots dodged the human on the way, each stands on one of its role's two spots when
+        // the set resolves, the two of a pair on different ones, and the human's partner on the side the
+        // human took the other of. Which side a pair of bots splits to on a near-tie is theirs to pick.
         public IEnumerable<string> BotsOffTheirTowerSpots(ScenarioProbe p)
         {
             var set = Array.FindIndex(SetStarts, start => p.Crossed(start + Resolve - 0.05f)) + 1;
             if (set == 0) return [];
-            return PerRole.All.Where(role => role != seat && p.Member(role).IsAlive())
-                          .Select(role => (role, off: Vector2.Distance(Flat(p.Member(role)!.Position), TowerSpot(set, role))))
-                          .Where(t => t.off > OffSpotTolerance)
-                          .Select(t => $"{t.role} stood {t.off:F2} y off its set {set} {roll.RoleIn(set, t.role)} spot as the towers went off")
-                          .ToList();
+            var problems = new List<string>();
+            var onRight = new Dictionary<PartyRole, bool>();
+            foreach (var role in PerRole.All.Where(role => role != seat && p.Member(role).IsAlive()))
+            {
+                var (l, r) = ASpots(set, roll.RoleIn(set, role));
+                var at = Flat(p.Member(role)!.Position);
+                var (toL, toR) = (Vector2.Distance(at, l), Vector2.Distance(at, r));
+                onRight[role] = toR < toL;
+                if (Math.Min(toL, toR) > OffSpotTolerance)
+                    problems.Add($"{role} stood {Math.Min(toL, toR):F2} y off both its set {set} {roll.RoleIn(set, role)} spots as the towers went off");
+            }
+            foreach (var kit in Enum.GetValues<HelloWorldKit>())
+            {
+                var pair = roll.Pair(kit).ToArray();
+                if (pair.Contains(seat))
+                {
+                    var partner = pair.Single(r => r != seat);
+                    if (onRight.TryGetValue(partner, out var side) && side == right[seat])
+                        problems.Add($"{partner} took the human's own set {set} side");
+                }
+                else if (onRight.TryGetValue(pair[0], out var first) && onRight.TryGetValue(pair[1], out var second) && first == second)
+                    problems.Add($"{pair[0]} and {pair[1]} both took the set {set} {(first ? "R" : "L")} spot");
+            }
+            return problems;
         }
 
         public int? HumanCaughtARot(ScenarioProbe p)
