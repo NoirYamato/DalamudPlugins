@@ -26,7 +26,7 @@ public class TopP3HelloWorldLpduAiTests
     public void SplitsIntoTheCardinalCrossByDebuff()
         => AssertSpots(Direction.SW, at: 7.9f, new()
         {
-            [MainTank] = new(0, -10), [OffTank] = new(0, 10), [RegenHealer] = new(-10, 0), [ShieldHealer] = new(10, 0),
+            [MainTank] = new(0, -12), [OffTank] = new(0, 12), [RegenHealer] = new(-12, 0), [ShieldHealer] = new(12, 0),
             [MeleeDpsA] = Vector2.Zero, [MeleeDpsB] = Vector2.Zero, [PhysRangedDps] = Vector2.Zero, [CasterDps] = Vector2.Zero,
         });
 

@@ -43,9 +43,14 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private static readonly Spots LastLocalWaiting = new(new(-167f, 12.9f), new(175f, 12.3f));
 
     private const float SummedWalksThisCloseAreATie = 0.5f;
-    private const float CardinalCrossRadius = 10f;
-    private static readonly Spots NextDefamationCross = new(new(-45f, CardinalCrossRadius), new(135f, CardinalCrossRadius));
-    private static readonly Spots NextStackCross = new(new(-135f, CardinalCrossRadius), new(45f, CardinalCrossRadius));
+    private const float OpeningCrossRadiusClearOfTheLooseSpread = 12f;
+    private const float ReformedCrossRadius = 10f;
+    private static readonly Spots NextDefamationCross = new(new(-45f, ReformedCrossRadius), new(135f, ReformedCrossRadius));
+    private static readonly Spots NextStackCross = new(new(-135f, ReformedCrossRadius), new(45f, ReformedCrossRadius));
+    private const float RotPollSeconds = 0.1f;
+    private const float PollTimeSlack = 0.01f;
+    private const float LastLineUpPoll = 105f;
+    private const float RightStackWaitsForTheCrossingDefamation = 2f;
 
     private static readonly PartyRole[] MonitorsLineUpNorthToSouth =
         [RegenHealer, ShieldHealer, MainTank, OffTank, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
@@ -59,12 +64,16 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private TopP3HelloWorldState state = null!;
     private SimWorld world = null!;
     private readonly Dictionary<PartyRole, bool> onRightSide = new();
+    private readonly Dictionary<(int Set, PartyRole Role), float> reformedAt = new();
+    private bool linedUp;
 
     public void Run(TopP3HelloWorldState s, SimWorld w)
     {
         state = s;
         world = w;
         onRightSide.Clear();
+        reformedAt.Clear();
+        linedUp = false;
         var ai = new AiManager(world);
         ai.Move(0.5f, LooseSpread);
         ai.Move(5f, SplitIntoCardinalCrossByDebuffs);
@@ -74,18 +83,20 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             var n = set;
             var start = SetStarts[n - 1];
             ai.Move(start + 1f, () => SoakersTakeTheirTowers(n));
+            ai.Move(start + 1f, ToUnderTheBoss(() => TetheredPairs(n)), jitter: 0f);
             ai.Move(start + 5f, () => TetheredPairsFanOutFromUnderTheBoss(n));
             ai.Move(start + 10.3f, () => PassRotsOnOrStartSpreading(n));
             ai.Move(start + 12.3f, () => PopRemoteTetherAndSpreadOldRots(n));
             ai.Move(start + 15f, () => PopLocalTetherClearOfExplodingRots(n));
             if (n == TopP3HelloWorldState.Sets) continue;
-            ai.Move(start + 16.6f, () => NextDefamationOnTheRightCrossesToTheStackSide(n));
-            ai.Move(start + 17.4f, () => NextHoldersOnTheLeftTakeTheCardinalCross(n));
-            ai.Move(start + 17.4f, ToUnderTheBoss(() => ExplodedRotsExceptTheRightStack(n)), jitter: 0f);
-            ai.Move(start + 18.3f, () => NextStackOnTheRightCrossesToTheDefamationSide(n));
-            ai.Move(start + 18.6f, ToUnderTheBoss(() => [Side(n, HelloWorldRole.Stack, right: true)]), jitter: 0f);
+            for (var t = start + 16.6f; t < SetStarts[n] + 1f; t += RotPollSeconds)
+            {
+                ai.Move(t, () => NextHoldersTakeTheCrossOnceTheOldRotsInTheWayHaveGoneOff(n));
+                ai.Move(t, ToUnderTheBoss(() => OldHoldersWhoseRotsHaveGoneOff(n)), jitter: 0f);
+            }
         }
-        ai.Move(100f, LineUpForMonitors);
+        for (var t = 100f; t < LastLineUpPoll; t += RotPollSeconds)
+            ai.Move(t, LineUpForMonitorsOnceTheLastRotsHaveGoneOff);
     }
 
     private IAiMove LooseSpread()
@@ -112,6 +123,9 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             ? ASpot(set, role)
             : null);
     }
+
+    private IReadOnlyList<PartyRole> TetheredPairs(int set)
+        => [.. state.WithRole(set, HelloWorldRole.Remote), .. state.WithRole(set, HelloWorldRole.Local)];
 
     private IAiMove TetheredPairsFanOutFromUnderTheBoss(int set)
         => ByRole(role => state.RoleIn(set, role) is HelloWorldRole.Remote or HelloWorldRole.Local
@@ -157,31 +171,80 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
             _ => null,
         });
 
-    private IAiMove NextDefamationOnTheRightCrossesToTheStackSide(int set)
-        => ByRole(role => state.RoleIn(set, role) == HelloWorldRole.Local && onRightSide[role]
-            ? At(set, role, NextDefamationCross)
+    private IAiMove NextHoldersTakeTheCrossOnceTheOldRotsInTheWayHaveGoneOff(int set)
+        => ByRole(role => !reformedAt.ContainsKey((set, role)) && CrossSpotOnceClearOfOldRots(set, role) is { } spot
+            ? ReformNow(set, role, spot)
             : null);
 
-    private IAiMove NextHoldersOnTheLeftTakeTheCardinalCross(int set)
-        => ByRole(role => (state.RoleIn(set, role), onRightSide[role]) switch
+    private Vector2? CrossSpotOnceClearOfOldRots(int set, PartyRole role)
+    {
+        var right = onRightSide[role];
+        return (state.RoleIn(set, role), right) switch
         {
-            (HelloWorldRole.Local, false) => At(set, role, NextDefamationCross),
-            (HelloWorldRole.Remote, false) => At(set, role, NextStackCross),
+            (HelloWorldRole.Local, true) when SetTimeReached(set, 16.6f) && RotHasGoneOff(set, HelloWorldRole.Stack, right)
+                => At(set, role, NextDefamationCross),
+            (HelloWorldRole.Local, false) when SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Defamation, right)
+                => At(set, role, NextDefamationCross),
+            (HelloWorldRole.Remote, false) when SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Stack, right)
+                => At(set, role, NextStackCross),
+            (HelloWorldRole.Remote, true) when SetTimeReached(set, 18.3f)
+                                               && RotHasGoneOff(set, HelloWorldRole.Defamation, right)
+                                               && RotHasGoneOff(set, HelloWorldRole.Stack, right)
+                => At(set, role, NextStackCross),
             _ => null,
-        });
+        };
+    }
 
-    private IReadOnlyList<PartyRole> ExplodedRotsExceptTheRightStack(int set)
-        => PerRole.All.Where(role => state.RoleIn(set, role) == HelloWorldRole.Defamation
-                                     || (state.RoleIn(set, role) == HelloWorldRole.Stack && !onRightSide[role]))
-                      .ToList();
+    private IReadOnlyList<PartyRole> OldHoldersWhoseRotsHaveGoneOff(int set)
+    {
+        var going = PerRole.All.Where(role => !reformedAt.ContainsKey((set, role)) && OldHolderMayGoUnderTheBoss(set, role)).ToList();
+        foreach (var role in going) reformedAt[(set, role)] = world.Events.Elapsed;
+        return going;
+    }
 
-    private IAiMove NextStackOnTheRightCrossesToTheDefamationSide(int set)
-        => ByRole(role => state.RoleIn(set, role) == HelloWorldRole.Remote && onRightSide[role]
-            ? At(set, role, NextStackCross)
-            : null);
+    private bool OldHolderMayGoUnderTheBoss(int set, PartyRole role)
+    {
+        var right = onRightSide[role];
+        return (state.RoleIn(set, role), right) switch
+        {
+            (HelloWorldRole.Defamation, _) => SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Defamation, right),
+            (HelloWorldRole.Stack, false) => SetTimeReached(set, 17.4f) && RotHasGoneOff(set, HelloWorldRole.Stack, right),
+            (HelloWorldRole.Stack, true) => SetTimeReached(set, 18.6f)
+                                            && RotHasGoneOff(set, HelloWorldRole.Stack, right)
+                                            && RightDefamationHasCrossedPast(set),
+            _ => false,
+        };
+    }
 
-    private IAiMove LineUpForMonitors()
-        => ByRole(role => OnRing(320f - 15.1f * Array.IndexOf(MonitorsLineUpNorthToSouth, role), 13.15f));
+    private bool RightDefamationHasCrossedPast(int set)
+        => reformedAt.TryGetValue((set, Side(set, HelloWorldRole.Local, right: true)), out var sent)
+           && world.Events.Elapsed + PollTimeSlack >= sent + RightStackWaitsForTheCrossingDefamation;
+
+    private Vector2 ReformNow(int set, PartyRole role, Vector2 spot)
+    {
+        reformedAt[(set, role)] = world.Events.Elapsed;
+        return spot;
+    }
+
+    private bool SetTimeReached(int set, float offset)
+        => world.Events.Elapsed + PollTimeSlack >= SetStarts[set - 1] + offset;
+
+    private bool RotHasGoneOff(int set, HelloWorldRole holderRole, bool right)
+    {
+        var holder = world.Party.Get(Side(set, holderRole, right));
+        var colour = holderRole == HelloWorldRole.Defamation ? state.DefamationColour : state.StackColour;
+        return !holder.IsAlive() || holder!.HasStatus(colour.DebuggerStatusId);
+    }
+
+    private IAiMove LineUpForMonitorsOnceTheLastRotsHaveGoneOff()
+    {
+        var last = TopP3HelloWorldState.Sets;
+        var clear = !linedUp && new[] { false, true }.All(right => RotHasGoneOff(last, HelloWorldRole.Defamation, right)
+                                                                  && RotHasGoneOff(last, HelloWorldRole.Stack, right));
+        if (!clear) return ByRole(_ => null);
+        linedUp = true;
+        return ByRole(role => OnRing(320f - 15.1f * Array.IndexOf(MonitorsLineUpNorthToSouth, role), 13.15f));
+    }
 
     private Func<IAiMove> ToUnderTheBoss(Func<IReadOnlyList<PartyRole>> who)
         => () =>
@@ -236,7 +299,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
         destinations[pair[1]] = keep <= swap ? ends[1] : ends[0];
     }
 
-    private static Vector2[] AxisEnds(float axis) => [OnRing(axis, CardinalCrossRadius), OnRing(axis + 180f, CardinalCrossRadius)];
+    private static Vector2[] AxisEnds(float axis) => [OnRing(axis, OpeningCrossRadiusClearOfTheLooseSpread), OnRing(axis + 180f, OpeningCrossRadiusClearOfTheLooseSpread)];
 
     private SimCharacter SameSide(int set, HelloWorldRole role, PartyRole of)
         => Member(Side(set, role, onRightSide[of]));
