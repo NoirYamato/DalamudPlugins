@@ -28,12 +28,16 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   [Dylan Luxor's LPDU toolbox](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1).
 - **TOP P2 Party Synergy, solo:** you no longer die to the Spotlight stack when you're picked as a stack
   target with no bots around.
+- **TOP P3 Hello World and P3 Monitors:** new scenarios, each with an `[LPDU] Light PF` strat under the
+  **EU** button, following the LPDU toolboxes for
+  [Hello World](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1) and
+  [Monitors](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1).
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of
   replacing it. Settings start fresh.
 
-Everything else is the official AnoMech v0.5.0.0 release. Its warnings apply: while simulating you are cut
+Everything else is the official AnoMech v0.5.1.0 release. Its warnings apply: while simulating you are cut
 off from server traffic, so party changes and ready checks won't show until you leave the sim zone.
 
 ## Source and licence
