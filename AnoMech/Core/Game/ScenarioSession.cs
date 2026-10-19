@@ -15,7 +15,7 @@ public enum SessionMode
     Local,
     // Runs the scenario for a multiplayer lobby.
     Host,
-    // Sets the same stage but never runs or ticks the scenario's own logic; the host's snapshots
+    // Sets the same stage but never runs or ticks the scenario's own logic; the host's packets
     // drive the run.
     Peer,
 }
@@ -33,8 +33,12 @@ public sealed class ScenarioSession
 
     // Bardam's Mettle's Success/Failure marks (Checkmark/X): unnamed actions whose AnimationEnd
     // gimmick timeline plays the mark on the target.
-    private const uint MechanicSuccessAction = 9450;
-    private const uint MechanicFailureAction = 9451;
+    public const uint MechanicSuccessActionId = 9450;
+    public const uint MechanicFailureActionId = 9451;
+
+    // The dungeon's invisible helper, which casts both marks at the player.
+    private static readonly EnemySpawnConfig MarkHelper = new(BNpcBaseId: 0x18D6, Level: 1,
+        EnemyList: EnemyListMode.Never, Visibility: SpawnVisibility.InvisibleHelper);
 
     private readonly SimWorld world;
     private readonly InstanceSession instance;
@@ -50,6 +54,7 @@ public sealed class ScenarioSession
     private float? lastMistakeElapsed;
     // The source of truth for "did this run fail": a queue running dry says nothing about deaths.
     private bool deathOccurred;
+    private SimEnemy? markHelper;
 
     public IScenario Scenario => run.Scenario;
     public SessionMode Mode { get; }
@@ -136,6 +141,9 @@ public sealed class ScenarioSession
         // Here rather than in scenario.Run (which peers skip).
         DiagnosticLog.Clear();
 #endif
+        // The run's clock starts at 0, as EventScheduler.FromRunStart's offsets assume: a stay's
+        // first run follows no End to have cleared it.
+        world.Events.Clear();
         var phase = Scenario.Phase;
         var zone = phase.Zone;
         world.PlaceWaymarks(ResolveWaymarks(zone, run.SelectedWaymark));
@@ -165,6 +173,7 @@ public sealed class ScenarioSession
                 DiagnosticLog.Warn($"[ScenarioSession.Start] zone/phase/scenario.Run threw -- scenario load aborted here: {e}");
                 throw;
             }
+            if (Plugin.Config.EnableMechanicResultMarks) markHelper = world.SpawnEnemy(MarkHelper);
         }
         // Both host and peer: RunInstanceEvents carries no RNG/AI/damage-check dependency.
         Scenario.RunInstanceEvents(world);
@@ -197,8 +206,7 @@ public sealed class ScenarioSession
         resultReported = true;
         if (deathOccurred) return;
         var clean = lastMistakeElapsed is null;
-        if (clean && Plugin.Config.EnableMechanicResultMarks)
-            world.Party.Player?.PlayAction(MechanicSuccessAction, animationLock: 0f);
+        if (clean) PlayMark(MechanicSuccessActionId);
         Finished?.Invoke(clean);
     }
 
@@ -213,9 +221,14 @@ public sealed class ScenarioSession
         if (lastMistakeElapsed is not { } last || elapsed - last > MistakeMarkCooldownSeconds)
         {
             lastMistakeElapsed = elapsed;
-            if (Plugin.Config.EnableMechanicResultMarks)
-                world.Party.Player?.PlayAction(MechanicFailureAction, animationLock: 0f);
+            PlayMark(MechanicFailureActionId);
         }
+    }
+
+    private void PlayMark(uint actionId)
+    {
+        if (Plugin.Config.EnableMechanicResultMarks && markHelper is { IsActive: true } helper && world.Party.Player is { } player)
+            helper.Cast(actionId, player, animationLock: 0f);
     }
 
     // A death that took a member down; the first one freezes the run 5s later.

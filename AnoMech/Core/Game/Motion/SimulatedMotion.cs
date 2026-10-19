@@ -122,13 +122,6 @@ internal sealed class SimulatedMotion : CharacterMotion, INavigated
         forcedMove = null;
     }
 
-    // A walk driven from outside the navigator: a peer's copy following the host's snapshots.
-    public void StepTo(Vector3 next, Vector3 glide, float speed)
-    {
-        placed = true;
-        Step(next, glide, speed, arrived: false);
-    }
-
     public override void Force(ForcedMove move)
     {
         switch (move)
@@ -147,11 +140,23 @@ internal sealed class SimulatedMotion : CharacterMotion, INavigated
             }
             case ForcedMove.Carry carry:
                 navigator.Clear();
-                actorControl.CarryTo(coordinates.ToGlobal(carry.To), rotation);
+                actorControl.CarryTo(coordinates.ToGlobal(carry.To), rotation, carry.Timeline);
                 forcedMove = Trajectory.Carry(position, carry.To);
                 forcedByActorControl = true;
                 model.Assume(carry.To);
                 break;
+            case ForcedMove.IceSlide slide:
+            {
+                navigator.Clear();
+                var direction = slide.To - position;
+                var heading = direction.LengthSquared() > 1e-6f ? MathF.Atan2(direction.X, direction.Z) : rotation;
+                actorControl.Slide(coordinates.ToGlobal(slide.To), heading);
+                forcedMove = Trajectory.Slide(position, slide.To, slide.DurationSeconds);
+                forcedByActorControl = true;
+                rotation = heading;
+                model.Assume(slide.To, heading);
+                break;
+            }
             case ForcedMove.Teleport teleport:
                 SetPlacement(teleport.To);
                 break;

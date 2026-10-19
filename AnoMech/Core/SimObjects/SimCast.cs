@@ -10,8 +10,8 @@ namespace AnoMech.Core.SimObjects;
 
 // A caster's server-shaped cast packets: the ActorCast that raises the bar and omen, the
 // ActionEffect that plays the release, and the interrupt. Holds the animation lock that roots
-// the caster after a release. Each packet is recorded with a seq, which is what a peer replays
-// field for field. Positions in and out are scenario-local; they go world-space only at the proxy.
+// the caster after a release. Positions in and out are scenario-local; they go world-space only
+// at the proxy.
 public sealed class SimCast : ISimObject
 {
     private readonly SimCharacter parent;
@@ -31,31 +31,13 @@ public sealed class SimCast : ISimObject
         }
     }
 
-    // Bumped per NativeCast. A peer dedupes on this changing rather than on IsCasting's rising
-    // edge, which compared two independent clocks and replayed a cast twice.
-    public int CastSeq { get; private set; }
     public uint ActionId { get; private set; }
     public float Total { get; private set; }
     public float OmenDelay { get; private set; }
     // Absolute, with any omen offset already folded in.
     public float Rotation { get; private set; }
     public Vector3? TargetLocation { get; private set; }
-    // A raw GameObjectId isn't portable across the network (each client spawns its own doppels),
-    // so MultiplayerManager resolves it to a role/NetId.
     public GameObjectId? TargetId { get; private set; }
-
-    // Bumped per NativeActionEffect, release or standalone: an effect never sets IsCasting, so a
-    // level-sampled snapshot can't see it.
-    public int EffectSeq { get; private set; }
-    public uint EffectActionId { get; private set; }
-    public float EffectAnimationLock { get; private set; } = 0.6f;
-    public byte EffectAnimationVariation { get; private set; }
-    public float EffectRotation { get; private set; }
-    public Vector3? EffectPosition { get; private set; }
-    public GameObjectId? EffectAnimationTargetId { get; private set; }
-    public GameObjectId? EffectActionTargetId { get; private set; }
-
-    public int CancelSeq { get; private set; }
 
     // True while the cast bar is up or the release animation is still playing. A following boss
     // roots itself while busy so the action animation finishes in place instead of sliding.
@@ -83,7 +65,7 @@ public sealed class SimCast : ISimObject
         Rotation = castRotation;
         TargetLocation = position;
         TargetId = targetId;
-        CastSeq++;
+        castSeq++;
     }
 
     // Returns the global sequence the targets' EffectResults name; 0 when nothing was sent.
@@ -98,15 +80,12 @@ public sealed class SimCast : ISimObject
             animationTargetId, targets, ballistaId));
 
         remainingAnimationLock = animationLock;
-        RecordEffect(actionId, animationLock, animationVariation, effectRotation, position, animationTargetId,
-            targets is { Count: > 0 } ? targets[0].Id : null);
         return sequence;
     }
 
     public void Cancel(CastCancelReason reason)
     {
         parent.ActorControl.CancelCast(ActionId, reason);
-        CancelSeq++;
     }
 
     public void Tick(float deltaSeconds)
@@ -128,7 +107,7 @@ public sealed class SimCast : ISimObject
     // frame, which also holds the omen the client reveals and removes by the bar.
     private float? held;
     private float holdAt;
-    private int heldSeq;
+    private int castSeq, heldSeq;
 
     // The client takes the omen down this long before the bar ends. A hold that would leave it up
     // keeps this margin more, so one long frame can't carry the bar past the removal.
@@ -140,7 +119,7 @@ public sealed class SimCast : ISimObject
         if (parent.Proxy is not { IsCasting: true } chara || chara.CastActionId != ActionId) return;
         var at = chara.CurrentCastTime;
         held = at;
-        heldSeq = CastSeq;
+        heldSeq = castSeq;
         holdAt = OmenShown(at) ? MathF.Min(at, Total - OmenRemovalLead - OmenHoldMargin) : at;
     }
 
@@ -166,18 +145,5 @@ public sealed class SimCast : ISimObject
 
     // Null once the held cast ended or another replaced it.
     private IBattleCharaProxy? HeldCast()
-        => parent.Proxy is { IsCasting: true } chara && CastSeq == heldSeq && chara.CastActionId == ActionId ? chara : null;
-
-    private void RecordEffect(uint actionId, float animationLock, byte animationVariation, float rotation, Vector3? position,
-        GameObjectId? animationTargetId, GameObjectId? actionTargetId)
-    {
-        EffectActionId = actionId;
-        EffectAnimationLock = animationLock;
-        EffectAnimationVariation = animationVariation;
-        EffectRotation = rotation;
-        EffectPosition = position;
-        EffectAnimationTargetId = animationTargetId;
-        EffectActionTargetId = actionTargetId;
-        EffectSeq++;
-    }
+        => parent.Proxy is { IsCasting: true } chara && castSeq == heldSeq && chara.CastActionId == ActionId ? chara : null;
 }

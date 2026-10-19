@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Implementations.Interop;
@@ -82,7 +83,9 @@ internal sealed unsafe class BattleCharas : IBattleCharas
     private const byte SpawnCharacterDataFlagsHelper = 0x1;
     private const byte SpawnLinkRange = 0x14;
     private const ushort SpawnResourcePoints = 10000;
-    private const byte SpawnBattalion = 4;
+    // Retail sends the BNpcBase row's own Battalion: 4 for every enemy, 0 for allies.
+    private const byte HostileBattalion = 4;
+    private const byte FriendlyBattalion = 0;
 
     private static SpawnNpcPacket? BuildSpawnPacket(EnemySpawnConfig config)
     {
@@ -116,17 +119,49 @@ internal sealed unsafe class BattleCharas : IBattleCharas
         common.CharacterMode = CharacterModes.Normal;
         common.ObjectKind = ObjectKind.BattleNpc;
         common.SubKind = (byte)BattleNpcSubKind.Combatant;
-        common.Battalion = SpawnBattalion;
+        common.Battalion = config.IsHostile ? HostileBattalion : FriendlyBattalion;
         common.Level = config.Level;
         common.ModelAttributeFlags = config.InitialModeAttributeFlags ?? 0;
+        common.ModelState = config.ModelState;
+        common.ModelScaleId = config.ModelScale;
+        if (config.Appearance is { } appearance) WriteAppearance(&packet.Common, appearance);
+        if (config.Statuses is { } statuses) WriteStatuses(&packet.Common, statuses);
         return packet;
+    }
+
+    private const int SpawnStatusSlots = 30;
+
+    private static void WriteStatuses(CommonSpawnData* common, IReadOnlyList<SpawnStatus> statuses)
+    {
+        var slots = (CommonSpawnData.StatusEffect*)((byte*)common + 0x88);
+        for (var i = 0; i < Math.Min(SpawnStatusSlots, statuses.Count); i++)
+        {
+            slots[i].StatusId = statuses[i].StatusId;
+            slots[i].Param = statuses[i].Param;
+            slots[i].SourceObjectId = 0xE0000000;
+        }
+    }
+
+    private const int EquipmentSlotCount = 10;
+    private const int CustomizeLength = 26;
+
+    private static void WriteAppearance(CommonSpawnData* common, NpcAppearance appearance)
+    {
+        common->MainhandWeaponModel.Value = appearance.MainHand;
+        common->OffhandWeaponModel.Value = appearance.OffHand;
+        var equipment = (uint*)((byte*)common + 0x1FC);
+        for (var i = 0; i < Math.Min(EquipmentSlotCount, appearance.Equipment?.Length ?? 0); i++)
+            equipment[i] = appearance.Equipment![i];
+        var customize = (byte*)common + 0x252;
+        for (var i = 0; i < Math.Min(CustomizeLength, appearance.Customize?.Length ?? 0); i++)
+            customize[i] = appearance.Customize![i];
     }
 
     // The values every captured server spawn of another player carries.
     private const uint SpawnPlayerDisplayFlags = 0x40020;
     private const byte SpawnPlayerSubKind = 4;
 
-    public IBattleCharaProxy? SpawnDoppel(PartyMemberPreset preset, Placement placement, out uint entityId)
+    public IBattleCharaProxy? SpawnDoppel(PartyMemberPreset preset, byte level, Placement placement, out uint entityId)
     {
         entityId = 0;
         if (CharacterManager.Instance() == null) return null;
@@ -157,7 +192,7 @@ internal sealed unsafe class BattleCharas : IBattleCharas
         common.CharacterMode = CharacterModes.Normal;
         common.ObjectKind = ObjectKind.Pc;
         common.SubKind = SpawnPlayerSubKind;
-        common.Level = preset.Level;
+        common.Level = level;
         common.ClassJobId = preset.ClassJob;
         common.Position = placement.Position;
         common.Rotation = MathUtil.QuantizeRotation(MathUtil.NormalizeRotation(placement.Rotation));
@@ -167,7 +202,7 @@ internal sealed unsafe class BattleCharas : IBattleCharas
         GameObjectHelper.WriteName((byte*)&packet + 0x20 + 0x232, 32, preset.Name);
 
         var id = DoppelEntityIdBase + (uint)idx;
-        DiagnosticLog.Info($"[BattleCharas.SpawnDoppel] job {preset.ClassJob} level {preset.Level} -> index {idx}, entity 0x{id:X}, pos {placement.Position}, rot {placement.Rotation:F3}.");
+        DiagnosticLog.Info($"[BattleCharas.SpawnDoppel] job {preset.ClassJob} level {level} -> index {idx}, entity 0x{id:X}, pos {placement.Position}, rot {placement.Rotation:F3}.");
         try
         {
             PacketDispatcher.HandleSpawnPlayerPacket(id, &packet);

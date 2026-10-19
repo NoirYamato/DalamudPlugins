@@ -46,6 +46,7 @@ public sealed class UmadP2ForsakenScenario : IMultiplayerReplayable
         new UmadP2ForsakenLpduBuddiesAi(),
         new UmadP2ForsakenP3ZBuddyMeowAi(),
         new UmadP2ForsakenZP6SouthAdjustAi(),
+        new UmadP2ForsakenYanAi(),
     ];
 
     // NA holds the existing strats; EU holds this branch's new strats — isolated copies
@@ -72,6 +73,7 @@ public sealed class UmadP2ForsakenScenario : IMultiplayerReplayable
         party = worldParam.Party;
         state = new UmadP2ForsakenState(world.Rng, party, settingsWindow.Overrides);
         LastState = state;
+        lastBroadcastLockonsKey = null;
         if (selectedAi is { } idx && idx >= 0 && idx < AiStrats.Count)
             ((IScenarioAi<UmadP2ForsakenState>)AiStrats[idx]).Run(state, world);
         
