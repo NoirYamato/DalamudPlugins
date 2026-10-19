@@ -102,6 +102,8 @@ internal sealed class FakeBattleChara(FakeBattleCharas owner, int slot) : IBattl
                 // Raw damage entry Param1 (attack type | element << 4); the comparer names them.
                 ["damage_type"] = string.Join("/", Entries(effect, 0x03, 0x05, 0x06).Select(e => $"0x{e.Param1:X}").Distinct()),
                 ["knockback"] = string.Join("/", Entries(effect, KnockbackEffectType).Select(e => e.Value.ToString()).Distinct()),
+                // Not a replay column: the hits by entity id, for comparing two clients' rows.
+                ["targets"] = string.Join(" ", (effect.Targets ?? []).Select(t => Id(t.Id).ToString("X8"))),
             });
         owner.RecordEffect(sequence, EntityId, effect.ActionId);
         if (Actor is { } caster)
@@ -194,6 +196,11 @@ internal sealed class FakeBattleChara(FakeBattleCharas owner, int slot) : IBattl
             case 0xE1: // push, p1 = heading, p2 = distance x10000, p3 = duration x10000
                 Actor?.StartPush(arg1 / (float)ushort.MaxValue * MathF.Tau - MathF.PI, arg2 / 10000f, arg3 / 10000f);
                 break;
+            case 0xDF: // ice slide, p1 = x<<16|y, p2 = z<<16|rotation
+                Actor?.StartSlide(
+                    new Vector3(Position16(arg1 >> 16), Position16(arg1 & 0xFFFF), Position16(arg2 >> 16)),
+                    (arg2 & 0xFFFF) / (float)ushort.MaxValue * MathF.Tau - MathF.PI);
+                break;
             case 0xF1: // warp, p1 = x<<16|y, p2 = z<<16|rotation
                 Actor?.StartCarry(
                     new Vector3(Position16(arg1 >> 16), Position16(arg1 & 0xFFFF), Position16(arg2 >> 16)),
@@ -232,11 +239,11 @@ internal sealed class FakeBattleChara(FakeBattleCharas owner, int slot) : IBattl
     public void ReceiveStatusList(IReadOnlyList<StatusSlot> statuses, uint health, uint mana, byte shield)
     {
         if (Actor is not { } a) return;
-        var now = statuses.Where(s => s.StatusId != 0).GroupBy(s => s.StatusId).ToDictionary(g => g.Key, g => g.First());
-        foreach (var (id, s) in now.Where(n => !a.Statuses.ContainsKey(n.Key)))
-            Record("status_gain", id.ToString(), "", s.SourceEntityId, detail: $"dur={SimTimeline.F(s.RemainingTime, "F1")} param={s.Param}");
-        foreach (var id in a.Statuses.Keys.Where(k => !now.ContainsKey(k)))
-            Record("status_lose", id.ToString());
+        var now = statuses.Where(s => s.StatusId != 0).GroupBy(s => (s.StatusId, FakeCharacter.StatusSource(s.SourceEntityId))).ToDictionary(g => g.Key, g => g.First());
+        foreach (var (key, s) in now.Where(n => !a.Statuses.ContainsKey(n.Key)))
+            Record("status_gain", key.StatusId.ToString(), "", s.SourceEntityId, detail: $"dur={SimTimeline.F(s.RemainingTime, "F1")} param={s.Param}");
+        foreach (var key in a.Statuses.Keys.Where(k => !now.ContainsKey(k)))
+            Record("status_lose", key.StatusId.ToString());
         a.Statuses = now;
         a.Health = health;
         a.Mana = mana;

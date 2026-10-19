@@ -17,8 +17,9 @@ public interface IZoneControl : IDisposable
     // Every frame, inside a session or not: the start gate's timers and the session's safety nets.
     void TickGuard();
 
-    // False when refused; nothing is loaded then.
-    bool Enter(uint territoryId, Vector3 playerSpawn, byte levelSync, ushort itemLevelSync);
+    // False when refused; nothing is loaded then. The player is synced to the duty's level and
+    // item level.
+    bool Enter(uint territoryId, Vector3 playerSpawn);
 
     // Back to the inn territory and position.
     void Revert();
@@ -27,9 +28,6 @@ public interface IZoneControl : IDisposable
     void ApplyWeather(byte weatherId);
     void SetWeather(byte weatherId, float transition = 0.5f);
     void TickWeather();
-
-    // Environment fog held each frame; null releases it.
-    float? FogHold { get; set; }
 
     // A captured server packet, replayed through the client's own dispatcher. False when it could
     // not be delivered.

@@ -29,8 +29,12 @@ internal sealed class FakeCharacter(uint entityId, string name)
     public bool HasDrawObject { get; set; }
     public bool IsDrawObjectVisible { get; set; }
     public Dictionary<byte, ushort> Tethers { get; } = new();
+    // By id and source: one id applied by two sources is two entries, as in the status list. The spawn
+    // packet names no source as 0xE0000000, the status list as 0.
+    public static uint StatusSource(uint entityId) => entityId == 0xE0000000 ? 0 : entityId;
+
     // As the last status list had them.
-    public Dictionary<ushort, AnoMech.Core.Native.Interfaces.StatusSlot> Statuses
+    public Dictionary<(ushort StatusId, uint Source), AnoMech.Core.Native.Interfaces.StatusSlot> Statuses
     {
         get;
         set
@@ -44,9 +48,10 @@ internal sealed class FakeCharacter(uint entityId, string name)
     private float sinceStatusList;
 
     public float ShownRemainingTime(ushort statusId)
-        => Statuses.TryGetValue(statusId, out var status) && status.RemainingTime > 0f
-            ? MathF.Max(0f, status.RemainingTime - sinceStatusList)
-            : 0f;
+        => Statuses.Where(s => s.Key.StatusId == statusId && s.Value.RemainingTime > 0f)
+                   .Select(s => MathF.Max(0f, s.Value.RemainingTime - sinceStatusList))
+                   .DefaultIfEmpty(0f)
+                   .Max();
 
     public bool IsCasting { get; set; }
     public uint CastActionId { get; set; }
@@ -86,6 +91,9 @@ internal sealed class FakeCharacter(uint entityId, string name)
         glideStep = delta / GlideSeconds;
         glideRemaining = GlideSeconds;
     }
+
+    // UNVERIFIED: how long the client slides; the packet carries no duration.
+    public void StartSlide(Vector3 destination, float rotation) => StartGlide(destination, rotation);
 
     public void Teleport(Vector3 position, float rotation)
     {

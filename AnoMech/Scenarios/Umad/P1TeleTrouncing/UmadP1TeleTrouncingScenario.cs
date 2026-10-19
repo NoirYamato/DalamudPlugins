@@ -125,7 +125,6 @@ public sealed class UmadP1TeleTrouncingScenario : IMultiplayerReplayable
         party = world.Party;
         state = new UmadP1TeleTrouncingState(world.Rng, settingsWindow.Overrides);
         LastState = state;
-        hazeHoldApplied = true;   // what InstanceSession.ApplyPhase just applied from the phase
 
         // Game.Catalog reuses one instance across runs; a stopped run's arrow wrappers still
         // hold their frozen positions, and TickArrows would bind someone against them on the
@@ -386,7 +385,6 @@ public sealed class UmadP1TeleTrouncingScenario : IMultiplayerReplayable
             ((IScenarioAi<UmadP1TeleTrouncingState>)AiStrats[idx]).Run(state, world);
     }
 
-    // Host and peer alike (see IScenario.RunInstanceEvents), so broadcast: false.
     public void RunInstanceEvents(SimWorld instanceWorld)
     {
         Natives.TimelinePreload.Preload(ThunderFireTimelines, "UmadP1TeleTrouncing");
@@ -422,10 +420,11 @@ public sealed class UmadP1TeleTrouncingScenario : IMultiplayerReplayable
     }
 
     // The arrows steer a bot's Confetti/Tether moves the same way SpawnArrowObjects does on the
-    // host, and stop doing so once Confused starts, when the chase has to walk into them.
+    // host, and stop doing so once Confused starts, when the chase has to walk into them: the
+    // client's control lock, which the host's Confused puts on it.
     public void RebuildPeerObstacles(ObstacleField obstacles, IReadOnlyDictionary<int, SimEnemy> peerEnemies, IReadOnlyDictionary<int, SimEventObject> peerEventObjects, SimCharacter? localPlayer)
     {
-        if (localPlayer == null || localPlayer.HasStatus(Constants.StatusId.Confused)) return;
+        if (localPlayer == null || Natives.PlayerConditions.ControlAffliction) return;
         foreach (var eo in peerEventObjects.Values)
             if (eo.EObjRowId == Constants.EObjId.TelePortent)
                 obstacles.Add(new CircleObstacle(new Vector2(eo.Position.X, eo.Position.Z), ArrowTriggerRadius));
@@ -464,7 +463,6 @@ public sealed class UmadP1TeleTrouncingScenario : IMultiplayerReplayable
     public void Tick(float delta, float elapsed)
     {
         TickArrows(delta, elapsed);
-        TickHazeHold();
     }
 
     private SimEnemy? SpawnHelper()
@@ -501,17 +499,6 @@ public sealed class UmadP1TeleTrouncingScenario : IMultiplayerReplayable
             helpers[i]?.Despawn();
             helpers[i] = null;
         }
-    }
-
-    private bool hazeHoldApplied;
-
-    private void TickHazeHold()
-    {
-        var want = settingsWindow.Overrides.HoldHaze;
-        if (want == hazeHoldApplied) return;
-        hazeHoldApplied = want;
-        world.Map.SetFogHold(want ? UmadZone.P1Haze : null);
-        DiagnosticLog.Info($"[UmadP1TeleTrouncing] P1 haze hold {(want ? "on" : "off")} (settings window).");
     }
 
     private void TickArrows(float delta, float elapsed)

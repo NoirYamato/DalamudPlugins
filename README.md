@@ -20,18 +20,20 @@ While simulating:
   * Ready checks will not pop.
  
 
-### Beta: Advanced Simulation Resolution
-
-The simulator now includes a beta feature that properly resolves most skills, triggers, and gauges during simulation. 
-As this feature is still in beta, some edge cases and less common interactions may not yet resolve correctly.
-
 
 ## Installation
 
 Add `https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/repo.json` as a custom plugin repository.
 Full steps: https://github.com/NoirYamato/DalamudPlugins
 
-## Currently implemented (by default using pf NA strats):
+## Beta: Advanced Simulation Resolution
+
+The simulator now includes a beta feature that properly resolves most skills, triggers, and gauges during simulation.
+As this feature is still in beta, some edge cases and less common interactions may not yet resolve correctly.
+
+
+## Currently implemented 
+All using default NA pf strats unless noted otherwise:
 - Dancing Mad (Ultimate)
     - P1 Tele-trouncing _by [Evernow](https://github.com/Evernow)_
     - P2 Forsaken
@@ -43,6 +45,8 @@ Full steps: https://github.com/NoirYamato/DalamudPlugins
         - [\[LPDU\] Buddies](https://raidplan.io/plan/142oXOZpPc_jh3dd)
         - [\[Old\] p3Z Buddy Meow](https://raidplan.io/plan/lZWqxfxvyhF9sp3Z)
         - [\[Old\] zP6 South adjust](https://raidplan.io/plan/rtc1FcuZFMuyBzP6)
+      - JP _by [altair9x](https://github.com/altair9x)_
+        - [Yan](https://yan-flash.com/ultimate/yosei-ranbu#ult-phase-2)
     - P3 Limit Cut _by [Evernow](https://github.com/Evernow)_
     - P3 Black Hole _old bh (single tethers, n/s stomps)_
       - D>S>A
@@ -54,15 +58,26 @@ Full steps: https://github.com/NoirYamato/DalamudPlugins
     - P5 Exaflares _by [Wydox](https://github.com/Wydox)_
     - P5 Celestriad _by [RoarkGit](https://github.com/RoarkGit)_
     - P5 Forsaken Null _no ai or damage_
+- Futures Rewritten (Ultimate) _by [grayparser](https://github.com/grayparser)_
+    - P2 Diamond Dust 
+    - P2 Light Rampant
+    - P3 Ultimate Relativity
+    - P3 Apocalypse 
+    - P4 Darklit Dragonsong
+      - NA
+      - NA, you take Somber Dance
+    - P4 Crystallize Time 
+    - P5 Fulgent Blade
+    - P5 Paradise Regained 
 - The Omega Protocol (Ultimate)
     - P2 Party Synergy
-      - NA pf strat
+      - NA pf
       - EU
         - [\[LPDU\] BPOG/GOPB](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1)
-    - P5 Delta _NA pf strats_
-    - P5 Sigma _NA pf strats_
-    - P5 Omega _NA pf strats_
-    - P6 Exasquares / Wave Cannon 2 _NA pf strats_
+    - P5 Delta
+    - P5 Sigma
+    - P5 Omega
+    - P6 Exasquares / Wave Cannon 2
 - The Weapon's Refrain (Ultimate) _by [WorstAquaPlayer](https://github.com/WorstAquaPlayer)_
     - Ultimate Predaction
     - Ultimate Suppression
@@ -95,10 +110,14 @@ Full steps: https://github.com/NoirYamato/DalamudPlugins
 #  Acknowledgments
 
 Thanks for contributors:
-* [WorstAquaPlayer](https://github.com/WorstAquaPlayer) - rewriting core & fixing crashes, scenarios for uwu
+* [WorstAquaPlayer](https://github.com/WorstAquaPlayer) - rewriting core & fixing crashes, extra scenarios
 * [Wydox](https://github.com/Wydox) - core improvements, extra scenarios and strategies
+* [Evernow](https://github.com/Evernow) - multiplayer (WIP), core improvements, extra scenarions and strategies
 * [RoarkGit](https://github.com/RoarkGit) - win streaks, extra scenarios
-* [Evernow](https://github.com/Evernow) - multiplayer (WIP), extra sceanrions and strategies
+* [grayparser](https://github.com/grayparser) - core improvements, extra scenarios
+* [altair9x](https://github.com/altair9x) - extra strategies
+* [Quantumlyy](https://github.com/Quantumlyy) - extra strategies
+* [Linqx](https://github.com/Linqx) - success/failure checkmarks
 
 AnoMech leans heavily on the work of other Dalamud plugins. Huge thanks to their authors!  
 Without them, the following would not be possible:

@@ -197,7 +197,7 @@ public class GamePauseTests
     {
         SimEnemy? caster = null;
         uint actionId = 0;
-        var effectSeq = 0;
+        var rowsAtPause = 0;
         var atPause = 0f;
         var paused = new List<float>();
         float? firstAfter = null;
@@ -213,7 +213,7 @@ public class GamePauseTests
                     if (!when(enemy, bar)) continue;
                     caster = enemy;
                     actionId = enemy.CastActionId;
-                    effectSeq = enemy.Casting.EffectSeq;
+                    rowsAtPause = p.Fake.Timeline.Rows.Count;
                     atPause = bar;
                     p.Game.Pause();
                     break;
@@ -228,7 +228,7 @@ public class GamePauseTests
             }
             if (paused.Count < frames) return;
             firstAfter ??= Bar(p, caster);
-            released |= caster.Casting.EffectSeq > effectSeq && caster.Casting.EffectActionId == actionId;
+            released |= p.Fake.Timeline.Rows.Skip(rowsAtPause).Any(r => r["kind"] == "ability" && r["id"] == actionId.ToString() && r["actor"] == caster.EntityId.ToString("X8"));
         });
 
         Assert.That(run.Passed, run.ToString);
@@ -532,7 +532,7 @@ public class GamePauseTests
         var pendingLater = -1;
         var run = Run(p =>
         {
-            p.Fake.BattleCharas.EnemySpawnDelayFrames = 5;
+            p.Fake.BattleCharas.PacketSpawnFrames = (5, 5);
             if (p.Crossed(2.23f)) pendingAtPause = p.World.Children.OfType<SimEnemy>().Count(e => e.PacketSpawnPending);
             p.PauseFor(2.23f, 30);
             if (p.Game.UserPaused && ++frames == 20)
