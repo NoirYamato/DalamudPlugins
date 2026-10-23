@@ -66,6 +66,19 @@ public class TopP3IntermissionScenarioTests
             .TeleportAt(25f, to: new(0, z))
             .ShouldKill(P3ActionId.ColossalBlow, MainTank);
 
+    // MT, a spread, dies to the north arm 4.1 y from both stack pairs: had its spread still fired, it
+    // would have caught all four.
+    [Test]
+    public void AHolderWhoDiedFiresNothing()
+    {
+        var run = Run(MainTank, FirstArms.NorthTriangle, new Takeover(25f, new Vector2(0, -16)));
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Elapsed, Is.GreaterThan(28.3f), "the run lasts until the cannons");
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)),
+                    Is.EqualTo(new[] { (MainTank, (uint?)P3ActionId.ColossalBlow) }), run.ToString);
+    }
+
     // OT spreads alone by the second set's south arm, after the first set and its ring.
     [Test]
     public void StandingNextToASecondArmKills()
@@ -161,15 +174,18 @@ public class TopP3IntermissionScenarioTests
     {
         var bearings = new Dictionary<string, float>();
         var rows = new List<Dictionary<string, string>>();
+        var shown = new Dictionary<float, float[]>();
         var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = MainTank,
             Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, arms),
             Probe = p =>
             {
+                foreach (var at in new[] { 12.2f, 12.4f, 15.3f, 15.5f })
+                    if (p.Crossed(at))
+                        shown[at] = Arms(p).Where(a => a.Proxy?.IsDrawObjectVisible == true).Select(a => Bearing(a.Position)).Order().ToArray();
                 if (!p.Crossed(30f)) return;
-                foreach (var arm in p.World.Children.OfType<SimEnemy>()
-                                     .Where(e => e.BNpcBaseId is BNpcBaseId.LeftArmUnit or BNpcBaseId.RightArmUnit))
+                foreach (var arm in Arms(p))
                     bearings[arm.EntityId.ToString("X8")] = Bearing(arm.Position);
                 rows.AddRange(p.Fake.Timeline.Rows);
             },
@@ -181,6 +197,10 @@ public class TopP3IntermissionScenarioTests
         var blows = rows.Where(r => r["kind"] == "cast" && r["id"] == $"{P3ActionId.ColossalBlow}" && bearings.ContainsKey(r["actor"])).ToList();
         Assert.Multiple(() =>
         {
+            Assert.That(shown[12.2f], Is.Empty, "arms shown before 12.3");
+            Assert.That(shown[12.4f], Is.EqualTo(first).Within(0.01f), "arms shown after 12.3");
+            Assert.That(shown[15.3f], Is.EqualTo(first).Within(0.01f), "arms shown before 15.4");
+            Assert.That(shown[15.5f], Is.EqualTo(new[] { 0f, 60f, 120f, 180f, 240f, 300f }).Within(0.01f), "arms shown after 15.4");
             Assert.That(BearingsAt(warps, bearings, 12.3f), Is.EqualTo(first).Within(0.01f), "warp-ins at 12.3");
             Assert.That(BearingsAt(warps, bearings, 15.4f), Is.EqualTo(second).Within(0.01f), "warp-ins at 15.4");
             Assert.That(warps, Has.Count.EqualTo(6), "one warp-in per arm");
@@ -219,6 +239,9 @@ public class TopP3IntermissionScenarioTests
             Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, arms),
             Takeovers = takeovers,
         });
+
+    private static IEnumerable<SimEnemy> Arms(ScenarioProbe p)
+        => p.World.Children.OfType<SimEnemy>().Where(e => e.BNpcBaseId is BNpcBaseId.LeftArmUnit or BNpcBaseId.RightArmUnit);
 
     private static float[] BearingsAt(IEnumerable<Dictionary<string, string>> rows, Dictionary<string, float> bearings, float at)
         => rows.Where(r => MathF.Abs(float.Parse(r["t"], CultureInfo.InvariantCulture) - at) < 0.05f)

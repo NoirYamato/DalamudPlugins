@@ -39,11 +39,15 @@ public static class TopP3Actions
         DeathExplanation = "Hit by Wave Repeater in the middle",
     };
 
-    public static readonly EnemyAction WaveRepeaterRing2 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing2, P3Geometry.WaveRepeaterInner2);
+    // Ring 1's band is the void zone, so no reason may send anyone back into it.
+    public static readonly EnemyAction WaveRepeaterRing2 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing2, P3Geometry.WaveRepeaterInner2,
+        "Hit by Wave Repeater's second ring (6-12 y): the waves travel outward, so be out at the wall before it");
 
-    public static readonly EnemyAction WaveRepeaterRing3 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing3, P3Geometry.WaveRepeaterInner3);
+    public static readonly EnemyAction WaveRepeaterRing3 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing3, P3Geometry.WaveRepeaterInner3,
+        "Hit by Wave Repeater's third ring (12-18 y): wait at the wall until it has passed");
 
-    public static readonly EnemyAction WaveRepeaterRing4 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing4, P3Geometry.WaveRepeaterInner4);
+    public static readonly EnemyAction WaveRepeaterRing4 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing4, P3Geometry.WaveRepeaterInner4,
+        "Hit by Wave Repeater's fourth ring (18-24 y): step in behind the third ring once it has passed");
 
     public static readonly EnemyAction ColossalBlow = new(P3ActionId.ColossalBlow)
     {
@@ -56,11 +60,11 @@ public static class TopP3Actions
 
     public static readonly EnemyAction HighPoweredSniperCannon = new(ActionId.HighPoweredSniperCannon) { Effects = [Damage()] };
 
-    private static EnemyAction WaveRepeaterRing(uint actionId, float innerRadius) => new(actionId)
+    private static EnemyAction WaveRepeaterRing(uint actionId, float innerRadius, string deathExplanation) => new(actionId)
     {
         Area = new() { Size = innerRadius },
         Effects = [Damage(Lethal)],
-        DeathExplanation = "Hit by a Wave Repeater ring: stand in the band the last ring just hit",
+        DeathExplanation = deathExplanation,
     };
     // -- end P3 Intermission --
 }

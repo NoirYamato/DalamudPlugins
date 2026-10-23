@@ -26,6 +26,10 @@ public class TopP3IntermissionLpduAiTests
     private static readonly PartyRole[] OtherDebuffOrder =
         [MeleeDpsA, ShieldHealer, MeleeDpsB, CasterDps, PhysRangedDps, OffTank, MainTank, RegenHealer];
 
+    // The pinned roll listed east to west within each debuff, so counting in roll order would differ.
+    private static readonly PartyRole[] ReversedDebuffOrder =
+        [CasterDps, OffTank, MainTank, PhysRangedDps, MeleeDpsB, MeleeDpsA, ShieldHealer, RegenHealer];
+
     private static readonly Dictionary<PartyRole, Vector2> Conga = new()
     {
         [PhysRangedDps] = new(-9f, 9.6f), [MeleeDpsA] = new(-6.43f, 9.6f), [MainTank] = new(-3.86f, 9.6f),
@@ -56,8 +60,12 @@ public class TopP3IntermissionLpduAiTests
         [RegenHealer] = new(-8.5f, 0f), [CasterDps] = new(-6.01f, -6.01f),
     };
 
-    private static readonly Sign[] PinnedSigns =
-        [Sign.Attack1, Sign.Attack2, Sign.Attack3, Sign.Attack4, Sign.Bind1, Sign.Bind2, Sign.Ignore1, Sign.Ignore2];
+    // The signs for the pinned roll, in either order.
+    private static readonly Dictionary<PartyRole, Sign> PinnedSigns = new()
+    {
+        [PhysRangedDps] = Sign.Attack1, [MainTank] = Sign.Attack2, [OffTank] = Sign.Attack3, [CasterDps] = Sign.Attack4,
+        [MeleeDpsA] = Sign.Bind1, [MeleeDpsB] = Sign.Bind2, [RegenHealer] = Sign.Ignore1, [ShieldHealer] = Sign.Ignore2,
+    };
 
     [TestCase(MainTank, Automarkers.On)]
     [TestCase(RegenHealer, Automarkers.Off)]
@@ -91,25 +99,31 @@ public class TopP3IntermissionLpduAiTests
                     ByGroup(groups, arms == FirstArms.NorthTriangle ? NorthFinal : SouthFinal));
     }
 
+    [TestCase(FirstArms.NorthTriangle)]
+    [TestCase(FirstArms.SouthTriangle)]
+    public void CountsInCongaOrderWhateverOrderTheRollListsThem(FirstArms arms)
+        => AssertSpots(ReversedDebuffOrder, arms, Automarkers.On, OffTank, at: 28.2f,
+                       ByGroup(PinnedGroups, arms == FirstArms.NorthTriangle ? NorthFinal : SouthFinal));
+
     // They come straight in to r 8.5 first and cross the middle only once the void zone has gone.
     [Test]
     public void ComesInToHelloWorldsOpeningSpreadAfterTheSecondArms()
         => AssertSpots(PinnedDebuffOrder, FirstArms.SouthTriangle, Automarkers.On, ShieldHealer, at: 31f, LooseSpread, destinations: true);
 
-    [TestCase(MainTank)]
-    [TestCase(ShieldHealer)]
-    public void AutomarkersSignEveryoneInCongaOrder(PartyRole player)
+    [TestCase(MainTank, false)]
+    [TestCase(ShieldHealer, false)]
+    [TestCase(OffTank, true)]
+    public void AutomarkersSignEveryoneInCongaOrder(PartyRole player, bool reversedRoll)
     {
-        var marks = Marks(PinnedDebuffOrder, Automarkers.On, player, Random.Shared.Next());
+        var marks = Marks(reversedRoll ? ReversedDebuffOrder : PinnedDebuffOrder, Automarkers.On, player, Random.Shared.Next());
 
-        var expected = PinnedDebuffOrder.Select((role, i) => (role, PinnedSigns[i])).ToDictionary(t => t.role, t => (t.Item2, 9.7f));
         Assert.That(marks.Keys, Is.EquivalentTo(PerRole.All));
         Assert.Multiple(() =>
         {
-            foreach (var (role, (sign, at)) in expected)
+            foreach (var (role, sign) in PinnedSigns)
             {
                 Assert.That(marks[role].Sign, Is.EqualTo(sign), $"{role}'s sign");
-                Assert.That(marks[role].At, Is.EqualTo(at).Within(0.05f), $"{role}'s mark time");
+                Assert.That(marks[role].At, Is.EqualTo(9.7f).Within(0.05f), $"{role}'s mark time");
             }
         });
     }

@@ -29,16 +29,16 @@ public sealed class TopP3IntermissionState
     public TopP3IntermissionState(Rng rng, SimParty party, TopP3IntermissionStateOverrides overrides)
     {
         // Every roll is drawn whether or not it is overridden, so pinning one leaves the others as
-        // the seed had them.
+        // the seed had them. The arms are drawn first because a pinned debuff seat adds draws.
+        // UNVERIFIED: even odds.
+        var firstArms = rng.NextObj(FirstArms.NorthTriangle, FirstArms.SouthTriangle);
+        FirstArms = overrides.FirstArms ?? firstArms;
+
         var debuffs = new RoleListBuilder
         {
             Slots = overrides.Debuff.Resolve(party.PlayerRole).ToDictionary(r => r.Role, r => SlotsOf(r.Value)),
         }.Build(rng, party);
         Debuffs = overrides.DebuffOrder is { } order ? new RoleList(party, order) : debuffs;
-
-        // UNVERIFIED: even odds.
-        var firstArms = rng.NextObj(FirstArms.NorthTriangle, FirstArms.SouthTriangle);
-        FirstArms = overrides.FirstArms ?? firstArms;
 
         Automarkers = overrides.Automarkers;
     }

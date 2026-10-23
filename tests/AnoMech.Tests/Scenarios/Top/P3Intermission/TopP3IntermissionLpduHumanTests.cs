@@ -21,8 +21,8 @@ public class TopP3IntermissionLpduHumanTests
 {
     private const int LpduStrat = 0;
 
-    // Four fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
-    private static IEnumerable<int> Seeds => Enumerable.Range(1, TestContext.Parameters.Get("HumanSeeds", 4)).Select(i => 13 * i);
+    // Ten fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
+    private static IEnumerable<int> Seeds => Enumerable.Range(1, TestContext.Parameters.Get("HumanSeeds", 10)).Select(i => 13 * i);
     private static readonly float[] ReactionTimes = [0f, 0.5f, 1f];
 
     private static IEnumerable<TestCaseData> Matrix()
