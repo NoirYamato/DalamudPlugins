@@ -91,7 +91,7 @@ public class TopP3IntermissionLpduAiTests
                     ByGroup(groups, arms == FirstArms.NorthTriangle ? NorthFinal : SouthFinal));
     }
 
-    // From the wall at walking pace, nobody reaches the void zone before it goes at 30.7.
+    // They come straight in to r 8.5 first and cross the middle only once the void zone has gone.
     [Test]
     public void ComesInToHelloWorldsOpeningSpreadAfterTheSecondArms()
         => AssertSpots(PinnedDebuffOrder, FirstArms.SouthTriangle, Automarkers.On, ShieldHealer, at: 31f, LooseSpread, destinations: true);

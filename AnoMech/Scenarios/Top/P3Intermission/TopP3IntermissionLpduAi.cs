@@ -59,7 +59,8 @@ public class TopP3IntermissionLpduAi : IScenarioAi<TopP3IntermissionState>
         ai.Move(18.6f, () => GroupSpots(StepInBehindTheThirdRing));
         ai.Move(21f, () => GroupSpots(WaitLeaningAwayFromTheFirstArms));
         ai.Move(26.7f, () => GroupSpots(IntoTheFirstArmsSpentCircle), arrivalTime: 28f);
-        ai.Move(29.2f, HelloWorldLooseSpread);
+        ai.Move(29.2f, () => GroupSpots(StraightInBesideTheVoidZone));
+        ai.Move(30.8f, HelloWorldLooseSpread);
     }
 
     private IAiMove CongaLine()
@@ -94,6 +95,9 @@ public class TopP3IntermissionLpduAi : IScenarioAi<TopP3IntermissionState>
 
     private Vector2 IntoTheFirstArmsSpentCircle(float wallBearing)
         => OnRing(wallBearing - SpentCircleLeanDegrees * TowardsTheSecondArms(wallBearing), SpentCircleRadius);
+
+    private Vector2 StraightInBesideTheVoidZone(float wallBearing)
+        => OnRing(wallBearing - SpentCircleLeanDegrees * TowardsTheSecondArms(wallBearing), LooseSpreadRadius);
 
     private float TowardsTheSecondArms(float wallBearing)
         => FirstArmsStandCounterClockwiseOf(wallBearing) ? 1f : -1f;
