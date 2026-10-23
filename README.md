@@ -25,7 +25,8 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
 ## What's different from AnoMech
 
 - **TOP P2 Party Synergy:** an `[LPDU] BPOG/GOPB` strat under the **EU** button, following
-  [Dylan Luxor's LPDU toolbox](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1).
+  [Dylan Luxor's LPDU toolbox](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1). It is the
+  default; NA pf is still under the **NA** button.
 - **TOP P2 Party Synergy, solo:** you no longer die to the Spotlight stack when you're picked as a stack
   target with no bots around.
 - **TOP P3 Hello World and P3 Monitors:** new scenarios, each with an `[LPDU] Light PF` strat under the
