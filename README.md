@@ -32,6 +32,10 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   **EU** button, following the LPDU toolboxes for
   [Hello World](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1) and
   [Monitors](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1).
+- **TOP P3 Intermission:** a new scenario with an `[LPDU] Light PF` strat under the **EU** button, following
+  the [LPDU P3 Intermission raidplan](https://raidplan.io/plan/46r495ZATq3kCqz1). Its settings have an
+  **Automarkers** option: On (the default) marks the spreads, stacks and their partners in conga order; Off
+  leaves you to read your own debuff.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of

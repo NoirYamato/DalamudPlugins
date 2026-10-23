@@ -3,9 +3,9 @@
         "Author":  "Anomek, Noir Yamato",
         "Name":  "NoirMech",
         "Punchline":  "AnoMech with LPDU strats for TOP P2 and P3, and a pause. Go to an inn and start practice.",
-        "Description":  "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Hello World and P3 Monitors, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
+        "Description":  "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World and P3 Monitors, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
         "InternalName":  "NoirMech",
-        "AssemblyVersion":  "0.5.1.1",
+        "AssemblyVersion":  "0.5.1.2",
         "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins",
         "ApplicableVersion":  "any",
         "Tags":  [
@@ -22,13 +22,13 @@
                  ],
         "DalamudApiLevel":  15,
         "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/noirmech.png",
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.1.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.1.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.1.zip",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.2.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.2.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.2.zip",
         "IsHide":  false,
         "IsTestingExclusive":  false,
         "DownloadCount":  0,
-        "LastUpdate":  "1792428745",
-        "Changelog":  "Now based on AnoMech v0.5.1.0, which adds Futures Rewritten (FRU) scenarios and multiplayer fixes. New: TOP P3 Hello World and P3 Monitors, each with an LPDU (Light PF) bot strat under the EU button."
+        "LastUpdate":  "1792763046",
+        "Changelog":  "New: TOP P3 Intermission, with an LPDU (Light PF) bot strat under the EU button and an Automarkers setting (on by default) that marks the spreads, stacks and their partners in conga order."
     }
 ]
