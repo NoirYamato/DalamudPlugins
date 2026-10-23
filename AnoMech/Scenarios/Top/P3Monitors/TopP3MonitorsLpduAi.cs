@@ -29,9 +29,25 @@ public class TopP3MonitorsLpduAi : IScenarioAi<TopP3MonitorsState>
     {
         state = s;
         var ai = new AiManager(world);
-        ai.Move(0.3f, WestArcLineUp);
-        ai.Move(2f, MonitorAndNonMonitorSpots);
-        world.Events.Add(9f, () => TurnMonitorsToAimTheirBeams(world));
+        ai.Move(0.3f, LooseStackWestOfOmega);
+        ai.Move(8.6f, WestArcLineUp);
+        ai.Move(20.4f, MonitorAndNonMonitorSpots);
+        world.Events.Add(27.4f, () => TurnMonitorsToAimTheirBeams(world));
+    }
+
+    private IAiMove LooseStackWestOfOmega()
+    {
+        return AiMove.Create(
+                         new(-16.54f, 2.47f),
+                         new(-15.34f, 2.47f),
+                         new(-16.54f, 3.67f),
+                         new(-15.34f, 3.67f),
+                         new(-16.54f, 4.87f),
+                         new(-15.34f, 4.87f),
+                         new(-16.54f, 6.07f),
+                         new(-15.34f, 6.07f)
+                     )
+                     .Assignments(NorthToSouthLineUp);
     }
 
     private IAiMove WestArcLineUp()

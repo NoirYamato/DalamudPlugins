@@ -109,4 +109,5 @@ marked UNVERIFIED there; tune them in that one place.
   scripts the player's seat through every kit, seat, walking style and reaction delay.
 - Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
   as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
-  arrive.
+  arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
+  up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s.

@@ -17,11 +17,35 @@ namespace AnoMech.Tests;
 // MeleeDpsA and PhysRangedDps, OffTank's ShieldHealer and MainTank, MeleeDpsA's RegenHealer and
 // OffTank, PhysRangedDps's MeleeDpsB and CasterDps. East mirrors x.
 //
-//   1.0   Omega casts Oversampled Wave Cannon; the three get their monitors.
-//   9.0   the monitor players turn to aim.
-//   11.1  eight 7y circles, one on each player.
+//   0.1   Omega casts Critical Error (8s).
+//   8.1   Critical Error hits everyone; the bots line up on the west arc.
+//   19.4  Omega casts Oversampled Wave Cannon; the three get their monitors.
+//   27.4  the monitor players turn to aim.
+//   29.5  eight 7y circles, one on each player.
 public class TopP3MonitorsScenarioTests
 {
+    [Test]
+    public void CriticalErrorHitsAtEightSecondsAndKillsNobody()
+    {
+        var criticalError = $"{TopP3Constants.P3ActionId.CriticalError}";
+        var rows = new List<(string Kind, float Time)>();
+        var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            StopAt = 9f,
+            Probe = p =>
+            {
+                if (!p.Crossed(8.8f)) return;
+                rows.AddRange(p.Fake.Timeline.Rows.Where(row => row["id"] == criticalError && row["kind"] is "cast" or "ability")
+                                   .Select(row => (row["kind"], float.Parse(row["t"], System.Globalization.CultureInfo.InvariantCulture))));
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(rows.Select(r => r.Kind), Is.EqualTo(new[] { "cast", "ability" }), string.Join("; ", rows));
+        Assert.That(rows[0].Time, Is.EqualTo(0.1f).Within(0.05f));
+        Assert.That(rows[1].Time, Is.EqualTo(8.1f).Within(0.1f));
+    }
+
     private const uint Hit = ActionId.OversampledWaveCannonAoe;
     private const float FacingNorth = MathF.PI;
 
@@ -47,7 +71,7 @@ public class TopP3MonitorsScenarioTests
                                                           [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]),
             Probe = p =>
             {
-                if (!p.Crossed(11.5f)) return;
+                if (!p.Crossed(29.9f)) return;
                 picks.AddRange(HitTargets(p));
                 var omegaId = p.World.Children.OfType<SimEnemy>().Single(e => e.BNpcBaseId == TopP3Constants.OmegaP3).EntityId.ToString("X8");
                 omegaCasts.AddRange(p.Fake.Timeline.Rows.Where(row => row["kind"] == "cast" && row["actor"] == omegaId).Select(row => row["id"]));
@@ -55,7 +79,7 @@ public class TopP3MonitorsScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(omegaCasts, Is.EqualTo(new[] { $"{omegaCast}" }), "Omega's casts");
+        Assert.That(omegaCasts, Is.EqualTo(new[] { $"{TopP3Constants.P3ActionId.CriticalError}", $"{omegaCast}" }), "Omega's casts");
         Assert.That(picks, Has.Count.EqualTo(8));
         var pairs = picks.Chunk(2).Select(pair => pair.Order().ToArray()).ToList();
         Assert.That(pairs[0], Is.EqualTo(new[] { MeleeDpsA, PhysRangedDps }), "Omega's monitor");
@@ -81,10 +105,10 @@ public class TopP3MonitorsScenarioTests
                                                           [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]),
             Probe = p =>
             {
-                if (p.Crossed(1.1f))
+                if (p.Crossed(19.5f))
                     foreach (var role in PerRole.All)
                         atCast[role] = loading.Where(id => p.Member(role)!.HasStatus(id)).ToArray();
-                if (p.Crossed(11.2f))
+                if (p.Crossed(29.6f))
                     foreach (var role in PerRole.All)
                         afterHits.AddRange(loading.Where(id => p.Member(role)!.HasStatus(id)));
             },
@@ -106,7 +130,7 @@ public class TopP3MonitorsScenarioTests
     [Test]
     public void TwoPlayersInsideOneCircleBothDie()
         => Slideshow(MeleeDpsB)
-            .TeleportAt(10.5f, to: new(4, 15))
+            .TeleportAt(28.9f, to: new(4, 15))
             .ShouldKill(Hit, MeleeDpsB, CasterDps);
 
     // Facing north, OffTank's monitor aims toward Omega's beam instead of away from it. It misses
@@ -126,7 +150,7 @@ public class TopP3MonitorsScenarioTests
                 WriteArtifactsOnFailure = false,
                 Overrides = o => TopP3MonitorsLpduAiTests.Pin((TopP3MonitorsStateOverrides)o, omega, Monitors,
                                                               [side, MonitorSide.Right, MonitorSide.Left]),
-                Takeovers = [new Takeover(10.5f, new Vector2(10.05f * x, -12.18f), FacingNorth)],
+                Takeovers = [new Takeover(28.9f, new Vector2(10.05f * x, -12.18f), FacingNorth)],
             });
             var dead = run.Deaths.Select(d => d.Role).Order().ToArray();
             Assert.That(run.Failure, Is.Null, run.ToString);
@@ -144,8 +168,8 @@ public class TopP3MonitorsScenarioTests
     [Test]
     public void StackingOnAMonitorPlayerKillsEveryoneInTheCircle()
         => Slideshow(ShieldHealer)
-            .TeleportAt(10.5f, to: new(11, -10))
-            .MoveBotAt(10.5f, MainTank, to: new(12, -11))
+            .TeleportAt(28.9f, to: new(11, -10))
+            .MoveBotAt(28.9f, MainTank, to: new(12, -11))
             .ShouldKill(Hit, OffTank, ShieldHealer, MainTank);
 
     // Who each Oversampled Wave Cannon circle has landed on so far, in the order they fired.

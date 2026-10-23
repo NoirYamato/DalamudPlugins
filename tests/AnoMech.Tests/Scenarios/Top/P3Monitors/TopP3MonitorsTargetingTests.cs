@@ -66,7 +66,7 @@ public class TopP3MonitorsTargetingTests
     {
         var omegasPairs = Seeds.Select(seed =>
         {
-            var (pairs, run) = Fire(seed, RegenHealer, new Takeover(10.5f, new Vector2(-3, -17)));
+            var (pairs, run) = Fire(seed, RegenHealer, new Takeover(28.9f, new Vector2(-3, -17)));
             var omegas = PairLeftOver(pairs, OffTanksLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
             Assert.That(omegas, Is.SubsetOf(new[] { MeleeDpsA, PhysRangedDps, RegenHealer }), $"seed {seed}");
             Assert.That(run.Deaths.Select(d => d.Role),
@@ -83,7 +83,7 @@ public class TopP3MonitorsTargetingTests
     {
         var seconds = Seeds.Select(seed =>
         {
-            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(10.5f, new Vector2(6, 0)));
+            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)));
             var offTanks = PairLeftOver(pairs, OmegasLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
             Assert.That(offTanks, Does.Contain(MainTank), $"seed {seed}");
             Assert.That(offTanks, Does.Not.Contain(OffTank), $"seed {seed}");
@@ -99,8 +99,8 @@ public class TopP3MonitorsTargetingTests
     {
         var offTanksPairs = Seeds.Select(seed =>
         {
-            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(10.5f, new Vector2(6, 0)),
-                                  new Takeover(10.5f, new Vector2(6, -3), Bot: MainTank));
+            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)),
+                                  new Takeover(28.9f, new Vector2(6, -3), Bot: MainTank));
             var offTanks = PairLeftOver(pairs, OmegasLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
             Assert.That(offTanks, Is.Unique, $"seed {seed}");
             Assert.That(offTanks, Does.Not.Contain(OffTank), $"seed {seed}");
@@ -123,7 +123,7 @@ public class TopP3MonitorsTargetingTests
                                                           [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]),
             Probe = p =>
             {
-                if (p.Crossed(11.5f)) hits.AddRange(TopP3MonitorsScenarioTests.HitTargets(p));
+                if (p.Crossed(29.9f)) hits.AddRange(TopP3MonitorsScenarioTests.HitTargets(p));
             },
         });
 

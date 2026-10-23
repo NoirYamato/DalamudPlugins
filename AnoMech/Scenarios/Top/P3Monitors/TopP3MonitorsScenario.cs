@@ -44,8 +44,10 @@ public sealed class TopP3MonitorsScenario : IScenario
 
         world.Events.Add(0f, SpawnOmega);
         world.Events.Add(0f, SpawnHelpers);
-        world.Events.Add(1f, StartMonitors);
-        world.Events.Add(11.1f, FireMonitors);
+        world.Events.Add(0.1f, () => omega?.Cast(TopP3Actions.CriticalError));
+        // Omega's teleport just before the cast (31558) would only move him onto the spot he already holds.
+        world.Events.Add(19.4f, StartMonitors);
+        world.Events.Add(29.5f, FireMonitors);
     }
 
     private void SpawnOmega()

@@ -24,6 +24,7 @@ public static class TopP3Constants
         public const uint LatentSynchronizationBugExpired = 31576;
         public const uint LatentDefectExpired = 31577;
         public const uint CriticalError = 31588;                    // boss->self, 8s raidwide
+        // UNVERIFIED: the players' Oversampled Wave Cannon Loading statuses land with the cast's start.
         public const uint OversampledWaveCannonEast = 31595;        // boss->self, 10s; monitors on the boss's right
         public const uint OversampledWaveCannonWest = 31596;        // monitors on the boss's left
 
