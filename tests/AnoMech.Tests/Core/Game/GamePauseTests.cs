@@ -18,9 +18,10 @@ public class GamePauseTests
     private const int Seed = 1;
     private const float Frame = ScenarioRun.FrameSeconds;
     private static readonly Type Synergy = typeof(TopP2PartySynergyScenario);
+    private const int SynergyNaStrat = 1;
 
     private static ScenarioRun Run(Action<ScenarioProbe> probe, ScenarioRunOptions? options = null, Type? scenario = null)
-        => ScenarioRun.Execute(scenario ?? Synergy, 0, Seed, (options ?? new ScenarioRunOptions()) with { Probe = probe });
+        => ScenarioRun.Execute(scenario ?? Synergy, scenario is null ? SynergyNaStrat : 0, Seed, (options ?? new ScenarioRunOptions()) with { Probe = probe });
 
     private static IEnumerable<TestCaseData> ScenarioStrats()
         => from scenario in ScenarioCatalog.Create().Scenarios

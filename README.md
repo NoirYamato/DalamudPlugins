@@ -71,9 +71,9 @@ All using default NA pf strats unless noted otherwise:
     - P5 Paradise Regained 
 - The Omega Protocol (Ultimate)
     - P2 Party Synergy
-      - NA pf
-      - EU
+      - EU (default)
         - [\[LPDU\] BPOG/GOPB](https://ff14.toolboxgaming.space/?id=502396712985961&preview=1)
+      - NA pf
     - P3 Intermission _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/46r495ZATq3kCqz1), automarkers on or off
     - P3 Hello World _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1)
     - P3 Monitors _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1)

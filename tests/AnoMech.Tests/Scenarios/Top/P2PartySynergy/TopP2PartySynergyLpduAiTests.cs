@@ -13,7 +13,7 @@ namespace AnoMech.Tests;
 // own coordinates: eye up for the spread, the three Omega-Ms up for the knockback.
 public class TopP2PartySynergyLpduAiTests
 {
-    private const int LpduStrat = 1;
+    private const int LpduStrat = 0;
     private const float Tolerance = 0.75f;
 
     private static readonly Dictionary<PartyRole, PlaystationSymbol> SlideshowSymbols = new()

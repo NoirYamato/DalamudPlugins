@@ -6,8 +6,9 @@ NoirMech is a fork of [AnoMech](https://github.com/anomek/AnoMech). `AGENTS.md` 
 stays byte-identical to upstream; this file adds only what NoirMech changes. `git diff v0.5.0.0` shows every
 NoirMech change:
 - the rename (below);
-- TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`, strat index 1),
-  `Group => "NA"` on upstream's strat, and no Spotlight in solo runs (a solo stack target stood alone and died);
+- TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`), listed first in
+  `AiStrats` so EU and it are the default pick (upstream's NA strat is index 1), `Group => "NA"` on upstream's
+  strat, and no Spotlight in solo runs (a solo stack target stood alone and died);
 - the user pause (below);
 - TOP P3 (below): the Intermission, Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the
   `TopZone.P3` phase, `TopP3Constants.cs` and `TopP3Actions.cs` (P3 ids and actions, kept out of upstream's
@@ -63,7 +64,10 @@ Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only ex
 `arrivalTime` so it is done before the dodge is planned: `AiManager`'s deferred `MoveTo` can't be cancelled and
 measures its delay from where the bot stands when the move fires, so a flex still walking at 11s made the
 dodge's 14.8s deadline lose a bot in 21-29% of seeds (a 10s flex). Keep each `arrivalTime` before the next move,
-append new strats rather than reorder (`selectedAi` is an index), and give every strat a `Group`.
+and give every strat a `Group`. `selectedAi` is an index into `AiStrats`, and the main window opens a scenario on
+the first strat and its region, so the order sets the default. Reorder only after updating every test that passes
+a strat index (the scenario's own tests, `GamePauseTests`); the index isn't saved across sessions, but it is sent
+to multiplayer peers, so both sides need the same build.
 
 ## Pause
 `/noirmech pause|resume|toggle`, the main-window Pause/Resume button and the title-bar icon toggle
