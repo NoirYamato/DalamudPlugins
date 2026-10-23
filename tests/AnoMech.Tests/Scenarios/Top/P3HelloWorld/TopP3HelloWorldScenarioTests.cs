@@ -1,5 +1,6 @@
 using System.Numerics;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P3HelloWorld;
 using static AnoMech.Core.Game.Party.PartyRole;
@@ -14,7 +15,7 @@ namespace AnoMech.Tests;
 // plays it (x east, z south):
 //
 //   0.5   loose spread at r 8.5, held until the towers: MT N, R1 NE, H2 E, M2 SE, OT S, M1 SW,
-//         H1 W, R2 NW.
+//         H1 W, R2 NW. 8.0: the M1-M2 remote and R1-R2 local tethers show.
 //   27.9  towers: OT (0,18.1) in the S blue tower, MT (-18.1,0) in the W one, H2 (11.35,-3.91) in
 //         the E red tower, H1 (3.91,-11.35) in the N one; M2 (9.77,-5.87) and M1 (5.87,-9.77) in
 //         the stacks; R1 (6.88,12.42) and R2 (-12.42,-6.88) in OT's and MT's defamations.
@@ -194,6 +195,44 @@ public class TopP3HelloWorldScenarioTests
             }
         });
     }
+
+    // Each set's pairs show their tethers 20s before their code smells run out, long before the towers.
+    [Test]
+    public void TethersShowTwentySecondsBeforeTheirRegressions()
+    {
+        float[] times = [7.9f, 8.1f, 19.0f, 27.9f, 28.1f, 28.9f, 29.2f, 48.9f, 50.2f, 71.2f];
+        var shown = new Dictionary<float, string[]>();
+        var run = Run(MainTank, stopAt: 71.3f, [], p =>
+        {
+            foreach (var at in times)
+                if (p.Crossed(at)) shown[at] = TethersBeforeRegression(p);
+        });
+
+        string[] setOne = ["local PhysRangedDps+CasterDps", "remote MeleeDpsA+MeleeDpsB"];
+        string[] setTwo = ["local RegenHealer+ShieldHealer", "remote MainTank+OffTank"];
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(shown, Is.EqualTo(new Dictionary<float, string[]>
+        {
+            [7.9f] = [],
+            [8.1f] = setOne,
+            [19.0f] = setOne,
+            [27.9f] = setOne,
+            [28.1f] = [],
+            [28.9f] = [],
+            [29.2f] = setTwo,
+            [48.9f] = setTwo,
+            [50.2f] = ["local MeleeDpsA+MeleeDpsB", "remote PhysRangedDps+CasterDps"],
+            [71.2f] = ["local MainTank+OffTank", "remote RegenHealer+ShieldHealer"],
+        }));
+    }
+
+    private static string[] TethersBeforeRegression(ScenarioProbe p)
+        => p.World.Children.OfType<SimTether>()
+            .Where(t => t.IsActive && t.TetherId is TetherId.HWPrepLocal or TetherId.HWPrepRemote)
+            .Select(t => (t.TetherId == TetherId.HWPrepLocal ? "local " : "remote ")
+                         + string.Join("+", Enum.GetValues<PartyRole>().Where(r => p.Member(r) is { } m && (m == t.A || m == t.B))))
+            .Order()
+            .ToArray();
 
     private static ScenarioRun Run(PartyRole player, float stopAt, IReadOnlyList<Takeover> takeovers, Action<ScenarioProbe> probe)
         => ScenarioRun.Execute(typeof(TopP3HelloWorldScenario), 0, Random.Shared.Next(), new ScenarioRunOptions

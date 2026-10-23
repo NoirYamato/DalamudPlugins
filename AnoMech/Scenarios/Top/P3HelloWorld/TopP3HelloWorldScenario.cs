@@ -85,15 +85,20 @@ public sealed class TopP3HelloWorldScenario : IScenario
         world.Events.Add(0.1f, () => omega?.Cast(Actions.HelloWorld));
         world.Events.Add(5f, ApplyHelloWorldDebuffs);
         world.Events.Add(8f, () => TurnSmellsIntoBugs(firstResolve: 29.1f));
+        // Each set's tethers show once its pairs' code smells have 20s left.
+        world.Events.Add(8f, () => ShowTethers(1));
         world.Events.Add(19.1f, () => StartSet(1));
         world.Events.Add(28f, () => StartRegressions(1));
+        world.Events.Add(29f, () => ShowTethers(2));
         world.Events.Add(29.1f, () => ResolveSet(nextResolve: 50.1f));
         world.Events.Add(31f, KillLatentDefectHolders);
         world.Events.Add(40.1f, () => StartSet(2));
         world.Events.Add(49f, () => StartRegressions(2));
+        world.Events.Add(50f, () => ShowTethers(3));
         world.Events.Add(50.1f, () => ResolveSet(nextResolve: 71.2f));
         world.Events.Add(61.2f, () => StartSet(3));
         world.Events.Add(70f, () => StartRegressions(3));
+        world.Events.Add(71f, () => ShowTethers(4));
         world.Events.Add(71.2f, () => ResolveSet(nextResolve: 92.5f));
         world.Events.Add(74f, KillLatentSynchronizationBugHolders);
         world.Events.Add(82.5f, () => StartSet(4));
@@ -214,6 +219,10 @@ public sealed class TopP3HelloWorldScenario : IScenario
             helper?.SetPosition(OnRing(layout, degrees, P3Geometry.TowerRingRadius));
             helper?.Cast(colour.TowerActionId);
         }
+    }
+
+    private void ShowTethers(int set)
+    {
         TetherPair(state.WithRole(set, HelloWorldRole.Local), TetherId.HWPrepLocal, ghostTethers);
         TetherPair(state.WithRole(set, HelloWorldRole.Remote), TetherId.HWPrepRemote, ghostTethers);
     }
