@@ -29,4 +29,38 @@ public static class TopP3Actions
         DeathExplanation = "a regression tether ran out unbroken",
     };
     // -- end P3 Hello World --
+
+    // -- P3 Intermission --
+    // Death reasons describe the fight, never a strat's spots. UNVERIFIED: no damage values are known, so every
+    // ring and blow kills.
+    public static readonly EnemyAction WaveRepeater = new(P3ActionId.WaveRepeater)
+    {
+        Effects = [Damage(Lethal)],
+        DeathExplanation = "Hit by Wave Repeater in the middle",
+    };
+
+    public static readonly EnemyAction WaveRepeaterRing2 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing2, P3Geometry.WaveRepeaterInner2);
+
+    public static readonly EnemyAction WaveRepeaterRing3 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing3, P3Geometry.WaveRepeaterInner3);
+
+    public static readonly EnemyAction WaveRepeaterRing4 = WaveRepeaterRing(P3ActionId.WaveRepeaterRing4, P3Geometry.WaveRepeaterInner4);
+
+    public static readonly EnemyAction ColossalBlow = new(P3ActionId.ColossalBlow)
+    {
+        Effects = [Damage(Lethal)],
+        DeathExplanation = "Hit by Colossal Blow: the arms that appeared first go off first",
+    };
+
+    // The scenario decides who the cannons kill.
+    public static readonly EnemyAction SniperCannon = new(ActionId.SniperCannon) { Effects = [Damage()] };
+
+    public static readonly EnemyAction HighPoweredSniperCannon = new(ActionId.HighPoweredSniperCannon) { Effects = [Damage()] };
+
+    private static EnemyAction WaveRepeaterRing(uint actionId, float innerRadius) => new(actionId)
+    {
+        Area = new() { Size = innerRadius },
+        Effects = [Damage(Lethal)],
+        DeathExplanation = "Hit by a Wave Repeater ring: stand in the band the last ring just hit",
+    };
+    // -- end P3 Intermission --
 }
