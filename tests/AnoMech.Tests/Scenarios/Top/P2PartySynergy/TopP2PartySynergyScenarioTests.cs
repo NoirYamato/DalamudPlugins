@@ -17,6 +17,8 @@ namespace AnoMech.Tests;
 // y = -16 / -5.5 / 5.5 / 16 for Cross / Square / Circle / Triangle.
 public class TopP2PartySynergyScenarioTests
 {
+    private const int NaStrat = 1;
+
     private static readonly (PartyRole Left, PartyRole Right)[] Pairs =
         [(RegenHealer, OffTank), (CasterDps, MeleeDpsB), (MeleeDpsA, PhysRangedDps), (MainTank, ShieldHealer)];
 
@@ -25,7 +27,7 @@ public class TopP2PartySynergyScenarioTests
 
     private static NegativeRun<TopP2PartySynergyScenario> Healer(
         PlaystationSymbol symbol, GlitchType glitch, OmegaAttack? f = null, OmegaAttack? m = null)
-        => Negative<TopP2PartySynergyScenario>(RegenHealer)
+        => Negative<TopP2PartySynergyScenario>(RegenHealer, NaStrat)
             .Overrides<TopP2PartySynergyStateOverrides>(o =>
             {
                 o.NewNorthA = Direction.N;
