@@ -9,8 +9,9 @@ NoirMech change:
 - TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`, strat index 1),
   `Group => "NA"` on upstream's strat, and no Spotlight in solo runs (a solo stack target stood alone and died);
 - the user pause (below);
-- TOP P3 (below): the Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the `TopZone.P3` phase,
-  and `TopP3Constants.cs` (P3 ids, kept out of upstream's `TopConstants.cs`);
+- TOP P3 (below): the Intermission, Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the
+  `TopZone.P3` phase, `TopP3Constants.cs` and `TopP3Actions.cs` (P3 ids and actions, kept out of upstream's
+  `TopConstants.cs` and `TopActions.cs`);
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -87,9 +88,16 @@ append new strats rather than reorder (`selectedAi` is an index), and give every
 - `tests/AnoMech.Tests/Core/Game/GamePauseTests.cs` covers this headlessly.
 
 ## TOP P3
-`Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the `TopZone.P3` phase. Their ids are in
-`TopP3Constants.cs`. Values nobody has measured (weather, BGM, tower ring radius, rot contact radius, tether
-break distances, some durations) are marked UNVERIFIED there; tune them in that one place.
+`Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
+`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, BGM, tower ring
+radius, rot contact radius, tether break distances, the void zone's radius and spawn args, some durations) are
+marked UNVERIFIED there; tune them in that one place.
+- Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
+  (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone. Every
+  mistake kills on the spot with a reason. Its one strat has an Automarkers On/Off setting (default On); it
+  lives in the overrides and the State, and only `TopP3IntermissionLpduAi` reads it, to add signs: both
+  settings put everyone on the same spots. Change bot movement only with `TopP3IntermissionLpduHumanTests`
+  and `TopP3IntermissionLpduMarginTests` green.
 - Hello World tracks each player's debuffs itself (pairs rotating through defamation, remote tether, stack and
   local tether; rots spreading on contact; Debuggers as immunity) and decides every kill with a death
   explanation. Fixed events are absolute time literals in `Run`; expiries that depend on play run from

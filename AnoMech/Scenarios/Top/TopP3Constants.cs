@@ -26,6 +26,13 @@ public static class TopP3Constants
         public const uint CriticalError = 31588;                    // boss->self, 8s raidwide
         public const uint OversampledWaveCannonEast = 31595;        // boss->self, 10s; monitors on the boss's right
         public const uint OversampledWaveCannonWest = 31596;        // monitors on the boss's left
+
+        // -- P3 Intermission --
+        public const uint WaveRepeater = 31567;                     // helper at a location, 5s, r6; the first ring
+        public const uint WaveRepeaterRing2 = 31568;                // instant donuts, outer 12 / 18 / 24
+        public const uint WaveRepeaterRing3 = 31569;
+        public const uint WaveRepeaterRing4 = 31570;
+        public const uint ColossalBlow = 31566;                     // arm unit->self, 2s, r11
     }
 
     public static class P3StatusId
@@ -50,6 +57,19 @@ public static class TopP3Constants
         public const ushort OverflowDebugger = 3431;
         public const ushort UnderflowDebugger = 3432;               // immune to red rot
         public const ushort PerformanceDebugger = 3433;             // immune to blue rot
+
+        // -- P3 Intermission --
+        public const ushort SniperCannonFodder = 3425;              // a spread when it runs out
+        public const ushort HighPoweredSniperCannonFodder = 3426;   // a two-player stack when it runs out
+    }
+
+    public static class P3EObjId
+    {
+        public const uint VoidZone = 2013217;
+        // UNVERIFIED: the void zone's real spawn args are unknown; these bind it to the duty director, as the
+        // P5 towers are, with the low byte every real EObj spawn carries.
+        public const uint VoidZoneEventId = TopConstants.EObjId.TowerEventId;
+        public const uint VoidZoneArg2 = 3;
     }
 
     public static class P3Geometry
@@ -58,6 +78,15 @@ public static class TopP3Constants
         public const float RotContactRadius = 1.5f;                 // UNVERIFIED, must stay under the 2.5y a stack partner stands off
         public const float RemoteRegressionBreakDistance = 12f;     // UNVERIFIED, breaks above
         public const float LocalRegressionBreakDistance = 9f;       // UNVERIFIED, breaks below
+
+        // -- P3 Intermission --
+        // UNVERIFIED: the arms stand on a hexagon at this radius, at N and every 60 degrees from it.
+        public const float ArmRadius = 14f;
+        public const float VoidZoneRadius = 6f;                     // UNVERIFIED
+        // The donuts' inner safe radii; the sheet has only the outer ones.
+        public const float WaveRepeaterInner2 = 6f;
+        public const float WaveRepeaterInner3 = 12f;
+        public const float WaveRepeaterInner4 = 18f;
     }
 
     public static class P3Duration
@@ -68,5 +97,9 @@ public static class TopP3Constants
         public const float LatentSynchronizationBug = 69f;
         public const float LatentDefect = 26f;                      // UNVERIFIED
         public const float TowerDebuff = 12f;                       // UNVERIFIED
+
+        // -- P3 Intermission --
+        public const float SniperCannonFodder = 19.1f;              // UNVERIFIED, inferred from when the spreads go off
+        public const float HighPoweredSniperCannonFodder = 19.1f;   // UNVERIFIED, assumed to go off with the spreads
     }
 }
