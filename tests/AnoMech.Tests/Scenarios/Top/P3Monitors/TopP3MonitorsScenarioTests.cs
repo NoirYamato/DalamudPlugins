@@ -18,7 +18,8 @@ namespace AnoMech.Tests;
 // OffTank, PhysRangedDps's MeleeDpsB and CasterDps. East mirrors x.
 //
 //   0.1   Omega casts Critical Error (8s).
-//   8.1   Critical Error hits everyone; the bots line up on the west arc.
+//   8.1   Critical Error hits everyone.
+//   8.6   the bots line up on the west arc.
 //   19.4  Omega casts Oversampled Wave Cannon; the three get their monitors.
 //   27.4  the monitor players turn to aim.
 //   29.5  eight 7y circles, one on each player.

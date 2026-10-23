@@ -74,6 +74,7 @@ public sealed class TopP3MonitorsScenario : IScenario
     private void StartMonitors()
     {
         omega?.Cast(state.OmegaCastId, animationLock: 3.1f);
+        // UNVERIFIED: the Loading statuses land with the cast's start.
         foreach (var role in state.Monitors.List)
             party.Get(role)?.AddStatus(state.SideOf(role).StatusId());
     }

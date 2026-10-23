@@ -66,8 +66,7 @@ public class TopP3MonitorsLpduAiTests
         Assert.That(spreadBefore, Is.LessThan(5f), $"seed {run.Seed}");
     }
 
-    // The complaint this guards: the line has to stand, every player on it, from just after Critical
-    // Error until the monitors appear, and nobody may leave it before they do.
+    // Every player stands on its conga spot from 12s until the monitors appear, then leaves it.
     [TestCase(OmegaMonitor.West, MainTank)]
     [TestCase(OmegaMonitor.East, CasterDps)]
     public void HoldsTheCongaLineUntilTheMonitorsAppear(OmegaMonitor omega, PartyRole player)
