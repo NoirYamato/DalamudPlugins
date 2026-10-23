@@ -5,7 +5,7 @@ public static class TopP3Constants
 {
     public const uint OmegaP3 = 15717;                              // BNpcBase, ModelChara 3775, hitbox 12.5
     public const byte Weather = 79;                                 // UNVERIFIED
-    public const ushort Bgm = 966;                                  // UNVERIFIED
+    public const ushort Bgm = 950;                                  // From the Heavens (Orchestral Version)
 
     public static class P3ActionId
     {

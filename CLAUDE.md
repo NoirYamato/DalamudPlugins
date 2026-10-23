@@ -89,7 +89,7 @@ append new strats rather than reorder (`selectedAi` is an index), and give every
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
-`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, BGM, tower ring
+`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, tower ring
 radius, rot contact radius, tether break distances, the void zone's radius and spawn args, some durations) are
 marked UNVERIFIED there; tune them in that one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
