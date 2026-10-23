@@ -72,6 +72,8 @@ public sealed class TopP3IntermissionScenario : IScenario
 
         world.Events.Add(0f, SpawnOmegaArmsAndHelpers);
         world.Events.Add(9.2f, ApplyFodder);
+        // UNVERIFIED: Omega starts to appear as P2's bosses start to merge.
+        world.Events.Add(9.3f, () => omega?.PlayActionTimeline(P3TimelineId.OmegaShow));
         world.Events.Add(9.3f, () => firstWaveHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
         // UNVERIFIED: both warp-in times.
         world.Events.Add(12.3f, () => WarpIn(state.FirstSetBearings));
@@ -100,7 +102,7 @@ public sealed class TopP3IntermissionScenario : IScenario
     }
 
     // Casts on an actor spawned the same frame play no animation, so everything that casts exists
-    // from the start. UNVERIFIED: Omega facing south and visible from the start.
+    // from the start, hidden until it shows. UNVERIFIED: Omega facing south.
     private void SpawnOmegaArmsAndHelpers()
     {
         omega = world.SpawnEnemy(new EnemySpawnConfig(
@@ -108,8 +110,8 @@ public sealed class TopP3IntermissionScenario : IScenario
             NameId: BNpcNameId.OmegaFinal,
             Level: 90,
             Targetable: false,
-            EnemyList: EnemyListMode.Always,
-            Visibility: SpawnVisibility.Visible,
+            EnemyList: EnemyListMode.OnlyWhenVisible,
+            Visibility: SpawnVisibility.HiddenUntilShown,
             Placement: new Placement(Vector3.Zero, 0f)));
         firstWaveHelper = SpawnHelper();
         secondWaveHelper = SpawnHelper();

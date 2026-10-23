@@ -18,7 +18,7 @@ namespace AnoMech.Tests;
 // R1 (-16,4.5), MT (-11.89,11.61), OT (11.89,11.61), R2 (16,4.5), M1+H1 (-4.11,-16.11),
 // M2+H2 (4.11,-16.11) (x east, z south).
 //
-//   9.2   fodder. 9.3: the first Wave Repeater (lands 14.3, hits at 14.0, r < 6).
+//   9.2   fodder. 9.3: Omega starts to show; the first Wave Repeater (lands 14.3, hits at 14.0, r < 6).
 //   12.3  the first arms warp in; 15.4 the second. 15.3-30.7: the void zone, r 6.
 //   16.4 / 18.4 / 20.4  rings 6-12, 12-18, 18-24. 17.4: the second Wave Repeater (hits 22.1).
 //   24.5 / 26.6 / 28.7  its rings. 26.1 / 28.6: each set's Colossal Blows hit, r 11.
@@ -206,6 +206,38 @@ public class TopP3IntermissionScenarioTests
             Assert.That(warps, Has.Count.EqualTo(6), "one warp-in per arm");
             Assert.That(BearingsAt(blows, bearings, 24.4f), Is.EqualTo(first).Within(0.01f), "blows at 24.4");
             Assert.That(BearingsAt(blows, bearings, 26.9f), Is.EqualTo(second).Within(0.01f), "blows at 26.9");
+        });
+    }
+
+    [Test]
+    public void OmegaIsHiddenUntilHeStartsToShow()
+    {
+        var hidden = new Dictionary<float, bool>();
+        var rows = new List<Dictionary<string, string>>();
+        var omega = "";
+        var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, FirstArms.NorthTriangle),
+            Probe = p =>
+            {
+                var boss = p.World.Children.OfType<SimEnemy>().SingleOrDefault(e => e.BNpcBaseId == OmegaP3);
+                foreach (var at in new[] { 0.5f, 9.2f })
+                    if (p.Crossed(at))
+                        hidden[at] = boss?.Proxy is { IsDrawObjectVisible: false };
+                if (!p.Crossed(30f) || boss is null) return;
+                omega = boss.EntityId.ToString("X8");
+                rows.AddRange(p.Fake.Timeline.Rows);
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        var timelines = rows.Where(r => r["kind"] == "ac" && r["id"] == "0x197" && r["actor"] == omega).ToList();
+        Assert.Multiple(() =>
+        {
+            Assert.That(hidden, Is.EqualTo(new Dictionary<float, bool> { [0.5f] = true, [9.2f] = true }));
+            Assert.That(timelines.Select(r => r["p"]), Is.EqualTo(new[] { $"0x{P3TimelineId.OmegaShow:X}" }), "one show timeline");
+            Assert.That(timelines.Select(r => float.Parse(r["t"], CultureInfo.InvariantCulture)), Has.All.EqualTo(9.3f).Within(0.05f));
         });
     }
 

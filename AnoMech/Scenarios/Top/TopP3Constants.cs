@@ -72,6 +72,11 @@ public static class TopP3Constants
         public const uint VoidZoneArg2 = 3;
     }
 
+    public static class P3TimelineId
+    {
+        public const ushort OmegaShow = 4561;                       // mon_sp/show/mon_sp001, Omega's slow appearance
+    }
+
     public static class P3Geometry
     {
         public const float TowerRingRadius = 13.7f;                 // UNVERIFIED, measured from guide drawings
