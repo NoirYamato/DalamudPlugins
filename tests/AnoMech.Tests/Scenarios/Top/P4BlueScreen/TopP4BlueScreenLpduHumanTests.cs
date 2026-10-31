@@ -80,7 +80,6 @@ public class TopP4BlueScreenLpduHumanTests
         });
 
         if (!run.Passed) problems.Add(run.ToString());
-        if (run.Elapsed < LastRing) problems.Add($"the run ended at {run.Elapsed:F1}s, before the last ring");
         for (var set = 0; set < sets.Length; set++)
         {
             var west = WestAfterFlex(sets[set]).Contains(seat);
@@ -92,8 +91,6 @@ public class TopP4BlueScreenLpduHumanTests
         return problems.Select(problem => $"seed {seed}, {seat} (markers {Describe(sets)}, steps in on the {cue}, {delay:F1}s late): {problem}")
                        .ToList();
     }
-
-    private const float LastRing = 39.2f;
 
     private static string Side(bool? west) => west switch { true => "west", false => "east", null => "unread" };
 

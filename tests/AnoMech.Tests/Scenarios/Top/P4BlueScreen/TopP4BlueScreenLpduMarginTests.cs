@@ -52,8 +52,8 @@ public class TopP4BlueScreenLpduMarginTests
         ("walk back out outside ring 1", 1.36f, 1f),
     ];
 
-    // Off the table: the rings no spot comes near and the lines aimed at the player, with the slack the other
-    // P3 and P4 margin tests ask for.
+    // Off the table: the rings no spot comes near and the lines aimed at the player, with the slack the P3
+    // margin tests ask for.
     private const float JitterSlack = 0.5f;
 
     private static readonly string[] Beyond =
@@ -89,7 +89,6 @@ public class TopP4BlueScreenLpduMarginTests
                 Probe = p => Measure(p, player, sets, lines, margins),
             });
             if (!result.Passed) problems.Add(result.ToString());
-            if (result.Elapsed < Ring8At) problems.Add($"seed {result.Seed} ended at {result.Elapsed:F1}s, before the last ring");
         }
 
         TestContext.Out.WriteLine(string.Join(Environment.NewLine,

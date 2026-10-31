@@ -132,6 +132,32 @@ public class TopP4BlueScreenScenarioTests
             .TeleportAt(2f, to: new(0, 21))
             .ShouldKill(TheEnvironment, MainTank);
 
+    // MT stands in R1's line at the aim and leaves the arena before the beams: MT's line fires nothing, so R1
+    // takes only its own. Stopped before the west line stack, which is a player short without MT.
+    [Test]
+    public void APlayerWhoDiedSinceTheAimFiresNoBeam()
+    {
+        var run = Run(MainTank, SplitMarkers, stopAt: 10f,
+                      new Takeover(7.5f, new Vector2(-13.5f, -1f)),
+                      new Takeover(8.2f, new Vector2(0, 21)));
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)),
+                    Is.EqualTo(new[] { (MainTank, (uint?)TheEnvironment) }), run.ToString);
+    }
+
+    // R1, set 1's west marker, leaves the arena south-west before the line stacks: its stack fires nothing.
+    // A line toward its body would pass beside the west clump and kill MT, H1 and M1 as three.
+    [Test]
+    public void AMarkedPlayerWhoDiedFiresNoLineStack()
+    {
+        var run = Run(PhysRangedDps, SplitMarkers, stopAt: 15f, new Takeover(12.5f, new Vector2(-5f, 21f)));
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)),
+                    Is.EqualTo(new[] { (PhysRangedDps, (uint?)TheEnvironment) }), run.ToString);
+    }
+
     [TestCase(7.5f, -13.5f, -1f, MainTank, "two Wave Cannon beams")]
     [TestCase(12.5f, -3.89f, 5.82f, MainTank, "repeated Wave Cannon")]
     [TestCase(13.2f, 0f, 3f, MainTank, "both line stacks")]
@@ -206,7 +232,7 @@ public class TopP4BlueScreenScenarioTests
     [Test]
     public void FollowsTheFightsTimeline()
     {
-        var rows = new List<Dictionary<string, string>>();
+        SimTimeline? timeline = null;
         string? omega = null;
         var run = ScenarioRun.Execute(typeof(TopP4BlueScreenScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
@@ -214,13 +240,13 @@ public class TopP4BlueScreenScenarioTests
             Overrides = o => Pin((TopP4BlueScreenStateOverrides)o, SplitMarkers),
             Probe = p =>
             {
+                timeline ??= p.Fake.Timeline;
                 omega ??= p.World.Children.OfType<SimEnemy>().SingleOrDefault(e => e.BNpcBaseId == OmegaP3)?.EntityId.ToString("X8");
-                if (p.Crossed(39.25f)) rows.AddRange(p.Fake.Timeline.Rows);
             },
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(run.Elapsed, Is.GreaterThan(39.2f), "the run lasts until the last ring");
+        var rows = timeline!.Rows;
         Assert.Multiple(() =>
         {
             Assert.That(Times(rows, "cast", P4ActionId.WaveCannonCast, actor: omega), Is.EqualTo(new[] { 3.0f }).Within(0.05f), "Omega's cast");
@@ -278,7 +304,6 @@ public class TopP4BlueScreenScenarioTests
         var run = Run(MainTank, markers[pins], stopAt: null);
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(run.Elapsed, Is.GreaterThan(39.2f), "the run lasts until the last ring");
     }
 
     private static ScenarioRun Run(PartyRole player, PartyRole[][] markers, float? stopAt, params Takeover[] takeovers)

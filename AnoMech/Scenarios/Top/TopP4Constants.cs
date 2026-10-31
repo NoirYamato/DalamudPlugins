@@ -1,9 +1,12 @@
 namespace AnoMech.Scenarios.Top;
 
 // NoirMech's TOP P4 ids, kept out of TopConstants so upstream release merges stay clean. P4 reuses P3's boss
-// (TopP3Constants.OmegaP3), its Wave Repeater ids and radii, and its weather and BGM (TopZone.P4).
+// (TopP3Constants.OmegaP3) and its Wave Repeater ids and radii.
 public static class TopP4Constants
 {
+    public const byte Weather = TopP3Constants.Weather;             // UNVERIFIED: P3's weather carries on
+    public const ushort Bgm = TopP3Constants.Bgm;                   // UNVERIFIED: P3's track carries on
+
     public static class P4ActionId
     {
         public const uint WaveCannonCast = 31617;                   // boss->self, 5s visual; round 1's only cast bar
