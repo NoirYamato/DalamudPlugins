@@ -21,6 +21,12 @@ public static class TopP4Constants
         public const uint LineStack = 31615;                        // helper->self, instant, rect 100 x 6
     }
 
+    public static class P4Duration
+    {
+        // UNVERIFIED: the repeats' orange lines show just after the beams, which land 0.6 s into the cast.
+        public const float RepeatOmenDelay = 1f;
+    }
+
     public static class P4Rules
     {
         // UNVERIFIED: fewer kills everyone in the line, unless only tanks are in it.

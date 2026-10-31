@@ -131,12 +131,15 @@ UNVERIFIED there and in the scenario.
 - The run starts 3s before Omega's Wave Cannon cast and ends after the last Wave Repeater ring; the Blue Screen
   enrage isn't played. Three rounds: each aims a line from the centre at every player, fires the beams down
   those fixed lines 0.6s later, resolves the repeats 5.3s after the aim, then the two line stacks toward their
-  marked players; Wave Repeater rings run through rounds 2 and 3.
+  marked players; Wave Repeater rings run through rounds 2 and 3. The repeats cast from the aim, but their orange
+  lines show 1s into the cast, just after the beams (`P4Duration.RepeatOmenDelay`, UNVERIFIED).
 - Every mistake kills on the spot with a reason: two beams or a repeat line, both line stacks, a line stack with
   fewer than 4 unless only tanks are in it (UNVERIFIED), a ring band, or the arena edge. A player dead since the
   aim fires no beam, and a dead marker fires no line stack.
 - The markers are rolled per set; the settings force or forbid a marker per seat per set (at most 2 Yes and 6 No
-  in a set).
+  in a set). A fight-wide row per set, solo too, puts both markers in one light party of the party list (which
+  forces the strat's flex) or one in each, within the seat rows; conflicts are reported while hosting. Auto rows
+  roll exactly as before, and a set's row leaves the other sets as the seed had them.
 - One strat, EU `[LPDU] Light PF`; no solo or multiplayer. The bots' spot radii (13.5 / 11 / 13 / 11 / 10.5)
   and the 20° stack-2 bearing in `TopP4BlueScreenLpduAi` are UNVERIFIED. Change bot movement only with
   `TopP4BlueScreenLpduHumanTests` and `TopP4BlueScreenLpduMarginTests` green.

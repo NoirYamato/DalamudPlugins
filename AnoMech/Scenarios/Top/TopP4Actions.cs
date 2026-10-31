@@ -19,6 +19,7 @@ public static class TopP4Actions
 
     public static readonly EnemyAction WaveCannonRepeat = new(P4ActionId.WaveCannonRepeat)
     {
+        Cast = new() { OmenDelay = P4Duration.RepeatOmenDelay },
         Effects = [Damage(Lethal)],
         DeathExplanation = "Hit by the repeated Wave Cannon: it fires again down the first beams' lines",
     };

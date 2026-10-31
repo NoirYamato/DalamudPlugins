@@ -10,18 +10,22 @@ public sealed class TopP4BlueScreenSettingsWindow
     // Which seat the per-player rows are showing. UI state only; never broadcast.
     private PartyRole editingSeat = PartyRole.MainTank;
 
-    // Every setting is per player. Solo, the player's own picks sit in this panel.
     public void Draw()
     {
-        if (PerRole.SeatsActive)
+        var solo = !PerRole.SeatsActive;
+        if (ImGui.Button("Auto"))
         {
-            ImGui.TextDisabled("Everything here is per player -- use the button below.");
-            return;
+            for (var set = 0; set < TopP4BlueScreenState.Sets; set++)
+                Overrides.SetOneLightPartyInSet(set, null);
+            if (solo) ResetMine();
         }
-        if (ImGui.Button("Auto")) ResetMine();
         if (SettingsGrid.Begin("##p4bluescreen"))
         {
-            DrawPlayerRows();
+            for (var set = 0; set < TopP4BlueScreenState.Sets; set++)
+            {
+                if (solo) DrawMarker(set);
+                DrawOneLightParty(set);
+            }
             SettingsGrid.End();
         }
     }
@@ -70,5 +74,17 @@ public sealed class TopP4BlueScreenSettingsWindow
         if (ImGui.RadioButton($"Yes{id}",  m == true))  marker.Set(editingSeat, true);
         ImGui.SameLine();
         if (ImGui.RadioButton($"No{id}",   m == false)) marker.Set(editingSeat, false);
+    }
+
+    private void DrawOneLightParty(int set)
+    {
+        var v = Overrides.OneLightPartyInSet(set);
+        var id = $"##p4lightparty{set}";
+        SettingsGrid.Row($"Set {set + 1} markers in one light party:");
+        if (ImGui.RadioButton($"Auto{id}", v == null))  Overrides.SetOneLightPartyInSet(set, null);
+        ImGui.SameLine();
+        if (ImGui.RadioButton($"Yes{id}",  v == true))  Overrides.SetOneLightPartyInSet(set, true);
+        ImGui.SameLine();
+        if (ImGui.RadioButton($"No{id}",   v == false)) Overrides.SetOneLightPartyInSet(set, false);
     }
 }
