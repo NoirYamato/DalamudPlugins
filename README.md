@@ -1,7 +1,8 @@
 # DalamudPlugins
 
 Custom Dalamud plugin repository for **NoirMech**, a modified version of
-[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds an EU **LPDU** Party Synergy strat and a pause.
+[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3 and P4, and a
+pause.
 Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
 
 ## Install
@@ -37,6 +38,10 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   the [LPDU P3 Intermission raidplan](https://raidplan.io/plan/46r495ZATq3kCqz1). Its settings have an
   **Automarkers** option: On (the default) marks the spreads, stacks and their partners in conga order; Off
   leaves you to read your own debuff.
+- **TOP P4 Blue Screen:** a new scenario with an `[LPDU] Light PF` strat under the **EU** button, following
+  the [LPDU Blue Screen toolbox](https://ff14.toolboxgaming.space/?id=595188367474761&preview=1). Its settings
+  can force or rule out your marker in each set, and whether both of a set's markers land in one light party,
+  so someone has to flex.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of
