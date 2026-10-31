@@ -19,8 +19,8 @@ public class TopP4BlueScreenLpduAiTests
     private const int LpduStrat = 0;
     private const float Tolerance = 0.45f;
 
-    private static readonly PartyRole[] West = [MainTank, PhysRangedDps, RegenHealer, MeleeDpsA];
-    private static readonly PartyRole[] East = [OffTank, CasterDps, ShieldHealer, MeleeDpsB];
+    internal static readonly PartyRole[] West = [MainTank, PhysRangedDps, RegenHealer, MeleeDpsA];
+    internal static readonly PartyRole[] East = [OffTank, CasterDps, ShieldHealer, MeleeDpsB];
 
     internal static readonly PartyRole[][] SplitMarkers = [[PhysRangedDps, CasterDps], [RegenHealer, ShieldHealer], [MeleeDpsA, MeleeDpsB]];
 
@@ -32,7 +32,7 @@ public class TopP4BlueScreenLpduAiTests
         [ShieldHealer] = new(12.47f, 5.17f), [MeleeDpsB] = new(9.55f, 9.55f),
     };
 
-    private static readonly Dictionary<PartyRole, Vector2> StepIn = new()
+    internal static readonly Dictionary<PartyRole, Vector2> StepIn = new()
     {
         [MainTank] = new(-10.16f, -4.21f), [PhysRangedDps] = new(-11.00f, 0f),
         [RegenHealer] = new(-10.16f, 4.21f), [MeleeDpsA] = new(-7.78f, 7.78f),
@@ -41,8 +41,8 @@ public class TopP4BlueScreenLpduAiTests
     };
 
     internal static readonly Vector2 OuterStackWest = new(-4.97f, 12.01f);
-    private static readonly Vector2 InnerStackWest = new(-3.76f, 10.34f);
-    private static readonly Vector2 FinalStepInWest = new(-4.02f, 9.70f);
+    internal static readonly Vector2 InnerStackWest = new(-3.76f, 10.34f);
+    internal static readonly Vector2 FinalStepInWest = new(-4.02f, 9.70f);
 
     public enum Spot { Quickmarch, StepIn, OuterStack, InnerStack, FinalStepIn }
 
@@ -131,7 +131,7 @@ public class TopP4BlueScreenLpduAiTests
 
     // Written from the rule rather than the strat's code: the southern of two same-side markers crosses, and the
     // other side's melee takes its place.
-    private static PartyRole[] WestAfterFlex(PartyRole[] markers)
+    internal static PartyRole[] WestAfterFlex(PartyRole[] markers)
     {
         var westMarked = markers.Count(West.Contains);
         if (westMarked == 1) return West;
