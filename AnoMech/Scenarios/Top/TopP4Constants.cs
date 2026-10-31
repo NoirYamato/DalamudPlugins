@@ -23,8 +23,9 @@ public static class TopP4Constants
 
     public static class P4Duration
     {
-        // UNVERIFIED: the repeats' orange lines show just after the beams, which land 0.6 s into the cast.
-        public const float RepeatOmenDelay = 1f;
+        // UNVERIFIED: the repeats' orange lines only flash, until the client takes them down at 4.8 s. A pause holds
+        // a shown omen at 4.55 s at the latest, so a reveal past that would vanish while paused.
+        public const float RepeatOmenDelay = 4.4f;
     }
 
     public static class P4Rules

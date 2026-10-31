@@ -19,7 +19,7 @@ namespace AnoMech.Tests;
 //
 //   3.0   Omega's Wave Cannon cast (5 s). 5.6 / 15.7 / 25.6: the markers.
 //   8.0 / 17.9 / 28.0   aims: a repeat line starts down every player's line (snapshot 5 s later); its orange
-//                       line shows 1 s in, after the beams.
+//                       line only flashes, 4.4-4.8 s in.
 //   8.6 / 18.5 / 28.6   the beams, down the same lines. 13.6 / 23.4 / 33.5: the line stacks.
 //   11.0  Wave Repeater (hits at 15.7, r < 6); rings 18.1 (6-12), 20.1 (12-18), 22.1 (18-24).
 //   28.2  Wave Repeater (hits at 32.9); rings 35.2, 37.2, 39.2. The run ends after the last ring.
@@ -291,9 +291,10 @@ public class TopP4BlueScreenScenarioTests
         Assert.That(bearings, Is.EqualTo(players).Within(0.5f), $"lines {string.Join(", ", bearings)}; players {string.Join(", ", players)}");
     }
 
-    // The repeats start casting at the aim, but their orange lines only show once the beams have gone down them.
+    // The repeats start casting at the aim, but their orange lines only flash just before they fire. A pause holds a
+    // shown omen 0.45 s before its bar ends, so a line up for less than 0.25 s would vanish while paused.
     [Test]
-    public void TheRepeatLinesShowAfterTheBeams()
+    public void TheRepeatLinesOnlyFlashBeforeTheyFire()
     {
         SimTimeline? timeline = null;
         var run = ScenarioRun.Execute(typeof(TopP4BlueScreenScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
@@ -310,21 +311,18 @@ public class TopP4BlueScreenScenarioTests
             foreach (var aim in new[] { 8.0f, 17.9f, 28.0f })
             {
                 var casts = rows.Where(r => r["kind"] == "cast" && r["id"] == $"{P4ActionId.WaveCannonRepeat}" && MathF.Abs(Time(r) - aim) < 0.5f).ToList();
-                var beams = rows.Where(r => r["kind"] == "ability" && r["id"] == $"{P4ActionId.WaveCannonBeam}" && Time(r) > aim - 0.5f && Time(r) < aim + 2f)
-                                .Select(Time).ToList();
                 Assert.That(casts, Has.Count.EqualTo(8), $"repeat casts at {aim}");
-                Assert.That(beams, Has.Count.EqualTo(8), $"beams after {aim}");
-                if (casts.Count == 0 || beams.Count == 0) continue;
                 foreach (var cast in casts)
                 {
-                    var start = Time(cast);
-                    var shows = start + Float(cast["omen_delay"]);
-                    Assert.That(shows, Is.GreaterThan(beams.Max()).And.LessThan(start + CastSeconds(cast)),
-                                $"the repeat cast at {start:F1} shows its line at {shows:F1}; beams at {beams.Max():F1}");
+                    var up = CastSeconds(cast) - OmenRemovalLead - Float(cast["omen_delay"]);
+                    Assert.That(up, Is.InRange(0.25f, 0.5f), $"the repeat cast at {Time(cast):F1} shows its line for {up:F2} s");
                 }
             }
         });
     }
+
+    // The client takes an omen down this long before its bar ends.
+    private const float OmenRemovalLead = 0.2f;
 
     private static float CastSeconds(Dictionary<string, string> castRow)
         => Float(System.Text.RegularExpressions.Regex.Match(castRow["detail"], @"cast=([0-9.]+)s").Groups[1].Value);

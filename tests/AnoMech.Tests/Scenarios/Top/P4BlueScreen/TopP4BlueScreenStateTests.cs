@@ -256,7 +256,6 @@ public class TopP4BlueScreenStateTests
         }
     }
 
-    // A party whose player sits in `seat`.
     private static SimParty PartyWithPlayerIn(PartyRole seat)
     {
         SimParty? party = null;
