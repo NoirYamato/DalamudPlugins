@@ -16,6 +16,9 @@ NoirMech change:
 - TOP P3 (below): the Intermission, Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the
   `TopZone.P3` phase, `TopP3Constants.cs` and `TopP3Actions.cs` (P3 ids and actions, kept out of upstream's
   `TopConstants.cs` and `TopActions.cs`);
+- TOP P4 (below): the Blue Screen scenario with an `[LPDU] Light PF` strat, the `TopZone.P4` phase,
+  `TopP4Constants.cs` and `TopP4Actions.cs` (P4 ids and actions, kept out of upstream's `TopConstants.cs` and
+  `TopActions.cs`);
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -56,7 +59,9 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   Dalamud's Dev Plugin Locations with any installed NoirMech or AnoMech disabled.
 - `dotnet test` runs both test projects. For a soak, pass
   `-- 'TestRunParameters.Parameter(name="SunnySeeds", value="2000")'` from Git Bash (PowerShell 5.1 strips the
-  inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces).
+  inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces). The soak runs under the
+  catalog name, so a two-word scenario needs each word: `Name~Blue&Name~Screen`, not `Name~BlueScreen`, which
+  only matches the scenario's own test classes.
 
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
   cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
@@ -118,3 +123,23 @@ marked UNVERIFIED there; tune them in that one place.
   as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
   arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
   up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s.
+
+## TOP P4
+`Scenarios/Top/P4BlueScreen/` in the `TopZone.P4` phase, which keeps P3's weather and BGM 950. Its ids are in
+`TopP4Constants.cs` (it reuses P3's Omega and Wave Repeater ids); unmeasured values and rules are marked
+UNVERIFIED there and in the scenario.
+- The run starts 3s before Omega's Wave Cannon cast and ends after the last Wave Repeater ring; the Blue Screen
+  enrage isn't played. Three rounds: each aims a line from the centre at every player, fires the beams down
+  those fixed lines 0.6s later, resolves the repeats 5.3s after the aim, then the two line stacks toward their
+  marked players; Wave Repeater rings run through rounds 2 and 3. The repeats cast from the aim, but their orange
+  lines only flash, 4.4-4.8s into the cast (`P4Duration.RepeatOmenDelay`, UNVERIFIED; past 4.55s a pause would
+  hide them).
+- Every mistake kills on the spot with a reason: two beams or a repeat line, both line stacks, a line stack with
+  fewer than 4 unless only tanks are in it (UNVERIFIED), a ring band, or the arena edge. A player dead since the
+  aim fires no beam, and a dead marker fires no line stack.
+- The markers are rolled per set. The settings force or forbid a marker per seat per set (at most 2 Yes and 6 No
+  in a set), and a row per set puts both markers in one light party (forcing the strat's flex) or one in each. A
+  row on Auto rolls like the seat rows alone, and no row changes another set's roll.
+- One strat, EU `[LPDU] Light PF`; no solo or multiplayer. The bots' spot radii (13.5 / 11 / 13 / 11 / 10.5)
+  and the 20° stack-2 bearing in `TopP4BlueScreenLpduAi` are UNVERIFIED. Change bot movement only with
+  `TopP4BlueScreenLpduHumanTests` and `TopP4BlueScreenLpduMarginTests` green.
