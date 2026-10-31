@@ -59,7 +59,9 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   Dalamud's Dev Plugin Locations with any installed NoirMech or AnoMech disabled.
 - `dotnet test` runs both test projects. For a soak, pass
   `-- 'TestRunParameters.Parameter(name="SunnySeeds", value="2000")'` from Git Bash (PowerShell 5.1 strips the
-  inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces).
+  inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces). The soak runs under the
+  catalog name, so a two-word scenario needs each word: `Name~Blue&Name~Screen`, not `Name~BlueScreen`, which
+  only matches the scenario's own test classes.
 
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
   cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
