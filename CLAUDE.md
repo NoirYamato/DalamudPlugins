@@ -8,7 +8,10 @@ NoirMech change:
 - the rename (below);
 - TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`), listed first in
   `AiStrats` so EU and it are the default pick (upstream's NA strat is index 1), `Group => "NA"` on upstream's
-  strat, and no Spotlight in solo runs (a solo stack target stood alone and died);
+  strat, and no Spotlight in solo runs (a solo stack target stood alone and died). Its eye-spread spots are
+  Alninio's: on Remote Glitch the corners stand on the diagonal shurikens (45° and 135° from the eye) and the
+  middle rows 15° either side of the side shuriken, all 19.4y out; on Mid Glitch the corners are 35° off the
+  eye line at the rim and the middle rows sit halfway between waymarks;
 - the user pause (below);
 - TOP P3 (below): the Intermission, Hello World and Monitors scenarios with `[LPDU] Light PF` strats, the
   `TopZone.P3` phase, `TopP3Constants.cs` and `TopP3Actions.cs` (P3 ids and actions, kept out of upstream's

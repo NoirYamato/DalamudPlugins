@@ -41,16 +41,17 @@ public class TopP2PartySynergyLpduAiTests
     public void MidSpreadIsBpogOnBothSides()
         => AssertSpots(GlitchType.Mid, [MeleeDpsA, CasterDps], at: 21.6f, new()
         {
-            [MainTank] = new(-11, -16), [MeleeDpsA] = new(-11, -5.5f), [RegenHealer] = new(-11, 5.5f), [MeleeDpsB] = new(-11, 16),
-            [CasterDps] = new(11, -16), [OffTank] = new(11, -5.5f), [PhysRangedDps] = new(11, 5.5f), [ShieldHealer] = new(11, 16),
+            [MainTank] = new(-11.13f, -15.89f), [MeleeDpsA] = new(-11.63f, -4.82f), [RegenHealer] = new(-11.63f, 4.82f), [MeleeDpsB] = new(-11.13f, 15.89f),
+            [CasterDps] = new(11.13f, -15.89f), [OffTank] = new(11.63f, -4.82f), [PhysRangedDps] = new(11.63f, 4.82f), [ShieldHealer] = new(11.13f, 15.89f),
         });
 
+    // The corners stand on the diagonal shurikens, the middle rows 3 notches either side of the side ones.
     [Test]
     public void RemoteSpreadReversesRightColumnToGopb()
         => AssertSpots(GlitchType.Far, [MeleeDpsA, CasterDps], at: 21.6f, new()
         {
-            [MainTank] = new(-11, -16), [MeleeDpsA] = new(-18, -5.5f), [RegenHealer] = new(-18, 5.5f), [MeleeDpsB] = new(-11, 16),
-            [ShieldHealer] = new(11, -16), [PhysRangedDps] = new(18, -5.5f), [OffTank] = new(18, 5.5f), [CasterDps] = new(11, 16),
+            [MainTank] = new(-13.72f, -13.72f), [MeleeDpsA] = new(-18.74f, -5.02f), [RegenHealer] = new(-18.74f, 5.02f), [MeleeDpsB] = new(-13.72f, 13.72f),
+            [ShieldHealer] = new(13.72f, -13.72f), [PhysRangedDps] = new(18.74f, -5.02f), [OffTank] = new(18.74f, 5.02f), [CasterDps] = new(13.72f, 13.72f),
         });
 
     [Test]

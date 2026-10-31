@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
@@ -64,21 +65,36 @@ public class TopP2PartySynergyLpduAi : IScenarioAi<TopP2PartySynergyState>
                      .ApplyPositions(ScaleToAttackSafeSpot, KeepLightPartyOneInWesternPocket, state.AttackDir.Apply);
     }
 
+    private static readonly Vector2?[] MidGlitchSpreadSpots =
+    [
+        new(-11.13f, -15.89f),
+        new(11.13f, -15.89f),
+        new(-11.63f, -4.82f),
+        new(11.63f, -4.82f),
+        new(-11.63f, 4.82f),
+        new(11.63f, 4.82f),
+        new(-11.13f, 15.89f),
+        new(11.13f, 15.89f),
+    ];
+
+    private static readonly Vector2?[] RemoteGlitchSpreadSpotsOnTheShurikens =
+    [
+        new(-13.72f, -13.72f),
+        new(13.72f, -13.72f),
+        new(-18.74f, -5.02f),
+        new(18.74f, -5.02f),
+        new(-18.74f, 5.02f),
+        new(18.74f, 5.02f),
+        new(-13.72f, 13.72f),
+        new(13.72f, 13.72f),
+    ];
+
     private IAiMove SpreadPositions()
     {
-        return AiMove.Create(
-                         new(-11, -16),
-                         new(11, -16),
-                         new(-11, -5.5f),
-                         new(11, -5.5f),
-                         new(-11, 5.5f),
-                         new(11, 5.5f),
-                         new(-11, 16),
-                         new(11, 16)
-                     )
+        return AiMove.Create(state.Glitch == GlitchType.Far ? RemoteGlitchSpreadSpotsOnTheShurikens : MidGlitchSpreadSpots)
                      .Assignments(state.Order.List)
                      .ApplySwaps(SwapIntoLightPartySides, ReverseRightColumnOnFarGlitch)
-                     .ApplyPositions(WidenMiddleRowsOnFarGlitch, state.NewNorthA.Apply);
+                     .ApplyPositions(state.NewNorthA.Apply);
     }
 
     private IAiMove KnockbackPositions()
@@ -162,13 +178,6 @@ public class TopP2PartySynergyLpduAi : IScenarioAi<TopP2PartySynergyState>
     {
         if (MathF.Cos(state.AttackDir.RadiansFromNorth) < 0)
             move.MultiplyX(-1f);
-    }
-
-    private void WidenMiddleRowsOnFarGlitch(IAiPositions move)
-    {
-        if (state.Glitch != GlitchType.Far) return;
-        for (var i = 2; i < 6; i++)
-            move.MultiplyX(i, 18f / 11);
     }
 
     private void SendRightGroupBehindOnMidGlitch(IAiPositions move)
