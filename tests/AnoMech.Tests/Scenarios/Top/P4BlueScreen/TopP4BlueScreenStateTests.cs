@@ -15,6 +15,19 @@ public class TopP4BlueScreenStateTests
     private static readonly PartyRole[] LightParty2 = [OffTank, ShieldHealer, MeleeDpsB, CasterDps];
     private static readonly IEnumerable<int> Seeds = Enumerable.Range(1, 200);
 
+    // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
+    private AnoMech.Multiplayer.MultiplayerManager? leftInstalled;
+
+    [SetUp]
+    public void Solo()
+    {
+        leftInstalled = Plugin.Multiplayer;
+        DalamudServices.Install(nameof(Plugin.Multiplayer), null!);
+    }
+
+    [TearDown]
+    public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
+
     [Test]
     public void TheLightPartiesAreThePartyLists()
         => Assert.That(TopP4BlueScreenState.LightParties, Is.EqualTo(new[] { LightParty1, LightParty2 }));
