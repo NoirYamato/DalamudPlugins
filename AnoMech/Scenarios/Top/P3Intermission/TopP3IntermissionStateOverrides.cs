@@ -10,9 +10,6 @@ public enum SniperDebuff { Spread, Stack, Nothing }
 // Which three arms warp in first: the triangle with an arm at N (N, SE, SW) or the one with an arm at S.
 public enum FirstArms { NorthTriangle, SouthTriangle }
 
-// A party-setup option rather than a roll: the fight is the same either way, only a strat reads it.
-public enum Automarkers { On, Off }
-
 // User-controlled overrides for TopP3IntermissionState's randomized fields. Bound by the scenario's
 // settings UI; null values leave the field randomized at scenario start.
 public sealed class TopP3IntermissionStateOverrides
