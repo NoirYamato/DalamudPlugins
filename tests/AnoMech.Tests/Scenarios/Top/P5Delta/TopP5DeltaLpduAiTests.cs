@@ -30,7 +30,7 @@ namespace AnoMech.Tests;
 //         (-9.3, -+13) inner / (9.3, -+13) outer.
 //   36.2  blues: the monitor holder (0, 5.1), the plain blues (-0.4 / 0.4 / 0, 3.2), the Beyond Defense target
 //         13 y toward the Final from its own spot; 40.0 the holder steps 1.2 y east or west so its cleave
-//         points away from the centre.
+//         points away from the centre, a holder that took Beyond Defense ending its step at 13 y, never past it.
 //   46.0  Hello Near (0, 6), Hello Distant (0, 18.5), the other blues (9.5, 16); the safe-side inner green
 //         (-9.64, 9.64), the unsafe-side one waits at (-9.6, -3.4) and at 48.0 collapses to (-9.6, 4); the
 //         safe-side outer green plants at (15.5, 10.7), the other goes under the beetle (-18.5, 1.5).
@@ -296,9 +296,12 @@ public class TopP5DeltaLpduAiTests
     internal static bool IsHealer(PartyRole role) => role is RegenHealer or ShieldHealer;
 
     internal static PartyRole[] ExpectedLineUp(TopP5DeltaState state)
+        => ExpectedLineUp(state.TetherOrder, state.CloseInnerOuterForced, state.FarInnerOuterForced);
+
+    internal static PartyRole[] ExpectedLineUp(IReadOnlyList<PartyRole> tetherOrder, bool blueForced, bool greenForced)
     {
-        var order = state.TetherOrder.ToArray();
-        foreach (var (inner, forced) in new[] { (0, state.CloseInnerOuterForced), (4, state.FarInnerOuterForced) })
+        var order = tetherOrder.ToArray();
+        foreach (var (inner, forced) in new[] { (0, blueForced), (4, greenForced) })
         {
             var innerHealer = order.Skip(inner).Take(2).Any(IsHealer);
             var outerHealer = order.Skip(inner + 2).Take(2).Any(IsHealer);
@@ -309,10 +312,13 @@ public class TopP5DeltaLpduAiTests
     }
 
     internal static PartyRole[] ExpectedAfterTheFlex(TopP5DeltaState state)
+        => ExpectedAfterTheFlex(ExpectedLineUp(state), role => FistOf(state, role));
+
+    internal static PartyRole[] ExpectedAfterTheFlex(PartyRole[] lineUp, Func<PartyRole, uint> fistOf)
     {
-        var order = ExpectedLineUp(state);
+        var order = lineUp.ToArray();
         foreach (var inner in new[] { 0, 4 })
-            if (FistOf(state, order[inner]) == FistOf(state, order[inner + 2]))
+            if (fistOf(order[inner]) == fistOf(order[inner + 2]))
                 (order[inner], order[inner + 1]) = (order[inner + 1], order[inner]);
         return order;
     }
@@ -424,7 +430,7 @@ public class TopP5DeltaLpduAiTests
         {
             var arms = Rolls["B"].ArmRotations;
             var corners = Spots((MeleeDpsB, -9.3f, -13f), (ShieldHealer, -9.3f, 13f), (MeleeDpsA, 9.3f, -13f), (CasterDps, 9.3f, 13f));
-            var monitors = Spots((RegenHealer, 13f, -5.1f), (OffTank, -0.4f, -3.2f), (MainTank, 0.4f, -3.2f), (PhysRangedDps, 0f, -3.2f));
+            var monitors = Spots((RegenHealer, 11.8f, -5.1f), (OffTank, -0.4f, -3.2f), (MainTank, 0.4f, -3.2f), (PhysRangedDps, 0f, -3.2f));
             var end = Spots((RegenHealer, -0.7f, -5.7f), (OffTank, -0.7f, -6.5f), (MainTank, -0.7f, -7.3f), (PhysRangedDps, 0.7f, -5.7f),
                             (MeleeDpsB, 0.7f, -6.5f), (ShieldHealer, 0.7f, -7.3f), (MeleeDpsA, 8.8f, 0.5f), (CasterDps, -8.8f, 0.5f));
             var fistSetUp = Spots((RegenHealer, -13.5f, -6.5f), (OffTank, -13.5f, 6.5f), (MainTank, -13.5f, -2.5f), (PhysRangedDps, -13.5f, 2.5f),
@@ -444,7 +450,7 @@ public class TopP5DeltaLpduAiTests
                 },
                 [37.5f] = Spots((MeleeDpsB, 0f, -12f), (ShieldHealer, 0f, 12f), (MeleeDpsA, 9f, -10f), (CasterDps, 9f, 10f)),
                 [39.9f] = With(corners, monitors),
-                [40.45f] = With(With(corners, monitors), (RegenHealer, 14.2f, -5.1f)),
+                [40.45f] = With(With(corners, monitors), (RegenHealer, 13f, -5.1f)),
                 [47.9f] = Spots((PhysRangedDps, 0f, -6f), (ShieldHealer, -9.6f, 3.4f), (MeleeDpsB, -9.64f, -9.64f), (MeleeDpsA, 15.5f, -10.7f)),
                 [52.5f] = Spots((PhysRangedDps, 0f, -6f), (MainTank, 0f, -18.5f), (RegenHealer, 9.5f, -16f), (OffTank, 9.5f, -16f),
                                 (ShieldHealer, -9.6f, -4f), (MeleeDpsB, -9.64f, -9.64f), (MeleeDpsA, 15.5f, -10.7f), (CasterDps, -18.5f, -1.5f)),

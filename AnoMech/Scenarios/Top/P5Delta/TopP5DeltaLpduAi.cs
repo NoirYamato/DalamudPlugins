@@ -104,8 +104,9 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
         ai.Move(36.2f, OuterBluesSprintToTheirMonitorSpots, jitter: 0f, sprint: true);
         ai.Move(38f, GreensToTheirMonitorCornersBehindTheFirstPulses);
         ai.Move(40f, MonitorHolderSidestepsToTurnItsCleaveOutward, jitter: 0f);
-        ai.Move(46f, SwivelCannonSpots);
-        ai.Move(48f, UnsafeInnerGreenCollapsesOnceTheRuinsAreGone);
+        ai.Move(46f, SwivelCannonSpotsOfAllButTheSafeSideInnerGreen);
+        ai.Move(46f, SafeSideInnerGreenStandsExactlyOnItsWaymarkSoTheFirstNearJumpTakesTheCleaveSideGreen, jitter: 0f);
+        ai.Move(48f, UnsafeInnerGreenCollapsesExactlyOntoTheCleaveEdgeOnceTheRuinsAreGone, jitter: 0f);
         ai.Move(56.2f, BackToTheBossWithTheOuterGreensAtMaxMelee);
         ai.Move(61.2f, OuterGreensWalkTogetherOnceTheHelloVulnerabilitiesAreGone);
         ai.Move(62f, MainTankForwardForSolarRay);
@@ -188,9 +189,13 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
                           ? MonitorStageSpot(role) + new Vector2(MonitorHolderSidestep * MonitorHolderStepsEastToCleaveOutward, 0f)
                           : null);
 
-    private IAiMove SwivelCannonSpots() => InEyeFrame(SwivelCannonSpotOf);
+    private IAiMove SwivelCannonSpotsOfAllButTheSafeSideInnerGreen()
+        => InEyeFrame(role => role == SafeSideOf(GreenInnerNorth) ? null : SwivelCannonSpotOf(role));
 
-    private IAiMove UnsafeInnerGreenCollapsesOnceTheRuinsAreGone()
+    private IAiMove SafeSideInnerGreenStandsExactlyOnItsWaymarkSoTheFirstNearJumpTakesTheCleaveSideGreen()
+        => InEyeFrame(role => role == SafeSideOf(GreenInnerNorth) ? SwivelCannonSpotOf(role) : null);
+
+    private IAiMove UnsafeInnerGreenCollapsesExactlyOntoTheCleaveEdgeOnceTheRuinsAreGone()
         => InEyeFrame(role => role == UnsafeSideOf(GreenInnerNorth)
                           ? OnTheSwivelSafeHalf(UnsafeInnerGreenCleaveEdgeWhenTheSouthIsSafe)
                           : null);
@@ -226,9 +231,14 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
         var ownSpot = role == state.PlayerMonitorRole
             ? MonitorHolderSpotWhenOmegasMonitorSparesTheSouth
             : StackRowSpotOf(role);
-        var spot = role == state.BeyondDefenseTarget ? ownSpot + BeyondDefenseTargetRunTowardTheFinal : ownSpot;
+        var spot = role == state.BeyondDefenseTarget
+            ? ownSpot + BeyondDefenseTargetRunTowardTheFinal - AStepShortWhenTheHolderWillSidestepTowardTheFinal(role)
+            : ownSpot;
         return spot with { Y = spot.Y * HalfOmegasMonitorSpares };
     }
+
+    private Vector2 AStepShortWhenTheHolderWillSidestepTowardTheFinal(PartyRole role)
+        => role == state.PlayerMonitorRole && MonitorHolderStepsEastToCleaveOutward > 0 ? new Vector2(MonitorHolderSidestep, 0f) : Vector2.Zero;
 
     private Vector2 StackRowSpotOf(PartyRole role)
     {
