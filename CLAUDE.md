@@ -3,7 +3,7 @@
 # NoirMech
 
 NoirMech is a fork of [AnoMech](https://github.com/anomek/AnoMech). `AGENTS.md` above is upstream's guide and
-stays byte-identical to upstream; this file adds only what NoirMech changes. `git diff v0.5.0.0` shows every
+stays byte-identical to upstream; this file adds only what NoirMech changes. `git diff v0.5.1.0` shows every
 NoirMech change:
 - the rename (below);
 - TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`), listed first in
@@ -19,6 +19,12 @@ NoirMech change:
 - TOP P4 (below): the Blue Screen scenario with an `[LPDU] Light PF` strat, the `TopZone.P4` phase,
   `TopP4Constants.cs` and `TopP4Actions.cs` (P4 ids and actions, kept out of upstream's `TopConstants.cs` and
   `TopActions.cs`);
+- TOP P5 Delta (below): the EU `[LPDU] Light PF` strat (`TopP5DeltaLpduAi`), listed first in `AiStrats` so EU
+  and it are the default pick (upstream's strat is index 1, with `Group => "NA"` and the automarkers), and small
+  edits to upstream's Delta State, overrides, settings window and scenario and to `Multiplayer/Protocol.cs`: the
+  Automarkers setting, the State's forced-band flags and their replay fields, and the tether seating order;
+- the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
+  roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -122,7 +128,9 @@ marked UNVERIFIED there; tune them in that one place.
 - Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
   as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
   arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
-  up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s.
+  up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers
+  On its strat marks at 19.5s, as the user's in-game preset does: Bind 1-3 on the monitor players and Attack
+  1-5 on the rest, each in line-up order.
 
 ## TOP P4
 `Scenarios/Top/P4BlueScreen/` in the `TopZone.P4` phase, which keeps P3's weather and BGM 950. Its ids are in
@@ -143,3 +151,37 @@ UNVERIFIED there and in the scenario.
 - One strat, EU `[LPDU] Light PF`; no solo or multiplayer. The bots' spot radii (13.5 / 11 / 13 / 11 / 10.5)
   and the 20° stack-2 bearing in `TopP4BlueScreenLpduAi` are UNVERIFIED. Change bot movement only with
   `TopP4BlueScreenLpduHumanTests` and `TopP4BlueScreenLpduMarginTests` green.
+
+## TOP P5 Delta
+Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pass upstream's as `NaStrat = 1`.
+- Inner pairs: in each colour the only tether pair holding a healer lines up inner. A tie (both pairs or
+  neither) keeps the roll's inner pair, so the bots' pick is random and a human follows them. A seat that forced
+  an inner or outer band in a colour (Close/Far Inner/Outer; Beyond Defence = Yes counts as Close Inner) hands
+  that colour to the roll (the State's `CloseInnerOuterForced` / `FarInnerOuterForced`); Any choices and the
+  Monitor and Hello World requests (which become Close any) force nothing. `SeatTethers` seats inner and outer
+  requests before Any ones, so an Any seat can't take a forced band's slots.
+- Beyond Defence = No is not a request: when both members of the pair the rule puts inner refused, one of them
+  still takes Beyond Defense, because the scenario honours a refusal only while one of the two closest can take
+  it.
+- N/S inside a pair is the roll's (even slot north), since the sources disagree. The inner pair swaps N/S when
+  its N member's fist matches the outer N member's, compared by role.
+- Blue variant B: the inner blues stretch 13y apart, pop as the tethers go live (28.1s) and drop onto the outer
+  blues; the outer blues break walking out to the NW/SW arms. Upstream's strat is variant A.
+- The layout is built with the eye north. Eye S turns it 180° (`IAiPositions.Rotate`) instead of mirroring x as
+  upstream does, and the arms are picked by their bearing in that frame, so eye E/W (wanted, not built yet) is
+  one more turn.
+- The moves follow the fight's cues rather than upstream's timings. The line-up goes at 11s, about a second after
+  the tethers appear, so a human in a healer tie sees the bots' pick long before the fists (18.25s).
+- With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land, as the user's in-game
+  "LPDU / Sausage" preset does: a Triangle on Near World and a Cross on Distant World.
+- The forced-band flags and Automarkers travel in `TopP5DeltaAiReplayStateMessage`, so a peer's replay decides
+  the same way. Upstream's unreleased `4bb8b6c` removes that replay layer: drop the three fields with it, and
+  rework the tests that read `LastState`.
+- UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both) and the Swivel
+  Cannon's apex on the beetle. No source gives these spots, in the eye frame as `TopP5DeltaLpduAi` writes them:
+  the unsafe inner green's wait (-9.6, -3.4), the green staging (0, ±12) / (9, ±10), the outer greens'
+  walk-together (±4, -0.5), the Beyond Defense target's spot 13y toward the Final from its stack spot, and the
+  opening and end clumps (upstream's).
+- Not wanted: a kill for moving at the fist snapshot, keeping the Hello holders on different blue pairs, and
+  renaming the settings' Close/Far.
+- Change bot movement only with `TopP5DeltaLpduHumanTests` and `TopP5DeltaLpduMarginTests` green.
