@@ -21,6 +21,7 @@ public sealed class TopP3MonitorsSettingsWindow
         if (SettingsGrid.Begin("##p3monitors"))
         {
             DrawOmegaMonitor();
+            Overrides.Automarkers = AutomarkersRow.Draw(Overrides.Automarkers);
             if (solo) DrawPlayerRows();
             SettingsGrid.End();
         }

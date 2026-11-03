@@ -32,6 +32,8 @@ public sealed class TopP3MonitorsState
     // The players with a monitor, in no particular order.
     public RoleList Monitors { get; }
 
+    public Automarkers Automarkers { get; }
+
     private readonly Dictionary<PartyRole, MonitorSide> sides;
 
     public bool HasMonitor(PartyRole role) => sides.ContainsKey(role);
@@ -54,5 +56,7 @@ public sealed class TopP3MonitorsState
         sides = Monitors.List
             .Select((role, i) => (role, side: wantedSides.TryGetValue(role, out var wanted) ? wanted : rolledSides[i]))
             .ToDictionary(t => t.role, t => t.side);
+
+        Automarkers = overrides.Automarkers;
     }
 }

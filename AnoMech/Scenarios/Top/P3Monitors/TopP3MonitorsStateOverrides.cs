@@ -14,6 +14,8 @@ public sealed class TopP3MonitorsStateOverrides
 {
     public OmegaMonitor? OmegaMonitor { get; set; }
 
+    public Automarkers Automarkers { get; set; } = Automarkers.On;
+
     // Three seats get a monitor; a seat arriving at a full set keeps the roll. A side only applies
     // to a seat that ends up with one.
     public PerRoleSetting<bool> Monitor { get; set; } = new();
