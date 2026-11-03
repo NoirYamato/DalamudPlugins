@@ -1,5 +1,6 @@
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P3Intermission;
+using AnoMech.Scenarios.Top.P5Delta;
 
 namespace AnoMech.Tests;
 
@@ -10,6 +11,7 @@ public class AutomarkersTests
     private static IEnumerable<TestCaseData> Overrides()
     {
         yield return new TestCaseData((Func<object>)(() => new TopP3IntermissionStateOverrides())).SetName("{m}(P3 Intermission)");
+        yield return new TestCaseData((Func<object>)(() => new TopP5DeltaStateOverrides())).SetName("{m}(P5 Delta)");
     }
 
     [TestCaseSource(nameof(Overrides))]

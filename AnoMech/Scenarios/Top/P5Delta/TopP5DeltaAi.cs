@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AnoMech.Core;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using static AnoMech.Scenarios.Top.TopConstants.Geometry;
 
@@ -20,6 +22,7 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
     // the entire layout 180° (negate both X and Z).
 
     public string Name => "Standard";
+    public string? Group => "NA";
 
     private TopP5DeltaState state = null!;
 
@@ -27,6 +30,8 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
     {
         state = s;
         var ai = new AiManager(world);
+        if (state.Automarkers == Automarkers.On)
+            ai.Automarker(10.5f, MarkTheHelloWorldHolders);
         ai.Move(0.5f, InitialPositions);
         ai.Move(13f, TetherPrePosition);
         ai.Move(21f, FistResolveSlots);
@@ -41,6 +46,9 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
         ai.Move(56.5f, TankForward);
         ai.Move(61.0f, BreakLastTether);
     }
+
+    private Dictionary<PartyRole, Sign> MarkTheHelloWorldHolders()
+        => new() { [state.NearWorldRole] = Sign.Triangle, [state.FarWorldRole] = Sign.Cross };
 
     private void Swap01(IAiRoles s)
     {

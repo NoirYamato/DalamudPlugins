@@ -27,7 +27,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
     public IReadOnlyList<string> SettingsConflicts => settingsWindow.Overrides.Validate().Problems;
     private readonly TopP5DeltaSettingsWindow settingsWindow = new();
 
-    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaAi()];
+    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaLpduAi(), new TopP5DeltaAi()];
 
 
     private TopP5DeltaState state = null!;
@@ -509,7 +509,8 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             s.PlayerMonitorSide == Side.Left, s.OmegaMonitorSide == Side.Left,
             s.EyeSpawn == NorthSouth.North, s.SwivelCannonSide == Side.Left,
             s.ArmRotations.Select(rotation => rotation == ArmRotation.Clockwise).ToArray(),
-            s.FarWorldRole, s.NearWorldRole, s.FarWorldTetherIndex)
+            s.FarWorldRole, s.NearWorldRole, s.FarWorldTetherIndex,
+            s.Automarkers == Automarkers.On, s.CloseInnerOuterForced, s.FarInnerOuterForced)
         : null;
 
     public object? StartReplay(MpMessage message, int aiIndex, PartyRole myRole, SimWorld replayWorld)
@@ -521,7 +522,8 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             msg.TetherOrder, msg.FistColors, msg.PlayerMonitorIndex,
             msg.PlayerMonitorSideIsLeft, msg.OmegaMonitorSideIsLeft, msg.EyeSpawnIsNorth,
             msg.SwivelCannonSideIsLeft, msg.ArmRotatesClockwise, msg.FarWorldRole,
-            msg.NearWorldRole, msg.FarWorldTetherIndex);
+            msg.NearWorldRole, msg.FarWorldTetherIndex,
+            msg.AutomarkersOn, msg.CloseInnerOuterForced, msg.FarInnerOuterForced);
         ((IScenarioAi<TopP5DeltaState>)AiStrats[aiIndex]).Run(shadowState, replayWorld);
         return shadowState;
     }

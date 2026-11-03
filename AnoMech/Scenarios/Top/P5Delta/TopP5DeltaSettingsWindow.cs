@@ -18,7 +18,12 @@ public sealed class TopP5DeltaSettingsWindow
 #if !DEBUG
         if (!solo)
         {
-            ImGui.TextDisabled("Everything here is per player -- use the button below.");
+            if (SettingsGrid.Begin("##p5delta"))
+            {
+                DrawAutomarkers();
+                SettingsGrid.End();
+            }
+            ImGui.TextDisabled("Everything else is per player -- use the button below.");
             return;
         }
 #endif
@@ -33,6 +38,7 @@ public sealed class TopP5DeltaSettingsWindow
             DrawEyeSpawn();
             DrawSwivelCannon();
 #endif
+            DrawAutomarkers();
             if (solo) DrawPlayerRows();
             SettingsGrid.End();
         }
@@ -74,6 +80,8 @@ public sealed class TopP5DeltaSettingsWindow
         DrawBeyondDefence();
         if (bdOnly) ImGui.EndDisabled();
     }
+
+    private void DrawAutomarkers() => Overrides.Automarkers = AutomarkersRow.Draw(Overrides.Automarkers);
 
     private void ResetFight()
     {

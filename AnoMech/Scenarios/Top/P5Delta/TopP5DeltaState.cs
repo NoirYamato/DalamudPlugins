@@ -65,6 +65,14 @@ public sealed class TopP5DeltaState
     public PartyRole NearWorldRole { get; set; }
     public PartyRole FarWorldRole { get; set; }
 
+    public Automarkers Automarkers { get; }
+
+    // Whether a seat asked for an inner or outer tether of that colour, Beyond Defence counting as close
+    // inner: the request a seat's other choices leave, whether or not its band had room. A pinned TetherOrder
+    // asks for nothing.
+    public bool CloseInnerOuterForced { get; }
+    public bool FarInnerOuterForced { get; }
+
     public int BeyondDefenseIndex()
     {
         return TetherOrder.Select((role, i) => (role, i))
@@ -85,6 +93,11 @@ public sealed class TopP5DeltaState
         SeatTethers(rng, roles, tethers, monitors, hellos, beyond);
         if (overrides.TetherOrder is { } order) roles = order.ToArray();
         TetherOrder = roles;
+
+        var bands = PerRole.All.Select(role => EffectiveTether(role, tethers, monitors, hellos, beyond)).ToList();
+        CloseInnerOuterForced = bands.Any(b => b is PlayerTetherAssignment.CloseInner or PlayerTetherAssignment.CloseOuter);
+        FarInnerOuterForced = bands.Any(b => b is PlayerTetherAssignment.FarInner or PlayerTetherAssignment.FarOuter);
+        Automarkers = overrides.Automarkers;
 
         // Wanting Near or Far is a claim on that one slot; No refuses both.
         var wantsNear = new Dictionary<PartyRole, bool>();
@@ -203,7 +216,7 @@ public sealed class TopP5DeltaState
         return allowed.Count > 0 ? allowed[rng.Next(allowed.Count)] : free[rng.Next(free.Count)];
     }
 
-    // Network-replay constructor: reconstructs the fields TopP5DeltaAi reads. BeyondDefenseTarget
+    // Network-replay constructor: reconstructs the fields the Delta strats read. BeyondDefenseTarget
     // starts null -- not knowable at run start, set later via TopP5DeltaBeyondDefenseUpdateMessage
     // (same pattern as Umad P2 Forsaken's P2LockonsUpdateMessage). Side/NorthSouth/ArmRotation are
     // carried as bools (two named static instances each, no delegate). ArmHandedness/
@@ -212,8 +225,12 @@ public sealed class TopP5DeltaState
         PartyRole[] tetherOrder, uint[] fistColors, int playerMonitorIndex,
         bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, bool eyeSpawnIsNorth,
         bool swivelCannonSideIsLeft, bool[] armRotatesClockwise, PartyRole farWorldRole,
-        PartyRole nearWorldRole, int farWorldTetherIndex)
+        PartyRole nearWorldRole, int farWorldTetherIndex,
+        bool automarkersOn, bool closeInnerOuterForced, bool farInnerOuterForced)
     {
+        Automarkers = automarkersOn ? Automarkers.On : Automarkers.Off;
+        CloseInnerOuterForced = closeInnerOuterForced;
+        FarInnerOuterForced = farInnerOuterForced;
         TetherOrder = tetherOrder;
         EyeSpawn = eyeSpawnIsNorth ? NorthSouth.North : NorthSouth.South;
         FistColors = fistColors;
@@ -235,10 +252,11 @@ public sealed class TopP5DeltaState
         PartyRole[] tetherOrder, uint[] fistColors, int playerMonitorIndex,
         bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, bool eyeSpawnIsNorth,
         bool swivelCannonSideIsLeft, bool[] armRotatesClockwise, PartyRole farWorldRole,
-        PartyRole nearWorldRole, int farWorldTetherIndex)
+        PartyRole nearWorldRole, int farWorldTetherIndex,
+        bool automarkersOn, bool closeInnerOuterForced, bool farInnerOuterForced)
         => new(tetherOrder, fistColors, playerMonitorIndex, playerMonitorSideIsLeft, omegaMonitorSideIsLeft,
                eyeSpawnIsNorth, swivelCannonSideIsLeft, armRotatesClockwise, farWorldRole, nearWorldRole,
-               farWorldTetherIndex);
+               farWorldTetherIndex, automarkersOn, closeInnerOuterForced, farInnerOuterForced);
 
     private static Side RandomSide(Rng rng) => rng.Next(2) == 0 ? Side.Left : Side.Right;
 
