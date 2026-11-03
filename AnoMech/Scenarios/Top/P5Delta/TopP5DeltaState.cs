@@ -147,8 +147,9 @@ public sealed class TopP5DeltaState
         => setting.Resolve(playerRole).ToDictionary(x => x.Role, x => x.Value);
 
     // Slots 0-1 = close inner, 2-3 = close outer, 4-5 = far inner, 6-7 = far outer. Every seat
-    // that asked for a band is swapped into it in seat order; a seat arriving at a band whose
-    // slots are all claimed keeps whatever the shuffle gave it.
+    // that asked for a band is swapped into it in seat order, the inner and outer requests before
+    // the Any ones so that Any seats can't fill a band a later seat asked for; a seat arriving at
+    // a band whose slots are all claimed keeps whatever the shuffle gave it.
     private static void SeatTethers(
         Rng rng, PartyRole[] roles,
         Dictionary<PartyRole, PlayerTetherAssignment> tethers,
@@ -157,9 +158,11 @@ public sealed class TopP5DeltaState
         Dictionary<PartyRole, bool> beyond)
     {
         var claimed = new bool[8];
-        foreach (var role in PerRole.All)
+        foreach (var (role, valid) in PerRole.All
+                     .Select(role => (role, valid: SlotsFor(EffectiveTether(role, tethers, monitors, hellos, beyond)) ?? []))
+                     .Where(request => request.valid.Length > 0)
+                     .OrderBy(request => request.valid.Length))
         {
-            if (SlotsFor(EffectiveTether(role, tethers, monitors, hellos, beyond)) is not { } valid) continue;
             var current = Array.IndexOf(roles, role);
             if (Array.IndexOf(valid, current) >= 0) { claimed[current] = true; continue; }
             var free = valid.Where(s => !claimed[s]).ToArray();

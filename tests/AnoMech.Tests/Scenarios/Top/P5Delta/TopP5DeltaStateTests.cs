@@ -110,6 +110,46 @@ public class TopP5DeltaStateTests
         Assert.That(state.FarInnerOuterForced, Is.EqualTo(!blue));
     }
 
+    // Inner and outer requests are seated before Any ones, so two Any seats ahead in seat order can't take both
+    // slots of the band a later seat forced, and every Any seat still lands in its colour.
+    [TestCase(PlayerTetherAssignment.CloseInner, PlayerTetherAssignment.CloseAny, 0)]
+    [TestCase(PlayerTetherAssignment.CloseOuter, PlayerTetherAssignment.CloseAny, 2)]
+    [TestCase(PlayerTetherAssignment.FarInner, PlayerTetherAssignment.FarAny, 4)]
+    [TestCase(PlayerTetherAssignment.FarOuter, PlayerTetherAssignment.FarAny, 6)]
+    public void AForcedBandIsSeatedBehindTwoAnySeatsOfItsColour(PlayerTetherAssignment band, PlayerTetherAssignment any, int firstSlot)
+    {
+        var overrides = new TopP5DeltaStateOverrides();
+        overrides.Tether[MainTank] = any;
+        overrides.Tether[OffTank] = any;
+        overrides.Tether[CasterDps] = band;
+        AssertSeatedBehindTheAnySeats(overrides, firstSlot, firstSlot < 4 ? 0 : 4);
+    }
+
+    [Test]
+    public void BeyondDefenceYesIsSeatedCloseInnerBehindTwoCloseAnySeats()
+    {
+        var overrides = new TopP5DeltaStateOverrides();
+        overrides.Tether[MainTank] = PlayerTetherAssignment.CloseAny;
+        overrides.Tether[OffTank] = PlayerTetherAssignment.CloseAny;
+        overrides.BeyondDefence[CasterDps] = true;
+        AssertSeatedBehindTheAnySeats(overrides, 0, 0);
+    }
+
+    private static void AssertSeatedBehindTheAnySeats(TopP5DeltaStateOverrides overrides, int forcedFirstSlot, int anyFirstSlot)
+    {
+        Assert.Multiple(() =>
+        {
+            foreach (var seed in Enumerable.Range(1, 1000))
+            {
+                var order = Make(true, overrides, MainTank, seed).TetherOrder.ToList();
+                var why = $"seed {seed}: {string.Join(" ", order)}";
+                Assert.That(order.IndexOf(CasterDps), Is.InRange(forcedFirstSlot, forcedFirstSlot + 1), why);
+                Assert.That(order.IndexOf(MainTank), Is.InRange(anyFirstSlot, anyFirstSlot + 3), why);
+                Assert.That(order.IndexOf(OffTank), Is.InRange(anyFirstSlot, anyFirstSlot + 3), why);
+            }
+        });
+    }
+
     [Test]
     public void APinnedTetherOrderForcesNothing()
     {
@@ -142,12 +182,12 @@ public class TopP5DeltaStateTests
         });
     }
 
-    private static TopP5DeltaState Make(bool hosting, TopP5DeltaStateOverrides overrides, PartyRole player)
+    private static TopP5DeltaState Make(bool hosting, TopP5DeltaStateOverrides overrides, PartyRole player, int seed = 7)
     {
         PerRole.ForceSeats = hosting;
         try
         {
-            return new TopP5DeltaState(new Rng(7), overrides, player);
+            return new TopP5DeltaState(new Rng(seed), overrides, player);
         }
         finally
         {
