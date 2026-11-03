@@ -30,9 +30,9 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
     {
         state = s;
         var ai = new AiManager(world);
+        ai.Move(0.5f, InitialPositions);
         if (state.Automarkers == Automarkers.On)
             ai.Automarker(10.5f, MarkTheHelloWorldHolders);
-        ai.Move(0.5f, InitialPositions);
         ai.Move(13f, TetherPrePosition);
         ai.Move(21f, FistResolveSlots);
         ai.Move(28.8f, TetherResolveStep);

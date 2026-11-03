@@ -92,9 +92,9 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
         lineUp = LineUpOrder(s);
         afterTheFlex = OrderAfterTheFistFlex(s);
         var ai = new AiManager(world);
+        ai.Move(0.5f, TanksNorthOfOmegaTheRestSouth);
         if (state.Automarkers == Automarkers.On)
             ai.Automarker(10.5f, MarkTheHelloWorldHolders);
-        ai.Move(0.5f, TanksNorthOfOmegaTheRestSouth);
         ai.Move(11f, LineUpBlueBesideTheBeetleGreenBesideTheFinal);
         ai.Move(19.5f, FlexThenStretchTheInnerBluesAndStackTheGreens);
         ai.Move(28.3f, PoppedInnerBluesDropOntoTheOuterBlues);

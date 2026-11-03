@@ -129,8 +129,8 @@ marked UNVERIFIED there; tune them in that one place.
   as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
   arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
   up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers
-  On its strat marks at 19.5s, as the user's in-game preset does: Bind 1-3 on the monitor players and Attack
-  1-5 on the rest, each in line-up order.
+  On its strat marks at 19.5s: Bind 1-3 on the monitor players and Attack 1-5 on the rest, each in line-up
+  order.
 
 ## TOP P4
 `Scenarios/Top/P4BlueScreen/` in the `TopZone.P4` phase, which keeps P3's weather and BGM 950. Its ids are in
@@ -172,8 +172,8 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
   one more turn.
 - The moves follow the fight's cues rather than upstream's timings. The line-up goes at 11s, about a second after
   the tethers appear, so a human in a healer tie sees the bots' pick long before the fists (18.25s).
-- With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land, as the user's in-game
-  "LPDU / Sausage" preset does: a Triangle on Near World and a Cross on Distant World.
+- With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land: a Triangle on Near
+  World and a Cross (the + marker) on Distant World.
 - The forced-band flags and Automarkers travel in `TopP5DeltaAiReplayStateMessage`, so a peer's replay decides
   the same way. Upstream's unreleased `4bb8b6c` removes that replay layer: drop the three fields with it, and
   rework the tests that read `LastState`.
