@@ -2,8 +2,8 @@
     "Author": "Anomek, Noir Yamato",
     "Name": "NoirMech",
     "MinimumDalamudVersion": "15.0.3.5",
-    "Punchline": "AnoMech with LPDU strats for TOP P2, P3 and P4, and a pause. Go to an inn and start practice.",
-    "Description": "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors and P4 Blue Screen, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
+    "Punchline": "AnoMech with LPDU strats for TOP P2, P3, P4 and P5 Delta, and a pause. Go to an inn and start practice.",
+    "Description": "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen and P5 Delta, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
     "RepoUrl": "https://github.com/NoirYamato/DalamudPlugins",
     "IconUrl": "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/noirmech.png",
     "Tags": [

@@ -22,7 +22,7 @@ public sealed class TopP3IntermissionSettingsWindow
         if (SettingsGrid.Begin("##p3intermission"))
         {
             DrawFirstArms();
-            DrawAutomarkers();
+            Overrides.Automarkers = AutomarkersRow.Draw(Overrides.Automarkers);
             if (solo) DrawDebuff();
             SettingsGrid.End();
         }
@@ -50,15 +50,6 @@ public sealed class TopP3IntermissionSettingsWindow
         if (ImGui.RadioButton("North triangle##firstarms", v == FirstArms.NorthTriangle)) Overrides.FirstArms = FirstArms.NorthTriangle;
         ImGui.SameLine();
         if (ImGui.RadioButton("South triangle##firstarms", v == FirstArms.SouthTriangle)) Overrides.FirstArms = FirstArms.SouthTriangle;
-    }
-
-    private void DrawAutomarkers()
-    {
-        var v = Overrides.Automarkers;
-        SettingsGrid.Row("Automarkers:");
-        if (ImGui.RadioButton("On##automarkers", v == Automarkers.On)) Overrides.Automarkers = Automarkers.On;
-        ImGui.SameLine();
-        if (ImGui.RadioButton("Off##automarkers", v == Automarkers.Off)) Overrides.Automarkers = Automarkers.Off;
     }
 
     private void DrawDebuff()

@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P3Monitors;
@@ -10,7 +12,8 @@ namespace AnoMech.Tests;
 // The LPDU slideshow's example (https://ff14.toolboxgaming.space/?id=736282987145761): the line-up
 // runs RegenHealer ShieldHealer MainTank OffTank MeleeDpsA MeleeDpsB PhysRangedDps CasterDps north
 // to south, and OffTank, MeleeDpsA and PhysRangedDps carry monitors, so they take spots M1-M3 and
-// the other five N1-N5. Spots are written for Omega beaming west; east mirrors x.
+// the other five N1-N5. Spots are written for Omega beaming west; east mirrors x. The automarkers
+// count the same way: Bind 1-3 for M1-M3, Attack 1-5 for N1-N5.
 public class TopP3MonitorsLpduAiTests
 {
     private const int LpduStrat = 0;
@@ -151,6 +154,105 @@ public class TopP3MonitorsLpduAiTests
         {
             [RegenHealer] = firstFacing, [MeleeDpsB] = secondFacing, [CasterDps] = thirdFacing,
         }, player: MeleeDpsB);
+    }
+
+    private static IEnumerable<TestCaseData> SignCases()
+    {
+        yield return new TestCaseData(SlideshowMonitors, MainTank, new Dictionary<PartyRole, Sign>
+        {
+            [OffTank] = Sign.Bind1, [MeleeDpsA] = Sign.Bind2, [PhysRangedDps] = Sign.Bind3,
+            [RegenHealer] = Sign.Attack1, [ShieldHealer] = Sign.Attack2, [MainTank] = Sign.Attack3,
+            [MeleeDpsB] = Sign.Attack4, [CasterDps] = Sign.Attack5,
+        }).SetName("{m}(the slideshow's monitors)");
+        yield return new TestCaseData(new[] { CasterDps, RegenHealer, MeleeDpsB }, MeleeDpsB, new Dictionary<PartyRole, Sign>
+        {
+            [RegenHealer] = Sign.Bind1, [MeleeDpsB] = Sign.Bind2, [CasterDps] = Sign.Bind3,
+            [ShieldHealer] = Sign.Attack1, [MainTank] = Sign.Attack2, [OffTank] = Sign.Attack3,
+            [MeleeDpsA] = Sign.Attack4, [PhysRangedDps] = Sign.Attack5,
+        }).SetName("{m}(the player holding a monitor, pinned out of line-up order)");
+    }
+
+    // Marked once the monitors appear, before anyone leaves the line for their spot.
+    [TestCaseSource(nameof(SignCases))]
+    public void AutomarkersSignTheMonitorsBindAndTheOthersAttackInLineUpOrder(PartyRole[] monitors, PartyRole player,
+                                                                              Dictionary<PartyRole, Sign> signs)
+    {
+        var marks = Marks(monitors, player, Automarkers.On);
+
+        Assert.That(marks.Keys, Is.EquivalentTo(PerRole.All));
+        Assert.Multiple(() =>
+        {
+            foreach (var (role, sign) in signs)
+            {
+                Assert.That(marks[role].Sign, Is.EqualTo(sign), $"{role}'s sign");
+                Assert.That(marks[role].At, Is.EqualTo(19.5f).Within(0.05f), $"{role}'s mark time");
+            }
+        });
+    }
+
+    [Test]
+    public void AutomarkersOffPlacesNoSign()
+        => Assert.That(Marks(SlideshowMonitors, MainTank, Automarkers.Off), Is.Empty);
+
+    [Test]
+    public void AutomarkersOnAndOffPutEveryoneOnTheSameSpots()
+    {
+        foreach (var seed in Enumerable.Range(0, 20).Select(_ => Random.Shared.Next()))
+        {
+            var on = SpotsBeforeTheMonitorsFire(seed, Automarkers.On);
+            var off = SpotsBeforeTheMonitorsFire(seed, Automarkers.Off);
+            foreach (var role in PerRole.All)
+                Assert.That(Vector2.Distance(on[role], off[role]), Is.LessThan(0.01f),
+                            $"{role}: {on[role]} with automarkers, {off[role]} without (seed {seed})");
+        }
+    }
+
+    // The sign each member was marked with, and when; rows with no target are the clears.
+    private static Dictionary<PartyRole, (Sign Sign, float At)> Marks(PartyRole[] monitors, PartyRole player, Automarkers markers)
+    {
+        var marks = new Dictionary<PartyRole, (Sign, float)>();
+        var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = player,
+            StopAt = 20.5f,
+            Overrides = o =>
+            {
+                var overrides = (TopP3MonitorsStateOverrides)o;
+                Pin(overrides, OmegaMonitor.West, monitors, [MonitorSide.Left, MonitorSide.Right, MonitorSide.Left]);
+                overrides.Automarkers = markers;
+            },
+            Probe = p =>
+            {
+                if (!p.Crossed(20.4f)) return;
+                var roleById = PerRole.All.ToDictionary(r => p.Member(r)!.GameObjectId.ObjectId.ToString("X8"), r => r);
+                foreach (var row in p.Fake.Timeline.Rows.Where(r => r["kind"] == "ac_target" && r["id"] == "0x1F6" && r["target"] != ""))
+                    marks[roleById[row["target"]]] = ((Sign)Convert.ToUInt32(row["p"].Split(',')[0], 16),
+                                                     float.Parse(row["t"], CultureInfo.InvariantCulture));
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        return marks;
+    }
+
+    private static Dictionary<PartyRole, Vector2> SpotsBeforeTheMonitorsFire(int seed, Automarkers markers)
+    {
+        var seen = new Dictionary<PartyRole, Vector2>();
+        var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), LpduStrat, seed, new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 29.4f,
+            Overrides = o => ((TopP3MonitorsStateOverrides)o).Automarkers = markers,
+            Probe = p =>
+            {
+                if (!p.Crossed(29.3f)) return;
+                foreach (var role in PerRole.All)
+                    seen[role] = Flat(p.Member(role)!.Position);
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        return seen;
     }
 
     private static Vector2 Mirror(Vector2 spot) => spot with { X = -spot.X };

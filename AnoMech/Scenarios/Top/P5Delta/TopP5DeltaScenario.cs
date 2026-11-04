@@ -27,7 +27,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
     public IReadOnlyList<string> SettingsConflicts => settingsWindow.Overrides.Validate().Problems;
     private readonly TopP5DeltaSettingsWindow settingsWindow = new();
 
-    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaAi()];
+    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaLpduAi(), new TopP5DeltaAi()];
 
 
     private TopP5DeltaState state = null!;
@@ -177,7 +177,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             EnemyList: EnemyListMode.OnlyWhenVisible,
             Visibility: SpawnVisibility.HiddenUntilShown,
             LayoutId: BNpcLayoutId.BeetleHelper,
-            Placement: new Placement(new Vector3(-20f, 0f, 0f) * state.EyeSpawn.Mul, MathF.PI / 2f * state.EyeSpawn.Mul)));
+            Placement: new Placement(new Vector3(-20f, 0f, 0f) * state.EyeSpawn.Mul, MathF.PI / 2f * state.EyeSpawn.Mul).RotateAroundOrigin(state.EyeSpawn.Turn)));
 
         finalHelper = world.SpawnEnemy(new EnemySpawnConfig(
             BNpcBaseId: BNpcBaseId.FinalHelper,
@@ -187,7 +187,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             EnemyList: EnemyListMode.OnlyWhenVisible,
             Visibility: SpawnVisibility.HiddenUntilShown,
             LayoutId: BNpcLayoutId.FinalHelper,
-            Placement: new Placement(new Vector3(20f, 0f, 0f) * state.EyeSpawn.Mul, -MathF.PI / 2f * state.EyeSpawn.Mul)));
+            Placement: new Placement(new Vector3(20f, 0f, 0f) * state.EyeSpawn.Mul, -MathF.PI / 2f * state.EyeSpawn.Mul).RotateAroundOrigin(state.EyeSpawn.Turn)));
     }
 
     private void RevealDeltaAdds()
@@ -205,7 +205,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             LayoutId: BNpcLayoutId.OpticalUnit,
-            Placement: new Placement(new Vector3(0f, 0f, -45f) * state.EyeSpawn.Mul, MathF.PI / 2f - MathF.PI / 2 * state.EyeSpawn.Mul)));
+            Placement: new Placement(new Vector3(0f, 0f, -45f) * state.EyeSpawn.Mul, MathF.PI / 2f - MathF.PI / 2 * state.EyeSpawn.Mul).RotateAroundOrigin(state.EyeSpawn.Turn)));
     }
 
     private void ApplyDeltaTethers()
@@ -251,7 +251,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
                 Targetable: false,
                 EnemyList: EnemyListMode.Manual,
                 LayoutId: state.ArmHandedness[i].ArmUnitLayoutId,
-                Placement: new Placement(Geometry.ArmUnitPlacements[i].Position * new Vector3(state.EyeSpawn.Mul, 1, 1), Geometry.ArmUnitPlacements[i].Rotation)));
+                Placement: new Placement(Geometry.ArmUnitPlacements[i].Position * new Vector3(state.EyeSpawn.Mul, 1, 1), Geometry.ArmUnitPlacements[i].Rotation * state.EyeSpawn.Mul).RotateAroundOrigin(state.EyeSpawn.Turn)));
             unit?.PlayActionTimeline(state.ArmHandedness[i].ArmUnitWarpEndTimelineId);
             return unit;
         }).ToList();
@@ -507,9 +507,10 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         => LastState is { } s ? new TopP5DeltaAiReplayStateMessage(
             s.TetherOrder.ToArray(), s.FistColors.ToArray(), s.PlayerMonitorIndex,
             s.PlayerMonitorSide == Side.Left, s.OmegaMonitorSide == Side.Left,
-            s.EyeSpawn == NorthSouth.North, s.SwivelCannonSide == Side.Left,
+            s.EyeSpawn.EffectIndex, s.SwivelCannonSide == Side.Left,
             s.ArmRotations.Select(rotation => rotation == ArmRotation.Clockwise).ToArray(),
-            s.FarWorldRole, s.NearWorldRole, s.FarWorldTetherIndex)
+            s.FarWorldRole, s.NearWorldRole, s.FarWorldTetherIndex,
+            s.Automarkers == Automarkers.On, s.CloseInnerOuterForced, s.FarInnerOuterForced)
         : null;
 
     public object? StartReplay(MpMessage message, int aiIndex, PartyRole myRole, SimWorld replayWorld)
@@ -519,9 +520,10 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         // Ai reads it (t=35.7s < 36.2s).
         var shadowState = TopP5DeltaState.FromNetworkReplay(
             msg.TetherOrder, msg.FistColors, msg.PlayerMonitorIndex,
-            msg.PlayerMonitorSideIsLeft, msg.OmegaMonitorSideIsLeft, msg.EyeSpawnIsNorth,
+            msg.PlayerMonitorSideIsLeft, msg.OmegaMonitorSideIsLeft, msg.EyeSpawnEffectIndex,
             msg.SwivelCannonSideIsLeft, msg.ArmRotatesClockwise, msg.FarWorldRole,
-            msg.NearWorldRole, msg.FarWorldTetherIndex);
+            msg.NearWorldRole, msg.FarWorldTetherIndex,
+            msg.AutomarkersOn, msg.CloseInnerOuterForced, msg.FarInnerOuterForced);
         ((IScenarioAi<TopP5DeltaState>)AiStrats[aiIndex]).Run(shadowState, replayWorld);
         return shadowState;
     }

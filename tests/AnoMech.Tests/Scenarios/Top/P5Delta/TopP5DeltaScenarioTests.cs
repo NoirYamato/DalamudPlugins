@@ -23,6 +23,8 @@ namespace AnoMech.Tests;
 //   61    R and C meet to break the last green tether, once the jump targets' vulns are gone.
 public class TopP5DeltaScenarioTests
 {
+    private const int NaStrat = 1;
+
     private static readonly PartyRole[] Order =
         [MainTank, OffTank, RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
 
@@ -36,7 +38,7 @@ public class TopP5DeltaScenarioTests
 
 
     private static NegativeRun<TopP5DeltaScenario> Delta(PartyRole player, Action<TopP5DeltaStateOverrides>? tweak = null)
-        => Negative<TopP5DeltaScenario>(player)
+        => Negative<TopP5DeltaScenario>(player, NaStrat)
             .Overrides<TopP5DeltaStateOverrides>(o =>
             {
                 o.EyeSpawn = NorthSouth.North;

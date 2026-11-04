@@ -16,6 +16,8 @@ public sealed class TopP5DeltaStateOverrides
     public NorthSouth? EyeSpawn { get; set; }
     public Side? SwivelCannonSide { get; set; }
 
+    public Automarkers Automarkers { get; set; } = Automarkers.On;
+
     // --- Per player: everyone has their own ---------------------------------------------
     public PerRoleSetting<PlayerTetherAssignment> Tether { get; set; } = new();
     // Monitor, Near and Far are one seat each; the earlier seat wins a contested one.
@@ -86,6 +88,7 @@ public sealed class TopP5DeltaStateOverrides
         conflicts.AtMost(4, PerRole.All.Where(r => EffectiveTether(r) is PlayerTetherAssignment.FarAny
                                                        or PlayerTetherAssignment.FarInner
                                                        or PlayerTetherAssignment.FarOuter).ToList(), "a far tether");
+        if (!conflicts.Any) TopP5DeltaCloseJobs.FlagTooFewTakers(conflicts, bands, Monitor, HelloWorld);
         return conflicts;
     }
 }

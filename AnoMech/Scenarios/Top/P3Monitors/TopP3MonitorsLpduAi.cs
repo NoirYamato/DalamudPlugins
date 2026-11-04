@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using static AnoMech.Core.Game.Party.PartyRole;
 
@@ -23,6 +24,9 @@ public class TopP3MonitorsLpduAi : IScenarioAi<TopP3MonitorsState>
 
     private static readonly float[] MonitorBeamRotationsWhenOmegaBeamsWest = [MathF.PI / 2, MathF.PI, 0f];
 
+    private static readonly Sign[] SignsForMonitorsThenOthers =
+        [Sign.Bind1, Sign.Bind2, Sign.Bind3, Sign.Attack1, Sign.Attack2, Sign.Attack3, Sign.Attack4, Sign.Attack5];
+
     private TopP3MonitorsState state = null!;
 
     public void Run(TopP3MonitorsState s, SimWorld world)
@@ -31,6 +35,8 @@ public class TopP3MonitorsLpduAi : IScenarioAi<TopP3MonitorsState>
         var ai = new AiManager(world);
         ai.Move(0.3f, LooseStackWestOfOmega);
         ai.Move(8.6f, WestArcLineUp);
+        if (state.Automarkers == Automarkers.On)
+            ai.Automarker(19.5f, MarkTheMonitorsBindAndTheOthersAttackInLineUpOrder);
         ai.Move(20.4f, MonitorAndNonMonitorSpots);
         world.Events.Add(27.4f, () => TurnMonitorsToAimTheirBeams(world));
     }
@@ -71,6 +77,9 @@ public class TopP3MonitorsLpduAi : IScenarioAi<TopP3MonitorsState>
                      .Assignments(MonitorsThenOthersInLineUpOrder())
                      .ApplyPositions(MirrorWhenOmegaBeamsEast);
     }
+
+    private Dictionary<PartyRole, Sign> MarkTheMonitorsBindAndTheOthersAttackInLineUpOrder()
+        => MonitorsThenOthersInLineUpOrder().Zip(SignsForMonitorsThenOthers).ToDictionary(t => t.First, t => t.Second);
 
     private void TurnMonitorsToAimTheirBeams(SimWorld world)
     {

@@ -31,10 +31,20 @@ public sealed record ArmRotation(int Mul, uint LockonId)
     public static readonly ArmRotation CounterClockwise = new(1, TopConstants.LockonId.RotateCcw);
 }
 
-public record NorthSouth(float Mul, byte EffectIndex)
+// The eye's cardinal; upstream's name is kept so its merges stay small. South's Mul negates the beetle's, the
+// Final's and the eye unit's spawns, a half turn, but mirrors the arm units east to west (spots and facings), which
+// lands them on the same six spots. Turn turns the North layout by that many radians, north toward east (East,
+// West). EffectIndex is the eye's MapEffect slot, the cardinal's octant + 1 as for the P2 eye; East's and West's
+// are UNVERIFIED.
+public record NorthSouth(float Mul, byte EffectIndex, float Turn = 0f)
 {
     public static readonly NorthSouth North = new(1, 1);
     public static readonly NorthSouth South = new(-1, 5);
+    public static readonly NorthSouth East = new(1, 3, MathF.PI / 2f);
+    public static readonly NorthSouth West = new(1, 7, -MathF.PI / 2f);
+    public static readonly IReadOnlyList<NorthSouth> Cardinals = [North, East, South, West];
+
+    public static NorthSouth WithEffectIndex(byte index) => Cardinals.FirstOrDefault(eye => eye.EffectIndex == index) ?? North;
 }
 
 public sealed class TopP5DeltaState
@@ -65,6 +75,14 @@ public sealed class TopP5DeltaState
     public PartyRole NearWorldRole { get; set; }
     public PartyRole FarWorldRole { get; set; }
 
+    public Automarkers Automarkers { get; }
+
+    // Whether a seat asked for an inner or outer tether of that colour, Beyond Defence counting as close
+    // inner: the request a seat's other choices leave, whether or not its band had room. A pinned TetherOrder
+    // asks for nothing.
+    public bool CloseInnerOuterForced { get; }
+    public bool FarInnerOuterForced { get; }
+
     public int BeyondDefenseIndex()
     {
         return TetherOrder.Select((role, i) => (role, i))
@@ -86,6 +104,11 @@ public sealed class TopP5DeltaState
         if (overrides.TetherOrder is { } order) roles = order.ToArray();
         TetherOrder = roles;
 
+        var bands = PerRole.All.Select(role => EffectiveTether(role, tethers, monitors, hellos, beyond)).ToList();
+        CloseInnerOuterForced = bands.Any(b => b is PlayerTetherAssignment.CloseInner or PlayerTetherAssignment.CloseOuter);
+        FarInnerOuterForced = bands.Any(b => b is PlayerTetherAssignment.FarInner or PlayerTetherAssignment.FarOuter);
+        Automarkers = overrides.Automarkers;
+
         // Wanting Near or Far is a claim on that one slot; No refuses both.
         var wantsNear = new Dictionary<PartyRole, bool>();
         var wantsFar = new Dictionary<PartyRole, bool>();
@@ -97,7 +120,8 @@ public sealed class TopP5DeltaState
                 case HelloWorldOption.No:   wantsNear[role] = false; wantsFar[role] = false; break;
             }
 
-        EyeSpawn = overrides.EyeSpawn ?? (rng.Next(2) == 0 ? NorthSouth.North : NorthSouth.South);
+        // How often each cardinal comes up is UNVERIFIED.
+        EyeSpawn = overrides.EyeSpawn ?? NorthSouth.Cardinals[rng.Next(4)];
         var rotations = Enumerable.Range(0, 6).Select(_ => rng.Next(2) == 0 ? ArmRotation.Clockwise : ArmRotation.CounterClockwise).ToArray();
         ArmRotations = overrides.ArmRotations ?? rotations;
         var arms = ShuffleSides(rng);
@@ -134,8 +158,9 @@ public sealed class TopP5DeltaState
         => setting.Resolve(playerRole).ToDictionary(x => x.Role, x => x.Value);
 
     // Slots 0-1 = close inner, 2-3 = close outer, 4-5 = far inner, 6-7 = far outer. Every seat
-    // that asked for a band is swapped into it in seat order; a seat arriving at a band whose
-    // slots are all claimed keeps whatever the shuffle gave it.
+    // that asked for a band is swapped into it in seat order, the inner and outer requests before
+    // the Any ones so that Any seats can't fill a band a later seat asked for; a seat arriving at
+    // a band whose slots are all claimed keeps whatever the shuffle gave it.
     private static void SeatTethers(
         Rng rng, PartyRole[] roles,
         Dictionary<PartyRole, PlayerTetherAssignment> tethers,
@@ -144,9 +169,11 @@ public sealed class TopP5DeltaState
         Dictionary<PartyRole, bool> beyond)
     {
         var claimed = new bool[8];
-        foreach (var role in PerRole.All)
+        foreach (var (role, valid) in PerRole.All
+                     .Select(role => (role, valid: SlotsFor(EffectiveTether(role, tethers, monitors, hellos, beyond)) ?? []))
+                     .Where(request => request.valid.Length > 0)
+                     .OrderBy(request => request.valid.Length))
         {
-            if (SlotsFor(EffectiveTether(role, tethers, monitors, hellos, beyond)) is not { } valid) continue;
             var current = Array.IndexOf(roles, role);
             if (Array.IndexOf(valid, current) >= 0) { claimed[current] = true; continue; }
             var free = valid.Where(s => !claimed[s]).ToArray();
@@ -159,6 +186,7 @@ public sealed class TopP5DeltaState
             (roles[current], roles[target]) = (roles[target], roles[current]);
             claimed[target] = true;
         }
+        TopP5DeltaCloseJobs.SeatTakersClose(rng, roles, claimed, monitors, hellos);
     }
 
     // A seat's other choices constrain its band: Beyond Defence is taken close inner, and
@@ -203,19 +231,23 @@ public sealed class TopP5DeltaState
         return allowed.Count > 0 ? allowed[rng.Next(allowed.Count)] : free[rng.Next(free.Count)];
     }
 
-    // Network-replay constructor: reconstructs the fields TopP5DeltaAi reads. BeyondDefenseTarget
+    // Network-replay constructor: reconstructs the fields the Delta strats read. BeyondDefenseTarget
     // starts null -- not knowable at run start, set later via TopP5DeltaBeyondDefenseUpdateMessage
-    // (same pattern as Umad P2 Forsaken's P2LockonsUpdateMessage). Side/NorthSouth/ArmRotation are
-    // carried as bools (two named static instances each, no delegate). ArmHandedness/
+    // (same pattern as Umad P2 Forsaken's P2LockonsUpdateMessage). Side/ArmRotation are carried as
+    // bools (two named static instances each, no delegate), NorthSouth as its EffectIndex. ArmHandedness/
     // NearWorldTetherIndex/Beyond Defence requests are harmless placeholders -- only the scenario's own host-only resolution reads them.
     private TopP5DeltaState(
         PartyRole[] tetherOrder, uint[] fistColors, int playerMonitorIndex,
-        bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, bool eyeSpawnIsNorth,
+        bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, byte eyeSpawnEffectIndex,
         bool swivelCannonSideIsLeft, bool[] armRotatesClockwise, PartyRole farWorldRole,
-        PartyRole nearWorldRole, int farWorldTetherIndex)
+        PartyRole nearWorldRole, int farWorldTetherIndex,
+        bool automarkersOn, bool closeInnerOuterForced, bool farInnerOuterForced)
     {
+        Automarkers = automarkersOn ? Automarkers.On : Automarkers.Off;
+        CloseInnerOuterForced = closeInnerOuterForced;
+        FarInnerOuterForced = farInnerOuterForced;
         TetherOrder = tetherOrder;
-        EyeSpawn = eyeSpawnIsNorth ? NorthSouth.North : NorthSouth.South;
+        EyeSpawn = NorthSouth.WithEffectIndex(eyeSpawnEffectIndex);
         FistColors = fistColors;
         ArmHandedness = [];
         ArmRotations = armRotatesClockwise.Select(cw => cw ? ArmRotation.Clockwise : ArmRotation.CounterClockwise).ToList();
@@ -233,12 +265,13 @@ public sealed class TopP5DeltaState
 
     public static TopP5DeltaState FromNetworkReplay(
         PartyRole[] tetherOrder, uint[] fistColors, int playerMonitorIndex,
-        bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, bool eyeSpawnIsNorth,
+        bool playerMonitorSideIsLeft, bool omegaMonitorSideIsLeft, byte eyeSpawnEffectIndex,
         bool swivelCannonSideIsLeft, bool[] armRotatesClockwise, PartyRole farWorldRole,
-        PartyRole nearWorldRole, int farWorldTetherIndex)
+        PartyRole nearWorldRole, int farWorldTetherIndex,
+        bool automarkersOn, bool closeInnerOuterForced, bool farInnerOuterForced)
         => new(tetherOrder, fistColors, playerMonitorIndex, playerMonitorSideIsLeft, omegaMonitorSideIsLeft,
-               eyeSpawnIsNorth, swivelCannonSideIsLeft, armRotatesClockwise, farWorldRole, nearWorldRole,
-               farWorldTetherIndex);
+               eyeSpawnEffectIndex, swivelCannonSideIsLeft, armRotatesClockwise, farWorldRole, nearWorldRole,
+               farWorldTetherIndex, automarkersOn, closeInnerOuterForced, farInnerOuterForced);
 
     private static Side RandomSide(Rng rng) => rng.Next(2) == 0 ? Side.Left : Side.Right;
 

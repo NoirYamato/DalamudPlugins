@@ -76,9 +76,12 @@ All using default NA pf strats unless noted otherwise:
       - NA pf
     - P3 Intermission _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/46r495ZATq3kCqz1), automarkers on or off
     - P3 Hello World _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1)
-    - P3 Monitors _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1)
+    - P3 Monitors _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1), automarkers on or off
     - P4 Blue Screen _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=595188367474761&preview=1)
-    - P5 Delta
+    - P5 Delta, automarkers on or off
+      - EU (default)
+        - [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1)
+      - NA pf
     - P5 Sigma
     - P5 Omega
     - P6 Exasquares / Wave Cannon 2
