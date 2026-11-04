@@ -31,9 +31,11 @@ public sealed record ArmRotation(int Mul, uint LockonId)
     public static readonly ArmRotation CounterClockwise = new(1, TopConstants.LockonId.RotateCcw);
 }
 
-// The eye's cardinal. Mul mirrors the North layout east to west (South); Turn then turns it by that many radians,
-// north toward east (East, West). Upstream's name is kept so its merges stay small. EffectIndex is the eye's
-// MapEffect slot, the cardinal's octant + 1 as for the P2 eye; East's and West's are UNVERIFIED.
+// The eye's cardinal; upstream's name is kept so its merges stay small. South's Mul negates the beetle's, the
+// Final's and the eye unit's spawns, a half turn, but mirrors the arm units east to west (spots and facings), which
+// lands them on the same six spots. Turn turns the North layout by that many radians, north toward east (East,
+// West). EffectIndex is the eye's MapEffect slot, the cardinal's octant + 1 as for the P2 eye; East's and West's
+// are UNVERIFIED.
 public record NorthSouth(float Mul, byte EffectIndex, float Turn = 0f)
 {
     public static readonly NorthSouth North = new(1, 1);

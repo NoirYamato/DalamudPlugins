@@ -24,8 +24,9 @@ NoirMech change:
   the eye's `Turn` in `AdjustEyePosition`), and small edits to upstream's Delta State, overrides, settings window
   and scenario and to `Multiplayer/Protocol.cs`: the Automarkers setting, the State's forced-band flags and their
   replay fields, the tether seating order, and the eye on all four cardinals (`NorthSouth` gains `Turn`, `East`,
-  `West` and `Cardinals`, the State rolls one of the four, the scenario turns its spawns by `Turn` and mirrors
-  the arms' facing with their spots for eye S, and the replay's `EyeSpawnIsNorth` became `EyeSpawnEffectIndex`);
+  `West`, `Cardinals` and `WithEffectIndex`, the State rolls one of the four, the scenario turns the beetle, the
+  Final, the eye unit and the arm units by `Turn` and mirrors the arms' facing with their spots for eye S, and the
+  replay's `EyeSpawnIsNorth` became `EyeSpawnEffectIndex`);
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
@@ -170,12 +171,14 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
   its N member's fist matches the outer N member's, compared by role.
 - Blue variant B: the inner blues stretch 13y apart, pop as the tethers go live (28.1s) and drop onto the outer
   blues; the outer blues break walking out to the NW/SW arms. Upstream's strat is variant A.
-- The eye spawns on any cardinal, each a quarter of the time (how often the game picks each is UNVERIFIED). E and
-  W are quarter turns of the North layout (`NorthSouth.Turn`) in the scenario and both strats; S keeps upstream's
-  x-mirror (`Mul`) in the scenario and upstream's strat. `TopP5DeltaLpduAi` writes its spots with the eye north
-  and turns them by the eye's bearing (`IAiPositions.Rotate`), picking the arms by their bearing in that frame.
-  The E/W eye MapEffect slots (3 and 7, P2's scheme) are UNVERIFIED. `TopP5DeltaEyeTests` checks each eye's
-  spawns, hit areas and replay.
+- The eye spawns on any cardinal, each a quarter of the time (how often the game picks each is UNVERIFIED). For E
+  and W the scenario turns the beetle, the Final, the eye unit and the arm units a quarter (`NorthSouth.Turn`),
+  and both strats turn their moves with them. S keeps upstream's `Mul`: the scenario negates the beetle's, the
+  Final's and the eye unit's spawns with it (a half turn) but mirrors the arm units east to west, which lands them
+  on the same six spots, and upstream's strat mirrors x and multiplies its side flips by it. `TopP5DeltaLpduAi`
+  writes its spots with the eye north and turns them by the eye's bearing (`IAiPositions.Rotate`), picking the
+  arms by their bearing in that frame. The E/W eye MapEffect slots (3 and 7, P2's scheme) are UNVERIFIED.
+  `TopP5DeltaEyeTests` checks each eye's spawns, hit areas and replay.
 - The moves follow the fight's cues rather than upstream's timings. The line-up goes at 11s, about a second after
   the tethers appear, so a human in a healer tie sees the bots' pick long before the fists (18.25s).
 - With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land: a Triangle on Near
@@ -183,11 +186,12 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 - The forced-band flags, Automarkers and the eye's `EffectIndex` travel in `TopP5DeltaAiReplayStateMessage`, so
   a peer's replay decides the same way. Upstream's unreleased `4bb8b6c` removes that replay layer: drop those
   fields with it, and rework the tests that read `LastState`.
-- UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both) and the Swivel
-  Cannon's apex on the beetle. No source gives these spots, in the eye frame as `TopP5DeltaLpduAi` writes them:
-  the unsafe inner green's wait (-9.6, -3.4), the green staging (0, ±12) / (9, ±10), the outer greens'
-  walk-together (±4, -0.5), the Beyond Defense target's spot 13y toward the Final from its stack spot, and the
-  opening and end clumps (upstream's).
+- UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both), the Swivel
+  Cannon's apex on the beetle, and Omega-M's facing relative to the eye: it keeps its absolute facings for every
+  eye (north at spawn, south at 28.2s, north at 54s), and no mechanic reads them. No source gives these spots, in
+  the eye frame as `TopP5DeltaLpduAi` writes them: the unsafe inner green's wait (-9.6, -3.4), the green staging
+  (0, ±12) / (9, ±10), the outer greens' walk-together (±4, -0.5), the Beyond Defense target's spot 13y toward the
+  Final from its stack spot, and the opening and end clumps (upstream's).
 - Not wanted: a kill for moving at the fist snapshot, keeping the Hello holders on different blue pairs, and
   renaming the settings' Close/Far.
 - Change bot movement only with `TopP5DeltaLpduHumanTests` and `TopP5DeltaLpduMarginTests` green.
