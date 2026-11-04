@@ -1,8 +1,8 @@
 # DalamudPlugins
 
 Custom Dalamud plugin repository for **NoirMech**, a modified version of
-[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3 and P4, and a
-pause.
+[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4 and P5
+Delta, and a pause.
 Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
 
 ## Install
@@ -33,7 +33,9 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
 - **TOP P3 Hello World and P3 Monitors:** new scenarios, each with an `[LPDU] Light PF` strat under the
   **EU** button, following the LPDU toolboxes for
   [Hello World](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1) and
-  [Monitors](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1).
+  [Monitors](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1). P3 Monitors' settings have an
+  **Automarkers** option: On (the default) marks the three monitor players Bind 1-3 and everyone else Attack
+  1-5, in line-up order.
 - **TOP P3 Intermission:** a new scenario with an `[LPDU] Light PF` strat under the **EU** button, following
   the [LPDU P3 Intermission raidplan](https://raidplan.io/plan/46r495ZATq3kCqz1). Its settings have an
   **Automarkers** option: On (the default) marks the spreads, stacks and their partners in conga order; Off
@@ -42,6 +44,13 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   the [LPDU Blue Screen toolbox](https://ff14.toolboxgaming.space/?id=595188367474761&preview=1). Its settings
   can force or rule out your marker in each set, and whether both of a set's markers land in one light party,
   so someone has to flex.
+- **TOP P5 Delta:** an `[LPDU] Light PF` strat under the **EU** button, following the
+  [LPDU Delta toolbox](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1). It is the default; NA pf
+  is still under the **NA** button. In each colour, when only one tether pair has a healer, that pair takes the
+  inner spots. Its settings have an **Automarkers** option for both strats: On (the default) puts a triangle on
+  the Near World player and a cross (+) on the Distant World player. The eye spawns on any cardinal, not just
+  north or south, and in multiplayer everyone's tether, monitor and Hello World choices are honoured more
+  reliably.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of
