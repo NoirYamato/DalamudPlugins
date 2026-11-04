@@ -186,6 +186,7 @@ public sealed class TopP5DeltaState
             (roles[current], roles[target]) = (roles[target], roles[current]);
             claimed[target] = true;
         }
+        TopP5DeltaCloseJobs.SeatTakersClose(rng, roles, claimed, monitors, hellos);
     }
 
     // A seat's other choices constrain its band: Beyond Defence is taken close inner, and

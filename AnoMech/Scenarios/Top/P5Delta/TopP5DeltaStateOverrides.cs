@@ -88,6 +88,7 @@ public sealed class TopP5DeltaStateOverrides
         conflicts.AtMost(4, PerRole.All.Where(r => EffectiveTether(r) is PlayerTetherAssignment.FarAny
                                                        or PlayerTetherAssignment.FarInner
                                                        or PlayerTetherAssignment.FarOuter).ToList(), "a far tether");
+        if (!conflicts.Any) TopP5DeltaCloseJobs.FlagTooFewTakers(conflicts, bands, Monitor, HelloWorld);
         return conflicts;
     }
 }

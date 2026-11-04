@@ -23,7 +23,8 @@ NoirMech change:
   and it are the default pick (upstream's strat is index 1, with `Group => "NA"`, the automarkers and a turn by
   the eye's `Turn` in `AdjustEyePosition`), and small edits to upstream's Delta State, overrides, settings window
   and scenario and to `Multiplayer/Protocol.cs`: the Automarkers setting, the State's forced-band flags and their
-  replay fields, the tether seating order, and the eye on all four cardinals (`NorthSouth` gains `Turn`, `East`,
+  replay fields, the tether seating order, a call each from `SeatTethers` and `Validate` into
+  `TopP5DeltaCloseJobs.cs` (below), and the eye on all four cardinals (`NorthSouth` gains `Turn`, `East`,
   `West`, `Cardinals` and `WithEffectIndex`, the State rolls one of the four, the scenario turns the beetle, the
   Final, the eye unit and the arm units by `Turn` and mirrors the arms' facing with their spots for eye S, and the
   replay's `EyeSpawnIsNorth` became `EyeSpawnEffectIndex`);
@@ -164,6 +165,10 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
   that colour to the roll (the State's `CloseInnerOuterForced` / `FarInnerOuterForced`); Any choices and the
   Monitor and Hello World requests (which become Close any) force nothing. `SeatTethers` seats inner and outer
   requests before Any ones, so an Any seat can't take a forced band's slots.
+- The monitor and both Hello World tethers only go to the four close seats. When seats refusing them (Monitor or
+  Hello World = No, or the other Hello tether's request) would fill the close four, `TopP5DeltaCloseJobs` swaps
+  seats that asked for no band between the close and far slots until every job has a taker, drawing from the
+  roll only then, and Validate flags settings no seating can honour.
 - Beyond Defence = No is not a request: when both members of the pair the rule puts inner refused, one of them
   still takes Beyond Defense, because the scenario honours a refusal only while one of the two closest can take
   it.
