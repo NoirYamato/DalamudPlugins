@@ -19,7 +19,7 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
     // Tether-resolve positions in scenario-local coords (origin (0,0) = world (100,100)).
     // Even slots are caller-specified, odd slots are mirrored across the east-west axis
     // (same X, negated Z) so each pair lands on opposite sides. EyeSpawn==South flips
-    // the entire layout 180° (negate both X and Z).
+    // X (east to west); East and West turn the North layout a quarter turn.
 
     public string Name => "Standard";
     public string? Group => "NA";
@@ -111,6 +111,7 @@ public sealed class TopP5DeltaAi : IScenarioAi<TopP5DeltaState>
     private void AdjustEyePosition(IAiPositions move)
     {
         move.MultiplyX(state.EyeSpawn.Mul);
+        move.Rotate(state.EyeSpawn.Turn);
     }
 
     private IAiMove InitialPositions()

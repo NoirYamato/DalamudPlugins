@@ -220,10 +220,12 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
         => Enumerable.Range(0, ArmUnitPlacements.Length)
                      .MinBy(arm => RadiansApart(BearingOf(ArmInEyeFrame(arm)), eyeFrameBearingDegrees * MathF.PI / 180f));
 
-    private Vector2 ArmInEyeFrame(int arm)
+    private Vector2 ArmInEyeFrame(int arm) => Turned(ArmWhereTheScenarioSpawnsIt(arm), -EyeTurnFromNorth);
+
+    private Vector2 ArmWhereTheScenarioSpawnsIt(int arm)
     {
-        var spawned = ArmUnitPlacements[arm].Position;
-        return Turned(new Vector2(spawned.X * state.EyeSpawn.Mul, spawned.Z), -EyeTurnFromNorth);
+        var northLayout = ArmUnitPlacements[arm].Position;
+        return Turned(new Vector2(northLayout.X * state.EyeSpawn.Mul, northLayout.Z), state.EyeSpawn.Turn);
     }
 
     private Vector2 MonitorStageSpot(PartyRole role)
@@ -284,7 +286,7 @@ public sealed class TopP5DeltaLpduAi : IScenarioAi<TopP5DeltaState>
 
     private int MonitorHolderStepsEastToCleaveOutward => -state.PlayerMonitorSide.Mul * HalfOmegasMonitorSpares;
 
-    private float EyeTurnFromNorth => state.EyeSpawn == NorthSouth.North ? 0f : MathF.PI;
+    private float EyeTurnFromNorth => state.EyeSpawn == NorthSouth.South ? MathF.PI : state.EyeSpawn.Turn;
 
     private int PositionOf(PartyRole role) => Array.IndexOf(afterTheFlex, role);
 

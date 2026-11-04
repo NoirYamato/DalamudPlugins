@@ -114,12 +114,18 @@ public sealed class TopP5DeltaSettingsWindow
         var mode = 0;
         if (Overrides.EyeSpawn == NorthSouth.North) mode = 1;
         if (Overrides.EyeSpawn == NorthSouth.South) mode = 2;
+        if (Overrides.EyeSpawn == NorthSouth.East) mode = 3;
+        if (Overrides.EyeSpawn == NorthSouth.West) mode = 4;
         SettingsGrid.Row("Eye spawn:");
         if (ImGui.RadioButton("Auto##eye",  mode == 0)) Overrides.EyeSpawn = null;
         ImGui.SameLine();
         if (ImGui.RadioButton("North##eye", mode == 1)) Overrides.EyeSpawn = NorthSouth.North;
         ImGui.SameLine();
+        if (ImGui.RadioButton("East##eye",  mode == 3)) Overrides.EyeSpawn = NorthSouth.East;
+        ImGui.SameLine();
         if (ImGui.RadioButton("South##eye", mode == 2)) Overrides.EyeSpawn = NorthSouth.South;
+        ImGui.SameLine();
+        if (ImGui.RadioButton("West##eye",  mode == 4)) Overrides.EyeSpawn = NorthSouth.West;
     }
 
     private void DrawSwivelCannon()

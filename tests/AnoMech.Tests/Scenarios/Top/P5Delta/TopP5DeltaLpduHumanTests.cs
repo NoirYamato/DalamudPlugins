@@ -222,7 +222,7 @@ public class TopP5DeltaLpduHumanTests
             }
 
             var walk = Enum.GetValues<Walk>()[(seed + (int)seat) % 3];
-            return new Roll(seat, part, healers, seed * 7919 + (int)seat, walk, (seed + (int)seat) % 2 == 0 ? NorthSouth.North : NorthSouth.South,
+            return new Roll(seat, part, healers, seed * 7919 + (int)seat, walk, Eyes[(seed + (int)seat) / 2 % 4].Eye,
                             rng.Next(2) == 0 ? Side.Left : Side.Right, rng.Next(2) == 0 ? Side.Left : Side.Right,
                             rng.Next(2) == 0 ? Side.Left : Side.Right,
                             [.. Enumerable.Range(0, 6).Select(_ => rng.Next(2) == 0 ? ArmRotation.Clockwise : ArmRotation.CounterClockwise)],
@@ -242,13 +242,13 @@ public class TopP5DeltaLpduHumanTests
         }
 
         public override string ToString()
-            => $"seed {Seed}, {Seat} ({Part}, {Healers}, {Walk}, eye {(Eye == NorthSouth.North ? "N" : "S")}, order {string.Join(" ", TetherOrder)}"
+            => $"seed {Seed}, {Seat} ({Part}, {Healers}, {Walk}, eye {NameOf(Eye)}, order {string.Join(" ", TetherOrder)}"
                + (Requests.Count > 0 ? $", {string.Join(", ", Requests.Select(r => $"{r.Role} {r.Setting}"))}" : "") + ")";
     }
 
     // Each cue queues a walk that sets off a reaction time after the cue and what it waits for, aimed when it sets off.
-    // Spots are the design's, in the eye frame (x toward the Final, z away from the eye); for eye S the world is that
-    // frame turned 180 degrees.
+    // Spots are the design's, in the eye frame (x toward the Final, z away from the eye); the world is that frame
+    // turned by the eye's bearing.
     private sealed class Guide(Roll roll, float late)
     {
         private const float RunSpeed = 6.5f, Settled = 0.5f, StillPerFrame = 0.01f;
@@ -274,7 +274,7 @@ public class TopP5DeltaLpduHumanTests
 
         private Vector2 World(Vector2 eyeFrame) => ToWorld(eyeFrame, roll.Eye);
 
-        private Vector2 EyeFrame(Vector2 world) => ToWorld(world, roll.Eye);
+        private Vector2 EyeFrame(Vector2 world) => ToEyeFrame(world, roll.Eye);
 
         private Vector2 EyeFrameOf(ScenarioProbe p, PartyRole role) => EyeFrame(Flat(p.Member(role)!.Position));
 

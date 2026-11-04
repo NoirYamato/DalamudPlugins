@@ -84,13 +84,13 @@ public class TopP5DeltaLpduMarginTests
     public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
 
     private static IEnumerable<TestCaseData> EyesAndSwivels()
-        => from eyeNorth in new[] { true, false }
+        => from eye in Eyes
            from swivelLeft in new[] { true, false }
-           select new TestCaseData(eyeNorth, swivelLeft)
-               .SetName($"{{m}}(eye {(eyeNorth ? "N" : "S")}, Swivel Cannon {(swivelLeft ? "Left" : "Right")})");
+           select new TestCaseData(eye.Name, swivelLeft)
+               .SetName($"{{m}}(eye {eye.Name}, Swivel Cannon {(swivelLeft ? "Left" : "Right")})");
 
     [TestCaseSource(nameof(EyesAndSwivels))]
-    public void KeepsTheLpduClearancesOnEveryLayout(bool eyeNorth, bool swivelLeft)
+    public void KeepsTheLpduClearancesOnEveryLayout(string eyeName, bool swivelLeft)
     {
         var margins = new Dictionary<string, float>();
         var reported = new Dictionary<string, float>();
@@ -98,7 +98,7 @@ public class TopP5DeltaLpduMarginTests
         var flexes = new HashSet<(bool Blue, bool Green)>();
         for (var index = 0; index < Layouts; index++)
         {
-            var layout = Layout.For(eyeNorth, swivelLeft, index);
+            var layout = Layout.For(EyeNamed(eyeName), swivelLeft, index);
             var measurer = new Measurer(layout, margins, reported);
             ScenarioRun run;
             AoeQuery.Evaluated += measurer.OnHit;
@@ -139,18 +139,16 @@ public class TopP5DeltaLpduMarginTests
 
     // Positions 0-7 of AfterTheFlex are the strat's: inner blue N/S, outer blue N/S, inner green N/S, outer green N/S.
     internal sealed record Layout(
-        bool EyeNorth, Side Swivel, Side OmegaMonitor, Side PlayerMonitor, ArmRotation[] Arms, PartyRole[] TetherOrder,
+        NorthSouth Eye, Side Swivel, Side OmegaMonitor, Side PlayerMonitor, ArmRotation[] Arms, PartyRole[] TetherOrder,
         uint[] FistColors, PartyRole[] AfterTheFlex, (bool Blue, bool Green) Flexes, PartyRole Holder, PartyRole BeyondDefense,
         PartyRole Refuses, PartyRole Player, int Seed)
     {
-        public NorthSouth Eye => EyeNorth ? NorthSouth.North : NorthSouth.South;
-
-        public static Layout For(bool eyeNorth, bool swivelLeft, int index)
+        public static Layout For(NorthSouth eye, bool swivelLeft, int index)
         {
             var arms = Enumerable.Range(0, 6).Select(arm => (index >> arm & 1) == 0 ? ArmRotation.CounterClockwise : ArmRotation.Clockwise).ToArray();
             var omegaMonitor = (index >> 6 & 1) == 0 ? Side.Left : Side.Right;
             var playerMonitor = (index >> 7 & 1) == 0 ? Side.Left : Side.Right;
-            var seed = 7919 * index + (eyeNorth ? 1 : 4) + (swivelLeft ? 0 : 2);
+            var seed = 7919 * index + NameOf(eye) switch { "N" => 1, "S" => 4, "E" => 7, _ => 10 } + (swivelLeft ? 0 : 2);
             var rng = new Random(seed);
             PartyRole[] roll = [.. PerRole.All.OrderBy(_ => rng.Next())];
             var lineUp = ExpectedLineUp(roll, false, false);
@@ -174,7 +172,7 @@ public class TopP5DeltaLpduMarginTests
             var (holder, player) = swivelLeft ? (beyondDefense, afterTheFlex[4 + index % 4])
                 : (index / 4 + index / 64) % 2 == 0 ? (refuses, afterTheFlex[2 + index / 2 % 2])
                 : (afterTheFlex[2 + index / 8 % 2], afterTheFlex[4 + index / 2 % 4]);
-            return new Layout(eyeNorth, swivelLeft ? Side.Left : Side.Right, omegaMonitor, playerMonitor, arms, roll,
+            return new Layout(eye, swivelLeft ? Side.Left : Side.Right, omegaMonitor, playerMonitor, arms, roll,
                               [.. roll.Select(FistOfRole)], afterTheFlex, ((flexes & 1) != 0, (flexes & 2) != 0), holder,
                               beyondDefense, refuses, player, seed);
         }
@@ -200,7 +198,7 @@ public class TopP5DeltaLpduMarginTests
         public PartyRole SafeSide(int north) => AfterTheFlex[Swivel.Mul > 0 ? north + 1 : north];
 
         public override string ToString()
-            => $"eye {(EyeNorth ? "N" : "S")}, Swivel {Name(Swivel)}, Final's monitor {Name(OmegaMonitor)}, player monitor {Name(PlayerMonitor)}, "
+            => $"eye {NameOf(Eye)}, Swivel {Name(Swivel)}, Final's monitor {Name(OmegaMonitor)}, player monitor {Name(PlayerMonitor)}, "
                + $"arms {string.Concat(Arms.Select(a => a == ArmRotation.Clockwise ? "C" : "A"))}, order {string.Join(" ", AfterTheFlex)}, "
                + $"holder {Holder}, Beyond Defense {BeyondDefense}, player {Player}, seed {Seed}";
 

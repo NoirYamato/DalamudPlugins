@@ -12,11 +12,11 @@ using static AnoMech.Scenarios.Top.TopConstants;
 namespace AnoMech.Tests;
 
 // The LPDU strat, in the eye frame: x east, z south, the eye rel N, the beetle rel W (-20, 0), the Final rel E.
-// Eye S is the same layout turned 180 degrees. Positions 0-7 are the strat's own order: inner blue N/S, outer
-// blue N/S, inner green N/S, outer green N/S. Per colour the only pair holding a healer stands inner; a tie
-// (both pairs or neither) keeps the roll's inner pair, and so does a colour a seat forced an inner or outer
-// band in. Spots below assume Omega's monitor spares the south (m = +1) and the Swivel Cannon spares the south
-// (c = +1); each stage mirrors z by its own sign.
+// Eye E, S and W are the same layout turned 90, 180 and 270 degrees clockwise. Positions 0-7 are the strat's own
+// order: inner blue N/S, outer blue N/S, inner green N/S, outer green N/S. Per colour the only pair holding a
+// healer stands inner; a tie (both pairs or neither) keeps the roll's inner pair, and so does a colour a seat
+// forced an inner or outer band in. Spots below assume Omega's monitor spares the south (m = +1) and the Swivel
+// Cannon spares the south (c = +1); each stage mirrors z by its own sign.
 //
 //   11.0  line-up: blues (-8.6, -+4) inner, (-13.5, -+2.5) outer; greens (6.2, -+4) inner, (11.3, -+9.3) outer.
 //   19.5  the inner pair of a colour swaps N/S when its N member's fist matches the outer N member's; the inner
@@ -170,13 +170,13 @@ public class TopP5DeltaLpduAiTests
 
     private static IEnumerable<TestCaseData> SpotCases()
         => from roll in Rolls.Keys
-           from eye in new[] { NorthSouth.North, NorthSouth.South }
-           select new TestCaseData(roll, eye == NorthSouth.North).SetName($"{{m}}(roll {roll}, eye {(eye == NorthSouth.North ? "N" : "S")})");
+           from eye in Eyes
+           select new TestCaseData(roll, eye.Name).SetName($"{{m}}(roll {roll}, eye {eye.Name})");
 
     [TestCaseSource(nameof(SpotCases))]
-    public void StandsOnTheLpduSpotsAfterEveryMove(string roll, bool eyeNorth)
+    public void StandsOnTheLpduSpotsAfterEveryMove(string roll, string eyeName)
     {
-        var eye = eyeNorth ? NorthSouth.North : NorthSouth.South;
+        var eye = EyeNamed(eyeName);
         var expected = ExpectedSpots[roll](eye);
         var seen = Probe(LpduStrat, Random.Shared.Next(), o => Rolls[roll].Pin(o, eye), expected.Keys.ToArray(), out var run);
         Assert.That(run.Failure, Is.Null, run.ToString);
@@ -381,9 +381,10 @@ public class TopP5DeltaLpduAiTests
     internal const float ArmBaitRadius = 19.5f;
     internal static readonly float ArmBaitDegrees = 0.15f * 180f / MathF.PI;
 
-    // Each arm's bearing in the eye frame, by its index in the State. The scenario mirrors x for eye S.
+    // Each arm's bearing in the eye frame, by its index in the State. The scenario mirrors x for eye S and turns the
+    // North layout for E and W; TopP5DeltaEyeTests checks this against the arms it spawns.
     internal static float ArmBearing(int arm, NorthSouth eye)
-        => (eye == NorthSouth.North ? new[] { 300f, 240f, 0f, 180f, 60f, 120f } : new[] { 240f, 300f, 180f, 0f, 120f, 60f })[arm];
+        => (eye == NorthSouth.South ? new[] { 240f, 300f, 180f, 0f, 120f, 60f } : new[] { 300f, 240f, 0f, 180f, 60f, 120f })[arm];
 
     // On the side of the arm away from its turn.
     internal static Vector2 ArmBait(float eyeFrameArmBearing, ArmRotation[] rotations, NorthSouth eye)
@@ -473,9 +474,30 @@ public class TopP5DeltaLpduAiTests
         return result;
     }
 
-    // ---- Running ----------------------------------------------------------------------------------------
+    // ---- The eye -----------------------------------------------------------------------------------------
 
-    internal static Vector2 ToWorld(Vector2 eyeFrame, NorthSouth eye) => eye == NorthSouth.North ? eyeFrame : -eyeFrame;
+    // Each cardinal with its compass bearing (0 = north, clockwise).
+    internal static readonly (string Name, NorthSouth Eye, float Bearing)[] Eyes =
+        [("N", NorthSouth.North, 0f), ("E", NorthSouth.East, 90f), ("S", NorthSouth.South, 180f), ("W", NorthSouth.West, 270f)];
+
+    internal static NorthSouth EyeNamed(string name) => Eyes.Single(e => e.Name == name).Eye;
+
+    internal static string NameOf(NorthSouth eye) => Eyes.Single(e => e.Eye == eye).Name;
+
+    internal static float BearingOf(NorthSouth eye) => Eyes.Single(e => e.Eye == eye).Bearing;
+
+    // The eye frame's north is the eye's bearing and its east the bearing 90 degrees clockwise of it.
+    internal static Vector2 ToWorld(Vector2 eyeFrame, NorthSouth eye)
+        => RelEast(eye) * eyeFrame.X - RelNorth(eye) * eyeFrame.Y;
+
+    internal static Vector2 ToEyeFrame(Vector2 world, NorthSouth eye)
+        => new(Vector2.Dot(world, RelEast(eye)), -Vector2.Dot(world, RelNorth(eye)));
+
+    private static Vector2 RelNorth(NorthSouth eye) => OnRing(BearingOf(eye), 1f);
+
+    private static Vector2 RelEast(NorthSouth eye) => OnRing(BearingOf(eye) + 90f, 1f);
+
+    // ---- Running ----------------------------------------------------------------------------------------
 
     internal static Vector2 OnRing(float bearingDegrees, float radius)
     {
