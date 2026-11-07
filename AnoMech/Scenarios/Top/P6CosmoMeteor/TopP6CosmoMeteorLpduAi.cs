@@ -35,7 +35,7 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
     {
         state = s;
         var ai = new AiManager(world);
-        ai.Move(0.3f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
+        ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
         ai.Move(2.6f, EveryoneUnderAlphaOmegaToBaitTheMeteorsInTheMiddle);
         ai.Move(7f, EveryoneOutToTheirMeteorClockSpotOnceTheBaitsDrop);
         ai.Move(13.3f, ShieldHealerIntoTheMiddleAfterTheFirstEightSpreads);
