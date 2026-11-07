@@ -5,8 +5,9 @@ using static AnoMech.Core.Game.Party.PartyRole;
 
 namespace AnoMech.Tests;
 
-// The first melee's limit break 3 at 2.0, for show: a bot plays it (only while tank mitigation is required, as for any
-// bot), a human's seat fires nothing, and the gauge is full either side of it.
+// The strats' limit break 3 for the first melee at 2.0, on a gauge emptied at 1.5, for show: a bot plays it at level 3
+// (only while tank mitigation is required, as for any bot), a human's seat fires nothing, and the gauge is full after
+// it either way.
 public class TopP6LimitBreaksTests
 {
     private static uint MeleeLimitBreak3 => LimitBreakHandler.ActionId(PartyPresets.Standard[(int)MeleeDpsA].ClassJob, 3);
@@ -39,11 +40,20 @@ public class TopP6LimitBreaksTests
         Assert.That(run.Sent("ability", MeleeLimitBreak3), Is.Empty);
     }
 
-    [TestCase(true)]
-    [TestCase(false)]
-    public void TheGaugeIsFullBeforeAndAfter(bool human)
+    // The bot's press spends the gauge, and Brilliant Dynamis gives it back.
+    [Test]
+    public void ABotsPressLeavesTheGaugeFull()
     {
-        var (_, _, bars) = LimitBreak3(new TimelineRunOptions { PlayerRole = MeleeDpsA, HumanPlayer = human, UserActionsEnabled = true });
+        var (run, _, bars) = LimitBreak3(new TimelineRunOptions { UserActionsEnabled = true });
+
+        Assert.That(run.Sent("ability", MeleeLimitBreak3), Has.Count.EqualTo(1));
+        Assert.That(bars, Is.EqualTo(3));
+    }
+
+    [Test]
+    public void AHumanSeatFindsTheGaugeFull()
+    {
+        var (_, _, bars) = LimitBreak3(new TimelineRunOptions { PlayerRole = MeleeDpsA, HumanPlayer = true, UserActionsEnabled = true });
 
         Assert.That(bars, Is.EqualTo(3));
     }
@@ -58,7 +68,8 @@ public class TopP6LimitBreaksTests
             {
                 foreach (var (id, role) in TimelineRun.Seats(world)) seats[id] = role;
             });
-            world.Events.Add(2f, () => TopP6LimitBreaks.LimitBreak3(world, MeleeDpsA));
+            world.Events.Add(1.5f, () => world.Party.LimitBreak.Set(0f));
+            world.Events.Add(2f, () => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MeleeDpsA));
             world.Events.Add(2.5f, () => bars = world.Party.LimitBreak.FilledBars);
         }, options);
         return (run, seats, bars);

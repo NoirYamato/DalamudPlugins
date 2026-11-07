@@ -1,7 +1,11 @@
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
+using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
+using AnoMech.Scenarios.Top.P6CosmoDive2;
+using AnoMech.Scenarios.Top.P6CosmoMeteor;
+using AnoMech.Scenarios.Top.P6WaveCannon1;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
 
@@ -24,7 +28,7 @@ public class TopP6CosmoMemoryTests
     public void ABotMainTanksLimitBreakCarriesAHumanInAnyOtherSeat(PartyRole seat)
     {
         var run = CosmoMemory(new TimelineRunOptions { PlayerRole = seat, HumanPlayer = true, UserActionsEnabled = true },
-            world => TopP6LimitBreaks.LimitBreak3(world, MainTank));
+            world => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MainTank));
 
         Assert.That(run.Passed, run.ToString);
     }
@@ -41,7 +45,7 @@ public class TopP6CosmoMemoryTests
     public void AHumanMainTankWhoDoesNotPressDies()
     {
         var run = CosmoMemory(new TimelineRunOptions { HumanPlayer = true, UserActionsEnabled = true },
-            world => TopP6LimitBreaks.LimitBreak3(world, MainTank));
+            world => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MainTank));
 
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (MainTank, (uint?)ActionId.CosmoMemory) }), run.ToString);
     }
@@ -92,6 +96,35 @@ public class TopP6CosmoMemoryTests
         });
 
         Assert.That(statuses, Has.Count.EqualTo(9).And.All.True);
+    }
+
+    // Exaflares/WC1, Exaflares/Dive and Cosmo Meteor start after Cosmo Memory: the gauge is full from their first frame,
+    // and by 1.2 everyone has Brilliant Dynamis and Alpha Omega Code: ****mi*.
+    [TestCase(typeof(TopP6WaveCannon1Scenario))]
+    [TestCase(typeof(TopP6CosmoDive2Scenario))]
+    [TestCase(typeof(TopP6CosmoMeteorScenario))]
+    public void ABlockStartingAfterItStartsWithAFullGaugeAndItsStatuses(Type scenario)
+    {
+        var bars = new List<int>();
+        var withDynamis = new List<PartyRole>();
+        var bossMarked = false;
+        var run = ScenarioRun.Execute(scenario, 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MeleeDpsB,
+            StopAt = 1.3f,
+            Probe = p =>
+            {
+                bars.Add(p.World.Party.LimitBreak.FilledBars);
+                if (!p.Crossed(1.2f)) return;
+                withDynamis.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(StatusId.BrilliantDynamis)));
+                bossMarked = p.World.Children.OfType<SimEnemy>().Any(e => e.BNpcBaseId == BNpcBaseId.AlphaOmega && e.HasStatus(StatusId.CodeMi));
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(bars, Is.Not.Empty.And.All.EqualTo(3), "the gauge");
+        Assert.That(withDynamis, Is.EquivalentTo(PerRole.All), "Brilliant Dynamis");
+        Assert.That(bossMarked, Is.True, "Code: ****mi*");
     }
 
     [Test]

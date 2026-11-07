@@ -59,9 +59,9 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
             _ => TopP6LpduAi.AutoSpot(role),
         });
 
-    private void FirstMeleeLimitBreakRightAfterTheCosmoDiveBar() => TopP6LimitBreaks.LimitBreak3(world, MeleeDpsA);
+    private void FirstMeleeLimitBreakRightAfterTheCosmoDiveBar() => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MeleeDpsA);
 
-    private void SecondMeleeLimitBreakFromTheMiddleOnceTheGaugeRefills() => TopP6LimitBreaks.LimitBreak3(world, MeleeDpsB);
+    private void SecondMeleeLimitBreakFromTheMiddleOnceTheGaugeRefills() => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MeleeDpsB);
 
     private static IAiMove TanksAndParty(Vector2 mainTank, Vector2 offTank, Vector2 party)
         => TopP6LpduAi.ByRole(role => role switch { MainTank => mainTank, OffTank => offTank, _ => party });

@@ -182,25 +182,6 @@ public class TopP6CosmoDive2ScenarioTests
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
     }
 
-    // The block starts after Cosmo Memory, so its marks are there from the start: Brilliant Dynamis on everyone, Code:
-    // ****mi* on Alpha Omega.
-    [Test]
-    public void CosmoMemorysStatusesAreUpFromTheStart()
-    {
-        var withDynamis = new List<PartyRole>();
-        var bossMarked = false;
-        var run = Run(MeleeDpsB, 2, true, 1.1f, p =>
-        {
-            if (!p.Crossed(1.2f)) return;
-            withDynamis.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(StatusId.BrilliantDynamis)));
-            bossMarked = p.World.Children.OfType<SimEnemy>().Any(e => e.BNpcBaseId == BNpcBaseId.AlphaOmega && e.HasStatus(StatusId.CodeMi));
-        }, stopAt: 1.3f);
-
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(withDynamis, Is.EquivalentTo(PerRole.All));
-        Assert.That(bossMarked, Is.True);
-    }
-
     [TestCase(1.1f)]
     [TestCase(1.0f)]
     public void EveryoneOnTheStratsSpotsSurvives(float step)

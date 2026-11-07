@@ -355,16 +355,3 @@ public sealed record TopP6UnlimitedWaveCannon(int FirstPoint, bool Clockwise, fl
     // Each puddle is centred where its player stood at DropAt.
     public readonly record struct PuddleSet(int Index, float DropAt, float HitAt);
 }
-
-public static class TopP6LimitBreaks
-{
-    // A limit break 3 at the strat's moment. Brilliant Dynamis gives back what a limit break spends, so the gauge is
-    // full before and after. Only a bot fires, and a bot only does while tank mitigation is required; a human's own
-    // seat presses it or not, and nothing but Cosmo Memory checks.
-    public static void LimitBreak3(SimWorld world, PartyRole role)
-    {
-        world.Party.LimitBreak.Set(3f);
-        world.Party.UseLimitBreak(role);
-        world.Party.LimitBreak.Set(3f);
-    }
-}

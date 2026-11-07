@@ -245,9 +245,10 @@ public class TopP6CosmoMeteorScenarioTests
         });
     }
 
-    // The meteors north and south 11 y out, the comets on the other compass points 13 y out, all facing Alpha Omega.
+    // The meteors north and south 11 y out, the comets on the other compass points 13 y out, all facing Alpha Omega. No
+    // limit break fires here (tank mitigation is not required): the adds die when the strat's limit breaks would land.
     [Test]
-    public void TheAddsShowAroundAlphaOmegaAndDieAsTheLimitBreaksLand()
+    public void TheAddsShowAroundAlphaOmegaAndDieOnTheLimitBreaksSchedule()
     {
         var alive = new Dictionary<float, (int Meteors, int Comets, int Targetable)>();
         var spots = new List<(uint BNpcBaseId, Vector2 At, float Rotation)>();
@@ -283,10 +284,10 @@ public class TopP6CosmoMeteorScenarioTests
                             $"the add at {at} faces Alpha Omega");
             Assert.That(alive[10.0f], Is.EqualTo((2, 6, 0)), "hidden until 10.1");
             Assert.That(alive[10.2f], Is.EqualTo((2, 6, 8)), "shown and targetable");
-            Assert.That(alive[13.4f], Is.EqualTo((2, 6, 8)), "before the caster's limit break");
-            Assert.That(alive[13.6f], Is.EqualTo((2, 0, 2)), "the comets die to the caster's limit break");
-            Assert.That(alive[23.9f], Is.EqualTo((2, 0, 2)), "before the physical ranged's limit break");
-            Assert.That(alive[24.1f], Is.EqualTo((0, 0, 0)), "the meteors die to the physical ranged's limit break");
+            Assert.That(alive[13.4f], Is.EqualTo((2, 6, 8)), "before the caster's limit break is due");
+            Assert.That(alive[13.6f], Is.EqualTo((2, 0, 2)), "the comets die as the caster's limit break is due");
+            Assert.That(alive[23.9f], Is.EqualTo((2, 0, 2)), "before the physical ranged's limit break is due");
+            Assert.That(alive[24.1f], Is.EqualTo((0, 0, 0)), "the meteors die as the physical ranged's limit break is due");
         });
     }
 

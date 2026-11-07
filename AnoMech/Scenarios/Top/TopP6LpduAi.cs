@@ -3,6 +3,7 @@ using System.Linq;
 using System.Numerics;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.SimObjects;
 using static AnoMech.Core.Game.Party.PartyRole;
 
 namespace AnoMech.Scenarios.Top;
@@ -72,6 +73,13 @@ internal static class TopP6LpduAi
             var point = OnTheExaflarePath(firstExaflare, clockwise, exaflare);
             ai.Move(firstExplosionAt + OnToEachOfTheFirstThreeExaflaresPointsThisLongAfterTheFirstExplosion[exaflare], () => Everyone(point));
         }
+    }
+
+    internal static void LimitBreak3RefilledByBrilliantDynamis(SimWorld world, PartyRole role)
+    {
+        world.Party.LimitBreak.Set(3f);
+        world.Party.UseLimitBreak(role);
+        world.Party.LimitBreak.Set(3f);
     }
 
     internal static Vector2 OnRing(float bearingDegrees, float radius)

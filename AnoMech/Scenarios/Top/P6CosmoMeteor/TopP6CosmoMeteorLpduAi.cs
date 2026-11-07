@@ -39,10 +39,10 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
         ai.Move(2.6f, EveryoneUnderAlphaOmegaToBaitTheMeteorsInTheMiddle);
         ai.Move(7f, EveryoneOutToTheirMeteorClockSpotOnceTheBaitsDrop);
         ai.Move(13.3f, ShieldHealerIntoTheMiddleAfterTheFirstEightSpreads);
-        world.Events.Add(13.5f, () => TopP6LimitBreaks.LimitBreak3(world, CasterDps));
+        world.Events.Add(13.5f, () => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, CasterDps));
         ai.Move(22.4f, FlaresToTheFreeCardinalsTheRestStackWhileThePhysRangedHoldsNorth);
         world.Events.Add(23.5f, () => PhysRangedTurnsSouthToLineUpBothMeteorsThroughAlphaOmega(world));
-        world.Events.Add(24f, () => TopP6LimitBreaks.LimitBreak3(world, PhysRangedDps));
+        world.Events.Add(24f, () => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, PhysRangedDps));
     }
 
     internal static Vector2 ClockSpot(PartyRole role) => TopP6LpduAi.OnRing(ClockBearings[role], ClockRadius);

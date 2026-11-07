@@ -25,7 +25,7 @@ public sealed class TopP6CosmoDive1LpduAi : IScenarioAi<TopP6CosmoDive1State>
     {
         var ai = new AiManager(world);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        world.Events.Add(HalfwayThroughCosmoMemory, () => TopP6LimitBreaks.LimitBreak3(world, MainTank));
+        world.Events.Add(HalfwayThroughCosmoMemory, () => TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis(world, MainTank));
         ai.Move(16.3f, EveryoneInFrontOfWaymarkTwo);
         if (state.InFirst)
         {

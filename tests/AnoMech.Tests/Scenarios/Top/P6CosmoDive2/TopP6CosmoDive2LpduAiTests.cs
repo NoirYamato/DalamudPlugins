@@ -257,7 +257,7 @@ public class TopP6CosmoDive2LpduAiTests
     }
 
     // With tank mitigation required, so bots press their buttons: M1's limit break 3 right after the Cosmo Dive bar
-    // (25.2), M2's once the gauge is back; a human melee seat fires nothing, and the gauge is full after each.
+    // (25.2), M2's once the gauge is back; a human melee seat fires nothing, and the gauge is full before and after each.
     [TestCase(MainTank)]
     [TestCase(MeleeDpsA)]
     public void TheMeleeLimitBreaksPlayForShow(PartyRole player)
@@ -266,7 +266,7 @@ public class TopP6CosmoDive2LpduAiTests
         var bars = new List<int>();
         Dictionary<string, PartyRole>? seats = null;
         var rowsRead = 0;
-        var limitBreaks = new[] { MeleeDpsA, MeleeDpsB }.ToDictionary(r => LimitBreakHandler.ActionId(PartyPresets.Standard[(int)r].ClassJob, 3), r => r);
+        Dictionary<uint, PartyRole>? limitBreaks = null;
         var run = ScenarioRun.Execute(typeof(TopP6CosmoDive2Scenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = player,
@@ -274,12 +274,13 @@ public class TopP6CosmoDive2LpduAiTests
             Overrides = o => Pin((TopP6CosmoDive2StateOverrides)o, 3, false, 1.1f),
             Probe = p =>
             {
+                limitBreaks ??= new[] { MeleeDpsA, MeleeDpsB }.ToDictionary(r => LimitBreakHandler.ActionId(PartyPresets.Standard[(int)r].ClassJob, 3), r => r);
                 seats ??= PerRole.All.ToDictionary(r => p.Member(r)!.GameObjectId.ObjectId.ToString("X8"), r => r);
                 var rows = p.Fake.Timeline.Rows;
                 for (; rowsRead < rows.Count; rowsRead++)
                     if (rows[rowsRead] is var row && row["kind"] == "ability" && limitBreaks.Keys.Any(id => row["id"] == $"{id}"))
                         fired.Add((p.Time, seats[row["actor"]]));
-                if (p.Crossed(25.5f) || p.Crossed(32.2f)) bars.Add(p.World.Party.LimitBreak.FilledBars);
+                if (p.Crossed(25.2f) || p.Crossed(25.5f) || p.Crossed(31.9f) || p.Crossed(32.2f)) bars.Add(p.World.Party.LimitBreak.FilledBars);
             },
         });
 
@@ -287,7 +288,7 @@ public class TopP6CosmoDive2LpduAiTests
         var expected = new[] { (25.3f, MeleeDpsA), (32f, MeleeDpsB) }.Where(f => f.Item2 != player).ToArray();
         Assert.That(fired.Select(f => f.Role), Is.EqualTo(expected.Select(f => f.Item2)));
         Assert.That(fired.Select(f => f.Time), Is.EqualTo(expected.Select(f => f.Item1)).Within(0.05f));
-        Assert.That(bars, Is.EqualTo(new[] { 3, 3 }));
+        Assert.That(bars, Is.EqualTo(new[] { 3, 3, 3, 3 }), "before and after each");
     }
 
     internal static ScenarioRun Run(PartyRole player, int first, bool clockwise, float step, Action<ScenarioProbe> probe, float? stopAt = null)
