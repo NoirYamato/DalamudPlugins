@@ -94,10 +94,4 @@ public static class TopP6Actions
     public static readonly EnemyAction CosmoMeteorStack = new(P6ActionId.CosmoMeteorStack) { Effects = [Damage()] };
 
     public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare) { Effects = [Damage()] };
-
-    public static readonly EnemyAction CosmoMeteorEnrage = new(P6ActionId.CosmoMeteorEnrage)
-    {
-        Effects = [Damage(Lethal)],
-        DeathExplanation = "The cosmo meteors and comets lived too long: the limit breaks must kill them",
-    };
 }

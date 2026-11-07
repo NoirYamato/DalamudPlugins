@@ -78,7 +78,6 @@ public static class TopP6Constants
         public const float ExaflareStep = 1.1f;                     // UNVERIFIED: 1.0 is possible
         public const float ExaflareOmenDelay = 4.5f;                // UNVERIFIED
 
-        public const float AddsAppearAfterBaits = 3.2f;             // UNVERIFIED
         // UNVERIFIED, as is the status: the Magic Vulnerability Up each Cosmo Meteor spread leaves.
         public const float SpreadVulnerability = 3f;
     }

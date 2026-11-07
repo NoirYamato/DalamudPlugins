@@ -66,7 +66,7 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
         world.Events.Add(1.0f, alphaOmega.ApplyCosmoMemoryStatuses);
         world.Events.Add(1.9f, () => alphaOmega.Cast(Actions.CosmoMeteor));
         world.Events.Add(6.9f, () => BaitedPuddles.Drop(party, Actions.CosmoMeteorBait, alphaOmega.CastFromHelper));
-        // UNVERIFIED: the adds show, targetable, P6Duration.AddsAppearAfterBaits after the baits drop.
+        // UNVERIFIED: when the adds show, targetable.
         world.Events.Add(9.3f, SpawnTheAdds);
         world.Events.Add(10.1f, ShowTheAdds);
         world.Events.Add(12.0f, () => LandTheSpreads(state.SpreadWave(0, 0)));

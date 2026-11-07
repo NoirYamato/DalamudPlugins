@@ -85,14 +85,6 @@ public class TopP6ActionsTests
         Assert.That(run.Sent("ability", P6ActionId.CosmoMeteorFlare).Single().Hits, Has.Count.EqualTo(8), "the flare's hits");
     }
 
-    [Test]
-    public void TheAddsEnrageWipesTheParty()
-    {
-        var run = Meteor(SpreadOut, (alphaOmega, world) => world.Events.Add(2f, () => alphaOmega.CastFromHelper(Actions.CosmoMeteorEnrage)));
-
-        Assert.That(FirstDeaths(run).Select(d => d.Item1), Is.EquivalentTo(Clockwise), run.ToString);
-    }
-
     private static void Spreads(TopP6AlphaOmega alphaOmega, SimWorld world)
     {
         world.Events.Add(2f, () => SpreadOn(alphaOmega, world, MainTank, OffTank, RegenHealer, ShieldHealer));

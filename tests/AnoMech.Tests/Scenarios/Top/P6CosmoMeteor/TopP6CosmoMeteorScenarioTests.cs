@@ -231,8 +231,6 @@ public class TopP6CosmoMeteorScenarioTests
             Assert.That(Times(rows, "spawn", P6BNpcBaseId.CosmoMeteor), Is.EqualTo(Repeat(2, 9.3f)).Within(0.05f), "the meteors spawn");
             Assert.That(Times(rows, "spawn", P6BNpcBaseId.CosmoComet), Is.EqualTo(Repeat(6, 9.3f)).Within(0.05f), "the comets spawn");
             Assert.That(ActorControlTimes(rows, PopIn), Is.EqualTo(Repeat(8, 10.1f)).Within(0.05f), "the adds show");
-            Assert.That(ActorControlTimes(rows, PopIn).Min() - Times(rows, "cast", P6ActionId.CosmoMeteorBait).Min(),
-                        Is.EqualTo(P6Duration.AddsAppearAfterBaits).Within(0.05f), "the adds show after the baits drop");
             Assert.That(Times(rows, "ability", P6ActionId.CosmoMeteorSpread),
                         Is.EqualTo(new[] { 12.0f, 13.0f, 18.0f, 19.0f }.SelectMany(t => Repeat(4, t))).Within(0.05f), "the spreads");
             Assert.That(ActorControlTimes(rows, HeadMarker), Is.EqualTo(Repeat(3, 21.9f)).Within(0.05f), "the flare markers");
