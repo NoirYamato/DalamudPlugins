@@ -30,6 +30,19 @@ NoirMech change:
     `West`, `Cardinals` and `WithEffectIndex`; the State rolls one of the four; the scenario turns the beetle, the
     Final, the eye unit and the arm units by `Turn` and, for eye S, mirrors the arms' facing with their spots; and
     the replay's `EyeSpawnIsNorth` became `EyeSpawnEffectIndex`;
+- TOP P6 (below), in upstream's `TopZone.P6` phase:
+  - the EU `[LPDU] Light PF` strat on upstream's Exasquares/WC2 (`TopP6WaveCannon2LpduAi`), listed first in
+    `AiStrats` so EU and it are the default pick; upstream's strat is index 1 and gains `Group => "NA"`, and its
+    scenario tests pass `NaStrat = 1`;
+  - four scenarios with `[LPDU] Light PF` strats, registered around upstream's in `ScenarioCatalog`:
+    Exasquares/Dive, Exaflares/WC1, Exaflares/Dive and Cosmo Meteor;
+  - `TopP6Constants.cs` and `TopP6Actions.cs` (P6 ids and actions, kept out of upstream's `TopConstants.cs` and
+    `TopActions.cs`), `TopP6Mechanics.cs` (Alpha Omega and the attacks the blocks play), `TopP6LpduAi.cs` (what
+    the strats share) and `TopP6UnlimitedWaveCannonRows.cs` (settings rows);
+  - new Core pieces: `SpawnedHelperPool`, `HelperCast`, `ExaflareLane`, `BaitedPuddles` and `Verdicts` in
+    `Core/Game/`, and `EnemyActionTimes` in `Core/EnemyActions/`;
+  - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
+    `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
@@ -204,3 +217,48 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 - Not wanted: a kill for moving at the fist snapshot, keeping the Hello holders on different blue pairs, and
   renaming the settings' Close/Far.
 - Change bot movement only with `TopP5DeltaLpduHumanTests` and `TopP5DeltaLpduMarginTests` green.
+
+## TOP P6
+`Scenarios/Top/P6*/` in upstream's `TopZone.P6` phase, one block per part of the fight, each on its own clock with
+the first boss cast at 1.9s, as upstream's WC2 has it. The LPDU strats follow the raidplan mh3bX4KJ9d8rT9nk.
+Magic Number and the enrage aren't played; the four new blocks are party-only.
+- Exasquares/Dive (`P6CosmoDive1`, t = abs - 1159.9): Cosmo Memory 1.9, autos 12.0, Cosmo Arrow 16.3, Cosmo Dive
+  31.4 (hits 39.4), autos 46.2; ends about 52.3.
+- Exaflares/WC1 (`P6WaveCannon1`, abs - 1208.5): Unlimited Wave Cannon 1.9 (first explosion 13.9, puddles 11.9 to
+  21.4), Wave Cannon 24.5, lasers 27.5 / 29.5, Wild Charge 35.8, autos 39.9.
+- Exasquares/WC2 (`P6WaveCannon2`, abs - 1250.8): upstream's, solo and multiplayer kept.
+- Exaflares/Dive (`P6CosmoDive2`, abs - 1284.8): WC1's Unlimited Wave Cannon, Cosmo Dive 19.6 (hits 27.6), autos 34.4.
+- Cosmo Meteor (`P6CosmoMeteor`, abs - 1324.7): cast 1.9, baits 6.9, adds 9.3 (shown 10.1), spreads 12.0 / 13.0 /
+  18.0 / 19.0, flare markers 21.9, flares and stack 30.0; ends about 34.7.
+- `TopP6AlphaOmega` spawns Alpha Omega and a pool of 36 invisible 9020 helpers; every helper cast goes through its
+  `CastFromHelper`. Once upstream's zone owns a helper pool and `SimEnemy.CastFromHelper`, that method's body
+  becomes `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in
+  `TopP6Constants` and stay within 36 busy helpers (`TopP6HelperBudgetTests`).
+- UNVERIFIED in `TopP6Constants`: the exaflare step (1.1s; tests also play 1.0s), the arrows' omen delay, the
+  puddles' 2.7s blast, the adds' distances, the flare's 20y kill radius, the meteor stack's 5, the spreads' 3s
+  vulnerability, and Cosmo Dive taking its targets as it hits. In the States and scenarios: every roll's odds, the
+  adds showing at 10.1, the comets' bearings, and that the bait, Flash Gale, the busters, the spreads, the flares
+  and the stack kill as they do.
+- Every mistake kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild Charge
+  kill through their actions, as does a second spread on a vulnerable player. The rest is decided in code from
+  where everyone stands as the hits land; those actions only show them: Flash Gale (a non-tank target, or within
+  5y of one), Cosmo Dive (a non-tank buster target, within 8y of one, one in the stack, a stack under 6), another's
+  meteor spread, and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5).
+  `Verdicts` keeps each player's first reason, so godmode reports it once.
+- Only Cosmo Memory checks a limit break, as UMAD checks its tank's: a human's tank-LB3 mitigation, only with
+  "Require tank mitigation" on; the bot MT presses at 4.9. The melee (25.3, 32.0), caster (13.5) and physical
+  ranged (24.0) limit breaks are bot visuals, never checked on the human's seat; the adds die on that schedule. The
+  gauge is full from the start (in Exasquares/Dive from Cosmo Memory's cast);
+  `TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis` refills it after each press.
+- No source fixes these strat values, so they are UNVERIFIED (the user's picks):
+  - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), walked to at t 0 in
+    Exasquares/Dive;
+  - Cosmo Arrow 1 side-steps south; dive tanks at r 6.5, MT toward 4 and OT toward 1 in Dive 1, a Y at the party's
+    bearing + 135 (MT) and + 225 (OT) in Dive 2;
+  - Unlimited Wave Cannon: a compass point per puddle at r 14. WC1 then waits at r 4 on each waymark's bearing until
+    puddle 6 has gone off and spreads at r 10.5; Exaflares/Dive's party holds where the fourth exaflare started,
+    and for the autos its MT steps back to (0, -7) and M2 waits in the middle;
+  - the Wild Charge line in front of C, tanks first: (0, 6.5) and (0, 10.5); WC2's laser spot (3.55, 8.55);
+  - Cosmo Meteor: centre at 2.6, the clock at r 13, H2 to the middle after the first 4 + 4 spreads, the flares at
+    r 18.5 on the cardinals the stack leaves, in order clockwise from north (R1 stays on A).
+- Change bot movement only with that block's `LpduHumanTests` and `LpduMarginTests` green.

@@ -84,7 +84,14 @@ All using default NA pf strats unless noted otherwise:
       - NA pf
     - P5 Sigma
     - P5 Omega
-    - P6 Exasquares / Wave Cannon 2
+    - P6 Exasquares/Dive _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
+    - P6 Exaflares/WC1 _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
+    - P6 Exasquares/WC2
+      - EU (default)
+        - [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
+      - NA pf
+    - P6 Exaflares/Dive _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
+    - P6 Cosmo Meteor _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
 - The Weapon's Refrain (Ultimate) _by [WorstAquaPlayer](https://github.com/WorstAquaPlayer)_
     - Ultimate Predaction
     - Ultimate Suppression
