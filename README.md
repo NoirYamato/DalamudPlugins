@@ -1,8 +1,8 @@
 # DalamudPlugins
 
 Custom Dalamud plugin repository for **NoirMech**, a modified version of
-[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4 and P5
-Delta, and a pause.
+[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4, P5
+Delta and P6, and a pause.
 Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
 
 ## Install
@@ -51,6 +51,13 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   the Near World player and a cross (+) on the Distant World player. The eye spawns on any cardinal, not just
   north or south, and in multiplayer everyone's tether, monitor and Hello World choices are honoured more
   reliably.
+- **TOP P6:** an `[LPDU] Light PF` strat for Exasquares/WC2 under the **EU** button, following the
+  [LPDU P6 raidplan](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk). It is the default; NA pf is still under the
+  **NA** button. Four new scenarios, each with an LPDU strat, cover the rest of the phase up to Magic Number:
+  Exasquares/Dive (Cosmo Memory to Cosmo Dive 1), Exaflares/WC1, Exaflares/Dive (Unlimited Wave Cannon 2 to
+  Cosmo Dive 2) and Cosmo Meteor. Their settings can force which Cosmo Arrow comes first, where the first
+  exaflare starts and which way they turn, and who gets a flare. With **Require tank mitigation** on, Cosmo
+  Memory needs a tank limit break 3 and the bots use their limit breaks.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of

@@ -2,10 +2,10 @@
     {
         "Author":  "Anomek, Noir Yamato",
         "Name":  "NoirMech",
-        "Punchline":  "AnoMech with LPDU strats for TOP P2, P3, P4 and P5 Delta, and a pause. Go to an inn and start practice.",
-        "Description":  "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen and P5 Delta, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
+        "Punchline":  "AnoMech with LPDU strats for TOP P2, P3, P4, P5 Delta and P6, and a pause. Go to an inn and start practice.",
+        "Description":  "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen, P5 Delta, P6 Exasquares/Dive, P6 Exaflares/WC1, P6 Exasquares/WC2, P6 Exaflares/Dive and P6 Cosmo Meteor, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
         "InternalName":  "NoirMech",
-        "AssemblyVersion":  "0.5.1.8",
+        "AssemblyVersion":  "0.5.1.9",
         "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins",
         "ApplicableVersion":  "any",
         "Tags":  [
@@ -22,13 +22,13 @@
                  ],
         "DalamudApiLevel":  15,
         "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/noirmech.png",
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.8.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.8.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.8.zip",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.9.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.9.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.9.zip",
         "IsHide":  false,
         "IsTestingExclusive":  false,
         "DownloadCount":  0,
-        "LastUpdate":  "1793765042",
-        "Changelog":  "TOP P5 Delta: an [LPDU] Light PF strat under the EU button, now the default, with automarkers (a triangle on Near World, a cross on Distant World), and the eye can now spawn on any cardinal. TOP P3 Monitors: automarkers (Bind 1-3 on the monitor players, Attack 1-5 on everyone else). In multiplayer Delta, tether, monitor and Hello World choices are honoured more reliably."
+        "LastUpdate":  "1794081071",
+        "Changelog":  "TOP P6: an [LPDU] Light PF strat for Exasquares/WC2 under the EU button, now the default, and four new scenarios with LPDU strats: Exasquares/Dive, Exaflares/WC1, Exaflares/Dive and Cosmo Meteor. With Require tank mitigation on, Cosmo Memory needs a tank limit break 3. Multiplayer Exasquares/WC2 needs everyone on this version."
     }
 ]
