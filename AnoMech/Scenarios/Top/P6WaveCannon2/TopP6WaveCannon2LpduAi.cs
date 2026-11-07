@@ -18,7 +18,7 @@ public sealed class TopP6WaveCannon2LpduAi : IScenarioAi<TopP6WaveCannon2State>
     private static readonly Vector2 PairStackedOutInTheCorner = new(11.3f, 11.3f);
     private static readonly Vector2 PairStackedBackHome = new(7.3f, 7.3f);
     private static readonly Vector2 SupportSidestepTowardTheNorthSouthAxis = new(3.5f, 12f);
-    private static readonly Vector2 SupportLaserSpotBesideItsCardinal = new(3.5f, 8.4f);
+    private static readonly Vector2 SupportLaserSpotBesideItsCardinal = new(3.55f, 8.55f);
     private static readonly Vector2 TankAtTheFrontOfTheLineToC = new(0f, 6.5f);
     private static readonly Vector2 EveryoneElseBehindTheTanks = new(0f, 10.5f);
 

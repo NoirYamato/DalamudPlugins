@@ -15,11 +15,14 @@ namespace AnoMech.Tests;
 //   2.0   home, both patterns: (6.4, 8.4).
 //   9.60  first set (in first the cross |c| < 5, out first the bands |c| > 10); the bots move at 9.7.
 //   In first:  9.7 the pair stacks in the centre square (3.4, 3.4); 14.0 back out past home (6.4, 11.4);
-//              18.0 side step (3.5, 12.0), where laser set 1 (19.07) finds them; 20.0 laser spot (3.5, 8.4)
+//              18.0 side step (3.5, 12.0), where laser set 1 (19.07) finds them; 20.0 laser spot (3.55, 8.55)
 //              for set 2 (21.07); 22.0 the stack.
 //   Out first: 9.7 the pair stacks in the corner (11.3, 11.3); 14.0 back home stacked (7.3, 7.3); 16.0 side
 //              step; 18.0 laser spot for both sets; 21.2 the stack.
 //   The stack: a line due south toward C, tanks (0, 6.5), the other six (0, 10.5); Wild Charge 27.40.
+// The laser spot is LPDU's (3.5, 8.4) moved 0.16 y outward. From (3.5, 8.4) a neighbour's laser passes 2.4 y away,
+// but each bot stands up to 0.3 y off its spot, which also turns the laser aimed at it, and the two together can
+// leave 1.9 y; from (3.55, 8.55) they leave 2.0 y.
 public class TopP6WaveCannon2LpduAiTests
 {
     internal const int LpduStrat = 0;
@@ -59,7 +62,7 @@ public class TopP6WaveCannon2LpduAiTests
         Stage.Corner => new(11.3f, 11.3f),
         Stage.BackHome => new(7.3f, 7.3f),
         Stage.Side => new(3.5f, 12f),
-        _ => new(3.5f, 8.4f),
+        _ => new(3.55f, 8.55f),
     };
 
     internal static Vector2 Spot(PartyRole role, Stage stage)
