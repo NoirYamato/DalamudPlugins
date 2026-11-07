@@ -10,7 +10,6 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
     public string Name => "[LPDU] Light PF";
     public string? Group => "EU";
 
-    internal const float TheFirstExaflareGoesOff = 13.9f;
     internal const int TheLastExaflare = 3;
     internal const float DiveTankRadius = 6.5f;
     internal const float MainTankDegreesPastTheParty = 135f;
@@ -28,8 +27,8 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
         world = w;
         var ai = new AiManager(world);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, TheFirstExaflareGoesOff);
-        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, TheFirstExaflareGoesOff, state.FirstExaflare, state.Clockwise);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai);
+        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, state.FirstExaflare, state.Clockwise);
         ai.Move(21.5f, PartyHoldsOnTheLastExaflaresPointTanksCrossTheBossIntoAY);
         world.Events.Add(25.3f, FirstMeleeLimitBreakRightAfterTheCosmoDiveBar);
         ai.Move(28f, BackForTheAutosTheSecondMeleeInTheMiddleTheMainTankMakingRoom);

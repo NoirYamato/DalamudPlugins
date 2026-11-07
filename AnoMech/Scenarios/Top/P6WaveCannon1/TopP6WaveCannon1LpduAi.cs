@@ -12,7 +12,6 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     public string Name => "[LPDU] Light PF";
     public string? Group => "EU";
 
-    internal const float TheFirstExaflareGoesOff = 13.9f;
     internal const float InsideTheLastPuddlesRadius = 4f;
     internal const float SpreadRadius = 10.5f;
 
@@ -26,8 +25,8 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     {
         var ai = new AiManager(world);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, TheFirstExaflareGoesOff);
-        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, TheFirstExaflareGoesOff, state.FirstExaflare, state.Clockwise);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai);
+        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, state.FirstExaflare, state.Clockwise);
         ai.Move(21.6f, InTowardTheirWaymarkClearOfTheLastPuddles);
         ai.Move(24.7f, OutToTheirWaveCannonSpreadOnceTheLastPuddleIsGone);
         ai.Move(30f, TopP6LpduAi.LineUpInFrontOfCWithTheTanksFirst);

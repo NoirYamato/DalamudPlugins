@@ -1,8 +1,11 @@
+using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Scenarios;
+using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6CosmoDive2;
 using AnoMech.Scenarios.Top.P6WaveCannon1;
+using static AnoMech.Scenarios.Top.TopConstants;
 
 namespace AnoMech.Tests;
 
@@ -27,6 +30,23 @@ public class TopP6LpduAiTests
         var widest = waveCannon1.Zip(exaflaresDive, (a, b) => (a.Time, Apart: PerRole.All.Max(r => Vector2.Distance(a.Seats[r], b.Seats[r]))))
                                 .MaxBy(f => f.Apart);
         Assert.That(widest.Apart, Is.LessThan(0.01f), $"seed {seed}: a seat stood {widest.Apart:F2} y from its spot in the other block at {widest.Time:F2}");
+    }
+
+    // The strats time every move of the dodge from the first exaflare's first explosion; each block's goes off then.
+    [TestCase(typeof(TopP6WaveCannon1Scenario))]
+    [TestCase(typeof(TopP6CosmoDive2Scenario))]
+    public void TheDodgeIsTimedFromTheBlocksFirstExplosion(Type scenario)
+    {
+        SimTimeline? timeline = null;
+        var run = ScenarioRun.Execute(scenario, 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            StopAt = 14.5f,
+            Probe = p => timeline ??= p.Fake.Timeline,
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        var firstExplosion = timeline!.Rows.First(r => r["kind"] == "ability" && r["id"] == $"{ActionId.WaveCannon_7BAD}");
+        Assert.That(float.Parse(firstExplosion["t"], CultureInfo.InvariantCulture), Is.EqualTo(TopP6LpduAi.TheFirstExaflareGoesOff).Within(0.05f));
     }
 
     private static List<(float Time, Dictionary<PartyRole, Vector2> Seats)> Frames(Type scenario, int strat, int seed, Action<object> pin)
