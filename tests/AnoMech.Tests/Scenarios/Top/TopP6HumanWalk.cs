@@ -3,10 +3,10 @@ using AnoMech.Core.Game.Ai;
 
 namespace AnoMech.Tests;
 
-// How the human of the P6 human suites walks a leg: at a run, straight or curving, or sprinting straight. A curving
-// walk bulges one to two yalms off its line, a quarter of its length at most, to a random side, but never toward a
-// puddle's circle it can see. A circle shows from its drop until it goes off, and the ones a walk starts in are the
-// ones it leaves.
+// How the human of the P6 and P5 Omega human suites walks a leg: at a run, straight or curving, or sprinting straight.
+// A curving walk bulges one to two yalms off its line, a quarter of its length at most, to a random side, but never
+// toward a puddle's circle it can see. A circle shows from its drop until it goes off, and the ones a walk starts in are
+// the ones it leaves.
 public static class TopP6HumanWalk
 {
     public enum Walk { Straight, Curving, Sprinting }

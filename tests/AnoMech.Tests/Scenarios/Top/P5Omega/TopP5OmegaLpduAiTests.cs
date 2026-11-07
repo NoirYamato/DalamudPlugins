@@ -67,7 +67,7 @@ public class TopP5OmegaLpduAiTests
     private static readonly Vector2[] UpstreamSecondHelloWorldWhenTheBeetleIsNorth =
         [new(0f, 10f), new(10f, 0f), new(-9.5f, -16.5f), new(9.5f, -16.5f), new(-19f, 0f), new(-4f, 19f), new(4f, 19f), new(19f, 0f)];
 
-    private static readonly Sign[] HelloWorldSigns =
+    internal static readonly Sign[] HelloWorldSigns =
         [Sign.Triangle, Sign.Cross, Sign.Bind1, Sign.Bind2, Sign.Attack1, Sign.Attack2, Sign.Attack3, Sign.Attack4];
 
     // ---- The pinned roll -------------------------------------------------------------------------------------------
@@ -113,6 +113,138 @@ public class TopP5OmegaLpduAiTests
     internal static MonitorSide MonitorsFiring(string half) => half == "west" ? MonitorSide.Left : MonitorSide.Right;
 
     internal static Direction BeetleAt(string cardinal) => Direction.Cardinal.Single(d => d.Name() == cardinal);
+
+    // ---- Whole rolls, for the human and margin suites ----------------------------------------------------------------
+
+    private static readonly (OmegaAttack F, OmegaAttack M)[] PairAttacks =
+    [
+        (OmegaAttack.Legs, OmegaAttack.Sword), (OmegaAttack.Legs, OmegaAttack.Shield),
+        (OmegaAttack.Staff, OmegaAttack.Sword), (OmegaAttack.Staff, OmegaAttack.Shield),
+    ];
+
+    // The two Omega pairs and the first Diffuse Wave Cannons: the first F on an intercardinal and the second a quarter turn
+    // either way, each pair's attacks (never both the same as the other pair's), and whether the first cannons fire north
+    // and south or east and west. 192 in all.
+    internal sealed record OmegaPairs(
+        Direction FirstF, int SecondTurn, (OmegaAttack F, OmegaAttack M) First, (OmegaAttack F, OmegaAttack M) Second,
+        bool FirstCannonsFireNorthAndSouth)
+    {
+        public static readonly OmegaPairs[] All =
+        [
+            .. from northAndSouth in new[] { true, false }
+               from firstF in Direction.Intercardinal
+               from turn in new[] { 2, -2 }
+               from first in PairAttacks
+               from second in PairAttacks
+               where second != first
+               select new OmegaPairs(firstF, turn, first, second, northAndSouth),
+        ];
+
+        public void Pin(TopP5OmegaStateOverrides o)
+        {
+            o.FirstAttackDirection = FirstF;
+            o.SecondAttackDirection = FirstF.Rotate(SecondTurn);
+            (o.FirstFAttack, o.FirstMAttack) = First;
+            (o.SecondFAttack, o.SecondMAttack) = Second;
+            o.FirstWaveCannonFront = FirstCannonsFireNorthAndSouth;
+        }
+
+        // Where the party stacks against a pair: on the cardinal beside its F that the pair's own cannons spare, 2.5 y out
+        // toward F with Legs and Sword, or toward M: 2.5 y with Legs and Shield, 17 y with Staff and Sword, 10 y with Staff
+        // and Shield.
+        public Vector2 Stack(int pair)
+        {
+            var f = pair == 0 ? FirstF : FirstF.Rotate(SecondTurn);
+            var (fAttack, mAttack) = pair == 0 ? First : Second;
+            var cannonsFireNorthAndSouth = FirstCannonsFireNorthAndSouth == (pair == 0);
+            var beside = new[] { f.Rotate(1), f.Rotate(-1) }.Single(c => c.Index() % 4 == (cannonsFireNorthAndSouth ? 2 : 0));
+            var towardF = fAttack == OmegaAttack.Legs ? mAttack == OmegaAttack.Sword ? 2.5f : -2.5f
+                : mAttack == OmegaAttack.Sword ? -17f : -10f;
+            return Turned(new Vector2(0f, -towardF), beside.RadiansFromNorth * 180f / MathF.PI);
+        }
+
+        public override string ToString()
+            => $"F {FirstF.Name()} {Name(First)} then F {FirstF.Rotate(SecondTurn).Name()} {Name(Second)}, "
+               + $"first cannons {(FirstCannonsFireNorthAndSouth ? "N/S" : "E/W")}";
+
+        private static string Name((OmegaAttack F, OmegaAttack M) attacks)
+            => $"{(attacks.F == OmegaAttack.Legs ? "Legs" : "Staff")}+{(attacks.M == OmegaAttack.Sword ? "Sword" : "Shield")}";
+    }
+
+    // Who holds what in the two Hello Worlds, a row per person: the first Hello World's job and the second's, each a place in
+    // that Hello World's order, and whether they start with the extra Dynamis. The first Hello World's hits take a person
+    // who started with it to three stacks, unless they took a monitor, and those two take the second's tethers. In the
+    // first set the first Hello World's holders take the tethers and the monitors hold the second; in the second jumpers 3
+    // and 4 take the tethers and jumpers 1 and 2 hold the second; the third mixes the two.
+    internal static readonly (int First, int Second, bool ExtraDynamis)[][] HelloWorldJobs =
+    [
+        [(0, 2, true), (1, 3, true), (2, 0, true), (3, 1, true), (4, 4, false), (5, 5, false), (6, 6, false), (7, 7, false)],
+        [(0, 4, false), (1, 5, false), (2, 6, true), (3, 7, true), (4, 0, false), (5, 1, false), (6, 2, true), (7, 3, true)],
+        [(0, 2, true), (1, 4, false), (2, 0, true), (3, 5, true), (4, 1, false), (5, 3, true), (6, 6, false), (7, 7, false)],
+    ];
+
+    // A whole roll: the Omega pairs, the monitors' half, the beetle, the Hello World jobs (ByPerson[i] holds row i of
+    // HelloWorldJobs[Jobs]) and who the Blaster tethers start on.
+    internal sealed record OmegaRoll(
+        OmegaPairs Pairs, MonitorSide Monitors, Direction Beetle, int Jobs, PartyRole[] ByPerson, PartyRole[] Tethers)
+    {
+        // Each Hello World's order: Near World, Distant World, the monitors or the tethers, jumps 1-4.
+        public PartyRole[] FirstOrder => Order(job => job.First);
+
+        public PartyRole[] SecondOrder => Order(job => job.Second);
+
+        private PartyRole[] Order(Func<(int First, int Second, bool ExtraDynamis), int> place)
+        {
+            var order = new PartyRole[8];
+            for (var person = 0; person < 8; person++) order[place(HelloWorldJobs[Jobs][person])] = ByPerson[person];
+            return order;
+        }
+
+        public void Pin(TopP5OmegaStateOverrides o)
+        {
+            Pairs.Pin(o);
+            o.MonitorSide = Monitors;
+            o.BettleSpawnDirection = Beetle;
+            var (first, second) = (FirstOrder, SecondOrder);
+            HelloWorld(o, first[0], HelloWorldOrderOption.First, HelloWorldTypeOption.Near);
+            HelloWorld(o, first[1], HelloWorldOrderOption.First, HelloWorldTypeOption.Far);
+            HelloWorld(o, second[0], HelloWorldOrderOption.Second, HelloWorldTypeOption.Near);
+            HelloWorld(o, second[1], HelloWorldOrderOption.Second, HelloWorldTypeOption.Far);
+            for (var person = 0; person < 8; person++)
+                o.ExtraDynamis[ByPerson[person]] = HelloWorldJobs[Jobs][person].ExtraDynamis;
+            o.MonitorTargets = first[2..4];
+            o.HelloWorld1JumpOrder = first[4..];
+            o.BlasterTethers = Tethers;
+            o.HelloWorld2 = second;
+        }
+
+        public override string ToString()
+            => $"{Pairs}, monitors {(Monitors == MonitorSide.Left ? "west" : "east")}, beetle {Beetle.Name()}, "
+               + $"first Hello World {string.Join(" ", FirstOrder)}, second {string.Join(" ", SecondOrder)}, "
+               + $"tethers from {string.Join("+", Tethers)}";
+    }
+
+    // Who a Hello World jump should go to: the Near World's two baiters (Attacks 2 and 3), the second the one the first jump
+    // left; the Distant World's jump 1 to Attack 1 and jump 2 to Attack 4.
+    internal static PartyRole[] JumpTargets(bool near, PartyRole[] order, IReadOnlyList<PartyRole> hitSoFar)
+        => near ? [.. new[] { order[5], order[6] }.Except(hitSoFar)] : [hitSoFar.Count == 1 ? order[4] : order[7]];
+
+    // How far a jump's pick won by: the nearest (Near) or farthest (Distant) of the members it should go to against the
+    // best of the rest, the last one hit left out as the game leaves it out. RunnerUp is that best of the rest.
+    internal static (float Margin, PartyRole RunnerUp) JumpPick(
+        bool near, Vector2 from, IEnumerable<(PartyRole Role, Vector2 At)> candidates, IReadOnlyCollection<PartyRole> intended)
+    {
+        var distances = candidates.Select(c => (c.Role, Distance: Vector2.Distance(from, c.At))).ToList();
+        var mine = distances.Where(d => intended.Contains(d.Role)).ToList();
+        var rest = distances.Where(d => !intended.Contains(d.Role)).ToList();
+        if (near)
+        {
+            var runnerUp = rest.MinBy(d => d.Distance);
+            return (runnerUp.Distance - mine.Min(d => d.Distance), runnerUp.Role);
+        }
+        var farthestRest = rest.MaxBy(d => d.Distance);
+        return (mine.Max(d => d.Distance) - farthestRest.Distance, farthestRest.Role);
+    }
 
     // ---- The strats ------------------------------------------------------------------------------------------------
 
@@ -291,7 +423,7 @@ public class TopP5OmegaLpduAiTests
 
     private static float DegreesApart(float a, float b) => MathF.Abs((a - b + 540f) % 360f - 180f);
 
-    private static Vector2 Turned(Vector2 spot, float bearingDegrees)
+    internal static Vector2 Turned(Vector2 spot, float bearingDegrees)
     {
         var radians = bearingDegrees * MathF.PI / 180f;
         var (sin, cos) = MathF.SinCos(radians);
