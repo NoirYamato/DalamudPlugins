@@ -18,6 +18,7 @@ using AnoMech.Scenarios.Top.P5Omega;
 using AnoMech.Scenarios.Top.P5Sigma;
 using AnoMech.Scenarios.Top.P6CosmoDive1;
 using AnoMech.Scenarios.Top.P6CosmoDive2;
+using AnoMech.Scenarios.Top.P6CosmoMeteor;
 using AnoMech.Scenarios.Top.P6WaveCannon1;
 using AnoMech.Scenarios.Top.P6WaveCannon2;
 using AnoMech.Scenarios.Ucob.P5Exaflares;
@@ -107,6 +108,7 @@ public sealed class ScenarioCatalog
         new TopP6WaveCannon1Scenario(),
         new TopP6WaveCannon2Scenario(),
         new TopP6CosmoDive2Scenario(),
+        new TopP6CosmoMeteorScenario(),
         new UltimatePredationScenario(),
         new UltimateSuppressionScenario(),
         new UcobP5ExaflaresScenario(),
