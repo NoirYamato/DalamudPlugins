@@ -31,13 +31,15 @@ public class TopP6WaveCannon1LpduMarginTests
     // is rounded to 0.01, and lines swing a little with their jittered targets.
     private const float Jitter = 0.3f, Slack = 0.05f;
 
-    // The design's clearances, unjittered on the strat's timing, less the jitter each check can lose: the measured
-    // bot's own, and that of the bot a hit is centred on or aimed at. Puddles drop and go off while the bots walk; the
-    // Wild Charge's line swings about Alpha Omega toward a jittered tank 6.5 y out, so its far end moves 1.6 times as far.
+    // The design's clearances, unjittered on the strat's timing as the sim plays it, less the jitter each check can lose:
+    // the measured bot's own, and that of the bot a hit is centred on or aimed at. Puddles drop and go off while the bots
+    // walk, each on the first frame after its time, so one lands up to a frame's walk past where the strat's timing alone
+    // would drop it. The Wild Charge's line swings about Alpha Omega toward a jittered tank 6.5 y out, so its far end
+    // moves 1.6 times as far.
     private static readonly (string Check, float Design, float Jitters)[] Table =
     [
         ("an exaflare", 2.08f, 1.5f),
-        ("a puddle", 2.39f, 3f),
+        ("a puddle", 2.30f, 3f),
         ("another player's laser", 3.42f, 2f),
         ("inside the Wild Charge's line", 4f, 3f),
         ("the Wild Charge's nearest non-tank behind its tanks", 4f, 2f),
@@ -67,12 +69,13 @@ public class TopP6WaveCannon1LpduMarginTests
             var player = PerRole.All[run % 8];
             foreach (var role in PerRole.All.Where(r => r != player))
                 held.Add((role, first, clockwise, step));
-            var measure = margins.For(player, $"first {first}, {(clockwise ? "clockwise" : "counter-clockwise")}, step {step}");
+            var seed = Random.Shared.Next();
+            var measure = margins.For(player, $"first {first}, {(clockwise ? "clockwise" : "counter-clockwise")}, step {step}, player {player}, seed {seed}");
             ScenarioRun result;
             AoeQuery.Evaluated += measure;
             try
             {
-                result = ScenarioRun.Execute(typeof(TopP6WaveCannon1Scenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+                result = ScenarioRun.Execute(typeof(TopP6WaveCannon1Scenario), LpduStrat, seed, new ScenarioRunOptions
                 {
                     PlayerRole = player,
                     Overrides = o => Pin((TopP6WaveCannon1StateOverrides)o, first, clockwise, step),
@@ -93,10 +96,10 @@ public class TopP6WaveCannon1LpduMarginTests
             Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
             Assert.That(held, Has.Count.EqualTo(8 * Patterns().Count()), "every role was a bot under every pattern");
             foreach (var (check, design, jitters) in Table)
-                Assert.That(margins.Of(check), Is.GreaterThanOrEqualTo(design - jitters * Jitter - Slack), check);
-            Assert.That(margins.Of("an exaflare"), Is.GreaterThanOrEqualTo(HitFloor), "an exaflare");
-            Assert.That(margins.Of("a puddle"), Is.GreaterThanOrEqualTo(HitFloor), "a puddle");
-            Assert.That(margins.Of("another player's laser"), Is.GreaterThanOrEqualTo(LaserFloor), "a laser");
+                Assert.That(margins.Of(check), Is.GreaterThanOrEqualTo(design - jitters * Jitter - Slack), () => margins.Describe(check));
+            Assert.That(margins.Of("an exaflare"), Is.GreaterThanOrEqualTo(HitFloor), () => margins.Describe("an exaflare"));
+            Assert.That(margins.Of("a puddle"), Is.GreaterThanOrEqualTo(HitFloor), () => margins.Describe("a puddle"));
+            Assert.That(margins.Of("another player's laser"), Is.GreaterThanOrEqualTo(LaserFloor), () => margins.Describe("another player's laser"));
         });
     }
 
@@ -111,6 +114,8 @@ public class TopP6WaveCannon1LpduMarginTests
         public void Watch(ScenarioProbe p) => probe = p;
 
         public float Of(string check) => tightest.TryGetValue(check, out var t) ? t.Clearance : float.NaN;
+
+        public string Describe(string check) => tightest.TryGetValue(check, out var t) ? $"{check} ({t.Where})" : $"{check} was never measured";
 
         public List<string> TakeProblems()
         {

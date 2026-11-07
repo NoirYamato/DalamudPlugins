@@ -69,18 +69,19 @@ public class TopP6CosmoDive1LpduMarginTests
     [TestCase(false)]
     public void KeepsLpdusClearancesForEverySeat(bool inFirst)
     {
-        var margins = new Dictionary<string, float>();
+        var margins = new Dictionary<string, (float Clearance, string Where)>();
         var problems = new List<string>();
         var measured = new HashSet<PartyRole>();
         foreach (var player in PerRole.All)
         for (var i = 0; i < SeedsPerSeat; i++)
         {
-            var measurer = new Measurer(player, margins, measured);
+            var seed = Random.Shared.Next();
+            var measurer = new Measurer(player, $"player {player}, seed {seed}", margins, measured);
             ScenarioRun run;
             AoeQuery.Evaluated += measurer.OnHit;
             try
             {
-                run = ScenarioRun.Execute(typeof(TopP6CosmoDive1Scenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+                run = ScenarioRun.Execute(typeof(TopP6CosmoDive1Scenario), LpduStrat, seed, new ScenarioRunOptions
                 {
                     PlayerRole = player,
                     Overrides = o => Pin((TopP6CosmoDive1StateOverrides)o, inFirst),
@@ -96,23 +97,29 @@ public class TopP6CosmoDive1LpduMarginTests
         }
 
         TestContext.Out.WriteLine(string.Join(Environment.NewLine,
-            margins.OrderBy(m => m.Key).Select(m => $"{m.Key}: {m.Value.ToString("F2", CultureInfo.InvariantCulture)}")));
+            margins.OrderBy(m => m.Key).Select(m => $"{m.Key}: {m.Value.Clearance.ToString("F2", CultureInfo.InvariantCulture)} ({m.Value.Where})")));
         Assert.Multiple(() =>
         {
             Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(40)));
             Assert.That(measured, Is.EquivalentTo(PerRole.All), "every role was measured as a bot");
             foreach (var (check, design, jitters) in Table)
-                Assert.That(margins.GetValueOrDefault(check, float.NaN), Is.GreaterThanOrEqualTo(design - jitters * Jitter - Rounding), check);
+                Assert.That(Margin(margins, check), Is.GreaterThanOrEqualTo(design - jitters * Jitter - Rounding), () => Describe(margins, check));
             foreach (var check in Beyond)
-                Assert.That(margins.GetValueOrDefault(check, float.NaN), Is.GreaterThan(JitterSlack), check);
+                Assert.That(Margin(margins, check), Is.GreaterThan(JitterSlack), () => Describe(margins, check));
             foreach (var check in BeyondWhenItHappens.Where(margins.ContainsKey))
-                Assert.That(margins[check], Is.GreaterThan(JitterSlack), check);
+                Assert.That(margins[check].Clearance, Is.GreaterThan(JitterSlack), () => Describe(margins, check));
             foreach (var (check, least) in Timing)
-                Assert.That(margins.GetValueOrDefault(check, float.NaN), Is.GreaterThanOrEqualTo(least), check);
+                Assert.That(Margin(margins, check), Is.GreaterThanOrEqualTo(least), () => Describe(margins, check));
         });
     }
 
-    private sealed class Measurer(PartyRole player, Dictionary<string, float> margins, HashSet<PartyRole> measured)
+    private static float Margin(Dictionary<string, (float Clearance, string Where)> margins, string check)
+        => margins.TryGetValue(check, out var margin) ? margin.Clearance : float.NaN;
+
+    private static string Describe(Dictionary<string, (float Clearance, string Where)> margins, string check)
+        => margins.TryGetValue(check, out var margin) ? $"{check} ({margin.Where})" : $"{check} was never measured";
+
+    private sealed class Measurer(PartyRole player, string playing, Dictionary<string, (float Clearance, string Where)> margins, HashSet<PartyRole> measured)
     {
         private ScenarioProbe? probe;
         private readonly Dictionary<PartyRole, float> settledOnDiveSpot = [];
@@ -183,12 +190,16 @@ public class TopP6CosmoDive1LpduMarginTests
             foreach (var tank in new[] { MainTank, OffTank }.Where(t => t != player))
             {
                 if (settledOnDiveSpot.TryGetValue(tank, out var at))
-                    Note("the tanks settled on their dive spots before the dive", DiveAt - at);
+                    Note("the tanks settled on their dive spots before the dive", DiveAt - at, at);
                 else
                     yield return $"{tank} never settled on its dive spot";
             }
         }
 
-        private void Note(string check, float clearance) => margins[check] = MathF.Min(margins.GetValueOrDefault(check, float.MaxValue), clearance);
+        private void Note(string check, float clearance, float? at = null)
+        {
+            if (margins.TryGetValue(check, out var before) && before.Clearance <= clearance) return;
+            margins[check] = (clearance, $"t={(at ?? probe!.Time).ToString("F2", CultureInfo.InvariantCulture)}, {playing}");
+        }
     }
 }
