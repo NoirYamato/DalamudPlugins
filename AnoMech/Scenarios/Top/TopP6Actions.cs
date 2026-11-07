@@ -61,6 +61,18 @@ public static class TopP6Actions
         DeathExplanation = "Hit by a Wave Cannon puddle: six times, one drops under every player and goes off 3 s later",
     };
 
+    // -- Wave Cannon --
+    // Upstream's lasers and Wild Charge, hits and rules unchanged, with what kills said in the fight's words.
+    public static readonly EnemyAction WaveCannonLaser = TopActions.WaveCannonProtean with
+    {
+        DeathExplanation = "Hit by two Wave Cannon lasers: each fires from Alpha Omega down a line through its target and leaves a vulnerability",
+    };
+
+    public static readonly EnemyAction WildCharge = TopActions.WaveCannonWildCharge with
+    {
+        DeathExplanation = "Wild Charge's line from Alpha Omega needs all eight players in it, with the two tanks nearest Alpha Omega",
+    };
+
     // -- Cosmo Meteor --
     public static readonly EnemyAction CosmoMeteor = new(P6ActionId.CosmoMeteor);
 
