@@ -3,6 +3,7 @@ using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
+using AnoMech.Multiplayer;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P6CosmoDive1;
 using static AnoMech.Core.Game.Party.PartyRole;
@@ -64,6 +65,19 @@ public class TopP6CosmoDive1LpduMarginTests
     ];
 
     private const float DiveAt = 39.4f, Settled = 0.5f;
+
+    // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
+    private MultiplayerManager? leftInstalled;
+
+    [SetUp]
+    public void Solo()
+    {
+        leftInstalled = Plugin.Multiplayer;
+        DalamudServices.Install(nameof(Plugin.Multiplayer), null!);
+    }
+
+    [TearDown]
+    public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
 
     [TestCase(true)]
     [TestCase(false)]

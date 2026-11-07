@@ -3,6 +3,7 @@ using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
+using AnoMech.Multiplayer;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P6CosmoDive2;
 using static AnoMech.Core.Game.Party.PartyRole;
@@ -61,6 +62,19 @@ public class TopP6CosmoDive2LpduMarginTests
         => from step in Steps
            from pattern in Patterns
            select (pattern.First, pattern.Clockwise, step);
+
+    // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
+    private MultiplayerManager? leftInstalled;
+
+    [SetUp]
+    public void Solo()
+    {
+        leftInstalled = Plugin.Multiplayer;
+        DalamudServices.Install(nameof(Plugin.Multiplayer), null!);
+    }
+
+    [TearDown]
+    public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
 
     [Test]
     public void KeepsTheDesignsClearancesForEveryPatternAndStep()

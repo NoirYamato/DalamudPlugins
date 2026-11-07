@@ -3,6 +3,7 @@ using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
+using AnoMech.Multiplayer;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6WaveCannon1;
@@ -55,6 +56,19 @@ public class TopP6WaveCannon1LpduMarginTests
            from clockwise in new[] { true, false }
            from step in Steps
            select (first, clockwise, step);
+
+    // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
+    private MultiplayerManager? leftInstalled;
+
+    [SetUp]
+    public void Solo()
+    {
+        leftInstalled = Plugin.Multiplayer;
+        DalamudServices.Install(nameof(Plugin.Multiplayer), null!);
+    }
+
+    [TearDown]
+    public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
 
     [Test]
     public void KeepsTheDesignsClearancesForEveryExaflarePattern()
