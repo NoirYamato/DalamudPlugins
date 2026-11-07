@@ -14,8 +14,8 @@ using Actions = AnoMech.Scenarios.Top.TopP6Actions;
 
 namespace AnoMech.Scenarios.Top;
 
-// Alpha Omega, at the arena centre all phase, and the attacks more than one P6 block plays. Each is scheduled from a
-// time on the block's own clock, so a block's Run reads as the fight's timeline:
+// Alpha Omega, at the arena centre all phase, and the attacks the P6 blocks play. Each is scheduled from a time on the
+// block's own clock, so a block's Run reads as the fight's timeline:
 //
 //     world.Events.Add(0f, alphaOmega.Spawn);
 //     alphaOmega.CosmoMemory(1.9f);

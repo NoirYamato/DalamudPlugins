@@ -7,8 +7,8 @@ using static AnoMech.Scenarios.Top.TopP6Constants;
 namespace AnoMech.Scenarios.Top;
 
 // NoirMech's TOP P6 actions, kept out of TopActions so upstream release merges stay clean; P6 also casts upstream's
-// Cosmo Arrow and Wave Cannon actions. Death reasons describe the fight, never a strat's spots. UNVERIFIED: no
-// damage values are known, so every exaflare, puddle and bait kills on its own.
+// Cosmo Arrow and Wave Cannon actions. Death reasons describe the fight, never a strat's spots. No damage values are
+// known: a hit that kills does so outright.
 public static class TopP6Actions
 {
     private static readonly VulnSpec MagicVulns = VulnerableTo(StatusId.MagicVulnerabilityUp);

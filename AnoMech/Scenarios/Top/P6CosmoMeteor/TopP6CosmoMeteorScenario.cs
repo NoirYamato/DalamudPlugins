@@ -80,7 +80,7 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
         world.Events.Add(31.0f, () => alphaOmega.Cast(Actions.CosmoMeteorFinish));
     }
 
-    // UNVERIFIED: where they stand: the meteors north and south, the comets on the other six compass points.
+    // The meteors north and south. UNVERIFIED: the comets on the other six compass points.
     private void SpawnTheAdds()
     {
         meteors.AddRange(MeteorBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoMeteor, P6BNpcNameId.CosmoMeteor, bearing, P6Geometry.CosmoMeteorDistance)));
