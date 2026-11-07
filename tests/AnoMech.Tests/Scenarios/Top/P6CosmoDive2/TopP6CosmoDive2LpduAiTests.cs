@@ -102,7 +102,7 @@ public class TopP6CosmoDive2LpduAiTests
             Assert.That(Distance(TopP6CosmoDive2LpduAi.PartyDiveHold(state), new Vector2(holdX, holdZ)), Is.LessThan(0.01f), "hold");
             Assert.That(Distance(TopP6CosmoDive2LpduAi.MainTankDiveSpot(state), new Vector2(mtX, mtZ)), Is.LessThan(0.01f), "MT");
             Assert.That(Distance(TopP6CosmoDive2LpduAi.OffTankDiveSpot(state), new Vector2(otX, otZ)), Is.LessThan(0.01f), "OT");
-            Assert.That(Distance(TopP6CosmoDive2LpduAi.PointBesideTheFirstExaflareAwayFromTheSecond(state), Flat(TopP6AlphaOmega.AtBearing(start, StartRadius))),
+            Assert.That(Distance(StratsStartPoint(first, clockwise), Flat(TopP6AlphaOmega.AtBearing(start, StartRadius))),
                         Is.LessThan(0.01f), "start");
         });
     }
@@ -116,10 +116,10 @@ public class TopP6CosmoDive2LpduAiTests
             {
                 var state = State(first, clockwise);
                 var why = $"first {first}, clockwise {clockwise}";
-                Assert.That(Distance(TopP6CosmoDive2LpduAi.PointBesideTheFirstExaflareAwayFromTheSecond(state), Expected(12.9f, first, clockwise)[MainTank]),
+                Assert.That(Distance(StratsStartPoint(first, clockwise), Expected(12.9f, first, clockwise)[MainTank]),
                             Is.LessThan(0.01f), $"{why}: start");
                 for (var k = 0; k < 3; k++)
-                    Assert.That(Distance(TopP6CosmoDive2LpduAi.PointOfExaflare(state, k), Expected(MovesAt[4 + k], first, clockwise)[MainTank]),
+                    Assert.That(Distance(TopP6LpduAi.OnTheExaflarePath(first, clockwise, k), Expected(MovesAt[4 + k], first, clockwise)[MainTank]),
                                 Is.LessThan(0.01f), $"{why}: exaflare {k}'s point");
                 Assert.That(Distance(TopP6CosmoDive2LpduAi.PartyDiveHold(state), Expected(21.5f, first, clockwise)[RegenHealer]),
                             Is.LessThan(0.01f), $"{why}: hold");
@@ -309,6 +309,10 @@ public class TopP6CosmoDive2LpduAiTests
 
     internal static TopP6CosmoDive2State State(int first, bool clockwise)
         => new(new Rng(1), new TopP6CosmoDive2StateOverrides { FirstExaflare = first, Clockwise = clockwise });
+
+    // Where the strat starts the dodge: the shared path's point beside the first exaflare, at the strat's start radius.
+    private static Vector2 StratsStartPoint(int first, bool clockwise)
+        => TopP6LpduAi.OnTheExaflarePath(first, clockwise, TopP6LpduAi.BesideTheFirstExaflareAwayFromTheSecond, TopP6CosmoDive2LpduAi.StartPointRadius);
 
     // Positive when `spot` is left of the line through the centre along `facing`.
     private static float LeftOf(Vector2 facing, Vector2 spot) => facing.Y * spot.X - facing.X * spot.Y;

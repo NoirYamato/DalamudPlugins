@@ -68,10 +68,10 @@ public class TopP6WaveCannon1LpduAiTests
         {
             foreach (var role in PerRole.All)
             {
-                Assert.That(TopP6WaveCannon1LpduAi.AutoSpot(role), Is.EqualTo(AutoSpots[role]).Using<Vector2>(Near), $"{role} autos");
+                Assert.That(TopP6LpduAi.AutoSpot(role), Is.EqualTo(AutoSpots[role]).Using<Vector2>(Near), $"{role} autos");
                 Assert.That(TopP6WaveCannon1LpduAi.SpreadSpot(role), Is.EqualTo(SpreadSpots[role]).Using<Vector2>(Near), $"{role} spread");
                 Assert.That(TopP6WaveCannon1LpduAi.InsideTheLastPuddles(role), Is.EqualTo(InsideTheLastPuddles(role)).Using<Vector2>(Near), $"{role} wait");
-                Assert.That(TopP6WaveCannon1LpduAi.WildChargeLineSpot(role), Is.EqualTo(WildChargeLine[role]).Using<Vector2>(Near), $"{role} Wild Charge");
+                Assert.That(TopP6LpduAi.WildChargeLineSpot(role), Is.EqualTo(WildChargeLine[role]).Using<Vector2>(Near), $"{role} Wild Charge");
             }
         });
     }
@@ -83,8 +83,7 @@ public class TopP6WaveCannon1LpduAiTests
     {
         FakeGame.Install();
         var wave = new TopP6UnlimitedWaveCannon(first, clockwise, 1.9f);
-        var state = State(first, clockwise);
-        var start = TopP6WaveCannon1LpduAi.ExaflarePathPoint(state, TopP6WaveCannon1LpduAi.BesideTheFirstExaflareAwayFromTheSecond);
+        var start = TopP6LpduAi.OnTheExaflarePath(first, clockwise, TopP6LpduAi.BesideTheFirstExaflareAwayFromTheSecond);
         var firstStart = Flat(wave.Lane(0).Start.Position);
         var secondStart = Flat(wave.Lane(1).Start.Position);
 
@@ -94,10 +93,10 @@ public class TopP6WaveCannon1LpduAiTests
             Assert.That(Degrees(start, firstStart), Is.EqualTo(45f).Within(1e-2f), "beside the first exaflare");
             Assert.That(Degrees(start, secondStart), Is.EqualTo(90f).Within(1e-2f), "away from the second");
             for (var k = 0; k < 3; k++)
-                Assert.That(TopP6WaveCannon1LpduAi.ExaflarePathPoint(state, k), Is.EqualTo(Flat(wave.Lane(k).Start.Position) * (14f / 24f)).Using<Vector2>(Near),
+                Assert.That(TopP6LpduAi.OnTheExaflarePath(first, clockwise, k), Is.EqualTo(Flat(wave.Lane(k).Start.Position) * (14f / 24f)).Using<Vector2>(Near),
                             $"exaflare {k + 1}'s point");
             for (var k = -1; k < 3; k++)
-                Assert.That(TopP6WaveCannon1LpduAi.ExaflarePathPoint(state, k), Is.EqualTo(OnThePath(first, clockwise, k)).Using<Vector2>(Near), $"point {k}");
+                Assert.That(TopP6LpduAi.OnTheExaflarePath(first, clockwise, k), Is.EqualTo(OnThePath(first, clockwise, k)).Using<Vector2>(Near), $"point {k}");
         });
     }
 
@@ -219,9 +218,6 @@ public class TopP6WaveCannon1LpduAiTests
         Assert.That(runs[1], Is.EqualTo(runs[0]).Using<Vector2>(Near), "first 4, counter-clockwise");
         Assert.That(runs[2], Is.EqualTo(runs[0]).Using<Vector2>(Near), "first 7, clockwise");
     }
-
-    internal static TopP6WaveCannon1State State(int first, bool clockwise)
-        => new(new Rng(1), new Core.SimObjects.SimParty(), new TopP6WaveCannon1StateOverrides { FirstExaflare = first, Clockwise = clockwise });
 
     internal static void Pin(TopP6WaveCannon1StateOverrides o, int first, bool clockwise, float? step = null)
     {

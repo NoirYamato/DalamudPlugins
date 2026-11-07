@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -20,9 +19,6 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
     internal const float SouthCardinal = 180f;
     internal const float FacingSouth = 0f;
 
-    internal static readonly Vector2 MainTankAutoSpotInsideNorth = new(0f, -5f);
-    internal static readonly Vector2 OffTankAutoSpotOutsideEast = new(14.5f, 0f);
-    internal static readonly Vector2 PartyAutoSpotInsideSouth = new(0f, 6f);
     internal static readonly Vector2 UnderAlphaOmega = Vector2.Zero;
 
     internal static readonly IReadOnlyDictionary<PartyRole, float> ClockBearings = new Dictionary<PartyRole, float>
@@ -39,7 +35,7 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
     {
         state = s;
         var ai = new AiManager(world);
-        ai.Move(0.3f, MainTankInsideNorthOffTankOutsideEastTheRestInsideSouthForTheAutos);
+        ai.Move(0.3f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
         ai.Move(2.6f, EveryoneUnderAlphaOmegaToBaitTheMeteorsInTheMiddle);
         ai.Move(7f, EveryoneOutToTheirMeteorClockSpotOnceTheBaitsDrop);
         ai.Move(13.3f, ShieldHealerIntoTheMiddleAfterTheFirstEightSpreads);
@@ -49,14 +45,7 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
         world.Events.Add(24f, () => TopP6LimitBreaks.LimitBreak3(world, PhysRangedDps));
     }
 
-    internal static Vector2 AutoSpot(PartyRole role) => role switch
-    {
-        MainTank => MainTankAutoSpotInsideNorth,
-        OffTank => OffTankAutoSpotOutsideEast,
-        _ => PartyAutoSpotInsideSouth,
-    };
-
-    internal static Vector2 ClockSpot(PartyRole role) => OnRing(ClockBearings[role], ClockRadius);
+    internal static Vector2 ClockSpot(PartyRole role) => TopP6LpduAi.OnRing(ClockBearings[role], ClockRadius);
 
     internal static float StackCardinal(IReadOnlyCollection<PartyRole> flares)
         => flares.Contains(PhysRangedDps) ? SouthCardinal : NorthCardinal;
@@ -71,41 +60,25 @@ public sealed class TopP6CosmoMeteorLpduAi : IScenarioAi<TopP6CosmoMeteorState>
     {
         if (role == PhysRangedDps) return ClockSpot(PhysRangedDps);
         return flares.Contains(role)
-            ? OnRing(FlareCardinalsKeepingTheirClockOrderFromNorth(flares)[role], FlareRadius)
-            : OnRing(StackCardinal(flares), ClockRadius);
+            ? TopP6LpduAi.OnRing(FlareCardinalsKeepingTheirClockOrderFromNorth(flares)[role], FlareRadius)
+            : TopP6LpduAi.OnRing(StackCardinal(flares), ClockRadius);
     }
 
-    private static IAiMove MainTankInsideNorthOffTankOutsideEastTheRestInsideSouthForTheAutos()
-        => ByRole(AutoSpot);
+    private static IAiMove EveryoneUnderAlphaOmegaToBaitTheMeteorsInTheMiddle() => TopP6LpduAi.Everyone(UnderAlphaOmega);
 
-    private static IAiMove EveryoneUnderAlphaOmegaToBaitTheMeteorsInTheMiddle()
-        => ByRole(_ => UnderAlphaOmega);
+    private static IAiMove EveryoneOutToTheirMeteorClockSpotOnceTheBaitsDrop() => TopP6LpduAi.ByRole(role => ClockSpot(role));
 
-    private static IAiMove EveryoneOutToTheirMeteorClockSpotOnceTheBaitsDrop()
-        => ByRole(ClockSpot);
-
-    private static IAiMove ShieldHealerIntoTheMiddleAfterTheFirstEightSpreads()
-        => AiMove.Single(ShieldHealer, UnderAlphaOmega);
+    private static IAiMove ShieldHealerIntoTheMiddleAfterTheFirstEightSpreads() => AiMove.Single(ShieldHealer, UnderAlphaOmega);
 
     private IAiMove FlaresToTheFreeCardinalsTheRestStackWhileThePhysRangedHoldsNorth()
     {
         var flares = state.Flares.List;
-        return AiMove.Create(PerRole.All.Select(role => role == PhysRangedDps ? null : (Vector2?)FinalSpot(role, flares)).ToArray())
-                     .NaturalOrder();
+        return TopP6LpduAi.ByRole(role => role == PhysRangedDps ? null : FinalSpot(role, flares));
     }
 
     private static void PhysRangedTurnsSouthToLineUpBothMeteorsThroughAlphaOmega(SimWorld world)
     {
         if (world.Party.Get(PhysRangedDps) is { } physRanged && physRanged.IsAlive())
             physRanged.TurnTo(FacingSouth);
-    }
-
-    private static IAiMove ByRole(Func<PartyRole, Vector2> spot)
-        => AiMove.Create(PerRole.All.Select(role => (Vector2?)spot(role)).ToArray()).NaturalOrder();
-
-    private static Vector2 OnRing(float bearingDegrees, float radius)
-    {
-        var radians = bearingDegrees * MathF.PI / 180f;
-        return new Vector2(radius * MathF.Sin(radians), -radius * MathF.Cos(radians));
     }
 }

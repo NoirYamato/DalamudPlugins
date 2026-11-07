@@ -4,6 +4,7 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
+using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6WaveCannon1;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
@@ -48,7 +49,7 @@ public class TopP6WaveCannon1LpduMarginTests
     private const float HitFloor = 1f, LaserFloor = 2f;
 
     private static IEnumerable<(int First, bool Clockwise, float Step)> Patterns()
-        => from first in Enumerable.Range(0, TopP6WaveCannon1State.CompassPoints)
+        => from first in Enumerable.Range(0, TopP6UnlimitedWaveCannon.CompassPoints)
            from clockwise in new[] { true, false }
            from step in Steps
            select (first, clockwise, step);

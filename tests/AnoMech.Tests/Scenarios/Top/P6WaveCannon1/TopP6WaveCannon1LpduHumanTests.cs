@@ -61,7 +61,7 @@ public class TopP6WaveCannon1LpduHumanTests
         var tightest = new Clearances();
         var problems = new List<string>();
         var stepIndex = Array.IndexOf(Steps, step);
-        for (var first = 0; first < TopP6WaveCannon1State.CompassPoints; first++)
+        for (var first = 0; first < TopP6UnlimitedWaveCannon.CompassPoints; first++)
         {
             var clockwise = (first + (int)seat + stepIndex) % 2 == 0;
             var walk = Enum.GetValues<Walk>()[(first + (int)seat) % 3];

@@ -1,6 +1,7 @@
 using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Scenarios;
+using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6CosmoDive1;
 using static AnoMech.Core.Game.Party.PartyRole;
 
@@ -108,9 +109,9 @@ public class TopP6CosmoDive1LpduAiTests
     public void TheStratsSpotsAreLpdus()
         => Assert.Multiple(() =>
         {
-            Assert.That(TopP6CosmoDive1LpduAi.MainTankInsideNorth, Is.EqualTo(MainTankAutoSpot));
-            Assert.That(TopP6CosmoDive1LpduAi.OffTankOutsideEastFarthest, Is.EqualTo(OffTankAutoSpot));
-            Assert.That(TopP6CosmoDive1LpduAi.TheRestInsideSouth, Is.EqualTo(PartyAutoSpot));
+            Assert.That(TopP6LpduAi.MainTankInsideNorthForTheAutos, Is.EqualTo(MainTankAutoSpot));
+            Assert.That(TopP6LpduAi.OffTankOutsideEastAndFarthestForTheAutos, Is.EqualTo(OffTankAutoSpot));
+            Assert.That(TopP6LpduAi.TheRestInsideSouthForTheAutos, Is.EqualTo(PartyAutoSpot));
             Assert.That(TopP6CosmoDive1LpduAi.InFrontOfWaymarkTwo, Is.EqualTo(WaymarkTwoStack));
             Assert.That(TopP6CosmoDive1LpduAi.InTheCentreSquare, Is.EqualTo(CentreSquare));
             Assert.That(TopP6CosmoDive1LpduAi.OutOnTheCorner, Is.EqualTo(Corner));

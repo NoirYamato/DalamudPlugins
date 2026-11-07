@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Numerics;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
@@ -19,8 +18,6 @@ public sealed class TopP6WaveCannon2LpduAi : IScenarioAi<TopP6WaveCannon2State>
     private static readonly Vector2 PairStackedBackHome = new(7.3f, 7.3f);
     private static readonly Vector2 SupportSidestepTowardTheNorthSouthAxis = new(3.5f, 12f);
     private static readonly Vector2 SupportLaserSpotBesideItsCardinal = new(3.55f, 8.55f);
-    private static readonly Vector2 TankAtTheFrontOfTheLineToC = new(0f, 6.5f);
-    private static readonly Vector2 EveryoneElseBehindTheTanks = new(0f, 10.5f);
 
     public void Run(TopP6WaveCannon2State state, SimWorld world)
     {
@@ -32,7 +29,7 @@ public sealed class TopP6WaveCannon2LpduAi : IScenarioAi<TopP6WaveCannon2State>
             ai.Move(14f, () => EachPairInItsQuadrant(SupportBackOutPastHome));
             ai.Move(18f, () => EachPairInItsQuadrant(SupportSidestepTowardTheNorthSouthAxis));
             ai.Move(20f, () => EachPairInItsQuadrant(SupportLaserSpotBesideItsCardinal));
-            ai.Move(22f, LineUpInFrontOfCTanksFirst);
+            ai.Move(22f, TopP6LpduAi.LineUpInFrontOfCWithTheTanksFirst);
         }
         else
         {
@@ -40,13 +37,12 @@ public sealed class TopP6WaveCannon2LpduAi : IScenarioAi<TopP6WaveCannon2State>
             ai.Move(14f, () => EachPairInItsQuadrant(PairStackedBackHome));
             ai.Move(16f, () => EachPairInItsQuadrant(SupportSidestepTowardTheNorthSouthAxis));
             ai.Move(18f, () => EachPairInItsQuadrant(SupportLaserSpotBesideItsCardinal));
-            ai.Move(21.2f, LineUpInFrontOfCTanksFirst);
+            ai.Move(21.2f, TopP6LpduAi.LineUpInFrontOfCWithTheTanksFirst);
         }
     }
 
     private static IAiMove EachPairInItsQuadrant(Vector2 supportSpot)
-        => AiMove.Create(PerRole.All.Select(role => (Vector2?)(QuadrantSigns(role) * (role.IsDps() ? MirroredAcrossTheDiagonal(supportSpot) : supportSpot))).ToArray())
-                 .Assignments(PerRole.All);
+        => TopP6LpduAi.ByRole(role => QuadrantSigns(role) * (role.IsDps() ? MirroredAcrossTheDiagonal(supportSpot) : supportSpot));
 
     private static Vector2 MirroredAcrossTheDiagonal(Vector2 spot) => new(spot.Y, spot.X);
 
@@ -57,8 +53,4 @@ public sealed class TopP6WaveCannon2LpduAi : IScenarioAi<TopP6WaveCannon2State>
         RegenHealer or MeleeDpsA => new(-1f, 1f),
         _ => new(1f, 1f),
     };
-
-    private static IAiMove LineUpInFrontOfCTanksFirst()
-        => AiMove.Create(PerRole.All.Select(role => (Vector2?)(role.IsTank() ? TankAtTheFrontOfTheLineToC : EveryoneElseBehindTheTanks)).ToArray())
-                 .Assignments(PerRole.All);
 }

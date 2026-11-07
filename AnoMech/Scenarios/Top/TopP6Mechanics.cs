@@ -321,11 +321,21 @@ public sealed record TopP6Exasquares(bool InFirst, float CastAt)
 public sealed record TopP6UnlimitedWaveCannon(int FirstPoint, bool Clockwise, float CastAt, float ExaflareStep = P6Duration.ExaflareStep)
 {
     public const int Exaflares = 4;
+    public const int CompassPoints = 8;
+
+    // A block's roll, for its State. Both are drawn whether or not they are forced, so forcing one leaves the other as
+    // the seed had it. UNVERIFIED: that the game draws each evenly.
+    public static (int FirstPoint, bool Clockwise) Roll(Rng rng, int? firstPoint, bool? clockwise)
+    {
+        var rolledPoint = rng.Next(CompassPoints);
+        var rolledClockwise = rng.NextBool();
+        return (firstPoint ?? rolledPoint, clockwise ?? rolledClockwise);
+    }
 
     public int Turn => Clockwise ? 1 : -1;
 
     // Compass degrees of the exaflare's start, 0 north and clockwise.
-    public float Bearing(int exaflare) => ((FirstPoint + Turn * exaflare) % 8 + 8) % 8 * 45f;
+    public float Bearing(int exaflare) => ((FirstPoint + Turn * exaflare) % CompassPoints + CompassPoints) % CompassPoints * 45f;
 
     // Facing the centre from its start.
     public ExaflareLane Lane(int exaflare)
