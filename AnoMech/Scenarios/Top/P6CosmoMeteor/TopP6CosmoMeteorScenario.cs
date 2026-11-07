@@ -30,6 +30,8 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
 
     internal const string InSomeoneElsesSpread =
         "Stood in another player's Cosmo Meteor spread: four land at once and the other four a second later, twice, each on everyone within 5 y of its target";
+    internal const string ASecondSpread =
+        "Hit by two Cosmo Meteor spreads: each hits everyone within 5 y of its target and leaves a vulnerability";
     internal const string FlareInTheStack =
         "Took Cosmo Meteor's stack holding a flare: the stack lands on a player without one, and every flare must stay out of it";
     internal static readonly string TooCloseToAFlare =
@@ -113,18 +115,20 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
             add.Defeat();
     }
 
-    // UNVERIFIED: that a spread kills anyone but its target at once. In the game each hit leaves a vulnerability that
-    // makes the next one lethal (TopP6Actions.CosmoMeteorSpread), and with every player hit once a set, a second apart,
-    // a player in someone else's spread always takes a second.
+    // Decided from where everyone stands as they land, then shown. In the game each hit leaves a vulnerability that makes
+    // the next one lethal, and with every player hit once a set, a second apart, a player in someone else's spread always
+    // takes a second. UNVERIFIED: that another's spread kills at once rather than at that second hit.
     private void LandTheSpreads(PartyRole[] targets)
     {
         var hit = targets.Select(role => party.Get(role)).OfType<SimCharacter>().Where(member => member.IsAlive()).ToList();
-        var inSomeoneElses = hit.SelectMany(target => party.Find.InsideActionAoe(P6ActionId.CosmoMeteorSpread, target.Placement())
-                                                          .Where(member => member != target))
-                                .Distinct()
-                                .ToList();
-        foreach (var member in inSomeoneElses)
-            member.Die(P6ActionId.CosmoMeteorSpread, InSomeoneElsesSpread);
+        var verdicts = new Verdicts();
+        foreach (var target in hit)
+            foreach (var member in party.Find.InsideActionAoe(P6ActionId.CosmoMeteorSpread, target.Placement()))
+            {
+                if (member != target) verdicts.Kill(member, P6ActionId.CosmoMeteorSpread, InSomeoneElsesSpread);
+                else if (member.HasStatus(StatusId.MagicVulnerabilityUp)) verdicts.Kill(member, P6ActionId.CosmoMeteorSpread, ASecondSpread);
+            }
+        verdicts.Deal();
         foreach (var target in hit)
             alphaOmega.CastFromHelper(Actions.CosmoMeteorSpread, target);
     }

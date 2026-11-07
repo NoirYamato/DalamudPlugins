@@ -1,9 +1,11 @@
+using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios.Top;
 using static AnoMech.Core.Game.Party.PartyRole;
+using static AnoMech.Scenarios.Top.TopConstants;
 using static AnoMech.Scenarios.Top.TopP6Constants;
 using Actions = AnoMech.Scenarios.Top.TopP6Actions;
 
@@ -32,39 +34,23 @@ public class TopP6ActionsTests
         Assert.That(FirstDeaths(run), Is.EqualTo(new[] { (MainTank, (uint?)P6ActionId.CosmoMeteorBait) }), run.ToString);
     }
 
-    // Four spreads at 2.0, the other four at 3.0, each on its own spot.
+    // The scenario decides who a spread kills, so none kills on its own. Four land at 2.0 and the other four at 3.0; the
+    // first melee stands 3 y from the main tank, so each also takes the other's. By 2.5 the main tank's spread has left
+    // the first melee a vulnerability, and each of the first four targets has its own.
     [Test]
-    public void OneSpreadEachIsLivedThrough()
-    {
-        var run = Meteor(SpreadOut, Spreads);
-
-        Assert.That(run.Passed, run.ToString);
-    }
-
-    // The first melee stands 3 y from the main tank: each is hit by the other's spread a second after their own.
-    [Test]
-    public void StandingInAnothersSpreadKillsBoth()
+    public void TheSpreadsOnlyShowTheirHitsAndLeaveTheVulnerability()
     {
         var run = Meteor(Moved(SpreadOut, (MeleeDpsA, SpreadOut[MainTank] + new Vector2(3f, 0f))), Spreads);
 
-        Assert.That(FirstDeaths(run), Is.EquivalentTo(new[]
-        {
-            (MainTank, (uint?)P6ActionId.CosmoMeteorSpread),
-            (MeleeDpsA, (uint?)P6ActionId.CosmoMeteorSpread),
-        }), run.ToString);
-    }
-
-    // The main tank's own spreads land 4 s apart, past the vulnerability the first leaves.
-    [Test]
-    public void TheVulnerabilityWearsOffBeforeTheNextSpread()
-    {
-        var run = Meteor(SpreadOut, (alphaOmega, world) =>
-        {
-            world.Events.Add(2f, () => alphaOmega.CastFromHelper(Actions.CosmoMeteorSpread, world.Party.Get(MainTank)));
-            world.Events.Add(2f + P6Duration.SpreadVulnerability + 1f, () => alphaOmega.CastFromHelper(Actions.CosmoMeteorSpread, world.Party.Get(MainTank)));
-        });
-
+        var vulnerableAfterTheFirstFour = run.Rows
+            .Where(row => row["kind"] == "status_gain" && row["id"] == $"{StatusId.MagicVulnerabilityUp}"
+                          && float.Parse(row["t"], CultureInfo.InvariantCulture) < 2.5f)
+            .Select(row => row["actor"])
+            .Distinct();
         Assert.That(run.Passed, run.ToString);
+        Assert.That(run.Sent("ability", P6ActionId.CosmoMeteorSpread).Select(spread => spread.Hits.Count),
+                    Is.EqualTo(new[] { 2, 1, 1, 1, 2, 1, 1, 1 }), "each spread's hits, in the order they land");
+        Assert.That(vulnerableAfterTheFirstFour.Count(), Is.EqualTo(5), "the first four targets and the melee beside the main tank");
     }
 
     // The scenario decides who they kill, so neither kills on its own: R2's flare lands in a stack of four on R1, 0 y

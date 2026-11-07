@@ -150,20 +150,25 @@ public class TopP6CosmoMeteorScenarioTests
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (RegenHealer, (uint?)P6ActionId.CosmoMeteorFlare) }), run.ToString);
     }
 
-    // The same mistakes in godmode, where nobody dies: each player is reported once, for its first reason.
-    [TestCase(RegenHealer, -4f, -11f, 1)]
-    [TestCase(MainTank, 1f, -13f, 6)]
-    public void GodmodeReportsEachPlayerOnce(PartyRole player, float x, float z, int reported)
+    // The same mistakes in godmode, where nobody dies: each player is reported once, for its first reason. The off tank
+    // stands beside the main tank as both their spreads land; the main tank, hit first, steps beside M1 and takes M1's
+    // spread while still vulnerable from its own. Those runs last a second past the spread, as long as an action takes
+    // to deal its kills.
+    [TestCase(OffTank, 11.5f, -6.19f, -9.19f, 13.5f, 2)]
+    [TestCase(MainTank, 12.5f, -9.19f, 6.19f, 14.5f, 1)]
+    [TestCase(RegenHealer, 29f, -4f, -11f, 33f, 1)]
+    [TestCase(MainTank, 29f, 1f, -13f, 33f, 6)]
+    public void GodmodeReportsEachPlayerOnce(PartyRole player, float at, float x, float z, float stopAt, int reported)
     {
         IReadOnlyList<string> chat = [];
         var run = ScenarioRun.Execute(typeof(TopP6CosmoMeteorScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = player,
             GodMode = true,
-            StopAt = 33f,
+            StopAt = stopAt,
             WriteArtifactsOnFailure = false,
             Overrides = o => Pin((TopP6CosmoMeteorStateOverrides)o, PinnedFlares, PinnedStack, PinnedFirstSpreads),
-            Takeovers = [new Takeover(29f, new Vector2(x, z))],
+            Takeovers = [new Takeover(at, new Vector2(x, z))],
             Probe = p => chat = p.Chat,
         });
 
@@ -203,6 +208,26 @@ public class TopP6CosmoMeteorScenarioTests
 
         Assert.That(run.Deaths, Is.Not.Empty, run.ToString);
         Assert.That(run.Deaths[0].Cause, Does.Contain("Hit by two Cosmo Meteor spreads"), run.ToString);
+    }
+
+    // Set by hand to wear off just before the first spreads: the main tank's own lands on it harmlessly.
+    [Test]
+    public void AVulnerabilityThatHasWornOffKillsNobody()
+    {
+        var run = ScenarioRun.Execute(typeof(TopP6CosmoMeteorScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 12.5f,
+            WriteArtifactsOnFailure = false,
+            Overrides = o => Pin((TopP6CosmoMeteorStateOverrides)o, PinnedFlares, PinnedStack, PinnedFirstSpreads),
+            Probe = p =>
+            {
+                if (p.Crossed(11.9f - P6Duration.SpreadVulnerability))
+                    p.Member(MainTank)!.AddStatus(StatusId.MagicVulnerabilityUp, P6Duration.SpreadVulnerability);
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
     }
 
     [Test]

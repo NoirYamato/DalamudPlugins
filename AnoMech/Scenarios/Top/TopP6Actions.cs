@@ -11,8 +11,6 @@ namespace AnoMech.Scenarios.Top;
 // known: a hit that kills does so outright.
 public static class TopP6Actions
 {
-    private static readonly VulnSpec MagicVulns = VulnerableTo(StatusId.MagicVulnerabilityUp);
-
     private const string HitByAnExaflare = "Hit by an exaflare: each goes off on the rim, then every 8 y through the centre to the far side";
 
     // -- Cosmo Memory --
@@ -84,13 +82,13 @@ public static class TopP6Actions
         DeathExplanation = "Hit by a Cosmo Meteor puddle: one drops under every player as the cast ends and goes off 4 s later",
     };
 
+    // The scenario decides who the spreads, the stack and the flares kill; the actions only show the hits, and each
+    // spread leaves its vulnerability for the scenario to read.
     public static readonly EnemyAction CosmoMeteorSpread = new(P6ActionId.CosmoMeteorSpread)
     {
-        Effects = [Damage(MagicVulns), ApplyStatus(StatusId.MagicVulnerabilityUp, P6Duration.SpreadVulnerability)],
-        DeathExplanation = "Hit by two Cosmo Meteor spreads: each hits everyone within 5 y of its target and leaves a vulnerability",
+        Effects = [Damage(), ApplyStatus(StatusId.MagicVulnerabilityUp, P6Duration.SpreadVulnerability)],
     };
 
-    // The scenario decides who the stack and the flares kill; the actions only show the hits.
     public static readonly EnemyAction CosmoMeteorStack = new(P6ActionId.CosmoMeteorStack) { Effects = [Damage()] };
 
     public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare) { Effects = [Damage()] };
