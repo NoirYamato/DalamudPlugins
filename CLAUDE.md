@@ -30,6 +30,9 @@ NoirMech change:
     `West`, `Cardinals` and `WithEffectIndex`; the State rolls one of the four; the scenario turns the beetle, the
     Final, the eye unit and the arm units by `Turn` and, for eye S, mirrors the arms' facing with their spots; and
     the replay's `EyeSpawnIsNorth` became `EyeSpawnEffectIndex`;
+- TOP P5 Omega (below): the EU `[LPDU] Light PF` strat (`TopP5OmegaLpduAi`), listed first in `AiStrats` so EU and
+  it are the default pick; upstream's strat is index 1 and gains `Group => "NA"`, and its scenario tests pass
+  `NaStrat = 1`;
 - TOP P6 (below), in upstream's `TopZone.P6` phase:
   - the EU `[LPDU] Light PF` strat on upstream's Exasquares/WC2 (`TopP6WaveCannon2LpduAi`), listed first in
     `AiStrats` so EU and it are the default pick; upstream's strat is index 1 and gains `Group => "NA"`, and its
@@ -217,6 +220,26 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 - Not wanted: a kill for moving at the fist snapshot, keeping the Hello holders on different blue pairs, and
   renaming the settings' Close/Far.
 - Change bot movement only with `TopP5DeltaLpduHumanTests` and `TopP5DeltaLpduMarginTests` green.
+
+## TOP P5 Omega
+Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pass upstream's as `NaStrat = 1`.
+- `TopP5OmegaLpduAi` is upstream's strat written out again with its two Hello World layouts moved onto the user's
+  strategy board (its OMEGA pt 1 and pt 2 panels). Everything else is upstream's: the moves and their times, arrival
+  times and jitters, the assignment lists, the marks and their times, the opening clump and both Omega dodges.
+- First Hello World: Distant World stands south, (0.2, 10) for the monitors firing west and mirrored for east,
+  where upstream's stands north. That reflects upstream's layout north to south, with monitors 1 and 2, jumps 1
+  and 4 and jumps 2 and 3 trading places, so it resolves the same: the far jumps now go to jump 1 and then jump 4
+  (upstream's: 4, then 1), and the 0.2 still keeps the holder off the monitors' half.
+- Second Hello World: upstream's spots mirrored across the beetle's line. With the beetle north: Near (0, 10),
+  Distant (-10, 0), tethers 1 (9.5, -16.5) and 2 (-9.5, -16.5), jumps (19, 0), (4, 19), (-4, 19), (-19, 0). Every
+  jump goes to the nearest or farthest member, and the tether takers still pick up the passable Blaster tethers
+  in the middle at 48s, so the mirror resolves as upstream's spots do.
+- The board draws pt 1 with the monitors east and pt 2 with the beetle west. The strat keeps upstream's distances
+  (the user's pick); the board's own spots lie within a few degrees of them and up to about 1y closer in.
+- Upstream's dodges put the two stacks 19.7y apart when one pair is Staff and Sword and the other Staff and Shield,
+  with 3.9s between the first set's snapshot and the second's: a human who walks it must leave within about 0.9s
+  (from 1.1s it can be caught). The human suite's walkers react up to 0.9s late and its sprinter 1.2s.
+- Change bot movement only with `TopP5OmegaLpduHumanTests` and `TopP5OmegaLpduMarginTests` green.
 
 ## TOP P6
 `Scenarios/Top/P6*/` in upstream's `TopZone.P6` phase, one block per part of the fight, each on its own clock with
