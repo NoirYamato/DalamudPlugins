@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game;
-using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Multiplayer;
@@ -11,6 +10,7 @@ using AnoMech.Scenarios.Top.P6WaveCannon1;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
 using static AnoMech.Tests.TopP6WaveCannon1LpduAiTests;
+using static AnoMech.Tests.TopP6HumanWalk;
 
 namespace AnoMech.Tests;
 
@@ -32,8 +32,6 @@ public class TopP6WaveCannon1LpduHumanTests
     private static readonly float[] Steps = [1.1f, 1.0f];
     private static readonly float[] ReactionTimes = [0f, 0.3f, 0.6f];
     private const float JitterSlack = 0.5f;
-
-    public enum Walk { Straight, Curving, Sprinting }
 
     // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
     private MultiplayerManager? leftInstalled;
@@ -121,7 +119,7 @@ public class TopP6WaveCannon1LpduHumanTests
     // a walk that waits for the last one sets off no sooner than that one arrives.
     private sealed class Guide(Roll roll, float late)
     {
-        private const float RunSpeed = 6.5f, HoldOnTheFirstPuddles = 1f;
+        private const float HoldOnTheFirstPuddles = 1f;
 
         public readonly List<string> Problems = [];
         public int Legs { get; private set; }
@@ -243,28 +241,12 @@ public class TopP6WaveCannon1LpduHumanTests
                 Walks++;
                 var from = Flat(me.Position);
                 var to = next.To();
-                walking = (p.Time, [from, .. Path(from, to, p.Time)], roll.Walk == Walk.Sprinting ? AiManager.SprintSpeed : RunSpeed);
+                walking = (p.Time, [from, .. TopP6HumanWalk.Points(roll.Walk, from, to, rng, p.Time, puddles)], TopP6HumanWalk.Speed(roll.Walk));
             }
             if (walking is not { } w) return;
-            var (at, heading, arrived) = Along(w.Points, (p.Time - w.Depart) * w.Speed);
+            var (at, heading, arrived) = TopP6HumanWalk.Along(w.Points, (p.Time - w.Depart) * w.Speed);
             me.SetPosition(new Placement(new Vector3(at.X, 0f, at.Y), MathF.Atan2(heading.X, heading.Y)));
             if (arrived) walking = null;
-        }
-
-        private Vector2[] Path(Vector2 from, Vector2 to, float now)
-            => roll.Walk == Walk.Curving ? TopP6CurvingWalk.Points(from, to, now, rng, puddles) : [to];
-
-        private static (Vector2 At, Vector2 Heading, bool Arrived) Along(Vector2[] points, float walked)
-        {
-            var heading = new Vector2(0f, 1f);
-            for (var i = 1; i < points.Length; i++)
-            {
-                var leg = Vector2.Distance(points[i - 1], points[i]);
-                if (leg > 1e-4f) heading = (points[i] - points[i - 1]) / leg;
-                if (walked <= leg) return (leg < 1e-4f ? points[i] : Vector2.Lerp(points[i - 1], points[i], walked / leg), heading, false);
-                walked -= leg;
-            }
-            return (points[^1], heading, true);
         }
 
         private static float Cross(Vector2 a, Vector2 b) => a.X * b.Y - a.Y * b.X;
