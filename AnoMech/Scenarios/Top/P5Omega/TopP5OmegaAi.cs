@@ -11,6 +11,7 @@ namespace AnoMech.Scenarios.Top.P5Omega;
 public class TopP5OmegaAi : IScenarioAi<TopP5OmegaState>
 {
     public string Name => "Standard";
+    public string? Group => "NA";
 
     private TopP5OmegaState state = null!;
 

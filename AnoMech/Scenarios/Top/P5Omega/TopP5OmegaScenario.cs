@@ -35,7 +35,7 @@ public sealed class TopP5OmegaScenario : IMultiplayerReplayable
     public IReadOnlyList<string> SettingsConflicts => settingsWindow.Overrides.Validate().Problems;
     private readonly TopP5OmegaSettingsWindow settingsWindow = new();
 
-    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5OmegaAi()];
+    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5OmegaLpduAi(), new TopP5OmegaAi()];
 
     // Exposed so MultiplayerManager can read the AI-relevant subset after a host Start and
     // broadcast it -- see UmadP3BlackHoleScenario.LastState for the pattern.

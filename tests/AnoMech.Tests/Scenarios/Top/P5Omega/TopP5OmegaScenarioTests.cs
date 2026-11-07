@@ -24,10 +24,12 @@ namespace AnoMech.Tests;
 //   59.27 Near on M1 (0,10) -> RH (-4,19) and R (4,19) in either order; Far on M2 (10,0) -> MT (-19,0) -> C (19,0).
 public class TopP5OmegaScenarioTests
 {
+    private const int NaStrat = 1;
+
     private static readonly Vector2 OutsideArena = new(0, 20.5f);
 
     private static NegativeRun<TopP5OmegaScenario> Omega(PartyRole player, Action<TopP5OmegaStateOverrides>? tweak = null)
-        => Negative<TopP5OmegaScenario>(player)
+        => Negative<TopP5OmegaScenario>(player, NaStrat)
             .Overrides<TopP5OmegaStateOverrides>(o =>
             {
                 o.FirstAttackDirection = Direction.NE;
