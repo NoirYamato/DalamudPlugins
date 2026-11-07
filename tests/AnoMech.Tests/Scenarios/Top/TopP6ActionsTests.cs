@@ -67,28 +67,22 @@ public class TopP6ActionsTests
         Assert.That(run.Passed, run.ToString);
     }
 
-    [TestCase(4, true)]
-    [TestCase(5, false)]
-    public void TheStackNeedsFive(int inIt, bool theyDie)
-    {
-        var stackers = Clockwise.Take(inIt).ToList();
-        var run = Meteor(Moved(SpreadOut, stackers.Select(r => (r, new Vector2(0f, -13f))).ToArray()), (alphaOmega, world) =>
-            world.Events.Add(2f, () => alphaOmega.CastFromHelper(Actions.CosmoMeteorStack, world.Party.Get(PhysRangedDps))));
-
-        Assert.That(FirstDeaths(run).Select(d => d.Item1), theyDie ? Is.EquivalentTo(stackers) : Is.Empty, run.ToString);
-    }
-
-    // R1 holds the flare at (0, -18.5); the first melee waits 13.5 y from it, the rest stack in the south.
+    // The scenario decides who they kill, so neither kills on its own: R2's flare lands in a stack of four on R1, 0 y
+    // from three of them and within 20 y of four more.
     [Test]
-    public void AFlareSparesItsTargetAndKillsThoseTooNearIt()
+    public void TheStackAndTheFlaresOnlyShowTheirHits()
     {
-        var spots = Everyone(new Vector2(0f, 13f));
-        spots[PhysRangedDps] = new Vector2(0f, -18.5f);
-        spots[MeleeDpsA] = new Vector2(0f, -5f);
-        var run = Meteor(spots, (alphaOmega, world) =>
-            world.Events.Add(2f, () => alphaOmega.CastFromHelper(Actions.CosmoMeteorFlare, world.Party.Get(PhysRangedDps))));
+        var stackers = Clockwise.Take(4).ToList();
+        var run = Meteor(Moved(SpreadOut, stackers.Select(r => (r, new Vector2(0f, -13f))).ToArray()), (alphaOmega, world) =>
+            world.Events.Add(2f, () =>
+            {
+                alphaOmega.CastFromHelper(Actions.CosmoMeteorStack, world.Party.Get(PhysRangedDps));
+                alphaOmega.CastFromHelper(Actions.CosmoMeteorFlare, world.Party.Get(CasterDps));
+            }));
 
-        Assert.That(FirstDeaths(run), Is.EqualTo(new[] { (MeleeDpsA, (uint?)P6ActionId.CosmoMeteorFlare) }), run.ToString);
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(run.Sent("ability", P6ActionId.CosmoMeteorStack).Single().Hits, Has.Count.EqualTo(4), "the stack's hits");
+        Assert.That(run.Sent("ability", P6ActionId.CosmoMeteorFlare).Single().Hits, Has.Count.EqualTo(8), "the flare's hits");
     }
 
     [Test]

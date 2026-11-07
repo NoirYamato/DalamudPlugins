@@ -1,5 +1,4 @@
 using AnoMech.Core.EnemyActions;
-using static AnoMech.Core.EnemyActions.Distribution;
 using static AnoMech.Core.EnemyActions.EnemyActionEffects;
 using static AnoMech.Core.EnemyActions.Severity;
 using static AnoMech.Scenarios.Top.TopConstants;
@@ -91,18 +90,10 @@ public static class TopP6Actions
         DeathExplanation = "Hit by two Cosmo Meteor spreads: each hits everyone within 5 y of its target and leaves a vulnerability",
     };
 
-    public static readonly EnemyAction CosmoMeteorStack = new(P6ActionId.CosmoMeteorStack)
-    {
-        Effects = [Damage(MagicVulns, split: Stack(P6Rules.CosmoMeteorStack))],
-        DeathExplanation = "Cosmo Meteor's unmarked stack lands on a player without a flare and needs 5 to share it",
-    };
+    // The scenario decides who the stack and the flares kill; the actions only show the hits.
+    public static readonly EnemyAction CosmoMeteorStack = new(P6ActionId.CosmoMeteorStack) { Effects = [Damage()] };
 
-    // Its target only takes it; everyone else nearer than P6Geometry.FlareLethalWithin dies.
-    public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare)
-    {
-        Effects = [OnTarget(Damage()), OnOthers(Damage(split: Falloff(P6Geometry.FlareLethalWithin)))],
-        DeathExplanation = "Too close to a flare: it hits everyone, harder the nearer they stand to its target",
-    };
+    public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare) { Effects = [Damage()] };
 
     public static readonly EnemyAction CosmoMeteorEnrage = new(P6ActionId.CosmoMeteorEnrage)
     {

@@ -135,25 +135,24 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
             member.AttachLockonVfx(P6LockonId.Flare);
     }
 
-    // Decided from where everyone stands as they land, then shown; each player dies of the first reason found. A player
-    // dead since the markers fires no flare, and a dead stack target takes no stack. UNVERIFIED: every rule; the game's
-    // damage is unknown.
+    // Decided from where everyone stands as they land, then shown. A player dead since the markers fires no flare, and a
+    // dead stack target takes no stack. UNVERIFIED: every rule; the game's damage is unknown.
     private void LandTheFlaresAndTheStack()
     {
         var flares = state.Flares.List.Select(role => party.Get(role)).OfType<SimCharacter>().Where(member => member.IsAlive()).ToList();
         var stack = party.Get(state.StackTarget) is { } target && target.IsAlive() ? target : null;
         IReadOnlyList<SimCharacter> soakers = stack is null ? [] : party.Find.InsideActionAoe(P6ActionId.CosmoMeteorStack, stack.Placement());
-        var nearAFlare = flares.SelectMany(flare => party.Find.InsideCircle(flare.Position, P6Geometry.FlareLethalWithin).Where(member => member != flare))
-                               .Distinct()
-                               .ToList();
 
+        var verdicts = new Verdicts();
         foreach (var flare in flares.Where(soakers.Contains))
-            flare.Die(P6ActionId.CosmoMeteorStack, FlareInTheStack);
+            verdicts.Kill(flare, P6ActionId.CosmoMeteorStack, FlareInTheStack);
         if (stack is not null && soakers.Count < P6Rules.CosmoMeteorStack)
             foreach (var soaker in soakers)
-                soaker.Die(P6ActionId.CosmoMeteorStack, TooFewInTheStack(soakers.Count));
-        foreach (var member in nearAFlare)
-            member.Die(P6ActionId.CosmoMeteorFlare, TooCloseToAFlare);
+                verdicts.Kill(soaker, P6ActionId.CosmoMeteorStack, TooFewInTheStack(soakers.Count));
+        foreach (var flare in flares)
+            foreach (var member in party.Find.InsideCircle(flare.Position, P6Geometry.FlareLethalWithin).Where(member => member != flare))
+                verdicts.Kill(member, P6ActionId.CosmoMeteorFlare, TooCloseToAFlare);
+        verdicts.Deal();
 
         foreach (var flare in flares)
             alphaOmega.CastFromHelper(Actions.CosmoMeteorFlare, flare);

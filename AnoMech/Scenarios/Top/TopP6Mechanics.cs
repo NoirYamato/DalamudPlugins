@@ -241,23 +241,6 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             world.Events.Add(time, action, file, line);
             return true;
         });
-
-    // Decided from where everyone stands as the hits land, dealt after: each player dies of the first reason found.
-    private sealed class Verdicts
-    {
-        private readonly List<(SimCharacter Member, uint ActionId, string Why)> deaths = [];
-
-        public void Kill(SimCharacter member, uint actionId, string why)
-        {
-            if (deaths.All(death => death.Member != member)) deaths.Add((member, actionId, why));
-        }
-
-        public void Deal()
-        {
-            foreach (var (member, actionId, why) in deaths)
-                member.Die(actionId, why);
-        }
-    }
 }
 
 // One Cosmo Arrow. Each line runs the arena's width along both axes, so a spot is hit when its x or its z lies within

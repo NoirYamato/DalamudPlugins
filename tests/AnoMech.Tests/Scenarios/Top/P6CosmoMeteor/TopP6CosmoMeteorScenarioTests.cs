@@ -139,6 +139,41 @@ public class TopP6CosmoMeteorScenarioTests
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (ShieldHealer, (uint?)TheEnvironment) }), run.ToString);
     }
 
+    // H1 joins the north stack 18.2 y from the main tank's flare in the west: the flare kills H1, and the stack, five
+    // strong as it landed, kills nobody.
+    [Test]
+    public void ADeathToAFlareInsideTheStackLeavesTheOthersAlive()
+    {
+        var run = Run(RegenHealer, stopAt: 33f, new Takeover(29f, new Vector2(-4f, -11f)));
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (RegenHealer, (uint?)P6ActionId.CosmoMeteorFlare) }), run.ToString);
+    }
+
+    // The same mistakes in godmode, where nobody dies: each player is reported once, for its first reason.
+    [TestCase(RegenHealer, -4f, -11f, 1)]
+    [TestCase(MainTank, 1f, -13f, 6)]
+    public void GodmodeReportsEachPlayerOnce(PartyRole player, float x, float z, int reported)
+    {
+        IReadOnlyList<string> chat = [];
+        var run = ScenarioRun.Execute(typeof(TopP6CosmoMeteorScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = player,
+            GodMode = true,
+            StopAt = 33f,
+            WriteArtifactsOnFailure = false,
+            Overrides = o => Pin((TopP6CosmoMeteorStateOverrides)o, PinnedFlares, PinnedStack, PinnedFirstSpreads),
+            Takeovers = [new Takeover(29f, new Vector2(x, z))],
+            Probe = p => chat = p.Chat,
+        });
+
+        var reports = chat.Where(line => line.Contains(" died: ")).ToList();
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(reports, Has.Count.EqualTo(reported), () => string.Join(Environment.NewLine, reports));
+        Assert.That(reports.Select(line => line[..line.IndexOf(" died: ")]).Distinct().Count(), Is.EqualTo(reported),
+                    () => string.Join(Environment.NewLine, reports));
+    }
+
     [TestCase(8f, 0f, 0f, RegenHealer, "Cosmo Meteor puddle")]
     [TestCase(11.5f, -6.19f, -9.19f, MeleeDpsA, "another player's Cosmo Meteor spread")]
     [TestCase(23f, -7f, -17f, RegenHealer, "had 4 in it: it needs 5")]
