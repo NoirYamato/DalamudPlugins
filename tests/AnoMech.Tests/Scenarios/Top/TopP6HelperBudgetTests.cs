@@ -9,7 +9,8 @@ namespace AnoMech.Tests;
 // Each block, on its own clock, never keeps more helpers busy at once than the zone's pool will hold
 // (P6Rules.HelperPool), so no cast is ever dropped. Godmode, everyone at the centre, so every block plays to its end.
 // The busiest moment is Unlimited Wave Cannon's: two puddle sets of eight, the exaflares' 12 s casts and their later
-// explosions.
+// explosions. Cosmo Meteor casts from its scenario rather than TopP6AlphaOmega, so its scenario tests check that no
+// cast is dropped (TopP6CosmoMeteorScenarioTests.FollowsTheFightsTimeline).
 public class TopP6HelperBudgetTests
 {
     private static readonly float[] Steps = [1.1f, 1.0f];

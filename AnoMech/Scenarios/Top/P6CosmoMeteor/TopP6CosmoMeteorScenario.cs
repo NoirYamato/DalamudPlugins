@@ -12,8 +12,9 @@ using Actions = AnoMech.Scenarios.Top.TopP6Actions;
 namespace AnoMech.Scenarios.Top.P6CosmoMeteor;
 
 // From 1.9 s before Alpha Omega's Cosmo Meteor cast to the flares and the stack; Magic Number isn't played. The adds have
-// no HP: the comets die as the caster's limit break 3 lands and the meteors as the physical ranged's, whoever presses
-// them, so their enrage never comes. A mistake kills whoever made it on the spot, with the reason.
+// no HP and die when the limit breaks that kill them in the fight would land, whether or not anyone presses: the comets
+// at 13.5 (the caster's), the meteors at 24.0 (the physical ranged's), so their enrage never comes. A mistake kills
+// whoever made it on the spot, with the reason.
 public sealed class TopP6CosmoMeteorScenario : IScenario
 {
     public string Name => "Cosmo Meteor";
@@ -50,7 +51,7 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
     private readonly List<SimEnemy?> meteors = [];
     private readonly List<SimEnemy?> comets = [];
 
-    // Brilliant Dynamis gives back every bar a limit break spends, so the gauge is full all phase.
+    // Brilliant Dynamis gives back the bars each player's first limit break spends, so the block starts with the gauge full.
     public void RunInstanceEvents(SimWorld instanceWorld) => instanceWorld.Party.LimitBreak.Set(3f);
 
     public void Run(SimWorld worldParam, int? selectedAi)
@@ -76,6 +77,7 @@ public sealed class TopP6CosmoMeteorScenario : IScenario
         world.Events.Add(13.5f, () => Defeat(comets));
         world.Events.Add(18.0f, () => LandTheSpreads(state.SpreadWave(1, 0)));
         world.Events.Add(19.0f, () => LandTheSpreads(state.SpreadWave(1, 1)));
+        // UNVERIFIED: when the flare markers show.
         world.Events.Add(21.9f, MarkTheFlares);
         world.Events.Add(24.0f, () => Defeat(meteors));
         world.Events.Add(30.0f, LandTheFlaresAndTheStack);

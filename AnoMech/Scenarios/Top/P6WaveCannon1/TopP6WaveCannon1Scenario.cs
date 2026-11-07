@@ -25,7 +25,7 @@ public sealed class TopP6WaveCannon1Scenario : IScenario
     private TopP6WaveCannon1State state = null!;
     private TopP6AlphaOmega alphaOmega = null!;
 
-    // Brilliant Dynamis gives back every bar a limit break spends, so the gauge is full all phase.
+    // Brilliant Dynamis gives back the bars each player's first limit break spends, so the block starts with the gauge full.
     public void RunInstanceEvents(SimWorld instanceWorld) => instanceWorld.Party.LimitBreak.Set(3f);
 
     public void Run(SimWorld worldParam, int? selectedAi)

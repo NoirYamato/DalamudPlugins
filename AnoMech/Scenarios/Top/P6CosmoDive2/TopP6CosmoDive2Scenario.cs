@@ -17,7 +17,7 @@ public sealed class TopP6CosmoDive2Scenario : IScenario
 
     public IReadOnlyList<IScenarioAi> AiStrats => [new TopP6CosmoDive2LpduAi()];
 
-    // Brilliant Dynamis gives back every bar a limit break spends, so the gauge is full all phase.
+    // Brilliant Dynamis gives back the bars each player's first limit break spends, so the block starts with the gauge full.
     public void RunInstanceEvents(SimWorld instanceWorld) => instanceWorld.Party.LimitBreak.Set(3f);
 
     public void Run(SimWorld world, int? selectedAi)

@@ -181,7 +181,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         return new CosmoDiveTargets(byDistance.Take(2).ToList(), byDistance.Count > 2 ? byDistance[^1] : null);
     }
 
-    // UNVERIFIED: that a buster kills a non-tank it targets, or anyone else it catches.
+    // UNVERIFIED: that a buster kills a non-tank it targets, or anyone else it catches, and that the stack kills a buster
+    // target in it, or everyone in it when fewer than P6Rules.CosmoDiveStack share it.
     private void LandCosmoDive(CosmoDiveTargets targets)
     {
         var party = world.Party;

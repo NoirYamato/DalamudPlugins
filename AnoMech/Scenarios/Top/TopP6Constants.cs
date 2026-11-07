@@ -33,7 +33,7 @@ public static class TopP6Constants
 
     public static class P6LockonId
     {
-        public const uint Flare = 346;                              // the flare lands 8.1s after it
+        public const uint Flare = 346;                              // UNVERIFIED: the flare lands 8.1s after it
     }
 
     public static class P6Geometry

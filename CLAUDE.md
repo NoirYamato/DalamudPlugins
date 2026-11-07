@@ -233,26 +233,30 @@ Magic Number and the enrage aren't played; the four new blocks are party-only.
 - `TopP6AlphaOmega` spawns Alpha Omega and a pool of 36 invisible 9020 helpers; every helper cast goes through its
   `CastFromHelper`. Once upstream's zone owns a helper pool and `SimEnemy.CastFromHelper`, that method's body
   becomes `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in
-  `TopP6Constants` and stay within 36 busy helpers (`TopP6HelperBudgetTests`).
+  `TopP6Constants` and stay within 36 busy helpers (`TopP6HelperBudgetTests`; Cosmo Meteor's scenario tests check
+  its own casts).
 - UNVERIFIED in `TopP6Constants`: the exaflare step (1.1s; tests also play 1.0s), the arrows' omen delay, the
-  puddles' 2.7s blast, the adds' distances, the flare's 20y kill radius, the meteor stack's 5, the spreads' 3s
-  vulnerability, and Cosmo Dive taking its targets as it hits. In the States and scenarios: every roll's odds, the
-  adds showing at 10.1, the comets' bearings, and that the bait, Flash Gale, the busters, the spreads, the flares
-  and the stack kill as they do.
+  puddles' 2.7s blast, the adds' distances, the flare's 20y kill radius and 8.1s marker, the meteor stack's 5, the
+  spreads' 3s vulnerability, and Cosmo Dive taking its targets as it hits. In the States, scenarios and actions: the
+  odds of every roll but the flares' and the meteor stack's (the sources call those random), the adds showing at
+  10.1, the comets' bearings, the flare markers at 21.9, upstream's laser vulnerability (2.5s) and Wild Charge rules,
+  and that the bait, Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
 - Every mistake kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild Charge
-  kill through their actions, as does a second spread on a vulnerable player. The rest is decided in code from
-  where everyone stands as the hits land; those actions only show them: Flash Gale (a non-tank target, or within
-  5y of one), Cosmo Dive (a non-tank buster target, within 8y of one, one in the stack, a stack under 6), another's
-  meteor spread, and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5).
-  `Verdicts` keeps each player's first reason, so godmode reports it once.
+  kill through their actions. The rest is decided in code from where everyone stands as the hits land; those
+  actions only show them: Flash Gale (a non-tank target, or within 5y of one), Cosmo Dive (a non-tank buster target,
+  within 8y of one, one in the stack, a stack under 6), the meteor spreads (in another's, or one's own while still
+  vulnerable), and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5). `Verdicts`
+  keeps each player's first reason, so godmode reports a player once per hit.
 - Only Cosmo Memory checks a limit break, as UMAD checks its tank's: a human's tank-LB3 mitigation, only with
   "Require tank mitigation" on; the bot MT presses at 4.9. The melee (25.3, 32.0), caster (13.5) and physical
-  ranged (24.0) limit breaks are bot visuals, never checked on the human's seat; the adds die on that schedule. The
-  gauge is full from the start (in Exasquares/Dive from Cosmo Memory's cast);
-  `TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis` refills it after each press.
+  ranged (24.0) limit breaks are bot visuals, never checked on the human's seat; the adds die on that schedule
+  whether or not anyone presses. Bots press only while "Require tank mitigation" is on (upstream's rule for every
+  bot press), so with it off no limit break plays. The gauge is full from the start (in Exasquares/Dive from Cosmo
+  Memory's cast); `TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis` fills it before and after each bot press. A
+  human's own press empties it until a bot presses, though in the game Brilliant Dynamis refills each player's first.
 - No source fixes these strat values, so they are UNVERIFIED (the user's picks):
   - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), walked to at t 0 in
-    Exasquares/Dive;
+    the four new blocks;
   - Cosmo Arrow 1 side-steps south; dive tanks at r 6.5, MT toward 4 and OT toward 1 in Dive 1, a Y at the party's
     bearing + 135 (MT) and + 225 (OT) in Dive 2;
   - Unlimited Wave Cannon: a compass point per puddle at r 14. WC1 then waits at r 4 on each waymark's bearing until
