@@ -138,7 +138,7 @@ public class TopP6WaveCannon1ScenarioTests
     [TestCase(12f, 18f, 0f, MainTank, "exaflare")]
     [TestCase(11.95f, 0f, 0f, MainTank, "puddle")]
     [TestCase(27f, 5f, 0f, MainTank, "two Wave Cannon lasers")]
-    [TestCase(34f, -10.5f, 0f, RegenHealer, "7/8 players")]
+    [TestCase(34f, -10.5f, 0f, RegenHealer, "needs all eight players")]
     [TestCase(34f, 0f, 4f, RegenHealer, "tank buster")]
     [TestCase(40f, 0f, 16f, RegenHealer, "non-tank")]
     public void EveryDeathSaysWhy(float at, float x, float z, PartyRole player, string because)

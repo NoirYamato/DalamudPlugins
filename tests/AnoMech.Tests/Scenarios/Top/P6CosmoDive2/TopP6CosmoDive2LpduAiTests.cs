@@ -223,37 +223,33 @@ public class TopP6CosmoDive2LpduAiTests
     }
 
     // The arrows only show 4.5 s into each exaflare's cast, so until the second has shown (7.4) nobody may give the
-    // pattern away: the same seed's bots stand on the same spots whatever the roll, up to the move out of the middle.
+    // pattern away: the same seed's seats stand on the same spots, frame by frame, whatever the roll, up to the move
+    // out of the middle (12.9).
     [Test]
     public void NothingDependsOnTheRollBeforeTheSecondArrowShows()
     {
+        const float OutOfTheMiddle = 12.9f;
         var seed = Random.Shared.Next();
-        var seen = new List<Dictionary<PartyRole, Vector2>>();
-        foreach (var (first, clockwise) in new[] { (0, true), (5, false) })
+        var runs = new[] { (0, true), (5, false), (7, true) }.Select(pattern =>
         {
-            var positions = new Dictionary<PartyRole, Vector2>();
+            var seen = new List<Vector2>();
             var run = ScenarioRun.Execute(typeof(TopP6CosmoDive2Scenario), LpduStrat, seed, new ScenarioRunOptions
             {
                 PlayerRole = MainTank,
-                StopAt = 12.95f,
-                Overrides = o => Pin((TopP6CosmoDive2StateOverrides)o, first, clockwise, 1.1f),
+                StopAt = OutOfTheMiddle + 0.05f,
+                Overrides = o => Pin((TopP6CosmoDive2StateOverrides)o, pattern.Item1, pattern.Item2, 1.1f),
                 Probe = p =>
                 {
-                    if (p.Crossed(12.85f))
-                        foreach (var role in PerRole.All.Where(r => r != MainTank))
-                            positions[role] = Flat(p.Member(role)!.Position);
+                    if (p.Time < OutOfTheMiddle) seen.AddRange(PerRole.All.Select(r => Flat(p.Member(r)!.Position)));
                 },
             });
             Assert.That(run.Passed, run.ToString);
-            seen.Add(positions);
-        }
+            return seen;
+        }).ToList();
 
-        Assert.That(seen[0].Keys, Is.EquivalentTo(seen[1].Keys));
-        Assert.Multiple(() =>
-        {
-            foreach (var (role, at) in seen[0])
-                Assert.That(Distance(at, seen[1][role]), Is.LessThan(0.01f), $"{role} at 12.85");
-        });
+        Assert.That(runs[0], Is.Not.Empty);
+        Assert.That(runs[1], Is.EqualTo(runs[0]).Using<Vector2>((a, b) => Distance(a, b) < 0.01f), $"seed {seed}: first 5, counter-clockwise");
+        Assert.That(runs[2], Is.EqualTo(runs[0]).Using<Vector2>((a, b) => Distance(a, b) < 0.01f), $"seed {seed}: first 7, clockwise");
     }
 
     // With tank mitigation required, so bots press their buttons: M1's limit break 3 right after the Cosmo Dive bar

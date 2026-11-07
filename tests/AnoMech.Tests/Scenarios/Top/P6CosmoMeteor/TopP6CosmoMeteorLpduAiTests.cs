@@ -132,7 +132,7 @@ public class TopP6CosmoMeteorLpduAiTests
         AssertSpots(seen[at], expected, $"{stage} at {at}s (seed {run.Seed})");
     }
 
-    // The flares are what the players see at 21.9; before then nobody moves differently for them.
+    // On the meteor clock just before the flare markers (21.9), then on the flare and stack spots as they land.
     [TestCaseSource(nameof(EveryFlareCombination))]
     public void TakesTheFlareAndStackSpotsForEveryCombination(PartyRole[] flares)
     {
@@ -144,6 +144,43 @@ public class TopP6CosmoMeteorLpduAiTests
                     $"before the markers, {Describe(flares)} (seed {run.Seed})");
         AssertSpots(seen[29.9f], ExpectedFinalSpots(flares), $"as the flares land, {Describe(flares)} (seed {run.Seed})");
     }
+
+    // The flares are what the players see at 21.9; before then nobody moves differently for them. On one seed, every seat
+    // stands where it does under the other rolls, frame by frame, whoever holds the flares and the stack.
+    [Test]
+    public void NothingDependsOnTheFlaresBeforeTheMarkers()
+    {
+        const float Markers = 21.9f;
+        var seed = Random.Shared.Next();
+        (PartyRole[] Flares, PartyRole Stack)[] rolls =
+        [
+            ([CasterDps, MeleeDpsB, MainTank], ShieldHealer),
+            ([PhysRangedDps, RegenHealer, MeleeDpsB], MainTank),
+            ([ShieldHealer, OffTank, MeleeDpsA], PhysRangedDps),
+        ];
+        var runs = rolls.Select(roll =>
+        {
+            var seen = new List<Vector2>();
+            var run = ScenarioRun.Execute(typeof(TopP6CosmoMeteorScenario), LpduStrat, seed, new ScenarioRunOptions
+            {
+                PlayerRole = MainTank,
+                StopAt = Markers,
+                Overrides = o => Pin((TopP6CosmoMeteorStateOverrides)o, roll.Flares, roll.Stack),
+                Probe = p =>
+                {
+                    if (p.Time < Markers) seen.AddRange(PerRole.All.Select(r => Flat(p.Member(r)!.Position)));
+                },
+            });
+            Assert.That(run.Passed, run.ToString);
+            return seen;
+        }).ToList();
+
+        Assert.That(runs[0], Is.Not.Empty);
+        Assert.That(runs[1], Is.EqualTo(runs[0]).Using<Vector2>(Near), $"seed {seed}: {Describe(rolls[1].Flares)} against {Describe(rolls[0].Flares)}");
+        Assert.That(runs[2], Is.EqualTo(runs[0]).Using<Vector2>(Near), $"seed {seed}: {Describe(rolls[2].Flares)} against {Describe(rolls[0].Flares)}");
+    }
+
+    private static bool Near(Vector2 a, Vector2 b) => Vector2.Distance(a, b) < 0.01f;
 
     // A bot casts its limit break 3 only while tank mitigation is required; R1 turns to face Alpha Omega first, so its line
     // runs from A through both meteors.
