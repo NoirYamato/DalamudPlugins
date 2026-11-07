@@ -29,6 +29,20 @@ public class VerdictsTests
         Assert.That(aliveBetween, Is.True);
     }
 
+    // 32223, Flash Gale, has no name in the sheet.
+    [Test]
+    public void ANameStandsInForAnUnnamedAction()
+    {
+        var run = TimelineRun.Execute(world => world.Events.Add(2f, () =>
+        {
+            var verdicts = new Verdicts();
+            verdicts.Kill(world.Party.Get(MainTank)!, 32223, "why", "Flash Gale");
+            verdicts.Deal();
+        }));
+
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId, d.Cause)), Is.EqualTo(new[] { (MainTank, (uint?)32223, "Flash Gale (why)") }), run.ToString);
+    }
+
     [Test]
     public void GodmodeReportsEachPlayerOnce()
     {

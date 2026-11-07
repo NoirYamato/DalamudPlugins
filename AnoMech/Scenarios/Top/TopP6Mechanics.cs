@@ -27,6 +27,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     internal const string FlashGaleOnANonTank =
         "Took Flash Gale as a non-tank: Alpha Omega's autos hit its target and the player farthest from it, so a tank must be the farthest";
     internal const string InSomeoneElsesFlashGale = "Stood in a Flash Gale aimed at someone else: each hits everyone within 5 y of its target";
+    // The sheet leaves its row unnamed.
+    internal const string FlashGaleName = "Flash Gale";
     internal const string CosmoDiveBusterOnANonTank =
         "Took a Cosmo Dive buster as a non-tank: one lands on each of the two players closest to Alpha Omega";
     internal const string InSomeoneElsesCosmoDiveBuster =
@@ -162,10 +164,10 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             .ToList();
         var verdicts = new Verdicts();
         foreach (var target in targets.Where(target => !IsTank(target)))
-            verdicts.Kill(target, ActionId.Unknown7ddf, FlashGaleOnANonTank);
+            verdicts.Kill(target, ActionId.Unknown7ddf, FlashGaleOnANonTank, FlashGaleName);
         foreach (var target in targets)
             foreach (var other in party.Find.InsideActionAoe(ActionId.Unknown7ddf, target.Placement()).Where(hit => hit != target))
-                verdicts.Kill(other, ActionId.Unknown7ddf, InSomeoneElsesFlashGale);
+                verdicts.Kill(other, ActionId.Unknown7ddf, InSomeoneElsesFlashGale, FlashGaleName);
         verdicts.Deal();
         foreach (var target in targets)
             CastFromHelper(Actions.FlashGale, target);

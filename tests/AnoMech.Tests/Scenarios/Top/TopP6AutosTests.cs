@@ -45,6 +45,16 @@ public class TopP6AutosTests
         Assert.That(FirstDeaths(run), Is.EqualTo(new[] { (RegenHealer, TopP6AlphaOmega.FlashGaleOnANonTank) }), run.ToString);
     }
 
+    // Its row in the sheet has no name, so the death names it.
+    [Test]
+    public void EachDeathNamesFlashGale()
+    {
+        var run = Autos((1.5f, RegenHealer, new Vector2(0f, 18f)), (1.5f, MeleeDpsA, new Vector2(2f, -5f)));
+
+        Assert.That(run.Deaths, Has.Count.EqualTo(2), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Cause), Has.All.StartsWith("Flash Gale ("), run.ToString);
+    }
+
     [Test]
     public void StandingInTheMainTanksFlashGaleKills()
     {
