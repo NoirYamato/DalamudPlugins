@@ -236,6 +236,9 @@ Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pas
   in the middle at 48s, so the mirror resolves as upstream's spots do.
 - The board draws pt 1 with the monitors east and pt 2 with the beetle west. The strat keeps upstream's distances
   (the user's pick); the board's own spots lie within a few degrees of them and up to about 1y closer in.
+- Upstream's dodges put the two stacks 19.7y apart when one pair is Staff and Sword and the other Staff and Shield,
+  with 3.9s between the first set's snapshot and the second's: a human who walks it must leave within about 0.9s
+  (from 1.1s it can be caught). The human suite's walkers react up to 0.9s late and its sprinter 1.2s.
 - Change bot movement only with `TopP5OmegaLpduHumanTests` and `TopP5OmegaLpduMarginTests` green.
 
 ## TOP P6
