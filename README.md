@@ -2,7 +2,7 @@
 
 Custom Dalamud plugin repository for **NoirMech**, a modified version of
 [AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4, P5
-Delta and P6, and a pause.
+Delta, P5 Omega and P6, and a pause.
 Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
 
 ## Install
@@ -51,6 +51,10 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   the Near World player and a cross (+) on the Distant World player. The eye spawns on any cardinal, not just
   north or south, and in multiplayer everyone's tether, monitor and Hello World choices are honoured more
   reliably.
+- **TOP P5 Omega:** an `[LPDU] Light PF` strat under the **EU** button, with the Hello World layout of
+  [Tessan's visual guide](https://youtu.be/qNdjZOgCU1I?t=2310). It is the default; NA pf is still under the
+  **NA** button. Distant World stands south in the first Hello World, and the second Hello World's layout is
+  the NA one mirrored across the beetle's line. The dodges and timings are the NA strat's.
 - **TOP P6:** an `[LPDU] Light PF` strat for Exasquares/WC2 under the **EU** button, following the
   [LPDU P6 raidplan](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk). It is the default; NA pf is still under the
   **NA** button. Four new scenarios, each with an LPDU strat, cover the rest of the phase up to Magic Number:
