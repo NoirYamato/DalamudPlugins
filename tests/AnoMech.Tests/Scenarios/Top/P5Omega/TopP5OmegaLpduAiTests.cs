@@ -12,9 +12,9 @@ using static AnoMech.Scenarios.Top.TopConstants;
 
 namespace AnoMech.Tests;
 
-// The LPDU strat (x east, z south) is upstream's with two spots moved onto the strategy board's OMEGA pt 1 and pt 2
-// panels. Each Hello World lines up in its own order: Near World, Distant World, the monitors (first) or the Blaster
-// tethers (second), then jumps 1-4; the automarkers sign them Triangle, Cross, Bind 1-2 and Attack 1-4.
+// The LPDU strat (x east, z south) is upstream's with both Hello World layouts moved onto the strategy board's OMEGA
+// pt 1 and pt 2 panels. Each Hello World lines up in its own order: Near World, Distant World, the monitors (first)
+// or the Blaster tethers (second), then jumps 1-4; the automarkers sign them Triangle, Cross, Bind 1-2 and Attack 1-4.
 //
 //   0, 20, 24  upstream's opening clump and both Omega dodges; 62 the clump again.
 //   28, 47     upstream's marks for each Hello World.

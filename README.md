@@ -85,7 +85,7 @@ All using default NA pf strats unless noted otherwise:
     - P5 Sigma
     - P5 Omega
       - EU (default)
-        - [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1)
+        - [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1), with the Hello World layout of [Tessan's visual guide](https://youtu.be/qNdjZOgCU1I?t=2310)
       - NA pf
     - P6 Exasquares/Dive _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)
     - P6 Exaflares/WC1 _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk)

@@ -223,9 +223,9 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 
 ## TOP P5 Omega
 Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pass upstream's as `NaStrat = 1`.
-- `TopP5OmegaLpduAi` is upstream's strat written out again with two spots moved onto the user's strategy board
-  (its OMEGA pt 1 and pt 2 panels). Everything else is upstream's: the moves and their times, arrival times and
-  jitters, the assignment lists, the marks and their times, the opening clump and both Omega dodges.
+- `TopP5OmegaLpduAi` is upstream's strat written out again with its two Hello World layouts moved onto the user's
+  strategy board (its OMEGA pt 1 and pt 2 panels). Everything else is upstream's: the moves and their times, arrival
+  times and jitters, the assignment lists, the marks and their times, the opening clump and both Omega dodges.
 - First Hello World: Distant World stands south, (0.2, 10) for the monitors firing west and mirrored for east,
   where upstream's stands north. That reflects upstream's layout north to south, with monitors 1 and 2, jumps 1
   and 4 and jumps 2 and 3 trading places, so it resolves the same: the far jumps now go to jump 1 and then jump 4

@@ -27,7 +27,7 @@ namespace AnoMech.Tests;
 //   the second Hello World's last jumps: the opening clump again.
 // Whatever its seat, its job in each Hello World, the Omega pairs, the cannons, the monitors' half, the beetle, its walk
 // and its reaction time, nobody may die, both Hello Worlds, the monitors and the Blasters go where the strat sends them,
-// and the human keeps the slack the margin tests ask of the bots from every hit it dodges.
+// and the human keeps more than 0.5 y from every hit it dodges.
 public class TopP5OmegaLpduHumanTests
 {
     // Staff and Sword against Staff and Shield puts the two stacks 17 y and 10 y out on cardinals a quarter apart, 19.7 y
