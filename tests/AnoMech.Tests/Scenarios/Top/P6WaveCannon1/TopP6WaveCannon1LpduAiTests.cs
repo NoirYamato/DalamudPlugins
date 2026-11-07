@@ -11,7 +11,8 @@ namespace AnoMech.Tests;
 // exaflare's compass point, s +1 when the others follow it clockwise, -1 counter-clockwise.
 //
 //    0.0  the autos' spots: MT (0, -5) inside north, OT (14.5, 0) outside east, the rest (0, 6) inside south.
-//    2.0  everyone out of the hitbox south, (0, 14), to read the arrows (shown from 6.4 and 7.4).
+//    2.0  out of the hitbox to read the arrows (shown from 6.4 and 7.4): MT north (0, -14), the rest south (0, 14);
+//         the OT is out already.
 //    8.0  everyone in the middle for the first puddle set (11.9).
 //   12.9  r 14 at θ0 - 45s, beside the first exaflare and away from the second; 16.2 on to θ0, 17.9 θ0 + 45s,
 //         19.8 θ0 + 90s: a compass point per puddle, behind the exaflares.
@@ -49,7 +50,8 @@ public class TopP6WaveCannon1LpduAiTests
         [MeleeDpsB] = new(0f, 10.5f), [PhysRangedDps] = new(0f, 10.5f), [CasterDps] = new(0f, 10.5f),
     };
 
-    internal static readonly Vector2 OutsideTheHitboxSouth = new(0f, 14f);
+    internal static readonly Dictionary<PartyRole, Vector2> OutsideTheHitbox =
+        PerRole.All.ToDictionary(r => r, r => r switch { MainTank => new Vector2(0f, -14f), OffTank => new Vector2(14.5f, 0f), _ => new Vector2(0f, 14f) });
 
     // Waymark bearing, r 4: the wait clear of the last two puddles.
     internal static Vector2 InsideTheLastPuddles(PartyRole role) => SpreadSpots[role] * (4f / 10.5f);
@@ -69,6 +71,7 @@ public class TopP6WaveCannon1LpduAiTests
             foreach (var role in PerRole.All)
             {
                 Assert.That(TopP6LpduAi.AutoSpot(role), Is.EqualTo(AutoSpots[role]).Using<Vector2>(Near), $"{role} autos");
+                Assert.That(TopP6LpduAi.OutsideTheHitboxToReadTheArrows(role), Is.EqualTo(OutsideTheHitbox[role]).Using<Vector2>(Near), $"{role} arrows");
                 Assert.That(TopP6WaveCannon1LpduAi.SpreadSpot(role), Is.EqualTo(SpreadSpots[role]).Using<Vector2>(Near), $"{role} spread");
                 Assert.That(TopP6WaveCannon1LpduAi.InsideTheLastPuddles(role), Is.EqualTo(InsideTheLastPuddles(role)).Using<Vector2>(Near), $"{role} wait");
                 Assert.That(TopP6LpduAi.WildChargeLineSpot(role), Is.EqualTo(WildChargeLine[role]).Using<Vector2>(Near), $"{role} Wild Charge");
@@ -111,7 +114,7 @@ public class TopP6WaveCannon1LpduAiTests
         // (from, until, spots): each stage's move, the next one.
         var stages = new (float From, float Until, Func<PartyRole, Vector2> Spot, string Name)[]
         {
-            (2f, 8f, _ => OutsideTheHitboxSouth, "out of the hitbox south"),
+            (2f, 8f, r => OutsideTheHitbox[r], "out of the hitbox"),
             (8f, 12.9f, _ => Vector2.Zero, "the middle"),
             (12.9f, 16.2f, _ => OnThePath(first, clockwise, -1), "the start"),
             (16.2f, 17.9f, _ => OnThePath(first, clockwise, 0), "the first exaflare's point"),
@@ -147,7 +150,7 @@ public class TopP6WaveCannon1LpduAiTests
     }
 
     // Held on each spot from the time it arrives to the next move.
-    [TestCase(7.9f, "out of the hitbox south")]
+    [TestCase(7.9f, "out of the hitbox")]
     [TestCase(12.8f, "the middle")]
     [TestCase(16.1f, "the start")]
     [TestCase(19.75f, "the second exaflare's point")]
@@ -163,7 +166,7 @@ public class TopP6WaveCannon1LpduAiTests
         const bool clockwise = false;
         var expected = at switch
         {
-            < 8f => PerRole.All.ToDictionary(r => r, _ => OutsideTheHitboxSouth),
+            < 8f => OutsideTheHitbox,
             < 12.9f => PerRole.All.ToDictionary(r => r, _ => Vector2.Zero),
             < 16.2f => PerRole.All.ToDictionary(r => r, _ => OnThePath(first, clockwise, -1)),
             < 21.6f => PerRole.All.ToDictionary(r => r, _ => OnThePath(first, clockwise, 1)),

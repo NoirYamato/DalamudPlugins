@@ -9,14 +9,13 @@ using static AnoMech.Core.Game.Party.PartyRole;
 namespace AnoMech.Tests;
 
 // LPDU's spots (x east, z south; bearings clockwise from north). θ0 is the first exaflare's compass point, s = +1
-// when the other three follow it clockwise and -1 counter-clockwise. Every dodge spot is on r 14 but the first, r 14.5:
-// the second puddles drop on the way out to it, about r 5, and its walk on to θ0 passes them as they go off; half a
-// yalm further out keeps a human who sets off as the first exaflare passes clear of its own.
+// when the other three follow it clockwise and -1 counter-clockwise. Every dodge spot is on r 14. Up to the hold the
+// bots play Unlimited Wave Cannon as Exaflares/WC1's do.
 //
-//    0.5  MT inside north (0, -5), OT outside east (14.5, 0), the rest inside south (0, 6).
+//    0.0  MT inside north (0, -5), OT outside east (14.5, 0), the rest inside south (0, 6).
 //    2.0  Unlimited Wave Cannon's cast (1.9): out of the hitbox to watch the arrows, MT (0, -14), the rest (0, 14);
 //         the OT is out already.
-//    7.5  the second arrow is up (7.4): everyone into the middle, where the first puddles drop (11.9).
+//    8.0  the second arrow has shown (7.4): everyone into the middle, where the first puddles drop (11.9).
 //   12.9  out to θ0 - 45s, beside the first exaflare away from the second; the second puddles drop on the way (13.7).
 //   16.2  the first exaflare has gone past at r 8 (16.1 with a 1.1 s step): on to θ0. Puddles 3-6 drop at 15.6, 17.5,
 //         19.4 and 21.4.
@@ -33,7 +32,7 @@ public class TopP6CosmoDive2LpduAiTests
     internal const int LpduStrat = 0;
     internal const float UnlimitedWaveCannonAt = 1.9f;
     internal const float RunSpeed = 6.5f;
-    internal const float FollowRadius = 14f, StartRadius = 14.5f, TankRadius = 6.5f;
+    internal const float FollowRadius = 14f, TankRadius = 6.5f;
     private const float Jitter = 0.3f;
     private const float Tolerance = 0.45f;
 
@@ -53,7 +52,7 @@ public class TopP6CosmoDive2LpduAiTests
     internal static readonly Dictionary<PartyRole, Vector2> AutoSpotsAfterTheDive =
         PerRole.All.ToDictionary(r => r, r => r switch { MainTank => new Vector2(0f, -7f), MeleeDpsB => Vector2.Zero, _ => AutoSpots[r] });
 
-    internal static readonly float[] MovesAt = [0.5f, 2f, 7.5f, 12.9f, 16.2f, 17.9f, 19.8f, 21.5f, 28f];
+    internal static readonly float[] MovesAt = [0f, 2f, 8f, 12.9f, 16.2f, 17.9f, 19.8f, 21.5f, 28f];
 
     // Read off the scenario's own exaflares: the k-th starts on wave.Bearing(k).
     internal static TopP6UnlimitedWaveCannon Wave(int first, bool clockwise, float step = 1.1f)
@@ -61,7 +60,7 @@ public class TopP6CosmoDive2LpduAiTests
 
     internal static Vector2 OnTheDodgeRing(float bearing) => Flat(TopP6AlphaOmega.AtBearing(bearing, FollowRadius));
 
-    internal static Vector2 StartPoint(TopP6UnlimitedWaveCannon wave) => Flat(TopP6AlphaOmega.AtBearing(wave.Bearing(0) - 45f * wave.Turn, StartRadius));
+    internal static Vector2 StartPoint(TopP6UnlimitedWaveCannon wave) => Flat(TopP6AlphaOmega.AtBearing(wave.Bearing(0) - 45f * wave.Turn, FollowRadius));
 
     // Each move's spot for every seat, written from the rule.
     internal static Dictionary<PartyRole, Vector2> Expected(float move, int first, bool clockwise)
@@ -71,10 +70,10 @@ public class TopP6CosmoDive2LpduAiTests
         Dictionary<PartyRole, Vector2> Everyone(Vector2 spot) => PerRole.All.ToDictionary(r => r, _ => spot);
         return move switch
         {
-            0.5f => AutoSpots,
+            0f => AutoSpots,
             28f => AutoSpotsAfterTheDive,
             2f => SteppedOut,
-            7.5f => Everyone(Vector2.Zero),
+            8f => Everyone(Vector2.Zero),
             12.9f => Everyone(StartPoint(wave)),
             16.2f => Everyone(OnTheDodgeRing(wave.Bearing(0))),
             17.9f => Everyone(OnTheDodgeRing(wave.Bearing(1))),
@@ -102,7 +101,7 @@ public class TopP6CosmoDive2LpduAiTests
             Assert.That(Distance(TopP6CosmoDive2LpduAi.PartyDiveHold(state), new Vector2(holdX, holdZ)), Is.LessThan(0.01f), "hold");
             Assert.That(Distance(TopP6CosmoDive2LpduAi.MainTankDiveSpot(state), new Vector2(mtX, mtZ)), Is.LessThan(0.01f), "MT");
             Assert.That(Distance(TopP6CosmoDive2LpduAi.OffTankDiveSpot(state), new Vector2(otX, otZ)), Is.LessThan(0.01f), "OT");
-            Assert.That(Distance(StratsStartPoint(first, clockwise), Flat(TopP6AlphaOmega.AtBearing(start, StartRadius))),
+            Assert.That(Distance(StratsStartPoint(first, clockwise), Flat(TopP6AlphaOmega.AtBearing(start, FollowRadius))),
                         Is.LessThan(0.01f), "start");
         });
     }
@@ -197,7 +196,7 @@ public class TopP6CosmoDive2LpduAiTests
     // Settled: before the first exaflare arrow, in the middle, at the start point, at the dive, as M2 fires its limit
     // break and at the autos.
     [TestCase(6.0f, 2f)]
-    [TestCase(11.8f, 7.5f)]
+    [TestCase(11.8f, 8f)]
     [TestCase(16.1f, 12.9f)]
     [TestCase(27.5f, 21.5f)]
     [TestCase(32.0f, 28f)]
@@ -310,9 +309,9 @@ public class TopP6CosmoDive2LpduAiTests
     internal static TopP6CosmoDive2State State(int first, bool clockwise)
         => new(new Rng(1), new TopP6CosmoDive2StateOverrides { FirstExaflare = first, Clockwise = clockwise });
 
-    // Where the strat starts the dodge: the shared path's point beside the first exaflare, at the strat's start radius.
+    // Where the strat starts the dodge: the shared path's point beside the first exaflare.
     private static Vector2 StratsStartPoint(int first, bool clockwise)
-        => TopP6LpduAi.OnTheExaflarePath(first, clockwise, TopP6LpduAi.BesideTheFirstExaflareAwayFromTheSecond, TopP6CosmoDive2LpduAi.StartPointRadius);
+        => TopP6LpduAi.OnTheExaflarePath(first, clockwise, TopP6LpduAi.BesideTheFirstExaflareAwayFromTheSecond);
 
     // Positive when `spot` is left of the line through the centre along `facing`.
     private static float LeftOf(Vector2 facing, Vector2 spot) => facing.Y * spot.X - facing.X * spot.Y;

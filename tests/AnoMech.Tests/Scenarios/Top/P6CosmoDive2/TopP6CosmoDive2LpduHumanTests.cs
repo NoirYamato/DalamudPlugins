@@ -16,7 +16,8 @@ namespace AnoMech.Tests;
 // The sunny-day soak drives the player's seat with the bots' own AI. Here the seat is a human who plays LPDU from what a
 // player can see: Unlimited Wave Cannon's cast bar, the first two arrows (each shows 4.5 s into its exaflare's cast),
 // the puddles dropping under everyone, the first exaflare going off and the dive's hits. At each cue it walks to its next
-// spot a fixed reaction time late, straight, curving or sprinting, and never steps round anyone:
+// spot a fixed reaction time late, straight, curving (never toward a puddle's circle it can see) or sprinting, and never
+// steps round anyone:
 //   the run's start: to its auto spot; the cast bar: out of the hitbox (the MT north, the rest south; the OT is out);
 //   the second arrow: into the middle; the first puddles, then a beat: beside the first exaflare, away from the second;
 //   the first exaflare going off at r 8: onto its point; puddles 4 and 5: on round to the second and the third
@@ -116,7 +117,6 @@ public class TopP6CosmoDive2LpduHumanTests
     private sealed class Guide(PartyRole seat, float late, Walk walk, int seed)
     {
         private const float CentreBeat = 1f;
-        private const float LeastCurve = 1f, MostCurve = 2f;
         private static readonly Vector3 Origin = new(100f, 0f, 100f);
 
         public int? FirstRead { get; private set; }
@@ -130,6 +130,7 @@ public class TopP6CosmoDive2LpduHumanTests
         private (float Depart, Vector2[] Points, float Speed)? walking;
         private readonly List<(float At, Vector2 Spot)> arrows = [];
         private readonly List<float> puddleDrops = [];
+        private readonly List<(float Dropped, Vector2 At)> puddles = [];
         private float? waveCannonCast, firstExaflarePast, diveHits;
         private int rowsRead;
 
@@ -158,8 +159,9 @@ public class TopP6CosmoDive2LpduHumanTests
                     case ("cast", ActionId.WaveCannon_7BAD):
                         arrows.Add((t + Float(row["omen_delay"]), Local(row)));
                         break;
-                    case ("cast", ActionId.WaveCannon_7BAF) when puddleDrops.Count == 0 || t - puddleDrops[^1] > 0.5f:
-                        puddleDrops.Add(t);
+                    case ("cast", ActionId.WaveCannon_7BAF):
+                        puddles.Add((t, Local(row)));
+                        if (puddleDrops.Count == 0 || t - puddleDrops[^1] > 0.5f) puddleDrops.Add(t);
                         break;
                     case ("ability", ActionId.WaveCannon_7BAE) when FirstRead is { } firstPoint
                                                                     && Vector2.Distance(Local(row), OnRing(45f * firstPoint, 8f)) < 1f:
@@ -189,7 +191,7 @@ public class TopP6CosmoDive2LpduHumanTests
             yield return (() => 0f, () => AutoSpots[seat]);
             yield return (() => waveCannonCast, () => SteppedOut[seat]);
             yield return (() => arrows.Count >= 2 ? arrows[1].At : null, () => Vector2.Zero);
-            yield return (() => PuddleDrop(0) + CentreBeat, () => OnRing(Bearing(-1), StartRadius));
+            yield return (() => PuddleDrop(0) + CentreBeat, () => OnRing(Bearing(-1), FollowRadius));
             yield return (() => firstExaflarePast, () => OnRing(Bearing(0), FollowRadius));
             yield return (() => PuddleDrop(3), () => OnRing(Bearing(1), FollowRadius));
             yield return (() => PuddleDrop(4), () => OnRing(Bearing(2), FollowRadius));
@@ -217,7 +219,7 @@ public class TopP6CosmoDive2LpduHumanTests
                 var to = Route[next++].To();
                 Walks++;
                 var from = Flat(me.Position);
-                walking = (p.Time, [from, .. Curve(from, to)], walk == Walk.Sprinting ? AiManager.SprintSpeed : TopP6CosmoDive2LpduAiTests.RunSpeed);
+                walking = (p.Time, [from, .. Path(from, to, p.Time)], walk == Walk.Sprinting ? AiManager.SprintSpeed : TopP6CosmoDive2LpduAiTests.RunSpeed);
             }
             if (walking is not { } w) return;
             var (at, heading, arrived) = Along(w.Points, (p.Time - w.Depart) * w.Speed);
@@ -225,15 +227,8 @@ public class TopP6CosmoDive2LpduHumanTests
             if (arrived) walking = null;
         }
 
-        // A curving walk bulges one to two yalms off the straight line, to a random side.
-        private Vector2[] Curve(Vector2 from, Vector2 to)
-        {
-            var length = Vector2.Distance(from, to);
-            if (walk != Walk.Curving || length <= 1f) return [to];
-            var bulge = Math.Min(LeastCurve + (MostCurve - LeastCurve) * (float)rng.NextDouble(), length / 4f);
-            var normal = new Vector2(-(to - from).Y, (to - from).X) / length * (rng.Next(2) == 0 ? -1f : 1f);
-            return [.. Enumerable.Range(1, 16).Select(i => i / 16f).Select(u => from + (to - from) * u + normal * (bulge * 4f * u * (1f - u)))];
-        }
+        private Vector2[] Path(Vector2 from, Vector2 to, float now)
+            => walk == Walk.Curving ? TopP6CurvingWalk.Points(from, to, now, rng, puddles) : [to];
 
         private static (Vector2 At, Vector2 Heading, bool Arrived) Along(Vector2[] points, float walked)
         {
@@ -277,7 +272,7 @@ public class TopP6CosmoDive2LpduHumanTests
                 if (!seen.Add((p.Time, hit.ActionId, hit.Source.Position))) return;
                 var on = Vector2.Distance(Flat(hit.Source.Position), Flat(me.Position)) < 0.01f;
                 var clearance = hit.SignedDistance(me.Position) ?? float.NaN;
-                var where = $"t={p.Time.ToString("F2", CultureInfo.InvariantCulture)} {playing}";
+                var where = $"t={p.Time.ToString("F2", CultureInfo.InvariantCulture)} at {Describe(Flat(me.Position))} from {Describe(Flat(hit.Source.Position))}, {playing}";
                 switch (hit.ActionId)
                 {
                     case ActionId.WaveCannon_7BAD or ActionId.WaveCannon_7BAE: Note("an exaflare", clearance, where); break;
@@ -295,6 +290,9 @@ public class TopP6CosmoDive2LpduHumanTests
             if (tightest.TryGetValue(name, out var before) && before.Clearance <= clearance) return;
             tightest[name] = (clearance, where);
         }
+
+        private static string Describe(Vector2 at)
+            => $"({at.X.ToString("F1", CultureInfo.InvariantCulture)}, {at.Y.ToString("F1", CultureInfo.InvariantCulture)})";
 
         public IEnumerable<string> Within(float slack)
             => tightest.Where(t => !(t.Value.Clearance > slack))

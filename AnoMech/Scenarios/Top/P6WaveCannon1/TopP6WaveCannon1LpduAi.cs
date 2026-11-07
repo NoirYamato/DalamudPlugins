@@ -16,9 +16,6 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     internal const float InsideTheLastPuddlesRadius = 4f;
     internal const float SpreadRadius = 10.5f;
 
-    internal static readonly Vector2 OutsideTheHitboxSouth = new(0f, 14f);
-    internal static readonly Vector2 TheMiddle = Vector2.Zero;
-
     internal static readonly IReadOnlyDictionary<PartyRole, float> WaymarkBearing = new Dictionary<PartyRole, float>
     {
         [MainTank] = 0f, [CasterDps] = 45f, [OffTank] = 90f, [MeleeDpsB] = 135f,
@@ -29,8 +26,7 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     {
         var ai = new AiManager(world);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        ai.Move(2f, StepOutOfTheHitboxSouthToReadTheArrows);
-        ai.Move(8f, StackInTheMiddleForTheFirstPuddle);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, TheFirstExaflareGoesOff);
         TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, TheFirstExaflareGoesOff, state.FirstExaflare, state.Clockwise);
         ai.Move(21.6f, InTowardTheirWaymarkClearOfTheLastPuddles);
         ai.Move(24.7f, OutToTheirWaveCannonSpreadOnceTheLastPuddleIsGone);
@@ -41,10 +37,6 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     internal static Vector2 InsideTheLastPuddles(PartyRole role) => TopP6LpduAi.OnRing(WaymarkBearing[role], InsideTheLastPuddlesRadius);
 
     internal static Vector2 SpreadSpot(PartyRole role) => TopP6LpduAi.OnRing(WaymarkBearing[role], SpreadRadius);
-
-    private static IAiMove StepOutOfTheHitboxSouthToReadTheArrows() => TopP6LpduAi.Everyone(OutsideTheHitboxSouth);
-
-    private static IAiMove StackInTheMiddleForTheFirstPuddle() => TopP6LpduAi.Everyone(TheMiddle);
 
     private static IAiMove InTowardTheirWaymarkClearOfTheLastPuddles() => TopP6LpduAi.ByRole(role => InsideTheLastPuddles(role));
 

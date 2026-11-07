@@ -19,7 +19,8 @@ namespace AnoMech.Tests;
 // explosions, the lasers and the Wild Charge. It reads the first exaflare's point and the way the others turn from the
 // first two arrows, and at each cue walks to its next LPDU spot a fixed reaction time late, straight, curving (never
 // toward a puddle's circle it can see) or sprinting, never stepping round anyone:
-//   Unlimited Wave Cannon's cast: out of the hitbox south; the second arrow: the middle;
+//   Unlimited Wave Cannon's cast: out of the hitbox (the MT north, the rest south; the OT is out); the second arrow:
+//   the middle;
 //   a second after the first puddles drop: the start, beside the first exaflare away from the second;
 //   the first exaflare's explosion 8 y out: on to its point; the fourth and the fifth puddles: on to the next point,
 //   once at the last one; the sixth puddles: in to r 4 on its waymark; their blast: out to its Wave Cannon spot;
@@ -120,10 +121,7 @@ public class TopP6WaveCannon1LpduHumanTests
     // a walk that waits for the last one sets off no sooner than that one arrives.
     private sealed class Guide(Roll roll, float late)
     {
-        private const float RunSpeed = 6.5f, HoldOnTheFirstPuddles = 1f, LeastCurve = 1f, MostCurve = 2f;
-
-        // A puddle's circle shows from its drop until it goes off; a human curving past one bulges away from it.
-        private const float PuddleShownFor = 3f, PuddleRadius = 6f, CurveAwayWithin = 2f;
+        private const float RunSpeed = 6.5f, HoldOnTheFirstPuddles = 1f;
 
         public readonly List<string> Problems = [];
         public int Legs { get; private set; }
@@ -133,7 +131,7 @@ public class TopP6WaveCannon1LpduHumanTests
         private readonly Queue<(float Depart, Func<Vector2> To, bool AfterTheLast)> legs = new();
         private (float Depart, Vector2[] Points, float Speed)? walking;
         private readonly List<(float Shown, Vector2 At)> arrows = [];
-        private readonly List<(float Until, Vector2 At)> livePuddles = [];
+        private readonly List<(float Dropped, Vector2 At)> puddles = [];
         private int rowsRead, puddleSets, puddleBlasts, laserSets;
         private float lastPuddleSet = float.NegativeInfinity, lastPuddleBlast = float.NegativeInfinity, lastLasers = float.NegativeInfinity;
         private bool started, inTheMiddle, followedTheFirst;
@@ -176,13 +174,13 @@ public class TopP6WaveCannon1LpduHumanTests
                 switch (row["kind"], id)
                 {
                     case ("cast", ActionId.UnlimitedWaveCannon):
-                        Queue(t, () => OutsideTheHitboxSouth);
+                        Queue(t, () => OutsideTheHitbox[roll.Seat]);
                         break;
                     case ("cast", ActionId.WaveCannon_7BAD):
                         arrows.Add((t + Float(row["omen_delay"]), Local(row)));
                         break;
                     case ("cast", ActionId.WaveCannon_7BAF):
-                        livePuddles.Add((t + PuddleShownFor, Local(row)));
+                        puddles.Add((t, Local(row)));
                         if (FirstOfARound(ref lastPuddleSet, t)) OnAPuddleSet(t, ++puddleSets);
                         break;
                     case ("ability", ActionId.WaveCannon_7BAF) when FirstOfARound(ref lastPuddleBlast, t) && ++puddleBlasts == 6:
@@ -245,7 +243,7 @@ public class TopP6WaveCannon1LpduHumanTests
                 Walks++;
                 var from = Flat(me.Position);
                 var to = next.To();
-                walking = (p.Time, [from, .. Curve(from, to, p.Time)], roll.Walk == Walk.Sprinting ? AiManager.SprintSpeed : RunSpeed);
+                walking = (p.Time, [from, .. Path(from, to, p.Time)], roll.Walk == Walk.Sprinting ? AiManager.SprintSpeed : RunSpeed);
             }
             if (walking is not { } w) return;
             var (at, heading, arrived) = Along(w.Points, (p.Time - w.Depart) * w.Speed);
@@ -253,26 +251,8 @@ public class TopP6WaveCannon1LpduHumanTests
             if (arrived) walking = null;
         }
 
-        // A curving walk bulges one to two yalms off its line, to either side, but not toward a puddle it can see.
-        private Vector2[] Curve(Vector2 from, Vector2 to, float now)
-        {
-            var length = Vector2.Distance(from, to);
-            if (roll.Walk != Walk.Curving || length <= 1f) return [to];
-            var bulge = Math.Min(LeastCurve + (MostCurve - LeastCurve) * (float)rng.NextDouble(), length / 4f);
-            var normal = new Vector2(-(to - from).Y, (to - from).X) / length * (rng.Next(2) == 0 ? -1f : 1f);
-            var middle = (from + to) / 2f;
-            var bulgingThisWay = ToTheNearestPuddleAhead(middle + normal * bulge, from, now);
-            if (bulgingThisWay < PuddleRadius + CurveAwayWithin && ToTheNearestPuddleAhead(middle - normal * bulge, from, now) > bulgingThisWay)
-                normal = -normal;
-            return [.. Enumerable.Range(1, 16).Select(i => i / 16f).Select(u => from + (to - from) * u + normal * (bulge * 4f * u * (1f - u)))];
-        }
-
-        // The puddles a walk starts in are the ones it leaves.
-        private float ToTheNearestPuddleAhead(Vector2 at, Vector2 from, float now)
-            => livePuddles.Where(puddle => puddle.Until > now && Vector2.Distance(from, puddle.At) > PuddleRadius)
-                          .Select(puddle => Vector2.Distance(at, puddle.At))
-                          .DefaultIfEmpty(float.MaxValue)
-                          .Min();
+        private Vector2[] Path(Vector2 from, Vector2 to, float now)
+            => roll.Walk == Walk.Curving ? TopP6CurvingWalk.Points(from, to, now, rng, puddles) : [to];
 
         private static (Vector2 At, Vector2 Heading, bool Arrived) Along(Vector2[] points, float walked)
         {

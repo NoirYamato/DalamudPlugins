@@ -11,15 +11,12 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
     public string? Group => "EU";
 
     internal const float TheFirstExaflareGoesOff = 13.9f;
-    internal const float StartPointRadius = 14.5f;
     internal const int TheLastExaflare = 3;
     internal const float DiveTankRadius = 6.5f;
     internal const float MainTankDegreesPastTheParty = 135f;
     internal const float OffTankDegreesPastTheParty = 225f;
 
     internal static readonly Vector2 MainTankMakingRoomForTheSecondMelee = new(0f, -7f);
-    internal static readonly Vector2 MainTankOutsideNorth = new(0f, -14f);
-    internal static readonly Vector2 PartyOutsideSouth = new(0f, 14f);
     internal static readonly Vector2 Middle = Vector2.Zero;
 
     private TopP6CosmoDive2State state = null!;
@@ -30,10 +27,9 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
         state = s;
         world = w;
         var ai = new AiManager(world);
-        ai.Move(0.5f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        ai.Move(2f, StepOutOfTheHitboxToSeeTheArrows);
-        ai.Move(7.5f, StackInTheMiddleToDropTheFirstPuddle);
-        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, TheFirstExaflareGoesOff, state.FirstExaflare, state.Clockwise, StartPointRadius);
+        ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, TheFirstExaflareGoesOff);
+        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, TheFirstExaflareGoesOff, state.FirstExaflare, state.Clockwise);
         ai.Move(21.5f, PartyHoldsOnTheLastExaflaresPointTanksCrossTheBossIntoAY);
         world.Events.Add(25.3f, FirstMeleeLimitBreakRightAfterTheCosmoDiveBar);
         ai.Move(28f, BackForTheAutosTheSecondMeleeInTheMiddleTheMainTankMakingRoom);
@@ -51,11 +47,6 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
 
     private static float BearingOfTheLastExaflare(TopP6CosmoDive2State state)
         => TopP6LpduAi.BearingOfExaflare(state.FirstExaflare, state.Clockwise, TheLastExaflare);
-
-    private static IAiMove StepOutOfTheHitboxToSeeTheArrows()
-        => TanksAndParty(MainTankOutsideNorth, TopP6LpduAi.OffTankOutsideEastAndFarthestForTheAutos, PartyOutsideSouth);
-
-    private static IAiMove StackInTheMiddleToDropTheFirstPuddle() => TopP6LpduAi.Everyone(Middle);
 
     private IAiMove PartyHoldsOnTheLastExaflaresPointTanksCrossTheBossIntoAY()
         => TanksAndParty(MainTankDiveSpot(state), OffTankDiveSpot(state), PartyDiveHold(state));

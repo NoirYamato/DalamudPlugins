@@ -13,8 +13,8 @@ using static AnoMech.Tests.TopP6CosmoDive2LpduAiTests;
 namespace AnoMech.Tests;
 
 // Unless a test says otherwise the first exaflare is pinned north, the others following clockwise, a 1.1 s step: the
-// party starts beside it at NW (r 14.5), follows round N, NE and E (r 14) and holds SE (9.9, 9.9) for the dive; the
-// main tank's arm of the Y is W (-6.5, 0) and the off-tank's N (0, -6.5).
+// party starts beside it at NW, follows round N, NE and E (all r 14) and holds SE (9.9, 9.9) for the dive; the main
+// tank's arm of the Y is W (-6.5, 0) and the off-tank's N (0, -6.5).
 //
 //    1.9  Unlimited Wave Cannon (5 s); the exaflares' 12 s casts at 1.9, 2.9, 3.9 and 4.9 from r 24, each going off on
 //         the rim (decided 13.6 + k), then every 1.1 s 8 y further on through the centre (r 8 circles).
