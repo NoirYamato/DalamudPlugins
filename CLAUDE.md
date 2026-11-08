@@ -359,8 +359,8 @@ multiplayer.
   - after Cosmo Dive 2 the plan's second melee, not a fixed M2, waits in the middle, and presses once the first's has
     landed, so a human first melee may use its whole window. The OT takes (16, 0) for those autos, 2y past the
     party's hold (r 14), so a melee still casting on the hold, or standing a little outward of it, is never the
-    farthest; when the hold is within 5.5y of that (the last exaflare east) it takes (-16, 0), clear of that melee in
-    its Flash Gale. The first melee leaves the hold as its cast ends (154.7), not at 152.9;
+    farthest; when the hold is within 5.5y of that (the last exaflare east) it takes (-16, 0), so its Flash Gale
+    misses that melee. The first melee leaves the hold as its cast ends (154.7), not at 152.9;
   - at 195.8, after the flares, everyone takes the autos' spots for both Magic Numbers and the enrage.
 - UNVERIFIED in `TopP6Constants`: the exaflare step (1.1s; tests also play 1.0s), the arrows' omen delay, the
   puddles' 2.7s blast, the adds' distances, the comets' bearings and the time they show, the flare's 20y kill radius,
