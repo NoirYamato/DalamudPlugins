@@ -36,10 +36,10 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         new(19f, 0f), new(4f, 19f), new(-4f, 19f), new(-19f, 0f),
     ];
 
-    internal const float FirstFetch = 48.25f;
-    private const float LastFetchBeforeTheWalkOut = 52.75f, OnTheSecondSpotsBy = 56.75f;
+    internal const float FirstFetch = 48.25f, LastFetchBeforeTheWalkOut = 52.75f;
+    private const float OnTheSecondSpotsBy = 56.75f;
     private const float FetchEvery = 0.25f;
-    private const float FetchAheadOfTheHolder = 1.5f, FetchWithinRadius = 19.4f, FetchSprintsFartherThan = 5f;
+    private const float FetchAheadOfTheHolder = 1.5f, FetchWithinRadius = 19.95f, FetchSprintsFartherThan = 5f;
     private const float LeadTheHolderAtMost = 2f;
     private const float SurelyAheadOfTheHolder = 0.3f, SurelyWithinThePassLane = 0.35f;
     private const float PassesFromThisFarAhead = 0.1f, NearlyWithinThePassLane = 0.8f;
@@ -161,7 +161,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
                  .ApplyPositions(TurnWithTheBeetle);
 
     private IAiMove SecondHelloWorldSpotsTurnedWithTheBeetleForAllButTheFetchers()
-        => AiMove.Create([.. SecondHelloWorldSpotsWhenTheBeetleIsNorth.Select((spot, i) => sentToFetch.Contains(state.HelloWorld2![i]) ? null : spot)])
+        => AiMove.Create([.. SecondHelloWorldSpotsWhenTheBeetleIsNorth.Select((spot, i) => state.HelloWorld2 is { } order && sentToFetch.Contains(order[i]) ? null : spot)])
                  .Assignments(state.HelloWorld2)
                  .ApplyPositions(TurnWithTheBeetle);
 
@@ -199,7 +199,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
     private void GoBackToTheGatherSpot(PartyRole fetcher)
         => GoUnlessGoing(fetcher, GatherSpot(fetcher), sprint: Vector2.Distance(At(fetcher), GatherSpot(fetcher)) > FetchSprintsFartherThan);
 
-    private bool TheGatherIsOver() => world.Events.Elapsed > LastFetchBeforeTheWalkOut;
+    private bool TheGatherIsOver() => world.Events.Elapsed >= LastFetchBeforeTheWalkOut + FetchEvery / 2f;
 
     private List<(PartyRole Holder, SimTether Tether)> BlasterTethersAndTheirHolders()
         => world.Children.OfType<SimTether>()
