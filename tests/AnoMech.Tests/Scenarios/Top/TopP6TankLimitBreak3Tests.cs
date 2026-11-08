@@ -85,43 +85,6 @@ public class TopP6TankLimitBreak3Tests
         Assert.That(run.Deaths.Select(d => d.Cause).Distinct(), Is.EqualTo(new[] { $"Cosmo Memory ({TopP6AlphaOmega.CosmoMemoryNeedsATankLimitBreak3}{TopP6LimitBreaks.GaugeWasShort})" }));
     }
 
-    // Its hit leaves Brilliant Dynamis on everyone and Code: ****mi* on Alpha Omega.
-    [Test]
-    public void ItsHitLeavesItsStatuses()
-    {
-        var after = new List<bool>();
-        var run = CosmoMemory((world, limitBreaks) =>
-        {
-            world.Events.Add(4.9f, () => limitBreaks.Press(MainTank, Job(MainTank)));
-            world.Events.Add(8.5f, () => after.AddRange(Enum.GetValues<PartyRole>().Select(r => world.Party.Get(r)!.HasStatus(StatusId.BrilliantDynamis))));
-        });
-
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(after, Has.Count.EqualTo(8).And.All.True);
-    }
-
-    // The gauge: full from the cast, spent by the main tank's press, then rebuilding from the hit.
-    [Test]
-    public void ItFillsTheGaugeAndStartsItsRebuild()
-    {
-        var gauge = new Dictionary<float, float>();
-        var (from, fullBy) = TopP6AlphaOmega.GaugeRebuildAfterCosmoMemory(CosmoMemoryAt);
-        CosmoMemory((world, limitBreaks) =>
-        {
-            world.Events.Add(1.0f, () => limitBreaks.SetGauge(0f));
-            world.Events.Add(4.9f, () => limitBreaks.Press(MainTank, Job(MainTank)));
-            foreach (var at in new[] { 2.0f, 5.0f, 7.5f, 20f })
-                world.Events.Add(at, () => gauge[at] = limitBreaks.Gauge);
-        });
-
-        Assert.That(from, Is.EqualTo(CosmoMemoryDecides).Within(0.001f));
-        Assert.That(fullBy, Is.EqualTo(CosmoMemoryDecides + P6Duration.GaugeRebuild).Within(0.001f));
-        Assert.That(gauge[2.0f], Is.EqualTo(3f));
-        Assert.That(gauge[5.0f], Is.EqualTo(0f));
-        Assert.That(gauge[7.5f], Is.EqualTo(0f));
-        Assert.That(gauge[20f], Is.EqualTo(TopP6LimitBreaks.RebuiltBars(20f, from, fullBy)).Within(0.01f));
-    }
-
     [TestCase(2.7f, true)]
     [TestCase(6.0f, false)]
     public void MagicNumberAsksTheSame(float pressAt, bool lives)

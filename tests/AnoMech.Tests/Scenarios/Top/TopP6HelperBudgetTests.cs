@@ -1,5 +1,4 @@
 using AnoMech.Core.Game.Party;
-using AnoMech.Core.SimObjects;
 using AnoMech.Multiplayer;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6Gauntlet;

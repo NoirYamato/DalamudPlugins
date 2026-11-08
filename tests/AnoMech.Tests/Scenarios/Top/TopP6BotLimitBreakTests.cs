@@ -46,17 +46,8 @@ public class TopP6BotLimitBreakTests
         Assert.That(float.Parse(Regex.Match(bar, @"cast=([0-9.]+)s").Groups[1].Value, CultureInfo.InvariantCulture), Is.EqualTo(castSeconds).Within(0.01f));
     }
 
-    // The limit break's ActorControls go to every member: its cast as it starts, its resolve as it lands.
-    [Test]
-    public void ThePartySeesItsCastAndItsResolve()
-    {
-        var run = Press(MeleeDpsA);
-
-        Assert.That(ActorControls(run, "0x47").Select(r => Time(r)).Distinct(), Is.EqualTo(new[] { 1f }).Within(TimelineRun.FrameLate));
-        Assert.That(ActorControls(run, "0x48").Select(r => Time(r)).Distinct(), Is.EqualTo(new[] { 5.5f }).Within(TimelineRun.FrameLate));
-        Assert.That(ActorControls(run, "0x47"), Has.Count.EqualTo(8));
-    }
-
+    // What the party sees of each (PartyLimitBreakCastTests) follows the press: its cast as it starts, its resolve as it
+    // lands, and a targeted one aimed at its target.
     [TestCase(MeleeDpsA)]
     [TestCase(PhysRangedDps)]
     public void ATargetedOneIsAimedAtItsTarget(PartyRole seat)
@@ -66,17 +57,8 @@ public class TopP6BotLimitBreakTests
 
         Assert.That(run.Sent("ability", LimitBreak3(seat)).Single().Target, Is.EqualTo(alphaOmega));
         Assert.That(run.Sent("cast", LimitBreak3(seat)).Single().Target, Is.EqualTo(alphaOmega));
-    }
-
-    // Placed on the ground under its target, with no target of its own.
-    [Test]
-    public void ACasterOneGoesDownWhereItsTargetStands()
-    {
-        var run = Press(CasterDps);
-        var cast = run.Sent("cast", LimitBreak3(CasterDps)).Single();
-
-        Assert.That(cast.Target, Is.Empty);
-        Assert.That(new Vector2(cast.Position.X, cast.Position.Z).Length(), Is.LessThan(0.01f));
+        Assert.That(ActorControls(run, "0x47").Select(Time).ToList(), Has.Count.EqualTo(8).And.All.EqualTo(1f).Within(TimelineRun.FrameLate));
+        Assert.That(ActorControls(run, "0x48").Select(Time).ToList(), Has.Count.EqualTo(8).And.All.EqualTo(5.5f).Within(TimelineRun.FrameLate));
     }
 
     [Test]

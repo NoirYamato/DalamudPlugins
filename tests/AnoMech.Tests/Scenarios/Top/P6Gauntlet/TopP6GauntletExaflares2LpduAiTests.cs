@@ -28,10 +28,12 @@ namespace AnoMech.Tests;
 //         faces the boss.
 //   25.3  the first melee presses its limit break 3 on Alpha Omega right after the Cosmo Dive bar (24.9); its 4.5 s cast
 //         holds it on the hold until 29.8.
-//   28.0  after the dive (27.6): back to the auto spots, the OT walking out east, or west (-14.5, 0) when the hold is
-//         within 5.5 y of its east spot, clear of a melee still casting there; the second melee goes to the middle
-//         instead and the MT makes room for it, back to (0, -7), so it is out of the MT's Flash Gale.
-//   32.0  the second melee presses its limit break 3 from the middle, once the first's has refilled the gauge.
+//   28.0  after the dive (27.6): back to the auto spots, but the OT walks out to (16, 0), past the hold's r 14 so a melee
+//         still casting there is never the farthest, or to (-16, 0) when the hold is within 5.5 y of that, clear of
+//         its Flash Gale; the second melee goes to the middle instead and the MT makes room for it, back to (0, -7), so
+//         it is out of the MT's Flash Gale.
+//   32.0  the second melee presses its limit break 3 from the middle, once the first's has landed and refilled the
+//         gauge; while the first's hasn't, it waits for it, until the first's window closes (36.1).
 public class TopP6GauntletExaflares2LpduAiTests
 {
     internal const int LpduStrat = 0;
@@ -54,14 +56,15 @@ public class TopP6GauntletExaflares2LpduAiTests
     internal static readonly Dictionary<PartyRole, Vector2> SteppedOut =
         PerRole.All.ToDictionary(r => r, r => r switch { MainTank => new Vector2(0f, -14f), OffTank => new Vector2(14.5f, 0f), _ => new Vector2(0f, 14f) });
 
-    internal static readonly Vector2 OffTankWestAfterTheDive = new(-14.5f, 0f);
+    internal static readonly Vector2 OffTankEastAfterTheDive = new(16f, 0f);
+    internal static readonly Vector2 OffTankWestAfterTheDive = new(-16f, 0f);
 
-    // The second melee in the middle; the off-tank west when the hold is east, 0.5 y from its east spot.
+    // The second melee in the middle; the off-tank out at r 16, west when the hold is east, 2 y from its east spot.
     internal static Dictionary<PartyRole, Vector2> AutoSpotsAfterTheDive(int first, bool clockwise, PartyRole secondMelee = MeleeDpsB)
         => PerRole.All.ToDictionary(r => r, r => r switch
         {
             MainTank => new Vector2(0f, -7f),
-            OffTank => Wave(first, clockwise).Bearing(3) == 90f ? OffTankWestAfterTheDive : AutoSpots[OffTank],
+            OffTank => Wave(first, clockwise).Bearing(3) == 90f ? OffTankWestAfterTheDive : OffTankEastAfterTheDive,
             _ when r == secondMelee => Vector2.Zero,
             _ => AutoSpots[r],
         });
@@ -259,9 +262,10 @@ public class TopP6GauntletExaflares2LpduAiTests
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
     }
 
-    // When the last exaflare started east, the party's hold (14, 0) is 0.5 y from the off-tank's east spot: it takes the
-    // west one for the autos instead, so a melee still casting on the hold stays out of its Flash Gale; on every other
-    // roll it keeps the east one, at least 10.9 y from the hold.
+    // After the dive the off-tank stands 2 y farther out than the party's hold (r 14), so a melee still casting there is
+    // never the farthest for Flash Gale. When the last exaflare started east, the hold (14, 0) is 2 y from the off-tank's
+    // east spot (16, 0): it takes the west one instead, so that melee also stays out of its Flash Gale; on every other roll
+    // it keeps the east one, at least 11.6 y from the hold.
     [Test]
     public void TheOffTankTakesTheWestSpotWhenTheHoldIsEast()
     {
@@ -273,11 +277,48 @@ public class TopP6GauntletExaflares2LpduAiTests
                 var hold = TopP6GauntletLpduAi.PartyDiveHold(state);
                 var spot = TopP6GauntletLpduAi.AutoSpotAfterTheDive(OffTank, state);
                 var east = Wave(first, clockwise).Bearing(3) == 90f;
-                Assert.That(spot, Is.EqualTo(east ? OffTankWestAfterTheDive : AutoSpots[OffTank]), $"first {first}, clockwise {clockwise}");
-                Assert.That(Distance(spot, hold), Is.GreaterThanOrEqualTo(east ? 28f : 10.9f), $"first {first}, clockwise {clockwise}");
-                Assert.That(spot.Length(), Is.EqualTo(14.5f).Within(0.01f), "still the farthest");
+                Assert.That(spot, Is.EqualTo(east ? OffTankWestAfterTheDive : OffTankEastAfterTheDive), $"first {first}, clockwise {clockwise}");
+                Assert.That(Distance(spot, hold), Is.GreaterThanOrEqualTo(east ? 30f : 11.6f), $"first {first}, clockwise {clockwise}");
+                Assert.That(spot.Length() - hold.Length(), Is.EqualTo(2f).Within(0.01f), "farther out than the hold");
             }
         });
+    }
+
+    // The human first melee presses late in its window (31.1, G 156.0) and stays on the hold, 0.8 y outward of it, through
+    // both Flash Gales after the dive (35.3 and 38.5): the off-tank is still the farthest at each, and its Flash Gale is
+    // clear of the hold, with the hold east (the off-tank west), west or south-east.
+    [TestCase(5, false)]
+    [TestCase(3, true)]
+    [TestCase(0, true)]
+    public void AFirstMeleeStillOnTheHoldOutlastsBothFlashGales(int first, bool clockwise)
+    {
+        const float DiveHits = 27.6f, PressesAt = 31.1f;
+        float[] flashGales = [35.3f, 38.5f];
+        var hold = OnTheDodgeRing(Wave(first, clockwise).Bearing(3));
+        var leads = new List<float>();
+        var run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MeleeDpsA,
+            StopAt = flashGales[^1] + 0.2f,
+            WriteArtifactsOnFailure = false,
+            Overrides = o =>
+            {
+                var overrides = (TopP6GauntletStateOverrides)o;
+                Pin(overrides, first, clockwise, 1.1f);
+                overrides.PlayerPressesItsOwnLimitBreaks = true;
+            },
+            Takeovers = [new Takeover(DiveHits + 0.1f, hold * ((FollowRadius + 0.8f) / FollowRadius))],
+            Probe = p =>
+            {
+                if (p.Crossed(0f))
+                    TopP6HumanLimitBreak.Press(p.World, PressesAt, TopP6GauntletRun.LimitBreak3(MeleeDpsA), () => TopP6GauntletRun.Scenario(p).AlphaOmega?.Enemy);
+                foreach (var flashGale in flashGales.Where(at => p.Crossed(at - 0.05f)))
+                    leads.Add(Flat(p.Member(OffTank)!.Position).Length() - Flat(p.Member(MeleeDpsA)!.Position).Length());
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(leads, Has.Count.EqualTo(2).And.All.GreaterThan(0.5f), "the off-tank's lead over the melee on the hold");
     }
 
     // The arrows only show 4.5 s into each exaflare's cast, so until the second has shown (7.4) nobody may give the

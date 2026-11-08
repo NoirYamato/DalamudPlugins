@@ -70,7 +70,7 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         return new Vector3(MathF.Sin(radians), 0f, -MathF.Cos(radians)) * radius;
     }
 
-    // The most helpers this block has kept busy at once; never more than P6Rules.HelperPool.
+    // The most helpers this run has kept busy at once; never more than P6Rules.HelperPool.
     public int BusyHelperPeak => helpers.PeakBusy;
 
     // At t 0: a cast on an actor spawned in its own frame plays no animation.
@@ -142,14 +142,17 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         At(marksAt + P6Duration.MagicNumberMark, mark.RunOut, file, line);
     }
 
-    // Run: ****mi*, the enrage. A melee limit break 3 resolving by RunMiFinishedBy defeats Alpha Omega at once;
-    // otherwise its damage lands P6Duration.RunMiLands after the cast starts and kills everyone. Whether the gauge was
-    // short is read as the cast ends, while a press that gives up then is still waiting.
+    // Run: ****mi*, the enrage. A melee limit break 3 resolving during the cast whose cast bar ends by RunMiFinishedBy
+    // defeats Alpha Omega at once, though the human's resolve is heard a frame or two after; otherwise its damage lands
+    // P6Duration.RunMiLands after the cast starts and kills everyone. Whether the gauge was short is read as the cast
+    // ends, while a press that gives up then is still waiting.
     public void RunMi(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
+        var finishedBy = RunMiFinishedBy(castAt);
+
         void Finish(TopP6LimitBreakPress press)
         {
-            if (press.Is(TopP6LimitBreakKind.Melee) && Enemy.IsAlive()) Enemy!.Defeat();
+            if (press.Is(TopP6LimitBreakKind.Melee) && press.LandsAt <= finishedBy && Enemy.IsAlive()) Enemy!.Defeat();
         }
 
         At(castAt, () =>
@@ -157,12 +160,20 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             Cast(Actions.RunMi);
             limitBreaks.Resolved += Finish;
         }, file, line);
-        At(RunMiFinishedBy(castAt), () =>
+        At(finishedBy, () =>
         {
-            limitBreaks.Resolved -= Finish;
-            if (!Enemy.IsAlive()) return;
             var why = RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
-            At(castAt + P6Duration.RunMiLands, () => world.Party.WipeAllPlayers(P6ActionId.RunMi, why), file, line);
+            if (!Enemy.IsAlive())
+            {
+                limitBreaks.Resolved -= Finish;
+                return;
+            }
+            At(castAt + P6Duration.RunMiLands, () =>
+            {
+                limitBreaks.CatchUp();
+                limitBreaks.Resolved -= Finish;
+                if (Enemy.IsAlive()) world.Party.WipeAllPlayers(P6ActionId.RunMi, why);
+            }, file, line);
         }, file, line);
     }
 
@@ -365,6 +376,7 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
         public void Land()
         {
+            limitBreaks.CatchUp();
             carriers.AddRange(world.Party.ActiveMembers());
             foreach (var member in carriers)
                 member.AddStatus(P6StatusId.MagicNumber, P6Duration.MagicNumberMark);
@@ -382,6 +394,7 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
         public void RunOut()
         {
+            limitBreaks.CatchUp();
             limitBreaks.Resolved -= Lift;
             var why = MagicNumberMarkRanOut + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
             var verdicts = new Verdicts();
@@ -410,8 +423,8 @@ public sealed record TopP6CosmoMeteorRolls(IReadOnlyList<PartyRole[]> FirstSprea
         => wave == 0 ? FirstSpreads[set] : PerRole.All.Except(FirstSpreads[set]).ToArray();
 }
 
-// One Cosmo Meteor: Alpha Omega's cast, a bait under everyone as it ends, the meteors north and south and the comets on
-// the other compass points, the spreads, then the flares and the stack. While the adds are targetable a caster's limit
+// One Cosmo Meteor: Alpha Omega's cast, a bait under everyone as it ends, the adds (P6Geometry.CosmoMeteorBearings and
+// CosmoCometBearings), the spreads, then the flares and the stack. While the adds are targetable a caster's limit
 // break 3 kills every comet and a physical ranged limit break 3 each meteor its line holds; an add of a kind still alive
 // at that kind's enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as the hit lands.
 public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega, TopP6LimitBreaks limitBreaks)
@@ -429,9 +442,6 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
 
     internal static string TooFewInTheStack(int count)
         => $"Cosmo Meteor's unmarked stack had {count} in it: it needs {P6Rules.CosmoMeteorStack}";
-
-    private static readonly float[] MeteorBearings = [0f, 180f];
-    private static readonly float[] CometBearings = [45f, 90f, 135f, 225f, 270f, 315f];
 
     private readonly List<SimEnemy?> meteors = [];
     private readonly List<SimEnemy?> comets = [];
@@ -461,15 +471,15 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         alphaOmega.At(castAt + P6Duration.CometsEnrage, () => Enrage(comets, CometsEnraged), file, line);
         alphaOmega.At(castAt + P6Duration.MeteorsEnrage, () =>
         {
-            limitBreaks.Resolved -= KillTheAddsItHits;
             Enrage(meteors, MeteorsEnraged);
+            limitBreaks.Resolved -= KillTheAddsItHits;
         }, file, line);
     }
 
     private void SpawnTheAdds()
     {
-        meteors.AddRange(MeteorBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoMeteor, P6BNpcNameId.CosmoMeteor, bearing, P6Geometry.CosmoMeteorDistance)));
-        comets.AddRange(CometBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoComet, P6BNpcNameId.CosmoComet, bearing, P6Geometry.CosmoCometDistance)));
+        meteors.AddRange(P6Geometry.CosmoMeteorBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoMeteor, P6BNpcNameId.CosmoMeteor, bearing, P6Geometry.CosmoMeteorDistance)));
+        comets.AddRange(P6Geometry.CosmoCometBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoComet, P6BNpcNameId.CosmoComet, bearing, P6Geometry.CosmoCometDistance)));
     }
 
     private SimEnemy? SpawnAdd(uint bnpcBaseId, uint nameId, float bearing, float distance)
@@ -502,18 +512,26 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         => adds.OfType<SimEnemy>().Where(add => add.IsAlive() && add.Targetable);
 
     // The line runs from its user toward its target, as long as the sheet's plus the user's hitbox, and holds a meteor
-    // any part of whose hitbox it reaches.
+    // any part of whose hitbox it reaches. The run's own press for the player's seat reaches every meteor wherever the
+    // player stands: the run presses there for a human whose job can't, and holds that human to none of it.
     private void KillTheAddsItHits(TopP6LimitBreakPress press)
     {
         if (press.Is(TopP6LimitBreakKind.Caster))
             Defeat(Targetable(comets).ToList());
-        if (!press.Is(TopP6LimitBreakKind.PhysicalRanged) || press.ResolvedFrom is not { } from) return;
+        if (!press.Is(TopP6LimitBreakKind.PhysicalRanged)) return;
+        if (!press.ByHuman && world.Party.Get(press.Seat) is SimPlayer)
+        {
+            Defeat(Targetable(meteors).ToList());
+            return;
+        }
+        if (press.ResolvedFrom is not { } from) return;
         var line = new AoeQuery(press.ActionId, from, casterHitboxRadius: world.Party.Get(press.Seat)?.HitboxRadius ?? 0f);
         Defeat(Targetable(meteors).Where(meteor => line.SignedDistance(meteor.Position) <= meteor.HitboxRadius).ToList());
     }
 
     private void Enrage(IEnumerable<SimEnemy?> adds, string why)
     {
+        limitBreaks.CatchUp();
         var enraged = adds.OfType<SimEnemy>().Where(add => add.IsAlive()).ToList();
         if (enraged.Count == 0) return;
         world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : ""));
@@ -636,8 +654,8 @@ public sealed record TopP6UnlimitedWaveCannon(int FirstPoint, bool Clockwise, fl
     public const int Exaflares = 4;
     public const int CompassPoints = 8;
 
-    // A block's roll, for its State. Both are drawn whether or not they are forced, so forcing one leaves the other as
-    // the seed had it. UNVERIFIED: that the game draws each evenly.
+    // A wave's roll, for the Gauntlet's State. Both are drawn whether or not they are forced, so forcing one leaves the
+    // other as the seed had it. UNVERIFIED: that the game draws each evenly.
     public static (int FirstPoint, bool Clockwise) Roll(Rng rng, int? firstPoint, bool? clockwise)
     {
         var rolledPoint = rng.Next(CompassPoints);

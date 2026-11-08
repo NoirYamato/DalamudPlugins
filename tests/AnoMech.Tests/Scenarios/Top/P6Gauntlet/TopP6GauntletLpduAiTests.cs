@@ -212,11 +212,12 @@ public class TopP6GauntletLpduAiTests
         Assert.That(inTheMiddle, Is.EqualTo(new[] { MeleeDpsA }));
     }
 
-    // The last exaflare east puts the party's hold (14, 0) 0.5 y from the off-tank's east spot: it tanks the autos from the
-    // west instead, so a first melee still casting on the hold is clear of its Flash Gale; on the other rolls it stays east.
-    [TestCase(5, false, -14.5f)]
-    [TestCase(7, true, -14.5f)]
-    [TestCase(4, true, 14.5f)]
+    // After Cosmo Dive 2 the off-tank tanks the autos from r 16, 2 y past the party's hold. The last exaflare east puts the
+    // hold (14, 0) 2 y from its east spot: it stands west instead, so a first melee still casting on the hold is clear of
+    // its Flash Gale; on the other rolls it stays east.
+    [TestCase(5, false, -16f)]
+    [TestCase(7, true, -16f)]
+    [TestCase(4, true, 16f)]
     public void TheOffTankTanksTheAutosAfterCosmoDive2ClearOfTheHold(int first, bool clockwise, float x)
     {
         var seen = Vector2.Zero;

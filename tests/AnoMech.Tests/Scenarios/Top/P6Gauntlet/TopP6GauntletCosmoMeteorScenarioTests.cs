@@ -271,9 +271,9 @@ public class TopP6GauntletCosmoMeteorScenarioTests
         });
     }
 
-    // The meteors north and south 11 y out, the comets on the other compass points 13 y out, all facing Alpha Omega. The
-    // adds die as the limit breaks that kill them land: the caster's (pressed 13.5, landing 18.0), then the physical
-    // ranged's (24.0, 28.5).
+    // On the seed's own rolls: the meteors north and south 11 y out, the comets on the other compass points 13 y out, all
+    // facing Alpha Omega. The adds die as the limit breaks that kill them land: the caster's (pressed 13.5, landing 18.0),
+    // then the physical ranged's (24.0, 28.5).
     [Test]
     public void TheAddsShowAroundAlphaOmegaAndDieAsTheLimitBreaksLand()
     {
@@ -282,7 +282,7 @@ public class TopP6GauntletCosmoMeteorScenarioTests
         var run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = MainTank,
-            Overrides = o => Pin((TopP6GauntletStateOverrides)o, PinnedFlares, PinnedStack),
+            Overrides = o => TopP6GauntletRun.Only((TopP6GauntletStateOverrides)o, TopP6GauntletPart.CosmoMeteor),
             Probe = p =>
             {
                 var adds = p.World.Children.OfType<SimEnemy>()

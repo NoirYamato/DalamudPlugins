@@ -66,8 +66,10 @@ public class TopP6GauntletLimitBreakTankTests
         => new TopP6GauntletHumanSeat(seat, job) { Tank = row }.Pressing(duties).AssertEveryDutyPressedOnceByItsSeat(duties);
 
     [TestCase(MainTank, JobId.Warrior, CosmoMemory, 7.0f)]
+    [TestCase(OffTank, JobId.Warrior, CosmoMemory, 7.0f)]
     [TestCase(MainTank, JobId.DarkKnight, MagicNumber1Tank, 206.0f)]
     [TestCase(OffTank, JobId.Gunbreaker, MagicNumber2Tank, 222.0f)]
+    [TestCase(MainTank, JobId.Gunbreaker, MagicNumber2Tank, 222.0f)]
     public void ATankLimitBreak3InTheHitsLastSecondTakesHoldTooLate(PartyRole seat, JobId job, TopP6LimitBreakDuty duty, float pressAt)
     {
         var (part, decides, actionId, kills) = Hit(duty);
@@ -77,6 +79,8 @@ public class TopP6GauntletLimitBreakTankTests
 
     // The paladin main tank and the warrior off-tank tie with the other seat's bot: the duty is the human's.
     [TestCase(MainTank, JobId.Paladin, CosmoMemory)]
+    [TestCase(OffTank, JobId.Warrior, CosmoMemory)]
+    [TestCase(MainTank, JobId.Warrior, MagicNumber1Tank)]
     [TestCase(OffTank, JobId.Warrior, MagicNumber1Tank)]
     [TestCase(MainTank, JobId.Gunbreaker, MagicNumber2Tank)]
     public void ATankWhoNeverPressesLetsTheHitKillEveryone(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
@@ -86,12 +90,17 @@ public class TopP6GauntletLimitBreakTankTests
         new TopP6GauntletHumanSeat(seat, job).From(part).Play().AssertEveryoneDied(decides, actionId, kills(""));
     }
 
-    // A limit break 2 covers nothing that Cosmo Memory counts.
-    [Test]
-    public void ATankLimitBreak2AtCosmoMemoryLetsItKillEveryone()
-        => new TopP6GauntletHumanSeat(MainTank, JobId.Warrior).From(TopP6GauntletPart.CosmoMemory)
-            .Play(new TopP6GauntletHumanPress(4.9f, Level: 2))
-            .AssertEveryoneDied(7.6f, ActionId.CosmoMemory, CosmoMemoryKills());
+    // A limit break 2 covers nothing that Cosmo Memory or Magic Number counts.
+    [TestCase(MainTank, JobId.Warrior, CosmoMemory)]
+    [TestCase(MainTank, JobId.DarkKnight, MagicNumber1Tank)]
+    [TestCase(OffTank, JobId.Paladin, MagicNumber2Tank)]
+    public void ATankLimitBreak2LetsTheHitKillEveryone(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
+    {
+        var (part, decides, actionId, kills) = Hit(duty);
+
+        new TopP6GauntletHumanSeat(seat, job).From(part).Play(new TopP6GauntletHumanPress(AimFor(duty), Level: 2))
+            .AssertEveryoneDied(decides, actionId, kills(""));
+    }
 
     // The second press of Magic Number 1, with Spark of Dynamis, empties the gauge: the first healer's waits for it, and
     // the mark kills everyone.
@@ -101,9 +110,11 @@ public class TopP6GauntletLimitBreakTankTests
             .Play(For(MagicNumber1Tank), For(MagicNumber1Tank, 203.5f))
             .AssertEveryoneDied(214.1f, P6ActionId.MagicNumber, TheMarkKills(TopP6LimitBreaks.GaugeWasShort));
 
-    [Test]
-    public void PressingMagicNumber2TwiceLeavesItsHealerWithoutAGauge()
-        => new TopP6GauntletHumanSeat(OffTank, JobId.Paladin).From(TopP6GauntletPart.MagicNumber)
+    // The paladin off-tank by the sheet, or the warrior main tank by its row.
+    [TestCase(OffTank, JobId.Paladin, null)]
+    [TestCase(MainTank, JobId.Warrior, TopP6TankLimitBreaks.MagicNumber2)]
+    public void PressingMagicNumber2TwiceLeavesItsHealerWithoutAGauge(PartyRole seat, JobId job, TopP6TankLimitBreaks? row)
+        => new TopP6GauntletHumanSeat(seat, job) { Tank = row }.From(TopP6GauntletPart.MagicNumber)
             .Play(For(MagicNumber2Tank), For(MagicNumber2Tank, 219.6f))
             .AssertEveryoneDied(230.2f, P6ActionId.MagicNumber, TheMarkKills(TopP6LimitBreaks.GaugeWasShort));
 

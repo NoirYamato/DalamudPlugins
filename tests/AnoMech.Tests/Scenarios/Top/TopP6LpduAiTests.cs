@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
-using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6Gauntlet;

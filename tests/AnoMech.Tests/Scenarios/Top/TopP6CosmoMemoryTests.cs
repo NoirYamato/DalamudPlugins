@@ -33,6 +33,34 @@ public class TopP6CosmoMemoryTests
         Assert.That(after, Has.Count.EqualTo(9).And.All.True);
     }
 
+    // The gauge: full from the cast, in the run and on the HUD, spent by the main tank's press, then rebuilding from the
+    // hit.
+    [Test]
+    public void ItFillsTheGaugeAndStartsItsRebuild()
+    {
+        const float CastAt = 1.9f, Decides = 7.6f;
+        var gauge = new Dictionary<float, float>();
+        var hudBars = -1;
+        var (from, fullBy) = TopP6AlphaOmega.GaugeRebuildAfterCosmoMemory(CastAt);
+        TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
+        {
+            alphaOmega.CosmoMemory(CastAt, limitBreaks);
+            world.Events.Add(1.0f, () => limitBreaks.SetGauge(0f));
+            world.Events.Add(4.9f, () => limitBreaks.Press(MainTank, PartyPresets.Standard[(int)MainTank].ClassJob));
+            world.Events.Add(2.0f, () => hudBars = world.Party.LimitBreak.FilledBars);
+            foreach (var at in new[] { 2.0f, 5.0f, 7.5f, 20f })
+                world.Events.Add(at, () => gauge[at] = limitBreaks.Gauge);
+        }, new TimelineRunOptions { PlayerRole = OffTank });
+
+        Assert.That(from, Is.EqualTo(Decides).Within(0.001f));
+        Assert.That(fullBy, Is.EqualTo(Decides + P6Duration.GaugeRebuild).Within(0.001f));
+        Assert.That(gauge[2.0f], Is.EqualTo(3f));
+        Assert.That(hudBars, Is.EqualTo(3), "the HUD's filled bars");
+        Assert.That(gauge[5.0f], Is.EqualTo(0f));
+        Assert.That(gauge[7.5f], Is.EqualTo(0f));
+        Assert.That(gauge[20f], Is.EqualTo(TopP6LimitBreaks.RebuiltBars(20f, from, fullBy)).Within(0.01f));
+    }
+
     [Test]
     public void ARunStartingAfterItGetsTheSameStatuses()
     {

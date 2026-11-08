@@ -125,14 +125,14 @@ public class TopP6GauntletScenarioTests
 
     // The last Flash Gale of each part lands on the autos' spots, before the next part's first move: 0.2-0.3 s before the
     // next cast, as in the fight. After Cosmo Dive 2 the second melee waits in the middle, the main tank steps back to
-    // (0, -7) and, the hold being east, the off-tank stands west.
+    // (0, -7) and, the hold being east, the off-tank stands west, out at r 16.
     [Test]
     public void EverySeamHoldsTheAutosSpotsThroughItsLastFlashGale()
     {
         Dictionary<PartyRole, Vector2> AutoSpots(bool afterTheDive) => PerRole.All.ToDictionary(r => r, r => r switch
         {
             MainTank => afterTheDive ? new Vector2(0f, -7f) : new Vector2(0f, -5f),
-            OffTank => afterTheDive ? new Vector2(-14.5f, 0f) : new Vector2(14.5f, 0f),
+            OffTank => afterTheDive ? new Vector2(-16f, 0f) : new Vector2(14.5f, 0f),
             MeleeDpsB when afterTheDive => Vector2.Zero,
             _ => new Vector2(0f, 6f),
         });
@@ -178,9 +178,10 @@ public class TopP6GauntletScenarioTests
         Assert.That(run.Passed, run.ToString);
     }
 
-    // The gauge the party's own generation gives by then (full from Cosmo Dive 2's bar on); Spark of Dynamis on the seats
-    // whose limit break the plan pressed before (the dive melees, then the caster and the physical ranged), Brilliant
-    // Dynamis on the rest; Code: ****mi* on Alpha Omega; everyone on the autos' spots from the start.
+    // The gauge the party's own generation gives by then (full from Cosmo Dive 2's bar on), in the run and on the HUD the
+    // client gates its presses on, from the first frame; Spark of Dynamis on the seats whose limit break the plan pressed
+    // before (the dive melees, then the caster and the physical ranged), Brilliant Dynamis on the rest; Code: ****mi* on
+    // Alpha Omega; everyone on the autos' spots from the start.
     [TestCase(Exaflares1, 0.865f, new PartyRole[0])]
     [TestCase(CosmoArrow2, 1.757f, new PartyRole[0])]
     [TestCase(Exaflares2, 2.475f, new PartyRole[0])]
@@ -189,6 +190,7 @@ public class TopP6GauntletScenarioTests
     public void StartingFromALaterPartPicksTheFightUpThere(TopP6GauntletPart part, float bars, PartyRole[] sparked)
     {
         var gauge = float.NaN;
+        var hudBars = new List<int>();
         var spark = new List<PartyRole>();
         var brilliant = new List<PartyRole>();
         var bossMarked = false;
@@ -199,6 +201,7 @@ public class TopP6GauntletScenarioTests
             Overrides = o => ((TopP6GauntletStateOverrides)o).StartFrom = part,
             Probe = p =>
             {
+                if (p.Time <= 1.2f) hudBars.Add(p.World.Party.LimitBreak.FilledBars);
                 if (p.Crossed(0.05f))
                 {
                     gauge = TopP6GauntletRun.LimitBreaks(p).Gauge;
@@ -221,6 +224,7 @@ public class TopP6GauntletScenarioTests
         {
             Assert.That(gauge, Is.EqualTo(bars).Within(0.01f), "the gauge");
             Assert.That(gauge, Is.EqualTo(TopP6LimitBreaks.RebuiltBars(TopP6GauntletParts.GauntletStart(part), from, fullBy)).Within(0.01f), "the rebuild's");
+            Assert.That(hudBars, Is.Not.Empty.And.All.EqualTo((int)bars), "the HUD's filled bars");
             Assert.That(spark, Is.EquivalentTo(sparked), "Spark of Dynamis");
             Assert.That(brilliant, Is.EquivalentTo(PerRole.All.Except(sparked)), "Brilliant Dynamis");
             Assert.That(bossMarked, Is.True, "Code: ****mi*");
@@ -297,54 +301,7 @@ public class TopP6GauntletScenarioTests
         }
     }
 
-    // ---- The limit breaks the fight asks for, missed or wasted
-
-    // The plan's Magic Number 1 tank, the human warrior, presses nothing: its hit kills everyone.
-    [Test]
-    public void AHumanTankWhoSkipsMagicNumberLetsItKillEveryone()
-    {
-        var run = HumanPresses(MagicNumber, MainTank, _ => { });
-
-        AssertEveryoneDied(run, P6ActionId.MagicNumber, $"Magic Number ({TopP6AlphaOmega.MagicNumberNeedsATankLimitBreak3})", 6.6f);
-    }
-
-    // The plan's Magic Number 1 healer presses nothing, or too early for the mark: the mark kills everyone as it runs out.
-    [TestCase(null)]
-    [TestCase(4.0f)]
-    public void AHumanHealerWhoMissesTheMarkLetsItKillEveryone(float? pressAt)
-    {
-        var run = HumanPresses(MagicNumber, RegenHealer, p =>
-        {
-            if (pressAt is { } at) TopP6HumanLimitBreak.Press(p.World, at, TopP6GauntletRun.LimitBreak3(RegenHealer));
-        });
-
-        AssertEveryoneDied(run, P6ActionId.MagicNumber, $"Magic Number ({TopP6AlphaOmega.MagicNumberMarkRanOut})", 14.2f);
-    }
-
-    // The human off-tank also presses at Magic Number 1, spending its Brilliant Dynamis there: its own Magic Number 2
-    // press gets nothing back, the second healer's waits for a gauge that never fills, and the mark kills everyone.
-    [Test]
-    public void AWastedPressLeavesALaterDutyWithoutAGauge()
-    {
-        var run = HumanPresses(MagicNumber, OffTank, p =>
-        {
-            TopP6HumanLimitBreak.Press(p.World, 3f, TopP6GauntletRun.LimitBreak3(OffTank));
-            TopP6HumanLimitBreak.Press(p.World, 18.7f, TopP6GauntletRun.LimitBreak3(OffTank));
-        });
-
-        AssertEveryoneDied(run, P6ActionId.MagicNumber,
-            $"Magic Number ({TopP6AlphaOmega.MagicNumberMarkRanOut}{TopP6LimitBreaks.GaugeWasShort})", 30.3f);
-    }
-
-    [Test]
-    public void AHumanCasterWhoNeverPressesLetsTheCometsEnrage()
-        => AssertEveryoneDied(HumanPresses(CosmoMeteor, CasterDps, _ => { }), P6ActionId.CosmoMeteorEnrage,
-            $"Cosmo Meteor ({TopP6CosmoMeteor.CometsEnraged})", 22.2f, prefixOnly: true);
-
-    [Test]
-    public void AHumanPhysRangedWhoNeverPressesLetsTheMeteorsEnrage()
-        => AssertEveryoneDied(HumanPresses(CosmoMeteor, PhysRangedDps, _ => { }), P6ActionId.CosmoMeteorEnrage,
-            $"Cosmo Meteor ({TopP6CosmoMeteor.MeteorsEnraged})", 32.3f, prefixOnly: true);
+    // ---- The limit breaks the fight asks for, beyond what the per-role suites (TopP6GauntletLimitBreak*Tests) cover
 
     // R1 presses from the east instead of A, its line running west through Alpha Omega between the meteors, then goes
     // back to A for the flares.
@@ -359,17 +316,6 @@ public class TopP6GauntletScenarioTests
         });
 
         AssertEveryoneDied(run, P6ActionId.CosmoMeteorEnrage, $"Cosmo Meteor ({TopP6CosmoMeteor.MeteorsEnraged})", 32.3f, prefixOnly: true);
-    }
-
-    // The enrage holder, the human dragoon in M1, presses nothing during Run: ****mi*: it dies as the Gauntlet's window
-    // closes, 4.5 s before the bar ends.
-    [Test]
-    public void AHumanEnrageHolderWhoNeverPressesDiesAsItsWindowCloses()
-    {
-        var run = HumanPresses(MagicNumber, MeleeDpsA, _ => { });
-
-        Assert.That(run.Deaths.Select(d => (d.Role, d.Cause)), Is.EqualTo(new[] { (MeleeDpsA, TopP6LimitBreaks.EnrageMeleeRule) }), run.ToString);
-        Assert.That(run.Deaths[0].Time, Is.EqualTo(43.6f).Within(0.05f), run.ToString);
     }
 
     [Test]

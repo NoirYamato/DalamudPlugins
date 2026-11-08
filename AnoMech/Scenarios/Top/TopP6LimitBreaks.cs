@@ -49,6 +49,10 @@ public sealed class TopP6LimitBreakPress
     public float? ResolvedAt { get; internal set; }
     public float? InterruptedAt { get; internal set; }
 
+    // When its cast bar ends. The human's resolve reaches the run a frame or two after that, so a deadline its cast bar
+    // meets is judged by this, not by ResolvedAt.
+    public float LandsAt => CastStartedAt + CastSeconds;
+
     // Where its user stood as it resolved, facing its target, or the way it faced without one.
     public Placement? ResolvedFrom { get; internal set; }
 
@@ -84,6 +88,10 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     // How long before a melee window opens a press still counts toward explaining a miss.
     private const float EarlyPressLookback = 10f;
+
+    // The client's stand-in for "the player's current target". UNVERIFIED that a press reaches Acted with it rather than
+    // its target's own id; one that does is read as aimed at the player's target as it is heard.
+    private const uint CurrentTarget = 0xE0000000;
 
     public const string TakesHoldTooLate = "; one pressed within {0:0.#} s of the hit takes hold too late";
     public const string GaugeWasShort =
@@ -138,21 +146,6 @@ public sealed class TopP6LimitBreaks : IDisposable
             CatchUp();
             return units / (float)UnitsPerBar;
         }
-    }
-
-    public bool AnyCasting
-    {
-        get
-        {
-            CatchUp();
-            return presses.Any(p => p.IsCasting);
-        }
-    }
-
-    public bool IsCasting(PartyRole seat)
-    {
-        CatchUp();
-        return presses.Any(p => p.Seat == seat && p.IsCasting);
     }
 
     // A press the run owes is waiting for a full gauge: a check failing now failed for want of one.
@@ -256,8 +249,9 @@ public sealed class TopP6LimitBreaks : IDisposable
     }
 
     // What happened since the last look: the human's presses heard meanwhile, the gauge's generation, and who has a
-    // tank's limit break 3 up. Every entry point starts here, since an event can ask before the frame's Tick.
-    private void CatchUp()
+    // tank's limit break 3 up. Every entry point starts here, since an event can ask before the frame's Tick; a mechanic
+    // that stops hearing Resolved, or takes stock, at a deadline calls it first, so a press heard just before still counts.
+    internal void CatchUp()
     {
         SettleHeardPresses();
         Generate();
@@ -267,8 +261,10 @@ public sealed class TopP6LimitBreaks : IDisposable
     private void Hear(PlayerAction action)
     {
         if (action.ActionType != ActionType.Action || !LimitBreakHandler.IsLimitBreak(action.ActionId)) return;
-        heard.Add((action, Now));
+        heard.Add(((uint)action.TargetId == CurrentTarget ? action with { TargetId = ClientsTarget() } : action, Now));
     }
+
+    private static ulong ClientsTarget() => Plugin.TargetManager?.Target?.GameObjectId ?? 0ul;
 
     private void SettleHeardPresses()
     {

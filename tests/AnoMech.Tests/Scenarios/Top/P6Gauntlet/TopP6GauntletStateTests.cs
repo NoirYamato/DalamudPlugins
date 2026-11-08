@@ -264,23 +264,27 @@ public class TopP6GauntletStateTests
 
     // ---- Every roll, drawn whatever is pinned
 
-    private static readonly (string Name, Action<TopP6GauntletStateOverrides> Pin)[] Pins =
+    // Each pin, and how the roll it pins then reads (null: it pins no roll).
+    private static readonly (string Name, Action<TopP6GauntletStateOverrides> Pin, object? Reads)[] Pins =
     [
-        ("Cosmo Arrow 1", o => o.Arrow1InFirst = true),
-        ("wave 1's point", o => o.Exaflares1First = 3),
-        ("wave 1's turn", o => o.Exaflares1Clockwise = false),
-        ("lasers 1", o => o.Lasers1 = [MainTank, OffTank, RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps]),
-        ("Wild Charge 1", o => o.WildCharge1Target = CasterDps),
-        ("Cosmo Arrow 2", o => o.Arrow2InFirst = false),
-        ("lasers 2", o => o.Lasers2 = [CasterDps, PhysRangedDps, MeleeDpsB, MeleeDpsA, ShieldHealer, RegenHealer, OffTank, MainTank]),
-        ("Wild Charge 2", o => o.WildCharge2Target = MeleeDpsA),
-        ("wave 2's point", o => o.Exaflares2First = 6),
-        ("wave 2's turn", o => o.Exaflares2Clockwise = true),
-        ("the spreads", o => o.FirstSpreads = [[MainTank, OffTank, RegenHealer, ShieldHealer], [MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps]]),
-        ("the flares", o => o.Flares = [PhysRangedDps, OffTank, MeleeDpsA]),
-        ("the stack", o => o.StackTarget = RegenHealer),
-        ("the parts", o => o.Parts = (TopP6GauntletPart.CosmoMeteor, TopP6GauntletPart.CosmoMeteor)),
-        ("start from", o => o.StartFrom = TopP6GauntletPart.Exaflares2),
+        ("Cosmo Arrow 1", o => o.Arrow1InFirst = true, true),
+        ("wave 1's point", o => o.Exaflares1First = 3, 3),
+        ("wave 1's turn", o => o.Exaflares1Clockwise = false, false),
+        ("lasers 1", o => o.Lasers1 = [MainTank, OffTank, RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps],
+            "MainTank,OffTank,RegenHealer,ShieldHealer,MeleeDpsA,MeleeDpsB,PhysRangedDps,CasterDps"),
+        ("Wild Charge 1", o => o.WildCharge1Target = CasterDps, CasterDps),
+        ("Cosmo Arrow 2", o => o.Arrow2InFirst = false, false),
+        ("lasers 2", o => o.Lasers2 = [CasterDps, PhysRangedDps, MeleeDpsB, MeleeDpsA, ShieldHealer, RegenHealer, OffTank, MainTank],
+            "CasterDps,PhysRangedDps,MeleeDpsB,MeleeDpsA,ShieldHealer,RegenHealer,OffTank,MainTank"),
+        ("Wild Charge 2", o => o.WildCharge2Target = MeleeDpsA, MeleeDpsA),
+        ("wave 2's point", o => o.Exaflares2First = 6, 6),
+        ("wave 2's turn", o => o.Exaflares2Clockwise = true, true),
+        ("the spreads", o => o.FirstSpreads = [[MainTank, OffTank, RegenHealer, ShieldHealer], [MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps]],
+            "MainTank,OffTank,RegenHealer,ShieldHealer|MeleeDpsA,MeleeDpsB,PhysRangedDps,CasterDps"),
+        ("the flares", o => o.Flares = [PhysRangedDps, OffTank, MeleeDpsA], "PhysRangedDps,OffTank,MeleeDpsA"),
+        ("the stack", o => o.StackTarget = RegenHealer, RegenHealer),
+        ("the parts", o => o.Parts = (TopP6GauntletPart.CosmoMeteor, TopP6GauntletPart.CosmoMeteor), null),
+        ("start from", o => o.StartFrom = TopP6GauntletPart.Exaflares2, null),
     ];
 
     private static readonly (string Name, Func<TopP6GauntletState, object> Read)[] Rolls =
@@ -300,19 +304,26 @@ public class TopP6GauntletStateTests
         ("the stack", s => s.StackTarget),
     ];
 
-    // The stack is rolled among the five without a flare, so pinning the flares moves it; every other pin leaves every
+    // A pinned roll reads its pin, but a stack pinned on a player the flares have rolled onto keeps the seed's. The stack
+    // is rolled among the five without a flare, so pinning the flares moves it off them; every other pin leaves every
     // other roll as the seed had it.
     [Test]
     public void PinningARollLeavesTheOthersAsTheSeedHadThem()
     {
         Assert.Multiple(() =>
         {
-            foreach (var seed in Seeds.Take(100))
+            foreach (var seed in Seeds.Take(300))
             {
                 var free = State(seed);
-                foreach (var (pinned, pin) in Pins)
+                foreach (var (pinned, pin, reads) in Pins)
                 {
                     var state = State(seed, pin);
+                    if (reads is PartyRole stack && pinned == "the stack" && state.HasFlare(stack))
+                        Assert.That(state.StackTarget, Is.EqualTo(free.StackTarget), $"seed {seed}: the stack pinned on a flare");
+                    else if (reads is not null)
+                        Assert.That(Rolls.Single(r => r.Name == pinned).Read(state), Is.EqualTo(reads), $"seed {seed}: {pinned} as pinned");
+                    if (pinned == "the flares")
+                        Assert.That(state.HasFlare(state.StackTarget), Is.False, $"seed {seed}: the stack on {state.StackTarget}, among the pinned flares");
                     foreach (var (roll, read) in Rolls.Where(r => r.Name != pinned && !(pinned == "the flares" && r.Name == "the stack")))
                         Assert.That(read(state), Is.EqualTo(read(free)), $"seed {seed}: pinning {pinned} moved {roll}");
                 }

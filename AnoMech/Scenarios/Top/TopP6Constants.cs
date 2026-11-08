@@ -10,8 +10,8 @@ public static class TopP6Constants
     public static class P6BNpcBaseId
     {
         public const uint Helper = 9020;                            // the invisible helper that casts for Alpha Omega
-        public const uint CosmoMeteor = 15726;                      // hitbox 3; two, north and south
-        public const uint CosmoComet = 15727;                       // hitbox 1; six, on the other compass points
+        public const uint CosmoMeteor = 15726;                      // hitbox 3; two
+        public const uint CosmoComet = 15727;                       // hitbox 1; six
     }
 
     public static class P6BNpcNameId
@@ -66,6 +66,11 @@ public static class TopP6Constants
 
         public const float CosmoMeteorDistance = 11f;               // UNVERIFIED
         public const float CosmoCometDistance = 13f;                // UNVERIFIED
+
+        // Compass degrees: the meteors north and south. UNVERIFIED: the comets on the other six compass points.
+        public static readonly IReadOnlyList<float> CosmoMeteorBearings = [0f, 180f];
+        public static readonly IReadOnlyList<float> CosmoCometBearings = [45f, 90f, 135f, 225f, 270f, 315f];
+
         // UNVERIFIED: how the flare's damage falls off; inside this it kills everyone but its target.
         public const float FlareLethalWithin = 20f;
     }

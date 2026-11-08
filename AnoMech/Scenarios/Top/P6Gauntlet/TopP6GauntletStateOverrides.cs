@@ -25,7 +25,8 @@ public sealed class TopP6GauntletStateOverrides
     // Three seats get a Cosmo Meteor flare; a seat arriving at a full set keeps the roll.
     public PerRoleSetting<bool> Flare { get; set; } = new();
 
-    // The human's own limit breaks 3 in its seat's pair; null follows LPDU's job priorities.
+    // The human's own limit breaks 3 in its seat's pair; null follows LPDU's sheet: tanks and melee by job priority,
+    // healers by seat.
     public TopP6TankLimitBreaks? TankLimitBreaks { get; set; }
     public TopP6MeleeLimitBreaks? MeleeLimitBreaks { get; set; }
     public TopP6HealerLimitBreaks? HealerLimitBreaks { get; set; }

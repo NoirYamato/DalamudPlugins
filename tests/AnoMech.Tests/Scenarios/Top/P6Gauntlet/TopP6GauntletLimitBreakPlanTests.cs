@@ -1,6 +1,5 @@
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
-using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top.P6Gauntlet;
 using static AnoMech.Core.Game.Party.PartyRole;

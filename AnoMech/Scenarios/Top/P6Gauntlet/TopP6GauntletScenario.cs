@@ -15,9 +15,10 @@ namespace AnoMech.Scenarios.Top.P6Gauntlet;
 // kills whoever made it on the spot, with the reason.
 //
 // Every limit break goes through the run's TopP6LimitBreaks: the human presses its own, the strat the other seats', and
-// the fight's checks count whoever pressed, so a missing or wasted one plays out as in the game. The human's own melee
-// limit breaks are also held to the Gauntlet's windows, which the scenario reads off the strat's plan
-// (TopP6GauntletLimitBreakPlan), its one read of the strat.
+// the fight's checks count whoever pressed, so a missing or wasted one plays out as in the game. The scenario reads the
+// strat's plan (TopP6GauntletLimitBreakPlan), its only read of the strat, for three things: the windows the Gauntlet
+// holds the human's own melee limit breaks to, the start's chat line naming the human's duties, and, on a later start,
+// which seats already carry Spark of Dynamis (SparkedBefore).
 public sealed class TopP6GauntletScenario : IScenario
 {
     public string Name => "Gauntlet";
@@ -33,7 +34,7 @@ public sealed class TopP6GauntletScenario : IScenario
     public IReadOnlyList<IScenarioAi> AiStrats => [new TopP6GauntletLpduAi()];
 
     internal const string ResolveYourOwnActionsIsOff =
-        "The Gauntlet needs \"Resolve your own actions\" on in the settings: it hears your limit breaks through it.";
+        "The Gauntlet needs \"Resolve your own actions\" on in the settings: only it plays your limit breaks in the sim.";
 
     private const float CosmoMemoryAt = 1.9f;
     private const float UnlimitedWaveCannonAt = 1.9f;

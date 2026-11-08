@@ -1,7 +1,12 @@
+using System.Reflection;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top;
+using Dalamud.Game.ClientState.Objects.Types;
+using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
 
@@ -97,9 +102,10 @@ public class TopP6MeleeWindowTests
         AssertDied(run, Closes, Died(TopP6LimitBreaks.YoursStartedTooEarly));
     }
 
-    // A window that opens on another seat's melee limit break 3: M2's bot press resolves at 5.5 and opens it, until 9.0.
+    // A window that opens on another seat's melee limit break 3: M2's bot press at 1.0 resolves at 5.5 and opens it, until
+    // 9.0. A press at 0.8 goes ahead of the bot's, which waits for it and then for a gauge it spent: the window never opens.
     [TestCase(6f, true)]
-    [TestCase(3f, false)]
+    [TestCase(0.8f, false)]
     public void AWindowOpenedByAnotherSeatsPress(float pressAt, bool lives)
     {
         var run = TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
@@ -118,6 +124,56 @@ public class TopP6MeleeWindowTests
 
         if (lives) Assert.That(run.Passed, run.ToString);
         else AssertDied(run, 9f, TopP6LimitBreaks.SecondDiveMeleeRule + TopP6LimitBreaks.YoursStartedTooEarly);
+    }
+
+    // A client may report a press aimed at its "current target" stand-in (0xE0000000) rather than at the target's own id:
+    // the run reads it as aimed at the player's target as it hears it, here Alpha Omega, or nothing.
+    [TestCase(true)]
+    [TestCase(false)]
+    public void OneAimedAtTheClientsCurrentTargetIsAimedAtThePlayersTarget(bool targetingAlphaOmega)
+    {
+        const ulong CurrentTarget = 0xE0000000;
+        var leftInstalled = Plugin.TargetManager;
+        var targetManager = DispatchProxy.Create<ITargetManager, TargetStandIn>();
+        DalamudServices.Install(nameof(Plugin.TargetManager), targetManager);
+        try
+        {
+            var run = Window((world, alphaOmega, _) => world.Events.Add(3f, () =>
+            {
+                ((TargetStandIn)(object)targetManager).Target = targetingAlphaOmega ? (ulong)alphaOmega.Enemy!.GameObjectId : null;
+                var userActions = (FakeUserActions)Natives.UserActions;
+                var limitBreak3 = LimitBreak(MeleeDpsA, 3);
+                userActions.Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, limitBreak3, CurrentTarget, 4.5f));
+                world.Events.Add(4.5f, () => userActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, limitBreak3, CurrentTarget)));
+            }));
+
+            if (targetingAlphaOmega) Assert.That(run.Passed, run.ToString);
+            else AssertDied(run, Closes, Died(TopP6LimitBreaks.YoursMissedAlphaOmega));
+        }
+        finally
+        {
+            DalamudServices.Install(nameof(Plugin.TargetManager), leftInstalled);
+        }
+    }
+
+    // Dalamud's target manager, and the object it targets, down to that object's GameObjectId.
+    public class TargetStandIn : DispatchProxy
+    {
+        public ulong? Target { get; set; }
+
+        protected override object? Invoke(MethodInfo? method, object?[]? args) => method?.Name switch
+        {
+            "get_Target" => Target is { } id ? Targeting(id) : null,
+            "get_GameObjectId" => Target ?? 0ul,
+            _ => method is { ReturnType.IsValueType: true } && method.ReturnType != typeof(void) ? Activator.CreateInstance(method.ReturnType) : null,
+        };
+
+        private static IGameObject Targeting(ulong id)
+        {
+            var target = DispatchProxy.Create<IGameObject, TargetStandIn>();
+            ((TargetStandIn)(object)target).Target = id;
+            return target;
+        }
     }
 
     // The run's own press for a bot-driven player seat fills the seat's window as the human's would.

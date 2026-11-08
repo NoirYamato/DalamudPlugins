@@ -23,8 +23,8 @@ namespace AnoMech.Tests;
 //   south; the OT is out); the second arrow: into the middle; the first puddles, then a beat: beside the first exaflare,
 //   away from the second; the first exaflare going off at r 8: onto its point; puddles 4 and 5: on round to the second
 //   and the third exaflare's points; puddle 6: the six onto the last exaflare's point, a tank from there through the boss
-//   into its arm of the Y; the dive's hits: back to its auto spot (the OT's west one when the hold is east), the second
-//   melee to the middle and the MT back a step to make room for it.
+//   into its arm of the Y; the dive's hits: back to its auto spot (the OT out at r 16, west when the hold is east), the
+//   second melee to the middle and the MT back a step to make room for it.
 // A melee presses its own limit break 3 on Alpha Omega as its client does: the first melee as Cosmo Dive's bar ends, on
 // the hold; the second once in the middle and the first's has landed. It stands still through the 4.5 s cast; a walk
 // cued meanwhile sets off as the cast ends. Whatever its seat, the roll, the exaflares' step, its reaction time and its
@@ -243,7 +243,7 @@ public class TopP6GauntletExaflares2LpduHumanTests
         private Vector2 AutoSpotAfterTheDive() => seat switch
         {
             MainTank => new Vector2(0f, -7f),
-            OffTank => (Bearing(3) % 360f + 360f) % 360f == 90f ? OffTankWestAfterTheDive : AutoSpots[OffTank],
+            OffTank => (Bearing(3) % 360f + 360f) % 360f == 90f ? OffTankWestAfterTheDive : OffTankEastAfterTheDive,
             _ => secondMelee ? Vector2.Zero : AutoSpots[seat],
         };
 

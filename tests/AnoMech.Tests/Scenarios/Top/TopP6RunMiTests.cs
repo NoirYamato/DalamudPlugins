@@ -1,17 +1,20 @@
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopP6Constants;
 
 namespace AnoMech.Tests;
 
-// Run: ****mi* cast at 2.0: its 16 s cast ends at 18.0. A melee limit break 3 resolving by then defeats Alpha Omega at
-// once; otherwise its damage lands 30 s after the cast starts, at 32.0, and kills everyone.
+// Run: ****mi* cast at 2.0: its 16 s cast ends at 18.0. A melee limit break 3 whose cast bar ends by then defeats Alpha
+// Omega as it resolves; otherwise its damage lands 30 s after the cast starts, at 32.0, and kills everyone.
 public class TopP6RunMiTests
 {
     private const float CastAt = 2f;
+    private const float MeleeLimitBreak3Cast = 4.5f;
 
     private static uint Job(PartyRole seat) => PartyPresets.Standard[(int)seat].ClassJob;
 
@@ -96,6 +99,25 @@ public class TopP6RunMiTests
     {
         var run = RunMi((world, alphaOmega, _) => TopP6HumanLimitBreak.Press(world, 3f, LimitBreakHandler.ActionId(Job(MeleeDpsA), 3), () => alphaOmega.Enemy),
             new TimelineRunOptions { PlayerRole = MeleeDpsA, HumanPlayer = true, UserActionsEnabled = true });
+
+        Assert.That(run.Passed, run.ToString);
+    }
+
+    // The human's client hears its cast end only on a later frame: started 4.5 s before the cast ends, the human's lands
+    // with it, its resolve reaching the run after the cast has ended, and still defeats Alpha Omega.
+    [Test]
+    public void AHumansMeleeLimitBreak3LandingAsTheCastEndsDefeatsItThoughHeardAfter()
+    {
+        const float HeardLate = 0.05f;
+        var run = RunMi((world, alphaOmega, _) => world.Events.Add(TopP6AlphaOmega.RunMiFinishedBy(CastAt) - MeleeLimitBreak3Cast - 0.02f, () =>
+        {
+            var userActions = (FakeUserActions)Natives.UserActions;
+            var limitBreak3 = LimitBreakHandler.ActionId(Job(MeleeDpsA), 3);
+            var target = (ulong)alphaOmega.Enemy!.GameObjectId;
+            userActions.Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, limitBreak3, target, MeleeLimitBreak3Cast));
+            world.Events.Add(MeleeLimitBreak3Cast + HeardLate,
+                () => userActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, limitBreak3, target)));
+        }), new TimelineRunOptions { PlayerRole = MeleeDpsA, HumanPlayer = true, UserActionsEnabled = true });
 
         Assert.That(run.Passed, run.ToString);
     }

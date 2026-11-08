@@ -61,7 +61,8 @@ public enum TopP6HealerLimitBreaks
 // A human whose job can't press their seat's limit break is held to none of it: the seat counts as its bot's job, and
 // the run presses for it.
 //
-// The one piece of strat the Gauntlet's scenario reads, for the human's melee windows and the start-of-run chat line.
+// The one piece of strat the Gauntlet's scenario reads: for the human's melee windows, the start-of-run chat line and, on
+// a later start, which seats already carry Spark of Dynamis (SparkedBefore).
 public sealed class TopP6GauntletLimitBreakPlan
 {
     private static readonly JobId[] TankPriority = [JobId.Warrior, JobId.DarkKnight, JobId.Paladin, JobId.Gunbreaker];

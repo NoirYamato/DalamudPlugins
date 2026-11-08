@@ -77,18 +77,20 @@ public class TopP6GauntletLimitBreakHealerTests
         => FromMagicNumber(seat, job).Play(For(duty, pressAt)).AssertEveryoneDied(MarkRunsOut(duty), P6ActionId.MagicNumber, TheMarkKills());
 
     // A limit break 2 lifts nothing either.
-    [Test]
-    public void AHealerLimitBreak2LiftsNothing()
-        => FromMagicNumber(RegenHealer, JobId.Sage)
-            .Play(new TopP6GauntletHumanPress(208.8f, Level: 2))
-            .AssertEveryoneDied(214.1f, P6ActionId.MagicNumber, TheMarkKills());
+    [TestCase(RegenHealer, JobId.Sage, MagicNumber1Healer)]
+    [TestCase(ShieldHealer, JobId.WhiteMage, MagicNumber2Healer)]
+    public void AHealerLimitBreak2LiftsNothing(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
+        => FromMagicNumber(seat, job)
+            .Play(new TopP6GauntletHumanPress(AimFor(duty), Level: 2))
+            .AssertEveryoneDied(MarkRunsOut(duty), P6ActionId.MagicNumber, TheMarkKills());
 
     // Moving cancels the cast: unless the healer presses again in time, the mark kills everyone.
-    [Test]
-    public void AnInterruptedHealerLimitBreak3LiftsNothing()
-        => FromMagicNumber(ShieldHealer, JobId.WhiteMage)
-            .Play(For(MagicNumber2Healer, interruptedAfter: 1f))
-            .AssertEveryoneDied(230.2f, P6ActionId.MagicNumber, TheMarkKills());
+    [TestCase(RegenHealer, JobId.Scholar, MagicNumber1Healer)]
+    [TestCase(ShieldHealer, JobId.WhiteMage, MagicNumber2Healer)]
+    public void AnInterruptedHealerLimitBreak3LiftsNothing(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
+        => FromMagicNumber(seat, job)
+            .Play(For(duty, interruptedAfter: 1f))
+            .AssertEveryoneDied(MarkRunsOut(duty), P6ActionId.MagicNumber, TheMarkKills());
 
     [Test]
     public void PressingAgainAfterAnInterruptionStillLifts()

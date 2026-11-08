@@ -1,4 +1,5 @@
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.UserActions;
 using AnoMech.Multiplayer;
 using AnoMech.Scenarios.Top;
@@ -115,6 +116,13 @@ public class TopP6GauntletLimitBreakRangedTests
         => FromCosmoMeteor(CasterDps, JobId.Summoner).Play(For(Comets), For(Comets, 188.0f))
             .AssertEveryoneDied(197.1f, P6ActionId.CosmoMeteorEnrage, MeteorsEnraged(TopP6LimitBreaks.GaugeWasShort));
 
+    // The bard presses as R2's turn comes (178.3), just ahead of it: its line kills the meteors, but R2's waits for it to
+    // land and then lands itself after the comets have enraged.
+    [Test]
+    public void APhysRangedPressingTheCastersTurnMakesItLandTooLate()
+        => FromCosmoMeteor(PhysRangedDps, JobId.Bard).Play(For(Meteors, 178.2f))
+            .AssertEveryoneDied(187.0f, P6ActionId.CosmoMeteorEnrage, CometsEnraged());
+
     // The bard presses through the meteors twice: Magic Number 1's tank finds the gauge empty, and the hit kills everyone.
     [Test]
     public void APhysRangedPressingTwiceLeavesMagicNumber1WithoutAGauge()
@@ -145,6 +153,34 @@ public class TopP6GauntletLimitBreakRangedTests
             Assert.That(run.Presses.Where(p => p.Seat == seat).Select(p => (p.ByHuman, p.Job, p.ActionId)),
                         Is.EqualTo(new[] { (false, (uint)pressedAs, LimitBreakHandler.ActionId((uint)pressedAs, 3)) }));
         });
+    }
+
+    // The run's press for a summoner in R1 reaches both meteors wherever the summoner stands: here east of Alpha Omega
+    // while it casts and lands (G 188.8 to 193.3), where a line aimed at Alpha Omega would pass between them. Then back to
+    // A for the flares.
+    [Test]
+    public void TheRunsPressForAHumanWhoseJobCantPressItReachesBothMeteorsFromAnywhere()
+    {
+        var run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), 0, 1, new ScenarioRunOptions
+        {
+            PlayerRole = PhysRangedDps,
+            WriteArtifactsOnFailure = false,
+            Overrides = o =>
+            {
+                ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)JobId.Summoner;
+                var overrides = (TopP6GauntletStateOverrides)o;
+                TopP6GauntletRun.Only(overrides, TopP6GauntletPart.CosmoMeteor);
+                overrides.Flares = [CasterDps, MeleeDpsB, MainTank];
+                overrides.StackTarget = ShieldHealer;
+            },
+            Probe = p =>
+            {
+                if (p.Crossed(23.0f)) TimelineRun.Place(p.World, PhysRangedDps, 13f, 0f);
+                if (p.Crossed(29.0f)) TimelineRun.Place(p.World, PhysRangedDps, 0f, -13f);
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
     }
 
     // Godmode deals no deaths: each player is reported once as the comets enrage.

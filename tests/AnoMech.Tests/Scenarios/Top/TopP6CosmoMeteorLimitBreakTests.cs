@@ -1,7 +1,10 @@
 using System.Numerics;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopP6Constants;
 
@@ -103,6 +106,32 @@ public class TopP6CosmoMeteorLimitBreakTests
         Assert.That(alive.Meteors, Is.EqualTo(meteorsLeft));
     }
 
+    // The human's client is heard between the sim's frames: a limit break 3 whose resolve is heard in the frame its adds
+    // enrage, before their enrage's own event, landed while they lived, and kills them before they can enrage. R1 presses
+    // from A, at Alpha Omega.
+    [TestCase(CasterDps)]
+    [TestCase(PhysRangedDps)]
+    public void AHumansLimitBreak3HeardInTheEnragesOwnFrameKillsTheAddsFirst(PartyRole seat)
+    {
+        const float CastAt = 1.9f;
+        var comets = seat == CasterDps;
+        var enragesAt = CastAt + (comets ? P6Duration.CometsEnrage : P6Duration.MeteorsEnrage);
+        var alive = (Comets: -1, Meteors: -1);
+        var run = CosmoMeteor((world, _, _, cosmoMeteor) => world.Events.Add(enragesAt + 0.1f, () => alive = Alive(cosmoMeteor)),
+            seat, heardFirst: (world, alphaOmega) =>
+            {
+                var limitBreak3 = LimitBreakHandler.ActionId(Job(seat), 3);
+                var castSeconds = Natives.Data.Action(limitBreak3)!.CastSeconds;
+                ulong Target() => (ulong)alphaOmega.Enemy!.GameObjectId;
+                world.Events.Add(enragesAt - castSeconds - 0.5f, () => TimelineRun.Place(world, PhysRangedDps, 0f, -13f));
+                world.Events.Add(enragesAt - castSeconds, () => Act(PlayerActionStep.CastStarted, limitBreak3, Target(), castSeconds));
+                world.Events.Add(enragesAt, () => Act(PlayerActionStep.Resolved, limitBreak3, Target(), 0f));
+            });
+
+        Assert.That(Reported(run, comets ? TopP6CosmoMeteor.CometsEnraged : TopP6CosmoMeteor.MeteorsEnraged), Is.Empty, run.ToString);
+        Assert.That(comets ? alive.Comets : alive.Meteors, Is.Zero);
+    }
+
     // The caster's press waits for a gauge left at one bar, and the enrage says so.
     [Test]
     public void AShortGaugeSaysSo()
@@ -122,7 +151,13 @@ public class TopP6CosmoMeteorLimitBreakTests
     private static List<string> Reported(TimelineRunResult run, string reason)
         => run.Chat.Where(line => line.Contains($" died: Cosmo Meteor ({reason})")).ToList();
 
-    private static TimelineRunResult CosmoMeteor(Action<SimWorld, TopP6AlphaOmega, TopP6LimitBreaks, TopP6CosmoMeteor> timeline)
+    private static void Act(PlayerActionStep step, uint actionId, ulong targetId, float castSeconds)
+        => ((FakeUserActions)Natives.UserActions).Act(new PlayerAction(step, ActionType.Action, actionId, targetId, castSeconds));
+
+    // `heardFirst` schedules before Cosmo Meteor does, so its events at the same time go first; with `human` that seat is
+    // the human's, pressing through its client.
+    private static TimelineRunResult CosmoMeteor(Action<SimWorld, TopP6AlphaOmega, TopP6LimitBreaks, TopP6CosmoMeteor> timeline,
+        PartyRole? human = null, Action<SimWorld, TopP6AlphaOmega>? heardFirst = null)
         => TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
         {
             world.Events.Add(0.5f, () =>
@@ -130,7 +165,10 @@ public class TopP6CosmoMeteorLimitBreakTests
                 limitBreaks.SetGauge(3f);
                 alphaOmega.ApplyCosmoMemoryStatuses();
             });
+            heardFirst?.Invoke(world, alphaOmega);
             var cosmoMeteor = alphaOmega.CosmoMeteor(1.9f, Rolls, limitBreaks);
             timeline(world, alphaOmega, limitBreaks, cosmoMeteor);
-        }, new TimelineRunOptions { GodMode = true, PlayerRole = OffTank });
+        }, human is { } seat
+            ? new TimelineRunOptions { GodMode = true, PlayerRole = seat, HumanPlayer = true, UserActionsEnabled = true }
+            : new TimelineRunOptions { GodMode = true, PlayerRole = OffTank });
 }

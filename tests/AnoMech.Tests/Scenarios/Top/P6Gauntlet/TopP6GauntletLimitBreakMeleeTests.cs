@@ -49,6 +49,9 @@ public class TopP6GauntletLimitBreakMeleeTests
     private static TopP6GauntletHumanSeat IntoCosmoMeteor(PartyRole seat, JobId job)
         => new TopP6GauntletHumanSeat(seat, job).From(TopP6GauntletPart.Exaflares2, TopP6GauntletPart.CosmoMeteor);
 
+    private static TopP6GauntletHumanSeat From(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
+        => duty == Enrage ? FromMagicNumber(seat, job) : FromTheDive(seat, job);
+
     // The monk in M1 and the dragoon in M2 tie with the other seat's bot: the enrage is the human's.
     [TestCase(MeleeDpsA, JobId.Samurai, new[] { FirstDiveMelee, Enrage })]
     [TestCase(MeleeDpsA, JobId.Dragoon, new[] { FirstDiveMelee, Enrage })]
@@ -82,18 +85,35 @@ public class TopP6GauntletLimitBreakMeleeTests
     public void TheSecondStartedAfterItsWindowKillsTheHuman()
         => FromTheDive(MeleeDpsA, JobId.Ninja).Play(For(SecondDiveMelee, 166.0f)).AssertOnlyTheHumanDied(165.5f, Second);
 
-    [Test]
-    public void TheEnragesStartedAfterItsWindowKillsTheHuman()
-        => FromMagicNumber(MeleeDpsA, JobId.Monk).Play(For(Enrage, 244.0f)).AssertOnlyTheHumanDied(243.5f, TheEnrage);
+    [TestCase(MeleeDpsA, JobId.Monk)]
+    [TestCase(MeleeDpsB, JobId.Samurai)]
+    public void TheEnragesStartedAfterItsWindowKillsTheHuman(PartyRole seat, JobId job)
+        => FromMagicNumber(seat, job).Play(For(Enrage, 244.0f)).AssertOnlyTheHumanDied(243.5f, TheEnrage);
 
     [TestCase(MeleeDpsB, JobId.Dragoon, 161.0f, First)]
     [TestCase(MeleeDpsB, JobId.Viper, 165.5f, Second)]
     public void AMeleeWhoNeverPressesDiesAsItsWindowCloses(PartyRole seat, JobId job, float closes, string rule)
         => FromTheDive(seat, job).Play().AssertOnlyTheHumanDied(closes, rule);
 
-    [Test]
-    public void AnEnrageHolderWhoNeverPressesDiesAsItsWindowCloses()
-        => FromMagicNumber(MeleeDpsA, JobId.Samurai).Play().AssertOnlyTheHumanDied(243.5f, TheEnrage);
+    [TestCase(MeleeDpsA, JobId.Samurai)]
+    [TestCase(MeleeDpsB, JobId.Samurai)]
+    public void AnEnrageHolderWhoNeverPressesDiesAsItsWindowCloses(PartyRole seat, JobId job)
+        => FromMagicNumber(seat, job).Play().AssertOnlyTheHumanDied(243.5f, TheEnrage);
+
+    // The samurai in M2 is the first melee, and its window runs to 161.0: pressing late in it, it still goes first, since
+    // the second melee, the dragoon bot in M1, waits for its limit break to land (or, past 161.0, for any still casting)
+    // before pressing its own.
+    [TestCase(158.0f)]
+    [TestCase(160.9f)]
+    public void TheSecondMeleeWaitsForAFirstPressedLateInItsWindow(float pressAt)
+    {
+        var run = FromTheDive(MeleeDpsB, JobId.Samurai).Play(For(FirstDiveMelee, pressAt));
+
+        run.AssertClears();
+        Assert.That(run.Presses.Select(p => (p.Seat, p.ByHuman)), Is.EqualTo(new[] { (MeleeDpsB, true), (MeleeDpsA, false) }),
+                    () => TopP6GauntletHumanSeatRun.Describe(run.Presses));
+        Assert.That(run.G(run.Presses[1].CastStartedAt), Is.EqualTo(pressAt + 4.5f).Within(0.05f), "the second goes as the first lands");
+    }
 
     // ---- Cut off, or not what the window asks for
 
@@ -113,29 +133,37 @@ public class TopP6GauntletLimitBreakMeleeTests
         => FromTheDive(MeleeDpsA, JobId.Reaper).Play(For(SecondDiveMelee, interruptedAfter: 3.5f))
             .AssertOnlyTheHumanDied(165.5f, Second + TopP6LimitBreaks.MovingCancelledYours);
 
-    [Test]
-    public void TheEnragesCutOffAfterItsWindowClosedKillsTheHumanThere()
-        => FromMagicNumber(MeleeDpsA, JobId.Dragoon).Play(For(Enrage, 240.0f, interruptedAfter: 4f))
+    [TestCase(MeleeDpsA, JobId.Dragoon)]
+    [TestCase(MeleeDpsB, JobId.Samurai)]
+    public void TheEnragesCutOffAfterItsWindowClosedKillsTheHumanThere(PartyRole seat, JobId job)
+        => FromMagicNumber(seat, job).Play(For(Enrage, 240.0f, interruptedAfter: 4f))
             .AssertOnlyTheHumanDied(244.0f, TheEnrage + TopP6LimitBreaks.MovingCancelledYours);
 
     [Test]
     public void PressingAgainAfterBeingCutOffFillsTheWindow()
         => FromTheDive(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee, interruptedAfter: 0.5f), For(FirstDiveMelee, 151.5f)).AssertClears();
 
-    [Test]
-    public void ALimitBreak2DoesntFillTheWindow()
-        => FromTheDive(MeleeDpsA, JobId.Dragoon).Play(new TopP6GauntletHumanPress(150.2f, Level: 2, OnAlphaOmega: true))
-            .AssertOnlyTheHumanDied(161.0f, First + string.Format(TopP6LimitBreaks.YoursWasNotALimitBreak3, 2));
+    // Each window: the first (the dragoon in M1), the second (the monk in M2, after the dragoon bot's first) and the enrage.
+    [TestCase(MeleeDpsA, JobId.Dragoon, FirstDiveMelee, 161.0f, First)]
+    [TestCase(MeleeDpsB, JobId.Monk, SecondDiveMelee, 165.5f, Second)]
+    [TestCase(MeleeDpsA, JobId.Dragoon, Enrage, 243.5f, TheEnrage)]
+    public void ALimitBreak2DoesntFillTheWindow(PartyRole seat, JobId job, TopP6LimitBreakDuty duty, float closes, string rule)
+        => From(seat, job, duty).Play(new TopP6GauntletHumanPress(AimFor(duty), Level: 2, OnAlphaOmega: true))
+            .AssertOnlyTheHumanDied(closes, rule + string.Format(TopP6LimitBreaks.YoursWasNotALimitBreak3, 2));
 
-    [Test]
-    public void OneAimedAtNothingDoesntFillTheWindow()
-        => FromTheDive(MeleeDpsB, JobId.Samurai).Play(new TopP6GauntletHumanPress(150.2f))
-            .AssertOnlyTheHumanDied(161.0f, First + TopP6LimitBreaks.YoursMissedAlphaOmega);
+    // The samurai in M2 first and at the enrage, the reaper in M1 second, after the monk bot's first.
+    [TestCase(MeleeDpsB, JobId.Samurai, FirstDiveMelee, 161.0f, First)]
+    [TestCase(MeleeDpsA, JobId.Reaper, SecondDiveMelee, 165.5f, Second)]
+    [TestCase(MeleeDpsB, JobId.Samurai, Enrage, 243.5f, TheEnrage)]
+    public void OneAimedAtNothingDoesntFillTheWindow(PartyRole seat, JobId job, TopP6LimitBreakDuty duty, float closes, string rule)
+        => From(seat, job, duty).Play(new TopP6GauntletHumanPress(AimFor(duty)))
+            .AssertOnlyTheHumanDied(closes, rule + TopP6LimitBreaks.YoursMissedAlphaOmega);
 
-    // The reaper in M1 goes second, but presses before the monk's first one has landed.
+    // The reaper in M1 goes second, but presses as the dive's bar ends, ahead of the monk's first (150.2), which then waits
+    // for it and lands at 159.0: the reaper's started before its window opened.
     [Test]
     public void TheSecondStartedBeforeTheFirstHasLandedDoesntFillTheWindow()
-        => FromTheDive(MeleeDpsA, JobId.Reaper).Play(For(SecondDiveMelee, 151.0f))
+        => FromTheDive(MeleeDpsA, JobId.Reaper).Play(For(SecondDiveMelee, 150.0f))
             .AssertOnlyTheHumanDied(165.5f, Second + TopP6LimitBreaks.YoursStartedTooEarly);
 
     // Started at 230.0, before Run: ****mi*'s cast, it lands in the cast and Alpha Omega falls; but the Gauntlet's window
@@ -153,10 +181,10 @@ public class TopP6GauntletLimitBreakMeleeTests
         => IntoCosmoMeteor(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee), For(FirstDiveMelee, 155.0f))
             .AssertEveryoneDied(187.0f, P6ActionId.CosmoMeteorEnrage, CometsEnraged);
 
-    // The enrage holder also presses beside the second melee's, its own Brilliant Dynamis spent on the first.
+    // The enrage holder also presses the second melee's, ahead of it (156.9), its own Brilliant Dynamis spent on the first.
     [Test]
     public void PressingTheSecondMeleesTooLeavesTheCasterWithoutAGauge()
-        => IntoCosmoMeteor(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee), For(SecondDiveMelee, 157.0f))
+        => IntoCosmoMeteor(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee), For(SecondDiveMelee, 156.0f))
             .AssertEveryoneDied(187.0f, P6ActionId.CosmoMeteorEnrage, CometsEnraged);
 
     [Test]

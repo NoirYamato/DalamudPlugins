@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
-using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6Gauntlet;
@@ -86,7 +85,7 @@ public class TopP6GauntletExaflares2ScenarioTests
     [Test]
     public void ANonTankFarthestFromAlphaOmegaTakesFlashGaleAndDies()
         => ExaflaresDive(RegenHealer)
-            .TeleportAt(33f, to: new(0, 16))
+            .TeleportAt(33f, to: new(0, 17.5f))
             .ShouldKill(ActionId.Unknown7ddf, RegenHealer);
 
     [TestCase(MeleeDpsA, 2f, -5f)]
@@ -130,11 +129,12 @@ public class TopP6GauntletExaflares2ScenarioTests
         Assert.That(run.Passed, run.ToString);
     }
 
-    // The second melee may not go before the first has resolved: started at 26.0, inside the first's cast, it doesn't count.
+    // The second melee may not go before the first has resolved: started at 25.0, ahead of the first's (25.3), which then
+    // waits for it, it doesn't count.
     [Test]
     public void TheSecondMeleeStartingBeforeTheFirstHasResolvedDies()
     {
-        var run = HumanMelee(MeleeDpsB, p => TopP6HumanLimitBreak.Press(p.World, 26f, TopP6GauntletRun.LimitBreak3(MeleeDpsB),
+        var run = HumanMelee(MeleeDpsB, p => TopP6HumanLimitBreak.Press(p.World, 25f, TopP6GauntletRun.LimitBreak3(MeleeDpsB),
             () => TopP6GauntletRun.Scenario(p).AlphaOmega?.Enemy));
 
         Assert.That(run.Deaths.Select(d => (d.Role, d.Cause)),
@@ -169,7 +169,7 @@ public class TopP6GauntletExaflares2ScenarioTests
     [TestCase(26f, -10.5f, 0f, MeleeDpsA, "Cosmo Dive buster aimed at someone else")]
     [TestCase(26f, 7.78f, 7.78f, OffTank, "Cosmo Dive buster and its stack")]
     [TestCase(26f, 0f, 10f, CasterDps, "had 5 in it")]
-    [TestCase(33f, 0f, 16f, RegenHealer, "Flash Gale as a non-tank")]
+    [TestCase(33f, 0f, 17.5f, RegenHealer, "Flash Gale as a non-tank")]
     [TestCase(33f, 2f, -5f, MeleeDpsA, "Flash Gale aimed at someone else")]
     public void EveryDeathSaysWhy(float at, float x, float z, PartyRole player, string because)
     {

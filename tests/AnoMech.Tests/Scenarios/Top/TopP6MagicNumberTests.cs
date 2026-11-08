@@ -1,7 +1,10 @@
+using AnoMech.Core.EnemyActions;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
 using static AnoMech.Scenarios.Top.TopP6Constants;
@@ -14,6 +17,7 @@ namespace AnoMech.Tests;
 // gives the gauge back.
 public class TopP6MagicNumberTests
 {
+    private const float CastAt = 2f;
     private const float MarkLands = 8.3f;
     private const float MarkRunsOut = 14.3f;
 
@@ -68,6 +72,34 @@ public class TopP6MagicNumberTests
         else AssertTheMarkKilledEveryone(run);
     }
 
+    // The human's client is heard between the sim's frames. A resolve heard in the frame the mark runs out, before the
+    // mark's own event, landed while the mark was on: it lifts it. One heard in the frame the mark lands, before the
+    // mark's event, landed before the mark: it lifts nothing.
+    [TestCase(true)]
+    [TestCase(false)]
+    public void AHumanHealersResolveHeardInTheMarksOwnFrame(bool asItRunsOut)
+    {
+        var markLands = CastAt + TopP6Actions.MagicNumber.ReleasesAfter() + P6Duration.MagicNumberMarkAfterTheHit;
+        var resolvesAt = asItRunsOut ? markLands + P6Duration.MagicNumberMark : markLands;
+        var run = TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
+        {
+            world.Events.Add(0.5f, () =>
+            {
+                limitBreaks.SetGauge(3f);
+                alphaOmega.ApplyCosmoMemoryStatuses();
+            });
+            var limitBreak3 = LimitBreakHandler.ActionId(Job(RegenHealer), 3);
+            var castSeconds = Natives.Data.Action(limitBreak3)!.CastSeconds;
+            world.Events.Add(resolvesAt - castSeconds, () => Act(PlayerActionStep.CastStarted, limitBreak3, castSeconds));
+            world.Events.Add(resolvesAt, () => Act(PlayerActionStep.Resolved, limitBreak3, 0f));
+            alphaOmega.MagicNumber(CastAt, limitBreaks);
+            world.Events.Add(2.7f, () => limitBreaks.Press(MainTank, Job(MainTank)));
+        }, new TimelineRunOptions { PlayerRole = RegenHealer, HumanPlayer = true, UserActionsEnabled = true });
+
+        if (asItRunsOut) Assert.That(run.Passed, run.ToString);
+        else AssertTheMarkKilledEveryone(run);
+    }
+
     // Only a healer's limit break 3 lifts it.
     [Test]
     public void AnotherLimitBreakLeavesIt()
@@ -97,6 +129,9 @@ public class TopP6MagicNumberTests
     }
 
     private static int Marked(SimWorld world) => Enum.GetValues<PartyRole>().Count(r => world.Party.Get(r)!.HasStatus(P6StatusId.MagicNumber));
+
+    private static void Act(PlayerActionStep step, uint actionId, float castSeconds)
+        => ((FakeUserActions)Natives.UserActions).Act(new PlayerAction(step, ActionType.Action, actionId, 0, castSeconds));
 
     private static TimelineRunResult MagicNumber(Action<SimWorld, TopP6LimitBreaks> timeline, TimelineRunOptions? options = null,
         bool mainTankWithoutBrilliantDynamis = false)

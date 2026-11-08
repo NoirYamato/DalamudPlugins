@@ -2,7 +2,6 @@ using System.Globalization;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Multiplayer;
-using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6Gauntlet;
 using static AnoMech.Core.Game.Party.PartyRole;

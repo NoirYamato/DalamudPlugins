@@ -34,7 +34,7 @@ public class TopP6GauntletExaflares2LpduMarginTests
     // in Exaflares 1, so the exaflare and puddle rows are its. Each sixth puddle drops under a bot just short of the
     // third exaflare's point. After the dive the second melee, M2, waits in the middle, 2 y outside the Flash Gale on the
     // main tank stepped back to (0, -7); the first, held on the hold by its limit break 3 until 29.8, is back on its spot by
-    // the autos.
+    // the autos; the off-tank, out at r 16, leads the main tank by 9 y.
     private static readonly (string Check, float Design, float Jitters)[] Table =
     [
         ("an exaflare", 2.08f, 1.5f),
@@ -45,7 +45,7 @@ public class TopP6GauntletExaflares2LpduMarginTests
         ("the six outside both busters", 11.15f, 2f),
         ("the six inside the stack", 6f, 2f),
         ("another player's Flash Gale", 2f, 2f),
-        ("the off tank's lead as the farthest from Alpha Omega", 7.5f, 2f),
+        ("the off tank's lead as the farthest from Alpha Omega", 9f, 2f),
     ];
 
     // Off the table, with the slack the P3, P4 and P5 margin tests ask for. The player holds a buster and a Flash Gale

@@ -51,7 +51,7 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
     internal const float OffTankDegreesPastTheParty = 225f;
     internal static readonly Vector2 MainTankMakingRoomForTheSecondMelee = new(0f, -7f);
     internal static readonly Vector2 Middle = Vector2.Zero;
-    internal static readonly Vector2 OffTankOutsideWestAndFarthestForTheAutos = new(-14.5f, 0f);
+    internal static readonly Vector2 OffTankOutsideEastFarthestBeyondTheMeleeCastingOnTheDiveHold = new(16f, 0f);
     internal const float FlashGaleReachAndAStepFromTheMeleeCastingAtTheDiveHold = 5.5f;
     internal const float TheCosmoDiveBarEnds = 24.9f;
     internal const float RightAfterTheCosmoDiveBar = 25.3f;
@@ -182,9 +182,38 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
         ai.Move(start + 21.5f, PartyHoldsOnTheLastExaflaresPointTanksCrossTheBossIntoAY);
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.FirstDiveMelee, start + RightAfterTheCosmoDiveBar, start + TheFirstMeleeWindowCloses);
         ai.Move(start + 28f, BackForTheAutosTheSecondMeleeInTheMiddleTheMainTankMakingRoom);
-        PressOnceTheGaugeAllows(TopP6LimitBreakDuty.SecondDiveMelee, start + FromTheMiddleOnceTheFirstMeleeHasRefilledTheGauge,
-            start + TheSecondMeleeWindowCloses);
+        TheSecondMeleePressesFromTheMiddleOnceTheFirstHasLandedOrItsWindowHasClosed(start);
     }
+
+    private void TheSecondMeleePressesFromTheMiddleOnceTheFirstHasLandedOrItsWindowHasClosed(float start)
+    {
+        var pressed = false;
+
+        void PressTheSecondMelee()
+        {
+            if (pressed) return;
+            pressed = true;
+            if (state.LimitBreaks is { } limitBreaks) limitBreaks.Resolved -= PressOnceTheFirstMeleeLands;
+            Press(TopP6LimitBreakDuty.SecondDiveMelee, start + TheSecondMeleeWindowCloses);
+        }
+
+        void PressOnceTheFirstMeleeLands(TopP6LimitBreakPress press)
+        {
+            if (IsTheFirstMeleesLimitBreak3(press, start)) PressTheSecondMelee();
+        }
+
+        world.Events.Add(start + FromTheMiddleOnceTheFirstMeleeHasRefilledTheGauge, () =>
+        {
+            if (state.LimitBreaks is not { } limitBreaks) return;
+            if (limitBreaks.Presses.Any(press => IsTheFirstMeleesLimitBreak3(press, start))) PressTheSecondMelee();
+            else limitBreaks.Resolved += PressOnceTheFirstMeleeLands;
+        });
+        world.Events.Add(start + TheFirstMeleeWindowCloses, PressTheSecondMelee);
+    }
+
+    private bool IsTheFirstMeleesLimitBreak3(TopP6LimitBreakPress press, float start)
+        => press.Seat == state.LimitBreakPlan.SeatOf(TopP6LimitBreakDuty.FirstDiveMelee) && press.Is(TopP6LimitBreakKind.Melee)
+           && press.ResolvedAt >= start + TheCosmoDiveBarEnds;
 
     private void TheCosmoMeteor(float start)
     {
@@ -208,13 +237,15 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
     }
 
     private void PressOnceTheGaugeAllows(TopP6LimitBreakDuty duty, float at, float givingUpAfter)
-        => world.Events.Add(at, () =>
-        {
-            var plan = state.LimitBreakPlan;
-            var seat = plan.SeatOf(duty);
-            if (world.Party.Get(seat) is not { } member || TheHumanPressesItThemselves(plan, duty, member)) return;
-            state.LimitBreaks?.Press(seat, plan.JobOf(seat), AimedAt(duty), givingUpAfter);
-        });
+        => world.Events.Add(at, () => Press(duty, givingUpAfter));
+
+    private void Press(TopP6LimitBreakDuty duty, float givingUpAfter)
+    {
+        var plan = state.LimitBreakPlan;
+        var seat = plan.SeatOf(duty);
+        if (world.Party.Get(seat) is not { } member || TheHumanPressesItThemselves(plan, duty, member)) return;
+        state.LimitBreaks?.Press(seat, plan.JobOf(seat), AimedAt(duty), givingUpAfter);
+    }
 
     private bool TheHumanPressesItThemselves(TopP6GauntletLimitBreakPlan plan, TopP6LimitBreakDuty duty, SimCharacter member)
         => plan.HumanPresses(duty) && (state.PlayerPressesItsOwnLimitBreaks || !world.Party.IsBotDriven(member));
@@ -289,9 +320,9 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
         => TopP6LpduAi.OnRing(BearingOfTheLastExaflare(state) + OffTankDegreesPastTheParty, DiveTankRadius);
 
     internal static Vector2 OffTankAutoSpotClearOfThePartysDiveHold(Vector2 partyDiveHold)
-        => Vector2.Distance(partyDiveHold, TopP6LpduAi.OffTankOutsideEastAndFarthestForTheAutos) < FlashGaleReachAndAStepFromTheMeleeCastingAtTheDiveHold
-            ? OffTankOutsideWestAndFarthestForTheAutos
-            : TopP6LpduAi.OffTankOutsideEastAndFarthestForTheAutos;
+        => Vector2.Distance(partyDiveHold, OffTankOutsideEastFarthestBeyondTheMeleeCastingOnTheDiveHold) < FlashGaleReachAndAStepFromTheMeleeCastingAtTheDiveHold
+            ? -OffTankOutsideEastFarthestBeyondTheMeleeCastingOnTheDiveHold
+            : OffTankOutsideEastFarthestBeyondTheMeleeCastingOnTheDiveHold;
 
     internal static Vector2 AutoSpotAfterTheDive(PartyRole role, TopP6GauntletState state) => role switch
     {

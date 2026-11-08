@@ -19,8 +19,5 @@ internal static class TopP6GauntletRun
     // Only `part`, from t 0 on its own clock.
     public static void Only(TopP6GauntletStateOverrides o, TopP6GauntletPart part) => o.Parts = (part, part);
 
-    // Gauntlet time `gauntletTime` on the clock of a run starting at `first`.
-    public static float RunTime(TopP6GauntletPart first, float gauntletTime) => gauntletTime - TopP6GauntletParts.GauntletStart(first);
-
     public static uint LimitBreak3(PartyRole seat) => AnoMech.Core.UserActions.LimitBreakHandler.ActionId(PartyPresets.Standard[(int)seat].ClassJob, 3);
 }
