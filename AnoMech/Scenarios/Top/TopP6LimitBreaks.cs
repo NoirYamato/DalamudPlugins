@@ -210,11 +210,12 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     // The seat presses `job`'s limit break 3 at `target` (null: itself) once no other limit break is casting and the
     // gauge is full, whatever "Require tank mitigation" says. Pressed for a bot, it casts as a player would; for the
-    // local player's seat it only takes effect, since that client plays its own actions.
-    public void Press(PartyRole seat, uint job, SimCharacter? target = null)
+    // local player's seat it only takes effect, since that client plays its own actions. One still waiting after
+    // `until` (run time) is dropped at the end of that frame, so a check deciding then still counts it as owed.
+    public void Press(PartyRole seat, uint job, SimCharacter? target = null, float until = float.PositiveInfinity)
     {
         CatchUp();
-        requests.Add(new Request(seat, job, target));
+        requests.Add(new Request(seat, job, target, until));
         StartWaitingPresses();
     }
 
@@ -247,6 +248,7 @@ public sealed class TopP6LimitBreaks : IDisposable
         CatchUp();
         DropTheDeadsCasts();
         HoldCastersStill();
+        requests.RemoveAll(request => Now > request.Until);
         StartWaitingPresses();
         foreach (var held in windows.Where(w => !w.Decided && Now >= w.Window.LatestPress).ToList())
             Judge(held);
@@ -384,7 +386,7 @@ public sealed class TopP6LimitBreaks : IDisposable
                 requests.RemoveAt(0);
                 continue;
             }
-            if (presses.Any(p => p.IsCasting) || units < FullUnits) return;
+            if (Now > request.Until || presses.Any(p => p.IsCasting) || units < FullUnits) return;
             requests.RemoveAt(0);
             Start(request, user);
         }
@@ -452,7 +454,8 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
     }
 
-    // A bot keeps still through its cast: a walk it is sent on meanwhile waits for the cast to end.
+    // A bot keeps still through its cast: a walk it is sent on meanwhile waits for the cast to end, and the step it took
+    // on that walk before this tick is undone.
     private void HoldCastersStill()
     {
         foreach (var cast in casts)
@@ -460,6 +463,7 @@ public sealed class TopP6LimitBreaks : IDisposable
             if (cast.User.MoveDestination is not { } destination) continue;
             cast.HeldDestination = destination;
             cast.User.StopMoving();
+            cast.User.SetPosition(cast.PinnedAt);
         }
     }
 
@@ -502,13 +506,14 @@ public sealed class TopP6LimitBreaks : IDisposable
         return "";
     }
 
-    private sealed record Request(PartyRole Seat, uint Job, SimCharacter? Target);
+    private sealed record Request(PartyRole Seat, uint Job, SimCharacter? Target, float Until);
 
     private sealed class Cast(TopP6LimitBreakPress press, SimCharacter user, System.Numerics.Vector3? heldDestination)
     {
         public TopP6LimitBreakPress Press => press;
         public SimCharacter User => user;
         public System.Numerics.Vector3? HeldDestination { get; set; } = heldDestination;
+        public Placement PinnedAt { get; } = user.Placement();
     }
 
     private sealed class HeldWindow(TopP6MeleeWindow window, Func<SimCharacter?> target)

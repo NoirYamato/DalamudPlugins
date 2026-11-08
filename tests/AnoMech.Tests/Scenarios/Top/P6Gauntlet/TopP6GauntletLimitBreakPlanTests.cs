@@ -241,7 +241,13 @@ public class TopP6GauntletLimitBreakPlanTests
     [TestCase(MainTank, JobId.BlackMage,
         "Your limit breaks: none, since your job can't press your seat's: the Gauntlet presses its tank LB3 on Cosmo Memory and Magic Number 1 for you")]
     public void TheChatLineNamesTheHumansDuties(PartyRole seat, JobId job, string line)
-        => Assert.That(Plan(seat, job).ChatLine, Is.EqualTo(line));
+        => Assert.That(Plan(seat, job).ChatLine(), Is.EqualTo(line));
+
+    // Only the duties a run plays: from Magic Number on, a warrior main tank has only Magic Number 1 left, a caster none.
+    [TestCase(MainTank, JobId.Warrior, "Your limit breaks: tank LB3 on Magic Number 1")]
+    [TestCase(CasterDps, JobId.BlackMage, "Your limit breaks: none in this run")]
+    public void TheChatLineNamesOnlyTheDutiesTheRunPlays(PartyRole seat, JobId job, string line)
+        => Assert.That(Plan(seat, job).ChatLine(duty => duty >= MagicNumber1Tank), Is.EqualTo(line));
 
     // A run starting later begins with Spark of Dynamis on whoever already pressed with Brilliant Dynamis.
     [TestCase(FirstDiveMelee, new PartyRole[0])]

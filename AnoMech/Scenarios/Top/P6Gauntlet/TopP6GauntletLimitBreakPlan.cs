@@ -145,16 +145,15 @@ public sealed class TopP6GauntletLimitBreakPlan
     public IReadOnlyList<PartyRole> SparkedBefore(TopP6LimitBreakDuty duty)
         => Enum.GetValues<TopP6LimitBreakDuty>().Where(d => d < duty && d != CosmoMemory).Select(d => seats[d]).Distinct().ToList();
 
-    // The start-of-run chat line naming the human's duties.
-    public string ChatLine
+    // The start-of-run chat line naming the human's duties among those the run plays (all of them by default).
+    public string ChatLine(Func<TopP6LimitBreakDuty, bool>? played = null)
     {
-        get
-        {
-            var duties = Describe(DutiesOf(HumanSeat));
-            return HumanFits
-                ? $"Your limit breaks: {duties}"
-                : $"Your limit breaks: none, since your job can't press your seat's: the Gauntlet presses its {duties} for you";
-        }
+        var mine = DutiesOf(HumanSeat).Where(played ?? (_ => true)).ToList();
+        if (mine.Count == 0) return "Your limit breaks: none in this run";
+        var duties = Describe(mine);
+        return HumanFits
+            ? $"Your limit breaks: {duties}"
+            : $"Your limit breaks: none, since your job can't press your seat's: the Gauntlet presses its {duties} for you";
     }
 
     private static uint BotJob(PartyRole seat) => PartyPresets.Standard[(int)seat].ClassJob;

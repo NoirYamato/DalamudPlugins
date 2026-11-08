@@ -14,13 +14,6 @@ public static class TopP6Actions
     private const string HitByAnExaflare = "Hit by an exaflare: each goes off on the rim, then every 8 y through the centre to the far side";
 
     // -- Cosmo Memory --
-    // Checks only a human's mitigation, and only while tank mitigation is required: bots always live.
-    public static readonly EnemyAction CosmoMemory = new(ActionId.CosmoMemory)
-    {
-        Effects = [Damage(Normal.MinMit(P6Rules.CosmoMemoryMitigation)), ApplyStatus(StatusId.BrilliantDynamis, 0f)],
-        DeathExplanation = "it kills unless a tank's limit break 3 is up as it lands",
-    };
-
     // TopP6AlphaOmega decides who it kills, everyone's limit breaks counted; the action shows the hit and leaves
     // Brilliant Dynamis.
     public static readonly EnemyAction CosmoMemoryDecidedInCode = new(ActionId.CosmoMemory)

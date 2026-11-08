@@ -18,7 +18,7 @@ namespace AnoMech.Scenarios.Top;
 // clock, so a scenario's Run reads as the fight's timeline:
 //
 //     world.Events.Add(0f, alphaOmega.Spawn);
-//     alphaOmega.CosmoMemory(1.9f);
+//     alphaOmega.CosmoMemory(1.9f, limitBreaks);
 //     alphaOmega.Autos(12.0f);
 //
 // Every helper cast goes through CastFromHelper. A mistake kills on the spot, with the reason, as the hit lands.
@@ -93,25 +93,14 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     public void CastFromHelper(EnemyAction action, CastTarget target = default, Placement? at = null, byte animationVariation = 0)
         => helpers.Cast(action, target, at ?? Enemy?.Placement() ?? FacingNorth, animationVariation);
 
-    // What Cosmo Memory's hit leaves, for a block that starts after it: Code: ****mi* on Alpha Omega and Brilliant
-    // Dynamis on everyone.
-    public void ApplyCosmoMemoryStatuses()
+    // What Cosmo Memory's hit leaves, for a run that starts after it: Code: ****mi* on Alpha Omega, and Brilliant
+    // Dynamis on everyone but the `sparked` seats, whose limit break has spent it already: they carry Spark of Dynamis.
+    public void ApplyCosmoMemoryStatuses(IReadOnlyCollection<PartyRole>? sparked = null)
     {
         Enemy?.AddStatus(StatusId.CodeMi);
-        foreach (var member in world.Party.ActiveMembers())
-            member.AddStatus(StatusId.BrilliantDynamis);
-    }
-
-    // Cosmo Memory, which only a tank's limit break 3 lets the party live through: the gauge is full from its cast,
-    // and its hit gives everyone Brilliant Dynamis and Alpha Omega Code: ****mi*.
-    public void CosmoMemory(float castAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
-    {
-        At(castAt, () =>
-        {
-            world.Party.LimitBreak.Set(3f);
-            Cast(Actions.CosmoMemory);
-        }, file, line);
-        At(castAt + Actions.CosmoMemory.ReleasesAfter(), () => Enemy?.AddStatus(StatusId.CodeMi), file, line);
+        foreach (var role in PerRole.All)
+            if (world.Party.Get(role) is { } member && member.IsAlive())
+                member.AddStatus(sparked?.Contains(role) == true ? P6StatusId.SparkOfDynamis : StatusId.BrilliantDynamis);
     }
 
     // Cosmo Memory with every player's limit breaks counted: the gauge holds three bars from its cast, and as its bar
@@ -194,7 +183,7 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // Cosmo Meteor (TopP6CosmoMeteor): Alpha Omega's cast, its baits and adds, the spreads, the flares and the stack.
-    public TopP6CosmoMeteor CosmoMeteor(float castAt, TopP6CosmoMeteorRolls rolls, TopP6LimitBreaks? limitBreaks = null,
+    public TopP6CosmoMeteor CosmoMeteor(float castAt, TopP6CosmoMeteorRolls rolls, TopP6LimitBreaks limitBreaks,
         [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         var cosmoMeteor = new TopP6CosmoMeteor(world, this, limitBreaks);
@@ -421,11 +410,10 @@ public sealed record TopP6CosmoMeteorRolls(IReadOnlyList<PartyRole[]> FirstSprea
 }
 
 // One Cosmo Meteor: Alpha Omega's cast, a bait under everyone as it ends, the meteors north and south and the comets on
-// the other compass points, the spreads, then the flares and the stack. Without limit breaks the adds wait for
-// DefeatTheComets and DefeatTheMeteors. With them, while the adds are targetable a caster's limit break 3 kills every
-// comet and a physical ranged limit break 3 each meteor its line holds; an add of a kind still alive at that kind's
-// enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as the hit lands.
-public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega, TopP6LimitBreaks? limitBreaks)
+// the other compass points, the spreads, then the flares and the stack. While the adds are targetable a caster's limit
+// break 3 kills every comet and a physical ranged limit break 3 each meteor its line holds; an add of a kind still alive
+// at that kind's enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as the hit lands.
+public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega, TopP6LimitBreaks limitBreaks)
 {
     internal const string InSomeoneElsesSpread =
         "Stood in another player's Cosmo Meteor spread: four land at once and the other four a second later, twice, each on everyone within 5 y of its target";
@@ -468,7 +456,6 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         alphaOmega.At(castAt + P6Duration.CosmoMeteorFlareMarkers, () => MarkTheFlares(rolls.Flares), file, line);
         alphaOmega.At(castAt + P6Duration.CosmoMeteorFlaresAndStack, () => LandTheFlaresAndTheStack(rolls), file, line);
         alphaOmega.At(castAt + P6Duration.CosmoMeteorFinish, () => alphaOmega.Cast(Actions.CosmoMeteorFinish), file, line);
-        if (limitBreaks is null) return;
         limitBreaks.Resolved += KillTheAddsItHits;
         alphaOmega.At(castAt + P6Duration.CometsEnrage, () => Enrage(comets, CometsEnraged), file, line);
         alphaOmega.At(castAt + P6Duration.MeteorsEnrage, () =>
@@ -477,10 +464,6 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
             Enrage(meteors, MeteorsEnraged);
         }, file, line);
     }
-
-    public void DefeatTheComets() => Defeat(comets);
-
-    public void DefeatTheMeteors() => Defeat(meteors);
 
     private void SpawnTheAdds()
     {
@@ -532,7 +515,7 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
     {
         var enraged = adds.OfType<SimEnemy>().Where(add => add.IsAlive()).ToList();
         if (enraged.Count == 0) return;
-        world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why + (limitBreaks?.StarvedOfGauge == true ? TopP6LimitBreaks.GaugeWasShort : ""));
+        world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : ""));
         foreach (var add in enraged)
             add.Cast(Actions.CosmoMeteorEnrage);
     }

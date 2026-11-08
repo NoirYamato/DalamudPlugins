@@ -116,20 +116,6 @@ public class TopP6CosmoMeteorLimitBreakTests
         Assert.That(Reported(run, TopP6CosmoMeteor.CometsEnraged + TopP6LimitBreaks.GaugeWasShort), Has.Count.EqualTo(8), run.ToString);
     }
 
-    // Without limit breaks, as the old block plays it, the adds wait to be defeated and never enrage.
-    [Test]
-    public void WithoutLimitBreaksNothingEnrages()
-    {
-        var run = TimelineRun.Execute(world =>
-        {
-            var alphaOmega = new TopP6AlphaOmega(world);
-            world.Events.Add(0f, alphaOmega.Spawn);
-            alphaOmega.CosmoMeteor(1.9f, Rolls);
-        }, new TimelineRunOptions { GodMode = true, PlayerRole = OffTank });
-
-        Assert.That(run.Sent("ability", P6ActionId.CosmoMeteorEnrage), Is.Empty);
-    }
-
     private static (int Comets, int Meteors) Alive(TopP6CosmoMeteor cosmoMeteor)
         => (cosmoMeteor.Comets.Count(c => c.IsAlive()), cosmoMeteor.Meteors.Count(m => m.IsAlive()));
 

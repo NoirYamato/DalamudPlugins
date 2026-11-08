@@ -111,6 +111,27 @@ public class TopP6BotLimitBreakTests
         Assert.That(run.Sent("cast", LimitBreak3(MeleeDpsB)).Select(c => c.Time), Is.EqualTo(new[] { 5.5f }).Within(TimelineRun.FrameLate));
     }
 
+    // Still waiting for the gauge once its time is up at 3.0, it is dropped at the end of that frame, so a check deciding
+    // then still counts it as owed; it never goes out, though the gauge fills at 4.0.
+    [Test]
+    public void APressStillWaitingAfterItsTimeIsUpIsDropped()
+    {
+        var owed = new List<bool>();
+        var run = TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
+        {
+            world.Events.Add(0.5f, () => limitBreaks.SetGauge(1f));
+            world.Events.Add(1f, () => limitBreaks.Press(MeleeDpsA, Job(MeleeDpsA), alphaOmega.Enemy, until: 3f));
+            world.Events.Add(3f, () => owed.Add(limitBreaks.StarvedOfGauge));
+            world.Events.Add(3.1f, () => owed.Add(limitBreaks.StarvedOfGauge));
+            world.Events.Add(4f, () => limitBreaks.SetGauge(3f));
+            world.Events.Add(9f, () => { });
+        }, Options);
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(owed, Is.EqualTo(new[] { true, false }), "owed as its time is up, dropped after");
+        Assert.That(run.Sent("cast", LimitBreak3(MeleeDpsA)), Is.Empty, "never pressed once the gauge filled");
+    }
+
     // Unlike a bot's mitigation, it doesn't wait for "Require tank mitigation" or "Resolve your own actions".
     [Test]
     public void ItPressesWhateverTheMitigationSettingsSay()
@@ -167,7 +188,7 @@ public class TopP6BotLimitBreakTests
         }, Options);
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(Vector2.Distance(spots[5.4f], new Vector2(0f, 6f)), Is.LessThan(0.2f), "still casting");
+        Assert.That(Vector2.Distance(spots[5.4f], new Vector2(0f, 6f)), Is.LessThan(0.01f), "still casting");
         Assert.That(Vector2.Distance(spots[9f], new Vector2(0f, 16f)), Is.LessThan(0.5f), "walked on after");
     }
 

@@ -138,12 +138,10 @@ public static class TopP6Constants
 
     public static class P6Rules
     {
-        // A tank's limit break 3: Cosmo Memory kills anyone below it.
-        public const float CosmoMemoryMitigation = 0.80f;
         public const int CosmoDiveStack = 6;
         public const int CosmoMeteorStack = 5;                      // UNVERIFIED
 
-        // The helper pool TOP's zone spawns once helpers belong to the zone: a P6 block may never keep more busy.
+        // The helper pool TOP's zone spawns once helpers belong to the zone: a P6 run may never keep more busy.
         public const int HelperPool = 36;
     }
 }
