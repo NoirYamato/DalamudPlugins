@@ -4,12 +4,15 @@ using AnoMech.Scenarios;
 
 namespace AnoMech.Tests;
 
-// A scenario whose whole timeline is the test's own, for pieces no catalog scenario plays on their own.
-internal sealed class TimelineScenario(IPhase phase, Action<SimWorld> timeline) : IScenario
+// A scenario whose whole timeline is the test's own, for pieces no catalog scenario plays on their own. `tick` runs as a
+// scenario's Tick does, once a frame after the sim.
+internal sealed class TimelineScenario(IPhase phase, Action<SimWorld> timeline, Action? tick = null) : IScenario
 {
     public string Name => "Timeline";
     public IPhase Phase => phase;
     public IReadOnlyList<IScenarioAi> AiStrats => [];
 
     public void Run(SimWorld world, int? selectedAi) => timeline(world);
+
+    public void Tick(float delta, float elapsed) => tick?.Invoke();
 }

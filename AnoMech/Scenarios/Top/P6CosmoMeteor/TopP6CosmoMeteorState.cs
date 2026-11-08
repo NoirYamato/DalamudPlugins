@@ -26,6 +26,8 @@ public sealed class TopP6CosmoMeteorState
     // Who the unmarked stack lands on: one of the five without a flare.
     public PartyRole StackTarget { get; }
 
+    public TopP6CosmoMeteorRolls Rolls => new(firstSpreads, Flares.List, StackTarget);
+
     public TopP6CosmoMeteorState(Rng rng, SimParty party, TopP6CosmoMeteorStateOverrides overrides)
     {
         // Every roll is drawn whether or not it is overridden, so pinning one leaves the others as

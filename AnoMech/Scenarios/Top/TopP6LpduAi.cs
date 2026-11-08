@@ -24,7 +24,6 @@ internal static class TopP6LpduAi
     internal const float ExaflarePathRadius = 14f;
     internal const int BesideTheFirstExaflareAwayFromTheSecond = -1;
 
-    internal const float TheFirstExaflareGoesOff = 13.9f;
     private const float StepOutOfTheHitboxAsTheCastStartsThisLongBeforeTheFirstExplosion = 11.9f;
     private const float StackInTheMiddleOnceTwoArrowsHaveShownThisLongBeforeTheFirstExplosion = 5.9f;
     private const float LeaveTheMiddleThisLongBeforeTheFirstExplosion = 1f;
@@ -57,22 +56,24 @@ internal static class TopP6LpduAi
     internal static Vector2 OnTheExaflarePath(int firstExaflare, bool clockwise, int exaflare)
         => OnRing(BearingOfExaflare(firstExaflare, clockwise, exaflare), ExaflarePathRadius);
 
-    internal static void StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(AiManager ai)
+    internal static void StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(AiManager ai, TopP6UnlimitedWaveCannon wave)
     {
-        ai.Move(TheFirstExaflareGoesOff - StepOutOfTheHitboxAsTheCastStartsThisLongBeforeTheFirstExplosion,
+        var firstExplosion = wave.FirstExplosionAt;
+        ai.Move(firstExplosion - StepOutOfTheHitboxAsTheCastStartsThisLongBeforeTheFirstExplosion,
                 () => ByRole(role => OutsideTheHitboxToReadTheArrows(role)));
-        ai.Move(TheFirstExaflareGoesOff - StackInTheMiddleOnceTwoArrowsHaveShownThisLongBeforeTheFirstExplosion,
+        ai.Move(firstExplosion - StackInTheMiddleOnceTwoArrowsHaveShownThisLongBeforeTheFirstExplosion,
                 () => Everyone(TheMiddleWhereTheFirstPuddlesDrop));
     }
 
-    internal static void FollowTheExaflaresRoundFromBesideTheFirst(AiManager ai, int firstExaflare, bool clockwise)
+    internal static void FollowTheExaflaresRoundFromBesideTheFirst(AiManager ai, TopP6UnlimitedWaveCannon wave)
     {
-        ai.Move(TheFirstExaflareGoesOff - LeaveTheMiddleThisLongBeforeTheFirstExplosion,
-                () => Everyone(OnTheExaflarePath(firstExaflare, clockwise, BesideTheFirstExaflareAwayFromTheSecond)));
+        var firstExplosion = wave.FirstExplosionAt;
+        ai.Move(firstExplosion - LeaveTheMiddleThisLongBeforeTheFirstExplosion,
+                () => Everyone(OnTheExaflarePath(wave.FirstPoint, wave.Clockwise, BesideTheFirstExaflareAwayFromTheSecond)));
         for (var exaflare = 0; exaflare < OnToEachOfTheFirstThreeExaflaresPointsThisLongAfterTheFirstExplosion.Length; exaflare++)
         {
-            var point = OnTheExaflarePath(firstExaflare, clockwise, exaflare);
-            ai.Move(TheFirstExaflareGoesOff + OnToEachOfTheFirstThreeExaflaresPointsThisLongAfterTheFirstExplosion[exaflare], () => Everyone(point));
+            var point = OnTheExaflarePath(wave.FirstPoint, wave.Clockwise, exaflare);
+            ai.Move(firstExplosion + OnToEachOfTheFirstThreeExaflaresPointsThisLongAfterTheFirstExplosion[exaflare], () => Everyone(point));
         }
     }
 

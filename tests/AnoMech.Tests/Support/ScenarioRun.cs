@@ -123,7 +123,7 @@ internal sealed record ScenarioRun(
         var probe = new ScenarioProbe(game, fake, log, chat, RecentAoeChecks);
         try
         {
-            scenario = game.Catalog.Scenarios.Single(s => s.GetType() == scenarioType);
+            scenario = game.Catalog.Scenarios.SingleOrDefault(s => s.GetType() == scenarioType) ?? (IScenario)Activator.CreateInstance(scenarioType)!;
             game.PartyMemberKilled += (r, cause, actionId) =>
             {
                 var snapshot = WorldSnapshot.Describe(game.World, RecentAoeChecks(), game.World.Party.Get(r), includeHidden: true);

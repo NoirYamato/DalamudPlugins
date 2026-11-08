@@ -17,8 +17,13 @@ public sealed class TopP6CosmoDive2Scenario : IScenario
 
     public IReadOnlyList<IScenarioAi> AiStrats => [new TopP6CosmoDive2LpduAi()];
 
+    private const float UnlimitedWaveCannonAt = 1.9f;
+
     // Brilliant Dynamis gives back the bars each player's first limit break spends, so the block starts with the gauge full.
     public void RunInstanceEvents(SimWorld instanceWorld) => instanceWorld.Party.LimitBreak.Set(3f);
+
+    internal static TopP6UnlimitedWaveCannon UnlimitedWaveCannon(TopP6CosmoDive2State state)
+        => new(state.FirstExaflare, state.Clockwise, UnlimitedWaveCannonAt, state.ExaflareStep);
 
     public void Run(SimWorld world, int? selectedAi)
     {
@@ -29,7 +34,7 @@ public sealed class TopP6CosmoDive2Scenario : IScenario
         var alphaOmega = new TopP6AlphaOmega(world);
         world.Events.Add(0f, alphaOmega.Spawn);
         world.Events.Add(1f, alphaOmega.ApplyCosmoMemoryStatuses);
-        alphaOmega.UnlimitedWaveCannon(new TopP6UnlimitedWaveCannon(state.FirstExaflare, state.Clockwise, 1.9f, state.ExaflareStep));
+        alphaOmega.UnlimitedWaveCannon(UnlimitedWaveCannon(state));
         alphaOmega.CosmoDive(19.6f);
         alphaOmega.Autos(34.4f);
     }

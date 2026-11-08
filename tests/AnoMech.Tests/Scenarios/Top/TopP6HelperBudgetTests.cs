@@ -9,8 +9,7 @@ namespace AnoMech.Tests;
 // Each block, on its own clock, never keeps more helpers busy at once than the zone's pool will hold
 // (P6Rules.HelperPool), so no cast is ever dropped. Godmode, everyone at the centre, so every block plays to its end.
 // The busiest moment is Unlimited Wave Cannon's: two puddle sets of eight, the exaflares' 12 s casts and their later
-// explosions. Cosmo Meteor casts from its scenario rather than TopP6AlphaOmega, so its scenario tests check that no
-// cast is dropped (TopP6CosmoMeteorScenarioTests.FollowsTheFightsTimeline).
+// explosions.
 public class TopP6HelperBudgetTests
 {
     private static readonly float[] Steps = [1.1f, 1.0f];
@@ -31,17 +30,19 @@ public class TopP6HelperBudgetTests
     [Test]
     public void ExaflaresIntoWaveCannon(
         [ValueSource(nameof(Points))] int first, [Values] bool clockwise, [ValueSource(nameof(Steps))] float step)
-        => AssertWithinThePool((alphaOmega, world) =>
+        => AssertWithinThePool(alphaOmega =>
         {
             alphaOmega.UnlimitedWaveCannon(new TopP6UnlimitedWaveCannon(first, clockwise, 1.9f, step));
-            foreach (var (at, roles) in new[] { (27.5f, Enum.GetValues<PartyRole>()[..4]), (29.5f, Enum.GetValues<PartyRole>()[4..]) })
-                world.Events.Add(at, () =>
-                {
-                    foreach (var role in roles)
-                        alphaOmega.CastFromHelper(TopActions.WaveCannonProtean, world.Party.Get(role));
-                });
+            alphaOmega.WaveCannon(24.5f, Enum.GetValues<PartyRole>(), PartyRole.MainTank);
             alphaOmega.Autos(39.9f);
         });
+
+    // Its baits, spreads, flares and stack all come from helpers.
+    [Test]
+    public void CosmoMeteor()
+        => AssertWithinThePool(alphaOmega => alphaOmega.CosmoMeteor(1.9f, new TopP6CosmoMeteorRolls(
+            [[PartyRole.MainTank, PartyRole.OffTank, PartyRole.RegenHealer, PartyRole.ShieldHealer], [PartyRole.MeleeDpsA, PartyRole.MeleeDpsB, PartyRole.PhysRangedDps, PartyRole.CasterDps]],
+            [PartyRole.CasterDps, PartyRole.MeleeDpsB, PartyRole.MainTank], PartyRole.ShieldHealer)));
 
     [Test]
     public void ExaflaresIntoCosmoDive(

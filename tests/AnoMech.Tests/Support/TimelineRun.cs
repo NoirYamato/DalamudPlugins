@@ -26,6 +26,9 @@ internal sealed record TimelineRunOptions
     public int Seed { get; init; } = 1;
 
     public IPhase Phase { get; init; } = TopZone.P6;
+
+    // Runs each frame as the scenario's Tick.
+    public Action? Tick { get; init; }
 }
 
 // One cast or ActionEffect the sim sent: who sent it, from or at which scenario-local spot, facing where, at whom, and
@@ -100,7 +103,7 @@ internal static class TimelineRun
         {
             game.PartyMemberKilled += (role, cause, actionId) => deaths.Add(new Death(role, cause, actionId, game.World.Events.Elapsed,
                 WorldSnapshot.Describe(game.World, [], game.World.Party.Get(role), includeHidden: true)));
-            var scenario = new TimelineScenario(options.Phase, timeline);
+            var scenario = new TimelineScenario(options.Phase, timeline, options.Tick);
             game.ZoneIn(scenario.Phase.Zone, SessionMode.Local);
             game.StartScenario(new RunScenarioParams(scenario, new LocalPartyProvider { RoleOverride = options.PlayerRole }, null, 0, options.Seed));
             fake.Frame(ScenarioRun.FrameSeconds, game.Tick);

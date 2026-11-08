@@ -26,9 +26,10 @@ public sealed class TopP6CosmoDive2LpduAi : IScenarioAi<TopP6CosmoDive2State>
         state = s;
         world = w;
         var ai = new AiManager(world);
+        var unlimitedWaveCannon = TopP6CosmoDive2Scenario.UnlimitedWaveCannon(state);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai);
-        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, state.FirstExaflare, state.Clockwise);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, unlimitedWaveCannon);
+        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, unlimitedWaveCannon);
         ai.Move(21.5f, PartyHoldsOnTheLastExaflaresPointTanksCrossTheBossIntoAY);
         world.Events.Add(25.3f, FirstMeleeLimitBreakRightAfterTheCosmoDiveBar);
         ai.Move(28f, BackForTheAutosTheSecondMeleeInTheMiddleTheMainTankMakingRoom);

@@ -14,8 +14,8 @@ using Actions = AnoMech.Scenarios.Top.TopP6Actions;
 
 namespace AnoMech.Scenarios.Top;
 
-// Alpha Omega, at the arena centre all phase, and the attacks the P6 blocks play. Each is scheduled from a time on the
-// block's own clock, so a block's Run reads as the fight's timeline:
+// Alpha Omega, at the arena centre all phase, and the attacks P6 plays. Each is scheduled from a time on the run's own
+// clock, so a scenario's Run reads as the fight's timeline:
 //
 //     world.Events.Add(0f, alphaOmega.Spawn);
 //     alphaOmega.CosmoMemory(1.9f);
@@ -38,6 +38,15 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
     internal static string TooFewInTheCosmoDiveStack(int count)
         => $"Cosmo Dive's stack on the player farthest from Alpha Omega had {count} in it: it needs {P6Rules.CosmoDiveStack}";
+
+    internal const string CosmoMemoryNeedsATankLimitBreak3 = "it kills unless a tank's limit break 3 is up as it lands";
+    internal const string MagicNumberNeedsATankLimitBreak3 = "it kills everyone unless a tank's limit break 3 is up as it lands";
+    internal const string MagicNumberMarkRanOut =
+        "its mark kills as it runs out unless a healer's limit break 3 lands while it is on everyone";
+    internal const string RunMiLanded =
+        "it kills everyone unless Alpha Omega has fallen: the Gauntlet's last melee limit break 3 finishes it, landing before the cast bar ends";
+
+    private const int LasersPerSet = 4;
 
     private static readonly Placement FacingNorth = new(Vector3.Zero, -MathF.PI);
 
@@ -103,6 +112,94 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             Cast(Actions.CosmoMemory);
         }, file, line);
         At(castAt + Actions.CosmoMemory.ReleasesAfter(), () => Enemy?.AddStatus(StatusId.CodeMi), file, line);
+    }
+
+    // Cosmo Memory with every player's limit breaks counted: the gauge holds three bars from its cast, and as its bar
+    // ends everyone without a tank's limit break 3 taken hold dies. Its hit gives everyone Brilliant Dynamis and Alpha
+    // Omega Code: ****mi*, and the gauge rebuilds from it (GaugeRebuildAfterCosmoMemory).
+    public void CosmoMemory(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        At(castAt, () =>
+        {
+            limitBreaks.SetGauge(TopP6LimitBreaks.Bars);
+            Cast(Actions.CosmoMemoryDecidedInCode);
+        }, file, line);
+        At(castAt + Actions.CosmoMemoryDecidedInCode.ResolvesAfter(),
+            () => KillWhoeverLacksATankLimitBreak3(limitBreaks, ActionId.CosmoMemory, CosmoMemoryNeedsATankLimitBreak3), file, line);
+        At(castAt + Actions.CosmoMemoryDecidedInCode.ReleasesAfter(), () => Enemy?.AddStatus(StatusId.CodeMi), file, line);
+        var (from, fullBy) = GaugeRebuildAfterCosmoMemory(castAt);
+        limitBreaks.Rebuild(from, fullBy);
+    }
+
+    // The party's own generation after Cosmo Memory cast at `castAt`: from its bar end, full again P6Duration.GaugeRebuild
+    // later. A run starting after it sets TopP6LimitBreaks.RebuiltBars of it and rebuilds the rest.
+    public static (float From, float FullBy) GaugeRebuildAfterCosmoMemory(float castAt)
+    {
+        var from = castAt + Actions.CosmoMemoryDecidedInCode.ResolvesAfter();
+        return (from, from + P6Duration.GaugeRebuild);
+    }
+
+    // Magic Number: as its bar ends, everyone without a tank's limit break 3 taken hold dies. Its mark lands on everyone
+    // left P6Duration.MagicNumberMarkAfterTheHit after the hit, and kills whoever still carries it as it runs out; a
+    // healer's limit break 3 resolving while it is on lifts it from all.
+    public void MagicNumber(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        var mark = new MagicNumberMark(world, limitBreaks);
+        var marksAt = castAt + Actions.MagicNumber.ReleasesAfter() + P6Duration.MagicNumberMarkAfterTheHit;
+        At(castAt, () => Cast(Actions.MagicNumber), file, line);
+        At(castAt + Actions.MagicNumber.ResolvesAfter(),
+            () => KillWhoeverLacksATankLimitBreak3(limitBreaks, P6ActionId.MagicNumber, MagicNumberNeedsATankLimitBreak3), file, line);
+        At(marksAt, mark.Land, file, line);
+        At(marksAt + P6Duration.MagicNumberMark, mark.RunOut, file, line);
+    }
+
+    // Run: ****mi*, the enrage. A melee limit break 3 resolving by RunMiFinishedBy defeats Alpha Omega at once;
+    // otherwise its damage lands P6Duration.RunMiLands after the cast starts and kills everyone.
+    public void RunMi(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        void Finish(TopP6LimitBreakPress press)
+        {
+            if (press.Is(TopP6LimitBreakKind.Melee) && Enemy.IsAlive()) Enemy!.Defeat();
+        }
+
+        At(castAt, () =>
+        {
+            Cast(Actions.RunMi);
+            limitBreaks.Resolved += Finish;
+        }, file, line);
+        At(RunMiFinishedBy(castAt), () =>
+        {
+            limitBreaks.Resolved -= Finish;
+            if (Enemy.IsAlive())
+                At(castAt + P6Duration.RunMiLands, () => world.Party.WipeAllPlayers(P6ActionId.RunMi,
+                    RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "")), file, line);
+        }, file, line);
+    }
+
+    // When Run: ****mi* cast at `castAt` stops counting a melee limit break 3: its ActionEffect, as its cast ends.
+    public static float RunMiFinishedBy(float castAt) => castAt + Actions.RunMi.ReleasesAfter();
+
+    // Wave Cannon: Alpha Omega's visual, then a laser from it at each of four players and at the other four, and Wild
+    // Charge at its target.
+    public void WaveCannon(float castAt, IReadOnlyList<PartyRole> laserTargets, PartyRole wildChargeTarget,
+        [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        At(castAt, () => Cast(TopActions.AlphaOmegaWaveCannon, Position), file, line);
+        for (var set = 0; set < P6Duration.LasersAfterWaveCannon.Count; set++)
+        {
+            var targets = laserTargets.Skip(set * LasersPerSet).Take(LasersPerSet).ToList();
+            At(castAt + P6Duration.LasersAfterWaveCannon[set], () => FireLasers(targets), file, line);
+        }
+        At(castAt + P6Duration.WildChargeAfterWaveCannon, () => WildCharge(wildChargeTarget), file, line);
+    }
+
+    // Cosmo Meteor (TopP6CosmoMeteor): Alpha Omega's cast, its baits and adds, the spreads, the flares and the stack.
+    public TopP6CosmoMeteor CosmoMeteor(float castAt, TopP6CosmoMeteorRolls rolls, TopP6LimitBreaks? limitBreaks = null,
+        [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        var cosmoMeteor = new TopP6CosmoMeteor(world, this, limitBreaks);
+        cosmoMeteor.Schedule(castAt, rolls, file, line);
+        return cosmoMeteor;
     }
 
     // Two autos, P6Duration.SecondAuto apart: Alpha Omega's visual, then Flash Gale on its target and on the player
@@ -237,13 +334,259 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
     private static bool IsTank(SimCharacter member) => member is ISimPartyMember { Role: var role } && role.IsTank();
 
+    private void KillWhoeverLacksATankLimitBreak3(TopP6LimitBreaks limitBreaks, uint actionId, string rule)
+    {
+        var tooLate = rule + string.Format(TopP6LimitBreaks.TakesHoldTooLate, P6Duration.TankLimitBreak3TakesHold);
+        var missing = rule + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
+        var verdicts = new Verdicts();
+        foreach (var member in world.Party.ActiveMembers().ToList())
+        {
+            switch (limitBreaks.TankLimitBreak3Cover(member))
+            {
+                case TopP6TankCover.TooLate:
+                    verdicts.Kill(member, actionId, tooLate);
+                    break;
+                case TopP6TankCover.Missing:
+                    verdicts.Kill(member, actionId, missing);
+                    break;
+            }
+        }
+        verdicts.Deal();
+    }
+
+    // Each from Alpha Omega toward where its target stands now.
+    private void FireLasers(IEnumerable<PartyRole> targets)
+    {
+        foreach (var role in targets)
+            if (world.Party.Get(role) is { } target && target.IsAlive())
+                CastFromHelper(Actions.WaveCannonLaser, target);
+    }
+
+    private void WildCharge(PartyRole role)
+    {
+        if (world.Party.Get(role) is { } target && target.IsAlive())
+            Cast(Actions.WildCharge, target);
+    }
+
+    // Who carries Magic Number's mark: kept here, since a status that runs out leaves before anything can see it go.
+    private sealed class MagicNumberMark(SimWorld world, TopP6LimitBreaks limitBreaks)
+    {
+        private readonly List<SimCharacter> carriers = [];
+
+        public void Land()
+        {
+            carriers.AddRange(world.Party.ActiveMembers());
+            foreach (var member in carriers)
+                member.AddStatus(P6StatusId.MagicNumber, P6Duration.MagicNumberMark);
+            limitBreaks.Resolved += Lift;
+        }
+
+        private void Lift(TopP6LimitBreakPress press)
+        {
+            if (!press.Is(TopP6LimitBreakKind.Healer)) return;
+            limitBreaks.Resolved -= Lift;
+            foreach (var member in carriers.Where(m => m.IsAlive()))
+                member.RemoveStatus(P6StatusId.MagicNumber);
+            carriers.Clear();
+        }
+
+        public void RunOut()
+        {
+            limitBreaks.Resolved -= Lift;
+            var why = MagicNumberMarkRanOut + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
+            var verdicts = new Verdicts();
+            foreach (var member in carriers.Where(m => m.IsAlive()))
+                verdicts.Kill(member, P6ActionId.MagicNumber, why);
+            carriers.Clear();
+            verdicts.Deal();
+        }
+    }
+
     // On the run's clock, whenever it is called.
-    private void At(float time, Action action, string file, int line)
+    internal void At(float time, Action action, string file, int line)
         => world.Events.FromRunStart(() =>
         {
             world.Events.Add(time, action, file, line);
             return true;
         });
+}
+
+// One Cosmo Meteor's rolls: each spread set's first four (the other four are hit a second later), the three flares, and
+// the unmarked stack's target.
+public sealed record TopP6CosmoMeteorRolls(IReadOnlyList<PartyRole[]> FirstSpreads, IReadOnlyList<PartyRole> Flares, PartyRole StackTarget)
+{
+    // wave 0 is the set's first four, wave 1 the other four.
+    public PartyRole[] SpreadWave(int set, int wave)
+        => wave == 0 ? FirstSpreads[set] : PerRole.All.Except(FirstSpreads[set]).ToArray();
+}
+
+// One Cosmo Meteor: Alpha Omega's cast, a bait under everyone as it ends, the meteors north and south and the comets on
+// the other compass points, the spreads, then the flares and the stack. Without limit breaks the adds wait for
+// DefeatTheComets and DefeatTheMeteors. With them, while the adds are targetable a caster's limit break 3 kills every
+// comet and a physical ranged limit break 3 each meteor its line holds; an add of a kind still alive at that kind's
+// enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as the hit lands.
+public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega, TopP6LimitBreaks? limitBreaks)
+{
+    internal const string InSomeoneElsesSpread =
+        "Stood in another player's Cosmo Meteor spread: four land at once and the other four a second later, twice, each on everyone within 5 y of its target";
+    internal const string ASecondSpread =
+        "Hit by two Cosmo Meteor spreads: each hits everyone within 5 y of its target and leaves a vulnerability";
+    internal const string FlareInTheStack =
+        "Took Cosmo Meteor's stack holding a flare: the stack lands on a player without one, and every flare must stay out of it";
+    internal static readonly string TooCloseToAFlare =
+        $"Stood within {P6Geometry.FlareLethalWithin:F0} y of a flare: each lands on its marked player and hits everyone, harder the nearer they stand";
+    internal const string CometsEnraged = "the Cosmo Comets enrage unless a caster's limit break 3 kills all six first";
+    internal const string MeteorsEnraged = "the Cosmo Meteors enrage unless a physical ranged limit break 3's line runs through both first";
+
+    internal static string TooFewInTheStack(int count)
+        => $"Cosmo Meteor's unmarked stack had {count} in it: it needs {P6Rules.CosmoMeteorStack}";
+
+    private static readonly float[] MeteorBearings = [0f, 180f];
+    private static readonly float[] CometBearings = [45f, 90f, 135f, 225f, 270f, 315f];
+
+    private readonly List<SimEnemy?> meteors = [];
+    private readonly List<SimEnemy?> comets = [];
+
+    public IReadOnlyList<SimEnemy> Meteors => meteors.OfType<SimEnemy>().ToList();
+    public IReadOnlyList<SimEnemy> Comets => comets.OfType<SimEnemy>().ToList();
+
+    internal void Schedule(float castAt, TopP6CosmoMeteorRolls rolls, string file, int line)
+    {
+        var party = world.Party;
+        alphaOmega.At(castAt, () => alphaOmega.Cast(Actions.CosmoMeteor), file, line);
+        alphaOmega.At(castAt + Actions.CosmoMeteor.ReleasesAfter(),
+            () => BaitedPuddles.Drop(party, Actions.CosmoMeteorBait, alphaOmega.CastFromHelper), file, line);
+        // UNVERIFIED: when the adds show, targetable.
+        alphaOmega.At(castAt + P6Duration.CosmoMeteorAddsSpawn, SpawnTheAdds, file, line);
+        alphaOmega.At(castAt + P6Duration.CosmoMeteorAddsShow, ShowTheAdds, file, line);
+        for (var spreads = 0; spreads < P6Duration.CosmoMeteorSpreads.Count; spreads++)
+        {
+            var targets = rolls.SpreadWave(spreads / 2, spreads % 2);
+            alphaOmega.At(castAt + P6Duration.CosmoMeteorSpreads[spreads], () => LandTheSpreads(targets), file, line);
+        }
+        // UNVERIFIED: when the flare markers show.
+        alphaOmega.At(castAt + P6Duration.CosmoMeteorFlareMarkers, () => MarkTheFlares(rolls.Flares), file, line);
+        alphaOmega.At(castAt + P6Duration.CosmoMeteorFlaresAndStack, () => LandTheFlaresAndTheStack(rolls), file, line);
+        alphaOmega.At(castAt + P6Duration.CosmoMeteorFinish, () => alphaOmega.Cast(Actions.CosmoMeteorFinish), file, line);
+        if (limitBreaks is null) return;
+        limitBreaks.Resolved += KillTheAddsItHits;
+        alphaOmega.At(castAt + P6Duration.CometsEnrage, () => Enrage(comets, CometsEnraged), file, line);
+        alphaOmega.At(castAt + P6Duration.MeteorsEnrage, () =>
+        {
+            limitBreaks.Resolved -= KillTheAddsItHits;
+            Enrage(meteors, MeteorsEnraged);
+        }, file, line);
+    }
+
+    public void DefeatTheComets() => Defeat(comets);
+
+    public void DefeatTheMeteors() => Defeat(meteors);
+
+    private void SpawnTheAdds()
+    {
+        meteors.AddRange(MeteorBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoMeteor, P6BNpcNameId.CosmoMeteor, bearing, P6Geometry.CosmoMeteorDistance)));
+        comets.AddRange(CometBearings.Select(bearing => SpawnAdd(P6BNpcBaseId.CosmoComet, P6BNpcNameId.CosmoComet, bearing, P6Geometry.CosmoCometDistance)));
+    }
+
+    private SimEnemy? SpawnAdd(uint bnpcBaseId, uint nameId, float bearing, float distance)
+        => world.SpawnEnemy(new EnemySpawnConfig(
+            BNpcBaseId: bnpcBaseId,
+            NameId: nameId,
+            Level: Level,
+            Targetable: false,
+            EnemyList: EnemyListMode.Manual,
+            Visibility: SpawnVisibility.HiddenUntilPopIn,
+            Placement: new Placement(TopP6AlphaOmega.AtBearing(bearing, distance), 0f).Face(Vector3.Zero)));
+
+    private void ShowTheAdds()
+    {
+        foreach (var add in meteors.Concat(comets).OfType<SimEnemy>())
+        {
+            add.ActorControl.PopIn();
+            add.SetTargetable(true);
+            add.SetVisibleInEnemyList(true);
+        }
+    }
+
+    private static void Defeat(IEnumerable<SimEnemy?> adds)
+    {
+        foreach (var add in adds.OfType<SimEnemy>().Where(add => add.IsAlive()))
+            add.Defeat();
+    }
+
+    private static IEnumerable<SimEnemy> Targetable(IEnumerable<SimEnemy?> adds)
+        => adds.OfType<SimEnemy>().Where(add => add.IsAlive() && add.Targetable);
+
+    // The line runs from its user toward its target, as long as the sheet's plus the user's hitbox, and holds a meteor
+    // any part of whose hitbox it reaches.
+    private void KillTheAddsItHits(TopP6LimitBreakPress press)
+    {
+        if (press.Is(TopP6LimitBreakKind.Caster))
+            Defeat(Targetable(comets).ToList());
+        if (!press.Is(TopP6LimitBreakKind.PhysicalRanged) || press.ResolvedFrom is not { } from) return;
+        var line = new AoeQuery(press.ActionId, from, casterHitboxRadius: world.Party.Get(press.Seat)?.HitboxRadius ?? 0f);
+        Defeat(Targetable(meteors).Where(meteor => line.SignedDistance(meteor.Position) <= meteor.HitboxRadius).ToList());
+    }
+
+    private void Enrage(IEnumerable<SimEnemy?> adds, string why)
+    {
+        var enraged = adds.OfType<SimEnemy>().Where(add => add.IsAlive()).ToList();
+        if (enraged.Count == 0) return;
+        world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why + (limitBreaks?.StarvedOfGauge == true ? TopP6LimitBreaks.GaugeWasShort : ""));
+        foreach (var add in enraged)
+            add.Cast(Actions.CosmoMeteorEnrage);
+    }
+
+    // Decided from where everyone stands as they land, then shown. In the game each hit leaves a vulnerability that makes
+    // the next one lethal, and with every player hit once a set, a second apart, a player in someone else's spread always
+    // takes a second. UNVERIFIED: that another's spread kills at once rather than at that second hit.
+    private void LandTheSpreads(PartyRole[] targets)
+    {
+        var party = world.Party;
+        var hit = targets.Select(role => party.Get(role)).OfType<SimCharacter>().Where(member => member.IsAlive()).ToList();
+        var verdicts = new Verdicts();
+        foreach (var target in hit)
+            foreach (var member in party.Find.InsideActionAoe(P6ActionId.CosmoMeteorSpread, target.Placement()))
+            {
+                if (member != target) verdicts.Kill(member, P6ActionId.CosmoMeteorSpread, InSomeoneElsesSpread);
+                else if (member.HasStatus(StatusId.MagicVulnerabilityUp)) verdicts.Kill(member, P6ActionId.CosmoMeteorSpread, ASecondSpread);
+            }
+        verdicts.Deal();
+        foreach (var target in hit)
+            alphaOmega.CastFromHelper(Actions.CosmoMeteorSpread, target);
+    }
+
+    private void MarkTheFlares(IEnumerable<PartyRole> flares)
+    {
+        foreach (var member in flares.Select(role => world.Party.Get(role)).OfType<SimCharacter>().Where(member => member.IsAlive()))
+            member.AttachLockonVfx(P6LockonId.Flare);
+    }
+
+    // Decided from where everyone stands as they land, then shown. A player dead since the markers fires no flare, and a
+    // dead stack target takes no stack. UNVERIFIED: every rule; the game's damage is unknown.
+    private void LandTheFlaresAndTheStack(TopP6CosmoMeteorRolls rolls)
+    {
+        var party = world.Party;
+        var flares = rolls.Flares.Select(role => party.Get(role)).OfType<SimCharacter>().Where(member => member.IsAlive()).ToList();
+        var stack = party.Get(rolls.StackTarget) is { } target && target.IsAlive() ? target : null;
+        IReadOnlyList<SimCharacter> soakers = stack is null ? [] : party.Find.InsideActionAoe(P6ActionId.CosmoMeteorStack, stack.Placement());
+
+        var verdicts = new Verdicts();
+        foreach (var flare in flares.Where(soakers.Contains))
+            verdicts.Kill(flare, P6ActionId.CosmoMeteorStack, FlareInTheStack);
+        if (stack is not null && soakers.Count < P6Rules.CosmoMeteorStack)
+            foreach (var soaker in soakers)
+                verdicts.Kill(soaker, P6ActionId.CosmoMeteorStack, TooFewInTheStack(soakers.Count));
+        foreach (var flare in flares)
+            foreach (var member in party.Find.InsideCircle(flare.Position, P6Geometry.FlareLethalWithin).Where(member => member != flare))
+                verdicts.Kill(member, P6ActionId.CosmoMeteorFlare, TooCloseToAFlare);
+        verdicts.Deal();
+
+        foreach (var flare in flares)
+            alphaOmega.CastFromHelper(Actions.CosmoMeteorFlare, flare);
+        if (stack is not null)
+            alphaOmega.CastFromHelper(Actions.CosmoMeteorStack, stack);
+    }
 }
 
 // One Cosmo Arrow. Each line runs the arena's width along both axes, so a spot is hit when its x or its z lies within

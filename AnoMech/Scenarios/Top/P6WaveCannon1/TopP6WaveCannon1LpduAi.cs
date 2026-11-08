@@ -24,9 +24,10 @@ public sealed class TopP6WaveCannon1LpduAi : IScenarioAi<TopP6WaveCannon1State>
     public void Run(TopP6WaveCannon1State state, SimWorld world)
     {
         var ai = new AiManager(world);
+        var unlimitedWaveCannon = TopP6WaveCannon1Scenario.UnlimitedWaveCannon(state);
         ai.Move(0f, TopP6LpduAi.EveryoneOnTheirAutoSpot);
-        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai);
-        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, state.FirstExaflare, state.Clockwise);
+        TopP6LpduAi.StepOutOfTheHitboxToReadTheArrowsThenStackInTheMiddle(ai, unlimitedWaveCannon);
+        TopP6LpduAi.FollowTheExaflaresRoundFromBesideTheFirst(ai, unlimitedWaveCannon);
         ai.Move(21.6f, InTowardTheirWaymarkClearOfTheLastPuddles);
         ai.Move(24.7f, OutToTheirWaveCannonSpreadOnceTheLastPuddleIsGone);
         ai.Move(30f, TopP6LpduAi.LineUpInFrontOfCWithTheTanksFirst);

@@ -21,6 +21,21 @@ public static class TopP6Actions
         DeathExplanation = "it kills unless a tank's limit break 3 is up as it lands",
     };
 
+    // TopP6AlphaOmega decides who it kills, everyone's limit breaks counted; the action shows the hit and leaves
+    // Brilliant Dynamis.
+    public static readonly EnemyAction CosmoMemoryDecidedInCode = new(ActionId.CosmoMemory)
+    {
+        Effects = [Damage(), ApplyStatus(StatusId.BrilliantDynamis, 0f)],
+    };
+
+    // -- Magic Number --
+    // TopP6AlphaOmega decides who it and its mark kill; the action only shows the hit.
+    public static readonly EnemyAction MagicNumber = new(P6ActionId.MagicNumber) { Effects = [Damage()] };
+
+    // -- Run: ****mi* --
+    // The cast only: TopP6AlphaOmega lands its damage later, on everyone, unless Alpha Omega has fallen.
+    public static readonly EnemyAction RunMi = new(P6ActionId.RunMi);
+
     // -- Autos --
     public static readonly EnemyAction AutoAttack = new(ActionId.AlphaOmegaAutoAttack);
 
@@ -94,4 +109,7 @@ public static class TopP6Actions
     public static readonly EnemyAction CosmoMeteorStack = new(P6ActionId.CosmoMeteorStack) { Effects = [Damage()] };
 
     public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare) { Effects = [Damage()] };
+
+    // Cast by each add still alive at its kind's enrage; TopP6AlphaOmega decides that everyone dies.
+    public static readonly EnemyAction CosmoMeteorEnrage = new(P6ActionId.CosmoMeteorEnrage) { Effects = [Damage()] };
 }

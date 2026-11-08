@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6CosmoDive2;
@@ -32,22 +33,34 @@ public class TopP6LpduAiTests
         Assert.That(widest.Apart, Is.LessThan(0.01f), $"seed {seed}: a seat stood {widest.Apart:F2} y from its spot in the other block at {widest.Time:F2}");
     }
 
-    // The strats time every move of the dodge from the first exaflare's first explosion; each block's goes off then.
+    // The strats time every move of the dodge from the wave's first explosion, as its FirstExplosionAt has it; each
+    // block's goes off then.
     [TestCase(typeof(TopP6WaveCannon1Scenario))]
     [TestCase(typeof(TopP6CosmoDive2Scenario))]
     public void TheDodgeIsTimedFromTheBlocksFirstExplosion(Type scenario)
     {
         SimTimeline? timeline = null;
+        float? timedFrom = null;
         var run = ScenarioRun.Execute(scenario, 0, Random.Shared.Next(), new ScenarioRunOptions
         {
             StopAt = 14.5f,
-            Probe = p => timeline ??= p.Fake.Timeline,
+            Probe = p =>
+            {
+                timeline ??= p.Fake.Timeline;
+                timedFrom ??= TheStratsWave(scenario).FirstExplosionAt;
+            },
         });
 
         Assert.That(run.Passed, run.ToString);
         var firstExplosion = timeline!.Rows.First(r => r["kind"] == "ability" && r["id"] == $"{ActionId.WaveCannon_7BAD}");
-        Assert.That(float.Parse(firstExplosion["t"], CultureInfo.InvariantCulture), Is.EqualTo(TopP6LpduAi.TheFirstExaflareGoesOff).Within(0.05f));
+        Assert.That(float.Parse(firstExplosion["t"], CultureInfo.InvariantCulture), Is.EqualTo(timedFrom).Within(0.05f));
     }
+
+    // The block's own wave; its first explosion doesn't depend on the rolls.
+    private static TopP6UnlimitedWaveCannon TheStratsWave(Type scenario)
+        => scenario == typeof(TopP6WaveCannon1Scenario)
+            ? TopP6WaveCannon1Scenario.UnlimitedWaveCannon(new TopP6WaveCannon1State(new Rng(1), SimParty.Empty, new TopP6WaveCannon1StateOverrides()))
+            : TopP6CosmoDive2Scenario.UnlimitedWaveCannon(new TopP6CosmoDive2State(new Rng(1), new TopP6CosmoDive2StateOverrides()));
 
     private static List<(float Time, Dictionary<PartyRole, Vector2> Seats)> Frames(Type scenario, int strat, int seed, Action<object> pin)
     {
