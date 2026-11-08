@@ -41,7 +41,9 @@ namespace AnoMech.Tests;
 //
 // Scripted rolls, each walked straight with no reaction time, cover the rest of the fetch: a human holding its tether
 // right beside the beetle or against the wall near it until 55; a human standing with its tether in the line from a
-// fetcher's rim spot to the beetle; and a human taking a taker's tether after the gather.
+// fetcher's rim spot to the beetle; a human holding its tether behind the middle, so its fetcher has to bring it round
+// the stack; and a human taking a taker's tether as the gather ends or after it. Throughout, a taker sent to fetch never
+// takes upstream's walk-out.
 public class TopP5OmegaLpduHumanTests
 {
     // Staff and Sword against Staff and Shield puts the two stacks 17 y and 10 y out on cardinals a quarter apart, 19.7 y
@@ -76,24 +78,35 @@ public class TopP5OmegaLpduHumanTests
 
     // Where the human waits after its second mark: the strat's spot in the middle, loosely in the middle or its first
     // Hello World spot; or a spot of its own, written for the beetle north and turned with it, that it is set down on
-    // first: beside the beetle, against the wall beside it, or 1 y off the takers' lines in the middle.
-    private enum Gather { Lpdu, LooseMiddle, OnItsFirstSpot, BesideTheBeetle, AgainstTheWall, OffTheTakersLines }
+    // first: beside the beetle, against the wall beside it, 1 y off the takers' lines in the middle, in their line 3 y in
+    // front of them, or behind the middle.
+    private enum Gather
+    {
+        Lpdu, LooseMiddle, OnItsFirstSpot, BesideTheBeetle, AgainstTheWall, OffTheTakersLines,
+        InTheTakersLineTwoFetchesBeforeTheWalkOut, InTheTakersLineOneFetchBeforeTheWalkOut, BehindTheMiddle,
+    }
 
     private static Vector2? SetDownOn(Gather gather) => gather switch
     {
         Gather.BesideTheBeetle => new Vector2(0.2f, -19.4f),
         Gather.AgainstTheWall => new Vector2(2f, -19.8f),
         Gather.OffTheTakersLines => new Vector2(1f, -6f),
+        Gather.InTheTakersLineTwoFetchesBeforeTheWalkOut or Gather.InTheTakersLineOneFetchBeforeTheWalkOut => new Vector2(0f, -6f),
+        Gather.BehindTheMiddle => new Vector2(-1.5f, 8f),
         _ => null,
     };
 
-    // Beside the beetle and against the wall it is set down before the tethers show.
-    private const float SetDownByTheBeetleAt = 45f;
+    // Beside the beetle, against the wall and behind the middle it is set down before the tethers show; in the takers'
+    // line with two of the strat's fetches left before the walk-out at 53, at 52.75 and 53.0, or one.
+    private const float SetDownBeforeTheTethersShowAt = 45f;
+
+    private static float SetDownInTheTakersLineAt(Gather gather) => gather == Gather.InTheTakersLineOneFetchBeforeTheWalkOut ? 52.85f : 52.6f;
 
     private static float LeavesForItsSecondSpotAt(Gather gather) => gather switch
     {
         Gather.BesideTheBeetle or Gather.AgainstTheWall => 55f,
         Gather.OffTheTakersLines => 55.5f,
+        Gather.InTheTakersLineTwoFetchesBeforeTheWalkOut or Gather.InTheTakersLineOneFetchBeforeTheWalkOut => SetDownInTheTakersLineAt(gather) + 0.05f,
         _ => SecondHelloWorldCall,
     };
 
@@ -158,7 +171,7 @@ public class TopP5OmegaLpduHumanTests
         {
             problems.AddRange(Play(Roll.HoldingATether(seat, halfAndBeetle, round, walk, reaction), delay, tightest, Gather.LooseMiddle, out var guide));
             if (guide.HeldAsTheFetchBegan) held++;
-            if (guide.TakenFromTheHuman.Any(take => take.Fetching && take.At < TopP5OmegaLpduAi.LastFetchBeforeTheWalkOut)) fetched++;
+            if (guide.TakenFromTheHuman.Any(take => take.Fetching && take.At < SecondHelloWorldCall)) fetched++;
         }
 
         TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs, the human still holding its tether as the takers start "
@@ -269,6 +282,72 @@ public class TopP5OmegaLpduHumanTests
         TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs, Bind 1 losing its tether at t={lost.DefaultIfEmpty().Min():F2}-{lost.DefaultIfEmpty().Max():F2} "
                                   + $"and sent back for it at t={sentBack.DefaultIfEmpty().Min():F2}-{sentBack.DefaultIfEmpty().Max():F2}; "
                                   + $"the human's tightest clearances:{Environment.NewLine}{tightest}");
+        Assert.Multiple(() =>
+        {
+            Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
+            AssertTheClearances(tightest);
+        });
+    }
+
+    // Both tethers start on their takers, and the human, without one, is set down in their line 3 y in front of them with
+    // two of the strat's fetches left before the walk-out, or one, takes a tether and walks straight on to the second
+    // Distant World. The taker it robbed is sent at the next fetch, and stepping off the takers' shared spot it takes its
+    // partner's tether. The partner is sent at the last fetch before the walk-out, or just after it, once the walk-out has
+    // left both takers to the fetch, and takes the human's tether back by 54.75. One left to upstream's walk-out could
+    // only be sent once that sets it off, at about 54.2, and takes the tether back after 55.
+    [TestCase("two fetches before the walk-out")]
+    [TestCase("one fetch before the walk-out")]
+    public void ATetherTakenFromATakerAsTheGatherEndsIsFetchedBack(string when)
+    {
+        var gather = when == "one fetch before the walk-out" ? Gather.InTheTakersLineOneFetchBeforeTheWalkOut : Gather.InTheTakersLineTwoFetchesBeforeTheWalkOut;
+        var tightest = new Clearances();
+        var problems = new List<string>();
+        var takenBack = new List<float>();
+        var runs = 0;
+        foreach (var seat in PerRole.All)
+        for (var beetle = 0; beetle < 4; beetle++)
+        {
+            var monitors = (beetle + (int)seat) % 2 == 0 ? MonitorSide.Left : MonitorSide.Right;
+            var roll = Roll.Scripted(seat, DistantWorld, monitors, Direction.Cardinal[beetle], [Bind1, Bind2], runs++);
+            problems.AddRange(Play(roll, 0f, tightest, gather, out var guide));
+            if (guide.TakenFromTheHuman.Count > 0 && guide.TakenFromTheHuman[0].At < TakenBackBy)
+                takenBack.Add(guide.TakenFromTheHuman[0].At);
+            else
+                problems.Add($"{roll}: no taker took the human's tether back by t={TakenBackBy}; the tethers went {string.Join(", ", guide.TetherPasses)}");
+        }
+
+        TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs, the human's tether taken back at "
+                                  + $"t={takenBack.DefaultIfEmpty().Min():F2}-{takenBack.DefaultIfEmpty().Max():F2}; "
+                                  + $"the human's tightest clearances:{Environment.NewLine}{tightest}");
+        Assert.Multiple(() =>
+        {
+            Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
+            AssertTheClearances(tightest);
+        });
+    }
+
+    private const float TakenBackBy = 54.75f;
+
+    // The human holds its tether behind the middle, 8 y back and 1.5 y to Bind 2's side, from before the tethers show
+    // until 53, with the beetle and the monitors east and the other tether on Bind 2. Its line misses the stack and the
+    // takers' spot, so Bind 1 fetches it there, and its straight walk out to its rim spot would cross the beetle's line
+    // behind the stack. It goes round the middle on its own side instead: from its first take until Blaster only the
+    // takers may hold the tether, though the stack walks in across its path.
+    [Test]
+    public void AFetcherBringsATetherFromBehindTheMiddleRoundTheStackOnItsOwnSide()
+    {
+        var tightest = new Clearances();
+        var problems = new List<string>();
+        var runs = 0;
+        foreach (var seat in PerRole.All)
+        {
+            var roll = Roll.Scripted(seat, NearWorld, MonitorSide.Right, Direction.E, [NearWorld, Bind2], runs++);
+            var kept = new KeptByTheTakers(roll);
+            problems.AddRange(Play(roll, 0f, tightest, Gather.BehindTheMiddle, out _, kept.Tick));
+            problems.AddRange(kept.Problems.Select(problem => $"{roll}: {problem}"));
+        }
+
+        TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs; the human's tightest clearances:{Environment.NewLine}{tightest}");
         Assert.Multiple(() =>
         {
             Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
@@ -414,7 +493,8 @@ public class TopP5OmegaLpduHumanTests
         public readonly List<string> TetherPasses = [];
 
         // Each time a taker took a tether from the human: when, which taker, and whether it was fetching rather than
-        // walking in to its place 3 y toward the beetle, which it heads for exactly and stops on.
+        // standing on its first Hello World spot before the strat's first fetch, or walking in to its place 3 y toward the
+        // beetle, which it heads for exactly and stops on.
         public readonly List<(float At, PartyRole Taker, bool Fetching)> TakenFromTheHuman = [];
 
         private static readonly Dictionary<PartyRole, Vector2> Opening = new()
@@ -429,6 +509,7 @@ public class TopP5OmegaLpduHumanTests
         private readonly Queue<(float Depart, Func<ScenarioProbe, Vector2> To)> legs = new();
         private readonly Vector2?[] stacks = new Vector2?[2];
         private readonly Dictionary<SimTether, PartyRole> heldLastFrame = new();
+        private readonly HashSet<PartyRole> sentToFetch = [];
         private (float Depart, Vector2[] Points, float Speed)? walking;
         private string lastHolders = "";
         private string? myId;
@@ -455,8 +536,28 @@ public class TopP5OmegaLpduHumanTests
             if (p.Crossed(TethersChecked)) CheckTheTethersAreOnTheirTakers(p);
             NoteWhereTheTethersGo(p);
             NoteTakersTakingTheHumansTether(p);
+            CheckNoTakerSentToFetchTakesUpstreamsWalkOut(p);
             SetDownWhenItIsTime(p, me);
             Advance(p, me);
+        }
+
+        // A taker the strat sent to fetch, seen heading anywhere but its place in the middle or its rim spot from the
+        // gather on, walks out on its own, onto its rim spot. Upstream's 53 s walk-out, which AiManager aims within its
+        // jitter of the spot and can't call back, must not reach it after that: it would turn it off a fetch or a walk
+        // round the middle.
+        private void CheckNoTakerSentToFetchTakesUpstreamsWalkOut(ScenarioProbe p)
+        {
+            if (p.Time < GatherCall + ScenarioRun.FrameSeconds || p.Time >= TethersChecked) return;
+            foreach (var taker in roll.Omega.SecondOrder[2..4])
+            {
+                if (taker == roll.Seat || p.Member(taker) is not { MoveDestination: { } going } member || !member.IsAlive()) continue;
+                var (to, rimSpot) = (Flat(going), roll.RimSpotOf(taker));
+                var offTheRimSpot = Vector2.Distance(to, rimSpot);
+                if (Vector2.Distance(to, roll.GatherSpotOf(taker)) > 0.01f && offTheRimSpot > OnItsRimSpot)
+                    sentToFetch.Add(taker);
+                else if (offTheRimSpot is > 0.01f and <= OnItsRimSpot && sentToFetch.Remove(taker))
+                    Problems.Add($"{taker}, sent to fetch, took upstream's walk-out to {to} at t={p.Time:F2}; its rim spot is {rimSpot}");
+            }
         }
 
         private void NoteWhereTheTethersGo(ScenarioProbe p)
@@ -475,7 +576,7 @@ public class TopP5OmegaLpduHumanTests
             {
                 if (HolderOf(tether) is not { } holder) continue;
                 if (heldLastFrame.TryGetValue(tether, out var before) && before == roll.Seat && Array.IndexOf(roll.Omega.SecondOrder, holder) is 2 or 3)
-                    TakenFromTheHuman.Add((p.Time, holder, IsFetching(p, holder)));
+                    TakenFromTheHuman.Add((p.Time, holder, p.Time >= TopP5OmegaLpduAi.FirstFetch && IsFetching(p, holder)));
                 heldLastFrame[tether] = holder;
             }
         }
@@ -499,9 +600,12 @@ public class TopP5OmegaLpduHumanTests
         private void SetDownWhenItIsTime(ScenarioProbe p, SimCharacter me)
         {
             if (setDown || SetDownOn(gather) is not { } spot) return;
-            var due = gather == Gather.OffTheTakersLines
-                ? p.Time >= GatherCall && roll.Omega.SecondOrder[2..4].All(taker => StandsOnItsPlace(p, taker))
-                : p.Time >= SetDownByTheBeetleAt;
+            var due = gather switch
+            {
+                Gather.OffTheTakersLines => p.Time >= GatherCall && roll.Omega.SecondOrder[2..4].All(taker => StandsOnItsPlace(p, taker)),
+                Gather.InTheTakersLineTwoFetchesBeforeTheWalkOut or Gather.InTheTakersLineOneFetchBeforeTheWalkOut => p.Time >= SetDownInTheTakersLineAt(gather),
+                _ => p.Time >= SetDownBeforeTheTethersShowAt,
+            };
             if (!due) return;
             setDown = true;
             walking = null;
@@ -751,6 +855,37 @@ public class TopP5OmegaLpduHumanTests
         }
     }
 
+    // From the first time a taker takes the human's tether until Blaster, no one but the takers holds it. That first take
+    // must be behind the middle and across the beetle's line from the taker's rim spot, or the walk out wouldn't need to
+    // go round the stack.
+    private sealed class KeptByTheTakers(Roll roll)
+    {
+        public readonly List<string> Problems = [];
+        private SimTether? humans;
+        private bool taken, lost;
+
+        public void Tick(ScenarioProbe p)
+        {
+            if (lost || p.Time >= TethersChecked) return;
+            humans ??= PassableTethers(p).FirstOrDefault(t => HolderOf(t) == roll.Seat);
+            if (humans is null || HolderOf(humans) is not { } holder) return;
+            var isATaker = Array.IndexOf(roll.Omega.SecondOrder, holder) is 2 or 3;
+            var at = Flat(p.Member(holder)!.Position);
+            if (!taken && isATaker)
+            {
+                taken = true;
+                var (fromTheBeetleNorth, rimSpot) = (Turned(at, -roll.Bearing), Turned(roll.RimSpotOf(holder), -roll.Bearing));
+                if (fromTheBeetleNorth.Y <= 0f || MathF.Sign(fromTheBeetleNorth.X) == MathF.Sign(rimSpot.X))
+                    Problems.Add($"{holder} first took the human's tether at {at} at t={p.Time:F2}, not behind the middle across the beetle's line from its rim spot");
+            }
+            else if (taken && !isATaker)
+            {
+                lost = true;
+                Problems.Add($"{holder} took the human's tether at {at} at t={p.Time:F2}, after a taker had it");
+            }
+        }
+    }
+
     // How close the human came to each hit it dodged, and the bots to each hit centred on the human or on another bot's
     // Blaster, as each decided, over every run of a case: the scenario's own areas, read off AoeQuery. Each Hello World
     // jump's pick is held to the same slack, and the human's distance from the arena's edge is read every frame.
@@ -816,12 +951,8 @@ public class TopP5OmegaLpduHumanTests
                     case ActionId.BlasterAoe:
                         var blasterTarget = TargetOf(p, source);
                         blasted.Add(blasterTarget);
-                        if (mine) NoteTheBots(p, hit, "every bot outside the human's Blaster");
-                        else
-                        {
-                            Note("another's Blaster", clearance);
-                            NoteTheBots(p, hit, BotsOutsideABlaster, blasterTarget);
-                        }
+                        if (!mine) Note("another's Blaster", clearance);
+                        NoteTheBots(p, hit, BotsOutsideABlaster, blasterTarget);
                         break;
                 }
             };

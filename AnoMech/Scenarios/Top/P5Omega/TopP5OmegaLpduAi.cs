@@ -36,7 +36,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         new(19f, 0f), new(4f, 19f), new(-4f, 19f), new(-19f, 0f),
     ];
 
-    internal const float FirstFetch = 48.25f, LastFetchBeforeTheWalkOut = 52.75f;
+    internal const float FirstFetch = 48.25f;
     private const float OnTheSecondSpotsBy = 56.75f;
     private const float FetchEvery = 0.25f;
     private const float FetchAheadOfTheHolder = 1.5f, FetchWithinRadius = 19.95f, FetchSprintsFartherThan = 5f;
@@ -52,17 +52,19 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
     private SimWorld world = null!;
     private PartyRole[] firstHelloWorldOrder = [];
     private readonly Dictionary<PartyRole, PartyRole> fetcherOfEachHolder = new();
-    private readonly HashSet<PartyRole> sentToFetch = [];
+    private readonly HashSet<PartyRole> fetchers = [];
     private readonly Dictionary<PartyRole, float> sprintingUntil = new();
     private readonly Dictionary<PartyRole, (Vector2 At, float Time)> lastSeen = new();
+    private bool theGatherIsOver;
 
     public void Run(TopP5OmegaState s, SimWorld w)
     {
         state = s;
         world = w;
         firstHelloWorldOrder = FirstHelloWorldOrder(s);
+        theGatherIsOver = false;
         fetcherOfEachHolder.Clear();
-        sentToFetch.Clear();
+        fetchers.Clear();
         sprintingUntil.Clear();
         lastSeen.Clear();
         var ai = new AiManager(world);
@@ -75,7 +77,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         ai.Move(48f, GatherInTheMiddleWithTheTetherTakersTowardTheBeetle, jitter: 0f);
         for (var t = FirstFetch; t <= OnTheSecondSpotsBy; t += FetchEvery)
             world.Events.Add(t, TakersFetchTheTethersNonTakersStillHold);
-        ai.Move(53f, SecondHelloWorldSpotsTurnedWithTheBeetleForAllButTheFetchers, arrivalTime: 57f);
+        ai.Move(53f, EndTheGatherWithSecondHelloWorldSpotsForAllButTheFetchers, arrivalTime: 57f);
         ai.Move(62f, TanksNorthOfOmegaTheRestSouth);
     }
 
@@ -160,10 +162,20 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
                  .Assignments(state.HelloWorld2)
                  .ApplyPositions(TurnWithTheBeetle);
 
-    private IAiMove SecondHelloWorldSpotsTurnedWithTheBeetleForAllButTheFetchers()
-        => AiMove.Create([.. SecondHelloWorldSpotsWhenTheBeetleIsNorth.Select((spot, i) => state.HelloWorld2 is { } order && sentToFetch.Contains(order[i]) ? null : spot)])
-                 .Assignments(state.HelloWorld2)
-                 .ApplyPositions(TurnWithTheBeetle);
+    private IAiMove EndTheGatherWithSecondHelloWorldSpotsForAllButTheFetchers()
+    {
+        theGatherIsOver = true;
+        BothBotTakersFetchOnceEitherDoes();
+        return AiMove.Create([.. SecondHelloWorldSpotsWhenTheBeetleIsNorth.Select((spot, i) => state.HelloWorld2 is { } order && fetchers.Contains(order[i]) ? null : spot)])
+                     .Assignments(state.HelloWorld2)
+                     .ApplyPositions(TurnWithTheBeetle);
+    }
+
+    private void BothBotTakersFetchOnceEitherDoes()
+    {
+        if (fetchers.Count > 0 && state.HelloWorld2 is { } order)
+            fetchers.UnionWith(new[] { order[2], order[3] }.Where(IsABotOtherThanThePlayer));
+    }
 
     private void TurnWithTheBeetle(IAiPositions move) => state.BettleSpawnDirection.Apply(move);
 
@@ -186,20 +198,18 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         }
         foreach (var fetcher in FetchersNotChasingATether())
             if (Holds(fetcher, tethers)) WalkOutWithTheTether(fetcher, takers, tethers);
-            else if (TheGatherIsOver()) WalkToTheSecondSpotInTime(fetcher);
+            else if (theGatherIsOver) WalkToTheSecondSpotInTime(fetcher);
             else GoBackToTheGatherSpot(fetcher);
     }
 
     private IEnumerable<PartyRole> FetchersNotChasingATether()
-        => sentToFetch.Where(fetcher => world.Party.Get(fetcher).IsAlive() && !fetcherOfEachHolder.ContainsValue(fetcher));
+        => fetchers.Where(fetcher => world.Party.Get(fetcher).IsAlive() && !fetcherOfEachHolder.ContainsValue(fetcher));
 
     private void WalkToTheSecondSpotInTime(PartyRole fetcher)
         => GoUnlessGoing(fetcher, SecondHelloWorldSpot(fetcher), MustSprintToArriveInTime(At(fetcher), SecondHelloWorldSpot(fetcher)));
 
     private void GoBackToTheGatherSpot(PartyRole fetcher)
         => GoUnlessGoing(fetcher, GatherSpot(fetcher), sprint: Vector2.Distance(At(fetcher), GatherSpot(fetcher)) > FetchSprintsFartherThan);
-
-    private bool TheGatherIsOver() => world.Events.Elapsed >= LastFetchBeforeTheWalkOut + FetchEvery / 2f;
 
     private List<(PartyRole Holder, SimTether Tether)> BlasterTethersAndTheirHolders()
         => world.Children.OfType<SimTether>()
@@ -234,7 +244,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
 
     private bool CanBeFetchedFrom(PartyRole holder)
         => world.Party.Get(holder) is { } member
-           && (!world.Party.IsBotDriven(member) || TheGatherIsOver() || StandsOnItsGatherSpot(holder));
+           && (!world.Party.IsBotDriven(member) || theGatherIsOver || StandsOnItsGatherSpot(holder));
 
     private bool StandsOnItsGatherSpot(PartyRole role)
         => world.Party.Get(role)!.MoveDestination is null && Vector2.Distance(At(role), GatherSpot(role)) <= StandingOnTheGatherSpot;
@@ -270,7 +280,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         => world.Party.Get(role) is { } member && world.Party.IsBotDriven(member) && !ReferenceEquals(member, world.Party.Player);
 
     private bool NoWalkOutIsPendingFor(PartyRole taker)
-        => !TheGatherIsOver() || sentToFetch.Contains(taker) || HasSetOffForItsSecondSpot(taker);
+        => !theGatherIsOver || fetchers.Contains(taker) || HasSetOffForItsSecondSpot(taker);
 
     private bool HasSetOffForItsSecondSpot(PartyRole taker)
         => Vector2.Distance(world.Party.Get(taker)!.MoveDestination is { } going ? Flat(going) : At(taker), SecondHelloWorldSpot(taker))
@@ -279,7 +289,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
     private void SendToFetch(PartyRole taker, PartyRole holder, SimTether tether, Vector2 holderMoves)
     {
         fetcherOfEachHolder[holder] = taker;
-        sentToFetch.Add(taker);
+        fetchers.Add(taker);
         GoToTheTether(taker, tether, holderMoves);
     }
 
@@ -316,7 +326,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
     {
         var spot = SecondHelloWorldSpot(fetcher);
         var beetle = Flat(tethers.First(t => t.Holder == fetcher).Tether.B!.Position);
-        var next = CrossesTheBeetlesLineBehindTheMiddle(At(fetcher), spot) ? BesideTheMiddleOnItsSide(At(fetcher)) : spot;
+        var next = CrossesTheBeetlesLineNearOrBehindTheMiddle(At(fetcher), spot) ? BesideTheMiddleOnItsSide(At(fetcher)) : spot;
         if (AFreeNonTakerWouldTakeItFrom(spot, beetle, takers, tethers) && ThereIsTimeToWait(At(fetcher), next, spot)) return;
         GoUnlessGoing(fetcher, next, MustSprintToArriveInTime(At(fetcher), next, spot));
     }
@@ -333,7 +343,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
 
     private static float Length(Vector2[] path) => path.Zip(path.Skip(1), Vector2.Distance).Sum();
 
-    private bool CrossesTheBeetlesLineBehindTheMiddle(Vector2 from, Vector2 to)
+    private bool CrossesTheBeetlesLineNearOrBehindTheMiddle(Vector2 from, Vector2 to)
     {
         var (fromAside, toAside) = (Aside(from), Aside(to));
         if (fromAside >= 0f == toAside >= 0f) return false;
