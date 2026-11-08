@@ -69,11 +69,11 @@ public class TopP6HelperBudgetTests
             alphaOmega.Autos(34.4f);
         });
 
-    // The whole phase on the LPDU strat, in godmode so every part plays: both waves on each point, turning both ways.
+    // The whole phase on the LPDU strat, in godmode so every part plays: both waves on each point, turning both ways, at
+    // either step, and the two Cosmo Arrows in opposite orders, so each run plays both.
     [Test]
-    public void TheWholeGauntlet([ValueSource(nameof(Points))] int first, [Values] bool clockwise)
+    public void TheWholeGauntlet([ValueSource(nameof(Points))] int first, [Values] bool clockwise, [ValueSource(nameof(Steps))] float step)
     {
-        var step = Steps[first % Steps.Length];
         TopP6AlphaOmega? alphaOmega = null;
         var run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
@@ -84,6 +84,8 @@ public class TopP6HelperBudgetTests
                 overrides.Exaflares1First = overrides.Exaflares2First = first;
                 overrides.Exaflares1Clockwise = overrides.Exaflares2Clockwise = clockwise;
                 overrides.Exaflares1Step = overrides.Exaflares2Step = step;
+                overrides.Arrow1InFirst = clockwise;
+                overrides.Arrow2InFirst = !clockwise;
             },
             Probe = p => alphaOmega ??= p.Game.Catalog.Scenarios.OfType<TopP6GauntletScenario>().Single().AlphaOmega,
         });

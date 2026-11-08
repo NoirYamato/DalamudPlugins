@@ -7,12 +7,14 @@ namespace AnoMech.Tests;
 
 // The human pressing a limit break as their client does: the cast bar's start (none for an instant one), then its
 // resolve or interruption, each through IUserActions.Acted; and, as it resolves, what the client's own module does next:
-// the action's JobActions effects (a tank's limit break 3 statuses) and the resolve that empties the HUD gauge.
+// the action's JobActions effects (a tank's limit break 3 statuses) and the resolve that empties the HUD gauge. A dead
+// player presses nothing, and a cast its player dies in is interrupted.
 internal static class TopP6HumanLimitBreak
 {
     public static void Press(SimWorld world, float at, uint actionId, Func<SimCharacter?>? target = null, float? interruptedAfter = null)
         => world.Events.Add(at, () =>
         {
+            if (!world.Party.Player.IsAlive()) return;
             var userActions = (FakeUserActions)Natives.UserActions;
             var targetId = target?.Invoke() is { } aimedAt ? (ulong)aimedAt.GameObjectId : 0ul;
             var castSeconds = Natives.Data.Action(actionId)?.CastSeconds ?? 0f;
@@ -25,7 +27,11 @@ internal static class TopP6HumanLimitBreak
             if (interruptedAfter is { } cut && cut < castSeconds)
                 world.Events.Add(cut, () => userActions.Act(new PlayerAction(PlayerActionStep.Interrupted, ActionType.Action, actionId, targetId)));
             else
-                world.Events.Add(castSeconds, () => Resolve(world, userActions, actionId, targetId));
+                world.Events.Add(castSeconds, () =>
+                {
+                    if (world.Party.Player.IsAlive()) Resolve(world, userActions, actionId, targetId);
+                    else userActions.Act(new PlayerAction(PlayerActionStep.Interrupted, ActionType.Action, actionId, targetId));
+                });
         });
 
     private static void Resolve(SimWorld world, FakeUserActions userActions, uint actionId, ulong targetId)

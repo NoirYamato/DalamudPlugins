@@ -76,6 +76,20 @@ public class TopP6RunMiTests
         Assert.That(run.Deaths.Select(d => d.Cause).Distinct(), Is.EqualTo(new[] { $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded}{TopP6LimitBreaks.GaugeWasShort})" }));
     }
 
+    // A press that gives up as the cast ends, 14 s before the damage lands, still left the gauge short.
+    [Test]
+    public void AShortGaugeSaysSoThoughThePressGaveUpAsTheCastEnded()
+    {
+        var run = RunMi((world, alphaOmega, limitBreaks) =>
+        {
+            world.Events.Add(2.5f, () => limitBreaks.SetGauge(1f));
+            world.Events.Add(3f, () => limitBreaks.Press(MeleeDpsA, Job(MeleeDpsA), alphaOmega.Enemy, TopP6AlphaOmega.RunMiFinishedBy(CastAt)));
+        });
+
+        Assert.That(run.Deaths, Has.Count.EqualTo(8), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Cause).Distinct(), Is.EqualTo(new[] { $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded}{TopP6LimitBreaks.GaugeWasShort})" }));
+    }
+
     // The human's own press counts as a bot's.
     [Test]
     public void AHumansMeleeLimitBreak3DefeatsItToo()

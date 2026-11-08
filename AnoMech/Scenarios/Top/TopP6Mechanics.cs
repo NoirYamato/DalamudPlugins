@@ -143,7 +143,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // Run: ****mi*, the enrage. A melee limit break 3 resolving by RunMiFinishedBy defeats Alpha Omega at once;
-    // otherwise its damage lands P6Duration.RunMiLands after the cast starts and kills everyone.
+    // otherwise its damage lands P6Duration.RunMiLands after the cast starts and kills everyone. Whether the gauge was
+    // short is read as the cast ends, while a press that gives up then is still waiting.
     public void RunMi(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         void Finish(TopP6LimitBreakPress press)
@@ -159,9 +160,9 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         At(RunMiFinishedBy(castAt), () =>
         {
             limitBreaks.Resolved -= Finish;
-            if (Enemy.IsAlive())
-                At(castAt + P6Duration.RunMiLands, () => world.Party.WipeAllPlayers(P6ActionId.RunMi,
-                    RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "")), file, line);
+            if (!Enemy.IsAlive()) return;
+            var why = RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
+            At(castAt + P6Duration.RunMiLands, () => world.Party.WipeAllPlayers(P6ActionId.RunMi, why), file, line);
         }, file, line);
     }
 
