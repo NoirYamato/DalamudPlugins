@@ -27,7 +27,16 @@ namespace AnoMech.Tests;
 //   the second Hello World's last jumps: the opening clump again.
 // Whatever its seat, its job in each Hello World, the Omega pairs, the cannons, the monitors' half, the beetle, its walk
 // and its reaction time, nobody may die, both Hello Worlds, the monitors and the Blasters go where the strat sends them,
-// and the human keeps more than 0.5 y from every hit it dodges.
+// both Blaster tethers are on their takers just before Blaster, and the human keeps more than 0.5 y from every hit it
+// dodges.
+//
+// A Blaster tether can also start on a human who has none to take. Its line toward the beetle passes the takers waiting
+// 3 y toward it only if the human stands within about 0.6 y of the beetle's axis behind them, so the takers fetch it.
+// Those cases give the human a tether and a second Hello World job other than the tethers, and at its second mark send
+// it loosely into the middle instead: to a random point 0.5-3 y from it, in any direction. A human who stays on its
+// first Hello World spot until 53, or walks straight on to its second, isn't covered: its own walk still fails about one
+// roll in 30 and one in 300 (it reaches the second Hello World late, crosses a Blaster or a taker's line, or a curving
+// walk along the rim leaves the arena).
 public class TopP5OmegaLpduHumanTests
 {
     // Staff and Sword against Staff and Shield puts the two stacks 17 y and 10 y out on cardinals a quarter apart, 19.7 y
@@ -40,6 +49,14 @@ public class TopP5OmegaLpduHumanTests
 
     private const float SecondHelloWorldFrom = 45f, SecondHelloWorldCall = 53f;
     private const float FirstPairHits = 24.15f, SecondPairHits = 28.15f, StackTolerance = 0.75f;
+    private const float TethersChecked = 57.5f;
+    private const float LooseMiddleFrom = 0.5f, LooseMiddleTo = 3f;
+
+    // Where the human goes at its second mark: the strat's own spot, or loosely into the middle.
+    private enum Gather { Lpdu, LooseMiddle }
+
+    // Rounds of every seat under both monitor halves and all four beetles for each tether case; TetherRounds asks for more.
+    private static int TetherRounds => Math.Max(1, TestContext.Parameters.Get("TetherRounds", 1));
 
     // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
     private MultiplayerManager? leftInstalled;
@@ -72,7 +89,7 @@ public class TopP5OmegaLpduHumanTests
         var runs = 0;
         foreach (var seat in PerRole.All)
         for (var person = 0; person < 8; person++, runs++)
-            problems.AddRange(Play(Roll.For(seat, person, jobs, walk, reaction), delay, tightest));
+            problems.AddRange(Play(Roll.For(seat, person, jobs, walk, reaction), delay, tightest, Gather.Lpdu, out _));
 
         TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs; the human's tightest clearances:{Environment.NewLine}{tightest}");
         Assert.Multiple(() =>
@@ -82,9 +99,37 @@ public class TopP5OmegaLpduHumanTests
         });
     }
 
-    private static List<string> Play(Roll roll, float delay, Clearances tightest)
+    // Every seat holds a tether under both monitor halves and all four beetles, and each seat every second Hello World
+    // job but the tethers. The other tether starts on a seat the roll picks, a taker's or not. The human still holds its
+    // tether as the takers start fetching in about two runs in three; the rest it passed on as it waited or walked in.
+    [TestCaseSource(nameof(Matrix))]
+    public void TheTakersFetchABlasterTetherFromAHumanGatheringLoosely(Walk walk, float delay)
     {
-        var guide = new Guide(roll, delay);
+        var reaction = Array.IndexOf(ReactionTimes, delay);
+        var tightest = new Clearances();
+        var problems = new List<string>();
+        var (runs, held) = (0, 0);
+        for (var round = 0; round < TetherRounds; round++)
+        foreach (var seat in PerRole.All)
+        for (var halfAndBeetle = 0; halfAndBeetle < 8; halfAndBeetle++, runs++)
+        {
+            problems.AddRange(Play(Roll.HoldingATether(seat, halfAndBeetle, round, walk, reaction), delay, tightest, Gather.LooseMiddle, out var heldIt));
+            if (heldIt) held++;
+        }
+
+        TestContext.Out.WriteLine($"{TestContext.CurrentContext.Test.Name}: {runs} runs, the human still holding its tether as the takers start "
+                                  + $"fetching in {held}; its tightest clearances:{Environment.NewLine}{tightest}");
+        Assert.Multiple(() =>
+        {
+            Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
+            Assert.That(tightest.Within(JitterSlack), Is.Empty, "the human's clearances");
+            Assert.That(held, Is.GreaterThan(runs / 3), "runs where the human still held its tether as the takers started fetching");
+        });
+    }
+
+    private static List<string> Play(Roll roll, float delay, Clearances tightest, Gather gather, out bool heldAsTheFetchBegan)
+    {
+        var guide = new Guide(roll, delay, gather);
         var measure = tightest.For(roll);
         ScenarioRun run;
         AoeQuery.Evaluated += measure;
@@ -116,7 +161,9 @@ public class TopP5OmegaLpduHumanTests
             if (guide.Walks < guide.Legs) problems.Add($"the human set off on {guide.Walks} of its {guide.Legs} walks");
             if (guide.Legs != 7) problems.Add($"the human saw {guide.Legs} of its 7 cues");
         }
-        return problems.Select(problem => $"{roll} ({delay:F1}s late): {problem}").ToList();
+        heldAsTheFetchBegan = guide.HeldAsTheFetchBegan;
+        if (problems.Count > 0) problems.Add("the Blaster tethers went " + string.Join(", ", guide.TetherPasses));
+        return problems.Select(problem => $"{roll} ({delay:F1}s late, {gather}): {problem}").ToList();
     }
 
     // The test rolls everything and pins it; the human reads the fight, its marks and the beetle as a player would, and the
@@ -141,16 +188,41 @@ public class TopP5OmegaLpduHumanTests
             return new Roll(seat, new OmegaRoll(pairs, monitors, beetle, jobs, byPerson, tethers), walk, seed);
         }
 
+        private static readonly int[] JobsWithoutATether = [0, 1, 4, 5, 6, 7];
+
+        // halfAndBeetle: the monitors' half (west first) and the beetle (N, E, S, W). A tether starts on the seat, whose
+        // second Hello World job is never a tether's, and the other on another seat.
+        public static Roll HoldingATether(PartyRole seat, int halfAndBeetle, int round, Walk walk, int reaction)
+        {
+            var s = (int)seat;
+            var seed = 7919 * (64 * (3 * (4 * round + reaction) + (int)walk) + 8 * halfAndBeetle + s) + 5;
+            var rng = new Random(seed);
+            var jobs = (s + halfAndBeetle + reaction + round) % HelloWorldJobs.Length;
+            var secondJob = JobsWithoutATether[(halfAndBeetle + s + (int)walk + round) % JobsWithoutATether.Length];
+            var person = Array.FindIndex(HelloWorldJobs[jobs], job => job.Second == secondJob);
+            var others = new Queue<PartyRole>(PerRole.All.Where(r => r != seat).OrderBy(_ => rng.Next()));
+            var byPerson = Enumerable.Range(0, 8).Select(i => i == person ? seat : others.Dequeue()).ToArray();
+            var pairs = OmegaPairs.All[rng.Next(OmegaPairs.All.Length)];
+            var monitors = halfAndBeetle % 2 == 0 ? MonitorSide.Left : MonitorSide.Right;
+            var beetle = Direction.Cardinal[halfAndBeetle / 2];
+            var other = PerRole.All.Where(r => r != seat).OrderBy(_ => rng.Next()).First();
+            return new Roll(seat, new OmegaRoll(pairs, monitors, beetle, jobs, byPerson, [seat, other]), walk, seed);
+        }
+
         public override string ToString()
             => $"seed {Seed}, {Seat} ({Walk}, {HelloWorldSigns[FirstJob]} then {HelloWorldSigns[SecondJob]}, {Omega})";
     }
 
     // Each cue queues a walk that sets off a reaction time later and is aimed as it sets off.
-    private sealed class Guide(Roll roll, float late)
+    private sealed class Guide(Roll roll, float late, Gather gather)
     {
         public readonly List<string> Problems = [];
         public int Legs { get; private set; }
         public int Walks { get; private set; }
+        public bool HeldAsTheFetchBegan { get; private set; }
+
+        // Who held the tethers from each change on, and where they stood, for a failing run's report.
+        public readonly List<string> TetherPasses = [];
 
         private static readonly Dictionary<PartyRole, Vector2> Opening = new()
         {
@@ -160,9 +232,11 @@ public class TopP5OmegaLpduHumanTests
         };
 
         private readonly Random rng = new(roll.Seed);
+        private readonly Vector2 looseMiddle = LooseMiddle(new Random(roll.Seed + 1));
         private readonly Queue<(float Depart, Func<ScenarioProbe, Vector2> To)> legs = new();
         private readonly Vector2?[] stacks = new Vector2?[2];
         private (float Depart, Vector2[] Points, float Speed)? walking;
+        private string lastHolders = "";
         private string? myId;
         private int rowsRead, cannonCasts, helloWorldHits;
         private int? firstJob, secondJob;
@@ -183,8 +257,43 @@ public class TopP5OmegaLpduHumanTests
             if (p.Crossed(SecondHelloWorldCall)) Queue(p.Time, SecondHelloWorldSpot);
             if (p.Crossed(FirstPairHits)) CheckTheStack(p, 0);
             if (p.Crossed(SecondPairHits)) CheckTheStack(p, 1);
+            if (p.Crossed(TopP5OmegaLpduAi.FirstFetch)) HeldAsTheFetchBegan = BlasterTetherHolders(p).Contains(roll.Seat);
+            if (p.Crossed(TethersChecked)) CheckTheTethersAreOnTheirTakers(p);
+            NoteWhereTheTethersGo(p);
             Advance(p, me);
         }
+
+        private void NoteWhereTheTethersGo(ScenarioProbe p)
+        {
+            var holders = BlasterTetherHolders(p);
+            var who = string.Join("+", holders);
+            if (who == lastHolders) return;
+            lastHolders = who;
+            TetherPasses.Add($"t={p.Time.ToString("F2", CultureInfo.InvariantCulture)} to "
+                             + string.Join(" and ", holders.Select(h => $"{h} at {Flat(p.Member(h)!.Position)}")));
+        }
+
+        private static Vector2 LooseMiddle(Random random)
+        {
+            var radius = LooseMiddleFrom + (LooseMiddleTo - LooseMiddleFrom) * (float)random.NextDouble();
+            var (sin, cos) = MathF.SinCos(2f * MathF.PI * (float)random.NextDouble());
+            return new Vector2(radius * sin, radius * cos);
+        }
+
+        private void CheckTheTethersAreOnTheirTakers(ScenarioProbe p)
+        {
+            var holders = BlasterTetherHolders(p);
+            if (!holders.Order().SequenceEqual(roll.Omega.SecondOrder[2..4].Order()))
+                Problems.Add($"the Blaster tethers were on {string.Join(", ", holders)} at t={p.Time:F2}");
+        }
+
+        private static List<PartyRole> BlasterTetherHolders(ScenarioProbe p)
+            => p.World.Children.OfType<SimTether>()
+                .Where(t => t.IsActive && t.TetherId == TetherId.PassableTether)
+                .Select(t => t.A)
+                .OfType<ISimPartyMember>()
+                .Select(holder => holder.Role)
+                .ToList();
 
         private void ReadTheTimeline(ScenarioProbe p)
         {
@@ -260,7 +369,7 @@ public class TopP5OmegaLpduHumanTests
             }
             secondJob = job;
             if (job != roll.SecondJob) Problems.Add($"the human was marked {sign} for the second Hello World");
-            Queue(p.Time, Gather);
+            Queue(p.Time, gather == Gather.LooseMiddle ? _ => looseMiddle : LpduGatherSpot);
         }
 
         private Vector2 FirstHelloWorldSpot(ScenarioProbe p)
@@ -269,7 +378,7 @@ public class TopP5OmegaLpduHumanTests
             return TopP5OmegaLpduAi.FirstHelloWorldSpotsWhenTheMonitorsFireWest[job]!.Value * new Vector2(west ? 1f : -1f, 1f);
         }
 
-        private Vector2 Gather(ScenarioProbe p)
+        private Vector2 LpduGatherSpot(ScenarioProbe p)
             => secondJob is { } job
                 ? Turned(TopP5OmegaLpduAi.GatherWithTheTetherTakersTowardTheBeetleWhenItIsNorth[job]!.Value, BeetleBearing(p))
                 : Lost(p, "its place in the middle");

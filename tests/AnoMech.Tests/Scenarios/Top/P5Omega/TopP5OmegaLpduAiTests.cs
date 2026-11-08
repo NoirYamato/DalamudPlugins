@@ -27,7 +27,8 @@ namespace AnoMech.Tests;
 // Both changes resolve as upstream's spots do. The first reflects upstream's layout north to south, monitors 1 and 2,
 // jumps 1 and 4 and jumps 2 and 3 trading places; the second mirrors the whole layout across the beetle's line. Every
 // jump still goes to the nearest or farthest member, the monitors to the two on their half, and the tether takers
-// still pick up the passable Blaster tethers in the middle.
+// still pick up the passable Blaster tethers in the middle. From 48.25 the takers also fetch a tether a non-taker still
+// holds, which never happens with bots alone; TopP5OmegaLpduHumanTests gives the human one.
 public class TopP5OmegaLpduAiTests
 {
     internal const int LpduStrat = 0;
@@ -414,6 +415,73 @@ public class TopP5OmegaLpduAiTests
             }
             Assert.That(lpdu.Count(m => m.Target is not null), Is.EqualTo(16), "no other marks");
         });
+    }
+
+    // With bots alone every tether reaches a taker through the middle, so no taker is ever sent to fetch one: each walks
+    // straight to its place 3 y toward the beetle at 48 and stands there until upstream's walk-out at 53, as before the
+    // fetch. Every monitors' half, beetle, set of jobs and seating, with the tethers starting on takers, non-takers or
+    // one of each, and the player's seat under the debug driver.
+    [Test]
+    public void WithBotsAloneNoTakerIsSentToFetchATether()
+    {
+        var problems = new List<string>();
+        var runs = 0;
+        for (var layout = 0; layout < 192; layout++, runs++)
+        {
+            var roll = BotsAloneRoll(layout);
+            var player = PerRole.All[(3 * layout + layout / 64) % 8];
+            var seed = 7919 * layout + 11;
+            var bearing = roll.Beetle.RadiansFromNorth * 180f / MathF.PI;
+            var takers = roll.SecondOrder[2..4];
+            var gathered = new HashSet<PartyRole>();
+            var strayed = new Dictionary<PartyRole, string>();
+            var run = ScenarioRun.Execute(typeof(TopP5OmegaScenario), LpduStrat, seed, new ScenarioRunOptions
+            {
+                PlayerRole = player,
+                StopAt = TakersLeaveTheMiddle + 0.5f,
+                Overrides = o => roll.Pin((TopP5OmegaStateOverrides)o),
+                Probe = p =>
+                {
+                    if (p.Time < GatherCall + ScenarioRun.FrameSeconds || p.Time >= TakersLeaveTheMiddle) return;
+                    foreach (var taker in takers.Where(t => !strayed.ContainsKey(t)))
+                    {
+                        var member = p.Member(taker)!;
+                        var spot = Turned(TopP5OmegaLpduAi.GatherWithTheTetherTakersTowardTheBeetleWhenItIsNorth[Array.IndexOf(roll.SecondOrder, taker)]!.Value, bearing);
+                        var at = Flat(member.Position);
+                        if (member.MoveDestination is { } going && Vector2.Distance(Flat(going), spot) > 0.01f)
+                            strayed[taker] = $"headed for {Flat(going)} at t={p.Time:F2}, not its place at {spot}";
+                        else if (gathered.Contains(taker) && Vector2.Distance(at, spot) > OnTheGatherSpot)
+                            strayed[taker] = $"left its place at {spot} for {at} at t={p.Time:F2}";
+                        else if (member.MoveDestination is null && Vector2.Distance(at, spot) <= OnTheGatherSpot)
+                            gathered.Add(taker);
+                    }
+                },
+            });
+            var where = $"seed {seed}, {roll}, player {player}";
+            if (!run.Passed) problems.Add($"{where}: {run}");
+            problems.AddRange(strayed.Select(s => $"{where}: {s.Key} {s.Value}"));
+            problems.AddRange(takers.Where(t => !gathered.Contains(t) && !strayed.ContainsKey(t))
+                                    .Select(t => $"{where}: {t} never stood on its place before {TakersLeaveTheMiddle}"));
+        }
+
+        TestContext.Out.WriteLine($"{runs} runs, {problems.Count} problems");
+        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(30)));
+    }
+
+    private const float GatherCall = 48f, TakersLeaveTheMiddle = 53f, OnTheGatherSpot = 0.2f;
+
+    // The 192 layouts: both monitors' halves, all four beetles, the three sets of jobs and eight seatings; the tethers start
+    // on two seats the layout picks, and the Omega pairs go round all 192.
+    private static OmegaRoll BotsAloneRoll(int layout)
+    {
+        var monitors = layout % 2 == 0 ? MonitorSide.Left : MonitorSide.Right;
+        var beetle = Direction.Cardinal[layout / 2 % 4];
+        var jobs = layout / 8 % HelloWorldJobs.Length;
+        var shift = layout / 24 % 8;
+        PartyRole[] byPerson = [.. Enumerable.Range(0, 8).Select(person => PerRole.All[(person + shift) % 8])];
+        PartyRole[] tethers = [PerRole.All[layout % 8], PerRole.All[(layout / 8 + layout % 8 + 1) % 8]];
+        if (tethers[1] == tethers[0]) tethers[1] = PerRole.All[(layout % 8 + 4) % 8];
+        return new OmegaRoll(OmegaPairs.All[(7 * layout) % OmegaPairs.All.Length], monitors, beetle, jobs, byPerson, tethers);
     }
 
     // ---- Geometry --------------------------------------------------------------------------------------------------
