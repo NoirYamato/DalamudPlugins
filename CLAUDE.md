@@ -224,8 +224,9 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 ## TOP P5 Omega
 Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pass upstream's as `NaStrat = 1`.
 - `TopP5OmegaLpduAi` is upstream's strat written out again with its two Hello World layouts moved onto the user's
-  strategy board (its OMEGA pt 1 and pt 2 panels). Everything else is upstream's: the moves and their times, arrival
-  times and jitters, the assignment lists, the marks and their times, the opening clump and both Omega dodges.
+  strategy board (its OMEGA pt 1 and pt 2 panels), and with the tether takers fetching the Blaster tethers (below).
+  Everything else is upstream's: the moves and their times, arrival times and jitters, the assignment lists, the marks
+  and their times, the opening clump and both Omega dodges.
 - First Hello World: Distant World stands south, (0.2, 10) for the monitors firing west and mirrored for east,
   where upstream's stands north. That reflects upstream's layout north to south, with monitors 1 and 2, jumps 1
   and 4 and jumps 2 and 3 trading places, so it resolves the same: the far jumps now go to jump 1 and then jump 4
@@ -234,6 +235,25 @@ Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pas
   Distant (-10, 0), tethers 1 (9.5, -16.5) and 2 (-9.5, -16.5), jumps (19, 0), (4, 19), (-4, 19), (-19, 0). Every
   jump goes to the nearest or farthest member, and the tether takers still pick up the passable Blaster tethers
   in the middle at 48s, so the mirror resolves as upstream's spots do.
+- The takers also fetch a Blaster tether a non-taker still holds. A tether passes only to someone within 0.5y of its
+  line and ahead of its holder, so a holder more than about 0.6y off the beetle's axis keeps it, and Blaster on a
+  non-taker wipes the party.
+  - Every 0.25s from 48.25 to 56.75, a tether on a non-taker gets a fetcher unless a free taker stands in its line or
+    is walking into it. The fetcher is the free bot taker (never the player's own seat) with the shortest fetch plus
+    walk to its rim spot. It heads 1.5y in front of the holder toward the beetle, aimed where the holder will be up to
+    2s on, and sprints from more than 5y.
+  - A bot holder counts only once it stands on its gather spot, until 52.75; a human or remote player wherever it is.
+  - A taker sent to fetch skips upstream's 53s walk-out. As soon as it holds a tether it walks to its rim spot,
+    sprinting if it must to arrive by 56.75. It goes round the beetle's side of the middle when its straight walk would
+    cross the beetle's line behind the stack, and waits while a free non-taker stands in the line from its rim spot to
+    the beetle, unless it must leave. Without a tether it goes back to its gather spot until 52.75, then to its rim spot.
+  - A taker not sent by 52.75 keeps upstream's walk-out, and can still be sent once it has set off for its rim spot.
+  - With bots alone no taker is ever sent. A peer's replay mirrors the tethers but seats no bots, so only the host's
+    bots fetch and a debug-bot peer keeps upstream's moves.
+  - The human suite gives a non-taker human a tether and gathers it 0.5-3y from the middle in any direction. It
+    doesn't cover a human who stays on its first Hello World spot until 53 or walks straight to its second: their own
+    walks still fail about 1 roll in 30 and 1 in 300 (late to the second Hello World, through a Blaster or a taker's
+    line, or a curving walk off the rim).
 - The board draws pt 1 with the monitors east and pt 2 with the beetle west. The strat keeps upstream's distances
   (the user's pick); the board's own spots lie within a few degrees of them and up to about 1y closer in.
 - Upstream's dodges put the two stacks 19.7y apart when one pair is Staff and Sword and the other Staff and Shield,
