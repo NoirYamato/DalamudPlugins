@@ -241,19 +241,25 @@ Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pas
   - Every 0.25s from 48.25 to 56.75, a tether on a non-taker gets a fetcher unless a free taker stands in its line or
     is walking into it. The fetcher is the free bot taker (never the player's own seat) with the shortest fetch plus
     walk to its rim spot. It heads 1.5y in front of the holder toward the beetle, aimed where the holder will be up to
-    2s on, and sprints from more than 5y.
-  - A bot holder counts only once it stands on its gather spot, until 52.75; a human or remote player wherever it is.
+    2s on and kept within 19.95y of the middle (the arena kills beyond 20y), and sprints from more than 5y.
+  - A bot holder counts only once it stands on its gather spot, through the 52.75 tick; a human or remote player
+    wherever it is.
   - A taker sent to fetch skips upstream's 53s walk-out. As soon as it holds a tether it walks to its rim spot,
     sprinting if it must to arrive by 56.75. It goes round the beetle's side of the middle when its straight walk would
-    cross the beetle's line behind the stack, and waits while a free non-taker stands in the line from its rim spot to
-    the beetle, unless it must leave. Without a tether it goes back to its gather spot until 52.75, then to its rim spot.
-  - A taker not sent by 52.75 keeps upstream's walk-out, and can still be sent once it has set off for its rim spot.
+    cross the beetle's line behind the stack, and doesn't set out while a free non-taker stands within 0.8y of the line
+    from its rim spot to the beetle, unless it must leave; one already on its way keeps going. Without a tether it goes
+    back to its gather spot through the 52.75 tick, then to its rim spot.
+  - A taker not sent by the 52.75 tick keeps upstream's walk-out, and can still be sent once it has set off for its
+    rim spot.
   - With bots alone no taker is ever sent. A peer's replay mirrors the tethers but seats no bots, so only the host's
     bots fetch and a debug-bot peer keeps upstream's moves.
-  - The human suite gives a non-taker human a tether and gathers it 0.5-3y from the middle in any direction. It
-    doesn't cover a human who stays on its first Hello World spot until 53 or walks straight to its second: their own
-    walks still fail about 1 roll in 30 and 1 in 300 (late to the second Hello World, through a Blaster or a taker's
-    line, or a curving walk off the rim).
+  - The human suite gives a non-taker human a tether and gathers it 0.5-3y from the middle in any direction. Scripted
+    rolls add a human holding its tether beside the beetle or against the wall near it until 55, one standing with
+    its tether in the line from a fetcher's rim spot until 53, and one taking a taker's tether after the gather. A
+    human who stays on its first Hello World spot until 53 or walks straight to its second isn't covered in general:
+    their own walks still fail about 1 roll in 30 and 1 in 300 (late to the second Hello World, through a Blaster or
+    a taker's line, or a curving walk off the rim), and now and then a taker bringing a tether back from the far rim
+    after 53 loses it to a stack bot walking out and misses its rim spot at Blaster.
 - The board draws pt 1 with the monitors east and pt 2 with the beetle west. The strat keeps upstream's distances
   (the user's pick); the board's own spots lie within a few degrees of them and up to about 1y closer in.
 - Upstream's dodges put the two stacks 19.7y apart when one pair is Staff and Sword and the other Staff and Shield,
