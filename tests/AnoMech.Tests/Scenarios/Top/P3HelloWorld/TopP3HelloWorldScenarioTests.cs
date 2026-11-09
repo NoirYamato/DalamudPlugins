@@ -213,6 +213,24 @@ public class TopP3HelloWorldScenarioTests
             .MoveBotAt(50.2f, ShieldHealer, to: new(6.88f, 12.42f))
             .ShouldKill(P3ActionId.CriticalError, ShieldHealer, MeleeDpsB);
 
+    // Critical Error starts 105.45s after Hello World's own cast, as in the fight, and hits 8s later.
+    [Test]
+    public void CriticalErrorFollowsTheFightsTimeline()
+    {
+        var rows = new List<(string Kind, float Time)>();
+        var run = Run(MainTank, stopAt: 114f, [], p =>
+        {
+            if (!p.Crossed(113.9f)) return;
+            rows.AddRange(p.Fake.Timeline.Rows.Where(row => row["id"] == $"{P3ActionId.CriticalError}" && row["kind"] is "cast" or "ability")
+                                              .Select(row => (row["kind"], float.Parse(row["t"], System.Globalization.CultureInfo.InvariantCulture))));
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(rows.Select(r => r.Kind), Is.EqualTo(new[] { "cast", "ability" }), string.Join("; ", rows));
+        Assert.That(rows[0].Time, Is.EqualTo(105.55f).Within(0.05f), "Critical Error's cast");
+        Assert.That(rows[1].Time, Is.EqualTo(113.55f).Within(0.1f), "Critical Error's hit");
+    }
+
     // R1 meets R2 as the remote tether pops: the second Patch lands on the first one's vuln.
     [Test]
     public void TwoTetherBreaksWithinASecondKillEveryone()

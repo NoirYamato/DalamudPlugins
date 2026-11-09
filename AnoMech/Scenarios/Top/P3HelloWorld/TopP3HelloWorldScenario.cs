@@ -103,9 +103,9 @@ public sealed class TopP3HelloWorldScenario : IScenario
         world.Events.Add(74f, KillLatentSynchronizationBugHolders);
         world.Events.Add(82.5f, () => StartSet(4));
         world.Events.Add(91f, () => StartRegressions(4));
-        world.Events.Add(92.5f, () => ResolveSet(nextResolve: 113.8f));
-        world.Events.Add(105.8f, () => omega?.Cast(Actions.CriticalError));
-        world.Events.Add(113.8f, ResolveCriticalError);
+        world.Events.Add(92.5f, () => ResolveSet(nextResolve: 113.55f));
+        world.Events.Add(105.55f, () => omega?.Cast(Actions.CriticalError));
+        world.Events.Add(113.55f, ResolveCriticalError);
     }
 
     public void Tick(float delta, float elapsed)
