@@ -32,7 +32,7 @@ public class GamePauseTests
     [TestCaseSource(nameof(ScenarioStrats))]
     public void SunnyDayStillClearsWithPauses(Type scenarioType, int strat)
     {
-        var seeds = TestContext.Parameters.Get("SunnySeeds", 1);
+        var seeds = TestContext.Parameters.Get("PauseSeeds", 1);
         var runs = Enumerable.Range(0, seeds).Select(_ => RunWithPauses(scenarioType, strat, Random.Shared.Next())).ToList();
         var failures = runs.Where(r => !r.Run.Passed).Select(r => r.Run).ToList();
 

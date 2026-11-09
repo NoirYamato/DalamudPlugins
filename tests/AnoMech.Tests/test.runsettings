@@ -5,5 +5,7 @@
          override from the CLI: append TestRunParameters.Parameter(name="SunnySeeds", value="100")
          after the dotnet test argument separator. -->
     <Parameter name="SunnySeeds" value="40" />
+    <!-- Random seeds each GamePauseTests.SunnyDayStillClearsWithPauses case runs, overridden the same way. -->
+    <Parameter name="PauseSeeds" value="5" />
   </TestRunParameters>
 </RunSettings>
