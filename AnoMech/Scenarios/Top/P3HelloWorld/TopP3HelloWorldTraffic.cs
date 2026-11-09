@@ -75,7 +75,7 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
         }
 
         var bots = orders.Where(o => (int)o.Key != Human && Alive((int)o.Key))
-                         .Select(o => (Role: (int)o.Key, Order: o.Value with { Destination = Jittered(o.Value.Destination) }))
+                         .Select(o => (Role: (int)o.Key, Order: Placed(o.Value)))
                          .OrderByDescending(o => Vector2.Distance(Position(o.Role), o.Order.Destination))
                          .ToList();
         foreach (var (role, order) in bots)
@@ -326,6 +326,9 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
     // it: in its tower, in its stack, clear of the towers it must not soak.
     private float HoldsItsSpotFrom
         => holdSpotsThrough.Where(resolve => resolve >= now).DefaultIfEmpty(float.PositiveInfinity).Min() - HoldSpotsAhead;
+
+    // A pass goes exactly where it meets its partner: jitter would only push it off the contact.
+    private Order Placed(Order order) => order.PassesWith is null ? order with { Destination = Jittered(order.Destination) } : order;
 
     // AiManager's jitter, from the same stream.
     private Vector2 Jittered(Vector2 spot)

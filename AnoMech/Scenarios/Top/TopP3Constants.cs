@@ -82,8 +82,8 @@ public static class TopP3Constants
     {
         public const float TowerRingRadius = 14f;
         public const float RotContactRadius = 1.5f;                 // UNVERIFIED, must stay under the 2.5y a stack partner stands off
-        public const float RemoteRegressionBreakDistance = 12f;     // UNVERIFIED, breaks above
-        public const float LocalRegressionBreakDistance = 9f;       // UNVERIFIED, breaks below
+        public const float RemoteRegressionBreakDistance = 9f;      // breaks above
+        public const float LocalRegressionBreakDistance = 9f;       // breaks below
 
         // -- P3 Intermission --
         // UNVERIFIED: the arms stand on a hexagon at this radius, at N and every 60 degrees from it.

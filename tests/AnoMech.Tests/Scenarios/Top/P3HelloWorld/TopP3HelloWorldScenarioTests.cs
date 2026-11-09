@@ -21,8 +21,9 @@ namespace AnoMech.Tests;
 //         the stacks; R1 (6.88,12.42) and R2 (-12.42,-6.88) in OT's and MT's defamations.
 //   28.0  regressions: M1-M2 remote, R1-R2 local.
 //   29.1  towers, stacks and defamations go off. 29.4: OT and MT step to the tower centres
-//         (0,14) and (-14,0), R1 and R2 onto them for the blue rot, M2 and M1 onto H2 and H1
-//         for the red. 29.72: the tower debuffs land on the four soakers.
+//         (0,14) and (-14,0), R1 and R2 onto them for the blue rot; M2 and M1 take the red from
+//         1.3 inside H2 and H1, at (10.43,-4.83) and (4.83,-10.43), 7.9 apart, short of the 9 at
+//         which their tether breaks. 29.72: the tower debuffs land on the four soakers.
 //   31.4  M2 (16.91,-1.78) and M1 (2.81,-11.26) pop the remote tether; H2 (9.66,2.59) and H1
 //         (-3.91,-9.21) spread; R1 (-0.40,7.69) and R2 (-7.69,0.40) wait.
 //   34.1  R1 (-2.89,6.81) and R2 (-6.81,2.89) pop the local tether. 35.0: the first rots go off.
@@ -157,12 +158,34 @@ public class TopP3HelloWorldScenarioTests
             .TeleportAt(33f, to: new(-8, 16))
             .ShouldKill(ActionId.HwTetherFail, PerRole.All);
 
-    // M2 stays on H2 after taking its rot, so M1's pop leaves the remote pair 11.3 apart.
+    // M2 waits clear of every rot after taking its own, 7.4 from M1's pop spot, so the remote pair never parts.
     [Test]
     public void UnbrokenRemoteTetherWipesWhenItRunsOut()
         => HelloWorld(MeleeDpsB)
-            .FreezeAt(31f)
+            .TeleportAt(31f, to: new(4, -4))
             .ShouldKill(ActionId.HwTetherFail, PerRole.All);
+
+    // M1 and M2 have their rots and hold the remote tether until its pop at 31.4. M2 steps further out
+    // from M1 first: past 9 y the tether breaks.
+    [TestCase(8.5f, true)]
+    [TestCase(9.5f, false)]
+    public void TheRemoteTetherBreaksPastNineYalms(float apart, bool holds)
+    {
+        bool? held = null;
+        var run = Run(MeleeDpsB, stopAt: 31.2f, [new Takeover(30.9f, null)], p =>
+        {
+            if (p.Crossed(30.95f))
+            {
+                var m1 = p.Member(MeleeDpsA)!.Position;
+                var m2 = p.Member(MeleeDpsB)!;
+                m2.SetPosition(m1 + Vector3.Normalize(m2.Position - m1) * apart);
+            }
+            if (p.Crossed(31.1f)) held = p.Member(MeleeDpsB)!.HasStatus(P3StatusId.RemoteRegression);
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(held, Is.EqualTo(holds), $"M2 {apart} y from M1");
+    }
 
     // H2 edges toward H1 inside its tower and M1 stands between them, 4.7 from each.
     [Test]

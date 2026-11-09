@@ -83,6 +83,8 @@ public class TopP3HelloWorldLpduAiTests
             [PhysRangedDps] = (-74, 14.2f), [CasterDps] = (74, 14.2f),
         });
 
+    // The remote pair takes its rots 1.3 inside the stacks, toward each other, so it stands 7.9 apart: its tether
+    // breaks past 9.
     [Test]
     public void PassesTheRotsInSetOne()
         => AssertPolarSpots(Direction.SW, at: 30.6f, new()
@@ -90,7 +92,7 @@ public class TopP3HelloWorldLpduAiTests
             [OffTank] = (-45, 14f), [MainTank] = (45, 14f),
             [PhysRangedDps] = (-45, 14f), [CasterDps] = (45, 14f),
             [ShieldHealer] = (-154, 12f), [RegenHealer] = (154, 12f),
-            [MeleeDpsB] = (-154, 12f), [MeleeDpsA] = (154, 12f),
+            [MeleeDpsB] = (-159.8f, 11.49f), [MeleeDpsA] = (159.8f, 11.49f),
         });
 
     [Test]

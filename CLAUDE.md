@@ -185,8 +185,8 @@ to multiplayer peers, so both sides need the same build.
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
 `TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, rot contact
-radius, tether break distances, the void zone's radius and spawn args, some durations) are marked UNVERIFIED
-there; tune them in that one place.
+radius, the void zone's radius and spawn args, some durations) are marked UNVERIFIED there; tune them in that
+one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
   (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone. Every
   mistake kills on the spot with a reason. Its one strat has an Automarkers On/Off setting (default On); it
@@ -204,6 +204,10 @@ there; tune them in that one place.
   (Auto, Cardinals, Intercardinals) picks the ring, and Tower layout's Same every set repeats the first set's. A
   tower's debuff lands 0.62s after it goes off and runs 10s; Latent Defect runs 27s from Hello World's hit, so
   whoever no defamation cleansed dies at 32s.
+- Both regression tethers break at 9y, the remote one past it and the local one inside it, from the moment they
+  go live. So the remote pair takes its rots 1.3y inside its stacks, toward each other, and stands 7.9y apart
+  until its pop. A bot walks to a pass's spot exactly, without the 0.3y jitter, so it stays within the rot's
+  reach.
 - Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
   Every spot is placed from the set's layout, so they play both rings alike; only the loose spread before the
   first towers and the Monitors line-up stand fixed in the arena. They plan each walk round everyone's live
@@ -276,7 +280,7 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
   a peer's replay decides the same way. Upstream's `4bb8b6c`, on its `mp-host-driven-bots` branch and not on
   `master`, removes that replay layer: if a release brings it, drop those fields with it, and rework the tests that
   read `LastState`.
-- UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both), the Swivel
+- UNVERIFIED: the 10y tether break distance (P3 uses 9 both ways; the 13y stretch pops under both), the Swivel
   Cannon's apex on the beetle, and Omega-M's facing relative to the eye. Omega-M keeps its absolute facings for
   every eye (north at spawn, south at 28.2s, north at 54s), and no mechanic reads them.
 - No source gives these spots, in the eye frame as `TopP5DeltaLpduAi` writes them: the unsafe inner green's wait

@@ -185,6 +185,7 @@ public class TopP3HelloWorldLpduHumanTests
         private const float Resolve = 10f, OffSpotTolerance = 0.8f, TowersInBy = 8.5f;
         private const float AfterTheResolve = 0.05f, RemotePopVulnLasts = 1.2f;
         private const float StackLane = 13.5f, InnerLane = 7f, LanesFrom = 4f;
+        private const float RemotePassInside = 1.3f;
         private const float LeastCurve = 1f, MostCurve = 2f;
         private static readonly float[] DefamationLanes = [17f, 18.3f];
 
@@ -421,10 +422,12 @@ public class TopP3HelloWorldLpduHumanTests
             _ => set == 4 ? Sides(set, (-165f, 10.5f), (165f, 11.2f)) : Mirrored(set, 74f, 14.2f),
         };
 
+        // The remote pair's tether breaks past 9 y, so it takes its rots 1.3 y inside its stacks, toward each other.
         private Func<ScenarioProbe, Vector2>? PassSpot(int set) => (roll.RoleIn(set, seat), set == 4) switch
         {
             (HelloWorldRole.Defamation, _) or (HelloWorldRole.Local, false) => _ => Mine(set, Mirrored(set, 45f, P3Geometry.TowerRingRadius)),
-            (HelloWorldRole.Remote, false) => p => Flat(p.Member(SameSide(set, HelloWorldRole.Stack))!.Position),
+            (HelloWorldRole.Remote, false) => p => Toward(Flat(p.Member(SameSide(set, HelloWorldRole.Stack))!.Position),
+                                                          Flat(p.Member(OtherSide(set, HelloWorldRole.Stack))!.Position), RemotePassInside),
             (HelloWorldRole.Stack, true) => _ => Mine(set, Sides(set, (-137f, 8.4f), (127f, 9.8f))),
             _ => null,
         };
@@ -450,6 +453,11 @@ public class TopP3HelloWorldLpduHumanTests
 
         private PartyRole SameSide(int set, HelloWorldRole role)
             => PerRole.All.Single(r => roll.RoleIn(set, r) == role && right[r] == right[seat]);
+
+        private PartyRole OtherSide(int set, HelloWorldRole role)
+            => PerRole.All.Single(r => roll.RoleIn(set, r) == role && right[r] != right[seat]);
+
+        private static Vector2 Toward(Vector2 from, Vector2 to, float distance) => from + Vector2.Normalize(to - from) * distance;
 
         private Vector2 Mine(int set, (Vector2 L, Vector2 R) spots) => right[seat] ? spots.R : spots.L;
 
