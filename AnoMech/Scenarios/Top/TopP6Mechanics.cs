@@ -158,7 +158,7 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     // Run: ****mi*, the enrage. A melee limit break 3 on Alpha Omega whose own cast bar ends from castAt until before the
     // damage (RunMiLandsAt) defeats Alpha Omega once it resolves, so one started before the cast can count; otherwise the
     // damage kills everyone. The Gauntlet's enrage window counts the same presses (TopP6MeleeWindow.LandsBy). The human's
-    // resolve is heard a frame or two after it lands, so the damage waits that long for one that landed before it. The
+    // resolve is heard a frame or two after it lands, so the damage waits a moment for one that landed before it. The
     // damage is queued only if Alpha Omega still stands as the cast bar ends, so a run that finishes it in the cast ends
     // without waiting it out. Whether the gauge was short is read as the damage lands, while a press that gives up then is
     // still waiting.

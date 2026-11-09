@@ -435,8 +435,7 @@ multiplayer.
   its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
   (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
   cast (consistent with the healing plan's kill times, but unmeasured), the gauge's rebuild, the human's melee windows
-  and the tank mitigation a buster and Wild Charge's front need. In
-  `TopP6LimitBreaks`: the client's current-target
+  and the tank mitigation a buster and Wild Charge's front need. In `TopP6LimitBreaks`: the client's current-target
   stand-in, and that the client fills its own cast's ground point, within the sheet's 25y plus a yalm. In the State,
   the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's (the sources call those
   random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait, Flash Gale, Cosmo Dive, the
@@ -458,8 +457,7 @@ multiplayer.
   breaks at the guides' cues and, with "Resolve your own actions" on, a human tank's own LPDU set before its Cosmo Dive
   or Wild Charge (`TopP6HumanMitigation`). Change the tank mitigation only with `TopP6TankMitigationTests` green: each
   job's sets, Rampart and one short cooldown, an invuln, the setting or the module off, godmode and a bot tank. Change
-  the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each
-  seat with each of its role's jobs, pressed right, late, never, twice, at another seat's duty, at the wrong level,
-  cut off, with the rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere
-  while another seat's limit break casts, as the client greys the human's out. The soak filter is
-  `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
+  the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each seat with each of its role's jobs, pressed
+  right, late, never, twice, at another seat's duty, at the wrong level, cut off, with the rows and with a job that
+  can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere while another seat's limit break casts, as
+  the client greys the human's out. The soak filter is `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
