@@ -1,9 +1,22 @@
 <#
 Builds NoirMech from the AnoMech checkout and publishes it to this plugin repository.
 
-  .\publish.ps1                       # build, update repo.json, commit and push
-  .\publish.ps1 -Changelog "..."      # same, with a changelog line shown in the installer
-  .\publish.ps1 -NoPush               # everything except the push
+  .\publish.ps1 -Changelog "..."            # build, scan, update repo.json, commit and push
+  .\publish.ps1 -Changelog "..." -Fetch     # same, fetching the pushed noirmech-stable first
+  .\publish.ps1 -Changelog "..." -NoPush    # everything except the push
+  .\publish.ps1 -Changelog "..." -DryRun    # every gate, the build and the scan; nothing copied or committed
+
+It refuses to publish unless:
+- -Changelog is given (the installer shows it);
+- the checkout is on noirmech-stable with a clean tree;
+- its TestResults\green-stamp.txt says "green <HEAD> full", which tools\test.ps1 writes after a green full
+  run of that exact commit;
+- HEAD is in the pushed noirmech-stable: the remote-tracking ref of the remote that points at
+  NoirYamato/DalamudPlugins ("plugins" in the AnoMech checkout), as last fetched;
+- %APPDATA%\NoirMech\identity-terms.txt lists the identity terms, one per line, and neither the built
+  plugin zip nor the source zip holds any of them, in any case, as ASCII, UTF-8 or UTF-16 text, in the
+  DLLs' embedded PDBs and the zips' entry names included. Known strings that must be found prove each part
+  of the scan works.
 
 The version is the upstream <Version> from AnoMech.csproj with our own fourth segment, which goes
 up by one on every publish, so Dalamud sees each publish as an update. Each build ships with a zip
@@ -12,7 +25,10 @@ of the exact source it was built from, which AnoMech's AGPL-3.0 licence requires
 param(
     [string]$Source = (Join-Path $PSScriptRoot '..\Anomech'),
     [string]$Branch = 'noirmech-stable',
+    [string]$Remote = 'plugins',
     [string]$Changelog = '',
+    [switch]$Fetch,
+    [switch]$DryRun,
     [switch]$NoPush
 )
 
@@ -21,6 +37,23 @@ $InternalName = 'NoirMech'
 $RawBase = 'https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main'
 $PluginDir = Join-Path $PSScriptRoot "plugins\$InternalName"
 $RepoJson = Join-Path $PSScriptRoot 'repo.json'
+$TermsFile = Join-Path $env:APPDATA 'NoirMech\identity-terms.txt'
+
+# Strings a working scan finds in every build, so a scan that reads nothing can't pass as clean: a dependency's
+# own build path (in another case, for the case-insensitive match), UTF-16 strings in NoirMech.dll (a scenario
+# name and its /_/ caller paths), the embedded PDB's document names and /_/ paths, an entry name, and a NoirMech
+# file in the source zip, with a non-ASCII character for the UTF-8 read. A /_/ path also shows the build kept
+# ContinuousIntegrationBuild.
+$Controls = @(
+    @{ Entry = 'NAudio.Core.dll'; Encoding = 'ascii'; Text = 'USERS\MARKH' }
+    @{ Entry = 'NoirMech.dll'; Encoding = 'utf16'; Text = 'Hello World' }
+    @{ Entry = 'NoirMech.dll'; Encoding = 'utf16'; Text = '/_/AnoMech/' }
+    @{ Entry = 'NoirMech.dll embedded PDB'; Encoding = 'ascii'; Text = 'TopP5OmegaLpduAi' }
+    @{ Entry = 'NoirMech.dll embedded PDB'; Encoding = 'ascii'; Text = '/_/' }
+    @{ Entry = 'the name NoirMech.dll'; Encoding = 'ascii'; Text = 'NoirMech.dll' }
+    @{ Entry = '*-source/AnoMech/Scenarios/Top/P5Omega/TopP5OmegaLpduAi.cs'; Encoding = 'ascii'; Text = 'class TopP5OmegaLpduAi' }
+    @{ Entry = '*-source/AnoMech/Scenarios/IScenario.cs'; Encoding = 'utf8'; Text = "Zone.Name} $([char]0x2014) {scenario" }
+)
 
 function Find-Tool([string]$name, [string]$fallback) {
     $cmd = Get-Command $name -ErrorAction SilentlyContinue
@@ -40,12 +73,131 @@ function Write-Utf8([string]$path, [string]$text) {
     [IO.File]::WriteAllText($path, $text, (New-Object Text.UTF8Encoding $false))
 }
 
+# Windows PowerShell turns a native command's redirected stderr into errors, which 'Stop' would throw.
+function Invoke-Quiet([string]$exe, [string[]]$arguments) {
+    $ErrorActionPreference = 'Continue'
+    & $exe @arguments 2>$null
+}
+
+function Stop-Publish([string]$reason) {
+    Write-Host "Refusing to publish: $reason" -ForegroundColor Red
+    exit 1
+}
+
+Add-Type -AssemblyName System.IO.Compression
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$Latin1 = [Text.Encoding]::GetEncoding(28591)
+
+# A blob read every way a string can sit in it; UTF-16 at both byte alignments.
+function Get-Texts([byte[]]$bytes) {
+    $odd = if ($bytes.Length -gt 1) { [Text.Encoding]::Unicode.GetString($bytes, 1, $bytes.Length - 1) } else { '' }
+    @{
+        ascii = $Latin1.GetString($bytes)
+        utf8  = [Text.Encoding]::UTF8.GetString($bytes)
+        utf16 = [Text.Encoding]::Unicode.GetString($bytes) + "`n" + $odd
+    }
+}
+
+# An embedded portable PDB is "MPDB", its size as an int32, then the PDB deflated.
+function Get-EmbeddedPdbs([byte[]]$bytes) {
+    $text = $Latin1.GetString($bytes)
+    $at = $text.IndexOf('MPDB', [StringComparison]::Ordinal)
+    while ($at -ge 0 -and $at + 8 -lt $bytes.Length) {
+        $size = [BitConverter]::ToInt32($bytes, $at + 4)
+        if ($size -gt 0 -and $size -lt 256MB) {
+            try {
+                $packed = [IO.MemoryStream]::new($bytes, $at + 8, $bytes.Length - $at - 8)
+                $deflate = [IO.Compression.DeflateStream]::new($packed, [IO.Compression.CompressionMode]::Decompress)
+                $pdb = [IO.MemoryStream]::new()
+                $deflate.CopyTo($pdb)
+                $deflate.Dispose()
+                $inflated = $pdb.ToArray()
+                if ($inflated.Length -eq $size -and $Latin1.GetString($inflated, 0, 4) -eq 'BSJB') { , $inflated }
+            }
+            catch { }
+        }
+        $at = $text.IndexOf('MPDB', $at + 4, [StringComparison]::Ordinal)
+    }
+}
+
+function Get-ZipBlobs([string]$zipPath) {
+    $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+    try {
+        foreach ($entry in $zip.Entries) {
+            [pscustomobject]@{ Entry = "the name $($entry.FullName)"; Texts = @{ ascii = $entry.FullName } }
+            if ($entry.FullName.EndsWith('/')) { continue }
+            $stream = $entry.Open()
+            $memory = [IO.MemoryStream]::new()
+            $stream.CopyTo($memory)
+            $stream.Dispose()
+            $bytes = $memory.ToArray()
+            [pscustomobject]@{ Entry = $entry.FullName; Texts = Get-Texts $bytes }
+            if ($entry.FullName -match '\.(dll|exe)$') {
+                foreach ($pdb in @(Get-EmbeddedPdbs $bytes)) { [pscustomobject]@{ Entry = "$($entry.FullName) embedded PDB"; Texts = Get-Texts $pdb } }
+            }
+        }
+    }
+    finally { $zip.Dispose() }
+}
+
+# Names each problem without echoing a term: a term is shown by its line in the terms file.
+function Test-Identity([string[]]$zips, [string[]]$terms) {
+    $problems = @()
+    $blobs = @()
+    foreach ($zip in $zips) {
+        $blobs += @(Get-ZipBlobs $zip | ForEach-Object { $_.Entry = "$(Split-Path -Leaf $zip): $($_.Entry)"; $_ })
+    }
+    foreach ($control in $Controls) {
+        $found = @($blobs | Where-Object {
+            $_.Entry -like "*: $($control.Entry)" -and $_.Texts.ContainsKey($control.Encoding) -and
+            $_.Texts[$control.Encoding].IndexOf($control.Text, [StringComparison]::OrdinalIgnoreCase) -ge 0
+        })
+        if ($found.Count -eq 0) { $problems += "the scan didn't find its $($control.Encoding) control '$($control.Text)' in $($control.Entry)" }
+    }
+    for ($i = 0; $i -lt $terms.Length; $i++) {
+        foreach ($blob in $blobs) {
+            foreach ($encoding in $blob.Texts.Keys) {
+                if ($blob.Texts[$encoding].IndexOf($terms[$i], [StringComparison]::OrdinalIgnoreCase) -ge 0) {
+                    $problems += "identity term on line $($i + 1) of the terms file is in $($blob.Entry) ($encoding)"
+                }
+            }
+        }
+    }
+    Write-Host "Scanned $($blobs.Count) blobs in $($zips.Count) zips for $($terms.Length) identity terms and $($Controls.Count) controls"
+    $problems
+}
+
+if (-not $Changelog.Trim()) { Stop-Publish 'give -Changelog "...": the plugin installer shows it.' }
+if (-not (Test-Path $TermsFile)) { Stop-Publish '%APPDATA%\NoirMech\identity-terms.txt is missing: list the identity terms, one per line.' }
+$terms = @([IO.File]::ReadAllLines($TermsFile, [Text.Encoding]::UTF8) | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+if ($terms.Count -eq 0) { Stop-Publish '%APPDATA%\NoirMech\identity-terms.txt lists no identity terms.' }
+
 $Source = (Resolve-Path $Source).Path
 
 $currentBranch = (& $git -C $Source rev-parse --abbrev-ref HEAD).Trim()
-if ($currentBranch -ne $Branch) { throw "$Source is on '$currentBranch'; switch it to '$Branch' first." }
-if (& $git -C $Source status --porcelain) { throw "$Source has uncommitted changes; commit or stash them first." }
+if ($currentBranch -ne $Branch) { Stop-Publish "$Source is on '$currentBranch'; switch it to '$Branch' first." }
+if (& $git -C $Source status --porcelain) { Stop-Publish "$Source has uncommitted changes; commit them first." }
 $commit = (& $git -C $Source rev-parse HEAD).Trim()
+
+$stampPath = Join-Path $Source 'TestResults\green-stamp.txt'
+$stamp = if (Test-Path $stampPath) { ([string](Get-Content -Raw $stampPath)).Trim() } else { '' }
+if ($stamp -ne "green $commit full") {
+    Stop-Publish "$stampPath $(if ($stamp) { "says '$stamp'" } else { 'is missing' }), not 'green $commit full': run tools\test.ps1 on this commit."
+}
+
+$remoteUrl = [string](Invoke-Quiet $git @('-C', $Source, 'remote', 'get-url', $Remote))
+if ($LASTEXITCODE -ne 0 -or $remoteUrl.Trim() -notmatch '[/:]NoirYamato/DalamudPlugins(\.git)?/?$') {
+    Stop-Publish "$Source has no remote '$Remote' pointing at NoirYamato/DalamudPlugins; pass -Remote."
+}
+if ($Fetch) { Invoke-Checked $git @('-C', $Source, 'fetch', '--quiet', $Remote, $Branch) }
+$pushed = "refs/remotes/$Remote/$Branch"
+Invoke-Quiet $git @('-C', $Source, 'rev-parse', '--verify', '--quiet', "$pushed^{commit}") | Out-Null
+if ($LASTEXITCODE -ne 0) { Stop-Publish "$Source has no $pushed; push $Branch to $Remote, or pass -Fetch." }
+Invoke-Quiet $git @('-C', $Source, 'merge-base', '--is-ancestor', $commit, $pushed)
+if ($LASTEXITCODE -ne 0) {
+    $hint = if ($Fetch) { 'push it first (git push {0} {1})' } else { "push it (git push {0} {1}), or pass -Fetch if it's pushed" }
+    Stop-Publish "$($commit.Substring(0, 7)) isn't in $Remote/$Branch as last fetched; $($hint -f $Remote, $Branch)."
+}
 
 $csproj = Join-Path $Source 'AnoMech\AnoMech.csproj'
 $upstream = (([xml](Get-Content -Raw $csproj)).Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version.Trim()
@@ -60,13 +212,14 @@ if (Test-Path $RepoJson) {
     }
 }
 $version = "$base.$revision"
-Write-Host "Publishing $InternalName $version from $Branch @ $($commit.Substring(0, 7))"
+Write-Host "Publishing $InternalName $version from $Branch @ $($commit.Substring(0, 7))$(if ($DryRun) { ' (dry run)' })"
 
 $releaseOut = Join-Path $Source 'AnoMech\bin\Release'
 if (Test-Path $releaseOut) { Remove-Item -Recurse -Force $releaseOut }
 # ContinuousIntegrationBuild maps source paths to /_/, so caller-file strings and PDB paths in the
-# shipped DLLs don't carry the local user folder.
-Invoke-Checked $dotnet @('build', $csproj, '-c', 'Release', "-p:Version=$version", '-p:ContinuousIntegrationBuild=true', '--no-incremental', '-nologo', '-v:minimal')
+# shipped DLLs don't carry the local user folder. Without build servers the compiler runs at this
+# script's priority: Roslyn starts its shared server at normal priority whatever starts it.
+Invoke-Checked $dotnet @('build', $csproj, '-c', 'Release', "-p:Version=$version", '-p:ContinuousIntegrationBuild=true', '--no-incremental', '--disable-build-servers', '-nologo', '-v:minimal')
 
 $packaged = Join-Path $releaseOut $InternalName
 $zip = Join-Path $packaged 'latest.zip'
@@ -77,12 +230,27 @@ if ($manifest.InternalName -ne $InternalName -or $manifest.AssemblyVersion -ne $
     throw "Built manifest is $($manifest.InternalName) $($manifest.AssemblyVersion), expected $InternalName $version."
 }
 
-New-Item -ItemType Directory -Force $PluginDir | Out-Null
 $zipName = "$InternalName-$version.zip"
 $sourceName = "$InternalName-$version-source.zip"
+$sourceZip = Join-Path $releaseOut $sourceName
+Invoke-Checked $git @('-C', $Source, 'archive', '--format=zip', "--prefix=$InternalName-$version-source/", '-o', $sourceZip, $commit)
+
+$problems = @(Test-Identity @($zip, $sourceZip) $terms)
+if ($problems.Count -gt 0) {
+    foreach ($problem in $problems | Select-Object -First 40) { Write-Host "  $problem" -ForegroundColor Red }
+    Stop-Publish "the identity scan failed ($($problems.Count) problems)."
+}
+Write-Host 'Identity scan clean: every control found, no identity term.'
+
+if ($DryRun) {
+    Write-Host "Dry run: every gate passed. $zipName and $sourceName are in $releaseOut; nothing was copied, committed or pushed."
+    exit 0
+}
+
+New-Item -ItemType Directory -Force $PluginDir | Out-Null
 Copy-Item $zip (Join-Path $PluginDir $zipName) -Force
 Copy-Item $manifestPath (Join-Path $PluginDir "$InternalName.json") -Force
-Invoke-Checked $git @('-C', $Source, 'archive', '--format=zip', "--prefix=$InternalName-$version-source/", '-o', (Join-Path $PluginDir $sourceName), $commit)
+Copy-Item $sourceZip (Join-Path $PluginDir $sourceName) -Force
 
 # Keep the previous build next to the new one: raw.githubusercontent.com can serve a cached
 # repo.json for a few minutes, and its download link must still resolve.
@@ -114,8 +282,8 @@ $entry = [ordered]@{
     IsTestingExclusive  = $false
     DownloadCount       = 0
     LastUpdate          = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+    Changelog           = $Changelog
 }
-if ($Changelog) { $entry.Changelog = $Changelog }
 Write-Utf8 $RepoJson ((ConvertTo-Json -InputObject @([pscustomobject]$entry) -Depth 5) + "`n")
 
 Invoke-Checked $git @('-C', $PSScriptRoot, 'add', '-A')

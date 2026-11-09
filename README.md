@@ -87,5 +87,13 @@ From this folder, with the AnoMech checkout next to it on the `noirmech-stable` 
 AnoMech release plus NoirMech's changes):
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File .\publish.ps1 -Changelog "What changed" -DryRun
 powershell -ExecutionPolicy Bypass -File .\publish.ps1 -Changelog "What changed"
 ```
+
+It publishes only with a changelog, when the checkout's commit has passed a full `tools\test.ps1` run (its
+`TestResults\green-stamp.txt` names it) and is in the pushed `noirmech-stable` (`-Fetch` fetches it first), and
+when an identity scan of the built plugin zip and the source zip finds every one of its control strings and none
+of the terms listed in `%APPDATA%\NoirMech\identity-terms.txt` (one per line, in any case; a missing or empty list
+refuses too). `-DryRun` runs every gate, the build and the scan, then stops before copying, committing or
+pushing; `-NoPush` stops before the push.
