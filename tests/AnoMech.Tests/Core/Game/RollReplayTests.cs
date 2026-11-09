@@ -176,18 +176,93 @@ public class RollReplayTests
         Assert.That(run.Started, Has.Count.EqualTo(1));
     }
 
-    // Drill ticked on while the run stands frozen plays its roll again at once.
+    // The frozen scene stays up FreezeHoldSeconds before the roll plays again.
     [Test]
-    public void DrillTurnedOnDuringTheFreezePlaysTheRollAgain()
+    public void DrillHoldsTheFrozenSceneBeforeItPlaysTheRollAgain()
     {
         using var run = new PracticeRun(PracticeRun.PlayerDies);
+        run.Practice.Rolls.Drill = true;
         run.StartInZone(run.Params());
         run.Until(() => run.Game.Paused);
 
+        HoldsTheFreezeThenPlaysTheRollAgain(run);
+    }
+
+    // Drill ticked on while the run stands frozen holds the scene FreezeHoldSeconds from the tick. So does Drill ticked
+    // off in the hold and on again: ticking it off dropped the count, so nothing played when the first hold would have
+    // ended.
+    [TestCase(false)]
+    [TestCase(true)]
+    public void DrillTickedOnDuringTheFreezeHoldsItFromTheTick(bool onAtTheFreeze)
+    {
+        using var run = new PracticeRun(PracticeRun.PlayerDies);
+        run.Practice.Rolls.Drill = onAtTheFreeze;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Paused);
+        run.For(RollReplay.FreezeHoldSeconds - 1f);
+        run.Practice.Rolls.Drill = false;
+        run.For(2f);
+
         run.Practice.Rolls.Drill = true;
-        run.Until(() => run.Started.Count == 2);
+
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+        HoldsTheFreezeThenPlaysTheRollAgain(run);
+    }
+
+    // Stop and /noir reset (Game.Reset), or Leave: the run ends in the hold, and nothing plays it again.
+    [TestCase(false)]
+    [TestCase(true)]
+    public void EndingTheFrozenRunInTheHoldDropsTheReplay(bool leave)
+    {
+        using var run = new PracticeRun(PracticeRun.PlayerDies);
+        run.Practice.Rolls.Drill = true;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Paused);
+        run.For(RollReplay.FreezeHoldSeconds / 2);
+
+        if (leave) run.Game.Leave();
+        else run.Game.Reset();
+        run.For(2 * RollReplay.FreezeHoldSeconds);
+
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+        Assert.That(run.Game.Zone is null, Is.EqualTo(leave));
+    }
+
+    // A Start, or a Retry, in the hold replaces the frozen run with its own, and Drill plays nothing more.
+    [TestCase(false)]
+    [TestCase(true)]
+    public void AStartOrARetryInTheHoldPlaysOnlyItsOwnRun(bool retry)
+    {
+        var runs = 0;
+        using var run = new PracticeRun(world =>
+        {
+            if (++runs == 1) PracticeRun.PlayerDies(world);
+            else world.Events.Add(30f, () => { });
+        });
+        run.Practice.Rolls.Drill = true;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Paused);
+        run.For(RollReplay.FreezeHoldSeconds / 2);
+
+        run.Game.StartScenario(retry ? run.Practice.Rolls.Replay() : run.Params());
+        run.For(2 * RollReplay.FreezeHoldSeconds);
+
+        Assert.That(run.Started, Has.Count.EqualTo(2));
+        Assert.That(run.Started[1].Seed == run.Started[0].Seed, Is.EqualTo(retry));
+        Assert.That(run.Practice.Rolls.Replaying, Is.EqualTo(retry));
+    }
+
+    // Just short of the hold the scene still stands frozen, and the roll plays again within a few frames of its end.
+    private static void HoldsTheFreezeThenPlaysTheRollAgain(PracticeRun run)
+    {
+        run.For(RollReplay.FreezeHoldSeconds - 0.1f);
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+        Assert.That(run.Game.Paused);
+
+        run.Until(() => run.Started.Count == 2, maxSeconds: 0.2f);
 
         Assert.That(run.Started[1], Is.EqualTo(run.Started[0]));
+        Assert.That(run.Practice.Rolls.Replaying);
     }
 
     // A session's run plays on the host for everyone: a host left with Drill on plays neither that run nor its last local

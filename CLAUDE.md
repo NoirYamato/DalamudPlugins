@@ -184,10 +184,13 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   leaves the run's settings in place. It starts through `EnterAndStart` as Start does, zoning in from the inn and
   waiting out a settle, and the window first selects the retried scenario.
 - Drill (beside Auto-restart, in every build; forced off in a session): a run in which anyone died plays its roll
-  again once it freezes or, when godmode kept everyone up, once it ends; a clean run moves on to a fresh roll. The
-  freeze is polled (`Rolls.Tick`, after `Game.Tick` in `Plugin.OnFrameworkUpdate`), so Drill ticked on during a
-  freeze replays at once. Deaths switch Auto-restart off but not Drill, and with Drill on Drill makes the restart. A
-  run stopped before it froze isn't played again.
+  again 3 s after it freezes (`RollReplay.FreezeHoldSeconds`), so the player sees the frozen scene, or, when godmode
+  kept everyone up, as soon as it ends; a clean run moves on to a fresh roll. Deaths switch Auto-restart off but not
+  Drill, and with Drill on Drill makes the restart. A run stopped before it froze isn't played again.
+- The freeze is polled: `Rolls.Tick` runs after `Game.Tick` in `Plugin.OnFrameworkUpdate` and counts the hold on the
+  frame's own seconds, since the sim's clock stands still through the freeze. Drill ticked on during a freeze replays
+  3 s after the tick. Whatever ends or replaces the frozen run within the 3 s drops the replay (Stop or Reset, Start,
+  Retry, Leave, the zone going away), and so does ticking Drill off; Pause is refused through the freeze.
 - A replayed roll (Retry, or Drill's repeat) doesn't add to the streak; a death still resets it.
 - `PracticeLoopTests` and `RollReplayTests` play runs back to back on a `TimelineScenario`
   (`tests/AnoMech.Tests/Support/PracticeRun.cs`), Drill in a host's stay included; `RunControllerRetryTests` covers

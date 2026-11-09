@@ -66,7 +66,7 @@ internal sealed class PracticeRun : IDisposable
     private void Frame() => Fake.Frame(ScenarioRun.FrameSeconds, delta =>
     {
         Game.Tick(delta);
-        Practice.Rolls.Tick();
+        Practice.Rolls.Tick(delta);
     });
 
     public void Dispose() => Game.Dispose();

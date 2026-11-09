@@ -3,6 +3,7 @@ using AnoMech.Scenarios;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility;
 using PracticeLoop = AnoMech.Core.Game.PracticeLoop;
+using RollReplay = AnoMech.Core.Game.RollReplay;
 
 namespace AnoMech.Windows;
 
@@ -60,7 +61,8 @@ public unsafe partial class MainWindow
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip(mpActive
                 ? MpDisabledReason
-                : "After a run in which anyone died, play the same roll again once it freezes; after a clean run, a fresh one.\n"
+                : $"After a run in which anyone died, play the same roll again {RollReplay.FreezeHoldSeconds:0} s after it freezes; "
+                  + "after a clean run, a fresh one.\n"
                   + "A death doesn't turn this off, and a replayed roll doesn't extend the streak.");
     }
 }

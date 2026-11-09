@@ -217,7 +217,7 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Runs.Tick threw: {e}"); }
         try { Game.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Game.Tick threw: {e}"); }
-        try { Practice.Rolls.Tick(); }
+        try { Practice.Rolls.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Practice.Rolls.Tick threw: {e}"); }
 #if DEBUG
         try { DamageDebugWindow.Instance?.Tick(fw->FrameDeltaTime); }

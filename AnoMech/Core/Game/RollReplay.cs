@@ -15,11 +15,16 @@ public sealed class RollReplay
 {
     public const string MultiplayerRefusal = "Retry is not available in multiplayer.";
 
+    // How long Drill leaves a frozen run's scene up before it plays the roll again.
+    public const float FreezeHoldSeconds = 3f;
+
     private readonly Game game;
     // Replays asked for and not started yet, by the params each was asked with: RunStarted hands those back.
     private readonly Dictionary<RunScenarioParams, PlayedRun> pending = new(ReferenceEqualityComparer.Instance);
     private bool localRun;
     private bool repeatAsked;
+    // How long Drill has watched the run on now stand frozen; null while it isn't watching one.
+    private float? heldFor;
 
     public RollReplay(Game game) => this.game = game;
 
@@ -29,8 +34,8 @@ public sealed class RollReplay
     // The run on now plays an earlier run's roll.
     public bool Replaying { get; private set; }
 
-    // A run in which anyone died plays its roll again: once it freezes, or once it ends when godmode kept everyone up.
-    // A clean run moves on to a fresh roll.
+    // A run in which anyone died plays its roll again: FreezeHoldSeconds after it freezes, or once it ends when godmode
+    // kept everyone up. A clean run moves on to a fresh roll.
     public bool Drill { get; set; }
 
     // Drill will play the roll of the run on now again: someone in it died, or godmode reported a death.
@@ -83,10 +88,18 @@ public sealed class RollReplay
         game.StartScenario(clean ? last.Fresh : Replay());
     }
 
-    // Each frame, after Game's: with Drill on, a frozen run plays its roll again.
-    public void Tick()
+    // Each frame, after Game's, with the frame's own seconds, since the sim's clock stands still through the freeze. With
+    // Drill on, a frozen run plays its roll again once it has stood frozen FreezeHoldSeconds, counted from the freeze or
+    // from Drill ticked on during it; a run that ends or is replaced, or Drill ticked off, drops the count.
+    public void Tick(float deltaSeconds)
     {
-        if (!Drill || !localRun || repeatAsked || !game.Paused) return;
+        if (!Drill || !localRun || repeatAsked || !game.Paused)
+        {
+            heldFor = null;
+            return;
+        }
+        heldFor = heldFor is { } held ? held + deltaSeconds : 0f;
+        if (heldFor < FreezeHoldSeconds) return;
         repeatAsked = true;
         game.StartScenario(Replay());
     }
