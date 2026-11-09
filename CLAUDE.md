@@ -117,16 +117,24 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces). The soak runs under the
   catalog name, so a two-word scenario needs each word: `Name~Blue&Name~Screen`, not `Name~BlueScreen`, which
   only matches the scenario's own test classes.
-- `tools\test.ps1` is the gate (`powershell -ExecutionPolicy Bypass -File tools\test.ps1`). It builds once, then
-  runs AnoMech.Tests as fixed filter shards, each its own `dotnet test --no-build` process, and AnoMech.Relay.Tests
-  as one more, at most `-Jobs` at a time (default half the logical processors), and prints each process's counts
-  and time and one summary; it exits non-zero on any failure. A shard takes what its terms match that no earlier
-  shard took and the last takes the rest, so every test runs once, a new one included; when one shard's time
-  outgrows the others', move terms in `$Shards`. `-Preset full` (the default) runs everything at the run
-  settings' seeds, about 6 minutes here against 35 for a plain `dotnet test`; `-Preset quick` drops the
-  `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed, about 2.5 minutes; `-Phase P3` runs one TOP
-  phase's `TopP3*` classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick` too if
-  wanted; `-SunnySeeds 2000` makes any of them a soak.
+- `tools\test.ps1` is the gate (`powershell -ExecutionPolicy Bypass -File tools\test.ps1`; `-Plan` prints its
+  shards and their filters and runs nothing). It builds once, then runs AnoMech.Tests as `-Shards` parallel
+  `dotnet test --no-build` processes and AnoMech.Relay.Tests as one more, prints each process's counts and time
+  and one summary, and exits non-zero on any failure.
+  - Gentle by default: before it starts anything it drops itself to Idle priority on the `-Affinity` CPUs
+    (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are born there, and
+    `-Shards` defaults to one per CPU in the mask (4). The build passes `--disable-build-servers`: Roslyn starts
+    its shared compiler server at normal priority whatever its parent runs at. `-Affinity 0xFF00 -Shards 8` is
+    faster when nobody needs the PC.
+  - The shards are dealt from `$Buckets` by each bucket's single-process time, heaviest onto the lightest shard. A
+    shard takes what its buckets match that no earlier shard took and the shard holding the rest takes everything
+    else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket
+    times or split a bucket; keep `[Explicit]` tests out of every bucket, since a filter that selects one can run
+    it.
+  - `-Preset full` (the default) runs everything at the run settings' seeds; `-Preset quick` drops the
+    `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed; `-Phase P3` runs one TOP phase's `TopP3*`
+    classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick` too if wanted;
+    `-SunnySeeds 2000` makes any of them a soak.
 - A green full run of a clean tree writes `green <HEAD> full` to `TestResults\green-stamp.txt` (gitignored), which
   `publish.ps1` requires. A full run deletes it first, and one with uncommitted changes, `-NoBuild` or
   `-SunnySeeds`, or one HEAD moved under, writes none.
@@ -140,9 +148,9 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   bots finish up to 0.19s after the 37.0 deadline move plans their departures; an entry fails the test once it's
   no longer found.
 
-- Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
-  cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
-  development PC.
+- Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Several test processes
+  at normal priority on every CPU have frozen the development PC: run them through `tools\test.ps1`, or one
+  `dotnet test` at a time at Idle priority on a few CPUs, and never two heavy runs at once.
 
 ## LPDU strat timing
 Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only extra step. The flex has no
