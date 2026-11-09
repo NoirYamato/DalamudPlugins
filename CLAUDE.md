@@ -121,10 +121,12 @@ anywhere, since they hold other players' names.
   their count and spread, and a verdict: matches, differs, inconclusive or not in these logs. Constants and event
   times (from the scenario's `world.Events.Add` lines) are read from the code of the checkout the tests were built
   in, so the report follows their edits; a rule or layout the measure class describes in words has to be updated
-  with the sim. It changes no sim value.
+  with the sim. `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for.
+  It changes no sim value.
 - `Reports/ActLogs/` is the parser: pulls split as upstream's `tools/parser.py` splits them (the game's combat flag
   on 260 lines, else the duty director's codes), and the line types the report reads as typed events. It blanks
   every name field as it reads a line and the report names players by job; never copy log lines into the repo.
+  A combat segment where no enemy cast or used an ability (the plugin's own runs make them) is listed and left out.
 - Deaths: a player is dead from its first 0-HP line (37/38/39); the death line (25) comes about 2 s later. A hit
   killed when its effect result (the 37 line with its sequence) left the target at 0 HP, or, with none logged, when
   the target died within 3 s. A hit on a player under an invulnerability (Hallowed Ground, Holmgang, Living Dead,
@@ -136,7 +138,7 @@ anywhere, since they hold other players' names.
   tenths of a second, so a distance between players is good to about a yalm. Server placements (271 lines) and cast
   locations (263 lines) are exact to about 0.03 y, and the report measures from them where it can.
 - The measures cover what the logs reach (P3 and P4 Blue Screen); a phase's values need a measure class beside
-  the others, listed in `TopPullLogReport`.
+  the others, listed in `TopPullLogReport.Measures`.
 
 ## LPDU strat timing
 Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only extra step. The flex has no

@@ -19,22 +19,22 @@ public class TopPullLogReport
         var logs = Directory.GetFiles(folder, "Network_*.log").Order().ToList();
         Assert.That(logs, Is.Not.Empty, $"No Network_*.log in {folder}.");
 
-        ITopPullLogMeasures[] measures =
-        [
-            new TopP3IntermissionPullLogs(),
-            new TopP3HelloWorldPullLogs(),
-            new TopP3MonitorsPullLogs(),
-            new TopP4BlueScreenPullLogs(),
-        ];
+        var measures = Measures();
         var reached = new List<(string Pull, string Reached)>();
+        var quiet = new List<string>();
         foreach (var pull in logs.SelectMany(log => ActLog.Pulls(log, TopZone.Instance.TerritoryId)))
         {
+            if (!pull.EnemyActed)
+            {
+                quiet.Add(pull.ToString());
+                continue;
+            }
             var top = new TopPull(pull);
             reached.Add((top.Name, top.Reached));
             foreach (var measure in measures) measure.Observe(top);
         }
 
-        var report = Write(logs, reached, measures.SelectMany(m => m.Findings()).ToList());
+        var report = Write(logs, reached, quiet, measures.SelectMany(m => m.Findings()).ToList());
         var path = Path.Combine(TestContext.CurrentContext.WorkDirectory, "pull-logs", "top-unverified.txt");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, report);
@@ -42,7 +42,15 @@ public class TopPullLogReport
         TestContext.Out.WriteLine($"Written to {path}");
     }
 
-    private static string Write(List<string> logs, List<(string Pull, string Reached)> reached, List<LogFinding> findings)
+    internal static ITopPullLogMeasures[] Measures() =>
+    [
+        new TopP3IntermissionPullLogs(),
+        new TopP3HelloWorldPullLogs(),
+        new TopP3MonitorsPullLogs(),
+        new TopP4BlueScreenPullLogs(),
+    ];
+
+    private static string Write(List<string> logs, List<(string Pull, string Reached)> reached, List<string> quiet, List<LogFinding> findings)
     {
         var text = new StringBuilder();
         text.AppendLine("TOP pull-log report: NoirMech's UNVERIFIED values against real pulls");
@@ -51,6 +59,8 @@ public class TopPullLogReport
         foreach (var (name, _) in TopPull.Milestones)
             if (reached.Count(r => r.Reached == name) is var n and > 0)
                 text.AppendLine($"  {name,-16} {n} ({string.Join(", ", reached.Where(r => r.Reached == name).Select(r => r.Pull))})");
+        if (quiet.Count > 0)
+            text.AppendLine($"Left out, {quiet.Count} combat segments where no enemy cast or used an ability: {string.Join(", ", quiet)}");
         text.AppendLine();
         text.AppendLine("Times are seconds from the cast that starts the mechanic (its 20 line). Positions logged by the client trail");
         text.AppendLine("the server's for other players by a few tenths of a second and are sampled unevenly, so a distance between");
