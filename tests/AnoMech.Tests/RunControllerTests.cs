@@ -26,4 +26,25 @@ public class RunControllerTests
             DebugBotControl.Enabled = debugDriver;
         }
     }
+
+    // AnoMech's reason comes first, whatever else is in the way: it is the one to fix before anything else matters.
+    [Test]
+    public void StartIsRefusedWhileAnoMechIsLoaded()
+    {
+        FakeGame.Install();
+        var presence = new AnoMechPresence();
+        presence.Update([new InstalledPlugin("AnoMech", true)]);
+        DalamudServices.Install(nameof(Plugin.AnoMechPresence), presence);
+        try
+        {
+            var selection = new ScenarioSelection(new TopP6GauntletScenario(), 0, 0, null, null);
+
+            Assert.That(new RunController(null!, null!).StartRefusal(selection, solo: false), Is.EqualTo(AnoMechPresence.LoadedRefusal));
+            Assert.That(new RunController(null!, null!).StartRefusal(null, solo: false), Is.EqualTo(AnoMechPresence.LoadedRefusal));
+        }
+        finally
+        {
+            DalamudServices.Install(nameof(Plugin.AnoMechPresence), new AnoMechPresence());
+        }
+    }
 }

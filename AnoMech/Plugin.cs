@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using AnoMech.Core;
 using AnoMech.Core.Game;
 using AnoMech.Core.Native.Implementations;
@@ -47,6 +49,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static Configuration Config { get; private set; } = null!;
     internal static Game Game { get; private set; } = null!;
     internal static PracticeLoop Practice { get; private set; } = null!;
+    internal static AnoMechPresence AnoMechPresence { get; private set; } = new();
     internal static MultiplayerManager Multiplayer { get; private set; } = null!;
     internal RunController Runs { get; private set; } = null!;
 
@@ -116,6 +119,8 @@ public sealed class Plugin : IDalamudPlugin
             DutyState.DutyStarted += OnDutyStarted;
             DutyState.DutyWiped += OnDutyWiped;
             DutyState.DutyCompleted += OnDutyCompleted;
+            PluginInterface.ActivePluginsChanged += OnActivePluginsChanged;
+            CheckForAnoMech();
 
             // Initialize Pointers
             EventObjectManagerPointers.Initialize();
@@ -176,6 +181,7 @@ public sealed class Plugin : IDalamudPlugin
         DutyState.DutyStarted -= OnDutyStarted;
         DutyState.DutyWiped -= OnDutyWiped;
         DutyState.DutyCompleted -= OnDutyCompleted;
+        PluginInterface.ActivePluginsChanged -= OnActivePluginsChanged;
 
         windowSystem.RemoveAllWindows();
 
@@ -254,6 +260,29 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void OnLogout(int type, int code) => ZoneControl.NoteLogout(type, code);
+
+    // Dalamud may raise this off the framework thread.
+    private void OnActivePluginsChanged(IActivePluginsChangedEventArgs args) => Framework.Run(CheckForAnoMech);
+
+    private void CheckForAnoMech()
+    {
+        List<InstalledPlugin> installed;
+        try
+        {
+            installed = PluginInterface.InstalledPlugins.Select(p => new InstalledPlugin(p.InternalName, p.IsLoaded)).ToList();
+        }
+        catch (Exception e)
+        {
+            DiagnosticLog.Warn($"[Plugin] Could not list the installed plugins: {e.Message}");
+            return;
+        }
+        if (!AnoMechPresence.Update(installed)) return;
+        // A zone load of AnoMech's could trip the guard of a stay already up, so the stay ends the way Leave ends it.
+        var inStay = Game.Zone is not null;
+        Game.Print(inStay ? $"{AnoMechPresence.LoadedRefusal} Leaving the sim zone." : AnoMechPresence.LoadedRefusal);
+        if (inStay) Runs.Leave();
+        Natives.Zone.HoldSendFirewall(false);
+    }
 
     private void OnDutyStarted(IDutyStateEventArgs args)
         => LogManager.LogCombatStart(args.TerritoryType.RowId);

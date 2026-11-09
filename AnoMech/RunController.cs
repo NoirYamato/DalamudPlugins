@@ -29,6 +29,7 @@ internal sealed class RunController
 
     public string? StartRefusal(ScenarioSelection? selection, bool solo)
     {
+        if (Plugin.AnoMechPresence.Refusal is { } anoMech) return anoMech;
         if (selection is not { Scenario: var scenario }) return "No scenario selected.";
         if (solo && !scenario.SupportsSolo) return $"{scenario.Name} does not support Solo mode.";
         // Starting here bypasses MultiplayerManager: a host would run the fight without a

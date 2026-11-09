@@ -479,6 +479,7 @@ public unsafe partial class MainWindow : Window, IDisposable
     private void DrawMainContent()
     {
         var inSession = InSession;
+        DrawAnoMechWarning();
         if (_selectedScenario == null)
         {
             DrawScenarioPanelToggle();

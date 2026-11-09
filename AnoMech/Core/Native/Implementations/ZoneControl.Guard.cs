@@ -190,6 +190,7 @@ public sealed unsafe partial class ZoneControl
     public static string? StartBlockedReason(out string? settling)
     {
         settling = null;
+        if (Plugin.AnoMechPresence.StartBlock is { } anoMech) return anoMech;
         if (Current is { IsActive: true } active)
             return active.tripReason is { } tripped ? $"the session guard tripped ({tripped})" : null;
         // The previous stay's delayed lift is still pending; a new stay under it would lose its

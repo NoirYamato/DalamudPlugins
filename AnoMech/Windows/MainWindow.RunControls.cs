@@ -6,10 +6,20 @@ using PracticeLoop = AnoMech.Core.Game.PracticeLoop;
 
 namespace AnoMech.Windows;
 
-// Retry and Drill.
+// Retry and Drill, and why nothing starts while AnoMech is loaded.
 public unsafe partial class MainWindow
 {
     private static readonly Vector4 RetryColor = new(0.17f, 0.30f, 0.48f, 0.92f);
+    private static readonly Vector4 RefusedColor = new(1f, 0.45f, 0.35f, 1f);
+
+    // Wrapped at the window's edge, or the sentence would widen the auto-sized window.
+    private static void DrawAnoMechWarning()
+    {
+        if (Plugin.AnoMechPresence.Refusal is not { } refusal) return;
+        ImGui.PushTextWrapPos(0f);
+        ImGui.TextColored(RefusedColor, refusal);
+        ImGui.PopTextWrapPos();
+    }
 
     // Beside Start, or beside Stop and Pause during a run.
     private void DrawRetryButton()
