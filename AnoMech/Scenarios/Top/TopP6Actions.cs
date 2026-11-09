@@ -92,8 +92,8 @@ public static class TopP6Actions
         DeathExplanation = "Hit by a Cosmo Meteor puddle: one drops under every player as the cast ends and goes off 4 s later",
     };
 
-    // The scenario decides who the spreads, the stack and the flares kill; the actions only show the hits, and each
-    // spread leaves its vulnerability for the scenario to read.
+    // TopP6CosmoMeteor decides who the spreads, the stack and the flares kill; the actions only show the hits, and each
+    // spread leaves its vulnerability for it to read.
     public static readonly EnemyAction CosmoMeteorSpread = new(P6ActionId.CosmoMeteorSpread)
     {
         Effects = [Damage(), ApplyStatus(StatusId.MagicVulnerabilityUp, P6Duration.SpreadVulnerability)],
@@ -103,6 +103,6 @@ public static class TopP6Actions
 
     public static readonly EnemyAction CosmoMeteorFlare = new(P6ActionId.CosmoMeteorFlare) { Effects = [Damage()] };
 
-    // Cast by each add still alive at its kind's enrage; TopP6AlphaOmega decides that everyone dies.
+    // Cast by each add still alive at its kind's enrage; TopP6CosmoMeteor decides that everyone dies.
     public static readonly EnemyAction CosmoMeteorEnrage = new(P6ActionId.CosmoMeteorEnrage) { Effects = [Damage()] };
 }

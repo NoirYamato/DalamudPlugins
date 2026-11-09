@@ -119,7 +119,8 @@ public static class TopP6Constants
         public const float CometsEnrage = 20.3f;
         public const float MeteorsEnrage = 30.4f;
 
-        // UNVERIFIED: a tank's limit break 3 counts for a hit only if it went up this long before the hit decides.
+        // UNVERIFIED: a tank's limit break 3 counts for a hit only if it went up this long before the hit decides, and only
+        // while its status lasts: 8 s in upstream's JobActions, also UNVERIFIED, where the game's tooltip says 12 s.
         public const float TankLimitBreak3TakesHold = 1.0f;
 
         // UNVERIFIED: Magic Number's mark lands this long after the hit's ActionEffect, and lasts this long.

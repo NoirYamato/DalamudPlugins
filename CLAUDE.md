@@ -325,9 +325,9 @@ multiplayer.
   - Cosmo Memory and both Magic Numbers kill everyone without a tank LB3 status (196, 863, 864, 1931) up 1.0s
     (UNVERIFIED) before the hit decides. Not `Severity.MinMit`, which checks only a human, and only with "Require tank
     mitigation" on.
-  - Magic Number's mark (3532) lands on everyone 1.3s after the hit and runs 6s (both UNVERIFIED). The scenario holds
-    who carries it, since a status that runs out vanishes silently: a healer LB3 resolving while it is on lifts it
-    from all, and as it runs out it kills whoever still carries it.
+  - Magic Number's mark (3532) lands on everyone 1.3s after the hit and runs 6s (both UNVERIFIED). `TopP6AlphaOmega`
+    holds who carries it, since a status that runs out vanishes silently: a healer LB3 resolving while it is on lifts
+    it from all, and as it runs out it kills whoever still carries it.
   - The comets: any caster LB3 resolving while they are shown kills all six; no ground point is checked. One alive at
     187.0 enrages and kills everyone.
   - The meteors: a physical ranged LB3 kills each meteor its 30 x 8 line holds, drawn from the presser toward its
@@ -356,8 +356,8 @@ multiplayer.
   `Verdicts` keeps each player's first reason.
 - The Gauntlet always needs limit breaks. It refuses to start with "Resolve your own actions" off (a
   `SettingsConflicts` entry, which greys out Start with the reason as its tooltip and shows in red atop its
-  settings): only that module plays the human's own limit break in the sim. A headless run the debug driver walks is exempt, and
-  there the strat presses the player's seat's duties too, unless a test sets the internal
+  settings): only that module plays the human's own limit break in the sim. A headless run the debug driver walks is
+  exempt, and there the strat presses the player's seat's duties too, unless a test sets the internal
   `PlayerPressesItsOwnLimitBreaks` and scripts them through `FakeUserActions.Act`.
 - The strat plays the old blocks' LPDU spots and times on the parts' clocks, changed only at the seams:
   - no opening walk to the autos' spots in Exaflares 1, Exaflares 2 and Cosmo Meteor (a later start puts the party
@@ -374,11 +374,12 @@ multiplayer.
 - UNVERIFIED in `TopP6Constants`: the exaflare step (1.1s; tests also play 1.0s), the arrows' omen delay, the
   puddles' 2.7s blast, the adds' distances, the comets' bearings and the time they show, the flare's 20y kill radius,
   its 8.1s marker and when the markers show, the meteor stack's 5, the spreads' 3s vulnerability, Cosmo Dive taking
-  its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s, the mark's 1.3s and 6s,
-  Run: ****mi*'s damage 30s after its cast, the gauge's rebuild and the human's melee windows. In `TopP6LimitBreaks`:
-  the client's current-target stand-in. In the State, the scenario and the mechanics: the odds of every roll but the
-  flares' and the meteor stack's (the sources call those random), upstream's laser vulnerability (2.5s) and Wild
-  Charge rules, and that the bait, Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
+  its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
+  (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
+  cast, the gauge's rebuild and the human's melee windows. In `TopP6LimitBreaks`: the client's current-target
+  stand-in. In the State, the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's
+  (the sources call those random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait,
+  Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
 - No source fixes these strat values, so they are UNVERIFIED (the user's picks):
   - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), after Cosmo Dive 2
     (16, 0) or (-16, 0);
