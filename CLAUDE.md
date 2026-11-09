@@ -221,11 +221,12 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
 
 ## Setup memory and Rotate
 - `SetupMemory` keeps the main window's setup in `setup.json` in the plugin's config folder
-  (`%APPDATA%\XIVLauncher\pluginConfigs\NoirMech\`), not in upstream's `Configuration`: the Role pick by label, and
-  per scenario (by `FullName`) its region, its strat by name and its settings overrides as `ScenarioSettingsSync`
-  serializes them, which leaves out the internal test pins. At load `MainWindow.RestoreSetup` puts back the Role pick
-  and each scenario's region and settings, before the last scenario is selected again; a scenario's strat comes back
-  by name as it is selected, and one it no longer has in that region leaves the region's first.
+  (`%APPDATA%\XIVLauncher\pluginConfigs\NoirMech\`), not in upstream's `Configuration`: the Role pick by label, the
+  seat Rotate last gave (below), and per scenario (by `FullName`) its region, its strat by name and its settings
+  overrides as `ScenarioSettingsSync` serializes them, which leaves out the internal test pins. At load
+  `MainWindow.RestoreSetup` puts back the Role pick, Rotate's seat and each scenario's region and settings, before the
+  last scenario is selected again; a scenario's strat comes back by name as it is selected, and one it no longer has in
+  that region leaves the region's first.
 - `MainWindow.RememberSetup` runs every frame from `PreOpenCheck` and saves what changed (the settings are read every
   0.5s), and before `SelectScenario` switches scenario, so a setting changed just before is kept for its own. On
   unload and after a session it also reads every kept scenario's settings again (`SetupMemory.RememberSettings`); a
@@ -244,6 +245,10 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   `RunController.Seats`, asked again for every run started from it, so Auto-restart and Drill's fresh rolls rotate
   too; the rotation moves on as such a run starts (`RollReplay.Started`). A replay keeps the seat it played and leaves
   the rotation alone. Multiplayer seats stay the Party panel's.
+- Rotate goes on across game restarts. `SetupMemory` keeps the tank or melee seat the rotation last gave
+  (`SeatRotation.Last`, by its label in `RotateSeat`; a healer or ranged run after it leaves it be), and `RestoreSetup`
+  hands it back to `RunController.Seats` as a seat played, so that role goes on alternating from it, on any job of the
+  role. The other role starts from the seat Auto gives, even if it had a turn before the restart.
 - Beside the pick the window shows the player's seat: the one the next Start gives on the current job ("You: M2"),
   or during a run that run's, with Rotate followed by the next fresh roll's ("You: MT (next OT)") unless Drill will
   play the roll again (`RollReplay.DrillReplays`). Retry plays the seat its run gave.
@@ -252,7 +257,7 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   beside the OT PLD bot, Magic Number 2 in OT beside the MT WAR bot). Every seat Rotate gives fits the job, so the
   chat line names the duties (`TopP6GauntletLimitBreakPlanTests`).
 - `SetupMemoryTests` (every catalog scenario's settings, off their defaults, survive a save and a load; what a
-  session keeps) and `SeatRotationTests`.
+  session keeps; Rotate's seat across a restart) and `SeatRotationTests`.
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the

@@ -85,6 +85,7 @@ public unsafe partial class MainWindow
         }
         _setup = SetupMemory.Load(_setupPath);
         RestoreRolePick();
+        _setup.RestoreRotation(plugin.Runs.Seats);
         foreach (var scenario in Plugin.Game.Catalog.Scenarios)
         {
             if (_setup.Find(scenario) is not { } kept) continue;
@@ -113,8 +114,9 @@ public unsafe partial class MainWindow
         var now = Environment.TickCount64;
         var checkSettings = checkSettingsNow || now >= _nextSettingsCheck;
         if (checkSettings) _nextSettingsCheck = now + SettingsCheckMs;
-        if (_setup.Remember(RoleLabels[RolePick], _selectedScenario, _selectedStratGroup, SelectedStratName, checkSettings))
-            _setup.Save(_setupPath);
+        var changed = _setup.Remember(RoleLabels[RolePick], _selectedScenario, _selectedStratGroup, SelectedStratName, checkSettings);
+        changed |= _setup.RememberRotation(plugin.Runs.Seats);
+        if (changed) _setup.Save(_setupPath);
     }
 
     // What a session overrode comes back as kept: the Role pick, and a guest's region and strat. A guest's own settings

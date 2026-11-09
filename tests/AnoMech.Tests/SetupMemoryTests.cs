@@ -1,13 +1,15 @@
 using System.Reflection;
 using AnoMech.Core.Game;
+using AnoMech.Core.Game.Party;
+using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P5Delta;
 using AnoMech.Scenarios.Top.P6Gauntlet;
 
 namespace AnoMech.Tests;
 
-// The main window's setup across game restarts: the Role pick, and per scenario its region, its strat by name and its
-// settings, in a file of its own.
+// The main window's setup across game restarts: the Role pick, the seat Rotate last gave, and per scenario its region, its
+// strat by name and its settings, in a file of its own.
 public class SetupMemoryTests
 {
     private string path = "";
@@ -90,14 +92,61 @@ public class SetupMemoryTests
     [TestCase(null)]
     [TestCase("{ this is not json")]
     [TestCase("{\"Role\":null,\"Scenarios\":null}")]
+    [TestCase("{\"RotateSeat\":\"Rotate\"}")]
     public void AMissingOrUnreadableFileGivesTheDefaults(string? text)
     {
         if (text is not null) File.WriteAllText(path, text);
+        var rotation = new SeatRotation();
 
         var loaded = SetupMemory.Load(path);
+        loaded.RestoreRotation(rotation);
 
         Assert.That(loaded.Role, Is.EqualTo(SetupMemory.AutoRole));
         Assert.That(loaded.Scenarios, Is.Empty);
+        Assert.That(rotation.Last, Is.Null);
+    }
+
+    // After a restart the role of the seat Rotate last gave goes on alternating from it: a WAR played MT gets OT, where Auto
+    // would give MT. The other role starts from the seat Auto gives, though it had a turn before: a DRG played M2 gets M2.
+    [Test]
+    public void RotateGoesOnFromTheSeatItLastGave()
+    {
+        var rotation = new SeatRotation();
+        rotation.Played(rotation.Next((uint)JobId.Dragoon));
+        rotation.Played(rotation.Next((uint)JobId.Warrior));
+        var memory = new SetupMemory();
+        memory.RememberRotation(rotation);
+        memory.Save(path);
+
+        var restarted = new SeatRotation();
+        SetupMemory.Load(path).RestoreRotation(restarted);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rotation.Next((uint)JobId.Dragoon), Is.EqualTo(PartyRole.MeleeDpsA), "without the restart");
+            Assert.That(restarted.Next((uint)JobId.Warrior), Is.EqualTo(PartyRole.OffTank));
+            Assert.That(restarted.Next((uint)JobId.Paladin), Is.EqualTo(PartyRole.OffTank));
+            Assert.That(restarted.Next((uint)JobId.Dragoon), Is.EqualTo(PartyRole.MeleeDpsB));
+            Assert.That(restarted.Next((uint)JobId.WhiteMage), Is.EqualTo(PartyRole.RegenHealer));
+        });
+    }
+
+    [Test]
+    public void OnlyANewSeatOfTheRotationIsSaved()
+    {
+        var rotation = new SeatRotation();
+        var memory = new SetupMemory();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(memory.RememberRotation(rotation), Is.False, "no seat given yet");
+            rotation.Played(PartyRole.OffTank);
+            Assert.That(memory.RememberRotation(rotation), Is.True, "a seat given");
+            Assert.That(memory.RememberRotation(rotation), Is.False, "nothing changed");
+            rotation.Played(PartyRole.RegenHealer);
+            Assert.That(memory.RememberRotation(rotation), Is.False, "a healer's seat");
+            Assert.That(memory.RotateSeat, Is.EqualTo("OT"));
+        });
     }
 
     [Test]

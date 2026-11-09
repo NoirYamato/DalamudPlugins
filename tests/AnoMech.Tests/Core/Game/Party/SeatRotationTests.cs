@@ -34,14 +34,30 @@ public class SeatRotationTests
     public void HealersAndRangedKeepTheirJobsSeat(JobId job, PartyRole seat)
         => Assert.That(Seats(job, 3), Is.All.EqualTo(seat));
 
-    // A tank who changes job goes on alternating rather than starting over from the new job's seat.
+    // A tank who changes job goes on alternating rather than starting over from the new job's seat (a PLD's is OT).
     [Test]
     public void AJobChangeGoesOnAlternating()
     {
         var rotation = new SeatRotation();
         rotation.Played(rotation.Next((uint)JobId.Warrior));
+        rotation.Played(rotation.Next((uint)JobId.Warrior));
 
-        Assert.That(rotation.Next((uint)JobId.Paladin), Is.EqualTo(OffTank));
+        Assert.That(rotation.Next((uint)JobId.Paladin), Is.EqualTo(MainTank));
+    }
+
+    // The seat SetupMemory keeps: the last run's, a tank's or a melee's; a healer or ranged run after it leaves it be.
+    [Test]
+    public void LastIsTheLastTankOrMeleeSeatGiven()
+    {
+        var rotation = new SeatRotation();
+        var before = rotation.Last;
+        rotation.Played(rotation.Next((uint)JobId.Warrior));
+        rotation.Played(rotation.Next((uint)JobId.Dragoon));
+        rotation.Played(rotation.Next((uint)JobId.WhiteMage));
+        rotation.Played(rotation.Next((uint)JobId.Bard));
+
+        Assert.That(before, Is.Null);
+        Assert.That(rotation.Last, Is.EqualTo(MeleeDpsB));
     }
 
     // Each pair keeps its own turn: a melee run in between leaves the tanks' alone.

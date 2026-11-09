@@ -9,6 +9,9 @@ public sealed class SeatRotation
     private PartyRole? lastTank;
     private PartyRole? lastMelee;
 
+    // The tank or melee seat of the last run started from the rotation, which SetupMemory keeps across game restarts.
+    public PartyRole? Last { get; private set; }
+
     // The seat the next run gives a player on `job`.
     public PartyRole Next(uint job)
     {
@@ -21,11 +24,13 @@ public sealed class SeatRotation
         };
     }
 
-    // A run started with the player in `seat`.
+    // A run started with the player in `seat`, or at load the seat SetupMemory kept.
     public void Played(PartyRole seat)
     {
         if (seat.IsTank()) lastTank = seat;
         else if (seat is PartyRole.MeleeDpsA or PartyRole.MeleeDpsB) lastMelee = seat;
+        else return;
+        Last = seat;
     }
 
     private static PartyRole Partner(PartyRole seat) => seat switch

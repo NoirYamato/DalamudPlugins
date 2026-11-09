@@ -4,13 +4,15 @@ using System.IO;
 using System.Text.Json;
 using AnoMech.Core;
 using AnoMech.Core.Game;
+using AnoMech.Core.Game.Party;
 using AnoMech.Scenarios;
 
 namespace AnoMech;
 
 // The main window's setup across game restarts, in its own file in the plugin's config folder rather than in upstream's
-// Configuration: the Role pick, and per scenario its region, its strat by name (AiStrats indices move between builds) and
-// its settings overrides as ScenarioSettingsSync carries them to peers, which leaves out the internal test pins.
+// Configuration: the Role pick, the seat Rotate last gave, and per scenario its region, its strat by name (AiStrats
+// indices move between builds) and its settings overrides as ScenarioSettingsSync carries them to peers, which leaves out
+// the internal test pins.
 internal sealed class SetupMemory
 {
     public const string FileName = "setup.json";
@@ -24,6 +26,9 @@ internal sealed class SetupMemory
 
     // One of the main window's Role labels.
     public string Role { get; set; } = AutoRole;
+
+    // The label of SeatRotation.Last, the seat the rotation goes on from after a restart.
+    public string? RotateSeat { get; set; }
 
     // By IScenario.FullName.
     public Dictionary<string, ScenarioSetup> Scenarios { get; set; } = [];
@@ -90,6 +95,22 @@ internal sealed class SetupMemory
         if (kept is not null && kept.Region == region && kept.Strat == strat && kept.Settings == settings) return changed;
         Scenarios[key] = new ScenarioSetup { Region = region, Strat = strat, Settings = settings };
         return true;
+    }
+
+    // True when this changed what is kept. Unlike the Role pick it needs no session check: only a local run seats the
+    // player through Rotate.
+    public bool RememberRotation(SeatRotation rotation)
+    {
+        if (rotation.Last is not { } seat || SettingsGrid.RoleLabel(seat) == RotateSeat) return false;
+        RotateSeat = SettingsGrid.RoleLabel(seat);
+        return true;
+    }
+
+    // At load. A label no seat has leaves the rotation to start from the seats Auto gives.
+    public void RestoreRotation(SeatRotation rotation)
+    {
+        foreach (var seat in Enum.GetValues<PartyRole>())
+            if (SettingsGrid.RoleLabel(seat) == RotateSeat) rotation.Played(seat);
     }
 
     // The settings of every scenario kept, as they are now; their regions and strats stay as kept. Settings change only on
