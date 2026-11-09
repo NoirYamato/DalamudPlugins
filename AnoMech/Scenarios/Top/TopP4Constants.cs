@@ -6,6 +6,7 @@ public static class TopP4Constants
 {
     public const byte Weather = TopP3Constants.Weather;             // UNVERIFIED: P3's weather carries on
     public const ushort Bgm = TopP3Constants.Bgm;                   // UNVERIFIED: P3's track carries on
+    public const uint OmegaHelper = TopP3Constants.OmegaHelper;
 
     public static class P4ActionId
     {

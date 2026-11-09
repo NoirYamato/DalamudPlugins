@@ -58,6 +58,7 @@ NoirMech change:
   `IsPlayerAction` change are left out;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
+- `tools/upstream-check.ps1`, a preview of merging an AnoMech ref (below);
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -92,6 +93,42 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   copies the zip, manifest and a `git archive` source zip into `plugins/NoirMech/`, then commits and pushes
   `main`. It never pushes `noirmech-stable`: push source commits separately. Don't bump `<Version>` by hand; it
   tracks the upstream base.
+
+## Merging AnoMech's next release
+`powershell -ExecutionPolicy Bypass -File tools\upstream-check.ps1 [-Ref <tag>]` (default `upstream/master`)
+previews a merge without making one: the files that would conflict, and NoirMech's own lines (changed or added
+since the last merged release) that use a declaration the ref deletes. It greps, so also build and test a trial
+merge in a throwaway detached worktree. Against `upstream/master` at `1646a70` (36 commits past v0.5.1.0) it finds
+six conflicts and no such use: P3 and P4 keep their own 9020 helper id (`TopP3Constants.OmegaHelper`,
+`TopP4Constants.OmegaHelper`) and Hello World checks its regressions' ends itself. At the merge:
+- `ScenarioSession.cs` and `SimWorld.cs`: keep both sides, the pause's members and halt methods beside master's
+  `Issues`, `Ended` and `SimEvents`.
+- `LocalPlayerInputHooks.cs`: keep the `ActionsBlocked` return first, ahead of master's `GetAdjustedActionId` line.
+- `MainWindow.cs`: master rebuilds the title (`Title(failed)`, set every frame), the Stop buttons and the status
+  line (`RunStatus`, where a frozen run reads Failed) round its failure banner. Re-port the Pause button, the
+  title-bar icon, `PausedTitle` (ahead of `Title(failed)`) and a Paused label for the user pause onto it; master's
+  Failed covers NoirMech's Frozen.
+- `TopP2PartySynergyScenario.cs`: master casts every helper action from the zone's pool; take its side and put the
+  solo skip into its `Run_Spotlight` (no Spotlight when `solo`), which `TopP2PartySynergySoloTests` checks.
+- `tests/AnoMech.Tests/Support/ScenarioRun.cs`: keep NoirMech's catalog-less construction
+  (`SingleOrDefault(...) ?? Activator.CreateInstance`), `RunUntilStopped` and `probe.Stopped` beside master's
+  four-argument `PartyMemberKilled`, `MechanicFailed`, `HelperPoolExhausted` and `SessionStatus.CompletedFailed`.
+- `tests/AnoMech.Tests/Support/TimelineRun.cs` merges clean but won't build: subscribe with master's four-argument
+  `Game.PartyMemberKilled` and fill its `Death.StatusId`. Its loop already ends on master's
+  `SessionStatus.CompletedFailed`, which comes after `Frozen`.
+- Helpers: master's TOP `DutyInitData` spawns `HelperPool(9020, 36)` at every run's start, and
+  `SimEnemy.CastFromHelper` casts from it.
+  - P6: `TopP6AlphaOmega` spawns its own 36 (`SpawnedHelperPool`), so a Gauntlet run would hold 72. Make its
+    `CastFromHelper` body `Enemy?.CastFromHelper(...)` (`HelperCast`'s signature), drop the pool field,
+    `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
+    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests then have no user;
+    `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
+  - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 8, Blue
+    Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
+    would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
+    tower helpers); that is optional.
+- Unasked, master's `SimTether` ends itself when an end dies (`TetherEnded`): Hello World's ghost tethers then go
+  with a death, as its regressions already do.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
@@ -219,8 +256,9 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 - With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land: a Triangle on Near
   World and a Cross (the + marker) on Distant World.
 - The forced-band flags, Automarkers and the eye's `EffectIndex` travel in `TopP5DeltaAiReplayStateMessage`, so
-  a peer's replay decides the same way. Upstream's unreleased `4bb8b6c` removes that replay layer: drop those
-  fields with it, and rework the tests that read `LastState`.
+  a peer's replay decides the same way. Upstream's `4bb8b6c`, on its `mp-host-driven-bots` branch and not on
+  `master`, removes that replay layer: if a release brings it, drop those fields with it, and rework the tests that
+  read `LastState`.
 - UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both), the Swivel
   Cannon's apex on the beetle, and Omega-M's facing relative to the eye. Omega-M keeps its absolute facings for
   every eye (north at spawn, south at 28.2s, north at 54s), and no mechanic reads them.

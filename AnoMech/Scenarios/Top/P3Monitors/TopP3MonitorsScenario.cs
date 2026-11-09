@@ -65,7 +65,7 @@ public sealed class TopP3MonitorsScenario : IScenario
     private void SpawnHelpers()
         => monitorHelpers = Enumerable.Range(0, (1 + TopP3MonitorsState.PlayerMonitors) * TargetsPerMonitor)
                                       .Select(_ => world.SpawnEnemy(new EnemySpawnConfig(
-                                          BNpcBaseId: BNpcBaseId.OmegaHelper,
+                                          BNpcBaseId: TopP3Constants.OmegaHelper,
                                           Visibility: SpawnVisibility.InvisibleHelper,
                                           EnemyList: EnemyListMode.Never,
                                           Placement: new Placement(Vector3.Zero, 0f))))

@@ -110,7 +110,8 @@ internal static class TimelineRun
             if (game.Status < SessionStatus.Running)
                 failure = "did not start";
             var elapsed = 0f;
-            while (failure is null && game.Status is not (SessionStatus.Succeeded or SessionStatus.CompletedWithMistake or SessionStatus.Frozen))
+            // From Frozen on, SessionStatus holds only runs that froze or finished.
+            while (failure is null && game.Status < SessionStatus.Frozen)
             {
                 if (elapsed >= ScenarioRun.TimeoutSeconds)
                 {

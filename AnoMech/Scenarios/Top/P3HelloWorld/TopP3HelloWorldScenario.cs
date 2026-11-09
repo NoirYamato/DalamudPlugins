@@ -136,7 +136,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
 
     private SimEnemy? SpawnHelper()
         => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper,
+            BNpcBaseId: OmegaHelper,
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.InvisibleHelper,
@@ -430,7 +430,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
         foreach (var regression in regressions.ToList())
         {
             var tether = regression.Tether;
-            if (SimTether.IsAnyDead(tether))
+            if (!tether.A.IsAlive() || !tether.B.IsAlive())
                 EndRegression(regression);
             else if (regression.Local
                          ? tether.StretchLt(P3Geometry.LocalRegressionBreakDistance)

@@ -4,6 +4,7 @@ namespace AnoMech.Scenarios.Top;
 public static class TopP3Constants
 {
     public const uint OmegaP3 = 15717;                              // BNpcBase, ModelChara 3775, hitbox 12.5
+    public const uint OmegaHelper = 9020;                           // BNpcBase, the invisible helper the casts come from
     public const byte Weather = 79;                                 // UNVERIFIED
     public const ushort Bgm = 950;                                  // From the Heavens (Orchestral Version)
 

@@ -46,7 +46,8 @@ public class SpawnedHelperPoolTests
     {
         var outcome = RunThePool();
         var casts = outcome.Run.Sent("cast", ThreeSecondVisual.ActionId);
-        var helpers = outcome.Run.Spawned(Helper);
+        // The pool's two come last: a zone that keeps its own helper pool spawns it first.
+        var helpers = outcome.Run.Spawned(Helper).TakeLast(2).ToList();
 
         Assert.That(outcome.Run.Failure, Is.Null, outcome.Run.ToString);
         Assert.That(casts.Select(c => c.Actor), Is.EqualTo(new[] { helpers[1], helpers[0], helpers[1] }));

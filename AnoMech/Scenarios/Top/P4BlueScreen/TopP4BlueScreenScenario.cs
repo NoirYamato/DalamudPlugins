@@ -115,7 +115,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
 
     private SimEnemy? SpawnHelper()
         => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper,
+            BNpcBaseId: OmegaHelper,
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.InvisibleHelper,
