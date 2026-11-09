@@ -135,8 +135,8 @@ public static class TopP6Constants
 
         // UNVERIFIED, the Gauntlet's own windows for the human's melee limit breaks 3, from Cosmo Dive 2's bar end: the
         // second must start by SecondDiveMeleeLatestPress (it is then free to leave Cosmo Meteor's baits before they
-        // decide) and the first leaves it a 4.5 s cast to do so. The enrage's must start in time to land as Run: ****mi*'s
-        // cast ends.
+        // decide) and the first leaves it a 4.5 s cast to do so. The enrage's must land while Run: ****mi*'s cast bar is
+        // up.
         public const float FirstDiveMeleeLatestPress = 11.2f;
         public const float SecondDiveMeleeLatestPress = 15.7f;
     }

@@ -96,7 +96,6 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
     internal const float MagicNumber2sMarkRunsOut = MagicNumber2Cast + MagicNumberHits + P6Duration.MagicNumberMarkAfterTheHit + P6Duration.MagicNumberMark;
     internal const float RunMiCast = 32.1f;
     internal const float EarlyInRunMi = RunMiCast + 1f;
-    internal const float RunMiFinishes = RunMiCast + 16f;
 
     private TopP6GauntletState state = null!;
     private SimWorld world = null!;
@@ -233,7 +232,7 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber1Healer, start + ASecondAfterMagicNumber1sMark, start + MagicNumber1sMarkRunsOut);
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber2Tank, start + EarlyInMagicNumber2, start + MagicNumber2Decides);
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber2Healer, start + ASecondAfterMagicNumber2sMark, start + MagicNumber2sMarkRunsOut);
-        PressOnceTheGaugeAllows(TopP6LimitBreakDuty.Enrage, start + EarlyInRunMi, start + RunMiFinishes);
+        PressOnceTheGaugeAllows(TopP6LimitBreakDuty.Enrage, start + EarlyInRunMi, TopP6AlphaOmega.RunMiFinishedBy(start + RunMiCast));
     }
 
     private void PressOnceTheGaugeAllows(TopP6LimitBreakDuty duty, float at, float givingUpAfter)

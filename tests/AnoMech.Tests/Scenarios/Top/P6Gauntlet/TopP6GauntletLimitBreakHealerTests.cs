@@ -16,7 +16,7 @@ namespace AnoMech.Tests;
 // it 6 s later (both UNVERIFIED); a healer's limit break 3, a 2 s cast, lifts it from all as it lands:
 //   208.1 / 214.1  Magic Number 1's mark (the plan's healer presses at 208.8);
 //   224.2 / 230.2  Magic Number 2's (at 224.9);
-//   232.0 / 248.0  Run: ****mi*, which the enrage holder's melee limit break 3 ends; without it, its damage lands at 262.0.
+//   232.0 / 247.7  Run: ****mi*, which the enrage holder's melee limit break 3 ends; without it, its damage lands at 262.0.
 // A press with Brilliant Dynamis gives the gauge back, one with Spark of Dynamis doesn't: a healer's wasted press leaves a
 // later limit break waiting for a gauge that never fills, and that one's mechanic kills everyone, saying so.
 public class TopP6GauntletLimitBreakHealerTests

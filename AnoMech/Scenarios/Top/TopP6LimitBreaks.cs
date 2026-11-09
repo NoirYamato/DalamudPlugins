@@ -59,12 +59,18 @@ public sealed class TopP6LimitBreakPress
     public bool IsCasting => ResolvedAt is null && InterruptedAt is null;
 
     public bool Is(TopP6LimitBreakKind kind, int level = 3) => Kind == kind && Level == level;
+
+    // A melee limit break 3 aimed at `targetId` whose cast bar ends between `from` and `by`, whenever its resolve is heard.
+    public bool LandsAMeleeLimitBreak3On(ulong targetId, float from, float by)
+        => Is(TopP6LimitBreakKind.Melee) && TargetId == targetId && LandsAt >= from && LandsAt <= by;
 }
 
-// A slot the melee limit break 3 of the human's seat must fill: started between OpensAt and LatestPress, aimed at the
-// window's target, and resolved. With AfterAnotherMeleeLimitBreak3 it opens instead once another seat's melee limit
-// break 3 has resolved at or after OpensAt.
-public sealed record TopP6MeleeWindow(PartyRole Seat, float OpensAt, float LatestPress, string Rule, bool AfterAnotherMeleeLimitBreak3 = false);
+// A slot the melee limit break 3 of the human's seat must fill, aimed at the window's target and resolved: started between
+// OpensAt and LatestPress, or, with LandsBy, landing between OpensAt and LandsBy however early it started
+// (LandsAMeleeLimitBreak3On), LatestPress then being the last start that lands in time. With AfterAnotherMeleeLimitBreak3
+// it opens instead once another seat's melee limit break 3 has resolved at or after OpensAt.
+public sealed record TopP6MeleeWindow(PartyRole Seat, float OpensAt, float LatestPress, string Rule, bool AfterAnotherMeleeLimitBreak3 = false,
+    float? LandsBy = null);
 
 // The limit breaks of one P6 run: what everyone presses, the gauge they share, and the presses the run makes for the
 // seats no human presses for. Construct one per run, as the run starts (it hears the IUserActions installed then),
@@ -102,11 +108,12 @@ public sealed class TopP6LimitBreaks : IDisposable
     public const string SecondDiveMeleeRule =
         "The second melee limit break 3 goes on Alpha Omega as soon as the first one's refill fills the gauge, early enough to be free before Cosmo Meteor's baits";
     public const string EnrageMeleeRule =
-        "The Gauntlet's last melee limit break 3 goes on Alpha Omega during Run: ****mi*'s cast, once the gauge refills after the second healer's, and must land before the cast bar ends";
+        "The Gauntlet's last melee limit break 3 must land on Alpha Omega while Run: ****mi*'s cast bar is up";
 
     public const string MovingCancelledYours = "; moving cancelled yours";
     public const string YoursMissedAlphaOmega = "; yours wasn't aimed at Alpha Omega";
     public const string YoursStartedTooEarly = "; yours started before the window opened";
+    public const string YoursLandedBeforeTheBar = "; yours landed before the bar went up";
     public const string YoursWasNotALimitBreak3 = "; yours was a limit break {0}";
 
     private readonly SimWorld world;
@@ -243,6 +250,8 @@ public sealed class TopP6LimitBreaks : IDisposable
         HoldCastersStill();
         requests.RemoveAll(request => Now > request.Until);
         StartWaitingPresses();
+        foreach (var held in windows.Where(w => !w.Decided))
+            held.LookAtTheTarget();
         foreach (var held in windows.Where(w => !w.Decided && Now >= w.Window.LatestPress).ToList())
             Judge(held);
         SendGauge(force: false);
@@ -469,10 +478,10 @@ public sealed class TopP6LimitBreaks : IDisposable
         if (held.Decided) return;
         var window = held.Window;
         var opens = OpensAt(window);
-        var targetId = held.Target() is { } target ? (ulong)target.GameObjectId : 0ul;
-        var attempts = presses.Where(p => p.Seat == window.Seat
-                                          && p.CastStartedAt >= window.OpensAt - EarlyPressLookback && p.CastStartedAt <= window.LatestPress).ToList();
-        var filling = attempts.Where(p => p.Is(TopP6LimitBreakKind.Melee) && opens is { } open && p.CastStartedAt >= open && p.TargetId == targetId).ToList();
+        held.LookAtTheTarget();
+        var targetId = held.TargetId;
+        var ofTheSeat = presses.Where(p => p.Seat == window.Seat).ToList();
+        var filling = ofTheSeat.Where(p => opens is { } open && Fills(window, p, open, targetId)).ToList();
         if (filling.Any(p => p.ResolvedAt is not null))
         {
             held.Decided = true;
@@ -480,9 +489,15 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
         if (filling.Any(p => p.IsCasting)) return;
         held.Decided = true;
+        var attempts = ofTheSeat.Where(p => p.CastStartedAt >= window.OpensAt - EarlyPressLookback && p.CastStartedAt <= window.LatestPress).ToList();
         if (Party.Get(window.Seat) is SimPlayer human)
-            human.Die(SimCharacterDeathExtensions.Environment, window.Rule + WhyYoursMissed(attempts, opens, targetId));
+            human.Die(SimCharacterDeathExtensions.Environment, window.Rule + WhyYoursMissed(window, attempts, opens, targetId));
     }
+
+    private static bool Fills(TopP6MeleeWindow window, TopP6LimitBreakPress press, float opens, ulong targetId)
+        => window.LandsBy is { } landsBy
+            ? press.LandsAMeleeLimitBreak3On(targetId, opens, landsBy)
+            : press.Is(TopP6LimitBreakKind.Melee) && press.TargetId == targetId && press.CastStartedAt >= opens && press.CastStartedAt <= window.LatestPress;
 
     private float? OpensAt(TopP6MeleeWindow window)
     {
@@ -492,12 +507,13 @@ public sealed class TopP6LimitBreaks : IDisposable
                       .Min();
     }
 
-    private static string WhyYoursMissed(IReadOnlyList<TopP6LimitBreakPress> attempts, float? opens, ulong targetId)
+    private static string WhyYoursMissed(TopP6MeleeWindow window, IReadOnlyList<TopP6LimitBreakPress> attempts, float? opens, ulong targetId)
     {
         if (attempts.Any(p => p.InterruptedAt is not null)) return MovingCancelledYours;
         if (attempts.FirstOrDefault(p => p.Level != Bars || p.Kind != TopP6LimitBreakKind.Melee) is { } wrong)
             return string.Format(YoursWasNotALimitBreak3, wrong.Level);
         if (attempts.Any(p => p.TargetId != targetId)) return YoursMissedAlphaOmega;
+        if (window.LandsBy is not null) return attempts.Any(p => p.LandsAt < window.OpensAt) ? YoursLandedBeforeTheBar : "";
         if (attempts.Any(p => opens is not { } open || p.CastStartedAt < open)) return YoursStartedTooEarly;
         return "";
     }
@@ -515,7 +531,15 @@ public sealed class TopP6LimitBreaks : IDisposable
     private sealed class HeldWindow(TopP6MeleeWindow window, Func<SimCharacter?> target)
     {
         public TopP6MeleeWindow Window => window;
-        public Func<SimCharacter?> Target => target;
         public bool Decided { get; set; }
+
+        // The target's GameObjectId as last seen, so a target that falls to the press and despawns before the window
+        // closes still counts as aimed at.
+        public ulong TargetId { get; private set; }
+
+        public void LookAtTheTarget()
+        {
+            if (target() is { } aimedAt && (ulong)aimedAt.GameObjectId is var id and not 0) TargetId = id;
+        }
     }
 }

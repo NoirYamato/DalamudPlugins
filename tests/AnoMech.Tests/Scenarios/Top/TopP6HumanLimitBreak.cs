@@ -44,11 +44,43 @@ internal static class TopP6HumanLimitBreak
         => world.Party.AllMembers().Any(member => member != world.Party.Player && member.Casting.IsCasting
                                                   && LimitBreakHandler.IsLimitBreak(member.Casting.ActionId));
 
-    private static void Resolve(SimWorld world, FakeUserActions userActions, uint actionId, ulong targetId)
+    internal static void Resolve(SimWorld world, FakeUserActions userActions, uint actionId, ulong targetId)
     {
         userActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, actionId, targetId));
         if (world.Party.Player is not { } player) return;
         JobActions.ApplyEffects(player, actionId, targetId, new Random(1));
         LimitBreakHandler.Resolve(world.Party, player, actionId);
+    }
+}
+
+// The human's client pressing a limit break between the sim's frames, where the game hears it (Natives.Tick runs before
+// Game.Tick), rather than from an event. Called once a frame after the run's own tick, given the run time, it starts the
+// cast on the first frame `startsOn` accepts and resolves it on the first after that `resolvesOn` accepts, by default
+// once the cast has run. The run reads a cast's start as the frame before it, so the client may report its resolve up to
+// a frame before the run's LandsAt.
+internal sealed class TopP6HumanLimitBreakBetweenFrames(uint actionId, Func<float, bool> startsOn, Func<float, bool>? resolvesOn = null)
+{
+    private bool resolved;
+
+    // The run time its cast started, as the run hears it.
+    public float? StartedAt { get; private set; }
+
+    public float CastSeconds => Natives.Data.Action(actionId)?.CastSeconds ?? 0f;
+
+    public void Hear(SimWorld world, SimCharacter? target)
+    {
+        var now = world.Events.Elapsed;
+        var userActions = (FakeUserActions)Natives.UserActions;
+        var targetId = target is null ? 0ul : (ulong)target.GameObjectId;
+        if (StartedAt is null && startsOn(now))
+        {
+            StartedAt = now;
+            userActions.Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, actionId, targetId, CastSeconds));
+        }
+        else if (StartedAt is { } at && !resolved && (resolvesOn?.Invoke(now) ?? now >= at + CastSeconds))
+        {
+            resolved = true;
+            TopP6HumanLimitBreak.Resolve(world, userActions, actionId, targetId);
+        }
     }
 }

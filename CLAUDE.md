@@ -262,7 +262,7 @@ multiplayer.
   - Cosmo Meteor 166.7: baits 171.7, adds shown 174.9, spreads 176.8 / 177.8 / 182.8 / 183.8, flare markers 186.7,
     the comets' enrage 187.0, flares and stack 194.8, the meteors' enrage 197.1;
   - Magic Number 201.8 (decides 206.5, its mark 208.1 to 214.1) and 217.9 (222.6, 224.2 to 230.2); Run: ****mi*
-    232.0, its bar ending 248.0 and its damage at 262.0.
+    232.0, its bar ending 247.7 and its damage at 262.0.
 - `TopP6AlphaOmega` (`TopP6Mechanics.cs`) is the phase's one Alpha Omega and plays every attack; Cosmo Memory's
   statuses and the gauge come once. The Cosmo Arrow 2 part is upstream's Exasquares/WC2 rebuilt from its
   `CosmoArrow` and `WaveCannon` steps.
@@ -330,14 +330,19 @@ multiplayer.
     target with the presser's hitbox and counting the meteors' 3y. The run's own press for the player's seat (a human
     whose job can't press it) reaches both, wherever the player stands. One alive at 197.1 casts 31669 and kills
     everyone.
-  - The enrage: a melee LB3 resolving during Run: ****mi*'s cast whose own cast bar ends by the bar's end (`LandsAt`,
-    since the human's resolve is heard a frame or two later) defeats Alpha Omega at once (`SimEnemy.Defeat`);
-    otherwise its damage kills everyone at 262.0. Whether the gauge was short is read as the bar ends.
+  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends while Run: ****mi*'s is up, 232.0 to 247.7
+    (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is heard a frame or two
+    later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise its damage kills everyone at 262.0. One
+    started up to a cast before the bar counts, one landing before it is wasted, and one the bar's own frame settled
+    before Run: ****mi* listens is counted as it starts listening. Whether the gauge was short is read as the bar ends.
   - Melee (the user's rule, the human only): for each of its duties the human's melee LB3 must start in the window,
     aim at Alpha Omega and land, or the human dies as the window closes, or as the cast is cut off if that is later.
-    The first: from Cosmo Dive 2's bar end (149.8) to 161.0; the second: from the first's landing to 165.5; the
-    enrage: from Run: ****mi*'s cast (232.0) to 243.5, so it lands by the bar's end, which is the Gauntlet's cut-off
-    (the fight's is the damage). Bots' melee LB3s aren't held to windows.
+    The first: from Cosmo Dive 2's bar end (149.8) to 161.0; the second: from the first's landing to 165.5. The
+    enrage's (`TopP6MeleeWindow.LandsBy`) counts the presses that defeat Alpha Omega, by the same call: started 227.5
+    to 243.2, landing while the bar is up. A press landing before the bar is wasted, so the window kills at 243.2 and
+    Run: ****mi* then wipes. The bar's end is the Gauntlet's cut-off (the fight's is the damage). A window remembers its
+    target's id, since Alpha Omega despawns 9.7s after falling, which can be before the enrage's window closes. Bots'
+    melee LB3s aren't held to windows.
   - Death reasons state the fight's rule or the Gauntlet's, never a strat spot.
 - Every other mistake also kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild
   Charge kill through their actions. The rest is decided in code from where everyone stands as the hits land, those

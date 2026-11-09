@@ -124,8 +124,8 @@ public sealed class TopP6GauntletScenario : IScenario
         alphaOmega.MagicNumber(start + 18.0f, limitBreaks);
         var runMiAt = start + 32.1f;
         alphaOmega.RunMi(runMiAt, limitBreaks);
-        HoldTheHumanTo(TopP6LimitBreakDuty.Enrage, runMiAt, TopP6AlphaOmega.RunMiFinishedBy(runMiAt) - HumansLimitBreak3Cast(),
-            TopP6LimitBreaks.EnrageMeleeRule);
+        var barEnds = TopP6AlphaOmega.RunMiFinishedBy(runMiAt);
+        HoldTheHumanTo(TopP6LimitBreakDuty.Enrage, runMiAt, barEnds - HumansLimitBreak3Cast(), TopP6LimitBreaks.EnrageMeleeRule, landsBy: barEnds);
     }
 
     // Cosmo Memory's hit's statuses, as the limit breaks the plan has pressed by then leave them, and the gauge as the
@@ -156,11 +156,13 @@ public sealed class TopP6GauntletScenario : IScenario
         _ => MagicNumber,
     };
 
-    private void HoldTheHumanTo(TopP6LimitBreakDuty duty, float opensAt, float latestPress, string rule, bool afterAnotherMeleeLimitBreak3 = false)
+    private void HoldTheHumanTo(TopP6LimitBreakDuty duty, float opensAt, float latestPress, string rule, bool afterAnotherMeleeLimitBreak3 = false,
+        float? landsBy = null)
     {
         var plan = state.LimitBreakPlan;
         if (!plan.HumanPresses(duty)) return;
-        limitBreaks.HoldTheHumanTo(new TopP6MeleeWindow(plan.HumanSeat, opensAt, latestPress, rule, afterAnotherMeleeLimitBreak3), () => alphaOmega.Enemy);
+        limitBreaks.HoldTheHumanTo(new TopP6MeleeWindow(plan.HumanSeat, opensAt, latestPress, rule, afterAnotherMeleeLimitBreak3, landsBy),
+            () => alphaOmega.Enemy);
     }
 
     private float HumansLimitBreak3Cast()

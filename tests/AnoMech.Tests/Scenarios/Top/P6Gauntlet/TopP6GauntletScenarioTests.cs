@@ -118,7 +118,7 @@ public class TopP6GauntletScenarioTests
             }), "each Magic Number's mark lands on everyone 1.3 s after the hit and the healer's limit break 3 lifts it");
             Assert.That(alphaOmegaAlive, Is.EqualTo(new Dictionary<float, bool> { [237.4f] = true, [237.7f] = false }),
                         "the enrage holder's melee limit break 3 defeats Alpha Omega as it lands");
-            Assert.That(run.Elapsed, Is.InRange(249f, 251f), "the run ends a second after Run: ****mi*'s bar would have");
+            Assert.That(run.Elapsed, Is.InRange(249f, 251f), "the run ends a second after Run: ****mi*'s cast would have gone off");
             Assert.That(run.Warnings, Has.None.Contains("dropped"), "every helper cast found a free helper");
         });
     }
