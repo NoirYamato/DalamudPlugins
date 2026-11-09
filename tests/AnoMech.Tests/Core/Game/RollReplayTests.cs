@@ -217,4 +217,21 @@ public class RollReplayTests
         Assert.That(run.Practice.Rolls.Last, Is.Not.Null);
         Assert.That(run.Started, Has.Count.EqualTo(2));
     }
+
+    // What the window's seat label reads: with Drill on, a run in which someone died keeps its seat for the next.
+    [TestCase(true)]
+    [TestCase(false)]
+    public void DrillSaysTheRollPlaysAgainOnceSomeoneDied(bool drill)
+    {
+        using var run = new PracticeRun(PracticeRun.PlayerDies);
+        run.Practice.Rolls.Drill = drill;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Started.Count == 1);
+        var beforeTheDeath = run.Practice.Rolls.DrillReplays;
+
+        run.Until(() => run.Game.Status == SessionStatus.Failed);
+
+        Assert.That(beforeTheDeath, Is.False);
+        Assert.That(run.Practice.Rolls.DrillReplays, Is.EqualTo(drill));
+    }
 }

@@ -240,8 +240,10 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   healers and ranged keep their job's seat. Start seats the run through a `RotatingPartyProvider` on
   `RunController.Seats`, asked again for every run started from it, so Auto-restart and Drill's fresh rolls rotate
   too; the rotation moves on as such a run starts (`RollReplay.Started`). A replay keeps the seat it played and leaves
-  the rotation alone. Multiplayer seats stay the Party panel's. Beside the pick the window shows the seat the next
-  Start gives on the current job ("You: M2").
+  the rotation alone. Multiplayer seats stay the Party panel's.
+- Beside the pick the window shows the player's seat: the one the next Start gives on the current job ("You: M2"),
+  or during a run that run's, with Rotate followed by the next fresh roll's ("You: MT (next OT)") unless Drill will
+  play the roll again (`RollReplay.DrillReplays`). Retry plays the seat its run gave.
 - The P6 Gauntlet builds its limit break plan each run from the seats and the human's client job, so a rotated tank
   or melee gets its duties by job priority against the bot beside it (a PLD: Cosmo Memory and Magic Number 1 in MT
   beside the OT PLD bot, Magic Number 2 in OT beside the MT WAR bot). Every seat Rotate gives fits the job, so the

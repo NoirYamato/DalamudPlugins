@@ -17,6 +17,9 @@ public unsafe partial class MainWindow
     private const int FirstSeatRoleLabel = 2;
     private const long SettingsCheckMs = 500;
 
+    private const string RotateHelp =
+        "Rotate swaps tanks between MT and OT and melee between M1 and M2 every run; a replayed roll keeps its seat.";
+
     // The Role pick Rotate: RunController.Seats gives each run's seat.
     private bool _rotateSeats;
 
@@ -44,15 +47,29 @@ public unsafe partial class MainWindow
         return _roleOverride ?? PartyPresets.SkipRoleForJob(player.ClassJob);
     }
 
+    // During a run its seat, and with Rotate the next fresh roll's unless Drill will play this roll again.
     private void DrawSeatLabel()
     {
-        if (NextSeat() is not { } seat) return;
+        var game = Plugin.Game;
+        if (game.ActiveScenario is not null && game.World.Party.Player is not null)
+        {
+            var seat = game.World.Party.PlayerRole;
+            var next = _rotateSeats && !Plugin.Practice.Rolls.DrillReplays ? NextSeat() : null;
+            ImGui.SameLine();
+            ImGui.TextDisabled(next is { } after && after != seat
+                ? $"You: {SettingsGrid.RoleLabel(seat)} (next {SettingsGrid.RoleLabel(after)})"
+                : $"You: {SettingsGrid.RoleLabel(seat)}");
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(_rotateSeats ? $"Your seat in this run, then in the next fresh roll.\n{RotateHelp}" : "Your seat in this run.");
+            return;
+        }
+        if (NextSeat() is not { } nextSeat) return;
         ImGui.SameLine();
-        ImGui.TextDisabled($"You: {SettingsGrid.RoleLabel(seat)}");
+        ImGui.TextDisabled($"You: {SettingsGrid.RoleLabel(nextSeat)}");
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip(_rotateSeats
-                ? "Your seat in the next run. Rotate swaps tanks between MT and OT and melee between M1 and M2 every run."
-                : "Your seat in the next run.");
+                ? $"Your seat in the next Start. Retry plays the seat its run gave you.\n{RotateHelp}"
+                : "Your seat in the next Start. Retry plays the seat its run gave you.");
     }
 
     // At plugin load, before the last scenario is selected again.

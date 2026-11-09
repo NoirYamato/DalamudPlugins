@@ -33,6 +33,10 @@ public sealed class RollReplay
     // A clean run moves on to a fresh roll.
     public bool Drill { get; set; }
 
+    // Drill will play the roll of the run on now again: someone in it died, or godmode reported a death.
+    public bool DrillReplays => Drill && localRun
+        && game.Status is SessionStatus.Failed or SessionStatus.Frozen or SessionStatus.RunningWithMistake or SessionStatus.CompletedWithMistake;
+
     // Null when Retry can play the last local run's roll again.
     public string? RetryRefusal =>
         game.Mode is SessionMode.Host or SessionMode.Peer ? MultiplayerRefusal
