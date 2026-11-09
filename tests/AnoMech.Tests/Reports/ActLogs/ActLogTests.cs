@@ -112,5 +112,36 @@ public class ActLogTests
     public void APlayersAbilityOpensNoPullWithoutCombatFlags()
         => Assert.That(Pulls(Zone(0, Top), Hit(6, Player1, 0x7B55, Boss)), Is.Empty);
 
+    // The plugin's own runs open segments like the first: their enemies' casts never cross the network.
+    [Test]
+    public void ASegmentWhereNoEnemyCastOrHitShowsNoEnemyActing()
+    {
+        var pulls = Pulls(Zone(0, Top), Combat(10, true, true), Hit(11, Player1, 0x5EF8, Boss), Combat(20, true, false),
+                          Combat(30, true, true), Cast(31, Boss, 0x7B55, 4.7f), Combat(40, true, false),
+                          Combat(50, true, true), Hit(51, Boss, 0x7B0C, Player1, aoe: true), Combat(60, true, false));
+
+        Assert.That(pulls.Select(p => p.EnemyActed), Is.EqualTo(new[] { false, true, true }));
+    }
+
+    // ACT holds the log it is writing open, as the writer below does.
+    [Test]
+    public void ALogStillOpenForWritingIsReadToItsEnd()
+    {
+        var path = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"Network_{Guid.NewGuid():N}.log");
+        try
+        {
+            using var writer = new StreamWriter(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read));
+            foreach (var line in new[] { Zone(0, Top), Combat(10, true, true), Cast(12, Boss, 0x7B55, 4.7f) })
+                writer.WriteLine(line);
+            writer.Flush();
+
+            Assert.That(ActLog.Pulls(path, Top).Select(p => (p.File, p.Lines.Count)), Is.EqualTo(new[] { (Path.GetFileName(path), 1) }));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     private static List<ActPull> Pulls(params string[] lines) => ActLog.Pulls("Network_test.log", () => lines, Top).ToList();
 }

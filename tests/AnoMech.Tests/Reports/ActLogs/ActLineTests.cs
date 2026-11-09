@@ -28,17 +28,42 @@ public class ActLineTests
     public void AMalformedLineReadsAsNothing(string text)
         => Assert.That(ActLine.Parse(text), Is.Null);
 
-    [Test]
-    public void EveryNameFieldIsBlanked()
-    {
-        var lines = new[]
-        {
-            Hit(1, 0x40000001, 0x7B55, 0x10000001), Cast(1, 0x40000001, 0x7B55, 5f), Gains(1, 0xDC7, 27f, ActorIds.None, 0x10000001),
-            Loses(1, 0xDC7, ActorIds.None, 0x10000001), Death(1, 0x10000001, 0x40000001), Player(1, 0x10000001, 24, Vector2.Zero),
-            StatusList(1, 0x10000001, 1000, Vector2.Zero), Primary(1, 0x10000001), Memory(1, "Add", 0x10000001, ("Name", Name), ("PosX", "1.0")),
-        };
+    private const uint Player1 = 0x10000001, Boss = 0x40000001;
 
-        Assert.That(lines.Select(ActLine.Parse).SelectMany(l => Enumerable.Range(0, l!.FieldCount).Select(l.Text)), Has.None.EqualTo(Name));
+    // A line of each type that carries a name, with the name where the network log puts it.
+    private static IEnumerable<TestCaseData> LinesWithNames()
+    {
+        TestCaseData Case(string type, string line) => new TestCaseData(line).SetArgDisplayNames(type);
+        yield return Case("02", Primary(1, Player1));
+        yield return Case("03", Player(1, Player1, 24, Vector2.Zero));
+        yield return Case("04", Removed(1, Player1, 24));
+        yield return Case("20", Cast(1, Boss, 0x7B55, 5f));
+        yield return Case("21", Hit(1, Boss, 0x7B55, Player1));
+        yield return Case("22", Hit(1, Boss, 0x7B55, Player1, aoe: true));
+        yield return Case("23", Line(23, 1, 8, (2, Hex(Player1)), (3, Name), (4, "DF"), (5, "Action"), (6, "Cancelled")));
+        yield return Case("24", Line(24, 1, 31, (2, Hex(Player1)), (3, Name), (4, "DoT"), (5, "0"), (6, "1234"), (17, Hex(Boss)), (18, Name)));
+        yield return Case("25", Death(1, Player1, Boss));
+        yield return Case("26", Gains(1, 0xDC7, 27f, ActorIds.None, Player1));
+        yield return Case("27", Line(27, 1, 11, (2, Hex(Player1)), (3, Name), (6, "017C")));
+        yield return Case("30", Loses(1, 0xDC7, ActorIds.None, Player1));
+        yield return Case("34", NameToggle(1, Boss, true));
+        yield return Case("35", Line(35, 1, 13, (2, Hex(Player1)), (3, Name), (4, Hex(Boss)), (5, Name), (8, "0054")));
+        yield return Case("37", EffectResult(1, Player1, 0x1A2B, 1000, Vector2.Zero));
+        yield return Case("38", StatusList(1, Player1, 1000, Vector2.Zero));
+        yield return Case("39", UpdateHp(1, Player1, 1000, Vector2.Zero));
+        yield return Case("261", Memory(1, "Add", Player1, ("Name", Name), ("PosX", "1.0")));
+    }
+
+    [TestCaseSource(nameof(LinesWithNames))]
+    public void EveryNameFieldIsBlanked(string text)
+    {
+        var line = ActLine.Parse(text)!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text.Split('|'), Has.Some.EqualTo(Name));
+            Assert.That(Enumerable.Range(0, line.FieldCount).Select(line.Text), Has.None.EqualTo(Name));
+        });
     }
 
     [Test]

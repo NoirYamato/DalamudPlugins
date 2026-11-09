@@ -115,6 +115,8 @@ splits out the TOP pulls and checks NoirMech's TOP values marked UNVERIFIED agai
 is skipped. From Git Bash, after a build:
 `dotnet test tests/AnoMech.Tests --no-build --filter Name=TopUnverifiedValues -- 'TestRunParameters.Parameter(name="PullLogs", value="<folder>")'`.
 It takes seconds and writes `pull-logs/top-unverified.txt` in the test run's output folder (`bin/`, ignored by git).
+It reads the logs where they are, the one ACT is still writing included, so ACT can stay open; never copy the logs
+anywhere, since they hold other players' names.
 - Each value prints its constant (file:line, found by the line's text), the sim's value, the measured values with
   their count and spread, and a verdict: matches, differs, inconclusive or not in these logs. Constants and event
   times (from the scenario's `world.Events.Add` lines) are read from the code of the checkout the tests were built

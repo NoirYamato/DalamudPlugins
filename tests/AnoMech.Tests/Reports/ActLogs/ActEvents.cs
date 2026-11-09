@@ -23,10 +23,11 @@ internal readonly record struct ActCastAt(DateTimeOffset Time, uint Source, uint
 }
 
 // One target of an ability; an ability that hits nobody logs one line with no target. Rotation is the direction the
-// ability went off in, from the effect packet, where a newer plugin logs it.
+// ability went off in, from the effect packet, where a newer plugin logs it. Sequence ties the hit to the effect result
+// (37) that lands its damage a moment later.
 internal readonly record struct ActHit(
     DateTimeOffset Time, uint Source, uint Action, uint Target, Vector2? TargetPosition, float? TargetHeading,
-    float? Rotation, int TargetIndex, int TargetCount)
+    float? Rotation, int TargetIndex, int TargetCount, uint? Sequence)
 {
     private const int FieldsWithRotation = 55;
 
@@ -36,7 +37,7 @@ internal readonly record struct ActHit(
         => line.Type is ActLineType.Ability or ActLineType.AoeAbility && line.Hex(2) is { } source && line.Hex(4) is { } action
             ? new ActHit(line.Time, source, action, line.Hex(6) ?? ActorIds.None, line.Point(30), line.Float(33),
                          line.FieldCount >= FieldsWithRotation && line.Hex(line.FieldCount - 2) is { } raw ? Heading(raw) : null,
-                         line.Int(45) ?? 0, line.Int(46) ?? 0)
+                         line.Int(45) ?? 0, line.Int(46) ?? 0, line.Hex(44))
             : null;
 
     // The packet's rotation spreads -pi..pi over 0..0xFFFF.
@@ -49,6 +50,21 @@ internal readonly record struct ActStatus(DateTimeOffset Time, bool Gained, uint
         => line.Type is ActLineType.GainsEffect or ActLineType.LosesEffect && line.Hex(2) is { } status && line.Hex(7) is { } target
             ? new ActStatus(line.Time, line.Type == ActLineType.GainsEffect, status, line.Float(4) ?? 0f, line.Hex(5) ?? ActorIds.None, target)
             : null;
+}
+
+// An actor's hit points: from an effect result (37), which names the sequence of the hit it lands, a status list (38) or
+// an update (39). A death shows here as 0 about 2 s before its death line.
+internal readonly record struct ActHp(DateTimeOffset Time, uint Actor, int Hp, uint? Sequence)
+{
+    public static ActHp? From(ActLine line)
+        => line.Hex(2) is not { } actor ? null
+            : line.Type switch
+            {
+                ActLineType.EffectResult when line.Int(5) is { } hp => new ActHp(line.Time, actor, hp, line.Hex(4)),
+                ActLineType.StatusList when line.Int(5) is { } hp => new ActHp(line.Time, actor, hp, null),
+                ActLineType.UpdateHp when line.Int(4) is { } hp => new ActHp(line.Time, actor, hp, null),
+                _ => null,
+            };
 }
 
 internal readonly record struct ActDeath(DateTimeOffset Time, uint Target, uint Source)

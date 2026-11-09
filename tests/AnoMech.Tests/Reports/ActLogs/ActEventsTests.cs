@@ -27,6 +27,10 @@ public class ActEventsTests
     }
 
     [Test]
+    public void AHitReadsTheSequenceItsEffectResultNames()
+        => Assert.That(ActHit.From(Parse(Hit(3, Helper, 0x7B63, Player1, sequence: 0x1A2B, aoe: true)))!.Value.Sequence, Is.EqualTo(0x1A2Bu));
+
+    [Test]
     public void AHitOnNobodyHitsNobody()
         => Assert.That(ActHit.From(Parse(Hit(3, Helper, 0x7B80, ActorIds.None)))!.Value.HitSomeone, Is.False);
 
@@ -60,13 +64,37 @@ public class ActEventsTests
                        Is.EqualTo(new ActMove(Origin.AddSeconds(5), Helper, new Vector2(88.89f, 105.76f), 0.15f, true)));
 
     [Test]
+    public void AMoveReadsWhereTheServerMovedTheActor()
+        => Assert.That(ActMove.From(Parse(Moved(5, Boss, new Vector2(100f, 93.5f), -1.57f))),
+                       Is.EqualTo(new ActMove(Origin.AddSeconds(5), Boss, new Vector2(100f, 93.5f), -1.57f, false)));
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void ATargetabilityToggleReadsWhetherTheActorCanBeTargeted(bool shown)
+        => Assert.That(ActTargetable.From(Parse(NameToggle(6, Boss, shown))), Is.EqualTo(new ActTargetable(Origin.AddSeconds(6), Boss, shown)));
+
+    [Test]
     public void ACombatantReadsItsJobOrItsBNpcBase()
     {
         var player = ActCombatant.From(Parse(Player(0, Player1, 24, new Vector2(100f, 110f))))!.Value;
-        var enemy = ActCombatant.From(Parse(Enemy(0, Boss, 15717, new Vector2(100f, 100f), 0f)))!.Value;
+        var enemy = ActCombatant.From(Parse(Enemy(0, Boss, 15717, new Vector2(100f, 100f), 1.25f)))!.Value;
 
-        Assert.That((player.Job, enemy.BNpcBase, enemy.Position), Is.EqualTo((24u, 15717u, (Vector2?)new Vector2(100f, 100f))));
+        Assert.That((player.Job, enemy.BNpcBase, enemy.Position, enemy.Heading),
+                    Is.EqualTo((24u, 15717u, (Vector2?)new Vector2(100f, 100f), (float?)1.25f)));
     }
+
+    [Test]
+    public void HitPointsReadFromAnEffectResultAStatusListOrAnUpdate()
+        => Assert.That(new[]
+                       {
+                           EffectResult(1, Player1, 0x1A2B, 0, Vector2.Zero), StatusList(2, Player1, 5000, Vector2.Zero),
+                           UpdateHp(3, Player1, 6000, Vector2.Zero),
+                       }.Select(l => ActHp.From(Parse(l))),
+                       Is.EqualTo(new ActHp?[]
+                       {
+                           new ActHp(Origin.AddSeconds(1), Player1, 0, 0x1A2B), new ActHp(Origin.AddSeconds(2), Player1, 5000, null),
+                           new ActHp(Origin.AddSeconds(3), Player1, 6000, null),
+                       }));
 
     [Test]
     public void APlayedTimelineReadsFromItsActorControl()

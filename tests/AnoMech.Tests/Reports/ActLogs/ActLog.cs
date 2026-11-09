@@ -17,6 +17,11 @@ internal sealed class ActPull
 
     public bool Cleared => DirectorCodes.Contains(ActLog.DirectorClear);
 
+    // A combat segment where no enemy cast or used an ability is no pull: the plugin's own runs open such segments,
+    // since their enemies' casts never cross the network.
+    public bool EnemyActed
+        => Lines.Any(l => l.Type is ActLineType.StartsCasting or ActLineType.Ability or ActLineType.AoeAbility && ActorIds.IsEnemy(l.Hex(2)));
+
     public override string ToString() => $"{File} pull {Number}";
 }
 
@@ -55,7 +60,15 @@ internal sealed class ActLog
         this.territory = territory;
     }
 
-    public static IEnumerable<ActPull> Pulls(string path, uint territory) => Pulls(path, () => File.ReadLines(path), territory);
+    public static IEnumerable<ActPull> Pulls(string path, uint territory) => Pulls(path, () => ReadShared(path), territory);
+
+    // ACT holds its current log open for writing, so the log is opened shared and read to the end written so far.
+    private static IEnumerable<string> ReadShared(string path)
+    {
+        using var reader = new StreamReader(new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete));
+        while (reader.ReadLine() is { } line)
+            yield return line;
+    }
 
     // Lines is read twice: once to find whether the log has 260 lines at all.
     public static IEnumerable<ActPull> Pulls(string name, Func<IEnumerable<string>> lines, uint territory)

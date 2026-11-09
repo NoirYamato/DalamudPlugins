@@ -53,6 +53,15 @@ public class ActPositionsTests
     }
 
     [Test]
+    public void AnEffectResultAndAnUpdatePlaceTheirActor()
+    {
+        var positions = Track(EffectResult(1, Player1, 0x1A2B, 1000, new Vector2(90f, 95f)), UpdateHp(2, Player1, 1000, new Vector2(100f, 95f)));
+
+        Assert.That(new[] { 1.0, 2.0 }.Select(s => positions.At(Player1, Origin.AddSeconds(s))!.Value.Position),
+                    Is.EqualTo(new[] { new Vector2(90f, 95f), new Vector2(100f, 95f) }));
+    }
+
+    [Test]
     public void AHitOnNobodyPlacesNobody()
         => Assert.That(Track(Hit(1, Helper, 0x7B80, ActorIds.None, targetAt: new Vector2(90f, 95f))).Knows(ActorIds.None), Is.False);
 
