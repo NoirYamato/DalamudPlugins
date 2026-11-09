@@ -3,8 +3,9 @@ using static AnoMech.Core.Game.Party.PartyRole;
 
 namespace AnoMech.Tests;
 
-// Retry and Drill: a local run's roll played again, with the seed it played, the seat it gave the player and its
-// scenario's settings as they were. PracticeRun.Clean ends clean about 2s in; PracticeRun.PlayerDies freezes at 6s.
+// Retry and Drill: a local run's roll played again, with the seed it played, the seat it gave the player, its strat and
+// waymarks and its scenario's settings as they were. PracticeRun.Clean ends clean about 2s in; PracticeRun.PlayerDies
+// freezes at 6s.
 public class RollReplayTests
 {
     public sealed class Knobs
@@ -13,7 +14,7 @@ public class RollReplayTests
     }
 
     [Test]
-    public void RetryPlaysTheLastRunsSeedSeatAndSettingsAgain()
+    public void RetryPlaysTheLastRunAgainAsItWasSetUp()
     {
         var knobs = new Knobs { Value = 1 };
         var seen = new List<int>();
@@ -22,13 +23,14 @@ public class RollReplayTests
             seen.Add(knobs.Value);
             PracticeRun.Clean(world);
         }, knobs);
-        run.StartInZone(run.Params(seat: MeleeDpsB));
+        run.StartInZone(run.Params(seat: MeleeDpsB, strat: 1, waymark: 1));
         run.Until(() => run.Game.Status == SessionStatus.Succeeded);
         knobs.Value = 2;
 
         run.Game.StartScenario(run.Practice.Rolls.Replay());
         run.Until(() => run.Started.Count == 2);
 
+        Assert.That(run.Started[0], Is.EqualTo((run.Started[0].Seed, MeleeDpsB, (int?)1, 1)));
         Assert.That(run.Started[1], Is.EqualTo(run.Started[0]));
         Assert.That(seen, Is.EqualTo(new[] { 1, 1 }));
         Assert.That(knobs.Value, Is.EqualTo(1));
@@ -169,11 +171,7 @@ public class RollReplayTests
 
         run.Game.Reset();
         run.Until(() => run.Game.ActiveScenario is null);
-        for (var frame = 0; frame < 600; frame++) run.Fake.Frame(ScenarioRun.FrameSeconds, delta =>
-        {
-            run.Game.Tick(delta);
-            run.Practice.Rolls.Tick();
-        });
+        run.For(10f);
 
         Assert.That(run.Started, Has.Count.EqualTo(1));
     }
@@ -190,5 +188,33 @@ public class RollReplayTests
         run.Until(() => run.Started.Count == 2);
 
         Assert.That(run.Started[1], Is.EqualTo(run.Started[0]));
+    }
+
+    // A session's run plays on the host for everyone: a host left with Drill on plays neither that run nor its last local
+    // one again, whether the session's run froze or godmode kept it going to its end.
+    [TestCase(false)]
+    [TestCase(true)]
+    public void DrillLeavesAMultiplayerRunAlone(bool godMode)
+    {
+        var runs = 0;
+        using var run = new PracticeRun(world =>
+        {
+            if (++runs == 1) PracticeRun.Clean(world);
+            else PracticeRun.PlayerDies(world);
+        });
+        run.Game.GodMode = godMode;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Status == SessionStatus.Succeeded);
+        run.Game.Leave();
+        run.Until(() => run.Game.Zone is null);
+        run.Practice.Rolls.Drill = true;
+
+        run.Game.ZoneIn(run.Scenario.Phase.Zone, SessionMode.Host);
+        run.Game.StartScenario(run.Params());
+        run.Until(() => godMode ? run.Game.Status == SessionStatus.CompletedWithMistake : run.Game.Paused);
+        run.For(10f);
+
+        Assert.That(run.Practice.Rolls.Last, Is.Not.Null);
+        Assert.That(run.Started, Has.Count.EqualTo(2));
     }
 }

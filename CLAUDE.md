@@ -59,19 +59,21 @@ NoirMech change:
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
-  (it keeps a replayed roll off the streak and lets Drill make the restart), Retry in `RunController` and `Plugin`
-  (`/noirmech retry`, and the Drill tick in `OnFrameworkUpdate`). With them, the fix for Auto-restart replaying one
-  roll: upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to
-  seat the party before a zone-in;
+  (it keeps a replayed roll off the streak and lets Drill make the restart); upstream's `RunController` is `partial`,
+  with Retry in `RunController.Retry.cs` and a `checkSettings` flag on its `StartRefusal`; in upstream's `Plugin`,
+  `/noirmech retry` and the Drill tick in `OnFrameworkUpdate`. With them, the fix for Auto-restart replaying one roll:
+  upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to seat the
+  party before a zone-in;
 - the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs`, `Plugin`'s watch of the installed
   plugins, and a first check in `RunController.StartRefusal` and in `ZoneControl.StartBlockedReason`;
 - the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
-  `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats` and `RunController.Seats`;
+  `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats`, and `RunController.Rotate.cs`, whose `PartyFor`
+  upstream's `RunController.Start` takes its party from;
 - the main window is `partial`: what Retry, Drill, the AnoMech warning and the kept setup add sits in
   `MainWindow.RunControls.cs` and `MainWindow.Setup.cs`, with one-line hooks in upstream's `MainWindow.cs` (the older
   pause button sits in `MainWindow.cs` itself);
 - test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
-  `TimelineScenario` takes settings overrides, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
+  `TimelineScenario` takes settings overrides and conflicts, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -165,11 +167,15 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   its scenario's overrides as `ScenarioSettingsSync` serialized them as it started. `Replay()` puts those settings
   back on the scenario, where its panel shows them, and returns a copy of `AsPlayed` that `RunStarted` hands back by
   reference, which makes the run a replay (`Replaying`). A fresh roll after a replay starts from its `Fresh`.
-- Retry: "Retry this roll" beside Start (or Stop and Pause during a run), `/noirmech retry` and `/noir retry`.
-  `RunController.RetryRefusal` refuses, with a chat line from the command and as the button's tooltip, in a
-  multiplayer session or stay, with no local run yet this session, in another zone's stay, and wherever Start would:
-  it asks `StartRefusal` with the last run's selection. It starts through `EnterAndStart` as Start does, zoning in
-  from the inn and waiting out a settle, and the window first selects the retried scenario.
+- Retry: "Retry this roll" beside Start (or Stop and Pause during a run), `/noirmech retry` and `/noir retry`, in
+  `RunController.Retry.cs`. `RetryRefusal` refuses, with a chat line from the command and as the button's tooltip:
+  first while AnoMech is loaded, then in a multiplayer session or stay, with no local run yet this session, in another
+  zone's stay, and wherever Start would, asking `StartRefusal` with the last run's selection.
+- Retry puts the run's settings back before it starts, so a conflict in the live settings refuses it only when they
+  are the run's own (`StartRefusal`'s `checkSettings`). `Retry` asks `StartRefusal` again once `Replay()` has put them
+  back, so a conflict they don't fix (the P6 Gauntlet's module check) still refuses before anything zones in, and
+  leaves the run's settings in place. It starts through `EnterAndStart` as Start does, zoning in from the inn and
+  waiting out a settle, and the window first selects the retried scenario.
 - Drill (beside Auto-restart, in every build; forced off in a session): a run in which anyone died plays its roll
   again once it freezes or, when godmode kept everyone up, once it ends; a clean run moves on to a fresh roll. The
   freeze is polled (`Rolls.Tick`, after `Game.Tick` in `Plugin.OnFrameworkUpdate`), so Drill ticked on during a
@@ -177,7 +183,9 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   run stopped before it froze isn't played again.
 - A replayed roll (Retry, or Drill's repeat) doesn't add to the streak; a death still resets it.
 - `PracticeLoopTests` and `RollReplayTests` play runs back to back on a `TimelineScenario`
-  (`tests/AnoMech.Tests/Support/PracticeRun.cs`).
+  (`tests/AnoMech.Tests/Support/PracticeRun.cs`), Drill in a host's stay included; `RunControllerRetryTests` covers
+  Retry's refusals and their chat lines. `ZoneControl.StartBlockedReason` can't pass headless (it reads "not logged
+  in"), so no test reaches Retry's second ask, after the settings are back.
 
 ## AnoMech alongside
 - `AnoMechPresence` decides from plain data (`InstalledPlugin(InternalName, IsLoaded)`) whether AnoMech is loaded.

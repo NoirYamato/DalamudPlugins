@@ -7,8 +7,8 @@ using AnoMech.Scenarios.Top;
 namespace AnoMech.Tests;
 
 // Runs one after another on one fake game with PracticeLoop watching, for what spans runs: the streak, Auto-restart,
-// Retry, Drill and the seat rotation. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed and
-// the seat it gave the player, in start order.
+// Retry, Drill and the seat rotation. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed,
+// the seat it gave the player and the strat and waymarks it was started with, in start order.
 internal sealed class PracticeRun : IDisposable
 {
     public FakeGame Fake { get; }
@@ -16,9 +16,10 @@ internal sealed class PracticeRun : IDisposable
     public PracticeLoop Practice { get; }
     public ChatLog Chat { get; }
     public TimelineScenario Scenario { get; }
-    public List<(int Seed, PartyRole Seat)> Started { get; } = [];
+    public List<(int Seed, PartyRole Seat, int? Strat, int Waymark)> Started { get; } = [];
 
-    public PracticeRun(Action<SimWorld> timeline, object? overrides = null, JobId job = JobId.Warrior)
+    public PracticeRun(Action<SimWorld> timeline, object? overrides = null, JobId job = JobId.Warrior,
+        Func<IReadOnlyList<string>>? conflicts = null)
     {
         Fake = FakeGame.Install();
         Fake.BattleCharas.Player.ClassJob = (byte)job;
@@ -31,13 +32,13 @@ internal sealed class PracticeRun : IDisposable
         DalamudServices.Install(nameof(Plugin.Game), Game);
         Practice = new PracticeLoop(Game);
         DalamudServices.Install(nameof(Plugin.Practice), Practice);
-        Game.RunStarted += (_, _) => Started.Add((Game.World.Rng.Seed, Game.World.Party.PlayerRole));
-        Scenario = new TimelineScenario(TopZone.P6, timeline, overrides: overrides);
+        Game.RunStarted += (p, _) => Started.Add((Game.World.Rng.Seed, Game.World.Party.PlayerRole, p.SelectedAi, p.SelectedWaymark));
+        Scenario = new TimelineScenario(TopZone.P6, timeline, overrides: overrides, conflicts: conflicts);
     }
 
     // A local run of the stand-in, every seat filled. No seat leaves the player's to their job, no seed draws a fresh one.
-    public RunScenarioParams Params(PartyRole? seat = null, int? seed = null)
-        => new(Scenario, new LocalPartyProvider { RoleOverride = seat }, null, 0, seed);
+    public RunScenarioParams Params(PartyRole? seat = null, int? seed = null, int? strat = null, int waymark = 0)
+        => new(Scenario, new LocalPartyProvider { RoleOverride = seat }, strat, waymark, seed);
 
     // A Start from inside the zone: the zone-in first, then the run on its own.
     public void StartInZone(RunScenarioParams p)
@@ -52,13 +53,21 @@ internal sealed class PracticeRun : IDisposable
         for (var elapsed = 0f; !done(); elapsed += ScenarioRun.FrameSeconds)
         {
             if (elapsed > maxSeconds) Assert.Fail($"still waiting after {maxSeconds} s; runs started: {Started.Count}");
-            Fake.Frame(ScenarioRun.FrameSeconds, delta =>
-            {
-                Game.Tick(delta);
-                Practice.Rolls.Tick();
-            });
+            Frame();
         }
     }
+
+    // `seconds` of frames, whatever happens in them.
+    public void For(float seconds)
+    {
+        for (var elapsed = 0f; elapsed < seconds; elapsed += ScenarioRun.FrameSeconds) Frame();
+    }
+
+    private void Frame() => Fake.Frame(ScenarioRun.FrameSeconds, delta =>
+    {
+        Game.Tick(delta);
+        Practice.Rolls.Tick();
+    });
 
     public void Dispose() => Game.Dispose();
 
