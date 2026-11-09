@@ -24,7 +24,7 @@ public class TopP6TankMitigationTests
 {
     private const float DiveAt = 2f, DiveLandsAt = 10f;
     private const float WildChargeAt = 6f, WildChargeKillsAt = 6.78f;
-    private const float AheadOfTheHit = 5f, InsideTheFourSeconds = 3f;
+    private const float AheadOfTheHit = 5f, InsideTheFourSeconds = 3f, OnTheDivesBarEnd = 2.4f;
 
     private static readonly PartyRole[] TheSix = [RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps];
 
@@ -58,19 +58,27 @@ public class TopP6TankMitigationTests
         Assert.That(run.Passed, run.ToString);
     }
 
-    // Rampart and one short cooldown: short of a buster, and of Wild Charge even inside the 4 s that Stem the Flow, Clarity
-    // of Corundum and Knight's Resolve add.
+    // A dark knight's adds nothing for 4 s, as the others' Stem the Flow, Clarity of Corundum and Knight's Resolve do.
+    private static uint ShortCooldown(JobId job) => job switch
+    {
+        JobId.Warrior => Bloodwhetting,
+        JobId.DarkKnight => TheBlackestNight,
+        JobId.Gunbreaker => HeartOfCorundum,
+        _ => HolySheltron,
+    };
+
+    // Rampart and the job's short cooldown: short of a buster once that cooldown's 4 s are over, or a dark knight's at
+    // any time, and of Wild Charge's front even inside the 4 s.
     private static IEnumerable<TestCaseData> RampartAndOneShortCooldown()
     {
-        (JobId Job, TopP6TankHit Hit, uint Short, float Before)[] cases =
+        (JobId Job, TopP6TankHit Hit, float Before)[] cases =
         [
-            (JobId.Warrior, CosmoDive1, ThrillOfBattle, AheadOfTheHit), (JobId.DarkKnight, CosmoDive1, TheBlackestNight, AheadOfTheHit),
-            (JobId.Gunbreaker, CosmoDive1, Camouflage, AheadOfTheHit), (JobId.Paladin, CosmoDive1, Bulwark, AheadOfTheHit),
-            (JobId.Warrior, WildCharge1, Bloodwhetting, InsideTheFourSeconds), (JobId.DarkKnight, WildCharge1, DarkMind, InsideTheFourSeconds),
-            (JobId.Gunbreaker, WildCharge1, HeartOfCorundum, InsideTheFourSeconds), (JobId.Paladin, WildCharge1, HolySheltron, InsideTheFourSeconds),
+            .. TankJobs.Select(job => (job, CosmoDive1, AheadOfTheHit)),
+            (JobId.DarkKnight, CosmoDive1, OnTheDivesBarEnd),
+            .. TankJobs.Select(job => (job, WildCharge1, InsideTheFourSeconds)),
         ];
-        return cases.Select(c => new TestCaseData(c.Job, c.Hit, new[] { Rampart, c.Short }, c.Before)
-            .SetName($"{{m}}({c.Job}, {(IsCosmoDive(c.Hit) ? "Cosmo Dive" : "Wild Charge")}, {Describe([Rampart, c.Short])}, {c.Before:0} s ahead)"));
+        return cases.Select(c => new TestCaseData(c.Job, c.Hit, new[] { Rampart, ShortCooldown(c.Job) }, c.Before)
+            .SetName($"{{m}}({c.Job}, {(IsCosmoDive(c.Hit) ? "Cosmo Dive" : "Wild Charge")}, {Describe([Rampart, ShortCooldown(c.Job)])}, {c.Before:0.#} s ahead)"));
     }
 
     [TestCaseSource(nameof(RampartAndOneShortCooldown))]
@@ -80,6 +88,17 @@ public class TopP6TankMitigationTests
 
         Assert.That(run.Deaths.Select(d => (d.Role, d.Cause)), Is.EqualTo(new[] { (MainTank, Cause(hit)) }), run.ToString);
         Assert.That(run.Deaths[0].Time, Is.EqualTo(IsCosmoDive(hit) ? DiveLandsAt : WildChargeKillsAt).Within(TimelineRun.FrameLate), run.ToString);
+    }
+
+    // Cosmo Dive's bar ends 2.4 s before its busters, inside the 4 s a warrior's, gunbreaker's or paladin's short cooldown
+    // adds: pressed then, or as late as a human suite's tank reacts, it carries Rampart through the buster.
+    [Test]
+    public void AShortCooldownOnTheDivesBarEndCarriesRampartThroughTheBuster(
+        [Values(JobId.Warrior, JobId.Gunbreaker, JobId.Paladin)] JobId job, [Values(0f, 1f)] float late)
+    {
+        var run = Play(CosmoDive1, job, [Rampart, ShortCooldown(job)], OnTheDivesBarEnd - late);
+
+        Assert.That(run.Passed, run.ToString);
     }
 
     [Test]

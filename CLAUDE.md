@@ -403,9 +403,11 @@ multiplayer.
   (`P6Rules`, UNVERIFIED: the sim has no damage data). LPDU's TOP mitigation sheet gives each tank a personal set at each
   hit, and every one reaches at least 0.388 and 0.49 (an invuln 1), while Rampart and one short cooldown reaches 0.28 to
   0.36, or up to 0.42 inside the 4s of Stem the Flow, Clarity of Corundum or Knight's Resolve, which passes a buster
-  only. Cosmo Dive decides it in `LandCosmoDive` through `DamageCheck.LethalCause`, last of its `Verdicts`, so a tank in
-  the wrong spot hears of its spot; Wild Charge through its front hit's `TankBuster.MinMit`. Limit breaks count whatever
-  the setting says, as the settings' Limit breaks tooltip tells.
+  only. Cosmo Dive's bar ends 2.4s before its busters, inside those 4s, so a warrior, gunbreaker or paladin pressing
+  Rampart and its short cooldown as the bar ends lives through its buster; only a dark knight, or a short cooldown
+  pressed over 4s ahead, needs more there. Cosmo Dive decides it in `LandCosmoDive` through `DamageCheck.LethalCause`,
+  last of its `Verdicts`, so a tank in the wrong spot hears of its spot; Wild Charge through its front hit's
+  `TankBuster.MinMit`. Limit breaks count whatever the setting says, as the settings' Limit breaks tooltip tells.
 - Every other mistake also kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild
   Charge kill through their actions. The rest is decided in code from where everyone stands as the hits land, those
   actions only showing them: Flash Gale (a non-tank target, or within 5y of one), Cosmo Dive (a non-tank buster
@@ -456,8 +458,9 @@ multiplayer.
   `TopP6GauntletMagicNumberLpduHumanTests` for the Magic Number part. The human suites press the seat's own limit
   breaks at the guides' cues and, with "Resolve your own actions" on, a human tank's own LPDU set before its Cosmo Dive
   or Wild Charge (`TopP6HumanMitigation`). Change the tank mitigation only with `TopP6TankMitigationTests` green: each
-  job's sets, Rampart and one short cooldown, an invuln, the setting or the module off, godmode and a bot tank. Change
-  the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each seat with each of its role's jobs, pressed
-  right, late, never, twice, at another seat's duty, at the wrong level, cut off, with the rows and with a job that
-  can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere while another seat's limit break casts, as
-  the client greys the human's out. The soak filter is `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
+  job's sets, Rampart and its short cooldown pressed early and as Cosmo Dive's bar ends, an invuln, the setting or the
+  module off, godmode and a bot tank. Change the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each
+  seat with each of its role's jobs, pressed right, late, never, twice, at another seat's duty, at the wrong level, cut
+  off, with the rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere while
+  another seat's limit break casts, as the client greys the human's out. The soak filter is
+  `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
