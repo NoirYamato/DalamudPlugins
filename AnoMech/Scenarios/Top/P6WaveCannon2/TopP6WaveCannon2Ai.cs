@@ -10,7 +10,6 @@ namespace AnoMech.Scenarios.Top.P6WaveCannon2;
 public sealed class TopP6WaveCannon2Ai : IScenarioAi<TopP6WaveCannon2State>
 {
     public string Name => "Standard";
-    public string? Group => "NA";
 
     private TopP6WaveCannon2State state = null!;
 

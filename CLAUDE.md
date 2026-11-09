@@ -34,18 +34,25 @@ NoirMech change:
   it are the default pick; upstream's strat is index 1 and gains `Group => "NA"`, and its scenario tests pass
   `NaStrat = 1`;
 - TOP P6 (below), in upstream's `TopZone.P6` phase:
-  - the EU `[LPDU] Light PF` strat on upstream's Exasquares/WC2 (`TopP6WaveCannon2LpduAi`), listed first in
-    `AiStrats` so EU and it are the default pick; upstream's strat is index 1 and gains `Group => "NA"`, and its
-    scenario tests pass `NaStrat = 1`;
-  - four scenarios with `[LPDU] Light PF` strats, registered around upstream's in `ScenarioCatalog`:
-    Exasquares/Dive, Exaflares/WC1, Exaflares/Dive and Cosmo Meteor;
+  - the P6 Gauntlet (`Scenarios/Top/P6Gauntlet/`), all of P6 as one scenario with an `[LPDU] Light PF` strat. It
+    takes the place of every P6 entry in `ScenarioCatalog`, upstream's Exasquares/WC2 included: upstream's
+    `P6WaveCannon2/` files are as v0.5.1.0 has them, off the menu, and their tests still run because
+    `tests/AnoMech.Tests/Support/ScenarioRun.cs` constructs a scenario the catalog lacks;
   - `TopP6Constants.cs` and `TopP6Actions.cs` (P6 ids and actions, kept out of upstream's `TopConstants.cs` and
-    `TopActions.cs`), `TopP6Mechanics.cs` (Alpha Omega and the attacks the blocks play), `TopP6LpduAi.cs` (what
-    the strats share) and `TopP6UnlimitedWaveCannonRows.cs` (settings rows);
+    `TopActions.cs`), `TopP6Mechanics.cs` (Alpha Omega and the attacks it plays), `TopP6LimitBreaks.cs` (a run's
+    limit breaks and their gauge), `TopP6LpduAi.cs` (strat pieces) and `TopP6UnlimitedWaveCannonRows.cs` (settings
+    rows);
   - new Core pieces: `SpawnedHelperPool`, `HelperCast`, `ExaflareLane`, `BaitedPuddles` and `Verdicts` in
-    `Core/Game/`, and `EnemyActionTimes` in `Core/EnemyActions/`;
+    `Core/Game/`, `PartyLimitBreakCast` in `Core/Game/Party/`, and `EnemyActionTimes` in `Core/EnemyActions/`;
+  - one check in upstream's `RunController.StartRefusal`: a local Start is refused, with the reason, while the
+    selected scenario reports `SettingsConflicts`, as the host's Start already is (the Gauntlet's module check is the
+    only one a local run can report);
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
+- the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
+  release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
+  `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
+  `IsPlayerAction` change are left out;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
@@ -272,50 +279,153 @@ Upstream's `Scenarios/Top/P5Omega/` with NoirMech's EU strat in front; tests pas
 - Change bot movement only with `TopP5OmegaLpduHumanTests` and `TopP5OmegaLpduMarginTests` green.
 
 ## TOP P6
-`Scenarios/Top/P6*/` in upstream's `TopZone.P6` phase, one block per part of the fight, each on its own clock with
-the first boss cast at 1.9s, as upstream's WC2 has it. The LPDU strats follow the raidplan mh3bX4KJ9d8rT9nk.
-Magic Number and the enrage aren't played; the four new blocks are party-only.
-- Exasquares/Dive (`P6CosmoDive1`, t = abs - 1159.9): Cosmo Memory 1.9, autos 12.0, Cosmo Arrow 16.3, Cosmo Dive
-  31.4 (hits 39.4), autos 46.2; ends about 52.3.
-- Exaflares/WC1 (`P6WaveCannon1`, abs - 1208.5): Unlimited Wave Cannon 1.9 (first explosion 13.9, puddles 11.9 to
-  21.4), Wave Cannon 24.5, lasers 27.5 / 29.5, Wild Charge 35.8, autos 39.9.
-- Exasquares/WC2 (`P6WaveCannon2`, abs - 1250.8): upstream's, solo and multiplayer kept.
-- Exaflares/Dive (`P6CosmoDive2`, abs - 1284.8): WC1's Unlimited Wave Cannon, Cosmo Dive 19.6 (hits 27.6), autos 34.4.
-- Cosmo Meteor (`P6CosmoMeteor`, abs - 1324.7): cast 1.9, baits 6.9, adds 9.3 (shown 10.1), spreads 12.0 / 13.0 /
-  18.0 / 19.0, flare markers 21.9, flares and stack 30.0; ends about 34.7.
-- `TopP6AlphaOmega` spawns Alpha Omega and a pool of 36 invisible 9020 helpers; every helper cast goes through its
-  `CastFromHelper`. Once upstream's zone owns a helper pool and `SimEnemy.CastFromHelper`, that method's body
-  becomes `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in
-  `TopP6Constants` and stay within 36 busy helpers (`TopP6HelperBudgetTests`; Cosmo Meteor's scenario tests check
-  its own casts).
+`Scenarios/Top/P6Gauntlet/` in upstream's `TopZone.P6` phase: all of P6 as one scenario, "P6 Gauntlet", from 1.9s
+before Cosmo Memory's cast (Alpha Omega already targetable) through Run: ****mi*, the enrage. One strat, EU
+`[LPDU] Light PF` (`TopP6GauntletLpduAi`), following the raidplan mh3bX4KJ9d8rT9nk; party-only, no solo or
+multiplayer.
+- One clock, G = abs - 1159.9, played in parts (`TopP6GauntletParts`), each on its own clock from its start with its
+  first boss cast 1.9s in: Cosmo Memory 0, Exaflares 1 48.6, Cosmo Arrow 2 90.9, Exaflares 2 124.9, Cosmo Meteor
+  164.8, Magic Number 199.9. In G:
+  - Cosmo Memory 1.9 (decides 7.6), autos 12.0, Cosmo Arrow 16.3, Cosmo Dive 31.4 (hits 39.4), autos 46.2;
+  - Unlimited Wave Cannon 50.5 (first explosion 62.5, puddles 60.5 to 70.0), Wave Cannon 73.1 (lasers 76.1 / 78.1,
+    Wild Charge 84.4), autos 88.5;
+  - Cosmo Arrow 92.8, Wave Cannon 107.0 (lasers 110.0 / 112.0, Wild Charge 118.3), autos 122.4;
+  - Unlimited Wave Cannon 126.8 (first explosion 138.8, puddles 136.8 to 146.3), Cosmo Dive 144.5 (its bar ends
+    149.8, hits 152.5), autos 159.3;
+  - Cosmo Meteor 166.7: baits 171.7, adds shown 174.9, spreads 176.8 / 177.8 / 182.8 / 183.8, flare markers 186.7,
+    the comets' enrage 187.0, flares and stack 194.8, the meteors' enrage 197.1;
+  - Magic Number 201.8 (decides 206.5, its mark 208.1 to 214.1) and 217.9 (222.6, 224.2 to 230.2); Run: ****mi*
+    232.0, its bar ending 247.7 and its damage at 262.0.
+- `TopP6AlphaOmega` (`TopP6Mechanics.cs`) is the phase's one Alpha Omega and plays every attack; Cosmo Memory's
+  statuses and the gauge come once. The Cosmo Arrow 2 part is upstream's Exasquares/WC2 rebuilt from its
+  `CosmoArrow` and `WaveCannon` steps.
+- `TopP6AlphaOmega` spawns a pool of 36 invisible 9020 helpers; every helper cast goes through its `CastFromHelper`.
+  Once upstream's zone owns a helper pool and `SimEnemy.CastFromHelper`, that method's body becomes
+  `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in `TopP6Constants` and
+  stay within 36 busy helpers (`TopP6HelperBudgetTests`, the whole Gauntlet included).
+- Start from (default: the whole phase) picks the first part. A later start spawns Alpha Omega, puts the party, the
+  human too, on the autos' spots, leaves Cosmo Memory's statuses as the run so far would (Spark of Dynamis on the
+  seats whose limit break the plan pressed before, Brilliant Dynamis on the rest, both from the first frame, with the
+  gauge, so a press in the first second gives it back; Code: ****mi* on Alpha Omega a second in), sets the gauge the
+  rebuild has made by then, and plays the part on its usual clock. Tests pin a part range with
+  the internal `Parts` override. The other settings force both Cosmo Arrows, both Unlimited Wave Cannons, each
+  seat's flare and the human's own limit break row; only the row of the local player's role shows.
+- `TopP6GauntletLimitBreakPlan` says who presses each of the phase's ten limit breaks 3, from the eight seats' jobs
+  (the bots' and the human's client job) and the human's rows:
+  - tanks by WAR > DRK > PLD > GNB: the higher takes Cosmo Memory and Magic Number 1, the other Magic Number 2;
+  - melee by SAM > DRG > MNK > VPR > RPR > NIN (VPR's place UNVERIFIED): the higher, the enrage holder, goes first
+    after Cosmo Dive 2's bar and takes the enrage; the other goes second, from the middle, while the MT steps back;
+  - H1 Magic Number 1, H2 Magic Number 2; R1 the physical ranged LB3 through both meteors, R2 the caster LB3 on the
+    comets;
+  - a tie goes to the human (a DRG player in M2, or a MNK in M1, is the enrage holder), between two bots to the
+    earlier seat. A row (tank, melee, healer; Auto by default) forces the human's share, and the pair's other seat
+    takes the rest; every split keeps the two dive melees, the two Magic Number tanks and the two Magic Number
+    healers on different players, since each player's Brilliant Dynamis gives the gauge back once;
+  - a seat whose job can't press its limit break (through the Role setting) counts as its bot's job: the run presses
+    its duties at the bot's times and holds the human to none of them;
+  - the start's chat line names the human's duties in the parts the run plays.
+- The plan is the one piece of strat the scenario reads, for three things: the human's melee windows, the chat line
+  and, on a later start, which seats already carry Spark of Dynamis (`SparkedBefore`). The strat reads it for its
+  presses and the second melee's walk to the middle. Nothing else in the scenario or the State branches on the strat.
+- `TopP6LimitBreaks` holds one run's limit breaks: every press, bot or human, and the gauge, which it owns and sends
+  to the HUD (`LimitBreakGauge.Spend` empties it whatever the level).
+  - The gauge holds 3 bars at Cosmo Memory's cast, rebuilds evenly from Cosmo Memory's bar end to full by Cosmo Dive
+    2's (UNVERIFIED), and nothing else fills it. Cosmo Memory's hit gives everyone Brilliant Dynamis (3446): a
+    player's first limit break, any level, resolving with it gives back what it spent and becomes Spark of Dynamis
+    (3448); death takes both. Every duty after Cosmo Memory's but the enrage's refills the gauge, so a wasted press
+    (twice, at another seat's duty, or at the wrong level) leaves a later duty without one, and its mechanic kills.
+  - The human's presses come through `IUserActions.Acted`, outside `Game.Tick` and before the client's module spends
+    the gauge, so they settle on the next `Tick`, or sooner when an event asks; every mechanic that decides or stops
+    listening at a deadline settles them first (`CatchUp`), so a press heard just before still counts. A press the
+    client reports aimed at its "current target" stand-in (0xE0000000; UNVERIFIED that one does) is read as aimed at
+    the player's target (`Plugin.TargetManager`). Each run makes its own service, hearing that run's
+    `Natives.UserActions`.
+  - Bots press only their own duties, at the plan's times: Cosmo Memory 4.9, the first melee 150.2, the second from
+    the middle once the first's has landed (156.9 at the earliest, at the latest as the first's window closes at
+    161.0, then waiting out one still casting), R2 178.3, R1 188.8 after turning south, Magic Number 1's tank 202.5
+    and healer 208.8, Magic Number 2's 218.6 and 224.9, the enrage holder 233.0. They cast for real through
+    `PartyLimitBreakCast`, whatever "Require tank mitigation" says: the tank instant, the healer 2s, the rest 4.5s,
+    0x47 as the cast starts and the resolve as it lands, aimed at Alpha Omega when the limit break takes a target. A
+    press waits while another limit break casts or the gauge isn't full and gives up once its mechanic has gone off.
+    A bot stands still through its cast; the lock after it isn't played.
+- The checks count whoever pressed; only the melee rule is the human's alone. The tank, mark and Cosmo Meteor hit
+  checks are dealt through `Verdicts`, the adds' and Run: ****mi*'s enrages through `SimParty.WipeAllPlayers` and the
+  melee rule through `SimPlayer.Die`; godmode reports each player once per hit, and when a waiting press found the
+  gauge short the reason says so.
+  - Cosmo Memory and both Magic Numbers kill everyone without a tank LB3 status (196, 863, 864, 1931) up 1.0s
+    (UNVERIFIED) before the hit decides. Not `Severity.MinMit`, which checks only a human, and only with "Require tank
+    mitigation" on.
+  - Magic Number's mark (3532) lands on everyone 1.3s after the hit and runs 6s (both UNVERIFIED). `TopP6AlphaOmega`
+    holds who carries it, since a status that runs out vanishes silently: a healer LB3 resolving while it is on lifts
+    it from all, and as it runs out it kills whoever still carries it.
+  - The comets: any caster LB3 resolving while they are shown kills all six; no ground point is checked. One alive at
+    187.0 enrages and kills everyone.
+  - The meteors: a physical ranged LB3 kills each meteor its 30 x 8 line holds, drawn from the presser toward its
+    target with the presser's hitbox and counting the meteors' 3y. The run's own press for the player's seat (a human
+    whose job can't press it) reaches both, wherever the player stands. One alive at 197.1 casts 31669 and kills
+    everyone.
+  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends while Run: ****mi*'s is up, 232.0 to 247.7
+    (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is heard a frame or two
+    later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise its damage kills everyone at 262.0. One
+    started up to a cast before the bar counts, one landing before it is wasted, and one the bar's own frame settled
+    before Run: ****mi* listens is counted as it starts listening. Whether the gauge was short is read as the bar ends.
+  - Melee (the user's rule, the human only): for each of its duties the human's melee LB3 must start in the window,
+    aim at Alpha Omega and land, or the human dies as the window closes, or as the cast is cut off if that is later.
+    The first: from Cosmo Dive 2's bar end (149.8) to 161.0; the second: from the first's landing to 165.5. The
+    enrage's (`TopP6MeleeWindow.LandsBy`) counts the presses that defeat Alpha Omega, by the same call: started 227.5
+    to 243.2, landing while the bar is up. A press landing before the bar is wasted, so the window kills at 243.2 and
+    Run: ****mi* then wipes. The bar's end is the Gauntlet's cut-off (the fight's is the damage). A window remembers its
+    target's id, since Alpha Omega despawns 9.7s after falling, which can be before the enrage's window closes. Bots'
+    melee LB3s aren't held to windows.
+  - Death reasons state the fight's rule or the Gauntlet's, never a strat spot.
+- Every other mistake also kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild
+  Charge kill through their actions. The rest is decided in code from where everyone stands as the hits land, those
+  actions only showing them: Flash Gale (a non-tank target, or within 5y of one), Cosmo Dive (a non-tank buster
+  target, within 8y of one, one in the stack, a stack under 6), the meteor spreads (in another's, or one's own while
+  still vulnerable), and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5).
+  `Verdicts` keeps each player's first reason.
+- The Gauntlet always needs limit breaks. It refuses to start with "Resolve your own actions" off (a
+  `SettingsConflicts` entry, which greys out Start with the reason as its tooltip and shows in red atop its
+  settings): only that module plays the human's own limit break in the sim. A headless run the debug driver walks is
+  exempt, and there the strat presses the player's seat's duties too, unless a test sets the internal
+  `PlayerPressesItsOwnLimitBreaks` and scripts them through `FakeUserActions.Act`.
+- The strat plays the old blocks' LPDU spots and times on the parts' clocks, changed only at the seams:
+  - no opening walk to the autos' spots in Exaflares 1, Exaflares 2 and Cosmo Meteor (a later start puts the party
+    there); Cosmo Arrow 2 starts from the autos' spots;
+  - both Unlimited Wave Cannon dodges are timed from their wave's `FirstExplosionAt` (62.5, 138.8);
+  - at 119.0, after Wild Charge 2, everyone walks back to the autos' spots: the line leaves a non-tank farthest for
+    the 123.3 Flash Gale;
+  - after Cosmo Dive 2 the plan's second melee, not a fixed M2, waits in the middle, and presses once the first's has
+    landed, so a human first melee may use its whole window. The OT takes (16, 0) for those autos, 2y past the
+    party's hold (r 14), so a melee still casting on the hold, or standing a little outward of it, is never the
+    farthest; when the hold is within 5.5y of that (the last exaflare east) it takes (-16, 0), so its Flash Gale
+    misses that melee. The first melee leaves the hold as its cast ends (154.7), not at 152.9;
+  - at 195.8, after the flares, everyone takes the autos' spots for both Magic Numbers and the enrage.
 - UNVERIFIED in `TopP6Constants`: the exaflare step (1.1s; tests also play 1.0s), the arrows' omen delay, the
-  puddles' 2.7s blast, the adds' distances, the flare's 20y kill radius and 8.1s marker, the meteor stack's 5, the
-  spreads' 3s vulnerability, and Cosmo Dive taking its targets as it hits. In the States, scenarios and actions: the
-  odds of every roll but the flares' and the meteor stack's (the sources call those random), the adds showing at
-  10.1, the comets' bearings, the flare markers at 21.9, upstream's laser vulnerability (2.5s) and Wild Charge rules,
-  and that the bait, Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
-- Every mistake kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild Charge
-  kill through their actions. The rest is decided in code from where everyone stands as the hits land; those
-  actions only show them: Flash Gale (a non-tank target, or within 5y of one), Cosmo Dive (a non-tank buster target,
-  within 8y of one, one in the stack, a stack under 6), the meteor spreads (in another's, or one's own while still
-  vulnerable), and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5). `Verdicts`
-  keeps each player's first reason, so godmode reports a player once per hit.
-- Only Cosmo Memory checks a limit break, as UMAD checks its tank's: a human's tank-LB3 mitigation, only with
-  "Require tank mitigation" on; the bot MT presses at 4.9. The melee (25.3, 32.0), caster (13.5) and physical
-  ranged (24.0) limit breaks are bot visuals, never checked on the human's seat; the adds die on that schedule
-  whether or not anyone presses. Bots press only while "Require tank mitigation" is on (upstream's rule for every
-  bot press), so with it off no limit break plays. The gauge is full from the start (in Exasquares/Dive from Cosmo
-  Memory's cast); `TopP6LpduAi.LimitBreak3RefilledByBrilliantDynamis` fills it before and after each bot press. A
-  human's own press empties it until a bot presses, though in the game Brilliant Dynamis refills each player's first.
+  puddles' 2.7s blast, the adds' distances, the comets' bearings and the time they show, the flare's 20y kill radius,
+  its 8.1s marker and when the markers show, the meteor stack's 5, the spreads' 3s vulnerability, Cosmo Dive taking
+  its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
+  (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
+  cast, the gauge's rebuild and the human's melee windows. In `TopP6LimitBreaks`: the client's current-target
+  stand-in. In the State, the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's
+  (the sources call those random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait,
+  Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
 - No source fixes these strat values, so they are UNVERIFIED (the user's picks):
-  - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), walked to at t 0 in
-    the four new blocks;
-  - Cosmo Arrow 1 side-steps south; dive tanks at r 6.5, MT toward 4 and OT toward 1 in Dive 1, a Y at the party's
-    bearing + 135 (MT) and + 225 (OT) in Dive 2;
-  - Unlimited Wave Cannon: a compass point per puddle at r 14. WC1 then waits at r 4 on each waymark's bearing until
-    puddle 6 has gone off and spreads at r 10.5; Exaflares/Dive's party holds where the fourth exaflare started,
-    and for the autos its MT steps back to (0, -7) and M2 waits in the middle;
-  - the Wild Charge line in front of C, tanks first: (0, 6.5) and (0, 10.5); WC2's laser spot (3.55, 8.55);
+  - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), after Cosmo Dive 2
+    (16, 0) or (-16, 0);
+  - Cosmo Arrow 1 side-steps south; dive tanks at r 6.5, MT toward 4 and OT toward 1 at Cosmo Dive 1, a Y at the
+    party's bearing + 135 (MT) and + 225 (OT) at Cosmo Dive 2;
+  - Unlimited Wave Cannon: a compass point per puddle at r 14. Exaflares 1 then waits at r 4 on each waymark's
+    bearing until puddle 6 has gone off and spreads at r 10.5; Exaflares 2's party holds on the fourth exaflare's
+    point, and for the autos its MT steps back to (0, -7);
+  - the Wild Charge line in front of C, tanks first: (0, 6.5) and (0, 10.5); Wave Cannon 2's laser spot (3.55, 8.55);
   - Cosmo Meteor: centre at 2.6, the clock at r 13, H2 to the middle after the first 4 + 4 spreads, the flares at
-    r 18.5 on the cardinals the stack leaves, in order clockwise from north (R1 stays on A).
-- Change bot movement only with that block's `LpduHumanTests` and `LpduMarginTests` green.
+    r 18.5 on the cardinals the stack leaves, in order clockwise from north (R1 stays on A);
+  - the bots' press times above, and the autos' spots for both Magic Numbers and the enrage.
+- Change bot movement only with that part's `TopP6Gauntlet<Part>LpduHumanTests` and `LpduMarginTests` green, and
+  `TopP6GauntletMagicNumberLpduHumanTests` for the Magic Number part. The human suites press the seat's own limit
+  breaks at the guides' cues. Change the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each
+  seat with each of its role's jobs, pressed right, late, never, twice, at another seat's duty, at the wrong level,
+  cut off, with the rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere
+  while another seat's limit break casts, as the client greys the human's out. The soak filter is
+  `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.

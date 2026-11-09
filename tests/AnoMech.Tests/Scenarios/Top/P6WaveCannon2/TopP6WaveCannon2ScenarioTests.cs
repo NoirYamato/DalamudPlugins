@@ -18,11 +18,10 @@ namespace AnoMech.Tests;
 //   27.40 Wild Charge on MT, with MT OT at (0,9) and the rest at (0,11).
 public class TopP6WaveCannon2ScenarioTests
 {
-    private const int NaStrat = 1;
     private const float WildChargeLinedUp = 27.1f;
 
     private static NegativeRun<TopP6WaveCannon2Scenario> WaveCannon2(PartyRole player, Action<TopP6WaveCannon2StateOverrides>? tweak = null)
-        => Negative<TopP6WaveCannon2Scenario>(player, NaStrat)
+        => Negative<TopP6WaveCannon2Scenario>(player)
             .Overrides<TopP6WaveCannon2StateOverrides>(o =>
             {
                 o.InFirst = true;

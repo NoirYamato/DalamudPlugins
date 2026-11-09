@@ -6,11 +6,11 @@ using static AnoMech.Scenarios.Top.TopConstants;
 
 namespace AnoMech.Tests;
 
-// Unlimited Wave Cannon cast at 1.9, as both blocks that play it start. Its four exaflares cast 31661 (12 s, r 8, its
-// bar ending at 11.7) at 1.9, 2.9, 3.9 and 4.9, from r 24 on neighbouring compass points the way they turn, facing the
-// centre; then each explodes again every step (1.1 s, or 1.0 s), 8 y further, through the centre to r 24 on the far
-// side. The first exaflare's first explosion, t0, is at 13.9. Puddles (31663, 3 s, r 6) drop under everyone at 11.9,
-// 13.7, 15.6, 17.5, 19.4 and 21.4, each hitting 2.7 s later.
+// Unlimited Wave Cannon cast at 1.9, as each Exaflares part of the Gauntlet starts. Its four exaflares cast 31661 (12 s,
+// r 8, its bar ending at 11.7) at 1.9, 2.9, 3.9 and 4.9, from r 24 on neighbouring compass points the way they turn,
+// facing the centre; then each explodes again every step (1.1 s, or 1.0 s), 8 y further, through the centre to r 24 on
+// the far side. The first exaflare's first explosion, t0, is at 13.9. Puddles (31663, 3 s, r 6) drop under everyone at
+// 11.9, 13.7, 15.6, 17.5, 19.4 and 21.4, each hitting 2.7 s later.
 public class TopP6UnlimitedWaveCannonTests
 {
     private const float CastAt = 1.9f;
