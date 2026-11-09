@@ -64,9 +64,9 @@ NoirMech change:
   `/noirmech retry` and the Drill tick in `OnFrameworkUpdate`. With them, the fix for Auto-restart replaying one roll:
   upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to seat the
   party before a zone-in;
-- the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs` and `AnoMechWatch.cs` (one line each in
-  upstream's `Plugin` starts and disposes the watch), and a first check in `RunController.StartRefusal` and in
-  `ZoneControl`'s `StartBlockedReason` and `HoldBlockedReason`;
+- the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs` and `AnoMechWatch.cs`; upstream's `Plugin`
+  holds the presence (`Plugin.AnoMechPresence`) and the watch, which it starts and disposes with one line each; and a
+  first check in `RunController.StartRefusal` and in `ZoneControl`'s `StartBlockedReason` and `HoldBlockedReason`;
 - the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
   `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats`, and `RunController.Rotate.cs`, whose `PartyFor`
   upstream's `RunController.Start` takes its party from. In upstream's `MainWindow.cs`: "Rotate" is `RoleLabels[1]`,
