@@ -11,7 +11,8 @@ process, so git and the whole Release build are born there too, and restores its
 
 It refuses to publish unless:
 - -Changelog is given (the installer shows it);
-- the checkout is on noirmech-stable with a clean tree;
+- this checkout is on main with no uncommitted or untracked file, since the publish commits to main and pushes it;
+- the AnoMech checkout is on noirmech-stable with a clean tree;
 - its TestResults\green-stamp.txt says "green <HEAD> full", which tools\test.ps1 writes after a green full
   run of that exact commit;
 - HEAD is in the pushed noirmech-stable: the remote-tracking ref of the remote that points at
@@ -20,6 +21,7 @@ It refuses to publish unless:
   plugin zip nor the source zip holds any of them, in any case, as ASCII, UTF-8 or UTF-16 text, in the
   DLLs' embedded PDBs and the zips' entry names included. Known strings that must be found prove each part
   of the scan works.
+Its commit takes only plugins\NoirMech and repo.json.
 
 The version is the upstream <Version> from AnoMech.csproj with our own fourth segment, which goes
 up by one on every publish, so Dalamud sees each publish as an update. Each build ships with a zip
@@ -190,6 +192,12 @@ try {
     $self.ProcessorAffinity = [IntPtr]$mask
     $self.PriorityClass = [Diagnostics.ProcessPriorityClass]::Idle
 
+    $here = (& $git -C $PSScriptRoot rev-parse --abbrev-ref HEAD).Trim()
+    if ($here -ne 'main') { Stop-Publish "$PSScriptRoot is on '$here'; switch it to 'main', which the publish commits to and pushes." }
+    if (& $git -C $PSScriptRoot status --porcelain) {
+        Stop-Publish "$PSScriptRoot has uncommitted changes or untracked files; commit or remove them first, since the publish pushes main."
+    }
+
     $Source = (Resolve-Path $Source).Path
 
     $currentBranch = (& $git -C $Source rev-parse --abbrev-ref HEAD).Trim()
@@ -304,8 +312,10 @@ try {
     }
     Write-Utf8 $RepoJson ((ConvertTo-Json -InputObject @([pscustomobject]$entry) -Depth 5) + "`n")
 
-    Invoke-Checked $git @('-C', $PSScriptRoot, 'add', '-A')
-    Invoke-Checked $git @('-C', $PSScriptRoot, 'commit', '-q', '-m', "Publish $InternalName $version", '-m', "Built from $Branch @ $commit")
+    # Only what the publish wrote, whatever else turns up in this folder while it builds.
+    $written = @("plugins/$InternalName", 'repo.json')
+    Invoke-Checked $git (@('-C', $PSScriptRoot, 'add', '-A', '--') + $written)
+    Invoke-Checked $git (@('-C', $PSScriptRoot, 'commit', '-q', '-m', "Publish $InternalName $version", '-m', "Built from $Branch @ $commit", '--') + $written)
     if (-not $NoPush) { Invoke-Checked $git @('-C', $PSScriptRoot, 'push', 'origin', 'main') }
     Write-Host "Done: $InternalName $version$(if ($NoPush) { ' (not pushed)' })"
 }

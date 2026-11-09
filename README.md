@@ -91,12 +91,13 @@ powershell -ExecutionPolicy Bypass -File .\publish.ps1 -Changelog "What changed"
 powershell -ExecutionPolicy Bypass -File .\publish.ps1 -Changelog "What changed"
 ```
 
-It publishes only with a changelog, when the checkout's commit has passed a full `tools\test.ps1` run (its
-`TestResults\green-stamp.txt` names it) and is in the pushed `noirmech-stable` (`-Fetch` fetches it first), and
-when an identity scan of the built plugin zip and the source zip finds every one of its control strings and none
-of the terms listed in `%APPDATA%\NoirMech\identity-terms.txt` (one per line, in any case; a missing or empty list
-refuses too). `-DryRun` runs every gate, the build and the scan, then stops before copying, committing or
-pushing; `-NoPush` stops before the push.
+It publishes only with a changelog, when this folder is on `main` with nothing uncommitted or untracked, when the
+checkout's commit has passed a full `tools\test.ps1` run (its `TestResults\green-stamp.txt` names it) and is in
+the pushed `noirmech-stable` (`-Fetch` fetches it first), and when an identity scan of the built plugin zip and
+the source zip finds every one of its control strings and none of the terms listed in
+`%APPDATA%\NoirMech\identity-terms.txt` (one per line, in any case; a missing or empty list refuses too). Its
+commit takes only `plugins/NoirMech` and `repo.json`. `-DryRun` runs every gate, the build and the scan, then
+stops before copying, committing or pushing; `-NoPush` stops before the push.
 
 It runs at Idle priority on 4 CPUs, the Release build included, so the PC stays usable; `-Affinity` takes another
 CPU mask (`0xF0` by default). Run it as above: started through `cmd /c start /wait`, its exit code is lost.
