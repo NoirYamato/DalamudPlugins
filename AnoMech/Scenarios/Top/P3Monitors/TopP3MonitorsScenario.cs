@@ -26,6 +26,9 @@ public sealed class TopP3MonitorsScenario : IScenario
 
     private const int TargetsPerMonitor = 2;
 
+    // Omega's own monitor can take the whole party.
+    private static readonly int Helpers = PerRole.All.Length + TopP3MonitorsState.PlayerMonitors * TargetsPerMonitor;
+
     private static readonly Placement OmegaSpot = new(Vector3.Zero, MathF.PI);
 
     private SimWorld world = null!;
@@ -63,7 +66,7 @@ public sealed class TopP3MonitorsScenario : IScenario
     // Casts on a helper spawned the same frame play no animation, so every helper exists well
     // before the hits and is moved onto its target when they fire.
     private void SpawnHelpers()
-        => monitorHelpers = Enumerable.Range(0, (1 + TopP3MonitorsState.PlayerMonitors) * TargetsPerMonitor)
+        => monitorHelpers = Enumerable.Range(0, Helpers)
                                       .Select(_ => world.SpawnEnemy(new EnemySpawnConfig(
                                           BNpcBaseId: TopP3Constants.OmegaHelper,
                                           Visibility: SpawnVisibility.InvisibleHelper,
@@ -82,7 +85,7 @@ public sealed class TopP3MonitorsScenario : IScenario
     // Every target is picked before the first circle lands, so a death can't change the later picks.
     private void FireMonitors()
     {
-        var targets = MonitorTargets(OmegaSpot, state.OmegaSide, owner: null).ToList();
+        var targets = EveryoneOnOmegasSide().ToList();
         foreach (var role in state.Monitors.List)
         {
             if (party.Get(role) is not { } owner || !owner.IsAlive()) continue;
@@ -99,6 +102,14 @@ public sealed class TopP3MonitorsScenario : IScenario
         }
     }
 
-    private IReadOnlyList<SimCharacter> MonitorTargets(Placement source, MonitorSide side, SimCharacter? owner)
+    // Omega's own monitor takes every player on its half of the arena, however many stand there; UNVERIFIED that
+    // it takes nobody when none do.
+    private IEnumerable<SimCharacter> EveryoneOnOmegasSide()
+        => party.ActiveMembers().Where(m => state.OmegaMonitor == OmegaMonitor.West
+                                                ? m.Position.X < OmegaSpot.Position.X
+                                                : m.Position.X > OmegaSpot.Position.X);
+
+    // A player's monitor takes two at random on its side, and fills up from the other side when fewer stand there.
+    private IReadOnlyList<SimCharacter> MonitorTargets(Placement source, MonitorSide side, SimCharacter owner)
         => party.Find.OnSideN(world.Rng, source, side.Mul(), TargetsPerMonitor, exclude: owner);
 }

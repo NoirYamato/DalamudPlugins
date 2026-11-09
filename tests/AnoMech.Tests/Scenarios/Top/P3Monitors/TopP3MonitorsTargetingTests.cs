@@ -9,10 +9,11 @@ using P5Side = AnoMech.Scenarios.Top.P5Delta.Side;
 
 namespace AnoMech.Tests;
 
-// Who a monitor's beam takes: two players at random from the half-plane on its side of the line its
-// owner faces along, never the owner, and random others when fewer than two stand there. The runs
-// pin the slideshow's example (TopP3MonitorsScenarioTests), where every beam holds exactly its two
-// LPDU targets, then crowd or empty one beam just before the hits.
+// Who a monitor's beam takes. Omega's takes every player on its half of the arena, however many. A
+// player's takes two players at random from the half-plane on its side of the line its owner faces
+// along, never the owner, and random others when fewer than two stand there. The runs pin the
+// slideshow's example (TopP3MonitorsScenarioTests), where every beam holds exactly its two LPDU
+// targets, then crowd or empty one beam just before the hits.
 public class TopP3MonitorsTargetingTests
 {
     private const float FacingSouth = 0f;
@@ -59,22 +60,32 @@ public class TopP3MonitorsTargetingTests
         });
     }
 
-    // RegenHealer strays from N1 across Omega's line, so Omega's beam holds three. It takes two of
-    // them at random, and RegenHealer, MeleeDpsA's target as well, dies whenever it is one of them.
+    // RegenHealer strays from N1 across Omega's line, so Omega's beam holds three and takes all of them.
+    // RegenHealer, MeleeDpsA's target as well, dies.
     [Test]
-    public void ACrowdedBeamTakesTwoOfItsPlayersAtRandom()
+    public void OmegasBeamTakesEveryoneOnItsSide()
     {
-        var omegasPairs = Seeds.Select(seed =>
+        foreach (var seed in Seeds)
         {
-            var (pairs, run) = Fire(seed, RegenHealer, new Takeover(28.9f, new Vector2(-3, -17)));
-            var omegas = PairLeftOver(pairs, OffTanksLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
-            Assert.That(omegas, Is.SubsetOf(new[] { MeleeDpsA, PhysRangedDps, RegenHealer }), $"seed {seed}");
-            Assert.That(run.Deaths.Select(d => d.Role),
-                        Is.EqualTo(omegas.Contains(RegenHealer) ? new[] { RegenHealer } : []), $"seed {seed}");
-            return Describe(omegas);
-        }).ToList();
+            var (omegas, pairs, run) = Fire(seed, RegenHealer, new Takeover(28.9f, new Vector2(-3, -17)));
+            Assert.That(omegas, Is.EqualTo(new[] { RegenHealer, MeleeDpsA, PhysRangedDps }), $"seed {seed}");
+            Assert.That(PairsLeftOver(pairs, OffTanksLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets), Is.Empty, $"seed {seed}");
+            Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { RegenHealer }), $"seed {seed}");
+        }
+    }
 
-        Assert.That(omegasPairs.Distinct().Count(), Is.EqualTo(3), string.Join("; ", omegasPairs));
+    // MeleeDpsA and PhysRangedDps both cross to the east of Omega's line just before the beams, so Omega's
+    // monitor has nobody on its side.
+    [Test]
+    public void OmegasBeamTakesNobodyWhenItsSideIsEmpty()
+    {
+        foreach (var seed in Seeds.Take(5))
+        {
+            var (omegas, pairs, _) = Fire(seed, MeleeDpsA, new Takeover(29.4f, new Vector2(1, -8.35f)),
+                                          new Takeover(29.4f, new Vector2(1, 9.24f), Bot: PhysRangedDps));
+            Assert.That(omegas, Is.Empty, $"seed {seed}");
+            Assert.That(pairs, Has.Count.EqualTo(TopP3MonitorsState.PlayerMonitors), $"seed {seed}");
+        }
     }
 
     // ShieldHealer steps out of OffTank's beam to a spot no beam covers, leaving MainTank alone in it.
@@ -83,8 +94,9 @@ public class TopP3MonitorsTargetingTests
     {
         var seconds = Seeds.Select(seed =>
         {
-            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)));
-            var offTanks = PairLeftOver(pairs, OmegasLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
+            var (omegas, pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)));
+            Assert.That(omegas, Is.EqualTo(OmegasLpduTargets), $"seed {seed}");
+            var offTanks = PairsLeftOver(pairs, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets).Single();
             Assert.That(offTanks, Does.Contain(MainTank), $"seed {seed}");
             Assert.That(offTanks, Does.Not.Contain(OffTank), $"seed {seed}");
             return offTanks.Single(role => role != MainTank);
@@ -99,9 +111,10 @@ public class TopP3MonitorsTargetingTests
     {
         var offTanksPairs = Seeds.Select(seed =>
         {
-            var (pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)),
-                                  new Takeover(28.9f, new Vector2(6, -3), Bot: MainTank));
-            var offTanks = PairLeftOver(pairs, OmegasLpduTargets, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets);
+            var (omegas, pairs, _) = Fire(seed, ShieldHealer, new Takeover(28.9f, new Vector2(6, 0)),
+                                          new Takeover(28.9f, new Vector2(6, -3), Bot: MainTank));
+            Assert.That(omegas, Is.EqualTo(OmegasLpduTargets), $"seed {seed}");
+            var offTanks = PairsLeftOver(pairs, MeleeDpsAsLpduTargets, PhysRangedDpsLpduTargets).Single();
             Assert.That(offTanks, Is.Unique, $"seed {seed}");
             Assert.That(offTanks, Does.Not.Contain(OffTank), $"seed {seed}");
             return Describe(offTanks);
@@ -110,8 +123,8 @@ public class TopP3MonitorsTargetingTests
         Assert.That(offTanksPairs.Distinct().Count(), Is.GreaterThan(2), string.Join("; ", offTanksPairs));
     }
 
-    // Each monitor's two targets, Omega's first, each pair in role order.
-    private static (List<PartyRole[]> Pairs, ScenarioRun Run) Fire(int seed, PartyRole player, params Takeover[] takeovers)
+    // Omega's targets, then each player monitor's two, all in role order.
+    private static (PartyRole[] Omegas, List<PartyRole[]> Pairs, ScenarioRun Run) Fire(int seed, PartyRole player, params Takeover[] takeovers)
     {
         var hits = new List<PartyRole>();
         var run = ScenarioRun.Execute(typeof(TopP3MonitorsScenario), 0, seed, new ScenarioRunOptions
@@ -128,13 +141,14 @@ public class TopP3MonitorsTargetingTests
         });
 
         Assert.That(run.Failure, Is.Null, run.ToString);
-        Assert.That(hits, Has.Count.EqualTo(8), $"seed {seed}");
-        return (hits.Chunk(2).Select(pair => pair.Order().ToArray()).ToList(), run);
+        var players = TopP3MonitorsState.PlayerMonitors * 2;
+        Assert.That(hits, Has.Count.GreaterThanOrEqualTo(players), $"seed {seed}");
+        return ([.. hits.SkipLast(players).Order()], hits.TakeLast(players).Chunk(2).Select(pair => pair.Order().ToArray()).ToList(), run);
     }
 
-    // The one pair left once the monitors whose beams still hold exactly their two LPDU targets are
+    // The pairs left once the player monitors whose beams still hold exactly their two LPDU targets are
     // taken out.
-    private static PartyRole[] PairLeftOver(List<PartyRole[]> pairs, params PartyRole[][] unchanged)
+    private static List<PartyRole[]> PairsLeftOver(List<PartyRole[]> pairs, params PartyRole[][] unchanged)
     {
         var left = pairs.ToList();
         foreach (var pair in unchanged)
@@ -143,7 +157,7 @@ public class TopP3MonitorsTargetingTests
             Assert.That(index, Is.Not.EqualTo(-1), $"no monitor took {Describe(pair)}: {string.Join("; ", pairs.Select(Describe))}");
             left.RemoveAt(index);
         }
-        return left.Single();
+        return left;
     }
 
     private static string Describe(IEnumerable<PartyRole> pair) => string.Join(" ", pair);

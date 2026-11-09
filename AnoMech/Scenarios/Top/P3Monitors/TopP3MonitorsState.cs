@@ -22,9 +22,6 @@ public sealed class TopP3MonitorsState
 
     public OmegaMonitor OmegaMonitor { get; }
 
-    // Omega faces north for the whole cast, so its left hand is west.
-    public MonitorSide OmegaSide => OmegaMonitor == OmegaMonitor.West ? MonitorSide.Left : MonitorSide.Right;
-
     public uint OmegaCastId => OmegaMonitor == OmegaMonitor.West
         ? P3ActionId.OversampledWaveCannonWest
         : P3ActionId.OversampledWaveCannonEast;

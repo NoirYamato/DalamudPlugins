@@ -130,7 +130,7 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
     `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
     which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests then have no user;
     `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
-  - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 8, Blue
+  - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 14, Blue
     Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
     would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
     tower helpers); that is optional.
@@ -216,12 +216,12 @@ one place.
   with `TopP3HelloWorldLpduHumanTests` green: it scripts the player's seat through every kit, seat, walking style
   and reaction delay, on layouts from all eight directions. Like a player, it walks round a soaker holding its
   tower spot in its way, unless it takes the guides' lanes.
-- Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
-  as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
-  arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
-  up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers
-  On its strat marks at 19.5s: Bind 1-3 on the monitor players and Attack 1-5 on the rest, each in line-up
-  order.
+- Monitors: Omega's monitor hits every player on its half of the arena, however many (nobody when the half is
+  empty, UNVERIFIED). Each player's monitor hits 2 random players on its side (`CharacterFind.OnSideN`, as P5
+  does), filling up with random others when fewer stand there. Bots aim theirs by turning after they arrive.
+  The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line up on the
+  west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers On its strat
+  marks at 19.5s: Bind 1-3 on the monitor players and Attack 1-5 on the rest, each in line-up order.
 
 ## TOP P4
 `Scenarios/Top/P4BlueScreen/` in the `TopZone.P4` phase, which keeps P3's weather and BGM 950. Its ids are in
