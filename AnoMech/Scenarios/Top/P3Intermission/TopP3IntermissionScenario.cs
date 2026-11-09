@@ -33,9 +33,6 @@ public sealed class TopP3IntermissionScenario : IScenario
     private const string StackAlone = "Took the High-powered Sniper Cannon alone";
     private const string StoodInTheVoidZone = "Stood in the void zone in the middle";
 
-    // UNVERIFIED which kind stands where; both cast the same Colossal Blow. Each set gets both kinds.
-    private static readonly float[] LeftArmBearings = [0f, 240f, 300f];
-
     private SimWorld world = null!;
     private SimParty party = null!;
     private TopP3IntermissionState state = null!;
@@ -145,7 +142,7 @@ public sealed class TopP3IntermissionScenario : IScenario
             Placement: new Placement(position, MathF.Atan2(-position.X, -position.Z))));
     }
 
-    private static bool IsLeftArm(float bearing) => LeftArmBearings.Contains(bearing);
+    private bool IsLeftArm(float bearing) => state.LeftArmBearings.Contains(bearing);
 
     private void ApplyFodder()
     {

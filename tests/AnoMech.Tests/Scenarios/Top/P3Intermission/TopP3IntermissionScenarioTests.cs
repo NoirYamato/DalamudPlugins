@@ -244,6 +244,46 @@ public class TopP3IntermissionScenarioTests
         });
     }
 
+    // Three arms of each kind, wherever the roll puts them: a left arm warps in with warp_end2, a right one with warp_end.
+    [Test]
+    public void EachArmWarpsInAsItsKind()
+    {
+        var leftArmSpots = new HashSet<string>();
+        foreach (var seed in Enumerable.Range(1, 8))
+        {
+            var kinds = new Dictionary<string, (uint BNpcBaseId, float Bearing)>();
+            var warps = new List<Dictionary<string, string>>();
+            var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, seed, new ScenarioRunOptions
+            {
+                PlayerRole = MainTank,
+                StopAt = 15.7f,
+                Probe = p =>
+                {
+                    if (!p.Crossed(15.6f)) return;
+                    foreach (var arm in Arms(p))
+                        kinds[arm.EntityId.ToString("X8")] = (arm.BNpcBaseId, Bearing(arm.Position));
+                    warps.AddRange(p.Fake.Timeline.Rows.Where(r => r["kind"] == "ac" && r["id"] == "0x197" && kinds.ContainsKey(r["actor"])));
+                },
+            });
+
+            Assert.That(run.Passed, run.ToString);
+            var left = kinds.Values.Where(k => k.BNpcBaseId == BNpcBaseId.LeftArmUnit).Select(k => k.Bearing).Order().ToList();
+            Assert.Multiple(() =>
+            {
+                Assert.That(left, Has.Count.EqualTo(3), $"seed {seed}: left arms");
+                Assert.That(kinds.Values.Count(k => k.BNpcBaseId == BNpcBaseId.RightArmUnit), Is.EqualTo(3), $"seed {seed}: right arms");
+                Assert.That(warps, Has.Count.EqualTo(6), $"seed {seed}: warp-ins");
+                foreach (var warp in warps)
+                    Assert.That(warp["p"], Is.EqualTo(kinds[warp["actor"]].BNpcBaseId == BNpcBaseId.LeftArmUnit
+                                                          ? $"0x{ActionTimelineId.WarpEnd2:X}"
+                                                          : $"0x{ActionTimelineId.WarpEnd:X}"), $"seed {seed}: the arm at {kinds[warp["actor"]].Bearing}");
+            });
+            leftArmSpots.Add(string.Join(" ", left));
+        }
+
+        Assert.That(leftArmSpots, Has.Count.GreaterThan(2), string.Join("; ", leftArmSpots));
+    }
+
     [Test]
     public void OmegaIsHiddenUntilHeStartsToShow()
     {
