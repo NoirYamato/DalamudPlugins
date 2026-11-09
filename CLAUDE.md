@@ -122,6 +122,11 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   shards and their filters and runs nothing). It builds once, then runs AnoMech.Tests as `-Shards` parallel
   `dotnet test --no-build` processes and AnoMech.Relay.Tests as one more, prints each process's counts and time
   and one summary, and exits non-zero on any failure.
+  - A run is green only when no test failed or ran twice, every process exited 0 with a readable trx, and
+    AnoMech.Tests ran tests; in a full or quick run, where every process holds tests, each must have run some.
+    The NUnit adapter only logs it when it can't load the test assembly (a dependency missing, say), and every
+    shard then exits 0 with a trx of no tests, so a count over all processes isn't enough: the relay's tests alone
+    would pass it.
   - Gentle by default: before it starts anything it drops itself to Idle priority on the `-Affinity` CPUs
     (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are born there, and
     `-Shards` defaults to one per CPU in the mask (4). The build passes `--disable-build-servers`: Roslyn starts

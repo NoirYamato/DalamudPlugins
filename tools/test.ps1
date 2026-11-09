@@ -12,6 +12,9 @@ Gentle by default: before it starts anything it drops itself to Idle priority on
 them), so the build, every test process and the test hosts those start are born there too, and it runs one shard
 per CPU in the mask. Test processes at normal priority on every CPU have frozen the PC.
 
+A run fails on a failed test, a test run twice, a process that exits non-zero or leaves no readable trx, a process
+that ran no tests in a full or quick run, and on AnoMech.Tests running none.
+
 AnoMech.Tests runs as -Shards processes, each its own since a run installs statics. The buckets below are dealt to
 the shards by their time; a shard takes the tests its buckets match that no earlier shard took, and the shard
 holding the rest takes everything else, so together they run every test once, a test added later included.
@@ -199,6 +202,17 @@ function Read-Trx([string]$path) {
     $result
 }
 
+# Why a finished process can't count as green, past the failed tests its trx names. The NUnit adapter only warns when
+# it can't load the test assembly, and that process then exits 0 with a trx of no tests: in a full or quick run every
+# process holds tests, so there one that ran none is broken.
+function Get-Trouble($run, [bool]$mustRunTests) {
+    if (-not $run.Trx.Read) { return "exited $($run.Exit) with no readable trx" }
+    if ($run.Trx.Failures.Count -eq 0 -and ($run.Exit -ne 0 -or $run.Trx.Failed -gt 0)) {
+        return "exited $($run.Exit) counting $($run.Trx.Failed) failed but naming no failed test"
+    }
+    if ($mustRunTests -and $run.Trx.Total -eq 0) { return 'ran no tests' }
+}
+
 function Format-Span([TimeSpan]$span) { '{0}:{1:00}' -f [int][Math]::Floor($span.TotalMinutes), $span.Seconds }
 
 if ($Preset -eq 'phase' -and -not $Phase) { throw '-Preset phase needs -Phase P2, P3, P4, P5 or P6.' }
@@ -305,12 +319,15 @@ try {
         Start-Sleep -Milliseconds 500
         foreach ($shard in @($running | Where-Object { $_.Process.HasExited })) {
             $shard.Clock.Stop()
-            $trx = Read-Trx $shard.Run.Trx
-            $exit = $shard.Process.ExitCode
-            $done += [pscustomobject]@{ Name = $shard.Run.Name; Log = $shard.Run.Log; Exit = $exit; Time = $shard.Clock.Elapsed; Trx = $trx }
+            $run = [pscustomobject]@{
+                Name = $shard.Run.Name; Log = $shard.Run.Log; Exit = $shard.Process.ExitCode; Time = $shard.Clock.Elapsed
+                Trx = Read-Trx $shard.Run.Trx; Trouble = $null
+            }
+            $run.Trouble = Get-Trouble $run (-not $Phase)
+            $done += $run
             $running = @($running | Where-Object { $_ -ne $shard })
-            $state = if ($exit -eq 0 -and $trx.Read -and $trx.Failed -eq 0) { 'ok' } else { 'FAILED' }
-            Write-Host ('  {0,-7} {1,-6} {2,5} passed {3,3} failed {4,3} skipped in {5,6}  {6}' -f $shard.Run.Name, $state, $trx.Passed, $trx.Failed, $trx.Skipped, (Format-Span $shard.Clock.Elapsed), $shard.Run.What)
+            $state = if ($run.Trx.Failures.Count -eq 0 -and -not $run.Trouble) { 'ok' } else { 'FAILED' }
+            Write-Host ('  {0,-7} {1,-6} {2,5} passed {3,3} failed {4,3} skipped in {5,6}  {6}' -f $run.Name, $state, $run.Trx.Passed, $run.Trx.Failed, $run.Trx.Skipped, (Format-Span $run.Time), $shard.Run.What)
         }
     }
     $exitCode = 0
@@ -329,21 +346,23 @@ $wall.Stop()
 if ($exitCode -ne 0) { exit $exitCode }
 
 $failures = @($done | ForEach-Object { $_.Trx.Failures })
-$broken = @($done | Where-Object { ($_.Exit -ne 0 -or -not $_.Trx.Read) -and $_.Trx.Failed -eq 0 })
+$troubled = @($done | Where-Object { $_.Trouble })
 $seen = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
 $twice = @($done | ForEach-Object { $_.Trx.Tests } | Where-Object { -not $seen.Add($_) })
 $total = ($done | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
 $passed = ($done | ForEach-Object { $_.Trx.Passed } | Measure-Object -Sum).Sum
 $skipped = ($done | ForEach-Object { $_.Trx.Skipped } | Measure-Object -Sum).Sum
+$ranAnoMech = [int](@($done | Where-Object { $_.Name -ne 'relay' }) | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
 
 Write-Host ''
 Write-Host "$label @ $($commit.Substring(0, 7)): $passed passed, $($failures.Count) failed, $skipped skipped of $total in $(Format-Span $wall.Elapsed) ($($planned.Count) processes on $($cpus.Count) CPUs)"
 foreach ($failure in $failures | Select-Object -First 50) { Write-Host "  failed: $failure" -ForegroundColor Red }
-foreach ($shard in $broken) { Write-Host "  $($shard.Name) exited $($shard.Exit)$(if (-not $shard.Trx.Read) { ', no readable trx' }) with no failed test: see $($shard.Log)" -ForegroundColor Red }
+foreach ($run in $troubled) { Write-Host "  $($run.Name) $($run.Trouble): see $($run.Log)" -ForegroundColor Red }
+if ($ranAnoMech -eq 0) { Write-Host '  AnoMech.Tests ran no tests' -ForegroundColor Red }
 foreach ($test in $twice | Select-Object -First 20) { Write-Host "  ran in more than one shard: $test" -ForegroundColor Red }
 Write-Host "  logs and results: $results"
 
-$green = $failures.Count -eq 0 -and $broken.Count -eq 0 -and $twice.Count -eq 0 -and $total -gt 0
+$green = $failures.Count -eq 0 -and $troubled.Count -eq 0 -and $twice.Count -eq 0 -and $ranAnoMech -gt 0
 if (-not $green) { exit 1 }
 if ($stampable) {
     $now = (& $git -C $Root rev-parse HEAD).Trim()
