@@ -60,9 +60,9 @@ NoirMech change:
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
   (it keeps a replayed roll off the streak and lets Drill make the restart), Retry in `RunController` and `Plugin`
-  (`/noirmech retry`, and the Drill tick in `OnFrameworkUpdate`), and a `source` for `ScenarioSettingsSync.Apply`'s log
-  lines. With them, the fix for Auto-restart replaying one roll: upstream's `Game.EnterAndStart` raises `RunStarted`
-  with the params as asked, not with the seed it draws to seat the party before a zone-in;
+  (`/noirmech retry`, and the Drill tick in `OnFrameworkUpdate`). With them, the fix for Auto-restart replaying one
+  roll: upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to
+  seat the party before a zone-in;
 - the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs`, `Plugin`'s watch of the installed
   plugins, and a first check in `RunController.StartRefusal` and in `ZoneControl.StartBlockedReason`;
 - the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,

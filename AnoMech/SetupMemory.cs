@@ -93,6 +93,8 @@ internal sealed class ScenarioSetup
 
     public void RestoreSettings(IScenario scenario)
     {
-        if (Settings is { } json && scenario.SettingsOverrides is { } overrides) ScenarioSettingsSync.Apply(overrides, json, SetupMemory.FileName);
+        if (Settings is not { } json || scenario.SettingsOverrides is not { } overrides) return;
+        DiagnosticLog.Info($"[SetupMemory] Putting back {scenario.Name}'s settings from {SetupMemory.FileName}.");
+        ScenarioSettingsSync.Apply(overrides, json);
     }
 }

@@ -64,9 +64,9 @@ public sealed class RollReplay
     public RunScenarioParams Replay()
     {
         var last = Last ?? throw new InvalidOperationException("No run to replay.");
-        DiagnosticLog.Info($"[RollReplay] Playing {last.AsPlayed.Scenario.Name}'s seed {last.AsPlayed.Seed} again, as {last.AsPlayed.Party}.");
+        DiagnosticLog.Info($"[RollReplay] Playing {last.AsPlayed.Scenario.Name}'s seed {last.AsPlayed.Seed} again, as {last.AsPlayed.Party}, on the settings it played.");
         if (last.Settings is { } settings && last.AsPlayed.Scenario.SettingsOverrides is { } overrides)
-            ScenarioSettingsSync.Apply(overrides, settings, "the replayed run");
+            ScenarioSettingsSync.Apply(overrides, settings);
         var p = last.AsPlayed with { };
         pending[p] = last;
         return p;

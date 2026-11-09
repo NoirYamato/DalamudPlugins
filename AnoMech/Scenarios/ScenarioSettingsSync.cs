@@ -32,7 +32,7 @@ public static class ScenarioSettingsSync
 
     // Copies every writable property of `json` onto `target` in place: the scenario holds that
     // instance for the plugin's lifetime, so replacing it is not an option.
-    public static bool Apply(object target, string json, string source = "the host")
+    public static bool Apply(object target, string json)
     {
         object? parsed;
         try
@@ -41,7 +41,7 @@ public static class ScenarioSettingsSync
         }
         catch (Exception e)
         {
-            DiagnosticLog.Warn($"[ScenarioSettingsSync] Could not read {target.GetType().Name} settings from {source}: {e.Message}");
+            DiagnosticLog.Warn($"[ScenarioSettingsSync] Could not read {target.GetType().Name} settings from the host: {e.Message}");
             return false;
         }
         if (parsed == null) return false;
@@ -68,7 +68,7 @@ public static class ScenarioSettingsSync
             }
             catch (Exception e) { DiagnosticLog.Warn($"[ScenarioSettingsSync] Could not set {property.Name}: {e.Message}"); }
         }
-        DiagnosticLog.Info($"[ScenarioSettingsSync] Applied {applied} setting(s) from {source} to {target.GetType().Name}.");
+        DiagnosticLog.Info($"[ScenarioSettingsSync] Applied {applied} setting(s) from the host to {target.GetType().Name}.");
         return true;
     }
 
