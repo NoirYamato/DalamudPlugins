@@ -74,6 +74,7 @@ public sealed class TopP3HelloWorldState
         Layouts = overrides.Layouts ?? layouts;
     }
 
+    // How often each layout comes up is UNVERIFIED.
     private static Direction RollLayout(Rng rng, TowerSpots? towers) => towers switch
     {
         TowerSpots.Cardinals => rng.NextIntercardinal(),
