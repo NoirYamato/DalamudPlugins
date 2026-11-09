@@ -101,9 +101,8 @@ since the last merged release) that use a declaration the ref deletes. It greps,
 merge in a throwaway detached worktree. Against `upstream/master` at `1646a70` (36 commits past v0.5.1.0) it finds
 six conflicts and no such use: P3 and P4 keep their own 9020 helper id (`TopP3Constants.OmegaHelper`,
 `TopP4Constants.OmegaHelper`) and Hello World checks its regressions' ends itself. A trial merge of it, its
-conflicts resolved as below but for `MainWindow.cs` and the Spotlight skip (master's side), builds once
-`TimelineRun.cs` is fixed, and its P3, P4, P6 and pause tests pass; `TopP2PartySynergySoloTests` fails until the
-skip is re-ported. At the merge:
+conflicts resolved as below but for `MainWindow.cs` (master's side), builds once `TimelineRun.cs` is fixed, and its
+P2, P3, P4, P5, P6 and pause tests pass. At the merge:
 - `ScenarioSession.cs` and `SimWorld.cs`: keep both sides, the pause's members and halt methods beside master's
   `Issues`, `Ended` and `SimEvents`.
 - `LocalPlayerInputHooks.cs`: keep the `ActionsBlocked` return first, ahead of master's `GetAdjustedActionId` line.
@@ -114,8 +113,10 @@ skip is re-ported. At the merge:
 - The rename: master adds user-facing text that names AnoMech, `TitleText` in `MainWindow.cs`, the `[AnoMech]
   Mechanic failed` and `[AnoMech] Run failed` chat lines in `ScenarioSession.cs` and the safety stop's reason in
   `ZoneControl.cs` (`AnoMech was unloaded during a run`). Write `Plugin.DisplayName` there, as the rename does.
-- `TopP2PartySynergyScenario.cs`: master casts every helper action from the zone's pool; take its side and put the
-  solo skip into its `Run_Spotlight` (no Spotlight when `solo`), which `TopP2PartySynergySoloTests` checks.
+- `TopP2PartySynergyScenario.cs`: master casts every helper action from the zone's pool; take its side of both
+  conflicts and put the solo skip into its `Run_Spotlight` (no Spotlight when `solo`), which
+  `TopP2PartySynergySoloTests` checks. Resolve the conflicts, not the file: `AiStrats` (LPDU first) merges clean,
+  and master's whole file would put its NA strat back at index 0, which the LPDU and NA strat tests catch.
 - `tests/AnoMech.Tests/Support/ScenarioRun.cs`: keep NoirMech's catalog-less construction
   (`SingleOrDefault(...) ?? Activator.CreateInstance`), `RunUntilStopped` and `probe.Stopped` beside master's
   four-argument `PartyMemberKilled`, `MechanicFailed`, `HelperPoolExhausted` and `SessionStatus.CompletedFailed`.
