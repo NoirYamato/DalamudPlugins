@@ -11,8 +11,9 @@ namespace AnoMech.Tests;
 
 // The sunny-day soak drives the player's seat with the bots' own AI. Here the seat is a human who
 // plays the guides and nothing else: it waits on its loose-spread spot, then walks at each cue to
-// its role's spot from the design table, a fixed reaction time late, and never steps round anyone.
-// The bots must keep every rot off it and off themselves, for every kit in every seat.
+// its role's spot from the design table, a fixed reaction time late, and steps round nobody but a
+// soaker holding its tower spot. The bots must keep every rot off it and off themselves, for every
+// kit in every seat, on layouts from all eight directions.
 public class TopP3HelloWorldLpduHumanTests
 {
     // Ten fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
@@ -138,7 +139,7 @@ public class TopP3HelloWorldLpduHumanTests
             var rng = new Random(seed);
             var others = PerRole.All.Where(r => r != seat).OrderBy(_ => rng.Next()).ToList();
             others.Insert(2 * (int)kit + rng.Next(2), seat);
-            var layouts = Enumerable.Range(0, 4).Select(_ => Direction.Intercardinal[rng.Next(4)]).ToArray();
+            var layouts = Enumerable.Range(0, 4).Select(_ => Direction.All[rng.Next(8)]).ToArray();
             return new Roll([.. others], layouts, rng.Next(2) == 0 ? RotColour.Red : RotColour.Blue);
         }
 
@@ -252,7 +253,7 @@ public class TopP3HelloWorldLpduHumanTests
                     legs.Dequeue();
                     readySince = null;
                     var to = next.To(p);
-                    var route = RoundWhoeverStandsInTheWay(p, Route(Flat(me.Position), to, next.Step, next.Set), to, next.Set);
+                    var route = RoundWhoeverStandsInTheWay(p, Route(p, Flat(me.Position), to, next.Step, next.Set), to, next.Set);
                     walking = (p.Time, route, Pace(route, next.Step, next.Set, p.Time));
                 }
             }
@@ -265,7 +266,8 @@ public class TopP3HelloWorldLpduHumanTests
         // Like a player, the human sets off round a soaker standing on its tower spot in the way of a
         // straight walk, whom it could catch a rot from or give one to, instead of walking through them:
         // a soaker holds its tower, so it won't step aside the way the other bots do. It passes on
-        // whichever side leaves the most room, and only if that beats the straight walk.
+        // whichever side leaves the most room, and only if that beats the straight walk. A curving walk
+        // goes round it the same way, as a player drifting off its line still keeps off a rot holder.
         private Vector2[] RoundWhoeverStandsInTheWay(ScenarioProbe p, Vector2[] route, Vector2 to, int set)
         {
             if (route.Length != 2 || set == 0) return route;
@@ -321,7 +323,7 @@ public class TopP3HelloWorldLpduHumanTests
             return lateForTheTowers ? AiManager.SprintSpeed : RunSpeed;
         }
 
-        private Vector2[] Route(Vector2 from, Vector2 to, Step step, int set)
+        private Vector2[] Route(ScenarioProbe p, Vector2 from, Vector2 to, Step step, int set)
         {
             var length = Vector2.Distance(from, to);
             switch (human.Walk)
@@ -329,6 +331,7 @@ public class TopP3HelloWorldLpduHumanTests
                 case Walk.Curving when length > 1f:
                     var side = rng.Next(2) == 0 ? -1f : 1f;
                     var bulge = Math.Min(LeastCurve + (MostCurve - LeastCurve) * (float)rng.NextDouble(), length / 4f);
+                    if (RoundWhoeverStandsInTheWay(p, [from, to], to, set) is { Length: > 2 } round) return round;
                     var normal = new Vector2(-(to - from).Y, (to - from).X) / length * side;
                     return Enumerable.Range(0, 17).Select(i => i / 16f)
                                      .Select(u => from + (to - from) * u + normal * (bulge * 4f * u * (1f - u))).ToArray();
@@ -420,7 +423,7 @@ public class TopP3HelloWorldLpduHumanTests
 
         private Func<ScenarioProbe, Vector2>? PassSpot(int set) => (roll.RoleIn(set, seat), set == 4) switch
         {
-            (HelloWorldRole.Defamation, _) or (HelloWorldRole.Local, false) => _ => Mine(set, Mirrored(set, 45f, 13.7f)),
+            (HelloWorldRole.Defamation, _) or (HelloWorldRole.Local, false) => _ => Mine(set, Mirrored(set, 45f, P3Geometry.TowerRingRadius)),
             (HelloWorldRole.Remote, false) => p => Flat(p.Member(SameSide(set, HelloWorldRole.Stack))!.Position),
             (HelloWorldRole.Stack, true) => _ => Mine(set, Sides(set, (-137f, 8.4f), (127f, 9.8f))),
             _ => null,

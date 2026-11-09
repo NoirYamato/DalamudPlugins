@@ -48,7 +48,8 @@ public sealed class TopP3HelloWorldState
     public HelloWorldColour DefamationColour { get; }
     public HelloWorldColour StackColour => DefamationColour.Other;
 
-    // Per set: the intercardinal between the two defamation-colour towers.
+    // Per set: the bearing between the two defamation-colour towers. Towers on the cardinals put it on an
+    // intercardinal, towers on the intercardinals on a cardinal.
     public IReadOnlyList<Direction> Layouts { get; }
 
     public TopP3HelloWorldState(Rng rng, SimParty party, TopP3HelloWorldStateOverrides overrides)
@@ -68,10 +69,17 @@ public sealed class TopP3HelloWorldState
             _ => colour,
         };
 
-        var layouts = Enumerable.Range(0, Sets).Select(_ => rng.NextIntercardinal()).ToList();
+        var layouts = Enumerable.Range(0, Sets).Select(_ => RollLayout(rng, overrides.Towers)).ToList();
         if (overrides.SameLayoutEverySet == true) layouts = Enumerable.Repeat(layouts[0], Sets).ToList();
         Layouts = overrides.Layouts ?? layouts;
     }
+
+    private static Direction RollLayout(Rng rng, TowerSpots? towers) => towers switch
+    {
+        TowerSpots.Cardinals => rng.NextIntercardinal(),
+        TowerSpots.Intercardinals => rng.NextCardinal(),
+        _ => rng.NextDirection(),
+    };
 
     public Direction Layout(int set) => Layouts[set - 1];
 

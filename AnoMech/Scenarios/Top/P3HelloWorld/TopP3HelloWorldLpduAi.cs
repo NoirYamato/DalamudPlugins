@@ -39,7 +39,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     ];
 
     private static readonly Spots DefamationOuterTowerEdge = Spots.Mirrored(45f, 18.1f);
-    private static readonly Spots DefamationTowerCentre = Spots.Mirrored(45f, 13.7f);
+    private static readonly Spots DefamationTowerCentre = Spots.Mirrored(45f, P3Geometry.TowerRingRadius);
     private static readonly Spots StackInnerTowerEdge = Spots.Mirrored(154f, 12f);
     private static readonly Spots RemoteInsideStack = Spots.Mirrored(166f, 11.4f);
     private static readonly Spots LocalStretchedPastDefamation = Spots.Mirrored(74f, 14.2f);

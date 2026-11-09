@@ -10,12 +10,17 @@ public enum HelloWorldKit { Defamation, Stack, RemoteFirst, LocalFirst }
 
 public enum RotColour { Red, Blue }
 
+public enum TowerSpots { Cardinals, Intercardinals }
+
 // User-controlled overrides for TopP3HelloWorldState's randomized fields. Bound by the scenario's
 // settings UI; null values leave the field randomized at scenario start.
 public sealed class TopP3HelloWorldStateOverrides
 {
     // The defamation pair's rot colour; the stack pair gets the other.
     public RotColour? DefamationColour { get; set; }
+
+    // Null rolls either for each set.
+    public TowerSpots? Towers { get; set; }
 
     // Null rolls a new tower layout every set.
     public bool? SameLayoutEverySet { get; set; }

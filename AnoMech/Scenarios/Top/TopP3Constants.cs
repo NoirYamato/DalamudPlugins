@@ -80,7 +80,7 @@ public static class TopP3Constants
 
     public static class P3Geometry
     {
-        public const float TowerRingRadius = 13.7f;                 // UNVERIFIED, measured from guide drawings
+        public const float TowerRingRadius = 14f;
         public const float RotContactRadius = 1.5f;                 // UNVERIFIED, must stay under the 2.5y a stack partner stands off
         public const float RemoteRegressionBreakDistance = 12f;     // UNVERIFIED, breaks above
         public const float LocalRegressionBreakDistance = 9f;       // UNVERIFIED, breaks below
@@ -101,8 +101,9 @@ public static class TopP3Constants
         public const float Rot = 27f;
         public const float Regression = 10f;
         public const float LatentSynchronizationBug = 69f;
-        public const float LatentDefect = 26f;                      // UNVERIFIED
-        public const float TowerDebuff = 12f;                       // UNVERIFIED
+        public const float LatentDefect = 27f;
+        public const float TowerDebuff = 10f;
+        public const float TowerDebuffDelay = 0.62f;                // after its tower goes off
 
         // -- P3 Intermission --
         public const float SniperCannonFodder = 19.1f;              // UNVERIFIED, inferred from when the spreads go off

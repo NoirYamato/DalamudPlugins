@@ -183,9 +183,9 @@ to multiplayer peers, so both sides need the same build.
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
-`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, tower ring
-radius, rot contact radius, tether break distances, the void zone's radius and spawn args, some durations) are
-marked UNVERIFIED there; tune them in that one place.
+`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, rot contact
+radius, tether break distances, the void zone's radius and spawn args, some durations) are marked UNVERIFIED
+there; tune them in that one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
   (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone. Every
   mistake kills on the spot with a reason. Its one strat has an Automarkers On/Off setting (default On); it
@@ -196,11 +196,19 @@ marked UNVERIFIED there; tune them in that one place.
   local tether; rots spreading on contact; Debuggers as immunity) and decides every kill with a death
   explanation. Fixed events are absolute time literals in `Run`; expiries that depend on play run from
   `IScenario.Tick`.
+- Each set's four towers stand 14y out, each colour's two side by side, on the cardinals or on the
+  intercardinals. The State rolls each set's layout, the bearing between the two defamation-colour towers, from
+  all eight directions; the Towers setting (Auto, Cardinals, Intercardinals) picks the ring, and Tower layout
+  (Move or Same every set) keeps the first set's. A tower's debuff lands 0.62s after it goes off and runs 10s;
+  Latent Defect runs 27s from Hello World's hit, so whoever no defamation cleansed dies at 32s.
 - Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
-  They plan each walk round everyone's live positions and debuffs, give the human more room than each other
-  (`HumanSwapClearance`), step aside for it, and hold their spots through each resolve. The bots-only soak
-  can't see human conflicts, so change bot movement only with `TopP3HelloWorldLpduHumanTests` green: it
-  scripts the player's seat through every kit, seat, walking style and reaction delay.
+  Every spot is placed from the set's layout, so they play both rings alike; only the loose spread before the
+  first towers and the Monitors line-up stand fixed in the arena. They plan each walk round everyone's live
+  positions and debuffs, give the human more room than each other (`HumanSwapClearance`), step aside for it, and
+  hold their spots through each resolve. The bots-only soak can't see human conflicts, so change bot movement only
+  with `TopP3HelloWorldLpduHumanTests` green: it scripts the player's seat through every kit, seat, walking style
+  and reaction delay, on layouts from all eight directions. Like a player, it walks round a soaker holding its
+  tower spot in its way, unless it takes the guides' lanes.
 - Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
   as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
   arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
