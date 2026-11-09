@@ -54,14 +54,18 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
 - **TOP P5 Omega:** an `[LPDU] Light PF` strat under the **EU** button, with the Hello World layout of
   [Tessan's visual guide](https://youtu.be/qNdjZOgCU1I?t=2310). It is the default; NA pf is still under the
   **NA** button. Distant World stands south in the first Hello World, and the second Hello World's layout is
-  the NA one mirrored across the beetle's line. The dodges and timings are the NA strat's.
-- **TOP P6:** an `[LPDU] Light PF` strat for Exasquares/WC2 under the **EU** button, following the
-  [LPDU P6 raidplan](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk). It is the default; NA pf is still under the
-  **NA** button. Four new scenarios, each with an LPDU strat, cover the rest of the phase up to Magic Number:
-  Exasquares/Dive (Cosmo Memory to Cosmo Dive 1), Exaflares/WC1, Exaflares/Dive (Unlimited Wave Cannon 2 to
-  Cosmo Dive 2) and Cosmo Meteor. Their settings can force which Cosmo Arrow comes first, where the first
-  exaflare starts and which way they turn, and who gets a flare. With **Require tank mitigation** on, Cosmo
-  Memory needs a tank limit break 3 and the bots use their limit breaks.
+  the NA one mirrored across the beetle's line. The dodges and timings are the NA strat's. Its bot tether
+  takers also fetch a Blaster tether left on a player who isn't a taker, you included.
+- **TOP P6 Gauntlet:** all of P6 as one scenario, from Cosmo Memory through both Magic Numbers to the enrage, with
+  an `[LPDU] Light PF` strat under the **EU** button following the
+  [LPDU P6 raidplan](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk). You press your own limit breaks as LPDU assigns
+  them (tanks and melee by job priority, healers and ranged by seat) and the bots press theirs. A missing or wasted
+  one plays out as in the fight, and a late or missed melee one kills you as its window closes; a chat line at the
+  start names yours. Its settings can start from any part, force whether each Cosmo Arrow starts in or out, where
+  each Unlimited Wave Cannon's first exaflare starts and which way they turn, and whether you get a flare, and
+  change your own tank, melee or healer limit breaks. Limit breaks always count, whatever **Require tank
+  mitigation** says, and it needs **Resolve your own actions** on. It plays with bots only and replaces all five
+  P6 entries, AnoMech's own Exasquares/WC2 included, so P6 has no NA pf strat, solo or multiplayer for now.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of
