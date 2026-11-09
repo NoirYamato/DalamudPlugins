@@ -133,8 +133,8 @@ skip is re-ported. At the merge:
     Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
     would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
     tower helpers); that is optional.
-- Unasked, master's `SimTether` ends itself when an end dies (`TetherEnded`): Hello World's ghost tethers then go
-  with a death, as its regressions already do.
+- Master's `SimTether` ends itself when an end dies (`TetherEnded`), without the scenario asking: Hello World's
+  ghost tethers then go with a death, as its regressions already do.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
