@@ -1,4 +1,5 @@
 using System.Reflection;
+using AnoMech.Core.Game;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top.P5Delta;
 using AnoMech.Scenarios.Top.P6Gauntlet;
@@ -115,6 +116,89 @@ public class SetupMemoryTests
             overrides.StartFrom = TopP6GauntletPart.MagicNumber;
             Assert.That(memory.Remember("MT", scenario, null, "y", checkSettings: false), Is.False, "settings left unread");
             Assert.That(memory.Remember("MT", scenario, null, "y", checkSettings: true), Is.True, "the settings");
+        });
+    }
+
+    // A session seats everyone itself: the Role pick it forces isn't kept, and the window hears once that it ended, to put
+    // the kept one back.
+    [TestCase(SessionMode.Host)]
+    [TestCase(SessionMode.Peer)]
+    public void ASessionsRolePickIsNotKept(SessionMode session)
+    {
+        var memory = new SetupMemory();
+        memory.Remember("Rotate", null, null, null, checkSettings: true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(memory.Track(session), Is.Null, "a session begins");
+            Assert.That(memory.Remember(SetupMemory.AutoRole, null, null, null, checkSettings: true), Is.False, "the session's pick");
+            Assert.That(memory.Role, Is.EqualTo("Rotate"));
+            Assert.That(memory.Track(session), Is.Null, "the session goes on");
+            Assert.That(memory.Track(SessionMode.Local), Is.EqualTo(session), "the session ends");
+            Assert.That(memory.Track(SessionMode.Local), Is.Null, "said once");
+            Assert.That(memory.Remember("Rotate", null, null, null, checkSettings: true), Is.False, "the kept pick back");
+        });
+    }
+
+    // A host picks its own strat and settings in a session, and keeps them.
+    [Test]
+    public void AHostsPicksInASessionAreKept()
+    {
+        var scenario = new TopP5DeltaScenario();
+        var memory = new SetupMemory();
+        memory.Remember("MT", scenario, "EU", "[LPDU] Light PF", checkSettings: true);
+        memory.Track(SessionMode.Host);
+
+        ((TopP5DeltaStateOverrides)scenario.SettingsOverrides).Automarkers = Automarkers.Off;
+
+        Assert.That(memory.Remember(SetupMemory.AutoRole, scenario, "NA", "Standard", checkSettings: true), Is.True);
+        Assert.That(memory.Find(scenario)!.Strat, Is.EqualTo("Standard"));
+        Assert.That(memory.Find(scenario)!.Settings, Is.EqualTo(ScenarioSettingsSync.Serialize(scenario.SettingsOverrides)));
+        Assert.That(memory.Role, Is.EqualTo("MT"));
+    }
+
+    // A guest plays the host's scenario, strat and settings, none of them its own.
+    [Test]
+    public void AGuestsSessionLeavesItsScenarioAsKept()
+    {
+        var scenario = new TopP5DeltaScenario();
+        var memory = new SetupMemory();
+        memory.Remember("MT", scenario, "EU", "[LPDU] Light PF", checkSettings: true);
+        var kept = memory.Find(scenario)!.Settings;
+        memory.Track(SessionMode.Peer);
+
+        ((TopP5DeltaStateOverrides)scenario.SettingsOverrides).Automarkers = Automarkers.Off;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(memory.Remember(SetupMemory.AutoRole, scenario, "EU", "[LPDU] Light PF", checkSettings: true), Is.False);
+            Assert.That(memory.RememberSettings([scenario]), Is.False);
+            Assert.That(memory.Find(scenario)!.Settings, Is.EqualTo(kept));
+            Assert.That(memory.Track(SessionMode.Local), Is.EqualTo(SessionMode.Peer));
+        });
+    }
+
+    // Read on unload and after a session: the settings of every scenario kept, which a switch or a session may have left
+    // unread, and nothing of a scenario never shown.
+    [Test]
+    public void EverySettingKeptIsReadAgain()
+    {
+        var shown = new TopP5DeltaScenario();
+        var neverShown = new TopP6GauntletScenario();
+        var memory = new SetupMemory();
+        memory.Remember(SetupMemory.AutoRole, shown, "EU", "[LPDU] Light PF", checkSettings: false);
+
+        ((TopP5DeltaStateOverrides)shown.SettingsOverrides).Automarkers = Automarkers.Off;
+        ((TopP6GauntletStateOverrides)neverShown.SettingsOverrides).StartFrom = TopP6GauntletPart.MagicNumber;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(memory.RememberSettings([shown, neverShown]), Is.True);
+            Assert.That(memory.RememberSettings([shown, neverShown]), Is.False, "nothing changed since");
+            Assert.That(memory.Find(shown)!.Settings, Is.EqualTo(ScenarioSettingsSync.Serialize(shown.SettingsOverrides)));
+            Assert.That(memory.Find(shown)!.Strat, Is.EqualTo("[LPDU] Light PF"));
+            Assert.That(memory.Find(shown)!.Region, Is.EqualTo("EU"));
+            Assert.That(memory.Find(neverShown), Is.Null);
         });
     }
 

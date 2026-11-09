@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using AnoMech.Core;
+using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Scenarios;
@@ -21,7 +22,6 @@ public unsafe partial class MainWindow
 
     private SetupMemory _setup = new();
     private string? _setupPath;
-    private bool _setupHeldBySession;
     private long _nextSettingsCheck;
 
     // The Role pick as an index into RoleLabels.
@@ -87,30 +87,42 @@ public unsafe partial class MainWindow
     private string? SelectedStratName =>
         _selectedScenario is { AiStrats: var strats } && _selectedStrat >= 0 && _selectedStrat < strats.Count ? strats[_selectedStrat].Name : null;
 
-    // Every frame. A session sets the strat and the seat, and a peer's settings, itself, so nothing is kept during one
-    // and the kept picks come back after it.
+    private SessionMode SetupSession => !InSession ? SessionMode.Local : IsGuest ? SessionMode.Peer : SessionMode.Host;
+
+    // Every frame, and before the selected scenario changes, so a setting changed just before is kept for the right one.
     private void RememberSetup(bool checkSettingsNow = false)
     {
-        if (InSession)
-        {
-            _setupHeldBySession = true;
-            return;
-        }
-        if (_setupHeldBySession)
-        {
-            _setupHeldBySession = false;
-            RestoreRolePick();
-            if (_selectedScenario is { } selected)
-            {
-                _selectedStratGroup = _stratGroupMemory.GetValueOrDefault(selected);
-                ReconcileStrat();
-                RestoreStratPick(selected);
-            }
-        }
+        if (_setup.Track(SetupSession) is { } ended) TakeBackFromSession(ended);
         var now = Environment.TickCount64;
         var checkSettings = checkSettingsNow || now >= _nextSettingsCheck;
         if (checkSettings) _nextSettingsCheck = now + SettingsCheckMs;
         if (_setup.Remember(RoleLabels[RolePick], _selectedScenario, _selectedStratGroup, SelectedStratName, checkSettings))
             _setup.Save(_setupPath);
+    }
+
+    // What a session overrode comes back as kept: the Role pick, and a guest's region and strat. A guest's own settings
+    // are back from MultiplayerManager, and one changed just before the session may not have been read, so every kept
+    // scenario's settings are read again.
+    private void TakeBackFromSession(SessionMode ended)
+    {
+        RestoreRolePick();
+        if (ended == SessionMode.Peer && _selectedScenario is { } selected)
+        {
+            _selectedStratGroup = _stratGroupMemory.GetValueOrDefault(selected);
+            ReconcileStrat();
+            RestoreStratPick(selected);
+        }
+        RememberEverySetting();
+    }
+
+    private void RememberEverySetting()
+    {
+        if (_setup.RememberSettings(Plugin.Game.Catalog.Scenarios)) _setup.Save(_setupPath);
+    }
+
+    private void KeepSetupOnUnload()
+    {
+        RememberSetup(checkSettingsNow: true);
+        RememberEverySetting();
     }
 }

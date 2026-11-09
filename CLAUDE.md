@@ -69,7 +69,9 @@ NoirMech change:
   `ZoneControl`'s `StartBlockedReason` and `HoldBlockedReason`;
 - the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
   `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats`, and `RunController.Rotate.cs`, whose `PartyFor`
-  upstream's `RunController.Start` takes its party from;
+  upstream's `RunController.Start` takes its party from. In upstream's `MainWindow.cs`: "Rotate" is `RoleLabels[1]`,
+  which moves every seat's label up one (index 2 is MT; `RolePick` maps both ways), `DrawRoleSelector` goes through
+  `RolePick`, `ReconcileSetup` clears Rotate in a session, and `SelectScenario` and `Dispose` keep the setup;
 - the main window is `partial`: what Retry, Drill, the AnoMech warning and the kept setup add sits in
   `MainWindow.RunControls.cs` and `MainWindow.Setup.cs`, with one-line hooks in upstream's `MainWindow.cs` (the older
   pause button sits in `MainWindow.cs` itself);
@@ -222,9 +224,15 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   and each scenario's region and settings, before the last scenario is selected again; a scenario's strat comes back
   by name as it is selected, and one it no longer has in that region leaves the region's first.
 - `MainWindow.RememberSetup` runs every frame from `PreOpenCheck` and saves what changed (the settings are read every
-  0.5s), and once more on unload. Nothing is kept during a multiplayer session, which resets the Role pick and shows a
-  peer the host's scenario, strat and settings; after it the kept Role pick and the selected scenario's region and
-  strat come back, and a peer's own settings come back through `MultiplayerManager`'s restore, as before.
+  0.5s), and before `SelectScenario` switches scenario, so a setting changed just before is kept for its own. On
+  unload and after a session it also reads every kept scenario's settings again (`SetupMemory.RememberSettings`); a
+  scenario never shown has no entry, since only the shown one's settings can be changed.
+- A multiplayer session overrides part of the setup, and `SetupMemory` keeps that part out of the file (`Track` tells
+  it the window's session every frame): the Role pick, which a session resets, for everyone; and everything of a
+  scenario for a guest, who plays the host's scenario, strat and settings. A host's region, strat and settings are
+  kept as they change. When the session ends `Track` says so once, and the window puts back the kept Role pick and,
+  for a guest, the selected scenario's region and strat; a guest's own settings come back through
+  `MultiplayerManager`'s restore, as before.
 - Every settings window reads its picks back from the overrides every frame, so a kept setup, a replay or a host's
   settings show there. Upstream's FRU P4 Crystallize Time window alone kept its "Your debuffs" pick in a field and
   showed "Random" over restored debuffs; it reads the pick back now too.
@@ -238,8 +246,8 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   or melee gets its duties by job priority against the bot beside it (a PLD: Cosmo Memory and Magic Number 1 in MT
   beside the OT PLD bot, Magic Number 2 in OT beside the MT WAR bot). Every seat Rotate gives fits the job, so the
   chat line names the duties (`TopP6GauntletLimitBreakPlanTests`).
-- `SetupMemoryTests` (every catalog scenario's settings, off their defaults, survive a save and a load) and
-  `SeatRotationTests`.
+- `SetupMemoryTests` (every catalog scenario's settings, off their defaults, survive a save and a load; what a
+  session keeps) and `SeatRotationTests`.
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the

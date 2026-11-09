@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using AnoMech.Core;
+using AnoMech.Core.Game;
 using AnoMech.Scenarios;
 
 namespace AnoMech;
@@ -16,6 +17,10 @@ internal sealed class SetupMemory
     public const string AutoRole = "Auto";
 
     private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+
+    // The window's multiplayer session, Local outside one. A session seats everyone itself, so the Role pick isn't kept
+    // during one; a guest also plays the host's scenario, strat and settings, so nothing of a scenario is kept either.
+    private SessionMode session = SessionMode.Local;
 
     // One of the main window's Role labels.
     public string Role { get; set; } = AutoRole;
@@ -59,19 +64,49 @@ internal sealed class SetupMemory
 
     public ScenarioSetup? Find(IScenario scenario) => Scenarios.GetValueOrDefault(scenario.FullName());
 
+    // Before each Remember. Returns the session that just ended, once, so the window can put back what it overrode from
+    // what is kept.
+    public SessionMode? Track(SessionMode now)
+    {
+        var ended = session != SessionMode.Local && now != session ? session : (SessionMode?)null;
+        session = now;
+        return ended;
+    }
+
     // True when this changed what is kept. Reading the scenario's settings costs a serialization, so a caller that
     // remembers every frame passes `checkSettings` now and then.
     public bool Remember(string role, IScenario? scenario, string? region, string? strat, bool checkSettings)
     {
-        var changed = Role != role;
-        Role = role;
-        if (scenario is null) return changed;
+        var changed = false;
+        if (session == SessionMode.Local)
+        {
+            changed = Role != role;
+            Role = role;
+        }
+        if (scenario is null || session == SessionMode.Peer) return changed;
         var key = scenario.FullName();
         var kept = Scenarios.GetValueOrDefault(key);
         var settings = checkSettings ? ScenarioSettingsSync.Serialize(scenario.SettingsOverrides) : kept?.Settings;
         if (kept is not null && kept.Region == region && kept.Strat == strat && kept.Settings == settings) return changed;
         Scenarios[key] = new ScenarioSetup { Region = region, Strat = strat, Settings = settings };
         return true;
+    }
+
+    // The settings of every scenario kept, as they are now; their regions and strats stay as kept. Settings change only on
+    // a scenario that was shown, which Remember keeps, so the rest are left out of the file.
+    public bool RememberSettings(IEnumerable<IScenario> scenarios)
+    {
+        if (session == SessionMode.Peer) return false;
+        var changed = false;
+        foreach (var scenario in scenarios)
+        {
+            if (Find(scenario) is not { } kept) continue;
+            var settings = ScenarioSettingsSync.Serialize(scenario.SettingsOverrides);
+            if (kept.Settings == settings) continue;
+            kept.Settings = settings;
+            changed = true;
+        }
+        return changed;
     }
 }
 

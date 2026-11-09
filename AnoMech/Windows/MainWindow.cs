@@ -172,7 +172,7 @@ public unsafe partial class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
-        RememberSetup(checkSettingsNow: true);
+        KeepSetupOnUnload();
 #if DEBUG
         debugMenu.Dispose();
 #endif
@@ -447,6 +447,7 @@ public unsafe partial class MainWindow : Window, IDisposable
     // Select a scenario and reset its per-scenario UI state (strat, waymark, remembered region).
     private void SelectScenario(IScenario scenario, bool persist = true)
     {
+        RememberSetup(checkSettingsNow: true);
         if (_selectedScenario is { } previousScenario)
             _waymarkMemory[previousScenario.Phase.Zone] = _selectedWaymark;
 
