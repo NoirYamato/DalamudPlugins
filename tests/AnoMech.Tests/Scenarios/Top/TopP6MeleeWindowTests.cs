@@ -176,6 +176,19 @@ public class TopP6MeleeWindowTests
         }
     }
 
+    // The client is heard between the sim's frames, as in the game: a press started in the last frame before the window
+    // closes reaches the run only as the next frame's events run, the window's judgement among them. It started in time,
+    // so it fills the window.
+    [Test]
+    public void APressHeardInTheFrameBeforeTheWindowClosesFillsIt()
+    {
+        var client = new TopP6HumanLimitBreakBetweenFrames(LimitBreak(MeleeDpsA, 3), now => now < Closes && now + ScenarioRun.FrameSeconds >= Closes);
+        var run = Window((_, _, _) => { }, betweenFrames: (world, alphaOmega) => client.Hear(world, alphaOmega.Enemy));
+
+        Assert.That(client.StartedAt, Is.LessThan(Closes));
+        Assert.That(run.Passed, run.ToString);
+    }
+
     // The run's own press for a bot-driven player seat fills the seat's window as the human's would.
     [Test]
     public void TheRunsPressForABotDrivenPlayerSeatFillsIt()
@@ -194,12 +207,13 @@ public class TopP6MeleeWindowTests
         Assert.That(run.Deaths[0].Time, Is.EqualTo(at).Within(TimelineRun.FrameLate), run.ToString);
     }
 
-    private static TimelineRunResult Window(Action<SimWorld, TopP6AlphaOmega, TopP6LimitBreaks> timeline, TimelineRunOptions? options = null)
+    private static TimelineRunResult Window(Action<SimWorld, TopP6AlphaOmega, TopP6LimitBreaks> timeline, TimelineRunOptions? options = null,
+        Action<SimWorld, TopP6AlphaOmega>? betweenFrames = null)
         => TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
         {
             world.Events.Add(0.5f, () => limitBreaks.SetGauge(3f));
             limitBreaks.HoldTheHumanTo(new TopP6MeleeWindow(MeleeDpsA, Opens, Closes, TopP6LimitBreaks.FirstDiveMeleeRule), () => alphaOmega.Enemy);
             timeline(world, alphaOmega, limitBreaks);
             world.Events.Add(12f, () => { });
-        }, options ?? Human);
+        }, options ?? Human, betweenFrames);
 }

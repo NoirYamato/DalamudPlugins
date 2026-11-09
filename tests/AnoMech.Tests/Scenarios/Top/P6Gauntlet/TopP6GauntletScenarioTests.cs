@@ -232,13 +232,24 @@ public class TopP6GauntletScenarioTests
         });
     }
 
+    // ---- The menu
+
+    // The Gauntlet replaced P6's five blocks, upstream's Exasquares/WC2 among them, whose files stay off the menu.
+    [Test]
+    public void TheGauntletIsP6sOnlyMenuEntry()
+        => Assert.That(ScenarioCatalog.Create().ScenariosOf(TopZone.P6).Select(s => s.GetType()), Is.EqualTo(new[] { typeof(TopP6GauntletScenario) }));
+
     // ---- The run's start
 
-    // The human's limit breaks in the parts the run plays.
+    // The human's limit breaks in the parts the run plays: each duty goes with the part it falls in.
     [TestCase(MainTank, CosmoMemory, "Your limit breaks: tank LB3 on Cosmo Memory and Magic Number 1")]
     [TestCase(RegenHealer, CosmoMemory, "Your limit breaks: healer LB3 on Magic Number 1")]
     [TestCase(MeleeDpsA, CosmoMemory, "Your limit breaks: melee LB3 on Alpha Omega right after Cosmo Dive 2's cast bar and during Run: ****mi*'s cast")]
     [TestCase(CasterDps, CosmoMemory, "Your limit breaks: caster LB3 on the Cosmo Comets")]
+    [TestCase(MeleeDpsB, Exaflares2, "Your limit breaks: melee LB3 on Alpha Omega from the middle once the first one's refill fills the gauge")]
+    [TestCase(MeleeDpsA, CosmoMeteor, "Your limit breaks: melee LB3 on Alpha Omega during Run: ****mi*'s cast")]
+    [TestCase(CasterDps, CosmoMeteor, "Your limit breaks: caster LB3 on the Cosmo Comets")]
+    [TestCase(PhysRangedDps, CosmoMeteor, "Your limit breaks: physical ranged LB3 through both Cosmo Meteors")]
     [TestCase(MainTank, MagicNumber, "Your limit breaks: tank LB3 on Magic Number 1")]
     [TestCase(CasterDps, MagicNumber, "Your limit breaks: none in this run")]
     public void TheStartsChatLineNamesTheHumansLimitBreaks(PartyRole seat, TopP6GauntletPart from, string line)

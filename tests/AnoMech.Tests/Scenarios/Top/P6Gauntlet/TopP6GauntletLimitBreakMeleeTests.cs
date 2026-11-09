@@ -118,6 +118,20 @@ public class TopP6GauntletLimitBreakMeleeTests
         Assert.That(run.G(run.Presses[1].CastStartedAt), Is.EqualTo(pressAt + 4.5f).Within(0.05f), "the second goes as the first lands");
     }
 
+    // Godmode: the dragoon in M2, the first melee by the tie, never presses and is reported as its window closes at 161.0;
+    // the dragoon bot in M1 presses the second then, without waiting any longer for a first that never lands.
+    [Test]
+    public void TheSecondMeleePressesAsTheFirstsWindowClosesWithoutIt()
+    {
+        var run = (FromTheDive(MeleeDpsB, JobId.Dragoon) with { GodMode = true }).Play();
+
+        Assert.That(run.Run.Deaths, Is.Empty, run.Run.ToString);
+        run.AssertReportedOncePerHit((161.0f, 1, First));
+        Assert.That(run.Presses.Select(p => (p.Seat, p.ByHuman, p.ResolvedAt is not null)), Is.EqualTo(new[] { (MeleeDpsA, false, true) }),
+                    () => TopP6GauntletHumanSeatRun.Describe(run.Presses));
+        Assert.That(run.G(run.Presses[0].CastStartedAt), Is.EqualTo(161.0f).Within(0.05f));
+    }
+
     // ---- Cut off, or not what the window asks for
 
     [Test]

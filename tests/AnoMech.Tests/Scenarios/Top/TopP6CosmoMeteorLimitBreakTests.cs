@@ -79,6 +79,23 @@ public class TopP6CosmoMeteorLimitBreakTests
         Assert.That(Reported(run, TopP6CosmoMeteor.MeteorsEnraged), Is.Empty, run.ToString);
     }
 
+    // From (0, 5), between the meteors, the line toward Alpha Omega runs north through the north meteor only: the south
+    // one, behind R1, lives and enrages.
+    [Test]
+    public void ALineThroughOneMeteorKillsOnlyThatOne()
+    {
+        var alive = (Comets: -1, Meteors: -1);
+        var run = CosmoMeteor((world, alphaOmega, limitBreaks, cosmoMeteor) =>
+        {
+            world.Events.Add(10.5f, () => TimelineRun.Place(world, PhysRangedDps, 0f, 5f));
+            world.Events.Add(11f, () => limitBreaks.Press(PhysRangedDps, Job(PhysRangedDps), alphaOmega.Enemy));
+            world.Events.Add(15.6f, () => alive = Alive(cosmoMeteor));
+        });
+
+        Assert.That(alive, Is.EqualTo((6, 1)));
+        Assert.That(Reported(run, TopP6CosmoMeteor.MeteorsEnraged), Has.Count.EqualTo(8), run.ToString);
+    }
+
     // Aimed at Alpha Omega from east of A, the line passes both meteors' centres as far off as the line is half wide (4 y)
     // plus a meteor's hitbox, give or take half a yalm: inside, it reaches both hitboxes; outside, neither.
     [TestCase(-0.5f, 0)]
