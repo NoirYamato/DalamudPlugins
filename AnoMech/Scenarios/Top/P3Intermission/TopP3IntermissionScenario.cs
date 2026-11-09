@@ -126,7 +126,7 @@ public sealed class TopP3IntermissionScenario : IScenario
             Visibility: SpawnVisibility.InvisibleHelper,
             Placement: new Placement(Vector3.Zero, 0f)));
 
-    // UNVERIFIED: the arms face the centre, as P5's do.
+    // The arms face the centre.
     private SimEnemy? SpawnArm(float bearing)
     {
         var left = IsLeftArm(bearing);

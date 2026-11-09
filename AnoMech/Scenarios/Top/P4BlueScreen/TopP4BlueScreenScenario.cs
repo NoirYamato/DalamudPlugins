@@ -71,7 +71,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
         // UNVERIFIED: whether the instant rings, beams and line stacks show anything when an invisible helper
         // casts them.
         world.Events.Add(18.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
-        // Each aim lands with one of Omega's visuals.
+        // Aims 2 and 3 each land with one of Omega's visuals.
         world.Events.Add(18.28f, AimEveryonesLine);
         world.Events.Add(18.28f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
         world.Events.Add(18.82f, FireBeams);

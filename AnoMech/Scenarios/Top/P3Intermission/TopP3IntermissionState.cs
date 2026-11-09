@@ -19,7 +19,7 @@ public sealed class TopP3IntermissionState
 
     public Automarkers Automarkers { get; }
 
-    // Arm bearings, degrees clockwise from north. UNVERIFIED: the hexagon is assumed never to turn.
+    // Arm bearings, degrees clockwise from north; the hexagon never turns.
     public IReadOnlyList<float> FirstSetBearings => FirstArms == FirstArms.NorthTriangle ? NorthTriangle : SouthTriangle;
     public IReadOnlyList<float> SecondSetBearings => FirstArms == FirstArms.NorthTriangle ? SouthTriangle : NorthTriangle;
 

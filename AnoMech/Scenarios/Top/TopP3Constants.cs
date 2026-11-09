@@ -86,7 +86,7 @@ public static class TopP3Constants
         public const float LocalRegressionBreakDistance = 9f;       // breaks below
 
         // -- P3 Intermission --
-        // UNVERIFIED: the arms stand on a hexagon at this radius, at N and every 60 degrees from it.
+        // The arms stand on a hexagon at this radius, at N and every 60 degrees from it.
         public const float ArmRadius = 14f;
         public const float VoidZoneRadius = 6f;                     // UNVERIFIED
         // The donuts' inner safe radii; the sheet has only the outer ones.
