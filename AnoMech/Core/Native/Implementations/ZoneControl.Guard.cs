@@ -86,6 +86,7 @@ public sealed unsafe partial class ZoneControl
     // still move it, or with no character, there is no such place.
     private static string? HoldBlockedReason()
     {
+        if (Plugin.AnoMechPresence.StartBlock is { } anoMech) return anoMech;
         if (!Plugin.ClientState.IsLoggedIn || Plugin.ObjectTable.LocalPlayer is not { } player) return "no local player";
         if (Zoning()) return "zoning";
         if (player.IsCasting || IsServerActingSoon()) return "the server may still act on the last action";

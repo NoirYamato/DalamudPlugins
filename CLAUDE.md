@@ -64,8 +64,9 @@ NoirMech change:
   `/noirmech retry` and the Drill tick in `OnFrameworkUpdate`. With them, the fix for Auto-restart replaying one roll:
   upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to seat the
   party before a zone-in;
-- the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs`, `Plugin`'s watch of the installed
-  plugins, and a first check in `RunController.StartRefusal` and in `ZoneControl.StartBlockedReason`;
+- the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs` and `AnoMechWatch.cs` (one line each in
+  upstream's `Plugin` starts and disposes the watch), and a first check in `RunController.StartRefusal` and in
+  `ZoneControl`'s `StartBlockedReason` and `HoldBlockedReason`;
 - the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
   `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats`, and `RunController.Rotate.cs`, whose `PartyFor`
   upstream's `RunController.Start` takes its party from;
@@ -92,8 +93,9 @@ and a Dalamud config separate from AnoMech's. `Plugin.DisplayName` holds the use
   `.github/workflows/*` (upstream's: `pr-build.yml` runs, harmlessly, on every push to the plugin repo; the
   release workflows can't run there).
 
-NoirMech must not run alongside AnoMech: they install the same hooks and share ImGui window ids. It refuses to
-(see AnoMech alongside).
+NoirMech must not run alongside AnoMech: they install the same hooks and share ImGui window ids. While AnoMech is
+loaded NoirMech still loads and hooks, but refuses every zone-in and start and leaves a stay already up (see AnoMech
+alongside).
 
 ## Repos, branches, releases
 - Upstream is `anomek/AnoMech`. Merge only its **release tags** into `noirmech-stable`; its `master` holds
@@ -189,20 +191,25 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
 
 ## AnoMech alongside
 - `AnoMechPresence` decides from plain data (`InstalledPlugin(InternalName, IsLoaded)`) whether AnoMech is loaded.
-  `Plugin` reads `PluginInterface.InstalledPlugins` at load and on `ActivePluginsChanged` (on the framework thread),
-  and prints one chat line each time it finds AnoMech newly loaded; the main window shows the reason in red.
+  `AnoMechWatch` reads `PluginInterface.InstalledPlugins` at load and on `ActivePluginsChanged` (on the framework
+  thread) and prints one chat line each time it finds AnoMech newly loaded; the main window shows the reason in red.
 - While AnoMech is loaded, `RunController.StartRefusal` and `ZoneControl.StartBlockedReason` refuse first, with that
   reason (`Refusal`, and `StartBlock` worded as the start gate's other reasons). Every zone-in and start asks the
   latter: Start, Retry, Drill, Auto-restart, the multiplayer start check, `ScenarioSession` and `ZoneControl.Enter`.
+  The debug send hold is refused the same way (`ZoneControl.HoldBlockedReason`).
 - NoirMech's guard and firewall act only in its own stays. Every trip check, `GuardTerritoryChanged` and
   `GuardLogout` need `guardArmed`, which only `ZoneControl.Enter` sets; the rest of `TickGuard` times NoirMech's own
   start gate; the firewall hooks are on only in a stay and under the debug send hold. Its always-on hooks act only
   for its own sim (the UseAction block in its user pause, `UserActions` while its own map is in an instance, steering
   when its sim steers) or only log. So while AnoMech runs its sim and NoirMech has no stay, NoirMech stays inert. The
   overlap is a NoirMech stay already up when AnoMech loads: a zone load of AnoMech's could trip NoirMech's guard (a
-  zone transition or a territory drift under its firewall), which stops the game. On detection NoirMech leaves such a
-  stay through `RunController.Leave` (the inn reload and the verified lift) and releases a debug send hold.
-- `AnoMechPresenceTests`, `RunControllerTests`.
+  zone transition or a territory drift under its firewall), which stops the game.
+- On detection the watch ends such a stay and releases a debug send hold. A local stay, or a host's, ends through
+  `RunController.Leave` (the inn reload and the verified lift); a host's party goes back to the inn with it, since the
+  host's sim is theirs. A peer leaves its session and its own stay at once, as Disconnect does: its Leave would only
+  ask the host to end the run, and its own stay would stay up until the host answered. The host then ends the run it
+  lost a player from, as it does for any peer that leaves mid-run.
+- `AnoMechPresenceTests`, `AnoMechWatchTests`, `RunControllerTests`.
 
 ## Setup memory and Rotate
 - `SetupMemory` keeps the main window's setup in `setup.json` in the plugin's config folder
