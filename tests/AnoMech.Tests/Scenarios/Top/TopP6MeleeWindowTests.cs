@@ -189,6 +189,40 @@ public class TopP6MeleeWindowTests
         Assert.That(run.Passed, run.ToString);
     }
 
+    // A window that counts what lands, as the enrage's does: from 2.0 until before 12.0, its latest press 7.5. Pressed at
+    // 7.4, the human's lands at 11.9 and fills it once it resolves; pressed at 7.6, it would land at 12.1, and the human
+    // dies as the window closes.
+    [TestCase(7.4f, true)]
+    [TestCase(7.6f, false)]
+    public void AWindowThatCountsWhatLandsTakesOnlyWhatLandsBeforeItsEnd(float pressAt, bool fills)
+    {
+        var run = TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
+        {
+            world.Events.Add(0.5f, () => limitBreaks.SetGauge(3f));
+            limitBreaks.HoldTheHumanTo(new TopP6MeleeWindow(MeleeDpsA, Opens, 7.5f, TopP6LimitBreaks.EnrageMeleeRule, LandsBy: 12f), () => alphaOmega.Enemy);
+            TopP6HumanLimitBreak.Press(world, pressAt, LimitBreak(MeleeDpsA, 3), () => alphaOmega.Enemy);
+        }, Human);
+
+        if (fills) Assert.That(run.Passed, run.ToString);
+        else AssertDied(run, 7.5f, TopP6LimitBreaks.EnrageMeleeRule);
+    }
+
+    // An open window keeps the run going only until it is filled: one open to 20.0, filled as the press resolves at 7.5,
+    // lets a run with nothing else to play end a second or two later.
+    [Test]
+    public void AWindowFilledEarlyLetsTheRunEnd()
+    {
+        var run = TopP6LimitBreakRun.Execute((world, alphaOmega, limitBreaks) =>
+        {
+            world.Events.Add(0.5f, () => limitBreaks.SetGauge(3f));
+            limitBreaks.HoldTheHumanTo(new TopP6MeleeWindow(MeleeDpsA, Opens, 20f, TopP6LimitBreaks.FirstDiveMeleeRule), () => alphaOmega.Enemy);
+            TopP6HumanLimitBreak.Press(world, 3f, LimitBreak(MeleeDpsA, 3), () => alphaOmega.Enemy);
+        }, Human);
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(run.Elapsed, Is.InRange(8f, 10f), run.ToString);
+    }
+
     // The run's own press for a bot-driven player seat fills the seat's window as the human's would.
     [Test]
     public void TheRunsPressForABotDrivenPlayerSeatFillsIt()

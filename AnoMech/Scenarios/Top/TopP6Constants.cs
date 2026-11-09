@@ -127,7 +127,8 @@ public static class TopP6Constants
         public const float MagicNumberMarkAfterTheHit = 1.3f;
         public const float MagicNumberMark = 6.0f;
 
-        // UNVERIFIED: Run: ****mi*'s damage, this long after its cast starts.
+        // UNVERIFIED: Run: ****mi*'s damage, this long after its cast starts. The last melee limit break 3 must land before
+        // it.
         public const float RunMiLands = 30.0f;
 
         // UNVERIFIED: the party's own limit break generation refills the gauge evenly from Cosmo Memory's hit (its bar
@@ -136,8 +137,8 @@ public static class TopP6Constants
 
         // UNVERIFIED, the Gauntlet's own windows for the human's melee limit breaks 3, from Cosmo Dive 2's bar end: the
         // second must start by SecondDiveMeleeLatestPress (it is then free to leave Cosmo Meteor's baits before they
-        // decide) and the first leaves it a 4.5 s cast to do so. The enrage's must land while Run: ****mi*'s cast bar is
-        // up.
+        // decide) and the first leaves it a 4.5 s cast to do so. The enrage's must land after Run: ****mi*'s cast starts and
+        // before its damage.
         public const float FirstDiveMeleeLatestPress = 11.2f;
         public const float SecondDiveMeleeLatestPress = 15.7f;
     }

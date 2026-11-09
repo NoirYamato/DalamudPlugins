@@ -65,13 +65,14 @@ public sealed class TopP6LimitBreakPress
 
     public bool Is(TopP6LimitBreakKind kind, int level = 3) => Kind == kind && Level == level;
 
-    // A melee limit break 3 aimed at `targetId` whose cast bar ends between `from` and `by`, whenever its resolve is heard.
-    public bool LandsAMeleeLimitBreak3On(ulong targetId, float from, float by)
-        => Is(TopP6LimitBreakKind.Melee) && TargetId == targetId && LandsAt >= from && LandsAt <= by;
+    // A melee limit break 3 aimed at `targetId` whose cast bar ends from `from` until before `before`, whenever its resolve
+    // is heard.
+    public bool LandsAMeleeLimitBreak3On(ulong targetId, float from, float before)
+        => Is(TopP6LimitBreakKind.Melee) && TargetId == targetId && LandsAt >= from && LandsAt < before;
 }
 
 // A slot the melee limit break 3 of the human's seat must fill, aimed at the window's target and resolved: started between
-// OpensAt and LatestPress, or, with LandsBy, landing between OpensAt and LandsBy however early it started
+// OpensAt and LatestPress, or, with LandsBy, landing from OpensAt until before LandsBy however early it started
 // (LandsAMeleeLimitBreak3On), LatestPress then being the last start that lands in time. With AfterAnotherMeleeLimitBreak3
 // it opens instead once another seat's melee limit break 3 has resolved at or after OpensAt.
 public sealed record TopP6MeleeWindow(PartyRole Seat, float OpensAt, float LatestPress, string Rule, bool AfterAnotherMeleeLimitBreak3 = false,
@@ -100,6 +101,9 @@ public sealed class TopP6LimitBreaks : IDisposable
     // How long before a melee window opens a press still counts toward explaining a miss.
     private const float EarlyPressLookback = 10f;
 
+    // How often an open melee window looks whether it has been filled.
+    private const float WindowWatchStep = 1f;
+
     // The client's stand-in for "the player's current target". UNVERIFIED that a press reaches Acted with it rather than
     // its target's own id; one that does is read as aimed at the player's target as it is heard.
     private const uint CurrentTarget = 0xE0000000;
@@ -117,7 +121,7 @@ public sealed class TopP6LimitBreaks : IDisposable
     public const string SecondDiveMeleeRule =
         "The second melee limit break 3 goes on Alpha Omega as soon as the first one's refill fills the gauge, early enough to be free before Cosmo Meteor's baits";
     public const string EnrageMeleeRule =
-        "The Gauntlet's last melee limit break 3 must land on Alpha Omega while Run: ****mi*'s cast bar is up";
+        "The Gauntlet's last melee limit break 3 must land on Alpha Omega after Run: ****mi*'s cast starts and before its damage lands";
 
     public const string YoursWasCutOff = "; yours was cut off";
     public const string YoursMissedAlphaOmega = "; yours wasn't aimed at Alpha Omega";
@@ -240,14 +244,16 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     // The human in `window`'s seat dies unless a melee limit break 3 of that seat fills it: as it closes, or at its
     // interruption if that is later. A press counts whoever made it for the seat (the human, or the run for a bot-driven
-    // player seat); only the seat's own presses count, and nothing holds a bot's seat to a window.
+    // player seat); only the seat's own presses count, and nothing holds a bot's seat to a window. An open window keeps
+    // the run going only until it is filled, looking a second at a time, so a run that fills it early (the enrage's, which
+    // stays open until 4.5 s before Run: ****mi*'s damage) ends as its other events do.
     public void HoldTheHumanTo(TopP6MeleeWindow window, Func<SimCharacter?> target)
     {
         var held = new HeldWindow(window, target);
         windows.Add(held);
         world.Events.FromRunStart(() =>
         {
-            world.Events.Add(window.LatestPress, () => Judge(held));
+            world.Events.Add(window.OpensAt, () => Watch(held));
             return true;
         });
     }
@@ -494,16 +500,28 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
     }
 
+    private void Watch(HeldWindow held)
+    {
+        CatchUp();
+        if (held.Decided) return;
+        if (Now >= held.Window.LatestPress)
+        {
+            Judge(held);
+            return;
+        }
+        if (Filling(held).Any(p => p.ResolvedAt is not null))
+        {
+            held.Decided = true;
+            return;
+        }
+        world.Events.Add(MathF.Min(WindowWatchStep, held.Window.LatestPress - Now), () => Watch(held));
+    }
+
     private void Judge(HeldWindow held)
     {
         CatchUp();
         if (held.Decided) return;
-        var window = held.Window;
-        var opens = OpensAt(window);
-        held.LookAtTheTarget();
-        var targetId = held.TargetId;
-        var ofTheSeat = presses.Where(p => p.Seat == window.Seat).ToList();
-        var filling = ofTheSeat.Where(p => opens is { } open && Fills(window, p, open, targetId)).ToList();
+        var filling = Filling(held);
         if (filling.Any(p => p.ResolvedAt is not null))
         {
             held.Decided = true;
@@ -511,9 +529,21 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
         if (filling.Any(p => p.IsCasting)) return;
         held.Decided = true;
-        var attempts = ofTheSeat.Where(p => p.CastStartedAt >= window.OpensAt - EarlyPressLookback && p.CastStartedAt <= window.LatestPress).ToList();
+        var window = held.Window;
+        var attempts = presses.Where(p => p.Seat == window.Seat && p.CastStartedAt >= window.OpensAt - EarlyPressLookback && p.CastStartedAt <= window.LatestPress)
+                              .ToList();
         if (Party.Get(window.Seat) is SimPlayer human)
-            human.Die(SimCharacterDeathExtensions.Environment, window.Rule + WhyYoursMissed(window, attempts, opens, targetId));
+            human.Die(SimCharacterDeathExtensions.Environment, window.Rule + WhyYoursMissed(window, attempts, OpensAt(window), held.TargetId));
+    }
+
+    // The seat's presses that fill the window, casting or resolved.
+    private List<TopP6LimitBreakPress> Filling(HeldWindow held)
+    {
+        var window = held.Window;
+        held.LookAtTheTarget();
+        return OpensAt(window) is { } opens
+            ? presses.Where(p => p.Seat == window.Seat && Fills(window, p, opens, held.TargetId)).ToList()
+            : [];
     }
 
     private static bool Fills(TopP6MeleeWindow window, TopP6LimitBreakPress press, float opens, ulong targetId)

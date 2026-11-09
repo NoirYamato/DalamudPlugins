@@ -124,8 +124,8 @@ public sealed class TopP6GauntletScenario : IScenario
         alphaOmega.MagicNumber(start + 18.0f, limitBreaks);
         var runMiAt = start + 32.1f;
         alphaOmega.RunMi(runMiAt, limitBreaks);
-        var barEnds = TopP6AlphaOmega.RunMiFinishedBy(runMiAt);
-        HoldTheHumanTo(TopP6LimitBreakDuty.Enrage, runMiAt, barEnds - HumansLimitBreak3Cast(), TopP6LimitBreaks.EnrageMeleeRule, landsBy: barEnds);
+        var runMiLands = TopP6AlphaOmega.RunMiLandsAt(runMiAt);
+        HoldTheHumanTo(TopP6LimitBreakDuty.Enrage, runMiAt, runMiLands - HumansLimitBreak3Cast(), TopP6LimitBreaks.EnrageMeleeRule, landsBy: runMiLands);
     }
 
     // Cosmo Memory's hit's statuses, as the limit breaks the plan has pressed by then leave them, and the gauge as the

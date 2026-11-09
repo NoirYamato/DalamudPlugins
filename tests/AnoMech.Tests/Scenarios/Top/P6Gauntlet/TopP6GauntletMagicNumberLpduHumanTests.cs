@@ -103,7 +103,7 @@ public class TopP6GauntletMagicNumberLpduHumanTests
             {
                 TopP6LimitBreakKind.Tank, TopP6LimitBreakKind.Healer, TopP6LimitBreakKind.Tank, TopP6LimitBreakKind.Healer, TopP6LimitBreakKind.Melee,
             }), () => $"each limit break once: {described}");
-            Assert.That(alphaOmegaFell, Is.LessThan(TopP6AlphaOmega.RunMiFinishedBy(32.1f)), "Alpha Omega falls before Run: ****mi*'s cast ends");
+            Assert.That(alphaOmegaFell, Is.LessThan(TopP6AlphaOmega.RunMiLandsAt(32.1f)), "Alpha Omega falls before Run: ****mi* lands");
         });
     }
 

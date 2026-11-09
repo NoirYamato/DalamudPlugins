@@ -375,19 +375,26 @@ multiplayer.
     everyone.
   - Either enrage's reason says how many of its adds the human's own LB3s caught in all, once one went off while they
     showed.
-  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends while Run: ****mi*'s is up, 232.0 to 247.7
-    (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is heard a frame or two
-    later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise its damage kills everyone at 262.0. One
-    started up to a cast before the bar counts, one landing before it is wasted, and one the bar's own frame settled
-    before Run: ****mi* listens is counted as it starts listening. Whether the gauge was short is read as the bar ends.
+  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends from Run: ****mi*'s cast start until before its
+    damage, 232.0 to 262.0 (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is
+    heard a frame or two later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise the damage kills
+    everyone at 262.0. The "Carry the Clear" TOP healing plan has top groups killing it from the bar's end (247.7)
+    until just before the damage (5:08 to 5:22 on its P6 timer). One started up to a cast before the cast counts, one
+    landing before it is wasted, one landing as the damage does or later is too late, and one the cast's own frame
+    settled before Run: ****mi* listens is counted as it starts listening. The damage waits up to 0.25s for the resolve
+    of a human's that landed before it. It is queued only if Alpha Omega still stands as the bar ends, so a run that
+    finishes it in the cast ends without waiting it out. Whether the gauge was short is read as the damage lands, when
+    the strat's press gives up.
   - Melee (the user's rule, the human only): for each of its duties the human's melee LB3 must start in the window,
     aim at Alpha Omega and land, or the human dies as the window closes, or as the cast is cut off if that is later.
     The first: from Cosmo Dive 2's bar end (149.8) to 161.0; the second: from the first's landing to 165.5. The
     enrage's (`TopP6MeleeWindow.LandsBy`) counts the presses that defeat Alpha Omega, by the same call: started 227.5
-    to 243.2, landing while the bar is up. A press landing before the bar is wasted, so the window kills at 243.2 and
-    Run: ****mi* then wipes. The bar's end is the Gauntlet's cut-off (the fight's is the damage). A window remembers its
-    target's id, since Alpha Omega despawns 9.7s after falling, which can be before the enrage's window closes. Bots'
-    melee LB3s aren't held to windows.
+    to 257.5 (the damage less the 4.5s cast), landing from the cast's start until before the damage. A press landing
+    before the cast is wasted, so the window kills at 257.5 and the damage then kills the rest at 262.0, inside the 5s
+    before a death freezes the run. A window remembers its target's id, since Alpha Omega despawns 9.7s after falling,
+    which can be before the enrage's window closes. An open window keeps the run going only until it is filled, looking
+    every second, so a run that fills the enrage's early still ends about 9.7s after Alpha Omega falls, as its other
+    events do. Bots' melee LB3s aren't held to windows.
   - Death reasons state the fight's rule or the Gauntlet's, never a strat spot.
 - A human tank's own mitigation is checked under each Cosmo Dive buster (39.4, 152.5) and at the front of each Wild
   Charge (84.4, 118.3) as an EnemyAction's `MinMit` checks it: the human's alone (bots and a debug-driven player always
@@ -427,7 +434,8 @@ multiplayer.
   its 8.1s marker and when the markers show, the meteor stack's 5, the spreads' 3s vulnerability, Cosmo Dive taking
   its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
   (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
-  cast, the gauge's rebuild, the human's melee windows and the tank mitigation a buster and Wild Charge's front need. In
+  cast (consistent with the healing plan's kill times, but unmeasured), the gauge's rebuild, the human's melee windows
+  and the tank mitigation a buster and Wild Charge's front need. In
   `TopP6LimitBreaks`: the client's current-target
   stand-in, and that the client fills its own cast's ground point, within the sheet's 25y plus a yalm. In the State,
   the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's (the sources call those

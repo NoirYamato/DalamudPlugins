@@ -46,9 +46,12 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     internal const string MagicNumberMarkRanOut =
         "its mark kills as it runs out unless a healer's limit break 3 lands while it is on everyone";
     internal const string RunMiLanded =
-        "it kills everyone unless Alpha Omega has fallen: the Gauntlet's last melee limit break 3 finishes it, landing while the cast bar is up";
+        "it kills everyone unless Alpha Omega has fallen: the Gauntlet's last melee limit break 3 finishes it, landing after the cast starts and before this damage";
 
     private const int LasersPerSet = 4;
+
+    // The human's resolve reaches the run a frame or two after its cast bar ends.
+    private const float AHumansResolveIsHeardWithin = 0.25f;
 
     private static readonly Placement FacingNorth = new(Vector3.Zero, -MathF.PI);
 
@@ -152,20 +155,38 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         At(marksAt + P6Duration.MagicNumberMark, mark.RunOut, file, line);
     }
 
-    // Run: ****mi*, the enrage. A melee limit break 3 on Alpha Omega whose own cast bar ends while the enrage's is up, from
-    // castAt to RunMiFinishedBy, defeats Alpha Omega once it resolves (the human's resolve is heard a frame or two after it
-    // lands), so one started before the cast can count; otherwise its damage lands P6Duration.RunMiLands after the cast
-    // starts and kills everyone. The Gauntlet's enrage window counts the same presses (TopP6MeleeWindow.LandsBy). Whether
-    // the gauge was short is read as the bar ends, while a press that gives up then is still waiting.
+    // Run: ****mi*, the enrage. A melee limit break 3 on Alpha Omega whose own cast bar ends from castAt until before the
+    // damage (RunMiLandsAt) defeats Alpha Omega once it resolves, so one started before the cast can count; otherwise the
+    // damage kills everyone. The Gauntlet's enrage window counts the same presses (TopP6MeleeWindow.LandsBy). The human's
+    // resolve is heard a frame or two after it lands, so the damage waits that long for one that landed before it. The
+    // damage is queued only if Alpha Omega still stands as the cast bar ends, so a run that finishes it in the cast ends
+    // without waiting it out. Whether the gauge was short is read as the damage lands, while a press that gives up then is
+    // still waiting.
     public void RunMi(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
-        var finishedBy = RunMiFinishedBy(castAt);
+        var landsAt = RunMiLandsAt(castAt);
+        string? why = null;
+
+        bool Finishes(TopP6LimitBreakPress press)
+            => Enemy is { } enemy && press.LandsAMeleeLimitBreak3On((ulong)enemy.GameObjectId, castAt, landsAt);
 
         void Finish(TopP6LimitBreakPress press)
         {
-            if (press.ResolvedAt is not null && Enemy is { } enemy && enemy.IsAlive()
-                && press.LandsAMeleeLimitBreak3On((ulong)enemy.GameObjectId, castAt, finishedBy))
+            if (press.ResolvedAt is not null && Enemy is { } enemy && enemy.IsAlive() && Finishes(press))
                 enemy.Defeat();
+        }
+
+        void Land(bool waited)
+        {
+            limitBreaks.CatchUp();
+            why ??= RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
+            if (!waited && Enemy.IsAlive() && limitBreaks.Presses.Any(press => press.IsCasting && Finishes(press)))
+            {
+                world.Events.Add(AHumansResolveIsHeardWithin, () => Land(waited: true), file, line);
+                return;
+            }
+            limitBreaks.Resolved -= Finish;
+            if (Enemy.IsAlive()) world.Party.WipeAllPlayers(P6ActionId.RunMi, why);
         }
 
         // A press the cast's own frame settled before this runs is judged as one resolving after it.
@@ -176,25 +197,15 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             foreach (var press in limitBreaks.Presses.ToList()) Finish(press);
             limitBreaks.Resolved += Finish;
         }, file, line);
-        At(finishedBy, () =>
+        At(castAt + Actions.RunMi.ResolvesAfter(), () =>
         {
-            var why = RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
-            if (!Enemy.IsAlive())
-            {
-                limitBreaks.Resolved -= Finish;
-                return;
-            }
-            At(castAt + P6Duration.RunMiLands, () =>
-            {
-                limitBreaks.CatchUp();
-                limitBreaks.Resolved -= Finish;
-                if (Enemy.IsAlive()) world.Party.WipeAllPlayers(P6ActionId.RunMi, why);
-            }, file, line);
+            if (Enemy.IsAlive()) At(landsAt, () => Land(waited: false), file, line);
+            else limitBreaks.Resolved -= Finish;
         }, file, line);
     }
 
-    // When Run: ****mi* cast at `castAt` stops counting a melee limit break 3: as its cast bar ends.
-    public static float RunMiFinishedBy(float castAt) => castAt + Actions.RunMi.ResolvesAfter();
+    // When the damage of Run: ****mi* cast at `castAt` lands: a melee limit break 3 must land on Alpha Omega before it.
+    public static float RunMiLandsAt(float castAt) => castAt + P6Duration.RunMiLands;
 
     // Wave Cannon: Alpha Omega's visual, then a laser from it at each of four players and at the other four, and Wild
     // Charge at its target.

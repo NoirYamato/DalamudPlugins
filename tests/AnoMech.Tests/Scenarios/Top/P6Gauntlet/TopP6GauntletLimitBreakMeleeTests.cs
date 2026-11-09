@@ -16,12 +16,12 @@ namespace AnoMech.Tests;
 // its share. On the Gauntlet's clock (G), the Gauntlet holds the human, and only the human, to its own windows:
 //   149.8 / 161.0  the first: from Cosmo Dive 2's bar end; the latest press;
 //   (the first's landing) / 165.5  the second;
-//   232.0 / 243.2  the enrage: landing while Run: ****mi*'s bar is up, to 247.7, as the presses that defeat Alpha Omega
-//                  do; the latest press.
+//   232.0 / 257.5  the enrage: landing from Run: ****mi*'s cast until before its damage at 262.0, as the presses that
+//                  defeat Alpha Omega do; the latest press.
 // Each must start inside its window (the enrage's: land in it), on Alpha Omega, and land: otherwise the human dies as it
-// closes, or as the cast is cut off if that is later. A wasted press with Spark of Dynamis empties the gauge, and with
-// nothing generating it after Cosmo Dive 2, the caster's limit break 3 then waits for it: the Cosmo Comets enrage at 187.0
-// and kill everyone, saying so.
+// closes, or as the cast is cut off if that is later, and at the enrage Run: ****mi*'s damage then kills the rest. A
+// wasted press with Spark of Dynamis empties the gauge, and with nothing generating it after Cosmo Dive 2, the caster's
+// limit break 3 then waits for it: the Cosmo Comets enrage at 187.0 and kill everyone, saying so.
 public class TopP6GauntletLimitBreakMeleeTests
 {
     // Multiplayer fixtures leave their hosting session installed, which would make every seat real here too.
@@ -75,11 +75,11 @@ public class TopP6GauntletLimitBreakMeleeTests
     public void TheSecondStartedAfterItsWindowKillsTheHuman()
         => FromTheDive(MeleeDpsA, JobId.Ninja).Play(For(SecondDiveMelee, 166.0f)).AssertOnlyTheHumanDied(165.5f, Second);
 
-    // Started at 243.4, it would land at 247.9, after the bar has gone at 247.7.
+    // Started at 257.6, it would land at 262.1, after Run: ****mi*'s damage at 262.0.
     [TestCase(MeleeDpsA, JobId.Monk)]
     [TestCase(MeleeDpsB, JobId.Samurai)]
     public void TheEnragesStartedAfterItsWindowKillsTheHuman(PartyRole seat, JobId job)
-        => FromMagicNumber(seat, job).Play(For(Enrage, 243.4f)).AssertOnlyTheHumanDied(243.2f, TheEnrage);
+        => FromMagicNumber(seat, job).Play(For(Enrage, 257.6f)).AssertTheHumanDiedThenRunMiKilledTheRest(257.5f, TheEnrage);
 
     [TestCase(MeleeDpsB, JobId.Dragoon, 161.0f, First)]
     [TestCase(MeleeDpsB, JobId.Viper, 165.5f, Second)]
@@ -89,7 +89,7 @@ public class TopP6GauntletLimitBreakMeleeTests
     [TestCase(MeleeDpsA, JobId.Samurai)]
     [TestCase(MeleeDpsB, JobId.Samurai)]
     public void AnEnrageHolderWhoNeverPressesDiesAsItsWindowCloses(PartyRole seat, JobId job)
-        => FromMagicNumber(seat, job).Play().AssertOnlyTheHumanDied(243.2f, TheEnrage);
+        => FromMagicNumber(seat, job).Play().AssertTheHumanDiedThenRunMiKilledTheRest(257.5f, TheEnrage);
 
     // The samurai in M2 is the first melee, and its window runs to 161.0: pressing late in it, it still goes first, since
     // the second melee, the dragoon bot in M1, waits for its limit break to land (or, past 161.0, for any still casting)
@@ -138,31 +138,41 @@ public class TopP6GauntletLimitBreakMeleeTests
         => FromTheDive(MeleeDpsA, JobId.Reaper).Play(For(SecondDiveMelee, interruptedAfter: 3.5f))
             .AssertOnlyTheHumanDied(165.5f, Second + TopP6LimitBreaks.YoursWasCutOff);
 
+    // Started at 255.0 and cut off at 259.0, after the window has closed.
     [TestCase(MeleeDpsA, JobId.Dragoon)]
     [TestCase(MeleeDpsB, JobId.Samurai)]
     public void TheEnragesCutOffAfterItsWindowClosedKillsTheHumanThere(PartyRole seat, JobId job)
-        => FromMagicNumber(seat, job).Play(For(Enrage, 240.0f, interruptedAfter: 4f))
-            .AssertOnlyTheHumanDied(244.0f, TheEnrage + TopP6LimitBreaks.YoursWasCutOff);
+        => FromMagicNumber(seat, job).Play(For(Enrage, 255.0f, interruptedAfter: 4f))
+            .AssertTheHumanDiedThenRunMiKilledTheRest(259.0f, TheEnrage + TopP6LimitBreaks.YoursWasCutOff);
 
     [Test]
     public void PressingAgainAfterBeingCutOffFillsTheWindow()
         => FromTheDive(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee, interruptedAfter: 0.5f), For(FirstDiveMelee, 151.5f)).AssertClears();
 
-    // Each window: the first (the dragoon in M1), the second (the monk in M2, after the dragoon bot's first) and the enrage.
+    // The first window (the dragoon in M1) and the second (the monk in M2, after the dragoon bot's first); then the
+    // enrage's, after which Run: ****mi*'s damage kills the rest.
     [TestCase(MeleeDpsA, JobId.Dragoon, FirstDiveMelee, 161.0f, First)]
     [TestCase(MeleeDpsB, JobId.Monk, SecondDiveMelee, 165.5f, Second)]
-    [TestCase(MeleeDpsA, JobId.Dragoon, Enrage, 243.2f, TheEnrage)]
     public void ALimitBreak2DoesntFillTheWindow(PartyRole seat, JobId job, TopP6LimitBreakDuty duty, float closes, string rule)
         => From(seat, job, duty).Play(new TopP6GauntletHumanPress(AimFor(duty), Level: 2, OnAlphaOmega: true))
             .AssertOnlyTheHumanDied(closes, rule + string.Format(TopP6LimitBreaks.YoursWasNotALimitBreak3, 2));
 
-    // The samurai in M2 first and at the enrage, the reaper in M1 second, after the monk bot's first.
+    [Test]
+    public void ALimitBreak2DoesntFillTheEnragesWindow()
+        => FromMagicNumber(MeleeDpsA, JobId.Dragoon).Play(new TopP6GauntletHumanPress(AimFor(Enrage), Level: 2, OnAlphaOmega: true))
+            .AssertTheHumanDiedThenRunMiKilledTheRest(257.5f, TheEnrage + string.Format(TopP6LimitBreaks.YoursWasNotALimitBreak3, 2));
+
+    // The samurai in M2 first, the reaper in M1 second, after the monk bot's first; then the samurai at the enrage.
     [TestCase(MeleeDpsB, JobId.Samurai, FirstDiveMelee, 161.0f, First)]
     [TestCase(MeleeDpsA, JobId.Reaper, SecondDiveMelee, 165.5f, Second)]
-    [TestCase(MeleeDpsB, JobId.Samurai, Enrage, 243.2f, TheEnrage)]
     public void OneAimedAtNothingDoesntFillTheWindow(PartyRole seat, JobId job, TopP6LimitBreakDuty duty, float closes, string rule)
         => From(seat, job, duty).Play(new TopP6GauntletHumanPress(AimFor(duty)))
             .AssertOnlyTheHumanDied(closes, rule + TopP6LimitBreaks.YoursMissedAlphaOmega);
+
+    [Test]
+    public void OneAimedAtNothingDoesntFillTheEnragesWindow()
+        => FromMagicNumber(MeleeDpsB, JobId.Samurai).Play(new TopP6GauntletHumanPress(AimFor(Enrage)))
+            .AssertTheHumanDiedThenRunMiKilledTheRest(257.5f, TheEnrage + TopP6LimitBreaks.YoursMissedAlphaOmega);
 
     // The reaper in M1 goes second, but presses as the dive's bar ends, ahead of the monk's first (150.2), which then waits
     // for it and lands at 159.0: the reaper's started before its window opened.
@@ -184,6 +194,31 @@ public class TopP6GauntletLimitBreakMeleeTests
         Assert.That(run.G(run.Run.Elapsed), Is.LessThan(250f), "the run ends with Alpha Omega fallen, before Run: ****mi* lands");
     }
 
+    // Started at 243.4, it lands at 247.9, after Run: ****mi*'s bar has gone at 247.7; at 257.4, it lands at 261.9, just
+    // before the damage. Either fills the window and defeats Alpha Omega.
+    [TestCase(243.4f)]
+    [TestCase(250.0f)]
+    [TestCase(257.4f)]
+    public void TheEnragesLandingAfterTheBarButBeforeTheDamageFillsTheWindow(float pressAt)
+    {
+        var run = FromMagicNumber(MeleeDpsB, JobId.Samurai).Play(For(Enrage, pressAt));
+
+        run.AssertClears();
+        Assert.That(run.TheHumans.Select(p => run.G(p.LandsAt)), Is.EqualTo(new[] { pressAt + 4.5f }).Within(0.05f),
+                    () => TopP6GauntletHumanSeatRun.Describe(run.Presses));
+    }
+
+    // Started at 257.6, it would land at 262.1, after the damage: godmode deals no deaths, and its cast doesn't save anyone
+    // from the damage, which lands while it still casts.
+    [Test]
+    public void TheEnragesLandingAfterTheDamageIsTooLate()
+    {
+        var run = (FromMagicNumber(MeleeDpsA, JobId.Dragoon) with { GodMode = true }).Play(For(Enrage, 257.6f));
+
+        Assert.That(run.Run.Deaths, Is.Empty, run.Run.ToString);
+        run.AssertReportedOncePerHit((257.5f, 1, TheEnrage), (262.0f, 8, $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded})"));
+    }
+
     // Started at 227.0, as soon as the gauge has refilled after the second healer's, it lands at 231.5, before Run: ****mi*'s
     // bar goes up: it neither fills the window nor defeats Alpha Omega, and with Spark of Dynamis it leaves no gauge for
     // another. Godmode deals no deaths: the human is reported as the window closes, and everyone as Run: ****mi* lands.
@@ -193,7 +228,7 @@ public class TopP6GauntletLimitBreakMeleeTests
         var run = (FromMagicNumber(MeleeDpsA, JobId.Dragoon) with { GodMode = true }).Play(For(Enrage, 227.0f));
 
         Assert.That(run.Run.Deaths, Is.Empty, run.Run.ToString);
-        run.AssertReportedOncePerHit((243.2f, 1, TheEnrage + TopP6LimitBreaks.YoursLandedBeforeTheBar),
+        run.AssertReportedOncePerHit((257.5f, 1, TheEnrage + TopP6LimitBreaks.YoursLandedBeforeTheBar),
             (262.0f, 8, $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded})"));
     }
 
@@ -243,6 +278,6 @@ public class TopP6GauntletLimitBreakMeleeTests
         var run = (FromMagicNumber(MeleeDpsA, JobId.Dragoon) with { GodMode = true }).Play();
 
         Assert.That(run.Run.Deaths, Is.Empty, run.Run.ToString);
-        run.AssertReportedOncePerHit((243.2f, 1, TheEnrage), (262.0f, 8, $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded})"));
+        run.AssertReportedOncePerHit((257.5f, 1, TheEnrage), (262.0f, 8, $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded})"));
     }
 }
