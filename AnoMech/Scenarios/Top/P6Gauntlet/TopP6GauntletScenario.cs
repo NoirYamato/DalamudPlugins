@@ -129,7 +129,9 @@ public sealed class TopP6GauntletScenario : IScenario
     }
 
     // Cosmo Memory's hit's statuses, as the limit breaks the plan has pressed by then leave them, and the gauge as the
-    // party's own generation has it then, on the run's own clock so the rebuild still ends exactly full.
+    // party's own generation has it then, on the run's own clock so the rebuild still ends exactly full. The gauge shows
+    // from the first frame, so the party's Brilliant and Spark of Dynamis come with it, before anyone can press; Alpha
+    // Omega's Code: ****mi* waits a second, for an actor spawned in the first frame.
     private void PickUpAfterCosmoMemory(TopP6GauntletPart first)
     {
         var startsAt = TopP6GauntletParts.GauntletStart(first);
@@ -137,7 +139,8 @@ public sealed class TopP6GauntletScenario : IScenario
         limitBreaks.Rebuild(from - startsAt, fullBy - startsAt);
         limitBreaks.SetGauge(TopP6LimitBreaks.RebuiltBars(0f, from - startsAt, fullBy - startsAt));
         var sparked = state.LimitBreakPlan.SparkedBefore(TheNextDuty(first));
-        world.Events.Add(1f, () => alphaOmega.ApplyCosmoMemoryStatuses(sparked));
+        world.Events.Add(0f, () => alphaOmega.ApplyCosmoMemorysDynamis(sparked));
+        world.Events.Add(1f, alphaOmega.ApplyCodeMi);
     }
 
     private static TopP6LimitBreakDuty TheNextDuty(TopP6GauntletPart part) => part switch

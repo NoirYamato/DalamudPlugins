@@ -271,9 +271,10 @@ multiplayer.
   `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in `TopP6Constants` and
   stay within 36 busy helpers (`TopP6HelperBudgetTests`, the whole Gauntlet included).
 - Start from (default: the whole phase) picks the first part. A later start spawns Alpha Omega, puts the party, the
-  human too, on the autos' spots, leaves Cosmo Memory's statuses as the run so far would (Code: ****mi* on Alpha
-  Omega; Spark of Dynamis on the seats whose limit break the plan pressed before, Brilliant Dynamis on the rest),
-  sets the gauge the rebuild has made by then, and plays the part on its usual clock. Tests pin a part range with
+  human too, on the autos' spots, leaves Cosmo Memory's statuses as the run so far would (Spark of Dynamis on the
+  seats whose limit break the plan pressed before, Brilliant Dynamis on the rest, both from the first frame, with the
+  gauge, so a press in the first second gives it back; Code: ****mi* on Alpha Omega a second in), sets the gauge the
+  rebuild has made by then, and plays the part on its usual clock. Tests pin a part range with
   the internal `Parts` override. The other settings force both Cosmo Arrows, both Unlimited Wave Cannons, each
   seat's flare and the human's own limit break row; only the row of the local player's role shows.
 - `TopP6GauntletLimitBreakPlan` says who presses each of the phase's ten limit breaks 3, from the eight seats' jobs

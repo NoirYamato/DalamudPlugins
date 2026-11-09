@@ -179,9 +179,10 @@ public class TopP6GauntletScenarioTests
     }
 
     // The gauge the party's own generation gives by then (full from Cosmo Dive 2's bar on), in the run and on the HUD the
-    // client gates its presses on, from the first frame; Spark of Dynamis on the seats whose limit break the plan pressed
-    // before (the dive melees, then the caster and the physical ranged), Brilliant Dynamis on the rest; Code: ****mi* on
-    // Alpha Omega; everyone on the autos' spots from the start.
+    // client gates its presses on, from the first frame; with it, Spark of Dynamis on the seats whose limit break the plan
+    // pressed before (the dive melees, then the caster and the physical ranged) and Brilliant Dynamis on the rest, so a
+    // press in the first second gives the gauge back as it should; Code: ****mi* on Alpha Omega a second in; everyone on
+    // the autos' spots from the start.
     [TestCase(Exaflares1, 0.865f, new PartyRole[0])]
     [TestCase(CosmoArrow2, 1.757f, new PartyRole[0])]
     [TestCase(Exaflares2, 2.475f, new PartyRole[0])]
@@ -205,16 +206,15 @@ public class TopP6GauntletScenarioTests
                 if (p.Crossed(0.05f))
                 {
                     gauge = TopP6GauntletRun.LimitBreaks(p).Gauge;
+                    spark.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(P6StatusId.SparkOfDynamis)));
+                    brilliant.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(StatusId.BrilliantDynamis)));
                     foreach (var role in PerRole.All)
                     {
                         var at = new Vector2(p.Member(role)!.Position.X, p.Member(role)!.Position.Z);
                         if (Vector2.Distance(at, TopP6LpduAi.AutoSpot(role)) > 0.01f) offTheirSpots.Add($"{role} at {at}");
                     }
                 }
-                if (!p.Crossed(1.2f)) return;
-                spark.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(P6StatusId.SparkOfDynamis)));
-                brilliant.AddRange(PerRole.All.Where(r => p.Member(r)!.HasStatus(StatusId.BrilliantDynamis)));
-                bossMarked = TopP6GauntletRun.Scenario(p).AlphaOmega!.Enemy!.HasStatus(StatusId.CodeMi);
+                if (p.Crossed(1.2f)) bossMarked = TopP6GauntletRun.Scenario(p).AlphaOmega!.Enemy!.HasStatus(StatusId.CodeMi);
             },
         });
 

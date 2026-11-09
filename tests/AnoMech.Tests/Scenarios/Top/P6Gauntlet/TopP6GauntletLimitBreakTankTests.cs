@@ -90,6 +90,12 @@ public class TopP6GauntletLimitBreakTankTests
         new TopP6GauntletHumanSeat(seat, job).From(part).Play().AssertEveryoneDied(decides, actionId, kills(""));
     }
 
+    // A run started from Magic Number gives everyone their Brilliant Dynamis from its first frame: the warrior's limit
+    // break 3 pressed in that first second still covers Magic Number 1 and gives the gauge back for the first healer's.
+    [Test]
+    public void APressInALaterStartsFirstSecondGivesTheGaugeBack()
+        => new TopP6GauntletHumanSeat(MainTank, JobId.Warrior).From(TopP6GauntletPart.MagicNumber).Play(For(MagicNumber1Tank, 200.3f)).AssertClears();
+
     // A limit break 2 covers nothing that Cosmo Memory or Magic Number counts.
     [TestCase(MainTank, JobId.Warrior, CosmoMemory)]
     [TestCase(MainTank, JobId.DarkKnight, MagicNumber1Tank)]

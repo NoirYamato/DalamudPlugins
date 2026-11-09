@@ -95,9 +95,17 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
     // What Cosmo Memory's hit leaves, for a run that starts after it: Code: ****mi* on Alpha Omega, and Brilliant
     // Dynamis on everyone but the `sparked` seats, whose limit break has spent it already: they carry Spark of Dynamis.
+    // Each half also goes on alone, for a run that gives the party theirs before Alpha Omega can take its own.
     public void ApplyCosmoMemoryStatuses(IReadOnlyCollection<PartyRole>? sparked = null)
     {
-        Enemy?.AddStatus(StatusId.CodeMi);
+        ApplyCodeMi();
+        ApplyCosmoMemorysDynamis(sparked);
+    }
+
+    public void ApplyCodeMi() => Enemy?.AddStatus(StatusId.CodeMi);
+
+    public void ApplyCosmoMemorysDynamis(IReadOnlyCollection<PartyRole>? sparked = null)
+    {
         foreach (var role in PerRole.All)
             if (world.Party.Get(role) is { } member && member.IsAlive())
                 member.AddStatus(sparked?.Contains(role) == true ? P6StatusId.SparkOfDynamis : StatusId.BrilliantDynamis);
