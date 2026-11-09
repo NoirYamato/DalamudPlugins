@@ -77,8 +77,8 @@ public class TopP3HelloWorldScenarioTests
         });
     }
 
-    // The towers stand 14y out, 45° either side of the layout and 135° from it: a cardinal layout puts them on
-    // the intercardinals. Blue is the defamation colour here.
+    // The towers stand 14y out, the defamation colour's 45° either side of the layout and the stack colour's
+    // 135°: a cardinal layout puts them on the intercardinals. Blue is the defamation colour here.
     [TestCase(225f, new[] { 180f, 270f }, new[] { 0f, 90f })]
     [TestCase(270f, new[] { 225f, 315f }, new[] { 45f, 135f })]
     [TestCase(0f, new[] { 45f, 315f }, new[] { 135f, 225f })]

@@ -197,10 +197,10 @@ there; tune them in that one place.
   explanation. Fixed events are absolute time literals in `Run`; expiries that depend on play run from
   `IScenario.Tick`.
 - Each set's four towers stand 14y out, each colour's two side by side, on the cardinals or on the
-  intercardinals. The State rolls each set's layout, the bearing between the two defamation-colour towers, from
-  all eight directions; the Towers setting (Auto, Cardinals, Intercardinals) picks the ring, and Tower layout
-  (Move or Same every set) keeps the first set's. A tower's debuff lands 0.62s after it goes off and runs 10s;
-  Latent Defect runs 27s from Hello World's hit, so whoever no defamation cleansed dies at 32s.
+  intercardinals. The State rolls each set's layout (the bearing between the two defamation-colour towers) from
+  all eight directions. The Towers setting (Auto, Cardinals, Intercardinals) picks the ring, and Tower layout's
+  Same every set repeats the first set's. A tower's debuff lands 0.62s after it goes off and runs 10s; Latent
+  Defect runs 27s from Hello World's hit, so whoever no defamation cleansed dies at 32s.
 - Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
   Every spot is placed from the set's layout, so they play both rings alike; only the loose spread before the
   first towers and the Monitors line-up stand fixed in the arena. They plan each walk round everyone's live
