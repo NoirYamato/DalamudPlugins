@@ -68,28 +68,27 @@ public sealed class TopP4BlueScreenScenario : IScenario
         world.Events.Add(13.3f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
         world.Events.Add(13.6f, () => FireLineStacks(0));
         world.Events.Add(15.7f, () => MarkStackTargets(1));
-        // UNVERIFIED: no log times the later aims and beams; each aim is 5.3 s before its repeats resolve and its
-        // beams 0.6 s after it, as in round 1.
-        world.Events.Add(17.9f, AimEveryonesLine);
         // UNVERIFIED: whether the instant rings, beams and line stacks show anything when an invisible helper
         // casts them.
         world.Events.Add(18.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
-        world.Events.Add(18.1f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
-        world.Events.Add(18.5f, FireBeams);
+        // Rounds 2 and 3 are timed from a single pull. Each aim lands with one of Omega's visuals.
+        world.Events.Add(18.28f, AimEveryonesLine);
+        world.Events.Add(18.28f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
+        world.Events.Add(18.82f, FireBeams);
         world.Events.Add(20.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
         world.Events.Add(22.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
-        world.Events.Add(23.2f, () => omega?.Cast(P4ActionId.WaveCannonVisual2));
-        world.Events.Add(23.4f, () => FireLineStacks(1));
-        world.Events.Add(25.6f, () => MarkStackTargets(2));
-        world.Events.Add(28f, AimEveryonesLine);
-        world.Events.Add(28.2f, () => ringHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
-        world.Events.Add(28.2f, () => omega?.Cast(P4ActionId.WaveCannonVisual3));
-        world.Events.Add(28.6f, FireBeams);
-        world.Events.Add(33.3f, () => omega?.Cast(P4ActionId.WaveCannonVisual4));
-        world.Events.Add(33.5f, () => FireLineStacks(2));
-        world.Events.Add(35.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
-        world.Events.Add(37.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
-        world.Events.Add(39.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
+        world.Events.Add(23.4f, () => omega?.Cast(P4ActionId.WaveCannonVisual2));
+        world.Events.Add(23.71f, () => FireLineStacks(1));
+        world.Events.Add(25.94f, () => MarkStackTargets(2));
+        world.Events.Add(28.53f, AimEveryonesLine);
+        world.Events.Add(28.53f, () => ringHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
+        world.Events.Add(28.53f, () => omega?.Cast(P4ActionId.WaveCannonVisual3));
+        world.Events.Add(29.06f, FireBeams);
+        world.Events.Add(33.65f, () => omega?.Cast(P4ActionId.WaveCannonVisual4));
+        world.Events.Add(33.96f, () => FireLineStacks(2));
+        world.Events.Add(35.65f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
+        world.Events.Add(37.7f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
+        world.Events.Add(39.75f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
     }
 
     // Casts on an actor spawned the same frame play no animation, so everything that casts exists from the

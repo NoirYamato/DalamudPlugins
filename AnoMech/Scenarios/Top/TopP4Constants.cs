@@ -11,7 +11,6 @@ public static class TopP4Constants
     public static class P4ActionId
     {
         public const uint WaveCannonCast = 31617;                   // boss->self, 5s visual; round 1's only cast bar
-        // UNVERIFIED which of these boss visuals plays at which moment.
         public const uint WaveCannonVisual = 32534;
         public const uint WaveCannonVisual2 = 31618;
         public const uint WaveCannonVisual3 = 31619;

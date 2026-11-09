@@ -231,8 +231,11 @@ UNVERIFIED there and in the scenario.
   enrage isn't played. Three rounds: each aims a line from the centre at every player; 0.6s later each player's
   beam fires from the centre toward where that player stands then, so it can leave the aimed line; the repeats
   resolve down the aimed lines 5.3s after the aim, then the two line stacks toward their marked players; Wave
-  Repeater rings run through rounds 2 and 3. The repeats cast from the aim, but their orange lines only flash,
-  4.4-4.8s into the cast (`P4Duration.RepeatOmenDelay`, UNVERIFIED; past 4.55s a pause would hide them).
+  Repeater rings run through rounds 2 and 3. Rounds 2 and 3 are timed from one pull: aims at 18.28 and 28.53s,
+  each landing with one of Omega's visuals (32534, then 31619 with the second Wave Repeater's cast), beams
+  0.54s after, line stacks at 23.71 and 33.96s, the second Wave Repeater's rings at 35.65, 37.7 and 39.75s. The
+  repeats cast from the aim, but their orange lines only flash, 4.4-4.8s into the cast
+  (`P4Duration.RepeatOmenDelay`, UNVERIFIED; past 4.55s a pause would hide them).
 - Every mistake kills on the spot with a reason: two beams or a repeat line, both line stacks, a line stack with
   fewer than 4 unless only tanks are in it (UNVERIFIED), a ring band, or the arena edge. A player dead since the
   aim fires no beam, and a dead marker fires no line stack.

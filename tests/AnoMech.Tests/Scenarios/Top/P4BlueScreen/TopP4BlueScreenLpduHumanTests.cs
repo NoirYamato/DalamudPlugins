@@ -261,7 +261,7 @@ public class TopP4BlueScreenLpduHumanTests
     }
 
     // However the human walked, every bot stands in its clump just before each line stack.
-    private static readonly float[] StacksAt = [13.6f, 23.4f, 33.5f];
+    private static readonly float[] StacksAt = [13.6f, 23.71f, 33.96f];
     private const float JustBefore = 0.1f, OffSpotTolerance = 0.75f;
 
     private static IEnumerable<string> BotsOffTheirStackSpots(ScenarioProbe p, PartyRole seat, PartyRole[][] sets)
@@ -284,15 +284,15 @@ public class TopP4BlueScreenLpduHumanTests
         private readonly List<(float At, Vector2 Direction)> aimed = [];
         private int rowsRead;
 
-        private static readonly float[] AimsAt = [8.0f, 17.9f, 28.0f];
-        private static readonly float[] BeamsAt = [8.6f, 18.5f, 28.6f];
-        private static readonly float[] RepeatsAt = [13.0f, 22.9f, 33.0f];
+        private static readonly float[] AimsAt = [8.0f, 18.28f, 28.53f];
+        private static readonly float[] BeamsAt = [8.6f, 18.82f, 29.06f];
+        private static readonly float[] RepeatsAt = [13.0f, 23.28f, 33.53f];
 
         private static readonly (float Time, string Name, float Inner, float Outer)[] Rings =
         [
             (15.7f, "ring 1", float.NegativeInfinity, 6f), (18.1f, "ring 2", 6f, 12f), (20.1f, "ring 3", 12f, 18f),
-            (22.1f, "ring 4", 18f, 24f), (32.9f, "ring 5", float.NegativeInfinity, 6f), (35.2f, "ring 6", 6f, 12f),
-            (37.2f, "ring 7", 12f, 18f), (39.2f, "ring 8", 18f, 24f),
+            (22.1f, "ring 4", 18f, 24f), (33.23f, "ring 5", float.NegativeInfinity, 6f), (35.65f, "ring 6", 6f, 12f),
+            (37.7f, "ring 7", 12f, 18f), (39.75f, "ring 8", 18f, 24f),
         ];
 
         public void Measure(ScenarioProbe p, PartyRole seat, PartyRole[][] sets)

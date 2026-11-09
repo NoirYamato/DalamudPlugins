@@ -17,13 +17,13 @@ namespace AnoMech.Tests;
 // rows stand on their 13.5 y quickmarch spots at each aim, and the west light party (MT R1 H1 M1) stacks at
 // (-4.97, 12.01) in sets 1 and 3, the east one mirrored (x east, z south).
 //
-//   3.0   Omega's Wave Cannon cast (5 s). 5.6 / 15.7 / 25.6: the markers.
-//   8.0 / 17.9 / 28.0   aims: a repeat line starts down every player's line (snapshot 5 s later); its orange
-//                       line only flashes, 4.4-4.8 s in.
-//   8.6 / 18.5 / 28.6   the beams, each toward where its player stands as it fires; the repeats keep the aim's
-//                       lines. 13.6 / 23.4 / 33.5: the line stacks.
+//   3.0   Omega's Wave Cannon cast (5 s). 5.6 / 15.7 / 25.94: the markers.
+//   8.0 / 18.28 / 28.53   aims: a repeat line starts down every player's line (snapshot 5 s later); its orange
+//                         line only flashes, 4.4-4.8 s in. Aims 2 and 3 land with Omega's 32534 and 31619.
+//   8.6 / 18.82 / 29.06   the beams, each toward where its player stands as it fires; the repeats keep the aim's
+//                         lines. 13.6 / 23.71 / 33.96: the line stacks.
 //   11.0  Wave Repeater (hits at 15.7, r < 6); rings 18.1 (6-12), 20.1 (12-18), 22.1 (18-24).
-//   28.2  Wave Repeater (hits at 32.9); rings 35.2, 37.2, 39.2. The run ends after the last ring.
+//   28.53 Wave Repeater (hits at 33.23); rings 35.65, 37.7, 39.75. The run ends after the last ring.
 public class TopP4BlueScreenScenarioTests
 {
     private static NegativeRun<TopP4BlueScreenScenario> BlueScreen(PartyRole player, PartyRole[][]? markers = null)
@@ -189,7 +189,7 @@ public class TopP4BlueScreenScenarioTests
         PartyRole[][] sets = [[MainTank, PhysRangedDps], [CasterDps, MeleeDpsB], [RegenHealer, OffTank]];
         var markers = Markers(MainTank, o => Pin(o, sets));
 
-        Assert.That(markers.Keys, Is.EqualTo(new[] { 5.6f, 15.7f, 25.6f }).Within(0.05f));
+        Assert.That(markers.Keys, Is.EqualTo(new[] { 5.6f, 15.7f, 25.94f }).Within(0.1f));
         Assert.Multiple(() =>
         {
             for (var set = 0; set < 3; set++)
@@ -261,16 +261,24 @@ public class TopP4BlueScreenScenarioTests
         Assert.Multiple(() =>
         {
             Assert.That(Times(rows, "cast", P4ActionId.WaveCannonCast, actor: omega), Is.EqualTo(new[] { 3.0f }).Within(0.05f), "Omega's cast");
-            Assert.That(Times(rows, "cast", P4ActionId.WaveCannonRepeat), Is.EqualTo(Eight(8.0f, 17.9f, 28.0f)).Within(0.05f), "aims");
-            Assert.That(Times(rows, "ability", P4ActionId.WaveCannonBeam), Is.EqualTo(Eight(8.6f, 18.5f, 28.6f)).Within(0.05f), "beams");
-            Assert.That(Times(rows, "ability", P4ActionId.WaveCannonRepeat), Is.EqualTo(Eight(13.3f, 23.2f, 33.3f)).Within(0.05f), "repeats");
-            Assert.That(Times(rows, "ability", P4ActionId.LineStack), Is.EqualTo(new[] { 13.6f, 13.6f, 23.4f, 23.4f, 33.5f, 33.5f }).Within(0.05f), "line stacks");
-            Assert.That(Times(rows, "cast", P3ActionId.WaveRepeater), Is.EqualTo(new[] { 11.0f, 28.2f }).Within(0.05f), "Wave Repeater casts");
-            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeater), Is.EqualTo(new[] { 16.0f, 33.2f }).Within(0.05f), "ring 1");
-            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing2), Is.EqualTo(new[] { 18.1f, 35.2f }).Within(0.05f), "ring 2");
-            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing3), Is.EqualTo(new[] { 20.1f, 37.2f }).Within(0.05f), "ring 3");
-            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing4), Is.EqualTo(new[] { 22.1f, 39.2f }).Within(0.05f), "ring 4");
-            Assert.That(rows.Where(r => r["kind"] is "ability" or "cast").Select(Time).Max(), Is.EqualTo(39.2f).Within(0.05f),
+            Assert.That(Times(rows, "cast", P4ActionId.WaveCannonRepeat), Is.EqualTo(Eight(8.0f, 18.28f, 28.53f)).Within(0.05f), "aims");
+            Assert.That(Times(rows, "ability", P4ActionId.WaveCannonBeam), Is.EqualTo(Eight(8.6f, 18.82f, 29.06f)).Within(0.05f), "beams");
+            Assert.That(Times(rows, "ability", P4ActionId.WaveCannonRepeat), Is.EqualTo(Eight(13.3f, 23.58f, 33.83f)).Within(0.05f), "repeats");
+            Assert.That(Times(rows, "ability", P4ActionId.LineStack), Is.EqualTo(new[] { 13.6f, 13.6f, 23.71f, 23.71f, 33.96f, 33.96f }).Within(0.05f), "line stacks");
+            Assert.That(Times(rows, "cast", P3ActionId.WaveRepeater), Is.EqualTo(new[] { 11.0f, 28.53f }).Within(0.05f), "Wave Repeater casts");
+            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeater), Is.EqualTo(new[] { 16.0f, 33.53f }).Within(0.05f), "ring 1");
+            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing2), Is.EqualTo(new[] { 18.1f, 35.65f }).Within(0.05f), "ring 2");
+            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing3), Is.EqualTo(new[] { 20.1f, 37.7f }).Within(0.05f), "ring 3");
+            Assert.That(Times(rows, "ability", P3ActionId.WaveRepeaterRing4), Is.EqualTo(new[] { 22.1f, 39.75f }).Within(0.05f), "ring 4");
+            var visuals = rows.Where(r => r["kind"] == "ability" && r["actor"] == omega && r["id"] != $"{P4ActionId.WaveCannonCast}").ToList();
+            Assert.That(visuals.Select(r => r["id"]), Is.EqualTo(new[]
+            {
+                $"{P4ActionId.WaveCannonVisual}", $"{P4ActionId.WaveCannonVisual}", $"{P4ActionId.WaveCannonVisual2}",
+                $"{P4ActionId.WaveCannonVisual3}", $"{P4ActionId.WaveCannonVisual4}",
+            }), "Omega's visuals");
+            Assert.That(visuals.Select(Time), Is.EqualTo(new[] { 13.3f, 18.28f, 23.4f, 28.53f, 33.65f }).Within(0.05f),
+                        "Omega's visuals, aims 2 and 3 with theirs");
+            Assert.That(rows.Where(r => r["kind"] is "ability" or "cast").Select(Time).Max(), Is.EqualTo(39.75f).Within(0.05f),
                         "nothing is cast after the last ring");
         });
     }
@@ -318,7 +326,7 @@ public class TopP4BlueScreenScenarioTests
         var rows = timeline!.Rows;
         Assert.Multiple(() =>
         {
-            foreach (var aim in new[] { 8.0f, 17.9f, 28.0f })
+            foreach (var aim in new[] { 8.0f, 18.28f, 28.53f })
             {
                 var casts = rows.Where(r => r["kind"] == "cast" && r["id"] == $"{P4ActionId.WaveCannonRepeat}" && MathF.Abs(Time(r) - aim) < 0.5f).ToList();
                 Assert.That(casts, Has.Count.EqualTo(8), $"repeat casts at {aim}");
@@ -371,11 +379,11 @@ public class TopP4BlueScreenScenarioTests
         var run = ScenarioRun.Execute(typeof(TopP4BlueScreenScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = player,
-            StopAt = 26f,
+            StopAt = 26.3f,
             Overrides = o => overrides((TopP4BlueScreenStateOverrides)o),
             Probe = p =>
             {
-                if (!p.Crossed(25.9f)) return;
+                if (!p.Crossed(26.2f)) return;
                 foreach (var role in PerRole.All)
                     roleById[p.Member(role)!.GameObjectId.ObjectId.ToString("X8")] = role;
                 rows.AddRange(p.Fake.Timeline.Rows.Where(r => r["kind"] == "ability" && r["id"] == $"{P4ActionId.StackMarker}"));

@@ -12,8 +12,8 @@ namespace AnoMech.Tests;
 // its beams, set 3 to 10.5 y after ring 6. When both markers of a set are on one side, the southernmost of
 // them swaps sides with the other side's melee for that set only.
 //
-//   8.0 / 17.9 / 28.0  aims; beams 0.6 s later. 13.0 / 22.9 / 33.0 repeat snapshots; 13.6 / 23.4 / 33.5 stacks.
-//   Rings: 15.7 (r < 6), 18.1 (6-12), 20.1 (12-18), 22.1 (18-24); 32.9, 35.2, 37.2, 39.2.
+//   8.0 / 18.28 / 28.53  aims; beams 0.54-0.6 s later. 13.0 / 23.28 / 33.53 repeat snapshots; 13.6 / 23.71 / 33.96 stacks.
+//   Rings: 15.7 (r < 6), 18.1 (6-12), 20.1 (12-18), 22.1 (18-24); 33.23, 35.65, 37.7, 39.75.
 public class TopP4BlueScreenLpduAiTests
 {
     private const int LpduStrat = 0;
@@ -51,21 +51,21 @@ public class TopP4BlueScreenLpduAiTests
     [TestCase(12.7f, Spot.OuterStack, 0)]
     [TestCase(13.0f, Spot.OuterStack, 0, Description = "repeats 1")]
     [TestCase(13.6f, Spot.OuterStack, 0, Description = "stacks 1")]
-    [TestCase(17.7f, Spot.Quickmarch, 0, Description = "before aim 2")]
+    [TestCase(18.0f, Spot.Quickmarch, 0, Description = "before aim 2")]
     [TestCase(18.1f, Spot.Quickmarch, 0, Description = "ring 2")]
-    [TestCase(18.5f, Spot.Quickmarch, 0, Description = "beams 2")]
-    [TestCase(19.1f, Spot.StepIn, 1)]
+    [TestCase(18.82f, Spot.Quickmarch, 0, Description = "beams 2")]
+    [TestCase(19.42f, Spot.StepIn, 1)]
     [TestCase(22.1f, Spot.InnerStack, 1, Description = "ring 4")]
-    [TestCase(22.9f, Spot.InnerStack, 1, Description = "repeats 2")]
-    [TestCase(23.4f, Spot.InnerStack, 1, Description = "stacks 2")]
-    [TestCase(27.7f, Spot.Quickmarch, 2, Description = "before aim 3")]
-    [TestCase(28.6f, Spot.Quickmarch, 2, Description = "beams 3")]
-    [TestCase(32.7f, Spot.OuterStack, 2)]
-    [TestCase(33.0f, Spot.OuterStack, 2, Description = "repeats 3")]
-    [TestCase(33.5f, Spot.OuterStack, 2, Description = "stacks 3")]
-    [TestCase(35.2f, Spot.OuterStack, 2, Description = "ring 6")]
-    [TestCase(37.2f, Spot.FinalStepIn, 2, Description = "ring 7")]
-    [TestCase(39.2f, Spot.FinalStepIn, 2, Description = "ring 8")]
+    [TestCase(23.28f, Spot.InnerStack, 1, Description = "repeats 2")]
+    [TestCase(23.71f, Spot.InnerStack, 1, Description = "stacks 2")]
+    [TestCase(28.2f, Spot.Quickmarch, 2, Description = "before aim 3")]
+    [TestCase(29.06f, Spot.Quickmarch, 2, Description = "beams 3")]
+    [TestCase(33.0f, Spot.OuterStack, 2)]
+    [TestCase(33.53f, Spot.OuterStack, 2, Description = "repeats 3")]
+    [TestCase(33.96f, Spot.OuterStack, 2, Description = "stacks 3")]
+    [TestCase(35.65f, Spot.OuterStack, 2, Description = "ring 6")]
+    [TestCase(37.7f, Spot.FinalStepIn, 2, Description = "ring 7")]
+    [TestCase(39.75f, Spot.FinalStepIn, 2, Description = "ring 8")]
     public void StandsOnTheRaidplansSpots(float at, Spot spot, int set)
         => AssertSpots(SplitMarkers, at, ExpectedSpots(spot, SplitMarkers[set]));
 
@@ -81,8 +81,8 @@ public class TopP4BlueScreenLpduAiTests
     public void TheRaidplansExampleSwapsTheMeleeForSetTwoOnly()
     {
         PartyRole[][] sets = [[PhysRangedDps, CasterDps], [OffTank, MeleeDpsB], [RegenHealer, ShieldHealer]];
-        AssertSpots(sets, 22.7f, Clumps(west: [MainTank, PhysRangedDps, RegenHealer, MeleeDpsB], InnerStackWest));
-        AssertSpots(sets, 32.7f, Clumps(west: West, OuterStackWest));
+        AssertSpots(sets, 23.0f, Clumps(west: [MainTank, PhysRangedDps, RegenHealer, MeleeDpsB], InnerStackWest));
+        AssertSpots(sets, 33.0f, Clumps(west: West, OuterStackWest));
     }
 
     [Test]
@@ -100,8 +100,8 @@ public class TopP4BlueScreenLpduAiTests
     {
         PartyRole[][] sets = [[MainTank, PhysRangedDps], [MainTank, PhysRangedDps], [OffTank, ShieldHealer]];
         AssertSpots(sets, 12.7f, Clumps(west: [MainTank, MeleeDpsB, RegenHealer, MeleeDpsA], OuterStackWest));
-        AssertSpots(sets, 22.7f, Clumps(west: [MainTank, MeleeDpsB, RegenHealer, MeleeDpsA], InnerStackWest));
-        AssertSpots(sets, 32.7f, Clumps(west: [MainTank, PhysRangedDps, RegenHealer, ShieldHealer], OuterStackWest));
+        AssertSpots(sets, 23.0f, Clumps(west: [MainTank, MeleeDpsB, RegenHealer, MeleeDpsA], InnerStackWest));
+        AssertSpots(sets, 33.0f, Clumps(west: [MainTank, PhysRangedDps, RegenHealer, ShieldHealer], OuterStackWest));
     }
 
     private static readonly PartyRole[][] Pairs =
@@ -114,9 +114,9 @@ public class TopP4BlueScreenLpduAiTests
         var expected = new Dictionary<float, Dictionary<PartyRole, Vector2>>
         {
             [12.7f] = Clumps(WestAfterFlex(sets[0]), OuterStackWest),
-            [22.7f] = Clumps(WestAfterFlex(sets[1]), InnerStackWest),
-            [32.7f] = Clumps(WestAfterFlex(sets[2]), OuterStackWest),
-            [36.7f] = Clumps(WestAfterFlex(sets[2]), FinalStepInWest),
+            [23.0f] = Clumps(WestAfterFlex(sets[1]), InnerStackWest),
+            [33.0f] = Clumps(WestAfterFlex(sets[2]), OuterStackWest),
+            [37.0f] = Clumps(WestAfterFlex(sets[2]), FinalStepInWest),
         };
         var seen = Probe(sets, expected.Keys.ToArray(), out var run);
         Assert.That(run.Passed, run.ToString);
