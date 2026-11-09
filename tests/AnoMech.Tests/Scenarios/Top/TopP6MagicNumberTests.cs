@@ -18,7 +18,6 @@ namespace AnoMech.Tests;
 public class TopP6MagicNumberTests
 {
     private const float CastAt = 2f;
-    private const float MarkLands = 8.3f;
     private const float MarkRunsOut = 14.3f;
 
     private static uint Job(PartyRole seat) => PartyPresets.Standard[(int)seat].ClassJob;

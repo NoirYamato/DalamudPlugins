@@ -88,8 +88,8 @@ public sealed class TopP6GauntletState
 
     public TopP6GauntletState(Rng rng, SimParty party, TopP6GauntletStateOverrides overrides)
     {
-        var first = overrides.Parts?.First ?? overrides.StartFrom ?? TopP6GauntletPart.CosmoMemory;
-        var last = overrides.Parts?.Last ?? TopP6GauntletPart.MagicNumber;
+        var first = overrides.Parts?.First ?? overrides.StartFrom ?? TopP6GauntletParts.Whole.First;
+        var last = overrides.Parts?.Last ?? TopP6GauntletParts.Whole.Last;
         Parts = new TopP6GauntletParts(first, last < first ? first : last);
 
         var arrow1InFirst = rng.NextBool();

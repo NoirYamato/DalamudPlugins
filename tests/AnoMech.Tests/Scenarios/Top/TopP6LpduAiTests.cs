@@ -2,7 +2,6 @@ using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Scenarios;
-using AnoMech.Scenarios.Top;
 using AnoMech.Scenarios.Top.P6Gauntlet;
 using static AnoMech.Scenarios.Top.P6Gauntlet.TopP6GauntletPart;
 using static AnoMech.Scenarios.Top.TopConstants;

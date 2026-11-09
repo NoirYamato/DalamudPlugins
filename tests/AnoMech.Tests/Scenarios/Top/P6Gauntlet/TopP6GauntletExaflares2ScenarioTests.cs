@@ -30,8 +30,6 @@ public class TopP6GauntletExaflares2ScenarioTests
         => Negative<TopP6GauntletScenario>(player)
             .Overrides<TopP6GauntletStateOverrides>(o => Pin(o, 0, true, 1.1f));
 
-    private static readonly Vector2 Hold = new(9.9f, 9.9f);
-
     // The first exaflare's first explosion, r 8 round (0, -24), reaches 6 y in from the rim.
     [Test]
     public void StandingWhereAnExaflareGoesOffOnTheRimKills()

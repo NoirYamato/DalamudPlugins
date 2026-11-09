@@ -7,7 +7,6 @@ using AnoMech.Core.UserActions;
 using AnoMech.Scenarios.Top;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Top.TopConstants;
-using static AnoMech.Scenarios.Top.TopP6Constants;
 
 namespace AnoMech.Tests;
 
