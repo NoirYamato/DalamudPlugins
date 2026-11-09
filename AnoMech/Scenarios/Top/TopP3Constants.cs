@@ -106,7 +106,8 @@ public static class TopP3Constants
         public const float TowerDebuffDelay = 0.62f;                // after its tower goes off
 
         // -- P3 Intermission --
-        public const float SniperCannonFodder = 19.1f;              // UNVERIFIED, inferred from when the spreads go off
-        public const float HighPoweredSniperCannonFodder = 19.1f;   // UNVERIFIED, assumed to go off with the spreads
+        // Both run out 0.1s before their cannons go off.
+        public const float SniperCannonFodder = 19f;
+        public const float HighPoweredSniperCannonFodder = 19f;
     }
 }

@@ -123,6 +123,41 @@ public class TopP3IntermissionScenarioTests
         Assert.That(shown, Is.EqualTo(new Dictionary<float, bool> { [14.7f] = false, [14.8f] = true, [30.6f] = true, [30.8f] = false }));
     }
 
+    // Both kinds of fodder land at 9.2 and run 19s, out 0.1s before both kinds of cannon go off at 28.3.
+    [Test]
+    public void TheFodderRunsOutJustBeforeTheCannons()
+    {
+        var remaining = new Dictionary<float, (float? Spread, float? Stack)>();
+        var cannons = new List<(string Id, float At)>();
+        var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 28.6f,
+            Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, FirstArms.NorthTriangle),
+            Probe = p =>
+            {
+                foreach (var at in new[] { 9.3f, 28.25f })
+                    if (p.Crossed(at))
+                        remaining[at] = (p.Member(PhysRangedDps)!.FindStatus(P3StatusId.SniperCannonFodder)?.RemainingTime,
+                                         p.Member(MeleeDpsA)!.FindStatus(P3StatusId.HighPoweredSniperCannonFodder)?.RemainingTime);
+                if (p.Crossed(28.5f))
+                    cannons.AddRange(p.Fake.Timeline.Rows
+                                      .Where(r => r["kind"] == "ability" && (r["id"] == $"{ActionId.SniperCannon}" || r["id"] == $"{ActionId.HighPoweredSniperCannon}"))
+                                      .Select(r => (r["id"], float.Parse(r["t"], CultureInfo.InvariantCulture))));
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(remaining[9.3f].Spread, Is.EqualTo(18.9f).Within(0.05f), "R1's spread fodder just after it lands");
+            Assert.That(remaining[9.3f].Stack, Is.EqualTo(18.9f).Within(0.05f), "M1's stack fodder just after it lands");
+            Assert.That(remaining[28.25f], Is.EqualTo(((float?)null, (float?)null)), "the fodder just before the cannons");
+            Assert.That(cannons.Select(c => c.Id).Distinct(), Is.EquivalentTo(new[] { $"{ActionId.SniperCannon}", $"{ActionId.HighPoweredSniperCannon}" }));
+            Assert.That(cannons.Select(c => c.At), Has.All.EqualTo(28.3f).Within(0.05f), "the cannons");
+        });
+    }
+
     // MT steps 2.9 y from R1: each stands in the other's spread as well as their own.
     [Test]
     public void TwoSpreadsTooCloseKillBoth()

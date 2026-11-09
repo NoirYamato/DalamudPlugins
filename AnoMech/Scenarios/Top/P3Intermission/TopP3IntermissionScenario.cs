@@ -196,7 +196,7 @@ public sealed class TopP3IntermissionScenario : IScenario
     // Kept on the holders the scenario recorded: a status that runs out removes itself before the
     // scenario can see that it expired. Every circle is taken before any death, and a holder who
     // already died fires nothing (in game it retargets, but that death already failed the run).
-    // UNVERIFIED: the stacks going off with the spreads, and every rule below; the game's damage is unknown.
+    // UNVERIFIED: every rule below; the game's damage is unknown.
     private void FireSniperCannons()
     {
         var cannons = Alive(spreadHolders)
