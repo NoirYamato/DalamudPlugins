@@ -56,6 +56,8 @@ NoirMech change:
   release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
   `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
   `IsPlayerAction` change are left out;
+- upstream's unreleased `89aa318`, backported line for line so the release that carries it merges clean: Black
+  Hole's bots grab each new set of tethers once their client shows it (`UmadP3BlackHoleAi.cs`);
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
