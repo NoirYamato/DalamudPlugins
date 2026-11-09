@@ -439,8 +439,9 @@ public sealed record TopP6CosmoMeteorRolls(IReadOnlyList<PartyRole[]> FirstSprea
 
 // One Cosmo Meteor: Alpha Omega's cast, a bait under everyone as it ends, the adds (P6Geometry.CosmoMeteorBearings and
 // CosmoCometBearings), the spreads, then the flares and the stack. While the adds are targetable a caster's limit
-// break 3 kills every comet and a physical ranged limit break 3 each meteor its line holds; an add of a kind still alive
-// at that kind's enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as the hit lands.
+// break 3 kills each comet its circle holds and a physical ranged limit break 3 each meteor its line holds; an add of a
+// kind still alive at that kind's enrage casts it, and everyone dies. A mistake kills on the spot, with the reason, as
+// the hit lands.
 public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega, TopP6LimitBreaks limitBreaks)
 {
     internal const string InSomeoneElsesSpread =
@@ -453,12 +454,17 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         $"Stood within {P6Geometry.FlareLethalWithin:F0} y of a flare: each lands on its marked player and hits everyone, harder the nearer they stand";
     internal const string CometsEnraged = "the Cosmo Comets enrage unless a caster's limit break 3 kills all six first";
     internal const string MeteorsEnraged = "the Cosmo Meteors enrage unless a physical ranged limit break 3's line runs through both first";
+    internal const string YoursCaught = "; yours caught {0} of them";
 
     internal static string TooFewInTheStack(int count)
         => $"Cosmo Meteor's unmarked stack had {count} in it: it needs {P6Rules.CosmoMeteorStack}";
 
     private readonly List<SimEnemy?> meteors = [];
     private readonly List<SimEnemy?> comets = [];
+
+    // How many of each kind the human's own limit breaks 3 have caught, once one has gone off while they showed.
+    private int? cometsTheHumanCaught;
+    private int? meteorsTheHumanCaught;
 
     public IReadOnlyList<SimEnemy> Meteors => meteors.OfType<SimEnemy>().ToList();
     public IReadOnlyList<SimEnemy> Comets => comets.OfType<SimEnemy>().ToList();
@@ -482,10 +488,10 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         alphaOmega.At(castAt + P6Duration.CosmoMeteorFlaresAndStack, () => LandTheFlaresAndTheStack(rolls), file, line);
         alphaOmega.At(castAt + P6Duration.CosmoMeteorFinish, () => alphaOmega.Cast(Actions.CosmoMeteorFinish), file, line);
         limitBreaks.Resolved += KillTheAddsItHits;
-        alphaOmega.At(castAt + P6Duration.CometsEnrage, () => Enrage(comets, CometsEnraged), file, line);
+        alphaOmega.At(castAt + P6Duration.CometsEnrage, () => Enrage(comets, () => CometsEnraged + WhatTheHumanCaught(cometsTheHumanCaught)), file, line);
         alphaOmega.At(castAt + P6Duration.MeteorsEnrage, () =>
         {
-            Enrage(meteors, MeteorsEnraged);
+            Enrage(meteors, () => MeteorsEnraged + WhatTheHumanCaught(meteorsTheHumanCaught));
             limitBreaks.Resolved -= KillTheAddsItHits;
         }, file, line);
     }
@@ -525,13 +531,14 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
     private static IEnumerable<SimEnemy> Targetable(IEnumerable<SimEnemy?> adds)
         => adds.OfType<SimEnemy>().Where(add => add.IsAlive() && add.Targetable);
 
-    // The line runs from its user toward its target, as long as the sheet's plus the user's hitbox, and holds a meteor
-    // any part of whose hitbox it reaches. The run's own press for the player's seat reaches every meteor wherever the
-    // player stands: the run presses there for a human whose job can't, and holds that human to none of it.
+    // The circle goes down on its ground point and holds a comet any part of whose hitbox it reaches; one without a point
+    // holds them all. The line runs from its user toward its target, as long as the sheet's plus the user's hitbox, and
+    // holds a meteor any part of whose hitbox it reaches. The run's own press for the player's seat reaches every meteor
+    // wherever the player stands: the run presses there for a human whose job can't, and holds that human to none of it.
     private void KillTheAddsItHits(TopP6LimitBreakPress press)
     {
         if (press.Is(TopP6LimitBreakKind.Caster))
-            Defeat(Targetable(comets).ToList());
+            cometsTheHumanCaught = KillWhatItHolds(press, comets, comet => CircleHolds(press, comet), cometsTheHumanCaught);
         if (!press.Is(TopP6LimitBreakKind.PhysicalRanged)) return;
         if (!press.ByHuman && world.Party.Get(press.Seat) is SimPlayer)
         {
@@ -540,15 +547,35 @@ public sealed class TopP6CosmoMeteor(SimWorld world, TopP6AlphaOmega alphaOmega,
         }
         if (press.ResolvedFrom is not { } from) return;
         var line = new AoeQuery(press.ActionId, from, casterHitboxRadius: world.Party.Get(press.Seat)?.HitboxRadius ?? 0f);
-        Defeat(Targetable(meteors).Where(meteor => line.SignedDistance(meteor.Position) <= meteor.HitboxRadius).ToList());
+        meteorsTheHumanCaught = KillWhatItHolds(press, meteors, meteor => line.SignedDistance(meteor.Position) <= meteor.HitboxRadius,
+            meteorsTheHumanCaught);
     }
 
-    private void Enrage(IEnumerable<SimEnemy?> adds, string why)
+    // Kills the shown adds it holds, and returns how many the human's have caught so far, counting this one if it is the
+    // human's and went off while they showed.
+    private static int? KillWhatItHolds(TopP6LimitBreakPress press, IEnumerable<SimEnemy?> adds, Func<SimEnemy, bool> holds,
+        int? theHumanCaught)
+    {
+        var shown = Targetable(adds).ToList();
+        var held = shown.Where(holds).ToList();
+        Defeat(held);
+        return press.ByHuman && shown.Count > 0 ? (theHumanCaught ?? 0) + held.Count : theHumanCaught;
+    }
+
+    private static string WhatTheHumanCaught(int? caught) => caught is { } adds ? string.Format(YoursCaught, adds) : "";
+
+    private static bool CircleHolds(TopP6LimitBreakPress press, SimEnemy comet)
+        => press.GroundPoint is not { } point
+           || new AoeQuery(press.ActionId, new Placement(point, 0f)).SignedDistance(comet.Position) is not { } outside
+           || outside <= comet.HitboxRadius;
+
+    // `why` is read once the limit breaks heard by then have settled.
+    private void Enrage(IEnumerable<SimEnemy?> adds, Func<string> why)
     {
         limitBreaks.CatchUp();
         var enraged = adds.OfType<SimEnemy>().Where(add => add.IsAlive()).ToList();
         if (enraged.Count == 0) return;
-        world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : ""));
+        world.Party.WipeAllPlayers(P6ActionId.CosmoMeteorEnrage, why() + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : ""));
         foreach (var add in enraged)
             add.Cast(Actions.CosmoMeteorEnrage);
     }

@@ -56,6 +56,9 @@ public interface IBattleCharaProxy
     float CurrentCastTime { get; }
     float TotalCastTime { get; }
 
+    // Where the cast up now goes down, for one aimed at a ground point.
+    Vector3 CastTargetLocation { get; }
+
     // Moves the bar to `seconds`; the engine advances it on from there. Ignored with no cast up.
     void SetCurrentCastTime(float seconds);
 

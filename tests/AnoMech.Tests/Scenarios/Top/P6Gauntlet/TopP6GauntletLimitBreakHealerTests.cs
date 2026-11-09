@@ -84,7 +84,7 @@ public class TopP6GauntletLimitBreakHealerTests
             .Play(new TopP6GauntletHumanPress(AimFor(duty), Level: 2))
             .AssertEveryoneDied(MarkRunsOut(duty), P6ActionId.MagicNumber, TheMarkKills());
 
-    // Moving cancels the cast: unless the healer presses again in time, the mark kills everyone.
+    // Cut off: unless the healer presses again in time, the mark kills everyone.
     [TestCase(RegenHealer, JobId.Scholar, MagicNumber1Healer)]
     [TestCase(ShieldHealer, JobId.WhiteMage, MagicNumber2Healer)]
     public void AnInterruptedHealerLimitBreak3LiftsNothing(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)

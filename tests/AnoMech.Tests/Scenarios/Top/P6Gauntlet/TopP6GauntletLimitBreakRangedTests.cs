@@ -1,3 +1,4 @@
+using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.UserActions;
@@ -13,8 +14,8 @@ namespace AnoMech.Tests;
 
 // Cosmo Meteor's limit breaks 3 with the human in R2, playing each caster job, or in R1, each physical ranged job. On the
 // Gauntlet's clock (G), the adds show at 174.9 (UNVERIFIED): six Cosmo Comets and two Cosmo Meteors, north and south.
-//   178.3 / 187.0  R2's caster limit break 3 on Alpha Omega kills every comet it lands among; the comets enrage at 187.0
-//                  and kill everyone if one lives;
+//   178.3 / 187.0  R2's caster limit break 3, put down on Alpha Omega, kills every comet its circle holds; the comets
+//                  enrage at 187.0 and kill everyone if one lives;
 //   188.8 / 197.1  R1's physical ranged limit break 3 from A, aimed at Alpha Omega, kills each meteor its line holds; the
 //                  meteors enrage at 197.1.
 // A press with Brilliant Dynamis gives the gauge back, one with Spark of Dynamis doesn't, and nothing else refills it
@@ -88,6 +89,12 @@ public class TopP6GauntletLimitBreakRangedTests
     public void ACasterLimitBreak2KillsNoComet()
         => FromCosmoMeteor(CasterDps, JobId.RedMage).Play(new TopP6GauntletHumanPress(178.3f, Level: 2, OnAlphaOmega: true))
             .AssertEveryoneDied(187.0f, P6ActionId.CosmoMeteorEnrage, CometsEnraged());
+
+    // From its clock spot, R2 puts its circle 8 y north of Alpha Omega: the comets at 135 and 225 live and enrage.
+    [Test]
+    public void ACasterLimitBreak3PutDownAwayFromAlphaOmegaLetsTheCometsItMissesEnrage()
+        => FromCosmoMeteor(CasterDps, JobId.BlackMage).Play(For(Comets) with { GroundPoint = new Vector3(0f, 0f, -8f) })
+            .AssertEveryoneDied(187.0f, P6ActionId.CosmoMeteorEnrage, CometsEnraged(string.Format(TopP6CosmoMeteor.YoursCaught, 4)));
 
     [Test]
     public void APhysRangedLimitBreak2KillsNoMeteor()

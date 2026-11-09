@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using AnoMech.Core;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
@@ -56,6 +57,10 @@ public sealed class TopP6LimitBreakPress
     // Where its user stood as it resolved, facing its target, or the way it faced without one.
     public Placement? ResolvedFrom { get; internal set; }
 
+    // Where a ground-targeted one goes down: where the human's client placed it, or on the target of one the run presses.
+    // Null for any other, and for a human's whose client reported no point within its reach.
+    public Vector3? GroundPoint { get; init; }
+
     public bool IsCasting => ResolvedAt is null && InterruptedAt is null;
 
     public bool Is(TopP6LimitBreakKind kind, int level = 3) => Kind == kind && Level == level;
@@ -99,6 +104,10 @@ public sealed class TopP6LimitBreaks : IDisposable
     // its target's own id; one that does is read as aimed at the player's target as it is heard.
     private const uint CurrentTarget = 0xE0000000;
 
+    // A caster's limit break goes down within 25 y of its user. UNVERIFIED: whether the client measures that from the
+    // player's centre; the extra yalm covers its hitbox and a frame's walk since the sim last read where it stands.
+    private const float GroundPointReach = 26f;
+
     public const string TakesHoldTooLate = "; one pressed within {0:0.#} s of the hit takes hold too late";
     public const string GaugeWasShort =
         "; the limit break gauge was short: one spent by a player without Brilliant Dynamis is never given back";
@@ -110,7 +119,7 @@ public sealed class TopP6LimitBreaks : IDisposable
     public const string EnrageMeleeRule =
         "The Gauntlet's last melee limit break 3 must land on Alpha Omega while Run: ****mi*'s cast bar is up";
 
-    public const string MovingCancelledYours = "; moving cancelled yours";
+    public const string YoursWasCutOff = "; yours was cut off";
     public const string YoursMissedAlphaOmega = "; yours wasn't aimed at Alpha Omega";
     public const string YoursStartedTooEarly = "; yours started before the window opened";
     public const string YoursLandedBeforeTheBar = "; yours landed before the bar went up";
@@ -118,7 +127,7 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     private readonly SimWorld world;
     private readonly IUserActions userActions;
-    private readonly List<(PlayerAction Action, float At)> heard = [];
+    private readonly List<(PlayerAction Action, float At, Vector3? GroundPoint)> heard = [];
     private readonly List<TopP6LimitBreakPress> presses = [];
     private readonly List<Request> requests = [];
     private readonly List<Cast> casts = [];
@@ -270,28 +279,38 @@ public sealed class TopP6LimitBreaks : IDisposable
     private void Hear(PlayerAction action)
     {
         if (action.ActionType != ActionType.Action || !LimitBreakHandler.IsLimitBreak(action.ActionId)) return;
-        heard.Add(((uint)action.TargetId == CurrentTarget ? action with { TargetId = ClientsTarget() } : action, Now));
+        heard.Add(((uint)action.TargetId == CurrentTarget ? action with { TargetId = ClientsTarget() } : action, Now, PlacedOnTheGround(action.ActionId)));
     }
 
     private static ulong ClientsTarget() => Plugin.TargetManager?.Target?.GameObjectId ?? 0ul;
+
+    // Where the player's client put its cast of a ground-targeted action, read as the cast is heard. A point farther from
+    // the player than the action reaches is none the client placed for it. UNVERIFIED: that the client fills its own
+    // cast's ground point while the sim runs.
+    private Vector3? PlacedOnTheGround(uint actionId)
+    {
+        if (Natives.Data.Action(actionId) is not { TargetArea: true } || Party.Player is not { } player) return null;
+        var point = world.Coordinates.ToLocal(Natives.BattleCharas.LocalPlayer.CastTargetLocation);
+        return player.Placement().DistanceSq(point) <= GroundPointReach * GroundPointReach ? point : null;
+    }
 
     private void SettleHeardPresses()
     {
         if (heard.Count == 0) return;
         var pending = heard.ToList();
         heard.Clear();
-        foreach (var (action, at) in pending)
+        foreach (var (action, at, groundPoint) in pending)
         {
             var human = HumansCast(action.ActionId);
             switch (action.Step)
             {
                 case PlayerActionStep.CastStarted:
-                    presses.Add(HumanPress(action, at));
+                    presses.Add(HumanPress(action, at, groundPoint));
                     break;
                 case PlayerActionStep.Resolved:
                     if (human is null)
                     {
-                        human = HumanPress(action, at);
+                        human = HumanPress(action, at, groundPoint);
                         presses.Add(human);
                     }
                     Settle(human, Party.Player, at);
@@ -306,7 +325,7 @@ public sealed class TopP6LimitBreaks : IDisposable
     private TopP6LimitBreakPress? HumansCast(uint actionId)
         => presses.LastOrDefault(p => p.ByHuman && p.IsCasting && p.ActionId == actionId);
 
-    private TopP6LimitBreakPress HumanPress(PlayerAction action, float at)
+    private TopP6LimitBreakPress HumanPress(PlayerAction action, float at, Vector3? groundPoint)
     {
         var job = (uint)Natives.BattleCharas.LocalPlayer.ClassJob;
         return new TopP6LimitBreakPress
@@ -320,6 +339,7 @@ public sealed class TopP6LimitBreaks : IDisposable
             TargetId = action.TargetId,
             CastStartedAt = at,
             CastSeconds = action.CastSeconds,
+            GroundPoint = groundPoint,
         };
     }
 
@@ -400,7 +420,8 @@ public sealed class TopP6LimitBreaks : IDisposable
     private void Start(Request request, SimCharacter user)
     {
         var actionId = LimitBreakHandler.ActionId(request.Job, Bars);
-        var castSeconds = Natives.Data.Action(actionId)?.CastSeconds ?? 0f;
+        var row = Natives.Data.Action(actionId);
+        var castSeconds = row?.CastSeconds ?? 0f;
         var target = request.Target ?? user;
         var press = new TopP6LimitBreakPress
         {
@@ -413,6 +434,7 @@ public sealed class TopP6LimitBreaks : IDisposable
             TargetId = (ulong)target.GameObjectId,
             CastStartedAt = Now,
             CastSeconds = castSeconds,
+            GroundPoint = row?.TargetArea == true ? target.Position : null,
         };
         presses.Add(press);
         DiagnosticLog.Info($"[TopP6LimitBreaks] {request.Seat} presses {Natives.Data.ActionName(actionId)} ({actionId}), {castSeconds:F1} s.");
@@ -509,7 +531,7 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     private static string WhyYoursMissed(TopP6MeleeWindow window, IReadOnlyList<TopP6LimitBreakPress> attempts, float? opens, ulong targetId)
     {
-        if (attempts.Any(p => p.InterruptedAt is not null)) return MovingCancelledYours;
+        if (attempts.Any(p => p.InterruptedAt is not null)) return YoursWasCutOff;
         if (attempts.FirstOrDefault(p => p.Level != Bars || p.Kind != TopP6LimitBreakKind.Melee) is { } wrong)
             return string.Format(YoursWasNotALimitBreak3, wrong.Level);
         if (attempts.Any(p => p.TargetId != targetId)) return YoursMissedAlphaOmega;
@@ -520,11 +542,11 @@ public sealed class TopP6LimitBreaks : IDisposable
 
     private sealed record Request(PartyRole Seat, uint Job, SimCharacter? Target, float Until);
 
-    private sealed class Cast(TopP6LimitBreakPress press, SimCharacter user, System.Numerics.Vector3? heldDestination)
+    private sealed class Cast(TopP6LimitBreakPress press, SimCharacter user, Vector3? heldDestination)
     {
         public TopP6LimitBreakPress Press => press;
         public SimCharacter User => user;
-        public System.Numerics.Vector3? HeldDestination { get; set; } = heldDestination;
+        public Vector3? HeldDestination { get; set; } = heldDestination;
         public Placement PinnedAt { get; } = user.Placement();
     }
 

@@ -47,6 +47,9 @@ NoirMech change:
   - one check in upstream's `RunController.StartRefusal`: a local Start is refused, with the reason, while the
     selected scenario reports `SettingsConflicts`, as the host's Start already is (the Gauntlet's module check is the
     only one a local run can report);
+  - `IBattleCharaProxy.CastTargetLocation`, the client's `CastInfo.TargetLocation`, for where the player's own caster
+    LB3 goes down: one member there, a getter in `BattleCharaProxy` like its other cast getters, and one line each in
+    `PacketRecorder`, `PeerNatives`, `FakeBattleChara` and `FakeCharacter`;
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
@@ -358,12 +361,17 @@ multiplayer.
   - Magic Number's mark (3532) lands on everyone 1.3s after the hit and runs 6s (both UNVERIFIED). `TopP6AlphaOmega`
     holds who carries it, since a status that runs out vanishes silently: a healer LB3 resolving while it is on lifts
     it from all, and as it runs out it kills whoever still carries it.
-  - The comets: any caster LB3 resolving while they are shown kills all six; no ground point is checked. One alive at
-    187.0 enrages and kills everyone.
+  - The comets: a caster LB3 resolving while they are shown kills each comet its r 15 circle holds, counting their 1y
+    hitbox, so one centred within about 3y of Alpha Omega holds all six. The human's goes down where its client put it,
+    read from the cast as it is heard (`CastTargetLocation`; UNVERIFIED that the client fills it while the sim runs);
+    with no point, or one more than 26y from the player, it holds all six. The run's own goes down on its target, Alpha
+    Omega. One alive at 187.0 enrages and kills everyone.
   - The meteors: a physical ranged LB3 kills each meteor its 30 x 8 line holds, drawn from the presser toward its
     target with the presser's hitbox and counting the meteors' 3y. The run's own press for the player's seat (a human
     whose job can't press it) reaches both, wherever the player stands. One alive at 197.1 casts 31669 and kills
     everyone.
+  - Either enrage's reason says how many of its adds the human's own LB3s caught in all, once one went off while they
+    showed.
   - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends while Run: ****mi*'s is up, 232.0 to 247.7
     (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is heard a frame or two
     later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise its damage kills everyone at 262.0. One
@@ -407,9 +415,10 @@ multiplayer.
   its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
   (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
   cast, the gauge's rebuild and the human's melee windows. In `TopP6LimitBreaks`: the client's current-target
-  stand-in. In the State, the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's
-  (the sources call those random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait,
-  Flash Gale, Cosmo Dive, the spreads, the flares and the stack kill as they do.
+  stand-in, and that the client fills its own cast's ground point, within the sheet's 25y plus a yalm. In the State,
+  the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's (the sources call those
+  random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait, Flash Gale, Cosmo Dive, the
+  spreads, the flares and the stack kill as they do.
 - No source fixes these strat values, so they are UNVERIFIED (the user's picks):
   - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), after Cosmo Dive 2
     (16, 0) or (-16, 0);

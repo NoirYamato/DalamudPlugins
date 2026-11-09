@@ -63,6 +63,7 @@ internal sealed class FakeBattleChara(FakeBattleCharas owner, int slot) : IBattl
     public uint CastActionId => Actor?.CastActionId ?? 0;
     public float CurrentCastTime => Actor?.CurrentCastTime ?? 0f;
     public float TotalCastTime => Actor?.TotalCastTime ?? 0f;
+    public Vector3 CastTargetLocation => Actor?.CastTargetLocation ?? default;
 
     public void SetCurrentCastTime(float seconds)
     {

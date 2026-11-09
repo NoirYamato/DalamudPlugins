@@ -61,7 +61,7 @@ public class TopP6MeleeWindowTests
     {
         var run = Window((world, alphaOmega, _) => TopP6HumanLimitBreak.Press(world, 3f, LimitBreak(MeleeDpsA, 3), () => alphaOmega.Enemy, interruptedAfter: 1f));
 
-        AssertDied(run, Closes, Died(TopP6LimitBreaks.MovingCancelledYours));
+        AssertDied(run, Closes, Died(TopP6LimitBreaks.YoursWasCutOff));
     }
 
     // Started at 5.5 and cut at 7.0, after the window closed: the death waits for the interruption.
@@ -70,7 +70,7 @@ public class TopP6MeleeWindowTests
     {
         var run = Window((world, alphaOmega, _) => TopP6HumanLimitBreak.Press(world, 5.5f, LimitBreak(MeleeDpsA, 3), () => alphaOmega.Enemy, interruptedAfter: 1.5f));
 
-        AssertDied(run, 7f, Died(TopP6LimitBreaks.MovingCancelledYours));
+        AssertDied(run, 7f, Died(TopP6LimitBreaks.YoursWasCutOff));
     }
 
     // Cut short, then pressed again inside the window: the second fills it.

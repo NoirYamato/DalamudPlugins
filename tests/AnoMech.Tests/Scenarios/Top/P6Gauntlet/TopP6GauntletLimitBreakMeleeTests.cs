@@ -125,24 +125,24 @@ public class TopP6GauntletLimitBreakMeleeTests
     [Test]
     public void TheFirstCutOffEarlyKillsTheHumanAsItsWindowCloses()
         => FromTheDive(MeleeDpsA, JobId.Dragoon).Play(For(FirstDiveMelee, interruptedAfter: 1f))
-            .AssertOnlyTheHumanDied(161.0f, First + TopP6LimitBreaks.MovingCancelledYours);
+            .AssertOnlyTheHumanDied(161.0f, First + TopP6LimitBreaks.YoursWasCutOff);
 
     // Started at 160.0 and cut off at 162.0, after the window has closed.
     [Test]
     public void TheFirstCutOffAfterItsWindowClosedKillsTheHumanThere()
         => FromTheDive(MeleeDpsB, JobId.Samurai).Play(For(FirstDiveMelee, 160.0f, interruptedAfter: 2f))
-            .AssertOnlyTheHumanDied(162.0f, First + TopP6LimitBreaks.MovingCancelledYours);
+            .AssertOnlyTheHumanDied(162.0f, First + TopP6LimitBreaks.YoursWasCutOff);
 
     [Test]
     public void TheSecondCutOffKillsTheHumanAsItsWindowCloses()
         => FromTheDive(MeleeDpsA, JobId.Reaper).Play(For(SecondDiveMelee, interruptedAfter: 3.5f))
-            .AssertOnlyTheHumanDied(165.5f, Second + TopP6LimitBreaks.MovingCancelledYours);
+            .AssertOnlyTheHumanDied(165.5f, Second + TopP6LimitBreaks.YoursWasCutOff);
 
     [TestCase(MeleeDpsA, JobId.Dragoon)]
     [TestCase(MeleeDpsB, JobId.Samurai)]
     public void TheEnragesCutOffAfterItsWindowClosedKillsTheHumanThere(PartyRole seat, JobId job)
         => FromMagicNumber(seat, job).Play(For(Enrage, 240.0f, interruptedAfter: 4f))
-            .AssertOnlyTheHumanDied(244.0f, TheEnrage + TopP6LimitBreaks.MovingCancelledYours);
+            .AssertOnlyTheHumanDied(244.0f, TheEnrage + TopP6LimitBreaks.YoursWasCutOff);
 
     [Test]
     public void PressingAgainAfterBeingCutOffFillsTheWindow()

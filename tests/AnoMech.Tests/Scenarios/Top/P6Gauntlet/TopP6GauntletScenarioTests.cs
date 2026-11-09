@@ -245,10 +245,10 @@ public class TopP6GauntletScenarioTests
     [TestCase(MainTank, CosmoMemory, "Your limit breaks: tank LB3 on Cosmo Memory and Magic Number 1")]
     [TestCase(RegenHealer, CosmoMemory, "Your limit breaks: healer LB3 on Magic Number 1")]
     [TestCase(MeleeDpsA, CosmoMemory, "Your limit breaks: melee LB3 on Alpha Omega right after Cosmo Dive 2's cast bar and during Run: ****mi*'s cast")]
-    [TestCase(CasterDps, CosmoMemory, "Your limit breaks: caster LB3 on the Cosmo Comets")]
+    [TestCase(CasterDps, CosmoMemory, "Your limit breaks: caster LB3 centred on Alpha Omega to catch all six Cosmo Comets")]
     [TestCase(MeleeDpsB, Exaflares2, "Your limit breaks: melee LB3 on Alpha Omega from the middle once the first one's refill fills the gauge")]
     [TestCase(MeleeDpsA, CosmoMeteor, "Your limit breaks: melee LB3 on Alpha Omega during Run: ****mi*'s cast")]
-    [TestCase(CasterDps, CosmoMeteor, "Your limit breaks: caster LB3 on the Cosmo Comets")]
+    [TestCase(CasterDps, CosmoMeteor, "Your limit breaks: caster LB3 centred on Alpha Omega to catch all six Cosmo Comets")]
     [TestCase(PhysRangedDps, CosmoMeteor, "Your limit breaks: physical ranged LB3 through both Cosmo Meteors")]
     [TestCase(MainTank, MagicNumber, "Your limit breaks: tank LB3 on Magic Number 1")]
     [TestCase(CasterDps, MagicNumber, "Your limit breaks: none in this run")]
@@ -315,7 +315,7 @@ public class TopP6GauntletScenarioTests
     // ---- The limit breaks the fight asks for, beyond what the per-role suites (TopP6GauntletLimitBreak*Tests) cover
 
     // R1 presses from the east instead of A, its line running west through Alpha Omega between the meteors, then goes
-    // back to A for the flares.
+    // back to A for the flares. The meteors' enrage says its line caught neither.
     [Test]
     public void APhysRangedLineThatMissesTheMeteorsLetsThemEnrage()
     {
@@ -326,7 +326,8 @@ public class TopP6GauntletScenarioTests
             p.World.Events.Add(24f, () => TimelineRun.Place(p.World, PhysRangedDps, 0f, -13f));
         });
 
-        AssertEveryoneDied(run, P6ActionId.CosmoMeteorEnrage, $"Cosmo Meteor ({TopP6CosmoMeteor.MeteorsEnraged})", 32.3f, prefixOnly: true);
+        AssertEveryoneDied(run, P6ActionId.CosmoMeteorEnrage,
+            $"Cosmo Meteor ({TopP6CosmoMeteor.MeteorsEnraged}{string.Format(TopP6CosmoMeteor.YoursCaught, 0)})", 32.3f, prefixOnly: true);
     }
 
     [Test]

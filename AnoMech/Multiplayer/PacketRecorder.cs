@@ -359,6 +359,7 @@ internal sealed class PacketRecorder
         public float CurrentCastTime => inner.CurrentCastTime;
         public void SetCurrentCastTime(float seconds) => inner.SetCurrentCastTime(seconds);
         public float TotalCastTime => inner.TotalCastTime;
+        public Vector3 CastTargetLocation => inner.CastTargetLocation;
         public uint Health => inner.Health;
         public uint MaxHealth => inner.MaxHealth;
         public uint Mana => inner.Mana;

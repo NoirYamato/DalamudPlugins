@@ -217,6 +217,6 @@ public sealed class TopP6GauntletLimitBreakPlan
         SecondDiveMelee => "from the middle once the first one's refill fills the gauge",
         Enrage => "during Run: ****mi*'s cast",
         Meteors => "through both Cosmo Meteors",
-        _ => "on the Cosmo Comets",
+        _ => "centred on Alpha Omega to catch all six Cosmo Comets",
     };
 }

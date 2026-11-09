@@ -1,3 +1,4 @@
+using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
@@ -9,9 +10,10 @@ using static AnoMech.Scenarios.Top.P6Gauntlet.TopP6LimitBreakDuty;
 
 namespace AnoMech.Tests;
 
-// One limit break the human presses: its job's at Level, at Gauntlet time At, aimed at Alpha Omega or at nothing, and cut
-// off InterruptedAfter into its cast.
-internal sealed record TopP6GauntletHumanPress(float At, int Level = 3, bool OnAlphaOmega = false, float? InterruptedAfter = null)
+// One limit break the human presses: its job's at Level, at Gauntlet time At, aimed at Alpha Omega or at nothing, cut off
+// InterruptedAfter into its cast, and, if ground-targeted, put down at GroundPoint or else on its target.
+internal sealed record TopP6GauntletHumanPress(float At, int Level = 3, bool OnAlphaOmega = false, float? InterruptedAfter = null,
+    Vector3? GroundPoint = null)
 {
     // Where the strat's bots press each duty, the plan's "aim for" times.
     public static float AimFor(TopP6LimitBreakDuty duty) => duty switch
@@ -98,7 +100,7 @@ internal sealed record TopP6GauntletHumanSeat(PartyRole Seat, JobId Job)
         Func<SimCharacter?>? target = press.OnAlphaOmega ? () => TopP6GauntletRun.Scenario(p).AlphaOmega?.Enemy : null;
         p.World.Events.FromRunStart(() =>
         {
-            TopP6HumanLimitBreak.Press(p.World, press.At - start, actionId, target, press.InterruptedAfter);
+            TopP6HumanLimitBreak.Press(p.World, press.At - start, actionId, target, press.InterruptedAfter, press.GroundPoint);
             return true;
         });
     }

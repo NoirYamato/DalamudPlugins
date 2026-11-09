@@ -216,6 +216,15 @@ internal sealed unsafe class BattleCharaProxy : IBattleCharaProxy
         }
     }
 
+    public Vector3 CastTargetLocation
+    {
+        get
+        {
+            var obj = Ptr;
+            return obj == null ? default : obj->CastInfo.TargetLocation;
+        }
+    }
+
     public void SetCurrentCastTime(float seconds)
     {
         var obj = Ptr;

@@ -1,3 +1,4 @@
+using System.Numerics;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
@@ -9,10 +10,12 @@ namespace AnoMech.Tests;
 // resolve or interruption, each through IUserActions.Acted; and, as it resolves, what the client's own module does next:
 // the action's JobActions effects (a tank's limit break 3 statuses) and the resolve that empties the HUD gauge. A dead
 // player presses nothing, and a cast its player dies in is interrupted. While another seat's limit break casts, the
-// client greys the player's out: a press then goes nowhere, and the test says so in its output.
+// client greys the player's out: a press then goes nowhere, and the test says so in its output. A ground-targeted one
+// goes down at `groundPoint` (scenario-local), or without one on its target, as a <t> macro puts it.
 internal static class TopP6HumanLimitBreak
 {
-    public static void Press(SimWorld world, float at, uint actionId, Func<SimCharacter?>? target = null, float? interruptedAfter = null)
+    public static void Press(SimWorld world, float at, uint actionId, Func<SimCharacter?>? target = null, float? interruptedAfter = null,
+        Vector3? groundPoint = null)
         => world.Events.Add(at, () =>
         {
             if (!world.Party.Player.IsAlive()) return;
@@ -22,7 +25,9 @@ internal static class TopP6HumanLimitBreak
                 return;
             }
             var userActions = (FakeUserActions)Natives.UserActions;
-            var targetId = target?.Invoke() is { } aimedAt ? (ulong)aimedAt.GameObjectId : 0ul;
+            var aimedAt = target?.Invoke();
+            var targetId = aimedAt is null ? 0ul : (ulong)aimedAt.GameObjectId;
+            PlaceOnTheGround(world, actionId, groundPoint ?? aimedAt?.Position);
             var castSeconds = Natives.Data.Action(actionId)?.CastSeconds ?? 0f;
             if (castSeconds <= 0f)
             {
@@ -39,6 +44,13 @@ internal static class TopP6HumanLimitBreak
                     else userActions.Act(new PlayerAction(PlayerActionStep.Interrupted, ActionType.Action, actionId, targetId));
                 });
         });
+
+    // The client's own cast of a ground-targeted action records where it goes down; with no `point` it reports none.
+    internal static void PlaceOnTheGround(SimWorld world, uint actionId, Vector3? point)
+    {
+        if (Natives.Data.Action(actionId)?.TargetArea != true) return;
+        ((FakeBattleCharas)Natives.BattleCharas).Player.CastTargetLocation = point is { } p ? world.Coordinates.ToGlobal(p) : default;
+    }
 
     private static bool AnotherSeatsLimitBreakCasts(SimWorld world)
         => world.Party.AllMembers().Any(member => member != world.Party.Player && member.Casting.IsCasting
@@ -75,6 +87,7 @@ internal sealed class TopP6HumanLimitBreakBetweenFrames(uint actionId, Func<floa
         if (StartedAt is null && startsOn(now))
         {
             StartedAt = now;
+            TopP6HumanLimitBreak.PlaceOnTheGround(world, actionId, target?.Position);
             userActions.Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, actionId, targetId, CastSeconds));
         }
         else if (StartedAt is { } at && !resolved && (resolvesOn?.Invoke(now) ?? now >= at + CastSeconds))

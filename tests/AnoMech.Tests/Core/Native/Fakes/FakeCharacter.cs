@@ -57,6 +57,7 @@ internal sealed class FakeCharacter(uint entityId, string name)
     public uint CastActionId { get; set; }
     public float CurrentCastTime { get; set; }
     public float TotalCastTime { get; set; }
+    public Vector3 CastTargetLocation { get; set; }
 
     private Vector3 carryStart;
     private Vector3? carryDestination;

@@ -237,7 +237,7 @@ public class TopP6GauntletLimitBreakPlanTests
     [TestCase(MeleeDpsB, JobId.Dragoon, "Your limit breaks: melee LB3 on Alpha Omega right after Cosmo Dive 2's cast bar and during Run: ****mi*'s cast")]
     [TestCase(MeleeDpsB, JobId.Reaper, "Your limit breaks: melee LB3 on Alpha Omega from the middle once the first one's refill fills the gauge")]
     [TestCase(PhysRangedDps, JobId.Dancer, "Your limit breaks: physical ranged LB3 through both Cosmo Meteors")]
-    [TestCase(CasterDps, JobId.Pictomancer, "Your limit breaks: caster LB3 on the Cosmo Comets")]
+    [TestCase(CasterDps, JobId.Pictomancer, "Your limit breaks: caster LB3 centred on Alpha Omega to catch all six Cosmo Comets")]
     [TestCase(MainTank, JobId.BlackMage,
         "Your limit breaks: none, since your job can't press your seat's: the Gauntlet presses its tank LB3 on Cosmo Memory and Magic Number 1 for you")]
     public void TheChatLineNamesTheHumansDuties(PartyRole seat, JobId job, string line)
