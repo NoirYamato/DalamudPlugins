@@ -107,8 +107,11 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   must find its controls, so a scan that reads nothing can't pass: NAudio's own build path, UTF-16 strings and
   `/_/` paths in `NoirMech.dll`, a NoirMech file name and `/_/` in its PDB, and NoirMech source. The terms live
   outside both repos; never write them into either. `-DryRun` runs every gate, the build and the scan, and stops
-  before copying anything. Its build skips the build servers, so started at low priority (`start /low /affinity
-  F0`) all of it stays there.
+  before copying anything. It also refuses unless its own checkout is on `main` with nothing uncommitted or
+  untracked, and its commit takes only `plugins/NoirMech` and `repo.json`.
+- `publish.ps1` is gentle the way `tools\test.ps1` is (below): before it starts any process it drops itself to
+  Idle priority on its `-Affinity` CPUs (`0xF0`), and its build skips the build servers, so all of it runs there.
+  Run it plainly: `cmd /c start /wait` hands back `start`'s exit code, 0, so a refusal there reads as a pass.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
