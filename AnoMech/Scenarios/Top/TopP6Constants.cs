@@ -147,6 +147,14 @@ public static class TopP6Constants
         public const int CosmoDiveStack = 6;
         public const int CosmoMeteorStack = 5;                      // UNVERIFIED
 
+        // UNVERIFIED, since no damage is known: the mitigation (Mitigation.Effective, against the hits' magic damage) a
+        // human tank needs under a Cosmo Dive buster and at Wild Charge's front, with "Require tank mitigation" on. Set so
+        // every LPDU tank set passes, reaching at least 0.388 and 0.49 (an invuln 1). Rampart with one short cooldown
+        // reaches 0.28 to 0.36, or up to 0.42 within the 4 s of Stem the Flow, Clarity of Corundum or Knight's Resolve:
+        // enough for a buster only then, and never for Wild Charge.
+        public const float CosmoDiveBusterMitigation = 0.38f;
+        public const float WildChargeFrontMitigation = 0.45f;
+
         // The helper pool TOP's zone spawns once helpers belong to the zone: a P6 run may never keep more busy.
         public const int HelperPool = 36;
     }

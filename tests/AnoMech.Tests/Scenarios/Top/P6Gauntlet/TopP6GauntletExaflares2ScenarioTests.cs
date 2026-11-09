@@ -20,7 +20,7 @@ namespace AnoMech.Tests;
 //         the rim (decided 13.6 + k), then every 1.1 s 8 y further on through the centre (r 8 circles).
 //   11.9 / 13.7 / 15.6 / 17.5 / 19.4 / 21.4  puddles (r 6) under everyone, each deciding 2.7 s later.
 //   19.6  Cosmo Dive (5.6 s; its bar ends 24.9); 27.6 busters (r 8) on the two closest, a stack (r 6, 6 needed) on the
-//         farthest.
+//         farthest. A human tank under a buster needs its big cooldowns while "Require tank mitigation" is on.
 //   34.4 / 37.6  the autos' visuals; Flash Gale (r 5) 0.9 s after each on the main tank and the farthest.
 // A human melee is held to its own melee limit break 3: the first started from the bar's end to 36.1, the second once the
 // first has resolved, to 40.6, each on Alpha Omega and resolved, or it dies as the window closes.
@@ -72,6 +72,15 @@ public class TopP6GauntletExaflares2ScenarioTests
             .TeleportAt(26f, to: new(7.78f, 7.78f))
             .ShouldKill(ActionId.CosmoDive_7BA8, OffTank)
             .ShouldKill(ActionId.CosmoDive_7BA7, TheSix);
+
+    // On its arm of the Y but under no cooldown of its own: a human tank needs its big cooldowns for its buster.
+    [TestCase(MainTank, -6.5f, 0f)]
+    [TestCase(OffTank, 0f, -6.5f)]
+    public void AHumanTankWithoutItsBigCooldownsDiesToItsBuster(PartyRole tank, float x, float z)
+        => ExaflaresDive(tank)
+            .WithMitigationChecks()
+            .TeleportAt(26f, to: new(x, z))
+            .ShouldKill(ActionId.CosmoDive_7BA7, tank);
 
     // The caster stands apart, neither closest nor farthest, so the stack holds five.
     [Test]

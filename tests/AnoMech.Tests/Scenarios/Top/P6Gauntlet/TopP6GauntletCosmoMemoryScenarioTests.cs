@@ -25,7 +25,8 @@ namespace AnoMech.Tests;
 //            In first  ±7.5 / ±7.5 ±12.5 / ±2.5 ±17.5 / ±2.5 / ±7.5 / ±12.5 / ±17.5
 //            Out first ±7.5 / ±2.5 ±7.5 / ±2.5 ±12.5 / ±7.5 ±17.5 / ±12.5 / ±17.5
 //   31.4   Cosmo Dive (5.6 s); 39.4 a buster (r 8) on each of the two players closest to Alpha Omega and a stack (r 6,
-//          six needed) on the farthest of the rest.
+//          six needed) on the farthest of the rest. A human tank under a buster needs its big cooldowns while "Require
+//          tank mitigation" is on.
 public class TopP6GauntletCosmoMemoryScenarioTests
 {
     private static NegativeRun<TopP6GauntletScenario> CosmoMemory(PartyRole player, bool inFirst = true)
@@ -201,6 +202,15 @@ public class TopP6GauntletCosmoMemoryScenarioTests
             .TeleportAt(38.5f, to: new(-6f, 6f))
             .ShouldKill(ActionId.CosmoDive_7BA8, RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps);
 
+    // On its dive spot but under no cooldown of its own: a human tank needs its big cooldowns for its buster.
+    [TestCase(MainTank)]
+    [TestCase(OffTank)]
+    public void AHumanTankWithoutItsBigCooldownsDiesToItsBuster(PartyRole tank)
+        => CosmoMemory(tank)
+            .WithMitigationChecks()
+            .TeleportAt(38.5f, to: DiveSpot(tank))
+            .ShouldKill(ActionId.CosmoDive_7BA7, tank);
+
     // ---- The arena
 
     [Test]
@@ -215,6 +225,7 @@ public class TopP6GauntletCosmoMemoryScenarioTests
     [TestCase(38.5f, -1f, 3.5f, RegenHealer, "two players closest to Alpha Omega")]
     [TestCase(38.5f, 7.5f, 4f, OffTank, "must stay out of the farthest one's stack")]
     [TestCase(38.5f, -6f, 6f, CasterDps, "had 5 in it")]
+    [TestCase(38.5f, -4.6f, -4.6f, MainTank, "a tank's big cooldowns")]
     public void EveryDeathSaysWhy(float at, float x, float z, PartyRole player, string because)
     {
         var run = Run(player, stopAt: null, mitigationChecks: true, takeovers: [new Takeover(at, new Vector2(x, z))]);

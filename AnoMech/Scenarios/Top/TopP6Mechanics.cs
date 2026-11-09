@@ -35,6 +35,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         "Stood in a Cosmo Dive buster aimed at someone else: each hits everyone within 8 y of its target";
     internal const string CosmoDiveBusterAndStack =
         "Took a Cosmo Dive buster and its stack: the two players closest to Alpha Omega must stay out of the farthest one's stack";
+    internal const string CosmoDiveBusterWithoutBigCooldowns =
+        "Took a Cosmo Dive buster without enough mitigation: each needs a tank's big cooldowns";
 
     internal static string TooFewInTheCosmoDiveStack(int count)
         => $"Cosmo Dive's stack on the player farthest from Alpha Omega had {count} in it: it needs {P6Rules.CosmoDiveStack}";
@@ -239,7 +241,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // Cosmo Dive: P6Duration.CosmoDiveHitsAfterCast after its cast ends, a buster on each of the two players closest
-    // to Alpha Omega and a stack on the farthest of the rest.
+    // to Alpha Omega and a stack on the farthest of the rest. A human tank under a buster needs its big cooldowns
+    // (P6Rules.CosmoDiveBusterMitigation).
     public void CosmoDive(float castAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(castAt, () => Cast(Actions.CosmoDive), file, line);
@@ -294,7 +297,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // UNVERIFIED: that a buster kills a non-tank it targets, or anyone else it catches, and that the stack kills a buster
-    // target in it, or everyone in it when fewer than P6Rules.CosmoDiveStack share it.
+    // target in it, or everyone in it when fewer than P6Rules.CosmoDiveStack share it. A tank's mitigation is checked
+    // last, so a tank in the wrong spot hears of its spot.
     private void LandCosmoDive(CosmoDiveTargets targets)
     {
         var party = world.Party;
@@ -315,6 +319,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
                 foreach (var soaker in soakers)
                     verdicts.Kill(soaker, ActionId.CosmoDive_7BA8, TooFewInTheCosmoDiveStack(soakers.Count));
         }
+        foreach (var tank in busters.Where(IsTank).Where(tank => ShortOfMitigation(tank, ActionId.CosmoDive_7BA7, P6Rules.CosmoDiveBusterMitigation)))
+            verdicts.Kill(tank, ActionId.CosmoDive_7BA7, CosmoDiveBusterWithoutBigCooldowns);
         verdicts.Deal();
         foreach (var target in busters)
             CastFromHelper(Actions.CosmoDiveBuster, target);
@@ -348,6 +354,12 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     private static Placement Column(float x) => new(new Vector3(x, 0f, -Geometry.ArenaRadius), 0f);
 
     private static bool IsTank(SimCharacter member) => member is ISimPartyMember { Role: var role } && role.IsTank();
+
+    // As an EnemyAction's MinMit checks it, against the hit's own damage type: the human's alone, only while
+    // Mitigation.Required, and the shields it counts are spent.
+    private bool ShortOfMitigation(SimCharacter tank, uint actionId, float required)
+        => DamageCheck.LethalCause(tank, VulnSpec.None, Severity.TankBuster.MinMit(required),
+            DamageKinds.FromAttackType(Natives.Data.Action(actionId)?.AttackType ?? 0), world.Party) is not null;
 
     private void KillWhoeverLacksATankLimitBreak3(TopP6LimitBreaks limitBreaks, uint actionId, string rule)
     {

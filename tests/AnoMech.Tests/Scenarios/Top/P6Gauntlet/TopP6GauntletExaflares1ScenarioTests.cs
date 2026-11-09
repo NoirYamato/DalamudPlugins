@@ -20,7 +20,8 @@ namespace AnoMech.Tests;
 //   11.9 / 13.7 / 15.6 / 17.5 / 19.4 / 21.4   a puddle (r 6) under everyone, each hitting 2.7 s later.
 //   13.6 + k   exaflare k's first explosion (r 8) on the rim, then one 8 y further every 1.1 s.
 //   24.5  Wave Cannon (10.9 s). 27.5 / 29.5: lasers (8 y wide) from Alpha Omega at four players, then at the other four.
-//   35.8  Wild Charge (8 y wide) toward one player. 39.9 / 43.1: the autos, Flash Gale 0.9 s after each.
+//   35.8  Wild Charge (8 y wide) toward one player; a human tank among the two at its front needs its big cooldowns while
+//         "Require tank mitigation" is on. 39.9 / 43.1: the autos, Flash Gale 0.9 s after each.
 public class TopP6GauntletExaflares1ScenarioTests
 {
     private const int East = 2;
@@ -102,6 +103,15 @@ public class TopP6GauntletExaflares1ScenarioTests
         => Exaflares1(MainTank)
             .TeleportAt(34f, to: new(10.5f, 0f))
             .ShouldKill(ActionId.WaveCannonWildCharge, MainTank);
+
+    // At the front of the line but under no cooldown of its own: a human tank there needs its big cooldowns.
+    [TestCase(MainTank)]
+    [TestCase(OffTank)]
+    public void AHumanTankWithoutItsBigCooldownsDiesAtTheFront(PartyRole tank)
+        => Exaflares1(tank)
+            .WithMitigationChecks()
+            .TeleportAt(34f, to: new(0f, 6.5f))
+            .ShouldKill(ActionId.WaveCannonWildCharge, tank);
 
     // OT drops behind the party, so a non-tank is second along the line.
     [Test]
