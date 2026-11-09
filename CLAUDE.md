@@ -127,11 +127,11 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
     The NUnit adapter only logs it when it can't load the test assembly (a dependency missing, say), and every
     shard then exits 0 with a trx of no tests, so a count over all processes isn't enough: the relay's tests alone
     would pass it.
-  - Gentle by default: before it starts anything it drops itself to Idle priority on the `-Affinity` CPUs
-    (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are born there, and
-    `-Shards` defaults to one per CPU in the mask (4). The build passes `--disable-build-servers`: Roslyn starts
-    its shared compiler server at normal priority whatever its parent runs at. `-Affinity 0xFF00` (8 CPUs, so 8
-    shards) is faster when nobody needs the PC.
+  - Gentle by default: before it starts any process, git included, it drops itself to Idle priority on the
+    `-Affinity` CPUs (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are
+    born there, and `-Shards` defaults to one per CPU in the mask (4); it restores its own priority on its way
+    out. The build passes `--disable-build-servers`: Roslyn starts its shared compiler server at normal priority
+    whatever its parent runs at. `-Affinity 0xFF00` (8 CPUs, so 8 shards) is faster when nobody needs the PC.
   - The shards are dealt from `$Buckets` by each bucket's single-process time, heaviest onto the lightest shard. A
     shard takes what its buckets match that no earlier shard took and the shard holding the rest takes everything
     else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket

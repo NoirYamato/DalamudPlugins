@@ -8,9 +8,10 @@ Builds once, then runs the tests as parallel `dotnet test --no-build` processes 
   powershell -ExecutionPolicy Bypass -File tools\test.ps1 -Phase P3 -SunnySeeds 2000   # with its soak
   powershell -ExecutionPolicy Bypass -File tools\test.ps1 -Plan            # print the shards, run nothing
 
-Gentle by default: before it starts anything it drops itself to Idle priority on the -Affinity CPUs (0xF0: 4 of
-them), so the build, every test process and the test hosts those start are born there too, and it runs one shard
-per CPU in the mask. Test processes at normal priority on every CPU have frozen the PC.
+Gentle by default: before it starts any process, git included, it drops itself to Idle priority on the -Affinity
+CPUs (0xF0: 4 of them), so the build, every test process and the test hosts those start are born there too, and it
+runs one shard per CPU in the mask. It restores its own priority on its way out. Test processes at normal priority
+on every CPU have frozen the PC.
 
 A run fails on a failed test, a test run twice, a process that exits non-zero or leaves no readable trx, a process
 that ran no tests in a full or quick run, and on AnoMech.Tests running none.
@@ -252,8 +253,6 @@ if ($Plan) {
 
 $git = Find-Tool 'git' 'C:\Program Files\Git\cmd\git.exe'
 $dotnet = Find-Tool 'dotnet' 'C:\Program Files\dotnet\dotnet.exe'
-$commit = (& $git -C $Root rev-parse HEAD).Trim()
-$dirty = [bool](& $git -C $Root status --porcelain)
 $stampable = $Preset -eq 'full' -and -not $PSBoundParameters.ContainsKey('SunnySeeds') -and -not $NoBuild
 if ($Preset -eq 'full' -and (Test-Path $Stamp)) { Remove-Item -Force $Stamp }
 
@@ -298,9 +297,12 @@ $done = @()
 $exitCode = 1
 $wall = [Diagnostics.Stopwatch]::StartNew()
 try {
+    # Before its first process, git included, so every process it starts is born at Idle on the mask.
     $self.ProcessorAffinity = [IntPtr]$mask
     $self.PriorityClass = [Diagnostics.ProcessPriorityClass]::Idle
     $where = "at Idle on CPUs $($cpus -join ',') (0x$('{0:X}' -f $mask))"
+    $commit = (& $git -C $Root rev-parse HEAD).Trim()
+    $dirty = [bool](& $git -C $Root status --porcelain)
 
     if (-not $NoBuild) {
         Write-Host "Building $(Split-Path -Leaf $Root) @ $($commit.Substring(0, 7))$(if ($dirty) { ' (uncommitted changes)' }) $where"
@@ -330,7 +332,38 @@ try {
             Write-Host ('  {0,-7} {1,-6} {2,5} passed {3,3} failed {4,3} skipped in {5,6}  {6}' -f $run.Name, $state, $run.Trx.Passed, $run.Trx.Failed, $run.Trx.Skipped, (Format-Span $run.Time), $shard.Run.What)
         }
     }
-    $exitCode = 0
+    $wall.Stop()
+
+    $failures = @($done | ForEach-Object { $_.Trx.Failures })
+    $troubled = @($done | Where-Object { $_.Trouble })
+    $seen = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
+    $twice = @($done | ForEach-Object { $_.Trx.Tests } | Where-Object { -not $seen.Add($_) })
+    $total = ($done | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
+    $passed = ($done | ForEach-Object { $_.Trx.Passed } | Measure-Object -Sum).Sum
+    $skipped = ($done | ForEach-Object { $_.Trx.Skipped } | Measure-Object -Sum).Sum
+    $ranAnoMech = [int](@($done | Where-Object { $_.Name -ne 'relay' }) | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
+
+    Write-Host ''
+    Write-Host "$label @ $($commit.Substring(0, 7)): $passed passed, $($failures.Count) failed, $skipped skipped of $total in $(Format-Span $wall.Elapsed) ($($planned.Count) processes on $($cpus.Count) CPUs)"
+    foreach ($failure in $failures | Select-Object -First 50) { Write-Host "  failed: $failure" -ForegroundColor Red }
+    foreach ($run in $troubled) { Write-Host "  $($run.Name) $($run.Trouble): see $($run.Log)" -ForegroundColor Red }
+    if ($ranAnoMech -eq 0) { Write-Host '  AnoMech.Tests ran no tests' -ForegroundColor Red }
+    foreach ($test in $twice | Select-Object -First 20) { Write-Host "  ran in more than one shard: $test" -ForegroundColor Red }
+    Write-Host "  logs and results: $results"
+
+    $green = $failures.Count -eq 0 -and $troubled.Count -eq 0 -and $twice.Count -eq 0 -and $ranAnoMech -gt 0
+    if ($green -and $stampable) {
+        $now = (& $git -C $Root rev-parse HEAD).Trim()
+        $stillClean = -not (& $git -C $Root status --porcelain)
+        if ($dirty -or -not $stillClean -or $now -ne $commit) {
+            Write-Host '  no stamp: the tree had uncommitted changes, or HEAD moved during the run'
+        }
+        else {
+            Write-Utf8 $Stamp "green $commit full`n"
+            Write-Host "  stamped: green $commit full"
+        }
+    }
+    if ($green) { $exitCode = 0 }
 }
 catch {
     Write-Host $_.Exception.Message -ForegroundColor Red
@@ -342,37 +375,4 @@ finally {
     $self.ProcessorAffinity = $saved.Affinity
     $ErrorActionPreference = 'Stop'
 }
-$wall.Stop()
-if ($exitCode -ne 0) { exit $exitCode }
-
-$failures = @($done | ForEach-Object { $_.Trx.Failures })
-$troubled = @($done | Where-Object { $_.Trouble })
-$seen = New-Object 'Collections.Generic.HashSet[string]' ([StringComparer]::Ordinal)
-$twice = @($done | ForEach-Object { $_.Trx.Tests } | Where-Object { -not $seen.Add($_) })
-$total = ($done | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
-$passed = ($done | ForEach-Object { $_.Trx.Passed } | Measure-Object -Sum).Sum
-$skipped = ($done | ForEach-Object { $_.Trx.Skipped } | Measure-Object -Sum).Sum
-$ranAnoMech = [int](@($done | Where-Object { $_.Name -ne 'relay' }) | ForEach-Object { $_.Trx.Total } | Measure-Object -Sum).Sum
-
-Write-Host ''
-Write-Host "$label @ $($commit.Substring(0, 7)): $passed passed, $($failures.Count) failed, $skipped skipped of $total in $(Format-Span $wall.Elapsed) ($($planned.Count) processes on $($cpus.Count) CPUs)"
-foreach ($failure in $failures | Select-Object -First 50) { Write-Host "  failed: $failure" -ForegroundColor Red }
-foreach ($run in $troubled) { Write-Host "  $($run.Name) $($run.Trouble): see $($run.Log)" -ForegroundColor Red }
-if ($ranAnoMech -eq 0) { Write-Host '  AnoMech.Tests ran no tests' -ForegroundColor Red }
-foreach ($test in $twice | Select-Object -First 20) { Write-Host "  ran in more than one shard: $test" -ForegroundColor Red }
-Write-Host "  logs and results: $results"
-
-$green = $failures.Count -eq 0 -and $troubled.Count -eq 0 -and $twice.Count -eq 0 -and $ranAnoMech -gt 0
-if (-not $green) { exit 1 }
-if ($stampable) {
-    $now = (& $git -C $Root rev-parse HEAD).Trim()
-    $stillClean = -not (& $git -C $Root status --porcelain)
-    if ($dirty -or -not $stillClean -or $now -ne $commit) {
-        Write-Host '  no stamp: the tree had uncommitted changes, or HEAD moved during the run'
-    }
-    else {
-        Write-Utf8 $Stamp "green $commit full`n"
-        Write-Host "  stamped: green $commit full"
-    }
-}
-exit 0
+exit $exitCode
