@@ -87,7 +87,7 @@ All using default NA pf strats unless noted otherwise:
       - EU (default)
         - [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1), with the Hello World layout of [Tessan's visual guide](https://youtu.be/qNdjZOgCU1I?t=2310)
       - NA pf
-    - P6 Gauntlet _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk), all of P6 through the enrage with every seat's limit breaks, yours as LPDU assigns them (tanks and melee by job priority, healers and ranged by seat); start from any part
+    - P6 Gauntlet _EU_ [\[LPDU\] Light PF](https://raidplan.io/plan/mh3bX4KJ9d8rT9nk), all of P6 through the enrage with every seat's limit breaks, yours as LPDU assigns them (tanks and melee by job priority, healers and ranged by seat); start from any part; needs Resolve your own actions on, and limit breaks count whatever Require tank mitigation says
 - The Weapon's Refrain (Ultimate) _by [WorstAquaPlayer](https://github.com/WorstAquaPlayer)_
     - Ultimate Predaction
     - Ultimate Suppression

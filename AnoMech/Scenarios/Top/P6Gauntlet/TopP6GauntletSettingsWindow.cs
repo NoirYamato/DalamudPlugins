@@ -115,7 +115,7 @@ public sealed class TopP6GauntletSettingsWindow
     {
         var kind = Natives.BattleCharas.LocalPlayer is { Exists: true } player ? TopP6LimitBreaks.KindOf(player.ClassJob) : (TopP6LimitBreakKind?)null;
         if (kind is TopP6LimitBreakKind.PhysicalRanged or TopP6LimitBreakKind.Caster) return;
-        SettingsGrid.Section("Limit breaks", "Your own limit breaks 3 when you sit in that role's seat; the other seat of the pair presses the rest. Auto follows LPDU's sheet: tanks and melee by job priority, H1 and H2 by seat.");
+        SettingsGrid.Section("Limit breaks", "Your own limit breaks 3 when you sit in that role's seat; the other seat of the pair presses the rest. Auto follows LPDU's sheet: tanks and melee by job priority, H1 and H2 by seat. The Gauntlet always counts limit breaks, whatever Require tank mitigation says.");
         if (kind is null or TopP6LimitBreakKind.Tank)
             Overrides.TankLimitBreaks = Combo("Tank:", "##p6gauntlettank", Overrides.TankLimitBreaks, TankLabels);
         if (kind is null or TopP6LimitBreakKind.Melee)

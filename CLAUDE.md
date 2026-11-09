@@ -44,6 +44,9 @@ NoirMech change:
     rows);
   - new Core pieces: `SpawnedHelperPool`, `HelperCast`, `ExaflareLane`, `BaitedPuddles` and `Verdicts` in
     `Core/Game/`, `PartyLimitBreakCast` in `Core/Game/Party/`, and `EnemyActionTimes` in `Core/EnemyActions/`;
+  - one check in upstream's `RunController.StartRefusal`: a local Start is refused, with the reason, while the
+    selected scenario reports `SettingsConflicts`, as the host's Start already is (the Gauntlet's module check is the
+    only one a local run can report);
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
@@ -352,8 +355,8 @@ multiplayer.
   still vulnerable), and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5).
   `Verdicts` keeps each player's first reason.
 - The Gauntlet always needs limit breaks. It refuses to start with "Resolve your own actions" off (a
-  `SettingsConflicts` entry, also shown in red atop its settings, since a local refusal only reaches the log): only
-  that module plays the human's own limit break in the sim. A headless run the debug driver walks is exempt, and
+  `SettingsConflicts` entry, which greys out Start with the reason as its tooltip and shows in red atop its
+  settings): only that module plays the human's own limit break in the sim. A headless run the debug driver walks is exempt, and
   there the strat presses the player's seat's duties too, unless a test sets the internal
   `PlayerPressesItsOwnLimitBreaks` and scripts them through `FakeUserActions.Act`.
 - The strat plays the old blocks' LPDU spots and times on the parts' clocks, changed only at the seams:

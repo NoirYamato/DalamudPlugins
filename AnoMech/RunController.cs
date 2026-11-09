@@ -35,6 +35,8 @@ internal sealed class RunController
         // StartMessage, a peer would start a second independent simulation.
         if (scenario.SupportsMultiplayer && multiplayer.IsConnected)
             return "In a multiplayer session -- only the host's Start button runs it.";
+        // ScenarioSession refuses these too, but only after zoning in and seating the party.
+        if (scenario.SettingsConflicts is [var conflict, ..]) return conflict;
         if (startWait.WaitingOn is { } waiting) return $"Waiting for {waiting} to settle before starting...";
         // A settle only delays the start; Start waits it out.
         if (ZoneControl.StartBlockedReason(out var settling) is { } blocked && settling == null)
