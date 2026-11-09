@@ -94,4 +94,43 @@ internal sealed class RunController
         if (multiplayer.InSession && !game.UserPaused) Game.Print(PauseRefusal!);
         else game.TogglePause();
     }
+
+    // Null when Retry can play the last local run's roll again now: a session's run plays on the host for everyone, and
+    // the replay starts as a Start does.
+    public string? RetryRefusal
+    {
+        get
+        {
+            if (multiplayer.InSession) return RollReplay.MultiplayerRefusal;
+            var rolls = Plugin.Practice.Rolls;
+            if (rolls.RetryRefusal is { } refusal) return refusal;
+            var last = rolls.Last!.AsPlayed;
+            // EnterAndStart would refuse another zone's run only after the click.
+            if (game.Zone is { } zone && zone != last.Scenario.Phase.Zone)
+                return $"Leave {zone.Name} first: the roll plays in {last.Scenario.Phase.Zone.Name}.";
+            var party = last.Party as LocalPartyProvider;
+            var selection = new ScenarioSelection(last.Scenario, last.SelectedAi, last.SelectedWaymark, last.Seed, party?.RoleOverride);
+            return StartRefusal(selection, party?.Solo ?? false);
+        }
+    }
+
+    public void Retry()
+    {
+        if (RetryRefusal is { } refusal)
+        {
+            Game.Print(refusal);
+            return;
+        }
+        var p = Plugin.Practice.Rolls.Replay();
+        void Refused(string? why)
+        {
+            if (why != null) Game.Print($"Retry refused: {why}.");
+        }
+        if (ZoneControl.StartBlockedReason(out var settling) != null && settling != null)
+        {
+            startWait.Hold(settling, () => game.EnterAndStart(p, SessionMode.Local, Refused));
+            return;
+        }
+        game.EnterAndStart(p, SessionMode.Local, Refused);
+    }
 }

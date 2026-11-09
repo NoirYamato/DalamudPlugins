@@ -6,9 +6,9 @@ using AnoMech.Scenarios.Top;
 
 namespace AnoMech.Tests;
 
-// Runs one after another on one fake game with PracticeLoop watching, for what spans runs: the streak and Auto-restart.
-// Every run plays `timeline` on a stand-in scenario; Started holds each run's seed and the seat it gave the player, in
-// start order.
+// Runs one after another on one fake game with PracticeLoop watching, for what spans runs: the streak, Auto-restart,
+// Retry and Drill. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed and the seat it gave
+// the player, in start order.
 internal sealed class PracticeRun : IDisposable
 {
     public FakeGame Fake { get; }
@@ -18,7 +18,7 @@ internal sealed class PracticeRun : IDisposable
     public TimelineScenario Scenario { get; }
     public List<(int Seed, PartyRole Seat)> Started { get; } = [];
 
-    public PracticeRun(Action<SimWorld> timeline)
+    public PracticeRun(Action<SimWorld> timeline, object? overrides = null)
     {
         Fake = FakeGame.Install();
         Fake.BattleCharas.Player.ClassJob = (byte)JobId.Warrior;
@@ -32,7 +32,7 @@ internal sealed class PracticeRun : IDisposable
         Practice = new PracticeLoop(Game);
         DalamudServices.Install(nameof(Plugin.Practice), Practice);
         Game.RunStarted += (_, _) => Started.Add((Game.World.Rng.Seed, Game.World.Party.PlayerRole));
-        Scenario = new TimelineScenario(TopZone.P6, timeline);
+        Scenario = new TimelineScenario(TopZone.P6, timeline, overrides: overrides);
     }
 
     // A local run of the stand-in, every seat filled. No seat leaves the player's to their job, no seed draws a fresh one.
@@ -52,7 +52,11 @@ internal sealed class PracticeRun : IDisposable
         for (var elapsed = 0f; !done(); elapsed += ScenarioRun.FrameSeconds)
         {
             if (elapsed > maxSeconds) Assert.Fail($"still waiting after {maxSeconds} s; runs started: {Started.Count}");
-            Fake.Frame(ScenarioRun.FrameSeconds, Game.Tick);
+            Fake.Frame(ScenarioRun.FrameSeconds, delta =>
+            {
+                Game.Tick(delta);
+                Practice.Rolls.Tick();
+            });
         }
     }
 

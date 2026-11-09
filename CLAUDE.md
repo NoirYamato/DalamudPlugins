@@ -58,11 +58,15 @@ NoirMech change:
   `IsPlayerAction` change are left out;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
-- one fix in upstream's `Game.EnterAndStart`: it raises `RunStarted` with the params as asked, not with the seed it
-  draws to seat the party before a zone-in, so Auto-restart after a Start from the inn rolls fresh rather than
-  replaying one roll (`PracticeLoopTests`);
-- test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves, and
-  `tests/AnoMech.Tests/Support/PracticeRun.cs`;
+- Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
+  (it keeps a replayed roll off the streak and lets Drill make the restart), Retry in `RunController` and `Plugin`
+  (`/noirmech retry`, and the Drill tick in `OnFrameworkUpdate`), and a `source` for `ScenarioSettingsSync.Apply`'s log
+  lines. With them, the fix for Auto-restart replaying one roll: upstream's `Game.EnterAndStart` raises `RunStarted`
+  with the params as asked, not with the seed it draws to seat the party before a zone-in;
+- the main window is `partial`: what Retry and Drill add sits in `MainWindow.RunControls.cs`, with one-line hooks in
+  upstream's `MainWindow.cs` (the older pause button sits in `MainWindow.cs` itself);
+- test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
+  `TimelineScenario` takes settings overrides, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -142,6 +146,31 @@ to multiplayer peers, so both sides need the same build.
 - A paused run doesn't count toward the streak. Known gaps: knockbacks and carries finish during the pause,
   BGM runs on, short head-marker VFX can expire, and GCD and cooldowns keep running.
 - `tests/AnoMech.Tests/Core/Game/GamePauseTests.cs` covers this headlessly.
+
+## Retry and Drill
+`Core/Game/RollReplay.cs`, owned by upstream's `PracticeLoop` (`Plugin.Practice.Rolls`), which reports each run's
+start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws both.
+- Auto-restart rolls fresh. `Game.EnterAndStart` draws a seed before a zone-in to seat the party on the run's stream,
+  and `RunStarted` reports the params as asked (`StartScenarioNow`'s `asked`), so that seed no longer sticks to every
+  Auto-restart after a Start from the inn. A seed the player asked for (the debug build's Seed field) still repeats.
+- `RollReplay.Last` is the last local run as it played (`PlayedRun`): `Fresh`, what it started from; `AsPlayed`, the
+  same with the seed it played (`World.Rng.Seed` at `RunStarted`) and the player's seat pinned, Solo kept; `Settings`,
+  its scenario's overrides as `ScenarioSettingsSync` serialized them as it started. `Replay()` puts those settings
+  back on the scenario, where its panel shows them, and returns a copy of `AsPlayed` that `RunStarted` hands back by
+  reference, which makes the run a replay (`Replaying`). A fresh roll after a replay starts from its `Fresh`.
+- Retry: "Retry this roll" beside Start (or Stop and Pause during a run), `/noirmech retry` and `/noir retry`.
+  `RunController.RetryRefusal` refuses, with a chat line from the command and as the button's tooltip, in a
+  multiplayer session or stay, with no local run yet this session, in another zone's stay, and wherever Start would:
+  it asks `StartRefusal` with the last run's selection. It starts through `EnterAndStart` as Start does, zoning in
+  from the inn and waiting out a settle, and the window first selects the retried scenario.
+- Drill (beside Auto-restart, in every build; forced off in a session): a run in which anyone died plays its roll
+  again once it freezes or, when godmode kept everyone up, once it ends; a clean run moves on to a fresh roll. The
+  freeze is polled (`Rolls.Tick`, after `Game.Tick` in `Plugin.OnFrameworkUpdate`), so Drill ticked on during a
+  freeze replays at once. Deaths switch Auto-restart off but not Drill, and with Drill on Drill makes the restart. A
+  run stopped before it froze isn't played again.
+- A replayed roll (Retry, or Drill's repeat) doesn't add to the streak; a death still resets it.
+- `PracticeLoopTests` and `RollReplayTests` play runs back to back on a `TimelineScenario`
+  (`tests/AnoMech.Tests/Support/PracticeRun.cs`).
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the

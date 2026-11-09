@@ -98,7 +98,7 @@ public sealed class Plugin : IDalamudPlugin
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
-                HelpMessage = $"Open {DisplayName}. Subcommands: config, mp, start, reset, leave, pause, resume, toggle (pause/resume)"
+                HelpMessage = $"Open {DisplayName}. Subcommands: config, mp, start, reset, leave, pause, resume, toggle (pause/resume), retry"
             });
             CommandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
             {
@@ -213,6 +213,8 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Runs.Tick threw: {e}"); }
         try { Game.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Game.Tick threw: {e}"); }
+        try { Practice.Rolls.Tick(); }
+        catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Practice.Rolls.Tick threw: {e}"); }
 #if DEBUG
         try { DamageDebugWindow.Instance?.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] DamageDebugWindow.Tick threw: {e}"); }
@@ -293,6 +295,9 @@ public sealed class Plugin : IDalamudPlugin
                 break;
             case "toggle":
                 Runs.TogglePause();
+                break;
+            case "retry":
+                MainWindow.Retry();
                 break;
             default:
                 MainWindow.Toggle();

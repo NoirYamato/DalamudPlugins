@@ -22,7 +22,7 @@ using AnoMech.Core.Native.Implementations;
 
 namespace AnoMech.Windows;
 
-public unsafe class MainWindow : Window, IDisposable
+public unsafe partial class MainWindow : Window, IDisposable
 {
     private const float ScenarioButtonExtraPadding = 6f;
     private const float SetupDropdownWidth = 180f;
@@ -758,6 +758,7 @@ public unsafe class MainWindow : Window, IDisposable
             multiplayerUi.DrawStartButton(actionSize, Selection);
         else
             DrawStartButton(actionSize);
+        if (!inSession) DrawRetryButton();
 
         if (game.World.Map.IsInInstance)
         {
@@ -965,6 +966,7 @@ public unsafe class MainWindow : Window, IDisposable
             ImGui.SetTooltip(mpActive
                 ? MpDisabledReason
                 : "Restart the same scenario immediately after a successful run. A death turns this back off.");
+        DrawDrillOption(practice, mpActive);
         ImGui.SameLine();
         ImGui.TextDisabled($"Streak: {practice.Streak}");
     }
