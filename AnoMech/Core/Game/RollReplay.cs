@@ -53,7 +53,8 @@ public sealed class RollReplay
             return replayed.Fresh;
         }
         var seat = game.World.Party.PlayerRole;
-        var solo = p.Party is LocalPartyProvider { Solo: true };
+        if (p.Party is RotatingPartyProvider rotating) rotating.Rotation.Played(seat);
+        var solo = p.Party is LocalPartyProvider { Solo: true } or RotatingPartyProvider { Solo: true };
         var asPlayed = p with { Seed = game.World.Rng.Seed, Party = new LocalPartyProvider { RoleOverride = seat, Solo = solo } };
         Last = new PlayedRun(p, asPlayed, ScenarioSettingsSync.Serialize(p.Scenario.SettingsOverrides));
         return p;

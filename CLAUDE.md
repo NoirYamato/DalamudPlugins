@@ -65,8 +65,11 @@ NoirMech change:
   with the params as asked, not with the seed it draws to seat the party before a zone-in;
 - the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs`, `Plugin`'s watch of the installed
   plugins, and a first check in `RunController.StartRefusal` and in `ZoneControl.StartBlockedReason`;
-- the main window is `partial`: what Retry, Drill and the AnoMech warning add sits in `MainWindow.RunControls.cs`,
-  with one-line hooks in upstream's `MainWindow.cs` (the older pause button sits in `MainWindow.cs` itself);
+- the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
+  `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats` and `RunController.Seats`;
+- the main window is `partial`: what Retry, Drill, the AnoMech warning and the kept setup add sits in
+  `MainWindow.RunControls.cs` and `MainWindow.Setup.cs`, with one-line hooks in upstream's `MainWindow.cs` (the older
+  pause button sits in `MainWindow.cs` itself);
 - test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
   `TimelineScenario` takes settings overrides, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
@@ -124,9 +127,10 @@ Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only ex
 measures its delay from where the bot stands when the move fires, so a flex still walking at 11s made the
 dodge's 14.8s deadline lose a bot in 21-29% of seeds (a 10s flex). Keep each `arrivalTime` before the next move,
 and give every strat a `Group`. `selectedAi` is an index into `AiStrats`, and the main window opens a scenario on
-the first strat and its region, so the order sets the default. Reorder only after updating every test that passes
-a strat index (the scenario's own tests, `GamePauseTests`); the index isn't saved across sessions, but it is sent
-to multiplayer peers, so both sides need the same build.
+the first strat and its region unless `SetupMemory` kept a pick for it, so the order sets the default. Reorder only
+after updating every test that passes a strat index (the scenario's own tests, `GamePauseTests`); the index isn't
+saved across sessions (a kept pick goes by name), but it is sent to multiplayer peers, so both sides need the same
+build.
 
 ## Pause
 `/noirmech pause|resume|toggle`, the main-window Pause/Resume button and the title-bar icon toggle
@@ -191,6 +195,30 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   zone transition or a territory drift under its firewall), which stops the game. On detection NoirMech leaves such a
   stay through `RunController.Leave` (the inn reload and the verified lift) and releases a debug send hold.
 - `AnoMechPresenceTests`, `RunControllerTests`.
+
+## Setup memory and Rotate
+- `SetupMemory` keeps the main window's setup in `setup.json` in the plugin's config folder
+  (`%APPDATA%\XIVLauncher\pluginConfigs\NoirMech\`), not in upstream's `Configuration`: the Role pick by label, and
+  per scenario (by `FullName`) its region, its strat by name and its settings overrides as `ScenarioSettingsSync`
+  serializes them, which leaves out the internal test pins. At load `MainWindow.RestoreSetup` puts back the Role pick
+  and each scenario's region and settings, before the last scenario is selected again; a scenario's strat comes back
+  by name as it is selected, and one it no longer has in that region leaves the region's first.
+- `MainWindow.RememberSetup` runs every frame from `PreOpenCheck` and saves what changed (the settings are read every
+  0.5s), and once more on unload. Nothing is kept during a multiplayer session, which resets the Role pick and shows a
+  peer the host's scenario, strat and settings; after it the kept Role pick and the selected scenario's region and
+  strat come back, and a peer's own settings come back through `MultiplayerManager`'s restore, as before.
+- Rotate, a Role pick: tanks alternate MT and OT and melee M1 and M2 on each local run, from the seat Auto gives;
+  healers and ranged keep their job's seat. Start seats the run through a `RotatingPartyProvider` on
+  `RunController.Seats`, asked again for every run started from it, so Auto-restart and Drill's fresh rolls rotate
+  too; the rotation moves on as such a run starts (`RollReplay.Started`). A replay keeps the seat it played and leaves
+  the rotation alone. Multiplayer seats stay the Party panel's. Beside the pick the window shows the seat the next
+  Start gives on the current job ("You: M2").
+- The P6 Gauntlet builds its limit break plan each run from the seats and the human's client job, so a rotated tank
+  or melee gets its duties by job priority against the bot beside it (a PLD: Cosmo Memory and Magic Number 1 in MT
+  beside the OT PLD bot, Magic Number 2 in OT beside the MT WAR bot). Every seat Rotate gives fits the job, so the
+  chat line names the duties (`TopP6GauntletLimitBreakPlanTests`).
+- `SetupMemoryTests` (every catalog scenario's settings, off their defaults, survive a save and a load) and
+  `SeatRotationTests`.
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the

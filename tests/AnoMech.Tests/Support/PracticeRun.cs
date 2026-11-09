@@ -7,8 +7,8 @@ using AnoMech.Scenarios.Top;
 namespace AnoMech.Tests;
 
 // Runs one after another on one fake game with PracticeLoop watching, for what spans runs: the streak, Auto-restart,
-// Retry and Drill. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed and the seat it gave
-// the player, in start order.
+// Retry, Drill and the seat rotation. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed and
+// the seat it gave the player, in start order.
 internal sealed class PracticeRun : IDisposable
 {
     public FakeGame Fake { get; }
@@ -18,10 +18,10 @@ internal sealed class PracticeRun : IDisposable
     public TimelineScenario Scenario { get; }
     public List<(int Seed, PartyRole Seat)> Started { get; } = [];
 
-    public PracticeRun(Action<SimWorld> timeline, object? overrides = null)
+    public PracticeRun(Action<SimWorld> timeline, object? overrides = null, JobId job = JobId.Warrior)
     {
         Fake = FakeGame.Install();
-        Fake.BattleCharas.Player.ClassJob = (byte)JobId.Warrior;
+        Fake.BattleCharas.Player.ClassJob = (byte)job;
         Game? game = null;
         DalamudServices.Install(nameof(Plugin.Log), TraceLog.Create(() => game?.World.Events.Elapsed ?? 0f));
         DalamudServices.Install(nameof(Plugin.Config), new Configuration());

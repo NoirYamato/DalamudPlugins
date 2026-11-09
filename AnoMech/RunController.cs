@@ -25,6 +25,9 @@ internal sealed class RunController
 
     public string? StartWaitingOn => startWait.WaitingOn;
 
+    // The Role pick Rotate's seats, from one local run to the next.
+    public SeatRotation Seats { get; } = new();
+
     public void Tick() => startWait.Tick();
 
     public string? StartRefusal(ScenarioSelection? selection, bool solo)
@@ -53,7 +56,9 @@ internal sealed class RunController
             Plugin.Log.Warning(refusal);
             return;
         }
-        var party = new LocalPartyProvider { RoleOverride = selection!.RoleOverride, Solo = solo };
+        IPartyProvider party = selection!.RotateSeats
+            ? new RotatingPartyProvider(Seats, solo)
+            : new LocalPartyProvider { RoleOverride = selection.RoleOverride, Solo = solo };
         var p = new RunScenarioParams(selection.Scenario, party, solo ? null : selection.Strat, selection.Waymark, selection.Seed);
         if (ZoneControl.StartBlockedReason(out var settling) != null && settling != null)
         {

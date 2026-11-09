@@ -243,6 +243,35 @@ public class TopP6GauntletLimitBreakPlanTests
     public void TheChatLineNamesTheHumansDuties(PartyRole seat, JobId job, string line)
         => Assert.That(Plan(seat, job).ChatLine(), Is.EqualTo(line));
 
+    // The Role pick Rotate seats a tank or melee player in either seat of their pair by turns: both fit the job, the
+    // duties follow the jobs against the bot beside them, and the chat line names them.
+    [TestCase(JobId.Warrior)]
+    [TestCase(JobId.DarkKnight)]
+    [TestCase(JobId.Paladin)]
+    [TestCase(JobId.Gunbreaker)]
+    [TestCase(JobId.Monk)]
+    [TestCase(JobId.Dragoon)]
+    [TestCase(JobId.Ninja)]
+    [TestCase(JobId.Samurai)]
+    [TestCase(JobId.Reaper)]
+    [TestCase(JobId.Viper)]
+    public void EachSeatRotateGivesKeepsThePlanAndTheChatLine(JobId job)
+    {
+        var rotation = new SeatRotation();
+        var seats = new List<PartyRole>();
+        for (var run = 0; run < 2; run++)
+        {
+            var seat = rotation.Next((uint)job);
+            rotation.Played(seat);
+            seats.Add(seat);
+            var plan = Plan(seat, job);
+            Assert.That(plan.HumanFits, Is.True, $"{seat}");
+            Assert.That(plan.DutiesOf(seat), Is.Not.Empty, $"{seat}");
+            Assert.That(plan.ChatLine(), Does.StartWith("Your limit breaks: ").And.Not.Contain("none"), $"{seat}");
+        }
+        Assert.That(seats.Select(Other), Is.EqualTo(seats.AsEnumerable().Reverse()));
+    }
+
     // Only the duties a run plays: from Magic Number on, a warrior main tank has only Magic Number 1 left, a caster none.
     [TestCase(MainTank, JobId.Warrior, "Your limit breaks: tank LB3 on Magic Number 1")]
     [TestCase(CasterDps, JobId.BlackMage, "Your limit breaks: none in this run")]
