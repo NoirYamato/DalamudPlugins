@@ -185,7 +185,21 @@ public class RollReplayTests
         run.StartInZone(run.Params());
         run.Until(() => run.Game.Paused);
 
-        HoldsTheFreezeThenPlaysTheRollAgain(run);
+        HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 1);
+    }
+
+    // A replay that dies again is held the full FreezeHoldSeconds from its own freeze before the roll plays a third time.
+    [Test]
+    public void DrillHoldsAReplaysFreezeInFull()
+    {
+        using var run = new PracticeRun(PracticeRun.PlayerDies);
+        run.Practice.Rolls.Drill = true;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Started.Count == 2);
+
+        run.Until(() => run.Game.Paused);
+
+        HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 2);
     }
 
     // Drill ticked on while the run stands frozen holds the scene FreezeHoldSeconds from the tick. So does Drill ticked
@@ -206,10 +220,11 @@ public class RollReplayTests
         run.Practice.Rolls.Drill = true;
 
         Assert.That(run.Started, Has.Count.EqualTo(1));
-        HoldsTheFreezeThenPlaysTheRollAgain(run);
+        HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 1);
     }
 
-    // Stop and /noir reset (Game.Reset), or Leave: the run ends in the hold, and nothing plays it again.
+    // Stop and /noir reset (Game.Reset), or Leave: the run ends in the hold, and nothing plays it again. The next run to
+    // freeze, started from the zone or from the inn, is held the full FreezeHoldSeconds.
     [TestCase(false)]
     [TestCase(true)]
     public void EndingTheFrozenRunInTheHoldDropsTheReplay(bool leave)
@@ -226,42 +241,46 @@ public class RollReplayTests
 
         Assert.That(run.Started, Has.Count.EqualTo(1));
         Assert.That(run.Game.Zone is null, Is.EqualTo(leave));
+
+        run.Game.EnterAndStart(run.Params(), SessionMode.Local);
+        run.Until(() => run.Game.Paused);
+
+        HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 2);
     }
 
-    // A Start, or a Retry, in the hold replaces the frozen run with its own, and Drill plays nothing more.
+    // A Start, or a Retry, in the hold replaces the frozen run with its own. Drill plays nothing more until the new run
+    // freezes, and holds that freeze the full FreezeHoldSeconds.
     [TestCase(false)]
     [TestCase(true)]
     public void AStartOrARetryInTheHoldPlaysOnlyItsOwnRun(bool retry)
     {
-        var runs = 0;
-        using var run = new PracticeRun(world =>
-        {
-            if (++runs == 1) PracticeRun.PlayerDies(world);
-            else world.Events.Add(30f, () => { });
-        });
+        using var run = new PracticeRun(PracticeRun.PlayerDies);
         run.Practice.Rolls.Drill = true;
         run.StartInZone(run.Params());
         run.Until(() => run.Game.Paused);
         run.For(RollReplay.FreezeHoldSeconds / 2);
 
         run.Game.StartScenario(retry ? run.Practice.Rolls.Replay() : run.Params());
-        run.For(2 * RollReplay.FreezeHoldSeconds);
+        run.Until(() => run.Started.Count == 2);
+        run.Until(() => run.Game.Paused);
 
         Assert.That(run.Started, Has.Count.EqualTo(2));
         Assert.That(run.Started[1].Seed == run.Started[0].Seed, Is.EqualTo(retry));
         Assert.That(run.Practice.Rolls.Replaying, Is.EqualTo(retry));
+        HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 2);
     }
 
-    // Just short of the hold the scene still stands frozen, and the roll plays again within a few frames of its end.
-    private static void HoldsTheFreezeThenPlaysTheRollAgain(PracticeRun run)
+    // The last of `runs` runs stands frozen: just short of the hold its scene is still up, and its roll plays again within a
+    // few frames of the hold's end.
+    private static void HoldsTheFreezeThenPlaysTheRollAgain(PracticeRun run, int runs)
     {
         run.For(RollReplay.FreezeHoldSeconds - 0.1f);
-        Assert.That(run.Started, Has.Count.EqualTo(1));
+        Assert.That(run.Started, Has.Count.EqualTo(runs));
         Assert.That(run.Game.Paused);
 
-        run.Until(() => run.Started.Count == 2, maxSeconds: 0.2f);
+        run.Until(() => run.Started.Count == runs + 1, maxSeconds: 0.2f);
 
-        Assert.That(run.Started[1], Is.EqualTo(run.Started[0]));
+        Assert.That(run.Started[runs], Is.EqualTo(run.Started[runs - 1]));
         Assert.That(run.Practice.Rolls.Replaying);
     }
 
