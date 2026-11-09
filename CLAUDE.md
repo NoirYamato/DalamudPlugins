@@ -59,8 +59,8 @@ NoirMech change:
 - upstream's unreleased `89aa318` and `e0c03f0`, backported line for line so the release that carries them merges
   clean: Black Hole's bots grab each new set of tethers once their client shows it (`UmadP3BlackHoleAi.cs`), and a
   status keeps its source once its applier despawns (`Multiplayer/PacketRecorder.cs` and `PacketReplay.cs`). The
-  Dancing Mad P3 Black Hole multiplayer tests (`PeerParityTests`, `LinkInterruptionTests`) need `e0c03f0`: without
-  it they fail, upstream's v0.5.1.0 included;
+  13 Dancing Mad P3 Black Hole multiplayer tests (`PeerParityTests`, `LinkInterruptionTests`) fail without
+  `e0c03f0`, as on upstream's v0.5.1.0; `89aa318` alone fixes none of them;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - tests for all of these;
@@ -107,7 +107,8 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   must find its controls, so a scan that reads nothing can't pass: NAudio's own build path, UTF-16 strings and
   `/_/` paths in `NoirMech.dll`, a NoirMech file name and `/_/` in its PDB, and NoirMech source. The terms live
   outside both repos; never write them into either. `-DryRun` runs every gate, the build and the scan, and stops
-  before copying anything.
+  before copying anything. Its build skips the build servers, so started at low priority (`start /low /affinity
+  F0`) all of it stays there.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
@@ -124,17 +125,18 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   - Gentle by default: before it starts anything it drops itself to Idle priority on the `-Affinity` CPUs
     (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are born there, and
     `-Shards` defaults to one per CPU in the mask (4). The build passes `--disable-build-servers`: Roslyn starts
-    its shared compiler server at normal priority whatever its parent runs at. `-Affinity 0xFF00 -Shards 8` is
-    faster when nobody needs the PC.
+    its shared compiler server at normal priority whatever its parent runs at. `-Affinity 0xFF00` (8 CPUs, so 8
+    shards) is faster when nobody needs the PC.
   - The shards are dealt from `$Buckets` by each bucket's single-process time, heaviest onto the lightest shard. A
     shard takes what its buckets match that no earlier shard took and the shard holding the rest takes everything
     else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket
     times or split a bucket; keep `[Explicit]` tests out of every bucket, since a filter that selects one can run
     it.
-  - `-Preset full` (the default) runs everything at the run settings' seeds; `-Preset quick` drops the
-    `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed; `-Phase P3` runs one TOP phase's `TopP3*`
-    classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick` too if wanted;
-    `-SunnySeeds 2000` makes any of them a soak.
+  - `-Preset full` (the default) runs everything at the run settings' seeds: 12 minutes here with the defaults,
+    the PC's CPU load staying under a quarter, against about 37 for a plain `dotnet test` and 28 for one capped
+    process. `-Preset quick` drops the `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed, about 3
+    minutes; `-Phase P3` runs one TOP phase's `TopP3*` classes and the catalog-wide tests' cases for its
+    scenarios, with `-Preset quick` too if wanted; `-SunnySeeds 2000` makes any of them a soak.
 - A green full run of a clean tree writes `green <HEAD> full` to `TestResults\green-stamp.txt` (gitignored), which
   `publish.ps1` requires. A full run deletes it first, and one with uncommitted changes, `-NoBuild` or
   `-SunnySeeds`, or one HEAD moved under, writes none.
@@ -145,8 +147,8 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   the deferred `MoveTo` can't be cancelled, so the lint fails when a bot's deferred departure lands at or after
   that bot's next move, or when a deferred move is planned while its bot still walks from the one before (the 10s
   Party Synergy flex), naming both sites. `Known` holds upstream's FRU P3 Apocalypse walk at 36.05, which two
-  bots finish up to 0.19s after the 37.0 deadline move plans their departures; an entry fails the test once it's
-  no longer found.
+  bots finish up to 0.19s after the 37.0 deadline move plans their departures, inside `AiManager`'s 0.25s margin;
+  an entry fails the test once it's no longer found.
 
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Several test processes
   at normal priority on every CPU have frozen the development PC: run them through `tools\test.ps1`, or one
