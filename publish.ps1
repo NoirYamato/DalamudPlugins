@@ -6,6 +6,9 @@ Builds NoirMech from the AnoMech checkout and publishes it to this plugin reposi
   .\publish.ps1 -Changelog "..." -NoPush    # everything except the push
   .\publish.ps1 -Changelog "..." -DryRun    # every gate, the build and the scan; nothing copied or committed
 
+It runs at Idle priority on the -Affinity CPUs (0xF0: 4 of them): it drops itself there before it starts any
+process, so git and the whole Release build are born there too, and restores its own priority on its way out.
+
 It refuses to publish unless:
 - -Changelog is given (the installer shows it);
 - the checkout is on noirmech-stable with a clean tree;
@@ -27,6 +30,8 @@ param(
     [string]$Branch = 'noirmech-stable',
     [string]$Remote = 'plugins',
     [string]$Changelog = '',
+    # A hex mask, 0x optional; a number typed in a PowerShell session arrives already parsed.
+    [object]$Affinity = '0xF0',
     [switch]$Fetch,
     [switch]$DryRun,
     [switch]$NoPush
@@ -167,126 +172,144 @@ function Test-Identity([string[]]$zips, [string[]]$terms) {
     $problems
 }
 
+$mask = if ($Affinity -is [string]) { [Convert]::ToInt64(($Affinity -replace '^0[xX]', ''), 16) } else { [int64]$Affinity }
+if ($mask -le 0 -or $mask -ge ([int64]1 -shl [Math]::Min(62, [Environment]::ProcessorCount))) {
+    throw "-Affinity $Affinity isn't a mask of this PC's $([Environment]::ProcessorCount) CPUs."
+}
+$cpuCount = @(0..([Environment]::ProcessorCount - 1) | Where-Object { $mask -band ([int64]1 -shl $_) }).Count
+
 if (-not $Changelog.Trim()) { Stop-Publish 'give -Changelog "...": the plugin installer shows it.' }
 if (-not (Test-Path $TermsFile)) { Stop-Publish '%APPDATA%\NoirMech\identity-terms.txt is missing: list the identity terms, one per line.' }
 $terms = @([IO.File]::ReadAllLines($TermsFile, [Text.Encoding]::UTF8) | ForEach-Object { $_.Trim() } | Where-Object { $_ })
 if ($terms.Count -eq 0) { Stop-Publish '%APPDATA%\NoirMech\identity-terms.txt lists no identity terms.' }
 
-$Source = (Resolve-Path $Source).Path
+$self = [Diagnostics.Process]::GetCurrentProcess()
+$saved = @{ Priority = $self.PriorityClass; Affinity = $self.ProcessorAffinity }
+try {
+    # Before its first process, so git and the whole Release build are born at Idle on the mask.
+    $self.ProcessorAffinity = [IntPtr]$mask
+    $self.PriorityClass = [Diagnostics.ProcessPriorityClass]::Idle
 
-$currentBranch = (& $git -C $Source rev-parse --abbrev-ref HEAD).Trim()
-if ($currentBranch -ne $Branch) { Stop-Publish "$Source is on '$currentBranch'; switch it to '$Branch' first." }
-if (& $git -C $Source status --porcelain) { Stop-Publish "$Source has uncommitted changes; commit them first." }
-$commit = (& $git -C $Source rev-parse HEAD).Trim()
+    $Source = (Resolve-Path $Source).Path
 
-$stampPath = Join-Path $Source 'TestResults\green-stamp.txt'
-$stamp = if (Test-Path $stampPath) { ([string](Get-Content -Raw $stampPath)).Trim() } else { '' }
-if ($stamp -ne "green $commit full") {
-    Stop-Publish "$stampPath $(if ($stamp) { "says '$stamp'" } else { 'is missing' }), not 'green $commit full': run tools\test.ps1 on this commit."
-}
+    $currentBranch = (& $git -C $Source rev-parse --abbrev-ref HEAD).Trim()
+    if ($currentBranch -ne $Branch) { Stop-Publish "$Source is on '$currentBranch'; switch it to '$Branch' first." }
+    if (& $git -C $Source status --porcelain) { Stop-Publish "$Source has uncommitted changes; commit them first." }
+    $commit = (& $git -C $Source rev-parse HEAD).Trim()
 
-$remoteUrl = [string](Invoke-Quiet $git @('-C', $Source, 'remote', 'get-url', $Remote))
-if ($LASTEXITCODE -ne 0 -or $remoteUrl.Trim() -notmatch '[/:]NoirYamato/DalamudPlugins(\.git)?/?$') {
-    Stop-Publish "$Source has no remote '$Remote' pointing at NoirYamato/DalamudPlugins; pass -Remote."
-}
-if ($Fetch) { Invoke-Checked $git @('-C', $Source, 'fetch', '--quiet', $Remote, $Branch) }
-$pushed = "refs/remotes/$Remote/$Branch"
-Invoke-Quiet $git @('-C', $Source, 'rev-parse', '--verify', '--quiet', "$pushed^{commit}") | Out-Null
-if ($LASTEXITCODE -ne 0) { Stop-Publish "$Source has no $pushed; push $Branch to $Remote, or pass -Fetch." }
-Invoke-Quiet $git @('-C', $Source, 'merge-base', '--is-ancestor', $commit, $pushed)
-if ($LASTEXITCODE -ne 0) {
-    $hint = if ($Fetch) { 'push it first (git push {0} {1})' } else { "push it (git push {0} {1}), or pass -Fetch if it's pushed" }
-    Stop-Publish "$($commit.Substring(0, 7)) isn't in $Remote/$Branch as last fetched; $($hint -f $Remote, $Branch)."
-}
-
-$csproj = Join-Path $Source 'AnoMech\AnoMech.csproj'
-$upstream = (([xml](Get-Content -Raw $csproj)).Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version.Trim()
-$parts = @($upstream.Split('.')) + @('0', '0', '0')
-$base = '{0}.{1}.{2}' -f $parts[0], $parts[1], $parts[2]
-
-$revision = 1
-if (Test-Path $RepoJson) {
-    $previous = @(Get-Content -Raw $RepoJson | ConvertFrom-Json) | Where-Object { $_.InternalName -eq $InternalName }
-    if ($previous -and $previous.AssemblyVersion.StartsWith("$base.")) {
-        $revision = [int]$previous.AssemblyVersion.Split('.')[3] + 1
+    $stampPath = Join-Path $Source 'TestResults\green-stamp.txt'
+    $stamp = if (Test-Path $stampPath) { ([string](Get-Content -Raw $stampPath)).Trim() } else { '' }
+    if ($stamp -ne "green $commit full") {
+        Stop-Publish "$stampPath $(if ($stamp) { "says '$stamp'" } else { 'is missing' }), not 'green $commit full': run tools\test.ps1 on this commit."
     }
+
+    $remoteUrl = [string](Invoke-Quiet $git @('-C', $Source, 'remote', 'get-url', $Remote))
+    if ($LASTEXITCODE -ne 0 -or $remoteUrl.Trim() -notmatch '[/:]NoirYamato/DalamudPlugins(\.git)?/?$') {
+        Stop-Publish "$Source has no remote '$Remote' pointing at NoirYamato/DalamudPlugins; pass -Remote."
+    }
+    if ($Fetch) { Invoke-Checked $git @('-C', $Source, 'fetch', '--quiet', $Remote, $Branch) }
+    $pushed = "refs/remotes/$Remote/$Branch"
+    Invoke-Quiet $git @('-C', $Source, 'rev-parse', '--verify', '--quiet', "$pushed^{commit}") | Out-Null
+    if ($LASTEXITCODE -ne 0) { Stop-Publish "$Source has no $pushed; push $Branch to $Remote, or pass -Fetch." }
+    Invoke-Quiet $git @('-C', $Source, 'merge-base', '--is-ancestor', $commit, $pushed)
+    if ($LASTEXITCODE -ne 0) {
+        $hint = if ($Fetch) { 'push it first (git push {0} {1})' } else { "push it (git push {0} {1}), or pass -Fetch if it's pushed" }
+        Stop-Publish "$($commit.Substring(0, 7)) isn't in $Remote/$Branch as last fetched; $($hint -f $Remote, $Branch)."
+    }
+
+    $csproj = Join-Path $Source 'AnoMech\AnoMech.csproj'
+    $upstream = (([xml](Get-Content -Raw $csproj)).Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version.Trim()
+    $parts = @($upstream.Split('.')) + @('0', '0', '0')
+    $base = '{0}.{1}.{2}' -f $parts[0], $parts[1], $parts[2]
+
+    $revision = 1
+    if (Test-Path $RepoJson) {
+        $previous = @(Get-Content -Raw $RepoJson | ConvertFrom-Json) | Where-Object { $_.InternalName -eq $InternalName }
+        if ($previous -and $previous.AssemblyVersion.StartsWith("$base.")) {
+            $revision = [int]$previous.AssemblyVersion.Split('.')[3] + 1
+        }
+    }
+    $version = "$base.$revision"
+    Write-Host "Publishing $InternalName $version from $Branch @ $($commit.Substring(0, 7))$(if ($DryRun) { ' (dry run)' })"
+
+    $releaseOut = Join-Path $Source 'AnoMech\bin\Release'
+    if (Test-Path $releaseOut) { Remove-Item -Recurse -Force $releaseOut }
+    # ContinuousIntegrationBuild maps source paths to /_/, so caller-file strings and PDB paths in the
+    # shipped DLLs don't carry the local user folder. Without build servers the compiler runs at this
+    # script's priority: Roslyn starts its shared server at normal priority whatever starts it.
+    Invoke-Checked $dotnet @('build', $csproj, '-c', 'Release', "-p:Version=$version", '-p:ContinuousIntegrationBuild=true', '--no-incremental', '--disable-build-servers', "-m:$cpuCount", '-nologo', '-v:minimal')
+
+    $packaged = Join-Path $releaseOut $InternalName
+    $zip = Join-Path $packaged 'latest.zip'
+    $manifestPath = Join-Path $packaged "$InternalName.json"
+    if (-not (Test-Path $zip) -or -not (Test-Path $manifestPath)) { throw "Packager output not found in $packaged." }
+    $manifest = Get-Content -Raw $manifestPath | ConvertFrom-Json
+    if ($manifest.InternalName -ne $InternalName -or $manifest.AssemblyVersion -ne $version) {
+        throw "Built manifest is $($manifest.InternalName) $($manifest.AssemblyVersion), expected $InternalName $version."
+    }
+
+    $zipName = "$InternalName-$version.zip"
+    $sourceName = "$InternalName-$version-source.zip"
+    $sourceZip = Join-Path $releaseOut $sourceName
+    Invoke-Checked $git @('-C', $Source, 'archive', '--format=zip', "--prefix=$InternalName-$version-source/", '-o', $sourceZip, $commit)
+
+    $problems = @(Test-Identity @($zip, $sourceZip) $terms)
+    if ($problems.Count -gt 0) {
+        foreach ($problem in $problems | Select-Object -First 40) { Write-Host "  $problem" -ForegroundColor Red }
+        Stop-Publish "the identity scan failed ($($problems.Count) problems)."
+    }
+    Write-Host 'Identity scan clean: every control found, no identity term.'
+
+    if ($DryRun) {
+        Write-Host "Dry run: every gate passed. $zipName and $sourceName are in $releaseOut; nothing was copied, committed or pushed."
+        exit 0
+    }
+
+    New-Item -ItemType Directory -Force $PluginDir | Out-Null
+    Copy-Item $zip (Join-Path $PluginDir $zipName) -Force
+    Copy-Item $manifestPath (Join-Path $PluginDir "$InternalName.json") -Force
+    Copy-Item $sourceZip (Join-Path $PluginDir $sourceName) -Force
+
+    # Keep the previous build next to the new one: raw.githubusercontent.com can serve a cached
+    # repo.json for a few minutes, and its download link must still resolve.
+    foreach ($pattern in @("$InternalName-*-source.zip", "$InternalName-*.zip")) {
+        Get-ChildItem $PluginDir -Filter $pattern |
+            Where-Object { ($pattern -like '*-source.zip') -eq ($_.Name -like '*-source.zip') } |
+            Sort-Object { [version]($_.Name -replace "^$InternalName-", '' -replace '(-source)?\.zip$', '') } -Descending |
+            Select-Object -Skip 2 |
+            Remove-Item -Force
+    }
+
+    $download = "$RawBase/plugins/$InternalName/$zipName"
+    $entry = [ordered]@{
+        Author              = $manifest.Author
+        Name                = $manifest.Name
+        Punchline           = $manifest.Punchline
+        Description         = $manifest.Description
+        InternalName        = $manifest.InternalName
+        AssemblyVersion     = $manifest.AssemblyVersion
+        RepoUrl             = $manifest.RepoUrl
+        ApplicableVersion   = $manifest.ApplicableVersion
+        Tags                = @($manifest.Tags)
+        DalamudApiLevel     = $manifest.DalamudApiLevel
+        IconUrl             = $manifest.IconUrl
+        DownloadLinkInstall = $download
+        DownloadLinkTesting = $download
+        DownloadLinkUpdate  = $download
+        IsHide              = $false
+        IsTestingExclusive  = $false
+        DownloadCount       = 0
+        LastUpdate          = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        Changelog           = $Changelog
+    }
+    Write-Utf8 $RepoJson ((ConvertTo-Json -InputObject @([pscustomobject]$entry) -Depth 5) + "`n")
+
+    Invoke-Checked $git @('-C', $PSScriptRoot, 'add', '-A')
+    Invoke-Checked $git @('-C', $PSScriptRoot, 'commit', '-q', '-m', "Publish $InternalName $version", '-m', "Built from $Branch @ $commit")
+    if (-not $NoPush) { Invoke-Checked $git @('-C', $PSScriptRoot, 'push', 'origin', 'main') }
+    Write-Host "Done: $InternalName $version$(if ($NoPush) { ' (not pushed)' })"
 }
-$version = "$base.$revision"
-Write-Host "Publishing $InternalName $version from $Branch @ $($commit.Substring(0, 7))$(if ($DryRun) { ' (dry run)' })"
-
-$releaseOut = Join-Path $Source 'AnoMech\bin\Release'
-if (Test-Path $releaseOut) { Remove-Item -Recurse -Force $releaseOut }
-# ContinuousIntegrationBuild maps source paths to /_/, so caller-file strings and PDB paths in the
-# shipped DLLs don't carry the local user folder. Without build servers the compiler runs at this
-# script's priority: Roslyn starts its shared server at normal priority whatever starts it.
-Invoke-Checked $dotnet @('build', $csproj, '-c', 'Release', "-p:Version=$version", '-p:ContinuousIntegrationBuild=true', '--no-incremental', '--disable-build-servers', '-nologo', '-v:minimal')
-
-$packaged = Join-Path $releaseOut $InternalName
-$zip = Join-Path $packaged 'latest.zip'
-$manifestPath = Join-Path $packaged "$InternalName.json"
-if (-not (Test-Path $zip) -or -not (Test-Path $manifestPath)) { throw "Packager output not found in $packaged." }
-$manifest = Get-Content -Raw $manifestPath | ConvertFrom-Json
-if ($manifest.InternalName -ne $InternalName -or $manifest.AssemblyVersion -ne $version) {
-    throw "Built manifest is $($manifest.InternalName) $($manifest.AssemblyVersion), expected $InternalName $version."
+finally {
+    $self.PriorityClass = $saved.Priority
+    $self.ProcessorAffinity = $saved.Affinity
 }
-
-$zipName = "$InternalName-$version.zip"
-$sourceName = "$InternalName-$version-source.zip"
-$sourceZip = Join-Path $releaseOut $sourceName
-Invoke-Checked $git @('-C', $Source, 'archive', '--format=zip', "--prefix=$InternalName-$version-source/", '-o', $sourceZip, $commit)
-
-$problems = @(Test-Identity @($zip, $sourceZip) $terms)
-if ($problems.Count -gt 0) {
-    foreach ($problem in $problems | Select-Object -First 40) { Write-Host "  $problem" -ForegroundColor Red }
-    Stop-Publish "the identity scan failed ($($problems.Count) problems)."
-}
-Write-Host 'Identity scan clean: every control found, no identity term.'
-
-if ($DryRun) {
-    Write-Host "Dry run: every gate passed. $zipName and $sourceName are in $releaseOut; nothing was copied, committed or pushed."
-    exit 0
-}
-
-New-Item -ItemType Directory -Force $PluginDir | Out-Null
-Copy-Item $zip (Join-Path $PluginDir $zipName) -Force
-Copy-Item $manifestPath (Join-Path $PluginDir "$InternalName.json") -Force
-Copy-Item $sourceZip (Join-Path $PluginDir $sourceName) -Force
-
-# Keep the previous build next to the new one: raw.githubusercontent.com can serve a cached
-# repo.json for a few minutes, and its download link must still resolve.
-foreach ($pattern in @("$InternalName-*-source.zip", "$InternalName-*.zip")) {
-    Get-ChildItem $PluginDir -Filter $pattern |
-        Where-Object { ($pattern -like '*-source.zip') -eq ($_.Name -like '*-source.zip') } |
-        Sort-Object { [version]($_.Name -replace "^$InternalName-", '' -replace '(-source)?\.zip$', '') } -Descending |
-        Select-Object -Skip 2 |
-        Remove-Item -Force
-}
-
-$download = "$RawBase/plugins/$InternalName/$zipName"
-$entry = [ordered]@{
-    Author              = $manifest.Author
-    Name                = $manifest.Name
-    Punchline           = $manifest.Punchline
-    Description         = $manifest.Description
-    InternalName        = $manifest.InternalName
-    AssemblyVersion     = $manifest.AssemblyVersion
-    RepoUrl             = $manifest.RepoUrl
-    ApplicableVersion   = $manifest.ApplicableVersion
-    Tags                = @($manifest.Tags)
-    DalamudApiLevel     = $manifest.DalamudApiLevel
-    IconUrl             = $manifest.IconUrl
-    DownloadLinkInstall = $download
-    DownloadLinkTesting = $download
-    DownloadLinkUpdate  = $download
-    IsHide              = $false
-    IsTestingExclusive  = $false
-    DownloadCount       = 0
-    LastUpdate          = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
-    Changelog           = $Changelog
-}
-Write-Utf8 $RepoJson ((ConvertTo-Json -InputObject @([pscustomobject]$entry) -Depth 5) + "`n")
-
-Invoke-Checked $git @('-C', $PSScriptRoot, 'add', '-A')
-Invoke-Checked $git @('-C', $PSScriptRoot, 'commit', '-q', '-m', "Publish $InternalName $version", '-m', "Built from $Branch @ $commit")
-if (-not $NoPush) { Invoke-Checked $git @('-C', $PSScriptRoot, 'push', 'origin', 'main') }
-Write-Host "Done: $InternalName $version$(if ($NoPush) { ' (not pushed)' })"
