@@ -77,7 +77,7 @@ public sealed class TopP3IntermissionScenario : IScenario
         world.Events.Add(9.3f, () => firstWaveHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
         // UNVERIFIED: both warp-in times.
         world.Events.Add(12.3f, () => WarpIn(state.FirstSetBearings));
-        world.Events.Add(15.3f, SpawnVoidZone);
+        world.Events.Add(14.76f, SpawnVoidZone);
         world.Events.Add(15.4f, () => WarpIn(state.SecondSetBearings));
         // UNVERIFIED: whether the instant rings show anything when an invisible helper casts them.
         world.Events.Add(16.4f, () => firstWaveHelper?.Cast(Actions.WaveRepeaterRing2));
@@ -172,7 +172,7 @@ public sealed class TopP3IntermissionScenario : IScenario
     private IEnumerable<(SimEnemy Unit, float Bearing)> Arms(IReadOnlyList<float> bearings)
         => arms.Where(a => a.Unit is not null && bearings.Contains(a.Bearing)).Select(a => (a.Unit!, a.Bearing));
 
-    // UNVERIFIED: the spawn args, the radius and the times.
+    // UNVERIFIED: the spawn args, the radius and when it stops killing.
     private void SpawnVoidZone()
     {
         voidZone = world.SpawnEventObject(new EventObjectSpawnConfig

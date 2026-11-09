@@ -188,8 +188,10 @@ to multiplayer peers, so both sides need the same build.
 radius, the void zone's radius and spawn args, some durations) are marked UNVERIFIED there; tune them in that
 one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
-  (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone. Every
-  mistake kills on the spot with a reason. Its one strat has an Automarkers On/Off setting (default On); it
+  (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone, shown from
+  5.46s after the first Wave Repeater's cast until 21.4s after it (its end UNVERIFIED). Every mistake kills on
+  the spot with a reason; the first ring's deaths show 0.6s after its bar (UNVERIFIED), ahead of the void zone in
+  the same circle. Its one strat has an Automarkers On/Off setting (default On); it
   lives in the overrides and the State, and only `TopP3IntermissionLpduAi` reads it, to add signs: both
   settings put everyone on the same spots. Change bot movement only with `TopP3IntermissionLpduHumanTests`
   and `TopP3IntermissionLpduMarginTests` green.

@@ -19,7 +19,7 @@ namespace AnoMech.Tests;
 // M2+H2 (4.11,-16.11) (x east, z south).
 //
 //   9.2   fodder. 9.3: Omega starts to show; the first Wave Repeater (lands 14.3, hits at 14.0, r < 6).
-//   12.3  the first arms warp in; 15.4 the second. 15.3-30.7: the void zone, r 6.
+//   12.3  the first arms warp in; 15.4 the second. 14.76-30.7: the void zone, r 6.
 //   16.4 / 18.4 / 20.4  rings 6-12, 12-18, 18-24. 17.4: the second Wave Repeater (hits 22.1).
 //   24.5 / 26.6 / 28.7  its rings. 26.1 / 28.6: each set's Colossal Blows hit, r 11.
 //   28.3  the Sniper Cannons. 32.3: Omega turns targetable and the run ends.
@@ -99,7 +99,7 @@ public class TopP3IntermissionScenarioTests
             Assert.That(death.Role, Is.EqualTo(MainTank));
             Assert.That(death.ActionId, Is.EqualTo(TheEnvironment));
             Assert.That(death.Cause, Does.Contain("void zone"));
-            Assert.That(death.Time, Is.EqualTo(15.3f).Within(0.05f), "the zone kills from the frame it appears");
+            Assert.That(death.Time, Is.EqualTo(14.76f).Within(0.05f), "the zone kills from the frame it appears");
         });
     }
 
@@ -113,14 +113,14 @@ public class TopP3IntermissionScenarioTests
             Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, FirstArms.NorthTriangle),
             Probe = p =>
             {
-                foreach (var at in new[] { 15.2f, 15.4f, 30.6f, 30.8f })
+                foreach (var at in new[] { 14.7f, 14.8f, 30.6f, 30.8f })
                     if (p.Crossed(at))
                         shown[at] = p.World.Children.OfType<SimEventObject>().Any(o => o.EObjRowId == P3EObjId.VoidZone && o.IsAlive);
             },
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(shown, Is.EqualTo(new Dictionary<float, bool> { [15.2f] = false, [15.4f] = true, [30.6f] = true, [30.8f] = false }));
+        Assert.That(shown, Is.EqualTo(new Dictionary<float, bool> { [14.7f] = false, [14.8f] = true, [30.6f] = true, [30.8f] = false }));
     }
 
     // MT steps 2.9 y from R1: each stands in the other's spread as well as their own.

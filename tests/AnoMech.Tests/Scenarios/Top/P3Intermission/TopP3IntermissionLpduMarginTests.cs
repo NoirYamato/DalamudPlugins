@@ -105,7 +105,7 @@ public class TopP3IntermissionLpduMarginTests
         foreach (var (_, at) in members)
         {
             var r = at.Length();
-            if (p.Time is >= 15.3f and < 30.7f) Note("everyone out of the void zone", r - P3Geometry.VoidZoneRadius);
+            if (p.Time is >= 14.76f and < 30.7f) Note("everyone out of the void zone", r - P3Geometry.VoidZoneRadius);
             if (p.Crossed(14.0f)) Note("everyone outside ring 1", r - P3Geometry.WaveRepeaterInner2);
             if (p.Crossed(16.4f)) Note("everyone outside ring 2", MathF.Max(P3Geometry.WaveRepeaterInner2 - r, r - P3Geometry.WaveRepeaterInner3));
             if (p.Crossed(22.1f)) Note("everyone outside ring 5", r - P3Geometry.WaveRepeaterInner2);
