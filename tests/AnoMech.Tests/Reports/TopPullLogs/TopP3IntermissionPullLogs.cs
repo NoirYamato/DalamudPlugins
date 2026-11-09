@@ -10,6 +10,7 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
 {
     private const string Section = "P3 Intermission";
     private const string Constants = "AnoMech/Scenarios/Top/TopP3Constants.cs";
+    private const string Actions = "AnoMech/Scenarios/Top/TopP3Actions.cs";
     private const string Scenario = "AnoMech/Scenarios/Top/P3Intermission/TopP3IntermissionScenario.cs";
     private const string State = "AnoMech/Scenarios/Top/P3Intermission/TopP3IntermissionState.cs";
 
@@ -18,6 +19,9 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
     // Unnamed actions P2's two Omegas (31561 to 31563) and P3's Omega (31564) use on themselves as the one turns into
     // the other.
     private static readonly uint[] MergeActions = [31561, 31562, 31563, 31564];
+
+    // The intermission's hits land within this many seconds of the first Wave Repeater's cast.
+    private const double Length = 30;
 
     private int pulls;
     private readonly List<double> spreadDurations = [], stackDurations = [];
@@ -29,15 +33,21 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
     private readonly List<double> firstWarps = [], secondWarps = [];
     private readonly List<double> omegaHeadings = [], targetable = [];
     private readonly List<double> voidZoneShown = [], voidZoneGone = [];
-    private readonly List<VoidZoneVisit> voidZoneClosest = [];
+    private readonly List<VoidZoneVisit> voidZoneVisits = [];
     private readonly List<string> armSets = [];
     private readonly List<int> leftArmsPerPull = [];
     private readonly Dictionary<uint, List<double>> merges = [];
+    private readonly LethalHits ringHits = new(), blowHits = new();
+    private readonly List<(HitOutcome Outcome, string Detail)> doubledCannons = [], singleCannons = [], loneStacks = [];
+    private readonly List<int> stackSizes = [];
     private int omegaShows, voidZoneEffects, singleKindSets;
 
-    // The closest a living player came to the centre while the void zone stood, and when anyone first stood inside the
-    // sim's radius; times from the first Wave Repeater's cast.
-    private sealed record VoidZoneVisit(string Pull, double Distance, double At, string Who, double? FirstInside, double Gone);
+    // While the void zone's object stood: the closest a player came to the centre and lived on, the first time one stood
+    // inside the sim's radius and lived on, and who died soon after standing inside it; times from the first Wave
+    // Repeater's cast.
+    private sealed record VoidZoneVisit(
+        string Pull, double Gone, double? FirstInside, (double Distance, double At, string Who)? Closest, double? FirstLivedInside,
+        List<string> DiedInside);
 
     public void Observe(TopPull pull)
     {
@@ -47,6 +57,10 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         ObserveArms(pull, waves);
         ObserveOmega(pull, waves);
         ObserveVoidZone(pull, waves);
+        bool During(ActHit hit) => TopPull.Seconds(waves.Time, hit.Time) is >= 0 and < Length;
+        string At(ActHit hit) => $"at {Spread.F(TopPull.Seconds(waves.Time, hit.Time))} s";
+        ringHits.Observe(pull, pull.Hits.Where(h => TopPull.IsWaveRepeaterRing(h.Action) && During(h)), h => $"{TopPull.WaveRepeaterRing(h.Action)} {At(h)}");
+        blowHits.Observe(pull, pull.Hits.Where(h => h.Action == P3ActionId.ColossalBlow && During(h)), h => $"Colossal Blow {At(h)}");
     }
 
     private void ObserveFodder(TopPull pull)
@@ -64,13 +78,41 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         if (spreads is { } spread) spreadsGoOff.Add(spread);
         if (stacks is { } stack) stacksGoOff.Add(stack);
         if (spreads is { } s1 && stacks is { } s2) stacksAfterSpreads.Add(s2 - s1);
+        ObserveCannonKills(pull, given);
     }
 
     private static double? Volley(TopPull pull, uint action, DateTimeOffset given)
     {
-        var hits = pull.Hits.Where(h => h.Action == action && TopPull.Seconds(given, h.Time) is > 0 and < 30)
-                       .Select(h => TopPull.Seconds(given, h.Time)).ToList();
+        var hits = CannonHits(pull, given).Where(h => h.Action == action).Select(h => TopPull.Seconds(given, h.Time)).ToList();
         return hits.Count == 0 ? null : new Spread(hits).Median;
+    }
+
+    private static IEnumerable<ActHit> CannonHits(TopPull pull, DateTimeOffset given)
+        => pull.Hits.Where(h => h.Action is ActionId.SniperCannon or ActionId.HighPoweredSniperCannon && TopPull.Seconds(given, h.Time) is > 0 and < Length);
+
+    // A cannon is one ability's hits, all logged at once. A player in two cannons' circles shows what two do, one in a single
+    // cannon's what one does, unless that cannon was a stack it took alone.
+    private void ObserveCannonKills(TopPull pull, DateTimeOffset given)
+    {
+        var hits = CannonHits(pull, given).Where(h => h.HitSomeone).ToList();
+        var cannons = hits.GroupBy(h => (h.Source, h.Time)).Select(g => g.ToList()).ToList();
+        List<ActHit> CannonOf(ActHit hit) => cannons.Single(c => c.Contains(hit));
+        stackSizes.AddRange(cannons.Where(c => c[0].Action == ActionId.HighPoweredSniperCannon).Select(c => c.Count));
+        foreach (var taken in hits.GroupBy(h => h.Target).Select(g => g.ToList()))
+        {
+            var outcomes = taken.Select(pull.Outcome).ToList();
+            var outcome = outcomes.Contains(HitOutcome.Invulnerable) ? HitOutcome.Invulnerable
+                : outcomes.Contains(HitOutcome.Killed) ? HitOutcome.Killed
+                : outcomes.All(o => o == HitOutcome.AlreadyDead) ? HitOutcome.AlreadyDead
+                : HitOutcome.Survived;
+            if (outcome == HitOutcome.AlreadyDead) continue;
+            var kinds = taken.Select(CannonOf).Select(c => $"{(c[0].Action == ActionId.SniperCannon ? "a spread" : "a stack")} of {c.Count}");
+            var detail = $"{pull.Name}: {string.Join(" and ", kinds)} on {pull.Who(taken[0].Target)}: {string.Join(", then ", taken.Select(pull.Describe))}";
+            var into = taken.Count >= 2 ? doubledCannons
+                : taken[0].Action == ActionId.HighPoweredSniperCannon && CannonOf(taken[0]).Count == 1 ? loneStacks
+                : singleCannons;
+            into.Add((outcome, detail));
+        }
     }
 
     // The server places each arm on its spot as it warps in, the right arms playing one warp timeline and the left the other.
@@ -122,6 +164,8 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
             targetable.Add(TopPull.Seconds(waves.Time, shown.Time));
     }
 
+    // The logs show the zone's object come and go, and where living players stood meanwhile: one who stood inside the sim's
+    // radius and lived on shows the zone was not killing there then.
     private void ObserveVoidZone(TopPull pull, ActCast waves)
     {
         if (pull.Objects.Where(o => o.Added && o.BaseId == P3EObjId.VoidZone).Cast<ActObject?>().FirstOrDefault() is not { } zone) return;
@@ -132,14 +176,27 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         var approaches = pull.Players
                              .SelectMany(p => Samples(zone.Time, gone.Time).Select(t => (Player: p, Time: t, Pose: pull.Positions.At(p, t))))
                              .Where(s => s.Pose is { Gap.TotalSeconds: < 0.5 } && pull.IsAlive(s.Player, s.Time))
-                             .Select(s => (s.Player, s.Time, Distance: (double)Vector2.Distance(s.Pose!.Value.Position, TopPull.Centre)))
+                             .Select(s => (s.Player, s.Time, Distance: (double)Vector2.Distance(s.Pose!.Value.Position, TopPull.Centre),
+                                           Died: pull.DiedWithin(s.Player, s.Time, TopPull.DeathAfterHit)))
                              .ToList();
-        if (approaches.Count == 0) return;
-        var (player, at, distance) = approaches.MinBy(s => s.Distance);
-        var firstInside = approaches.Where(s => s.Distance < P3Geometry.VoidZoneRadius).Select(s => (DateTimeOffset?)s.Time).Min();
-        voidZoneClosest.Add(new VoidZoneVisit(pull.Name, distance, TopPull.Seconds(waves.Time, at), pull.Who(player),
-                                              firstInside is { } inside ? TopPull.Seconds(waves.Time, inside) : null,
-                                              TopPull.Seconds(waves.Time, gone.Time)));
+        var lived = approaches.Where(a => a.Died is null).ToList();
+        (double Distance, double At, string Who)? closest = null;
+        if (lived.Count > 0)
+        {
+            var nearest = lived.MinBy(a => a.Distance);
+            closest = (nearest.Distance, TopPull.Seconds(waves.Time, nearest.Time), pull.Who(nearest.Player));
+        }
+        var firstInside = approaches.Where(a => a.Distance < P3Geometry.VoidZoneRadius).Select(a => (DateTimeOffset?)a.Time).Min();
+        var firstLivedInside = lived.Where(a => a.Distance < P3Geometry.VoidZoneRadius).Select(a => (DateTimeOffset?)a.Time).Min();
+        var diedInside = approaches.Where(a => a.Died is not null && a.Distance < P3Geometry.VoidZoneRadius)
+                                   .GroupBy(a => a.Player)
+                                   .Select(g => g.First())
+                                   .Select(a => $"{pull.Who(a.Player)} stood {Spread.F(a.Distance)} y out at {Spread.F(TopPull.Seconds(waves.Time, a.Time))} s "
+                                                + $"and died {Spread.F(TopPull.Seconds(a.Time, a.Died!.Value))} s later")
+                                   .ToList();
+        double? Since(DateTimeOffset? at) => at is { } time ? TopPull.Seconds(waves.Time, time) : null;
+        voidZoneVisits.Add(new VoidZoneVisit(pull.Name, TopPull.Seconds(waves.Time, gone.Time), Since(firstInside), closest,
+                                             Since(firstLivedInside), diedInside));
     }
 
     private static IEnumerable<DateTimeOffset> Samples(DateTimeOffset from, DateTimeOffset to)
@@ -175,6 +232,9 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         yield return new LogFinding(Section, "The stacks go off with the spreads: the stacks' hit after the spreads'",
             SimSource.Line(Scenario, "UNVERIFIED: the stacks going off with the spreads"), "0 s: one volley",
             together.Describe(" s"), LogFinding.Compare(together, 0, 0.1));
+
+        yield return TwoCannonsKill();
+        yield return LoneStackKills();
 
         var radii = new Spread(armRadii);
         yield return new LogFinding(Section, "Arm units' radius: their distance from the centre as the server places them",
@@ -212,6 +272,12 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         yield return new LogFinding(Section, "Arm units face the centre: each arm's heading off the centre's direction",
             SimSource.Line(Scenario, "UNVERIFIED: the arms face the centre"), "0 degrees", facing.Describe(" degrees"),
             facing.Count == 0 ? Verdict.NotInTheseLogs : facing.Max < 1 ? Verdict.Matches : Verdict.Differs);
+
+        var unknownDamage = SimSource.Line(Actions, "UNVERIFIED: no damage values are known, so every");
+        yield return ringHits.Finding(Section, "Wave Repeater's middle and rings kill whoever they hit", unknownDamage,
+            "every hit kills, the game's damage being unknown");
+        yield return blowHits.Finding(Section, "Colossal Blow kills whoever it hits", unknownDamage,
+            "every hit kills, the game's damage being unknown");
 
         var north = firstSets.Count(s => s == "north");
         yield return new LogFinding(Section, "Which triangle of arms warps in first",
@@ -255,34 +321,8 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
             simTargetable is { } t ? $"{Spread.F(t)} s" : "not found in the scenario", shown.Describe(" s"),
             simTargetable is { } simShown ? LogFinding.Compare(shown, simShown, 0.25) : Verdict.Inconclusive);
 
-        foreach (var (name, line, offsets) in new[] { ("appears", "SpawnVoidZone);", voidZoneShown), ("goes", "DespawnVoidZone);", voidZoneGone) })
-        {
-            var (where, seconds) = SimSource.EventTime(Scenario, line);
-            var spread = new Spread(offsets);
-            var sim = seconds - wavesSeconds;
-            yield return new LogFinding(Section, $"The void zone {name}, after the first Wave Repeater's cast", where,
-                sim is { } s ? $"{Spread.F(s)} s" : "not found in the scenario", spread.Describe(" s"),
-                sim is { } simSeconds ? LogFinding.Compare(spread, simSeconds, 0.25) : Verdict.Inconclusive);
-        }
-
-        var entries = new Spread(voidZoneClosest.Where(c => c.FirstInside is not null).Select(c => c.FirstInside!.Value));
-        var gaps = new Spread(voidZoneClosest.Where(c => c.FirstInside is not null).Select(c => c.Gone - c.FirstInside!.Value));
-        yield return new LogFinding(Section, "Void zone's radius: how close living players came to the centre while it stood",
-            SimSource.Line(Constants, "float VoidZoneRadius ="), $"{P3Geometry.VoidZoneRadius} y: kills anyone closer while it stands",
-            voidZoneClosest.Count == 0 ? "no void zone"
-                : (entries.Count == 0
-                      ? $"nobody stood within {P3Geometry.VoidZoneRadius} y of the centre while it stood in {voidZoneClosest.Count} pulls"
-                      : $"in {entries.Count} of {voidZoneClosest.Count} pulls someone stood within {P3Geometry.VoidZoneRadius} y, never "
-                        + $"before {Spread.F(entries.Min)} s, {Spread.F(gaps.Min)} to {Spread.F(gaps.Max)} s before the zone went")
-                  + $" (client positions). {voidZoneEffects} abilities or statuses in the logs come from the zone's object, so its "
-                  + "radius and when it stops counting can't be told apart",
-            voidZoneClosest.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
-        {
-            Details = voidZoneClosest.Select(c => $"{c.Pull}: closest {Spread.F(c.Distance)} y ({c.Who}) at {Spread.F(c.At)} s, "
-                                                  + (c.FirstInside is { } inside ? $"first inside {P3Geometry.VoidZoneRadius} y at {Spread.F(inside)} s"
-                                                                                 : $"nobody inside {P3Geometry.VoidZoneRadius} y")
-                                                  + $", zone gone at {Spread.F(c.Gone)} s").ToList(),
-        };
+        foreach (var finding in VoidZoneFindings(wavesSeconds))
+            yield return finding;
 
         yield return new LogFinding(Section, "The void zone's spawn arguments", SimSource.Line(Constants, "UNVERIFIED: the void zone's real spawn args"),
             $"event {P3EObjId.VoidZoneEventId:X8}, arg2 {P3EObjId.VoidZoneArg2}", "the log has the object's id and position, not its spawn packet",
@@ -292,5 +332,101 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         yield return new LogFinding(Section, "Whether the instant rings show anything from an invisible helper",
             SimSource.Line(Scenario, "UNVERIFIED: whether the instant rings show anything"), "the sim casts them from invisible helpers",
             "what the client draws is not logged", Verdict.NotInTheseLogs);
+    }
+
+    private LogFinding TwoCannonsKill()
+    {
+        var doubled = doubledCannons.Where(c => c.Outcome != HitOutcome.Invulnerable).ToList();
+        var single = singleCannons.Where(c => c.Outcome != HitOutcome.Invulnerable).ToList();
+        var shielded = doubledCannons.Count + singleCannons.Count - doubled.Count - single.Count;
+        var doubledDied = doubled.Count(c => c.Outcome == HitOutcome.Killed);
+        var singleDied = single.Count(c => c.Outcome == HitOutcome.Killed);
+        var verdict = doubled.Count + single.Count == 0 ? shielded == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
+            : doubledDied < doubled.Count || singleDied > 0 ? Verdict.Differs
+            : doubled.Count == 0 ? Verdict.Inconclusive
+            : Verdict.Matches;
+        return new LogFinding(Section, "Two Sniper Cannons kill, one is survived", SimSource.Line(Scenario, "private const string TwoCannons"),
+            "a player in two cannons' circles dies, a spread holder's own counting; one cannon is survived",
+            doubled.Count + single.Count == 0 ? "no cannon hit a living player"
+                : $"{doubledDied} of {doubled.Count} players in two or more cannons died of them; {singleDied} of {single.Count} in one died of it"
+                  + (shielded == 0 ? "" : $"; {shielded} under an invulnerability left out"),
+            verdict)
+        {
+            Details = doubledCannons.Concat(singleCannons.Where(c => c.Outcome != HitOutcome.Survived)).Select(c => c.Detail).ToList(),
+        };
+    }
+
+    private LogFinding LoneStackKills()
+    {
+        var lone = loneStacks.Where(c => c.Outcome != HitOutcome.Invulnerable).ToList();
+        var died = lone.Count(c => c.Outcome == HitOutcome.Killed);
+        var sizes = string.Join(", ", stackSizes.GroupBy(s => s).OrderBy(g => g.Key).Select(g => $"{g.Count()} hit {g.Key}"));
+        return new LogFinding(Section, "A High-powered Sniper Cannon its holder takes alone kills it",
+            SimSource.Line(Scenario, "private const string StackAlone"), "a stack that hits only its holder kills it; two or three share it",
+            (lone.Count == 0 ? "no stack hit a lone living player" : $"{died} of {lone.Count} stacks that hit one player killed it")
+            + (stackSizes.Count == 0 ? "" : $". Of {stackSizes.Count} stacks, {sizes}"),
+            lone.Count == 0 ? Verdict.NotInTheseLogs : died == lone.Count ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = loneStacks.Select(c => c.Detail).ToList(),
+        };
+    }
+
+    // The sim's spawn and despawn also start and end the zone's kill check, which the object's lifetime need not match.
+    private IEnumerable<LogFinding> VoidZoneFindings(float? wavesSeconds)
+    {
+        var radius = P3Geometry.VoidZoneRadius;
+        var (shownAt, shownSeconds) = SimSource.EventTime(Scenario, "SpawnVoidZone);");
+        var (goneAt, goneSeconds) = SimSource.EventTime(Scenario, "DespawnVoidZone);");
+        var simShown = shownSeconds - wavesSeconds;
+        var simGone = goneSeconds - wavesSeconds;
+        var firstInside = new Spread(voidZoneVisits.Where(v => v.FirstInside is not null).Select(v => v.FirstInside!.Value));
+        var livedInside = new Spread(voidZoneVisits.Where(v => v.FirstLivedInside is not null).Select(v => v.FirstLivedInside!.Value));
+        var closest = new Spread(voidZoneVisits.Where(v => v.Closest is not null).Select(v => v.Closest!.Value.Distance));
+        var nearest = $"{Spread.F(closest.Min)} y";
+
+        var shown = new Spread(voidZoneShown);
+        yield return new LogFinding(Section, "The void zone's object appears (the client adds it), after the first Wave Repeater's cast", shownAt,
+            simShown is { } s ? $"{Spread.F(s)} s, which also starts its kill check" : "not found in the scenario",
+            shown.Describe(" s") + (shown.Count == 0 ? ""
+                : firstInside.Count == 0 ? $". Nobody stood within {radius} y while it stood, so when it starts to kill is not in these logs"
+                : $". Nobody stood within {radius} y before {Spread.F(firstInside.Min)} s, so when it starts to kill is not in these logs"),
+            simShown is { } simSeconds ? LogFinding.Compare(shown, simSeconds, 0.25) : Verdict.Inconclusive);
+
+        var gone = new Spread(voidZoneGone);
+        yield return new LogFinding(Section, "The void zone's object goes (the client removes it), after the first Wave Repeater's cast", goneAt,
+            simGone is { } g ? $"{Spread.F(g)} s, which also ends its kill check" : "not found in the scenario",
+            gone.Describe(" s") + (gone.Count == 0 ? ""
+                : livedInside.Count == 0 ? ". The object's lifetime; when the zone stops killing is not in these logs"
+                : $". The object's lifetime, not when the zone stops killing: players stood within {radius} y before it went and lived (next row)"),
+            gone.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive);
+
+        yield return new LogFinding(Section,
+            "The void zone stops killing: the first time a player stood within its radius and lived on, after the first Wave Repeater's cast",
+            goneAt, simGone is { } end ? $"{Spread.F(end)} s, at {radius} y" : "not found in the scenario",
+            livedInside.Count == 0 ? $"nobody stood within {radius} y while its object stood and lived on"
+                : $"in {livedInside.Count} of {voidZoneVisits.Count} pulls a player stood within {radius} y while its object stood and lived "
+                  + $"{TopPull.DeathAfterHit} s on, first at {Spread.F(livedInside.Min)} to {Spread.F(livedInside.Max)} s (client positions). "
+                  + $"So a {radius} y zone stops killing by {Spread.F(livedInside.Min)} s; one that kills until its object goes is narrower "
+                  + $"than {nearest} (next row)",
+            livedInside.Count == 0 ? Verdict.NotInTheseLogs
+            : simGone is not { } simEnd ? Verdict.Inconclusive
+            : simEnd <= livedInside.Min ? Verdict.Matches
+            : Verdict.Differs)
+        {
+            Details = voidZoneVisits.SelectMany(v => v.DiedInside.Select(d => $"{v.Pull}: {d}")).ToList(),
+        };
+
+        yield return new LogFinding(Section, "Void zone's radius: the closest a player came to the centre while its object stood and lived on",
+            SimSource.Line(Constants, "float VoidZoneRadius ="), $"{radius} y: kills anyone closer while it stands",
+            closest.Count == 0 ? "no void zone"
+                : $"{nearest}, the closest over {closest.Count} pulls (client positions). {voidZoneEffects} abilities or statuses in the logs "
+                  + "come from the zone's object, so its radius and when it stops killing can't be told apart",
+            closest.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
+        {
+            Details = voidZoneVisits.Select(v => $"{v.Pull}: "
+                                                 + (v.Closest is { } c ? $"closest {Spread.F(c.Distance)} y ({c.Who}) at {Spread.F(c.At)} s" : "nobody lived on")
+                                                 + (v.FirstLivedInside is { } inside ? $", first lived within {radius} y at {Spread.F(inside)} s" : "")
+                                                 + $", object gone at {Spread.F(v.Gone)} s").ToList(),
+        };
     }
 }

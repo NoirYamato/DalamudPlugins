@@ -10,6 +10,7 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
 {
     private const string Section = "P4 Blue Screen";
     private const string Constants = "AnoMech/Scenarios/Top/TopP4Constants.cs";
+    private const string Actions = "AnoMech/Scenarios/Top/TopP4Actions.cs";
     private const string Scenario = "AnoMech/Scenarios/Top/P4BlueScreen/TopP4BlueScreenScenario.cs";
     private const string State = "AnoMech/Scenarios/Top/P4BlueScreen/TopP4BlueScreenState.cs";
     private const int Rounds = 3;
@@ -17,21 +18,23 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
     // A beam whose heading lies within this of an aimed line went off along it.
     private const double OnLineDegrees = 0.5;
 
-    // A death's line names the action that killed and comes seconds after its hit.
-    private const double DeathLag = 5;
-
     private readonly Dictionary<string, List<double>> times = [];
     private readonly List<double> resolveAfterAim = [], lineStartOffCentre = [], omegaHeadings = [];
     private readonly List<Beam> beamResults = [];
-    private readonly List<(double OffTarget, int Hit)> lineStacks = [];
+    private readonly List<LineStack> lineStacks = [];
+    private readonly LethalHits repeatHits = new(), ringHits = new();
 
     // Per player and round: how many beams hit them and whether one of them killed them.
     private readonly List<(int Beams, bool Died)> beamTakers = [];
-    private readonly List<string> beamDetails = [], lineStackDetails = [], markedRounds = [];
-    private int consecutiveMarks, markPairs, lineStackDeaths, beamsHittingMore;
+    private readonly List<string> beamDetails = [], beamTakerDetails = [], lineStackDetails = [], markedRounds = [];
+    private int consecutiveMarks, markPairs, beamsHittingMore, beamTakersShielded, lineStackTargetsShielded;
 
     // In degrees: off the nearest line its round aimed, and off its target's bearing as it hit and as the round aimed.
     private sealed record Beam(double OffLines, double OffTargetHit, double OffTargetAimed);
+
+    // One line stack: how far it went off the line to its marked player, how many it hit, whether they were all tanks, and how
+    // many of those not under an invulnerability it killed and how many lived.
+    private sealed record LineStack(double OffTarget, int Hit, bool TanksOnly, int Killed, int Survived);
 
     // The timeline's events: the key the log's times go under, and the text and occurrence of the scenario's
     // world.Events.Add line for it.
@@ -124,6 +127,11 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
 
         lineStartOffCentre.AddRange(aims.SelectMany(a => a).Select(pull.CastAt).OfType<ActCastAt>()
                                         .Select(at => (double)Vector2.Distance(at.Position, TopPull.Centre)));
+
+        string At(ActHit hit) => $"at {Spread.F(TopPull.Seconds(cast.Time, hit.Time))} s";
+        repeatHits.Observe(pull, pull.Hits.Where(h => h.Action == P4ActionId.WaveCannonRepeat && InPhase(h.Time)), h => $"a repeat {At(h)}");
+        ringHits.Observe(pull, pull.Hits.Where(h => TopPull.IsWaveRepeaterRing(h.Action) && InPhase(h.Time)),
+                         h => $"{TopPull.WaveRepeaterRing(h.Action)} {At(h)}");
     }
 
     // The round's lines are the repeats' casts' headings. A beam that left them says where the game aims it: compare its
@@ -148,13 +156,18 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
                             + $"as aimed and {Spread.F(beam.OffTargetHit)} as hit");
         }
 
-        var helpers = beams.Select(b => b.Source).ToHashSet();
-        foreach (var taken in beams.Where(b => b.HitSomeone).GroupBy(b => b.Target))
+        foreach (var taken in beams.Where(b => b.HitSomeone).GroupBy(b => b.Target).Select(g => g.ToList()))
         {
+            var outcomes = taken.Select(pull.Outcome).ToList();
+            if (outcomes.All(o => o == HitOutcome.AlreadyDead)) continue;
             var beamCount = taken.Select(b => b.Source).Distinct().Count();
-            var died = pull.Deaths.Any(d => d.Target == taken.Key && helpers.Contains(d.Source)
-                                            && TopPull.Seconds(beams[0].Time, d.Time) is >= 0 and < DeathLag);
-            beamTakers.Add((beamCount, died));
+            var shielded = outcomes.Contains(HitOutcome.Invulnerable);
+            var died = outcomes.Contains(HitOutcome.Killed);
+            if (shielded) beamTakersShielded++;
+            else beamTakers.Add((beamCount, died));
+            if (shielded || beamCount >= 2 || died)
+                beamTakerDetails.Add($"{pull.Name} round {round}: {beamCount} {(beamCount == 1 ? "beam" : "beams")} on {pull.Who(taken[0].Target)}: "
+                                     + string.Join(", then ", taken.Select(pull.Describe)));
         }
     }
 
@@ -174,14 +187,17 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
                 ? marked.Select(m => (m.Target, Off: Degrees(TopPull.AngleBetween(TopPull.HeadingTo(TopPull.Centre, m.Pose!.Value.Position), heading))))
                         .MinBy(m => m.Off)
                 : (0u, double.NaN);
-            var deaths = pull.Deaths.Count(d => d.Source == line.Key && TopPull.Seconds(firedAt, d.Time) is >= 0 and < DeathLag);
-            lineStacks.Add((off, hit.Count));
-            lineStackDeaths += deaths;
-            var hits = string.Join(" + ", hit.Select(h => pull.Who(h.Target)));
+            var outcomes = hit.Select(pull.Outcome).ToList();
+            lineStacks.Add(new LineStack(off, hit.Count, hit.Count > 0 && hit.All(h => pull.IsTank(h.Target)),
+                                         outcomes.Count(o => o == HitOutcome.Killed), outcomes.Count(o => o == HitOutcome.Survived)));
+            lineStackTargetsShielded += outcomes.Count(o => o == HitOutcome.Invulnerable);
+            string Took(ActHit h) => pull.Outcome(h) == HitOutcome.Survived ? pull.Who(h.Target) : $"{pull.Who(h.Target)} ({pull.Describe(h)})";
+            var took = hit.Count == 0 ? "nobody"
+                : string.Join(" + ", hit.Select(Took)) + (outcomes.All(o => o == HitOutcome.Survived) ? hit.Count == 1 ? ", who survived" : ", all survived" : "");
             var aim = !double.IsNaN(off) ? $"the line toward {pull.Who(toward)} ({Spread.F(off)} degrees off it)"
                 : marked.Count == 0 ? "with no marked player alive, a line"
                 : "a line with no rotation logged";
-            lineStackDetails.Add($"{pull.Name} round {round}: {aim} hit {hits}; {deaths} died");
+            lineStackDetails.Add($"{pull.Name} round {round}: {aim} hit {took}");
         }
     }
 
@@ -229,12 +245,22 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
         var single = beamTakers.Where(t => t.Beams == 1).ToList();
         yield return new LogFinding(Section, "Two beams kill, one does not",
             SimSource.Line(Scenario, "private const string TwoBeams"), "a player in two beams' lines dies; one beam is survived",
-            beamTakers.Count == 0 ? "no beams"
-                : $"{doubled.Count} times a player took two or more beams and {doubled.Count(t => t.Died)} of those died of one; "
-                  + $"{single.Count(t => t.Died)} of the {single.Count} who took one died of it",
-            doubled.Count == 0 ? beamTakers.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
+            beamTakers.Count + beamTakersShielded == 0 ? "no beams"
+                : $"{doubled.Count} times a player took two or more beams and {doubled.Count(t => t.Died)} of those died of them; "
+                  + $"{single.Count(t => t.Died)} of the {single.Count} who took one died of it"
+                  + (beamTakersShielded == 0 ? "" : $"; {beamTakersShielded} under an invulnerability left out"),
+            doubled.Count == 0 ? beamTakers.Count + beamTakersShielded == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
             : doubled.All(t => t.Died) && !single.Any(t => t.Died) ? Verdict.Matches
-            : Verdict.Differs);
+            : Verdict.Differs)
+        {
+            Details = beamTakerDetails,
+        };
+
+        var unknownDamage = SimSource.Line(Actions, "UNVERIFIED: no damage values are known, so a repeat line");
+        yield return repeatHits.Finding(Section, "A repeat line kills whoever it hits", unknownDamage,
+            "every hit kills, the game's damage being unknown");
+        yield return ringHits.Finding(Section, "Wave Repeater's middle and rings kill whoever they hit", unknownDamage,
+            "every hit kills, the game's damage being unknown");
 
         var offCentre = new Spread(lineStartOffCentre);
         yield return new LogFinding(Section, "The lines start at the centre: each repeat cast's location",
@@ -253,12 +279,7 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
             Details = lineStackDetails,
         };
 
-        yield return new LogFinding(Section, "A line stack needs four to share it, unless only tanks are in it",
-            SimSource.Line(Constants, "int LineStackMinimum ="), $"fewer than {P4Rules.LineStackMinimum} die, unless all are tanks",
-            lineStacks.Count == 0 ? "no line stacks"
-                : $"{string.Join(", ", counts)}; {lineStackDeaths} players died of a line stack (each line is "
-                  + "listed under the finding above)",
-            lineStacks.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive);
+        yield return LineStackMinimum(counts);
 
         yield return new LogFinding(Section, "Each set's markers are rolled on their own",
             SimSource.Line(State, "UNVERIFIED: each set is"), "a player can be marked in consecutive sets, any pair can be picked",
@@ -279,5 +300,36 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
             "the sim casts them from invisible helpers", "what the client draws is not logged", Verdict.NotInTheseLogs);
         yield return new LogFinding(Section, "P4's weather and music", SimSource.Line(Constants, "byte Weather ="),
             $"P3's: weather {TopP4Constants.Weather}, BGM {TopP4Constants.Bgm}", "ACT logs neither", Verdict.NotInTheseLogs);
+    }
+
+    // A line with a non-tank in it that killed someone puts the game's minimum above its size, and one all its targets lived
+    // through puts it at or below; the lines of fewer than the minimum holding only tanks show the exception.
+    private LogFinding LineStackMinimum(IEnumerable<string> counts)
+    {
+        var minimum = P4Rules.LineStackMinimum;
+        var evidence = lineStacks.Where(l => l.Killed + l.Survived > 0).ToList();
+        var killers = evidence.Where(l => !l.TanksOnly && l.Killed > 0).Select(l => l.Hit).ToList();
+        var lived = evidence.Where(l => !l.TanksOnly && l.Killed == 0).Select(l => l.Hit).ToList();
+        var tankLines = evidence.Where(l => l.TanksOnly && l.Hit < minimum).ToList();
+        var lower = killers.Count == 0 ? 1 : killers.Max() + 1;
+        int? upper = lived.Count == 0 ? null : lived.Min();
+        var contradicted = minimum < lower || minimum > upper || tankLines.Any(l => l.Killed > 0);
+        var verdict = evidence.Count == 0 ? lineStacks.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
+            : contradicted ? Verdict.Differs
+            : lower == minimum && upper == minimum && tankLines.Count > 0 ? Verdict.Matches
+            : Verdict.Inconclusive;
+        return new LogFinding(Section, "A line stack needs four to share it, unless only tanks are in it",
+            SimSource.Line(Constants, "int LineStackMinimum ="), $"fewer than {minimum} die, unless all are tanks",
+            lineStacks.Count == 0 ? "no line stacks"
+                : $"{string.Join(", ", counts)}. Leaving out targets under an invulnerability, "
+                  + (killers.Count == 0 ? "no line with a non-tank in it killed" : $"the largest line with a non-tank in it that killed hit {killers.Max()}")
+                  + (lived.Count == 0 ? ", none was lived through" : $", the smallest all lived through hit {upper}")
+                  + $", so the game's minimum lies {(upper is { } most ? $"from {lower} to {most}" : $"at {lower} or more")}; "
+                  + (tankLines.Count == 0 ? $"no line of fewer than {minimum} held only tanks"
+                      : $"{tankLines.Count(l => l.Killed == 0)} of {tankLines.Count} lines of fewer than {minimum} holding only tanks were lived through")
+                  + (lineStackTargetsShielded == 0 ? ""
+                      : $"; {lineStackTargetsShielded} {(lineStackTargetsShielded == 1 ? "target" : "targets")} under an invulnerability left out")
+                  + ". Each line is listed under the finding above",
+            verdict);
     }
 }

@@ -125,6 +125,13 @@ anywhere, since they hold other players' names.
 - `Reports/ActLogs/` is the parser: pulls split as upstream's `tools/parser.py` splits them (the game's combat flag
   on 260 lines, else the duty director's codes), and the line types the report reads as typed events. It blanks
   every name field as it reads a line and the report names players by job; never copy log lines into the repo.
+- Deaths: a player is dead from its first 0-HP line (37/38/39); the death line (25) comes about 2 s later. A hit
+  killed when its effect result (the 37 line with its sequence) left the target at 0 HP, or, with none logged, when
+  the target died within 3 s. A hit on a player under an invulnerability (Hallowed Ground, Holmgang, Living Dead,
+  Walking Dead, Superbolide, Undead Rebirth) is listed but left out of every kill rule.
+- When something stops killing is told from players who stood in it and lived on, not from when its object leaves
+  the client's object table: the P3 void zone's object stands until about 24.5 s, but players lived within the
+  sim's 6 y from about 23.2 s.
 - Positions: the logging player's own run a little ahead of the server's and the other players' trail it by a few
   tenths of a second, so a distance between players is good to about a yalm. Server placements (271 lines) and cast
   locations (263 lines) are exact to about 0.03 y, and the report measures from them where it can.
