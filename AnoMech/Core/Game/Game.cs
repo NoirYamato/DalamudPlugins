@@ -35,7 +35,8 @@ public sealed class Game : IDisposable
 
     public SessionStatus Status => run?.Status ?? (instance is null ? SessionStatus.Offline : SessionStatus.InZone);
     
-    // bool: a local run, not a multiplayer one.
+    // The params as the run was asked for, so a null Seed drew a fresh one. bool: a local run, not a
+    // multiplayer one.
     public event Action<RunScenarioParams, bool>? RunStarted;
     public event Action<bool>? RunFinished;
     public event Action<PartyRole, string, uint?>? PartyMemberKilled;
@@ -70,6 +71,8 @@ public sealed class Game : IDisposable
             StartScenario(p, resolved);
             return;
         }
+        // The drawn seed seats the party on the run's stream; it is not one the caller asked to keep.
+        var asked = p;
         p = p with { Seed = p.Seed ?? Random.Shared.Next() };
         ZoneIn(zone, mode, refusal =>
         {
@@ -79,7 +82,7 @@ public sealed class Game : IDisposable
                 return;
             }
             PrepareRunNow(p);
-            Plugin.Framework.RunOnTick(() => StartScenario(p, resolved), ZoneInStartDelay);
+            Plugin.Framework.RunOnTick(() => Deferred(() => StartScenarioNow(p, asked), resolved), ZoneInStartDelay);
         });
     }
 
@@ -155,7 +158,7 @@ public sealed class Game : IDisposable
     }
 
     // Null once the run is up, else why it was refused.
-    private string? StartScenarioNow(RunScenarioParams p)
+    private string? StartScenarioNow(RunScenarioParams p, RunScenarioParams? asked = null)
     {
         if (instance is null)
         {
@@ -168,7 +171,7 @@ public sealed class Game : IDisposable
         run = next;
         run.Finished += OnRunFinished;
         run.Start();
-        RunStarted?.Invoke(p, instance.Mode == SessionMode.Local);
+        RunStarted?.Invoke(asked ?? p, instance.Mode == SessionMode.Local);
         return null;
     }
     

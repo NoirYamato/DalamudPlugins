@@ -58,6 +58,11 @@ NoirMech change:
   `IsPlayerAction` change are left out;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
+- one fix in upstream's `Game.EnterAndStart`: it raises `RunStarted` with the params as asked, not with the seed it
+  draws to seat the party before a zone-in, so Auto-restart after a Start from the inn rolls fresh rather than
+  replaying one roll (`PracticeLoopTests`);
+- test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves, and
+  `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
