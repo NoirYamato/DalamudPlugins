@@ -20,7 +20,8 @@ namespace AnoMech.Tests;
 //   3.0   Omega's Wave Cannon cast (5 s). 5.6 / 15.7 / 25.6: the markers.
 //   8.0 / 17.9 / 28.0   aims: a repeat line starts down every player's line (snapshot 5 s later); its orange
 //                       line only flashes, 4.4-4.8 s in.
-//   8.6 / 18.5 / 28.6   the beams, down the same lines. 13.6 / 23.4 / 33.5: the line stacks.
+//   8.6 / 18.5 / 28.6   the beams, each toward where its player stands as it fires; the repeats keep the aim's
+//                       lines. 13.6 / 23.4 / 33.5: the line stacks.
 //   11.0  Wave Repeater (hits at 15.7, r < 6); rings 18.1 (6-12), 20.1 (12-18), 22.1 (18-24).
 //   28.2  Wave Repeater (hits at 32.9); rings 35.2, 37.2, 39.2. The run ends after the last ring.
 public class TopP4BlueScreenScenarioTests
@@ -31,21 +32,30 @@ public class TopP4BlueScreenScenarioTests
 
     private static readonly Vector2 OutOfEveryLineNorth = new(0, -13);
 
-    // MT stands 1 y from R1 at the aim: each is in the other's line.
+    // MT stands 1 y from R1 from before the aim until the beams: each is in the other's beam.
     [Test]
-    public void TwoPlayersOnOneLineAtTheAimBothDieToTheBeams()
+    public void TwoPlayersOnOneLineBothDieToTheBeams()
         => BlueScreen(MainTank)
             .TeleportAt(7.5f, to: new(-13.5f, -1f))
             .ShouldKill(P4ActionId.WaveCannonBeam, MainTank, PhysRangedDps);
 
-    // MT leaves its line between the aim and the beams for a spot 1 y from R1, then joins its stack: R1's beam
-    // hits MT once, and MT's own beam goes down MT's old line and misses R1. Had MT's beam followed MT, both
-    // would have taken two.
+    // MT leaves its line between the aim and the beams for a spot 1 y from R1: MT's beam follows MT, so each is in
+    // the other's beam. Had MT's beam stayed on the line aimed at it, each would have taken one.
     [Test]
-    public void LeavingAfterTheAimLeavesTheLinesWhereTheyWere()
+    public void ABeamFollowsItsPlayerIntoAnotherPlayersLine()
+        => BlueScreen(MainTank)
+            .TeleportAt(8.2f, to: new(-13.5f, -1f))
+            .ShouldKill(P4ActionId.WaveCannonBeam, MainTank, PhysRangedDps);
+
+    // MT stands 1 y from R1 at the aim, then leaves for a spot no line covers before the beams, and joins its stack:
+    // MT's beam follows MT, so R1 takes only its own. Had MT's beam stayed on the line aimed at it, R1 would have
+    // taken two.
+    [Test]
+    public void ABeamFollowsItsPlayerOutOfAnotherPlayersLine()
     {
         var run = Run(MainTank, SplitMarkers, stopAt: 14.5f,
-                      new Takeover(8.2f, new Vector2(-13.5f, -1f)),
+                      new Takeover(7.5f, new Vector2(-13.5f, -1f)),
+                      new Takeover(8.2f, OutOfEveryLineNorth),
                       new Takeover(9f, OuterStackWest));
 
         Assert.That(run.Passed, run.ToString);

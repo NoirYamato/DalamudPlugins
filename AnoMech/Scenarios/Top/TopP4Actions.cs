@@ -21,7 +21,7 @@ public static class TopP4Actions
     {
         Cast = new() { OmenDelay = P4Duration.RepeatOmenDelay },
         Effects = [Damage(Lethal)],
-        DeathExplanation = "Hit by the repeated Wave Cannon: it fires again down the first beams' lines",
+        DeathExplanation = "Hit by the repeated Wave Cannon: it fires again down the lines aimed at everyone just before the beams",
     };
 
     // The same rings as the P3 intermission, but P4 dodges them by stepping in, not out to the wall.
