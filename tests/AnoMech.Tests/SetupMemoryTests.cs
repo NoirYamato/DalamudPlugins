@@ -106,8 +106,9 @@ public class SetupMemoryTests
         Assert.That(rotation.Last, Is.Null);
     }
 
-    // After a restart the role of the seat Rotate last gave goes on alternating from it: a WAR played MT gets OT, where Auto
-    // would give MT. The other role starts from the seat Auto gives, though it had a turn before: a DRG played M2 gets M2.
+    // After a restart the role of the seat Rotate last gave goes on alternating from it, on any job of the role: a WAR played
+    // MT, so a WAR or a DRK gets OT, where Auto would give MT. The other role starts from the seat Auto gives, though it had
+    // a turn before: a DRG played M2 gets M2.
     [Test]
     public void RotateGoesOnFromTheSeatItLastGave()
     {
@@ -125,7 +126,7 @@ public class SetupMemoryTests
         {
             Assert.That(rotation.Next((uint)JobId.Dragoon), Is.EqualTo(PartyRole.MeleeDpsA), "without the restart");
             Assert.That(restarted.Next((uint)JobId.Warrior), Is.EqualTo(PartyRole.OffTank));
-            Assert.That(restarted.Next((uint)JobId.Paladin), Is.EqualTo(PartyRole.OffTank));
+            Assert.That(restarted.Next((uint)JobId.DarkKnight), Is.EqualTo(PartyRole.OffTank));
             Assert.That(restarted.Next((uint)JobId.Dragoon), Is.EqualTo(PartyRole.MeleeDpsB));
             Assert.That(restarted.Next((uint)JobId.WhiteMage), Is.EqualTo(PartyRole.RegenHealer));
         });
