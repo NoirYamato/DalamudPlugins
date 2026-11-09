@@ -252,8 +252,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // Cosmo Dive: P6Duration.CosmoDiveHitsAfterCast after its cast ends, a buster on each of the two players closest
-    // to Alpha Omega and a stack on the farthest of the rest. A human tank under a buster needs its big cooldowns
-    // (P6Rules.CosmoDiveBusterMitigation).
+    // to Alpha Omega and a stack on the farthest of the rest. A human tank on a tank's job under a buster needs its big
+    // cooldowns (P6Rules.CosmoDiveBusterMitigation).
     public void CosmoDive(float castAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(castAt, () => Cast(Actions.CosmoDive), file, line);
@@ -366,10 +366,19 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
     private static bool IsTank(SimCharacter member) => member is ISimPartyMember { Role: var role } && role.IsTank();
 
+    // Only a tank's job has a tank's cooldowns, and the Role setting can seat a human on any job in a tank seat. The
+    // human's job is its client's.
+    internal static bool OnATankJob(SimCharacter member) => PartyPresets.SkipRoleForJob(member switch
+    {
+        SimPlayer => Natives.BattleCharas.LocalPlayer.ClassJob,
+        SimPartyNpc bot => bot.ClassJob,
+        _ => 0,
+    }).IsTank();
+
     // As an EnemyAction's MinMit checks it, against the hit's own damage type: the human's alone, only while
-    // Mitigation.Required, and the shields it counts are spent.
+    // Mitigation.Required, and the shields it counts are spent. A tank seat's human on another job passes, as a bot does.
     private bool ShortOfMitigation(SimCharacter tank, uint actionId, float required)
-        => DamageCheck.LethalCause(tank, VulnSpec.None, Severity.TankBuster.MinMit(required),
+        => OnATankJob(tank) && DamageCheck.LethalCause(tank, VulnSpec.None, Severity.TankBuster.MinMit(required),
             DamageKinds.FromAttackType(Natives.Data.Action(actionId)?.AttackType ?? 0), world.Party) is not null;
 
     private void KillWhoeverLacksATankLimitBreak3(TopP6LimitBreaks limitBreaks, uint actionId, string rule)
