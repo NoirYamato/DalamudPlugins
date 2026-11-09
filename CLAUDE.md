@@ -73,6 +73,9 @@ NoirMech change:
 - the main window is `partial`: what Retry, Drill, the AnoMech warning and the kept setup add sits in
   `MainWindow.RunControls.cs` and `MainWindow.Setup.cs`, with one-line hooks in upstream's `MainWindow.cs` (the older
   pause button sits in `MainWindow.cs` itself);
+- upstream's FRU P4 Crystallize Time settings window reads its "Your debuffs" pick back from the overrides every
+  frame, as every other settings window does, so a kept setup, a replay or a host's settings show there (one line and
+  a `using`);
 - test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
   `TimelineScenario` takes settings overrides and conflicts, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
@@ -222,6 +225,9 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
   0.5s), and once more on unload. Nothing is kept during a multiplayer session, which resets the Role pick and shows a
   peer the host's scenario, strat and settings; after it the kept Role pick and the selected scenario's region and
   strat come back, and a peer's own settings come back through `MultiplayerManager`'s restore, as before.
+- Every settings window reads its picks back from the overrides every frame, so a kept setup, a replay or a host's
+  settings show there. Upstream's FRU P4 Crystallize Time window alone kept its "Your debuffs" pick in a field and
+  showed "Random" over restored debuffs; it reads the pick back now too.
 - Rotate, a Role pick: tanks alternate MT and OT and melee M1 and M2 on each local run, from the seat Auto gives;
   healers and ranged keep their job's seat. Start seats the run through a `RotatingPartyProvider` on
   `RunController.Seats`, asked again for every run started from it, so Auto-restart and Drill's fresh rolls rotate

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Dalamud.Bindings.ImGui;
 
 namespace AnoMech.Scenarios.Fru.P4CrystallizeTime;
@@ -27,6 +28,7 @@ public sealed class FruP4CrystallizeTimeSettingsWindow
             SettingsGrid.Row("Your debuffs:");
             SettingsGrid.ItemWidth(300);
             var labels = Array.ConvertAll(PlayerChoices, c => c.Label);
+            selected = Array.FindIndex(PlayerChoices, c => c.Debuffs is null ? Overrides.PlayerDebuffs is null : Overrides.PlayerDebuffs?.SequenceEqual(c.Debuffs) == true);
             if (ImGui.Combo("##ctplayer", ref selected, labels, labels.Length)) Select(selected);
 
             var slow = Overrides.SlowNorthwest;
