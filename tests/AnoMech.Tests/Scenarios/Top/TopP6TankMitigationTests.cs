@@ -21,8 +21,8 @@ namespace AnoMech.Tests;
 //   the OT at (4.6, -4.6); the six share the stack at (7.5, 7.5).
 //   Wild Charge at 6.0 toward the MT: both tanks at the front of its line at (0, 6.5), the six behind at (0, 10.5); whom it
 //   kills dies at 6.8.
-// A run of every hit plays the four in the order they come, each 12 s after the last as above: Cosmo Dive 1's busters at
-// 10.0, Wild Charge 1 at 18.0, Wild Charge 2 at 30.0 and Cosmo Dive 2's busters at 46.0.
+// A run of every hit plays the four in the order they come, each as above and 12 s after the last: Cosmo Dive 1's busters
+// at 10.0, Wild Charge 1 at 18.0, Wild Charge 2 at 30.0 and Cosmo Dive 2's busters at 46.0.
 public class TopP6TankMitigationTests
 {
     private const float DiveAt = 2f, DiveLandsAt = 10f;
@@ -224,7 +224,8 @@ public class TopP6TankMitigationTests
         IReadOnlyDictionary<PartyRole, Vector2>? spots = null)
         => TimelineRun.Execute(world =>
         {
-            var alphaOmega = SpawnAlphaOmega(world, job);
+            if (job is { } humans) ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)humans;
+            var alphaOmega = SpawnAlphaOmega(world);
             Press(world, (IsCosmoDive(hit) ? DiveLandsAt : WildChargeAt) - before, set);
             Schedule(world, alphaOmega, hit, 0f, spots);
         }, options ?? HumanMainTank);
@@ -233,14 +234,15 @@ public class TopP6TankMitigationTests
     private static TimelineRunResult PlayEveryHit(JobId job, TimelineRunOptions options)
         => TimelineRun.Execute(world =>
         {
-            var alphaOmega = SpawnAlphaOmega(world, job);
-            foreach (var (hit, turn) in Enum.GetValues<TopP6TankHit>().Select((hit, turn) => (hit, turn)))
-                Schedule(world, alphaOmega, hit, turn * HitsApart);
+            ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)job;
+            var alphaOmega = SpawnAlphaOmega(world);
+            var hits = Enum.GetValues<TopP6TankHit>();
+            for (var turn = 0; turn < hits.Length; turn++)
+                Schedule(world, alphaOmega, hits[turn], turn * HitsApart);
         }, options);
 
-    private static TopP6AlphaOmega SpawnAlphaOmega(SimWorld world, JobId? job)
+    private static TopP6AlphaOmega SpawnAlphaOmega(SimWorld world)
     {
-        if (job is { } humans) ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)humans;
         var alphaOmega = new TopP6AlphaOmega(world);
         world.Events.Add(0f, alphaOmega.Spawn);
         return alphaOmega;
