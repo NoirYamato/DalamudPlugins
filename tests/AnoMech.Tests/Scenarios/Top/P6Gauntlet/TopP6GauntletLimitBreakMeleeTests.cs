@@ -54,19 +54,7 @@ public class TopP6GauntletLimitBreakMeleeTests
     private static TopP6GauntletHumanSeat From(PartyRole seat, JobId job, TopP6LimitBreakDuty duty)
         => duty == Enrage ? FromMagicNumber(seat, job) : FromTheDive(seat, job);
 
-    // The monk in M1 and the dragoon in M2 tie with the other seat's bot: the enrage is the human's.
-    [TestCase(MeleeDpsA, JobId.Samurai, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Dragoon, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Monk, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Viper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsA, JobId.Reaper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsA, JobId.Ninja, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Samurai, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsB, JobId.Dragoon, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsB, JobId.Monk, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Viper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Reaper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Ninja, new[] { SecondDiveMelee })]
+    [TestCaseSource(typeof(TopP6GauntletLimitBreakPlanTests), nameof(TopP6GauntletLimitBreakPlanTests.MeleeJobsInEitherSeat))]
     public void EachMeleeJobPressingItsLimitBreaksClearsTheGauntlet(PartyRole seat, JobId job, TopP6LimitBreakDuty[] duties)
         => new TopP6GauntletHumanSeat(seat, job).Pressing(duties).AssertEveryDutyPressedOnceByItsSeat(duties);
 

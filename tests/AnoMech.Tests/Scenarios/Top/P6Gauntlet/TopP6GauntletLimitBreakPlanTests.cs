@@ -15,21 +15,12 @@ public class TopP6GauntletLimitBreakPlanTests
     [SetUp]
     public void InstallGame() => FakeGame.Install();
 
-    // Every job in the seat its job sits in when no seat is picked.
-    [TestCase(JobId.Warrior, MainTank, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(JobId.DarkKnight, MainTank, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(JobId.Gunbreaker, MainTank, new[] { MagicNumber2Tank })]
-    [TestCase(JobId.Paladin, OffTank, new[] { MagicNumber2Tank })]
+    // Every healer and ranged job in the seat its job sits in when no seat is picked; the tanks' and melee's are among
+    // their either-seat rows.
     [TestCase(JobId.WhiteMage, RegenHealer, new[] { MagicNumber1Healer })]
     [TestCase(JobId.Astrologian, RegenHealer, new[] { MagicNumber1Healer })]
     [TestCase(JobId.Scholar, ShieldHealer, new[] { MagicNumber2Healer })]
     [TestCase(JobId.Sage, ShieldHealer, new[] { MagicNumber2Healer })]
-    [TestCase(JobId.Monk, MeleeDpsA, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(JobId.Samurai, MeleeDpsB, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(JobId.Dragoon, MeleeDpsB, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(JobId.Viper, MeleeDpsB, new[] { SecondDiveMelee })]
-    [TestCase(JobId.Reaper, MeleeDpsB, new[] { SecondDiveMelee })]
-    [TestCase(JobId.Ninja, MeleeDpsB, new[] { SecondDiveMelee })]
     [TestCase(JobId.Bard, PhysRangedDps, new[] { Meteors })]
     [TestCase(JobId.Machinist, PhysRangedDps, new[] { Meteors })]
     [TestCase(JobId.Dancer, PhysRangedDps, new[] { Meteors })]
@@ -40,50 +31,60 @@ public class TopP6GauntletLimitBreakPlanTests
     public void EachJobInItsOwnSeat(JobId job, PartyRole seat, TopP6LimitBreakDuty[] duties)
     {
         Assert.That(PartyPresets.SkipRoleForJob((uint)job), Is.EqualTo(seat), "the seat the job sits in");
-        var plan = Plan(seat, job);
 
-        Assert.That(plan.HumanFits, Is.True);
-        Assert.That(plan.DutiesOf(seat), Is.EqualTo(duties));
-        Assert.That(duties.All(plan.HumanPresses), Is.True);
+        AssertTheHumanPresses(Plan(seat, job), seat, duties);
     }
 
-    // Each tank job in either tank seat, beside the bot of the other: MT WAR, OT PLD.
-    [TestCase(MainTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.DarkKnight, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.Paladin, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.Gunbreaker, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(OffTank, JobId.DarkKnight, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Paladin, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Gunbreaker, new[] { MagicNumber2Tank })]
+    // Each tank job in either tank seat, beside the bot of the other (MT WAR, OT PLD), and what the plan gives the human;
+    // the Gauntlet's tank suite plays the same rows.
+    public static readonly TestCaseData[] TankJobsInEitherSeat =
+    [
+        new(MainTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank }),
+        new(MainTank, JobId.DarkKnight, new[] { CosmoMemory, MagicNumber1Tank }),
+        new(MainTank, JobId.Paladin, new[] { CosmoMemory, MagicNumber1Tank }),
+        new(MainTank, JobId.Gunbreaker, new[] { MagicNumber2Tank }),
+        new(OffTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank }),
+        new(OffTank, JobId.DarkKnight, new[] { MagicNumber2Tank }),
+        new(OffTank, JobId.Paladin, new[] { MagicNumber2Tank }),
+        new(OffTank, JobId.Gunbreaker, new[] { MagicNumber2Tank }),
+    ];
+
+    // Each melee job in either melee seat, beside the bot of the other (M1 DRG, M2 MNK), and what the plan gives the human;
+    // the Gauntlet's melee suite plays the same rows. The monk in M1 and the dragoon in M2 tie with the other seat's bot:
+    // the enrage is the human's.
+    public static readonly TestCaseData[] MeleeJobsInEitherSeat =
+    [
+        new(MeleeDpsA, JobId.Samurai, new[] { FirstDiveMelee, Enrage }),
+        new(MeleeDpsA, JobId.Dragoon, new[] { FirstDiveMelee, Enrage }),
+        new(MeleeDpsA, JobId.Monk, new[] { FirstDiveMelee, Enrage }),
+        new(MeleeDpsA, JobId.Viper, new[] { SecondDiveMelee }),
+        new(MeleeDpsA, JobId.Reaper, new[] { SecondDiveMelee }),
+        new(MeleeDpsA, JobId.Ninja, new[] { SecondDiveMelee }),
+        new(MeleeDpsB, JobId.Samurai, new[] { FirstDiveMelee, Enrage }),
+        new(MeleeDpsB, JobId.Dragoon, new[] { FirstDiveMelee, Enrage }),
+        new(MeleeDpsB, JobId.Monk, new[] { SecondDiveMelee }),
+        new(MeleeDpsB, JobId.Viper, new[] { SecondDiveMelee }),
+        new(MeleeDpsB, JobId.Reaper, new[] { SecondDiveMelee }),
+        new(MeleeDpsB, JobId.Ninja, new[] { SecondDiveMelee }),
+    ];
+
+    [TestCaseSource(nameof(TankJobsInEitherSeat))]
     public void EachTankJobInEitherTankSeat(PartyRole seat, JobId job, TopP6LimitBreakDuty[] duties)
     {
         var plan = Plan(seat, job);
         TopP6LimitBreakDuty[] all = [CosmoMemory, MagicNumber1Tank, MagicNumber2Tank];
 
-        Assert.That(plan.DutiesOf(seat), Is.EqualTo(duties));
+        AssertTheHumanPresses(plan, seat, duties);
         Assert.That(plan.DutiesOf(Other(seat)), Is.EqualTo(all.Except(duties)));
     }
 
-    // Each melee job in either melee seat, beside the bot of the other: M1 DRG, M2 MNK.
-    [TestCase(MeleeDpsA, JobId.Samurai, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Dragoon, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Monk, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsA, JobId.Viper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsA, JobId.Reaper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsA, JobId.Ninja, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Samurai, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsB, JobId.Dragoon, new[] { FirstDiveMelee, Enrage })]
-    [TestCase(MeleeDpsB, JobId.Monk, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Viper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Reaper, new[] { SecondDiveMelee })]
-    [TestCase(MeleeDpsB, JobId.Ninja, new[] { SecondDiveMelee })]
+    [TestCaseSource(nameof(MeleeJobsInEitherSeat))]
     public void EachMeleeJobInEitherMeleeSeat(PartyRole seat, JobId job, TopP6LimitBreakDuty[] duties)
     {
         var plan = Plan(seat, job);
         TopP6LimitBreakDuty[] all = [FirstDiveMelee, SecondDiveMelee, Enrage];
 
-        Assert.That(plan.DutiesOf(seat), Is.EqualTo(duties));
+        AssertTheHumanPresses(plan, seat, duties);
         Assert.That(plan.DutiesOf(Other(seat)), Is.EqualTo(all.Except(duties)));
     }
 
@@ -273,6 +274,13 @@ public class TopP6GauntletLimitBreakPlanTests
         Assert.That(PerRoleSeats().Where(s => s != MeleeDpsB).Select(plan.JobOf),
                     Is.EqualTo(PerRoleSeats().Where(s => s != MeleeDpsB).Select(s => (uint)PartyPresets.Standard[(int)s].ClassJob)));
         Assert.That(plan.SeatOf(Enrage), Is.EqualTo(MeleeDpsB));
+    }
+
+    private static void AssertTheHumanPresses(TopP6GauntletLimitBreakPlan plan, PartyRole seat, TopP6LimitBreakDuty[] duties)
+    {
+        Assert.That(plan.HumanFits, Is.True);
+        Assert.That(plan.DutiesOf(seat), Is.EqualTo(duties));
+        Assert.That(duties.All(plan.HumanPresses), Is.True);
     }
 
     private static TopP6GauntletLimitBreakPlan Plan(PartyRole seat, JobId job,

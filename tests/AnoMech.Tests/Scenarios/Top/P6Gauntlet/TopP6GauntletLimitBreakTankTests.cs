@@ -47,14 +47,7 @@ public class TopP6GauntletLimitBreakTankTests
         _ => (TopP6GauntletPart.MagicNumber, 222.6f, P6ActionId.MagicNumber, MagicNumberKills),
     };
 
-    [TestCase(MainTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.DarkKnight, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.Paladin, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(MainTank, JobId.Gunbreaker, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Warrior, new[] { CosmoMemory, MagicNumber1Tank })]
-    [TestCase(OffTank, JobId.DarkKnight, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Paladin, new[] { MagicNumber2Tank })]
-    [TestCase(OffTank, JobId.Gunbreaker, new[] { MagicNumber2Tank })]
+    [TestCaseSource(typeof(TopP6GauntletLimitBreakPlanTests), nameof(TopP6GauntletLimitBreakPlanTests.TankJobsInEitherSeat))]
     public void EachTankJobPressingItsLimitBreaksClearsTheGauntlet(PartyRole seat, JobId job, TopP6LimitBreakDuty[] duties)
         => new TopP6GauntletHumanSeat(seat, job).Pressing(duties).AssertEveryDutyPressedOnceByItsSeat(duties);
 
