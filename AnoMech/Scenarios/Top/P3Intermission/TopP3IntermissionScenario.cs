@@ -33,9 +33,6 @@ public sealed class TopP3IntermissionScenario : IScenario
     private const string StackAlone = "Took the High-powered Sniper Cannon alone";
     private const string StoodInTheVoidZone = "Stood in the void zone in the middle";
 
-    // UNVERIFIED which kind stands where; both cast the same Colossal Blow. Each set gets both kinds.
-    private static readonly float[] LeftArmBearings = [0f, 240f, 300f];
-
     private SimWorld world = null!;
     private SimParty party = null!;
     private TopP3IntermissionState state = null!;
@@ -75,9 +72,8 @@ public sealed class TopP3IntermissionScenario : IScenario
         // UNVERIFIED: Omega starts to appear as P2's bosses start to merge.
         world.Events.Add(9.3f, () => omega?.PlayActionTimeline(P3TimelineId.OmegaShow));
         world.Events.Add(9.3f, () => firstWaveHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
-        // UNVERIFIED: both warp-in times.
         world.Events.Add(12.3f, () => WarpIn(state.FirstSetBearings));
-        world.Events.Add(15.3f, SpawnVoidZone);
+        world.Events.Add(14.76f, SpawnVoidZone);
         world.Events.Add(15.4f, () => WarpIn(state.SecondSetBearings));
         // UNVERIFIED: whether the instant rings show anything when an invisible helper casts them.
         world.Events.Add(16.4f, () => firstWaveHelper?.Cast(Actions.WaveRepeaterRing2));
@@ -123,13 +119,13 @@ public sealed class TopP3IntermissionScenario : IScenario
 
     private SimEnemy? SpawnHelper()
         => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper,
+            BNpcBaseId: OmegaHelper,
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.InvisibleHelper,
             Placement: new Placement(Vector3.Zero, 0f)));
 
-    // UNVERIFIED: the arms face the centre, as P5's do.
+    // The arms face the centre.
     private SimEnemy? SpawnArm(float bearing)
     {
         var left = IsLeftArm(bearing);
@@ -145,7 +141,7 @@ public sealed class TopP3IntermissionScenario : IScenario
             Placement: new Placement(position, MathF.Atan2(-position.X, -position.Z))));
     }
 
-    private static bool IsLeftArm(float bearing) => LeftArmBearings.Contains(bearing);
+    private bool IsLeftArm(float bearing) => state.LeftArmBearings.Contains(bearing);
 
     private void ApplyFodder()
     {
@@ -172,7 +168,7 @@ public sealed class TopP3IntermissionScenario : IScenario
     private IEnumerable<(SimEnemy Unit, float Bearing)> Arms(IReadOnlyList<float> bearings)
         => arms.Where(a => a.Unit is not null && bearings.Contains(a.Bearing)).Select(a => (a.Unit!, a.Bearing));
 
-    // UNVERIFIED: the spawn args, the radius and the times.
+    // UNVERIFIED: the spawn args, the radius and when it stops killing.
     private void SpawnVoidZone()
     {
         voidZone = world.SpawnEventObject(new EventObjectSpawnConfig
@@ -196,7 +192,7 @@ public sealed class TopP3IntermissionScenario : IScenario
     // Kept on the holders the scenario recorded: a status that runs out removes itself before the
     // scenario can see that it expired. Every circle is taken before any death, and a holder who
     // already died fires nothing (in game it retargets, but that death already failed the run).
-    // UNVERIFIED: the stacks going off with the spreads, and every rule below; the game's damage is unknown.
+    // UNVERIFIED: every rule below; the game's damage is unknown.
     private void FireSniperCannons()
     {
         var cannons = Alive(spreadHolders)

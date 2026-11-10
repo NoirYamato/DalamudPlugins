@@ -91,7 +91,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
         world.Events.Add(28f, () => StartRegressions(1));
         world.Events.Add(29f, () => ShowTethers(2));
         world.Events.Add(29.1f, () => ResolveSet(nextResolve: 50.1f));
-        world.Events.Add(31f, KillLatentDefectHolders);
+        world.Events.Add(32f, KillLatentDefectHolders);
         world.Events.Add(40.1f, () => StartSet(2));
         world.Events.Add(49f, () => StartRegressions(2));
         world.Events.Add(50f, () => ShowTethers(3));
@@ -103,9 +103,9 @@ public sealed class TopP3HelloWorldScenario : IScenario
         world.Events.Add(74f, KillLatentSynchronizationBugHolders);
         world.Events.Add(82.5f, () => StartSet(4));
         world.Events.Add(91f, () => StartRegressions(4));
-        world.Events.Add(92.5f, () => ResolveSet(nextResolve: 113.8f));
-        world.Events.Add(105.8f, () => omega?.Cast(Actions.CriticalError));
-        world.Events.Add(113.8f, ResolveCriticalError);
+        world.Events.Add(92.5f, () => ResolveSet(nextResolve: 113.55f));
+        world.Events.Add(105.55f, () => omega?.Cast(Actions.CriticalError));
+        world.Events.Add(113.55f, ResolveCriticalError);
     }
 
     public void Tick(float delta, float elapsed)
@@ -136,7 +136,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
 
     private SimEnemy? SpawnHelper()
         => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper,
+            BNpcBaseId: OmegaHelper,
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.InvisibleHelper,
@@ -201,7 +201,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
     }
 
     // Two adjacent towers of the defamation colour either side of the set's layout, two of the
-    // stack colour opposite, all on the cardinals.
+    // stack colour opposite: on the cardinals for an intercardinal layout, else on the intercardinals.
     private void StartSet(int set)
     {
         omega?.Cast(P3ActionId.LatentDefect);
@@ -291,12 +291,8 @@ public sealed class TopP3HelloWorldScenario : IScenario
         foreach (var member in HitAtLeastTwice(defamations.Select(s => s.Hits)))
             member.Die(P3ActionId.Defamation, TwoDefamations);
 
-        foreach (var (_, colour, soakers) in soaks)
-        foreach (var member in soakers.Where(m => m.IsAlive()))
-        {
-            Held(member).TowerDebuffExpiry[colour.Index] = world.Events.Elapsed + P3Duration.TowerDebuff;
-            member.AddStatus(colour.TowerDebuffStatusId, P3Duration.TowerDebuff);
-        }
+        var soaked = soaks.SelectMany(s => s.Soakers.Select(member => (Member: member, s.Colour))).ToList();
+        world.Events.Add(P3Duration.TowerDebuffDelay, () => GiveTowerDebuffs(soaked));
 
         var stackHolders = stacks.Select(s => s.Holder).ToHashSet();
         foreach (var holder in stackHolders.Where(m => m.IsAlive()))
@@ -328,6 +324,15 @@ public sealed class TopP3HelloWorldScenario : IScenario
             member.RemoveStatus(P3StatusId.LatentDefect);
             if (!defamationHolders.Contains(member) && !overflowDebuggedBefore.Contains(member))
                 GiveDefamationBug(member, untilNext);
+        }
+    }
+
+    private void GiveTowerDebuffs(IEnumerable<(SimCharacter Member, HelloWorldColour Colour)> soaked)
+    {
+        foreach (var (member, colour) in soaked.Where(s => s.Member.IsAlive()))
+        {
+            Held(member).TowerDebuffExpiry[colour.Index] = world.Events.Elapsed + P3Duration.TowerDebuff;
+            member.AddStatus(colour.TowerDebuffStatusId, P3Duration.TowerDebuff);
         }
     }
 
@@ -430,7 +435,7 @@ public sealed class TopP3HelloWorldScenario : IScenario
         foreach (var regression in regressions.ToList())
         {
             var tether = regression.Tether;
-            if (SimTether.IsAnyDead(tether))
+            if (!tether.A.IsAlive() || !tether.B.IsAlive())
                 EndRegression(regression);
             else if (regression.Local
                          ? tether.StretchLt(P3Geometry.LocalRegressionBreakDistance)

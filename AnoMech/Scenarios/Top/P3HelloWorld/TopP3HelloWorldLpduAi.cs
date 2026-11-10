@@ -39,7 +39,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     ];
 
     private static readonly Spots DefamationOuterTowerEdge = Spots.Mirrored(45f, 18.1f);
-    private static readonly Spots DefamationTowerCentre = Spots.Mirrored(45f, 13.7f);
+    private static readonly Spots DefamationTowerCentre = Spots.Mirrored(45f, P3Geometry.TowerRingRadius);
     private static readonly Spots StackInnerTowerEdge = Spots.Mirrored(154f, 12f);
     private static readonly Spots RemoteInsideStack = Spots.Mirrored(166f, 11.4f);
     private static readonly Spots LocalStretchedPastDefamation = Spots.Mirrored(74f, 14.2f);
@@ -65,6 +65,7 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     private const float SoakersArriveWithin = 7f, ArriveBeforeTethersGoLive = 0.3f, PassesLandWithin = 1.7f;
     private const float RemotePopsArriveBeforeTheLocalPops = 0.1f;
     private const float TetherBreakMargin = 0.3f;
+    private const float RemoteTakesItsRotThisFarInsideItsStack = 1.3f;
     private const float RemotePopsWithin = 1.7f, LocalPopsWithin = 2.5f, RemotePopVulnLasts = 1.2f;
 
     private static readonly PartyRole[] MonitorsLineUpNorthToSouth =
@@ -206,10 +207,17 @@ public class TopP3HelloWorldLpduAi : IScenarioAi<TopP3HelloWorldState>
     {
         HelloWorldRole.Defamation => At(set, role, DefamationTowerCentre),
         HelloWorldRole.Local when !IsLastSet(set) => At(set, role, DefamationTowerCentre),
-        HelloWorldRole.Remote when !IsLastSet(set) => stackStandsAt(Side(set, HelloWorldRole.Stack, onRightSide[role])),
+        HelloWorldRole.Remote when !IsLastSet(set) => InsideItsStackTowardTheOtherStack(set, role, stackStandsAt),
         HelloWorldRole.Stack when IsLastSet(set) => At(set, role, LastStackStartingToSpread),
         _ => null,
     };
+
+    private Vector2 InsideItsStackTowardTheOtherStack(int set, PartyRole role, Func<PartyRole, Vector2> stackStandsAt)
+    {
+        var itsStack = stackStandsAt(Side(set, HelloWorldRole.Stack, onRightSide[role]));
+        var otherStack = stackStandsAt(Side(set, HelloWorldRole.Stack, !onRightSide[role]));
+        return itsStack + Vector2.Normalize(otherStack - itsStack) * RemoteTakesItsRotThisFarInsideItsStack;
+    }
 
     private Vector2? RemotePopSpot(int set, PartyRole role) => (state.RoleIn(set, role), IsLastSet(set)) switch
     {

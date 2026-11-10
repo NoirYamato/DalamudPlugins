@@ -22,6 +22,7 @@ public sealed class TopP3HelloWorldSettingsWindow
         if (SettingsGrid.Begin("##p3helloworld"))
         {
             DrawDefamationColour();
+            DrawTowerSpots();
             DrawTowerLayout();
             if (solo) DrawKit();
             SettingsGrid.End();
@@ -44,6 +45,7 @@ public sealed class TopP3HelloWorldSettingsWindow
     private void ResetFight()
     {
         Overrides.DefamationColour = null;
+        Overrides.Towers = null;
         Overrides.SameLayoutEverySet = null;
     }
 
@@ -59,10 +61,22 @@ public sealed class TopP3HelloWorldSettingsWindow
         }
     }
 
+    private void DrawTowerSpots()
+    {
+        var v = Overrides.Towers;
+        SettingsGrid.Row("Towers:");
+        if (ImGui.RadioButton("Auto##towerspots", v == null)) Overrides.Towers = null;
+        foreach (var spots in Enum.GetValues<TowerSpots>())
+        {
+            ImGui.SameLine();
+            if (ImGui.RadioButton($"{spots}##towerspots", v == spots)) Overrides.Towers = spots;
+        }
+    }
+
     private void DrawTowerLayout()
     {
         var same = Overrides.SameLayoutEverySet == true;
-        SettingsGrid.Row("Towers:");
+        SettingsGrid.Row("Tower layout:");
         if (ImGui.RadioButton("Move every set##towers", !same)) Overrides.SameLayoutEverySet = null;
         ImGui.SameLine();
         if (ImGui.RadioButton("Same every set##towers", same)) Overrides.SameLayoutEverySet = true;

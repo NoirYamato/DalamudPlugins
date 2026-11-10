@@ -91,6 +91,7 @@ NoirMech change:
   a `using`);
 - test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
   `TimelineScenario` takes settings overrides and conflicts, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
+- `tools/upstream-check.ps1`, a preview of merging an AnoMech ref (below);
 - tests for all of these;
 - the test gate (below): `tools/test.ps1`, `StratLintTests`, and a `PauseSeeds` run parameter in upstream's
   `test.runsettings` for `GamePauseTests`' sweep;
@@ -142,6 +143,49 @@ alongside).
 - `publish.ps1` is gentle the way `tools\test.ps1` is (below): before it starts any process it drops itself to
   Idle priority on its `-Affinity` CPUs (`0xF0`), and its build skips the build servers, so all of it runs there.
   Run it plainly: `cmd /c start /wait` hands back `start`'s exit code, 0, so a refusal there reads as a pass.
+
+## Merging AnoMech's next release
+`powershell -ExecutionPolicy Bypass -File tools\upstream-check.ps1 [-Ref <tag>]` (default `upstream/master`)
+previews a merge without making one: the files that would conflict, and NoirMech's own lines (changed or added
+since the last merged release) that use a declaration the ref deletes. It greps, so also build and test a trial
+merge in a throwaway detached worktree. Against `upstream/master` at `1646a70` (36 commits past v0.5.1.0) it finds
+six conflicts and no such use: P3 and P4 keep their own 9020 helper id (`TopP3Constants.OmegaHelper`,
+`TopP4Constants.OmegaHelper`) and Hello World checks its regressions' ends itself. A trial merge of it, its
+conflicts resolved as below but for `MainWindow.cs` (master's side), builds once `TimelineRun.cs` is fixed, and its
+P2, P3, P4, P5, P6 and pause tests pass. At the merge:
+- `ScenarioSession.cs` and `SimWorld.cs`: keep both sides, the pause's members and halt methods beside master's
+  `Issues`, `Ended` and `SimEvents`.
+- `LocalPlayerInputHooks.cs`: keep the `ActionsBlocked` return first, ahead of master's `GetAdjustedActionId` line.
+- `MainWindow.cs`: master rebuilds the title (`Title(failed)`, set every frame), the Stop buttons and the status
+  line (`RunStatus`, where a frozen run reads Failed) round its failure banner. Re-port the Pause button, the
+  title-bar icon, `PausedTitle` (ahead of `Title(failed)`) and a Paused label for the user pause onto it; master's
+  Failed covers NoirMech's Frozen.
+- The rename: master adds user-facing text that names AnoMech, `TitleText` in `MainWindow.cs`, the `[AnoMech]
+  Mechanic failed` and `[AnoMech] Run failed` chat lines in `ScenarioSession.cs` and the safety stop's reason in
+  `ZoneControl.cs` (`AnoMech was unloaded during a run`). Write `Plugin.DisplayName` there, as the rename does.
+- `TopP2PartySynergyScenario.cs`: master casts every helper action from the zone's pool; take its side of both
+  conflicts and put the solo skip into its `Run_Spotlight` (no Spotlight when `solo`), which
+  `TopP2PartySynergySoloTests` checks. Resolve the conflicts, not the file: `AiStrats` (LPDU first) merges clean,
+  and master's whole file would put its NA strat back at index 0, which the LPDU and NA strat tests catch.
+- `tests/AnoMech.Tests/Support/ScenarioRun.cs`: keep NoirMech's catalog-less construction
+  (`SingleOrDefault(...) ?? Activator.CreateInstance`), `RunUntilStopped` and `probe.Stopped` beside master's
+  four-argument `PartyMemberKilled`, `MechanicFailed`, `HelperPoolExhausted` and `SessionStatus.CompletedFailed`.
+- `tests/AnoMech.Tests/Support/TimelineRun.cs` merges clean but won't build: subscribe with master's four-argument
+  `Game.PartyMemberKilled` and fill its `Death.StatusId`. Its loop already ends on master's
+  `SessionStatus.CompletedFailed`, which comes after `Frozen`.
+- Helpers: master's TOP `DutyInitData` spawns `HelperPool(9020, 36)` at every run's start, and
+  `SimEnemy.CastFromHelper` casts from it.
+  - P6: `TopP6AlphaOmega` spawns its own 36 (`SpawnedHelperPool`), so a Gauntlet run would hold 72. Make its
+    `CastFromHelper` body `Enemy?.CastFromHelper(...)` (`HelperCast`'s signature), drop the pool field,
+    `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
+    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests then have no user;
+    `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
+  - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 14, Blue
+    Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
+    would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
+    tower helpers); that is optional.
+- Master's `SimTether` ends itself when an end dies (`TetherEnded`), without the scenario asking: Hello World's
+  ghost tethers then go with a death, as its regressions already do.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
@@ -355,41 +399,64 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
-`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, tower ring
-radius, rot contact radius, tether break distances, the void zone's radius and spawn args, some durations) are
-marked UNVERIFIED there; tune them in that one place.
+`TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, rot contact
+radius, the void zone's radius and spawn args) are marked UNVERIFIED there; tune them in that one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
-  (the set that warps in first goes off first), Sniper Cannon spreads and stacks, and the void zone. Every
-  mistake kills on the spot with a reason. Its one strat has an Automarkers On/Off setting (default On); it
-  lives in the overrides and the State, and only `TopP3IntermissionLpduAi` reads it, to add signs: both
-  settings put everyone on the same spots. Change bot movement only with `TopP3IntermissionLpduHumanTests`
-  and `TopP3IntermissionLpduMarginTests` green.
+  (the set that warps in first goes off first; the State rolls three left and three right arms onto random
+  spots, so a set can be all one kind, which changes only how an arm looks and warps in), Sniper Cannon spreads
+  and stacks (their 19s statuses run out 0.1s before both go off), and the void zone, shown from 5.46s after the
+  first Wave Repeater's cast until its model changes 21.4s after it (when it stops killing is UNVERIFIED). Every
+  mistake kills on the spot with a reason; the first ring's deaths show 0.6s after its bar (UNVERIFIED), ahead of
+  the void zone in the same circle. Its one strat has an Automarkers On/Off setting (default On); it lives in the
+  overrides and the State, and only `TopP3IntermissionLpduAi` reads it, to add signs: both settings put everyone
+  on the same spots. Change bot movement only with `TopP3IntermissionLpduHumanTests` and
+  `TopP3IntermissionLpduMarginTests` green.
 - Hello World tracks each player's debuffs itself (pairs rotating through defamation, remote tether, stack and
   local tether; rots spreading on contact; Debuggers as immunity) and decides every kill with a death
-  explanation. Fixed events are absolute time literals in `Run`; expiries that depend on play run from
+  explanation. Fixed events are absolute time literals in `Run`, except the tower debuffs, which `ResolveSet`
+  schedules `TowerDebuffDelay` after each resolve for that set's soakers; expiries that depend on play run from
   `IScenario.Tick`.
-- Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
-  They plan each walk round everyone's live positions and debuffs, give the human more room than each other
-  (`HumanSwapClearance`), step aside for it, and hold their spots through each resolve. The bots-only soak
-  can't see human conflicts, so change bot movement only with `TopP3HelloWorldLpduHumanTests` green: it
-  scripts the player's seat through every kit, seat, walking style and reaction delay.
-- Monitors: every monitor, the boss's included, hits 2 random players on its side (`CharacterFind.OnSideN`,
-  as P5 does); a monitor with nobody on its side hits random players. Bots aim theirs by turning after they
-  arrive. The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line
-  up on the west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers
-  On its strat marks at 19.5s: Bind 1-3 on the monitor players and Attack 1-5 on the rest, each in line-up
-  order.
+- Each set's four towers stand 14y out, each colour's two side by side, on the cardinals or on the
+  intercardinals. The State rolls each set's layout (the bearing between the two defamation-colour towers) from
+  all eight directions, each equally often (how often the game picks each is UNVERIFIED). The Towers setting
+  (Auto, Cardinals, Intercardinals) picks the ring, and Tower layout's Same every set repeats the first set's. A
+  tower's debuff lands 0.62s after it goes off and runs 10s; Latent Defect runs 27s from Hello World's hit, so
+  whoever no defamation cleansed dies at 32s.
+- Both regression tethers break at 9y, the remote one past it and the local one inside it, from the moment they
+  go live. Standing on its stack partners, where the strat's slideshow takes the pass, the remote pair would be
+  about 10.5y apart and break its tether. So it takes its rots 1.3y inside its stacks, toward each other, and
+  stands 7.9y apart until its pop. No source gives that spot (UNVERIFIED), and it reaches the rot only while
+  `RotContactRadius` (1.5y, UNVERIFIED) stays over 1.3y. A bot walks to a pass's spot exactly, without the 0.3y
+  jitter, so it stays within the rot's reach.
+- Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots and
+  that remote pass. Every spot is placed from the set's layout, so they play both rings alike; only the loose
+  spread before the first towers and the Monitors line-up stand fixed in the arena. They plan each walk round
+  everyone's live positions and debuffs, give the human more room than each other (`HumanSwapClearance`), step
+  aside for it, and hold their spots through each resolve. The bots-only soak can't see human conflicts, so change
+  bot movement only with `TopP3HelloWorldLpduHumanTests` green: it scripts the player's seat through every kit,
+  seat, walking style and reaction delay, on layouts from all eight directions. Like a player, it walks round a
+  soaker holding its tower spot in its way, unless it takes the guides' lanes.
+- Monitors: Omega's monitor hits every player on its half of the arena, however many (nobody when the half is
+  empty, UNVERIFIED). Each player's monitor hits 2 random players on its side (`CharacterFind.OnSideN`, as P5
+  does), filling up with random others when fewer stand there. Bots aim theirs by turning after they arrive.
+  The run starts at Critical Error's cast, as the fight's lead-in does: bots stack west of Omega, line up on the
+  west arc once it resolves, and hold the line until the monitors appear at 19.4s. With Automarkers On its strat
+  marks at 19.5s: Bind 1-3 on the monitor players and Attack 1-5 on the rest, each in line-up order.
 
 ## TOP P4
 `Scenarios/Top/P4BlueScreen/` in the `TopZone.P4` phase, which keeps P3's weather and BGM 950. Its ids are in
 `TopP4Constants.cs` (it reuses P3's Omega and Wave Repeater ids); unmeasured values and rules are marked
 UNVERIFIED there and in the scenario.
 - The run starts 3s before Omega's Wave Cannon cast and ends after the last Wave Repeater ring; the Blue Screen
-  enrage isn't played. Three rounds: each aims a line from the centre at every player, fires the beams down
-  those fixed lines 0.6s later, resolves the repeats 5.3s after the aim, then the two line stacks toward their
-  marked players; Wave Repeater rings run through rounds 2 and 3. The repeats cast from the aim, but their orange
-  lines only flash, 4.4-4.8s into the cast (`P4Duration.RepeatOmenDelay`, UNVERIFIED; past 4.55s a pause would
-  hide them).
+  enrage isn't played. Three rounds: each aims a line from the centre at every player; just after, each player's
+  beam fires from the centre toward where that player stands then, so it can leave the aimed line; the repeats
+  resolve down the aimed lines 5.3s after the aim, then the two line stacks toward their marked players; Wave
+  Repeater rings run through rounds 2 and 3. In the fight the beams fire 0.53-0.54s after the aim in every round;
+  the sim aims round 1 at 8.0s, 0.08s early, and fires its beams at 8.6s. Rounds 2 and 3 are timed from one pull:
+  aims at 18.28 and 28.53s, each landing with one of Omega's visuals (32534, then 31619 with the second Wave
+  Repeater's cast), beams at 18.82 and 29.06s, line stacks at 23.71 and 33.96s, the second Wave Repeater's rings at
+  35.65, 37.7 and 39.75s. The repeats cast from the aim, but their orange lines only flash, 4.4-4.8s into the cast
+  (`P4Duration.RepeatOmenDelay`, UNVERIFIED; past 4.55s a pause would hide them).
 - Every mistake kills on the spot with a reason: two beams or a repeat line, both line stacks, a line stack with
   fewer than 4 unless only tanks are in it (UNVERIFIED), a ring band, or the arena edge. A player dead since the
   aim fires no beam, and a dead marker fires no line stack.
@@ -434,9 +501,10 @@ Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pas
 - With Automarkers On both strats mark at 10.5s, just after the Hello World debuffs land: a Triangle on Near
   World and a Cross (the + marker) on Distant World.
 - The forced-band flags, Automarkers and the eye's `EffectIndex` travel in `TopP5DeltaAiReplayStateMessage`, so
-  a peer's replay decides the same way. Upstream's unreleased `4bb8b6c` removes that replay layer: drop those
-  fields with it, and rework the tests that read `LastState`.
-- UNVERIFIED: the 10y tether break distance (P3 uses 12 / 9; the 13y stretch pops under both), the Swivel
+  a peer's replay decides the same way. Upstream's `4bb8b6c`, on its `mp-host-driven-bots` branch and not on
+  `master`, removes that replay layer: if a release brings it, drop those fields with it, and rework the tests that
+  read `LastState`.
+- UNVERIFIED: the 10y tether break distance (P3 uses 9 both ways; the 13y stretch pops under both), the Swivel
   Cannon's apex on the beetle, and Omega-M's facing relative to the eye. Omega-M keeps its absolute facings for
   every eye (north at spawn, south at 28.2s, north at 54s), and no mechanic reads them.
 - No source gives these spots, in the eye frame as `TopP5DeltaLpduAi` writes them: the unsafe inner green's wait

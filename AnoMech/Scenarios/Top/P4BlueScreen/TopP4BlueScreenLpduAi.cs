@@ -36,12 +36,12 @@ public class TopP4BlueScreenLpduAi : IScenarioAi<TopP4BlueScreenState>
         ai.Move(0.5f, () => EveryoneOnTheirRow(QuickmarchRadius));
         ai.Move(8.7f, () => LightPartiesOnTheirStackSpot(0, OuterStackRadius, OuterStackDegreesFromSouth));
         ai.Move(13.7f, () => EveryoneOnTheirRow(QuickmarchRadius));
-        ai.Move(18.6f, () => EveryoneOnTheirRow(StepInRadius));
-        ai.Move(19.2f, () => LightPartiesOnTheirStackSpot(1, InnerStackRadius, InnerStackDegreesFromSouth));
-        ai.Move(23.5f, () => EveryoneOnTheirRow(QuickmarchRadius));
-        ai.Move(28.7f, () => LightPartiesOnTheirStackSpot(2, OuterStackRadius, OuterStackDegreesFromSouth));
-        ai.Move(35.3f, () => LightPartiesOnTheirStackSpot(2, FinalStepInRadius, OuterStackDegreesFromSouth));
-        ai.Move(39.3f, () => EveryoneOnTheirRow(UptimeRadius));
+        ai.Move(18.92f, () => EveryoneOnTheirRow(StepInRadius));
+        ai.Move(19.52f, () => LightPartiesOnTheirStackSpot(1, InnerStackRadius, InnerStackDegreesFromSouth));
+        ai.Move(23.81f, () => EveryoneOnTheirRow(QuickmarchRadius));
+        ai.Move(29.16f, () => LightPartiesOnTheirStackSpot(2, OuterStackRadius, OuterStackDegreesFromSouth));
+        ai.Move(35.75f, () => LightPartiesOnTheirStackSpot(2, FinalStepInRadius, OuterStackDegreesFromSouth));
+        ai.Move(39.85f, () => EveryoneOnTheirRow(UptimeRadius));
     }
 
     private static IAiMove EveryoneOnTheirRow(float radius)

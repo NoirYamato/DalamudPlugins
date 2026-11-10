@@ -19,9 +19,13 @@ public sealed class TopP3IntermissionState
 
     public Automarkers Automarkers { get; }
 
-    // Arm bearings, degrees clockwise from north. UNVERIFIED: the hexagon is assumed never to turn.
+    // Arm bearings, degrees clockwise from north; the hexagon never turns.
     public IReadOnlyList<float> FirstSetBearings => FirstArms == FirstArms.NorthTriangle ? NorthTriangle : SouthTriangle;
     public IReadOnlyList<float> SecondSetBearings => FirstArms == FirstArms.NorthTriangle ? SouthTriangle : NorthTriangle;
+
+    // The three left arms' bearings; the other three are right arms, so a set can be all one kind. Both kinds cast
+    // the same Colossal Blow; the kind only changes how an arm looks and warps in.
+    public IReadOnlyList<float> LeftArmBearings { get; }
 
     private static readonly float[] NorthTriangle = [0f, 120f, 240f];
     private static readonly float[] SouthTriangle = [60f, 180f, 300f];
@@ -30,9 +34,10 @@ public sealed class TopP3IntermissionState
     {
         // Every roll is drawn whether or not it is overridden, so pinning one leaves the others as
         // the seed had them. The arms are drawn first because a pinned debuff seat adds draws.
-        // UNVERIFIED: even odds.
+        // UNVERIFIED: even odds, for which set goes first and for which spots get the left arms.
         var firstArms = rng.NextObj(FirstArms.NorthTriangle, FirstArms.SouthTriangle);
         FirstArms = overrides.FirstArms ?? firstArms;
+        LeftArmBearings = rng.Shuffle(NorthTriangle.Concat(SouthTriangle)).Take(NorthTriangle.Length).Order().ToList();
 
         var debuffs = new RoleListBuilder
         {

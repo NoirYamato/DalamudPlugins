@@ -19,7 +19,7 @@ namespace AnoMech.Tests;
 // M2+H2 (4.11,-16.11) (x east, z south).
 //
 //   9.2   fodder. 9.3: Omega starts to show; the first Wave Repeater (lands 14.3, hits at 14.0, r < 6).
-//   12.3  the first arms warp in; 15.4 the second. 15.3-30.7: the void zone, r 6.
+//   12.3  the first arms warp in; 15.4 the second. 14.76-30.7: the void zone, r 6.
 //   16.4 / 18.4 / 20.4  rings 6-12, 12-18, 18-24. 17.4: the second Wave Repeater (hits 22.1).
 //   24.5 / 26.6 / 28.7  its rings. 26.1 / 28.6: each set's Colossal Blows hit, r 11.
 //   28.3  the Sniper Cannons. 32.3: Omega turns targetable and the run ends.
@@ -99,7 +99,7 @@ public class TopP3IntermissionScenarioTests
             Assert.That(death.Role, Is.EqualTo(MainTank));
             Assert.That(death.ActionId, Is.EqualTo(TheEnvironment));
             Assert.That(death.Cause, Does.Contain("void zone"));
-            Assert.That(death.Time, Is.EqualTo(15.3f).Within(0.05f), "the zone kills from the frame it appears");
+            Assert.That(death.Time, Is.EqualTo(14.76f).Within(0.05f), "the zone kills from the frame it appears");
         });
     }
 
@@ -113,14 +113,49 @@ public class TopP3IntermissionScenarioTests
             Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, FirstArms.NorthTriangle),
             Probe = p =>
             {
-                foreach (var at in new[] { 15.2f, 15.4f, 30.6f, 30.8f })
+                foreach (var at in new[] { 14.7f, 14.8f, 30.6f, 30.8f })
                     if (p.Crossed(at))
                         shown[at] = p.World.Children.OfType<SimEventObject>().Any(o => o.EObjRowId == P3EObjId.VoidZone && o.IsAlive);
             },
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(shown, Is.EqualTo(new Dictionary<float, bool> { [15.2f] = false, [15.4f] = true, [30.6f] = true, [30.8f] = false }));
+        Assert.That(shown, Is.EqualTo(new Dictionary<float, bool> { [14.7f] = false, [14.8f] = true, [30.6f] = true, [30.8f] = false }));
+    }
+
+    // Both kinds of fodder land at 9.2 and run 19s, out 0.1s before both kinds of cannon go off at 28.3.
+    [Test]
+    public void TheFodderRunsOutJustBeforeTheCannons()
+    {
+        var remaining = new Dictionary<float, (float? Spread, float? Stack)>();
+        var cannons = new List<(string Id, float At)>();
+        var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 28.6f,
+            Overrides = o => TopP3IntermissionLpduAiTests.Pin((TopP3IntermissionStateOverrides)o, FirstArms.NorthTriangle),
+            Probe = p =>
+            {
+                foreach (var at in new[] { 9.3f, 28.25f })
+                    if (p.Crossed(at))
+                        remaining[at] = (p.Member(PhysRangedDps)!.FindStatus(P3StatusId.SniperCannonFodder)?.RemainingTime,
+                                         p.Member(MeleeDpsA)!.FindStatus(P3StatusId.HighPoweredSniperCannonFodder)?.RemainingTime);
+                if (p.Crossed(28.5f))
+                    cannons.AddRange(p.Fake.Timeline.Rows
+                                      .Where(r => r["kind"] == "ability" && (r["id"] == $"{ActionId.SniperCannon}" || r["id"] == $"{ActionId.HighPoweredSniperCannon}"))
+                                      .Select(r => (r["id"], float.Parse(r["t"], CultureInfo.InvariantCulture))));
+            },
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(remaining[9.3f].Spread, Is.EqualTo(18.9f).Within(0.05f), "R1's spread fodder just after it lands");
+            Assert.That(remaining[9.3f].Stack, Is.EqualTo(18.9f).Within(0.05f), "M1's stack fodder just after it lands");
+            Assert.That(remaining[28.25f], Is.EqualTo(((float?)null, (float?)null)), "the fodder just before the cannons");
+            Assert.That(cannons.Select(c => c.Id).Distinct(), Is.EquivalentTo(new[] { $"{ActionId.SniperCannon}", $"{ActionId.HighPoweredSniperCannon}" }));
+            Assert.That(cannons.Select(c => c.At), Has.All.EqualTo(28.3f).Within(0.05f), "the cannons");
+        });
     }
 
     // MT steps 2.9 y from R1: each stands in the other's spread as well as their own.
@@ -207,6 +242,46 @@ public class TopP3IntermissionScenarioTests
             Assert.That(BearingsAt(blows, bearings, 24.4f), Is.EqualTo(first).Within(0.01f), "blows at 24.4");
             Assert.That(BearingsAt(blows, bearings, 26.9f), Is.EqualTo(second).Within(0.01f), "blows at 26.9");
         });
+    }
+
+    // Three arms of each kind, wherever the roll puts them: a left arm warps in with warp_end2, a right one with warp_end.
+    [Test]
+    public void EachArmWarpsInAsItsKind()
+    {
+        var leftArmSpots = new HashSet<string>();
+        foreach (var seed in Enumerable.Range(1, 8))
+        {
+            var kinds = new Dictionary<string, (uint BNpcBaseId, float Bearing)>();
+            var warps = new List<Dictionary<string, string>>();
+            var run = ScenarioRun.Execute(typeof(TopP3IntermissionScenario), 0, seed, new ScenarioRunOptions
+            {
+                PlayerRole = MainTank,
+                StopAt = 15.7f,
+                Probe = p =>
+                {
+                    if (!p.Crossed(15.6f)) return;
+                    foreach (var arm in Arms(p))
+                        kinds[arm.EntityId.ToString("X8")] = (arm.BNpcBaseId, Bearing(arm.Position));
+                    warps.AddRange(p.Fake.Timeline.Rows.Where(r => r["kind"] == "ac" && r["id"] == "0x197" && kinds.ContainsKey(r["actor"])));
+                },
+            });
+
+            Assert.That(run.Passed, run.ToString);
+            var left = kinds.Values.Where(k => k.BNpcBaseId == BNpcBaseId.LeftArmUnit).Select(k => k.Bearing).Order().ToList();
+            Assert.Multiple(() =>
+            {
+                Assert.That(left, Has.Count.EqualTo(3), $"seed {seed}: left arms");
+                Assert.That(kinds.Values.Count(k => k.BNpcBaseId == BNpcBaseId.RightArmUnit), Is.EqualTo(3), $"seed {seed}: right arms");
+                Assert.That(warps, Has.Count.EqualTo(6), $"seed {seed}: warp-ins");
+                foreach (var warp in warps)
+                    Assert.That(warp["p"], Is.EqualTo(kinds[warp["actor"]].BNpcBaseId == BNpcBaseId.LeftArmUnit
+                                                          ? $"0x{ActionTimelineId.WarpEnd2:X}"
+                                                          : $"0x{ActionTimelineId.WarpEnd:X}"), $"seed {seed}: the arm at {kinds[warp["actor"]].Bearing}");
+            });
+            leftArmSpots.Add(string.Join(" ", left));
+        }
+
+        Assert.That(leftArmSpots, Has.Count.GreaterThan(2), string.Join("; ", leftArmSpots));
     }
 
     [Test]

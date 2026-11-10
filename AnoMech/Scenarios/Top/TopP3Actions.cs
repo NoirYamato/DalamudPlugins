@@ -33,8 +33,12 @@ public static class TopP3Actions
     // -- P3 Intermission --
     // Death reasons describe the fight, never a strat's spots. UNVERIFIED: no damage values are known, so every
     // ring and blow kills.
+
+    // The first ring. UNVERIFIED: its deaths show 0.6s after its bar. They must show before the void zone, which
+    // kills on the spot, appears in the same circle 0.76s after that bar, or the zone takes the blame.
     public static readonly EnemyAction WaveRepeater = new(P3ActionId.WaveRepeater)
     {
+        Timing = new() { DamageDelay = 0.6f },
         Effects = [Damage(Lethal)],
         DeathExplanation = "Hit by Wave Repeater in the middle",
     };

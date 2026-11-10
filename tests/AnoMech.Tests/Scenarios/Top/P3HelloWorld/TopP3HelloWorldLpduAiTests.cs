@@ -83,21 +83,23 @@ public class TopP3HelloWorldLpduAiTests
             [PhysRangedDps] = (-74, 14.2f), [CasterDps] = (74, 14.2f),
         });
 
+    // The remote pair takes its rots 1.3 inside the stacks, toward each other, so it stands 7.9 apart: its tether
+    // breaks past 9.
     [Test]
     public void PassesTheRotsInSetOne()
         => AssertPolarSpots(Direction.SW, at: 30.6f, new()
         {
-            [OffTank] = (-45, 13.7f), [MainTank] = (45, 13.7f),
-            [PhysRangedDps] = (-45, 13.7f), [CasterDps] = (45, 13.7f),
+            [OffTank] = (-45, 14f), [MainTank] = (45, 14f),
+            [PhysRangedDps] = (-45, 14f), [CasterDps] = (45, 14f),
             [ShieldHealer] = (-154, 12f), [RegenHealer] = (154, 12f),
-            [MeleeDpsB] = (-154, 12f), [MeleeDpsA] = (154, 12f),
+            [MeleeDpsB] = (-159.8f, 11.49f), [MeleeDpsA] = (159.8f, 11.49f),
         });
 
     [Test]
     public void PopsTheRemoteTetherInSetOne()
         => AssertPolarSpots(Direction.SW, at: 34f, new()
         {
-            [OffTank] = (-45, 13.7f), [MainTank] = (45, 13.7f),
+            [OffTank] = (-45, 14f), [MainTank] = (45, 14f),
             [MeleeDpsB] = (-141, 17f), [MeleeDpsA] = (149, 11.6f),
             [ShieldHealer] = (-120, 10f), [RegenHealer] = (112, 10f),
             [PhysRangedDps] = (-42, 7.7f), [CasterDps] = (49, 7.3f),
@@ -107,7 +109,7 @@ public class TopP3HelloWorldLpduAiTests
     public void PopsTheLocalTetherClearOfTheRotsInSetOne()
         => AssertPolarSpots(Direction.SW, at: 35.6f, new()
         {
-            [OffTank] = (-45, 13.7f), [MainTank] = (45, 13.7f),
+            [OffTank] = (-45, 14f), [MainTank] = (45, 14f),
             [ShieldHealer] = (-120, 10f), [RegenHealer] = (112, 10f),
             [MeleeDpsB] = (-158, 12f), [MeleeDpsA] = (165, 12f),
             [PhysRangedDps] = (-22, 7.4f), [CasterDps] = (22, 7.4f),
@@ -118,7 +120,7 @@ public class TopP3HelloWorldLpduAiTests
     public void HoldsItsSpotsUntilTheNextTowers()
         => AssertPolarSpots(Direction.SW, at: 41f, new()
         {
-            [OffTank] = (-45, 13.7f), [MainTank] = (45, 13.7f),
+            [OffTank] = (-45, 14f), [MainTank] = (45, 14f),
             [ShieldHealer] = (-120, 10f), [RegenHealer] = (112, 10f),
             [MeleeDpsB] = (-158, 12f), [MeleeDpsA] = (165, 12f),
             [PhysRangedDps] = (-22, 7.4f), [CasterDps] = (22, 7.4f),
@@ -136,6 +138,50 @@ public class TopP3HelloWorldLpduAiTests
             [CasterDps] = (-74, 14.2f), [PhysRangedDps] = (74, 14.2f),
         });
 
+    // A cardinal layout puts the towers on the intercardinals. Each pair still takes its role's two spots
+    // round the layout, one each; which member takes which is the loose spread's to decide.
+    [TestCase(0f)]
+    [TestCase(90f)]
+    [TestCase(180f)]
+    [TestCase(270f)]
+    public void TakesTheTowersRoundACardinalLayout(float layoutDegrees)
+    {
+        var layout = new Direction(layoutDegrees * MathF.PI / 180f);
+        var seen = new Dictionary<PartyRole, Vector2>();
+        var run = ScenarioRun.Execute(typeof(TopP3HelloWorldScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 28f,
+            Overrides = o => Pin((TopP3HelloWorldStateOverrides)o, layout),
+            Probe = p =>
+            {
+                if (!p.Crossed(27.9f)) return;
+                foreach (var role in PerRole.All)
+                    seen[role] = Flat(p.Member(role)!.Position);
+            },
+        });
+
+        (PartyRole[] Pair, float Degrees, float Radius)[] splits =
+        [
+            ([MainTank, OffTank], 45f, 18.1f), ([RegenHealer, ShieldHealer], 154f, 12f),
+            ([MeleeDpsA, MeleeDpsB], 166f, 11.4f), ([PhysRangedDps, CasterDps], 74f, 14.2f),
+        ];
+        Assert.That(run.Passed, run.ToString);
+        Assert.Multiple(() =>
+        {
+            foreach (var (pair, degrees, radius) in splits)
+            {
+                var left = OnLayout(layout, -degrees, radius);
+                var right = OnLayout(layout, degrees, radius);
+                var onRight = pair.Select(role => Vector2.Distance(seen[role], right) < Vector2.Distance(seen[role], left)).ToArray();
+                foreach (var (role, i) in pair.Select((role, i) => (role, i)))
+                    Assert.That(Vector2.Distance(seen[role], onRight[i] ? right : left), Is.LessThan(Tolerance),
+                                $"{role} at {seen[role]}, expected {left} or {right} (seed {run.Seed})");
+                Assert.That(onRight[0], Is.Not.EqualTo(onRight[1]), $"{pair[0]} and {pair[1]} took the same spot (seed {run.Seed})");
+            }
+        });
+    }
+
     // Set 4 roles: M1+M2 defamation, R1+R2 stack, H1+H2 remote, MT+OT local, which stands on the
     // remote spot so its tether pops the moment it goes live.
     [Test]
@@ -152,7 +198,7 @@ public class TopP3HelloWorldLpduAiTests
     public void SpreadsTheLastRotsWithoutPassingThem()
         => AssertPolarSpots(Direction.SW, at: 93.8f, new()
         {
-            [MeleeDpsB] = (-45, 13.7f), [MeleeDpsA] = (45, 13.7f),
+            [MeleeDpsB] = (-45, 14f), [MeleeDpsA] = (45, 14f),
             [PhysRangedDps] = (-137, 8.4f), [CasterDps] = (127, 9.8f),
             [ShieldHealer] = (-166, 11.4f), [RegenHealer] = (166, 11.4f),
             [OffTank] = (-165, 10.5f), [MainTank] = (165, 11.2f),
@@ -169,7 +215,7 @@ public class TopP3HelloWorldLpduAiTests
     public void WaitsForTheLastRotsToGoOff()
         => AssertPolarSpots(Direction.SW, at: 99.2f, new()
         {
-            [MeleeDpsB] = (-45, 13.7f), [MeleeDpsA] = (45, 13.7f),
+            [MeleeDpsB] = (-45, 14f), [MeleeDpsA] = (45, 14f),
             [PhysRangedDps] = (-126, 14.2f), [CasterDps] = (113, 14.3f),
             [ShieldHealer] = (-154, 14.6f), [RegenHealer] = (153, 11.9f),
             [OffTank] = (-167, 12.9f), [MainTank] = (175, 12.3f),

@@ -43,7 +43,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
     private readonly Dictionary<PartyRole, SimEnemy?> repeatHelpers = [];
     private readonly Dictionary<PartyRole, SimEnemy?> beamHelpers = [];
     private readonly List<SimEnemy?> stackHelpers = [];
-    private readonly Dictionary<PartyRole, Placement> lines = [];
+    private readonly List<PartyRole> aimedAt = [];
 
     public void Run(SimWorld worldParam, int? selectedAi)
     {
@@ -54,7 +54,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
         repeatHelpers.Clear();
         beamHelpers.Clear();
         stackHelpers.Clear();
-        lines.Clear();
+        aimedAt.Clear();
         if (selectedAi is { } idx && idx < AiStrats.Count)
             ((IScenarioAi<TopP4BlueScreenState>)AiStrats[idx]).Run(state, world);
 
@@ -68,28 +68,27 @@ public sealed class TopP4BlueScreenScenario : IScenario
         world.Events.Add(13.3f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
         world.Events.Add(13.6f, () => FireLineStacks(0));
         world.Events.Add(15.7f, () => MarkStackTargets(1));
-        // UNVERIFIED: no log times the later aims and beams; each aim is 5.3 s before its repeats resolve and its
-        // beams 0.6 s after it, as in round 1.
-        world.Events.Add(17.9f, AimEveryonesLine);
         // UNVERIFIED: whether the instant rings, beams and line stacks show anything when an invisible helper
         // casts them.
         world.Events.Add(18.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
-        world.Events.Add(18.1f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
-        world.Events.Add(18.5f, FireBeams);
+        // Aims 2 and 3 each land with one of Omega's visuals.
+        world.Events.Add(18.28f, AimEveryonesLine);
+        world.Events.Add(18.28f, () => omega?.Cast(P4ActionId.WaveCannonVisual));
+        world.Events.Add(18.82f, FireBeams);
         world.Events.Add(20.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
         world.Events.Add(22.1f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
-        world.Events.Add(23.2f, () => omega?.Cast(P4ActionId.WaveCannonVisual2));
-        world.Events.Add(23.4f, () => FireLineStacks(1));
-        world.Events.Add(25.6f, () => MarkStackTargets(2));
-        world.Events.Add(28f, AimEveryonesLine);
-        world.Events.Add(28.2f, () => ringHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
-        world.Events.Add(28.2f, () => omega?.Cast(P4ActionId.WaveCannonVisual3));
-        world.Events.Add(28.6f, FireBeams);
-        world.Events.Add(33.3f, () => omega?.Cast(P4ActionId.WaveCannonVisual4));
-        world.Events.Add(33.5f, () => FireLineStacks(2));
-        world.Events.Add(35.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
-        world.Events.Add(37.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
-        world.Events.Add(39.2f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
+        world.Events.Add(23.4f, () => omega?.Cast(P4ActionId.WaveCannonVisual2));
+        world.Events.Add(23.71f, () => FireLineStacks(1));
+        world.Events.Add(25.94f, () => MarkStackTargets(2));
+        world.Events.Add(28.53f, AimEveryonesLine);
+        world.Events.Add(28.53f, () => ringHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
+        world.Events.Add(28.53f, () => omega?.Cast(P4ActionId.WaveCannonVisual3));
+        world.Events.Add(29.06f, FireBeams);
+        world.Events.Add(33.65f, () => omega?.Cast(P4ActionId.WaveCannonVisual4));
+        world.Events.Add(33.96f, () => FireLineStacks(2));
+        world.Events.Add(35.65f, () => ringHelper?.Cast(Actions.WaveRepeaterRing2));
+        world.Events.Add(37.7f, () => ringHelper?.Cast(Actions.WaveRepeaterRing3));
+        world.Events.Add(39.75f, () => ringHelper?.Cast(Actions.WaveRepeaterRing4));
     }
 
     // Casts on an actor spawned the same frame play no animation, so everything that casts exists from the
@@ -115,7 +114,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
 
     private SimEnemy? SpawnHelper()
         => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper,
+            BNpcBaseId: OmegaHelper,
             Targetable: false,
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.InvisibleHelper,
@@ -130,37 +129,40 @@ public sealed class TopP4BlueScreenScenario : IScenario
                 stackHelpers[i]?.Cast(P4ActionId.StackMarker, target);
     }
 
-    // A directional cast at a character re-aims at it when it resolves, so each helper is turned to its
-    // player and casts at nothing. UNVERIFIED: the lines start at the centre.
+    // A directional cast at a character re-aims at it when it resolves, so each repeat's helper is turned to its
+    // player and casts at nothing: the repeats keep the aim's lines.
     private void AimEveryonesLine()
     {
-        lines.Clear();
+        aimedAt.Clear();
         foreach (var role in PerRole.All)
         {
             if (party.Get(role) is not { } member || !member.IsAlive()) continue;
-            var line = LineFromCentreTo(member.Position);
-            lines[role] = line;
-            beamHelpers[role]?.SetPosition(line);
-            repeatHelpers[role]?.SetPosition(line);
+            aimedAt.Add(role);
+            repeatHelpers[role]?.SetPosition(LineFromCentreTo(member.Position));
             repeatHelpers[role]?.Cast(Actions.WaveCannonRepeat);
         }
     }
 
-    // UNVERIFIED: the beams fire down the lines fixed at the aim, not toward where the players stand now.
-    // Every line is taken before any death, and a player who died since the aim fires nothing (in game that
-    // line lands on someone else, but the death already failed the run).
+    // Each beam fires from the centre toward where its player stands as it fires, which can be off the line aimed
+    // at it. Every line is taken before any death, and a player who died since the aim fires nothing (in game
+    // that line lands on someone else, but the death already failed the run).
     private void FireBeams()
     {
-        var firing = lines.Where(l => party.Get(l.Key).IsAlive()).ToList();
-        var hitTwice = firing.SelectMany(l => party.Find.InsideActionAoe(P4ActionId.WaveCannonBeam, l.Value))
+        var firing = aimedAt.Where(role => party.Get(role).IsAlive())
+                            .Select(role => (Role: role, Line: LineFromCentreTo(party.Get(role)!.Position)))
+                            .ToList();
+        var hitTwice = firing.SelectMany(beam => party.Find.InsideActionAoe(P4ActionId.WaveCannonBeam, beam.Line))
                              .GroupBy(m => m)
                              .Where(g => g.Count() >= 2)
                              .Select(g => g.Key)
                              .ToList();
         foreach (var member in hitTwice)
             member.Die(P4ActionId.WaveCannonBeam, TwoBeams);
-        foreach (var (role, _) in firing)
+        foreach (var (role, line) in firing)
+        {
+            beamHelpers[role]?.SetPosition(line);
             beamHelpers[role]?.Cast(Actions.WaveCannonBeam);
+        }
     }
 
     // Each line runs from the centre toward its target where it stands now. UNVERIFIED: every rule below; the

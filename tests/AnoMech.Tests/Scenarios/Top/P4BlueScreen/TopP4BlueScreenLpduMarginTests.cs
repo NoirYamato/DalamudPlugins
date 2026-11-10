@@ -26,12 +26,12 @@ public class TopP4BlueScreenLpduMarginTests
     // A bot lands anywhere within AiManager's default jitter of its spot; the design's table is rounded to 0.01.
     private const float Jitter = 0.3f, Rounding = 0.02f;
 
-    private static readonly float[] AimsAt = [8.0f, 17.9f, 28.0f];
-    private static readonly float[] BeamsAt = [8.6f, 18.5f, 28.6f];
-    private static readonly float[] RepeatsAt = [13.0f, 22.9f, 33.0f];
-    private static readonly float[] StacksAt = [13.6f, 23.4f, 33.5f];
-    private const float Ring1At = 15.7f, Ring2At = 18.1f, Ring3At = 20.1f, Ring4At = 22.1f, Ring5At = 32.9f, Ring6At = 35.2f,
-                        Ring7At = 37.2f, Ring8At = 39.2f;
+    private static readonly float[] AimsAt = [8.0f, 18.28f, 28.53f];
+    private static readonly float[] BeamsAt = [8.6f, 18.82f, 29.06f];
+    private static readonly float[] RepeatsAt = [13.0f, 23.28f, 33.53f];
+    private static readonly float[] StacksAt = [13.6f, 23.71f, 33.96f];
+    private const float Ring1At = 15.7f, Ring2At = 18.1f, Ring3At = 20.1f, Ring4At = 22.1f, Ring5At = 33.23f, Ring6At = 35.65f,
+                        Ring7At = 37.7f, Ring8At = 39.75f;
 
     // The design's clearance table, less the jitter each check can lose: one bot's against a fixed hit, two
     // against a line aimed at another bot. A clump's own stack line runs through its jittered marker, so the

@@ -320,7 +320,7 @@ public class TopP3IntermissionLpduHumanTests
             if (!me.IsAlive()) return;
             var at = Flat(me!.Position);
             var r = at.Length();
-            if (p.Time is >= 15.3f and < 30.7f) Note("void zone", r - P3Geometry.VoidZoneRadius);
+            if (p.Time is >= 14.76f and < 30.7f) Note("void zone", r - P3Geometry.VoidZoneRadius);
             foreach (var (time, name, inner, outer) in Rings)
                 if (p.Crossed(time)) Note(name, MathF.Max(inner - r, r - outer));
             if (p.Crossed(26.1f)) Note("set 1 blows", NearestArm(at, firstSet) - BlowRadius);
