@@ -188,6 +188,17 @@ internal sealed record TopP6GauntletHumanSeatRun(
         Assert.That(G(Run.Deaths[0].Time), Is.EqualTo(at).Within(Within), why);
     }
 
+    // The human first, at G `at`, for `cause`, by the enrage's own rule; then, Alpha Omega still standing, everyone else
+    // as Run: ****mi*'s damage lands at 262.0, inside the 5 s before a death freezes the run.
+    public void AssertTheHumanDiedThenRunMiKilledTheRest(float at, string cause)
+    {
+        var why = () => $"{Run}{Environment.NewLine}presses: {Describe(Presses)}";
+        var runMi = $"Run: ****mi* ({TopP6AlphaOmega.RunMiLanded})";
+        Assert.That(Run.Deaths.Select(d => (d.Role, d.Cause)),
+                    Is.EqualTo(new[] { (Seat.Seat, cause) }.Concat(PerRole.All.Where(r => r != Seat.Seat).Select(r => (r, runMi)))), why);
+        Assert.That(Run.Deaths.Select(d => G(d.Time)), Is.EqualTo(new[] { at }.Concat(Enumerable.Repeat(262.0f, 7))).Within(Within), why);
+    }
+
     public static string Describe(IEnumerable<TopP6LimitBreakPress> presses)
         => string.Join("; ", presses.Select(p =>
             $"{p.Seat}{(p.ByHuman ? " (human)" : "")} {p.ActionId} LB{p.Level} from {p.CastStartedAt:F2}"

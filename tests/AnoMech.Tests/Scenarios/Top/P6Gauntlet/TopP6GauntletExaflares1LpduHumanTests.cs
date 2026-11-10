@@ -25,8 +25,10 @@ namespace AnoMech.Tests;
 //   the first exaflare's explosion 8 y out: on to its point; the fourth and the fifth puddles: on to the next point,
 //   once at the last one; the sixth puddles: in to r 4 on its waymark; their blast: out to its Wave Cannon spot;
 //   the second lasers: its place in the Wild Charge's line; the Wild Charge: its spot for the autos.
-// Whatever its seat, the exaflares, their step, its walk and its reaction time, nobody may die, and the human keeps the
-// slack the margin tests ask of the bots from every hit it dodges.
+// A human tank also presses its own LPDU set for the front of the line on the second lasers, as late (the warrior main
+// tank Holmgang, the paladin off-tank Sentinel and Holy Sheltron), with "Resolve your own actions" on, so its mitigation
+// is checked. Whatever its seat, the exaflares, their step, its walk and its reaction time, nobody may die, and the human
+// keeps the slack the margin tests ask of the bots from every hit it dodges.
 public class TopP6GauntletExaflares1LpduHumanTests
 {
     private static readonly float[] Steps = [1.1f, 1.0f];
@@ -94,6 +96,7 @@ public class TopP6GauntletExaflares1LpduHumanTests
             run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), LpduStrat, roll.Seed, new ScenarioRunOptions
             {
                 PlayerRole = roll.Seat,
+                UserActionsEnabled = true,
                 Overrides = o => Pin((TopP6GauntletStateOverrides)o, roll.First, roll.Clockwise, roll.Step),
                 Takeovers = [new Takeover(0f, null)],
                 Probe = p =>
@@ -112,6 +115,8 @@ public class TopP6GauntletExaflares1LpduHumanTests
         problems.AddRange(guide.Problems);
         if (run.Passed && guide.Walks < guide.Legs)
             problems.Add($"the human set off on {guide.Walks} of its {guide.Legs} walks");
+        if (roll.Seat.IsTank() && !guide.Mitigated)
+            problems.Add("the human tank never pressed its own set for the front of the Wild Charge");
         return problems.Select(problem => $"{roll} ({delay:F1}s late): {problem}").ToList();
     }
 
@@ -124,6 +129,7 @@ public class TopP6GauntletExaflares1LpduHumanTests
         public readonly List<string> Problems = [];
         public int Legs { get; private set; }
         public int Walks { get; private set; }
+        public bool Mitigated { get; private set; }
 
         private readonly Random rng = new(roll.Seed);
         private readonly Queue<(float Depart, Func<Vector2> To, bool AfterTheLast)> legs = new();
@@ -132,6 +138,7 @@ public class TopP6GauntletExaflares1LpduHumanTests
         private readonly List<(float Dropped, Vector2 At)> puddles = [];
         private int rowsRead, puddleSets, puddleBlasts, laserSets;
         private float lastPuddleSet = float.NegativeInfinity, lastPuddleBlast = float.NegativeInfinity, lastLasers = float.NegativeInfinity;
+        private float? mitigateAt;
         private bool started, inTheMiddle, followedTheFirst;
 
         private float ArrowTurn => MathF.Sign(Cross(arrows[0].At, arrows[1].At));
@@ -157,6 +164,12 @@ public class TopP6GauntletExaflares1LpduHumanTests
             {
                 inTheMiddle = true;
                 Queue(arrows[1].Shown, () => Vector2.Zero);
+            }
+            if (mitigateAt is { } mitigate && p.Time >= mitigate)
+            {
+                mitigateAt = null;
+                Mitigated = true;
+                TopP6HumanMitigation.PressTheSeatsLpduSetNow(p.World, roll.Seat, TopP6TankHit.WildCharge1);
             }
             Advance(p, me);
         }
@@ -190,6 +203,7 @@ public class TopP6GauntletExaflares1LpduHumanTests
                         break;
                     case ("ability", ActionId.WaveCannonProtean) when FirstOfARound(ref lastLasers, t) && ++laserSets == 2:
                         Queue(t, () => WildChargeLine[roll.Seat]);
+                        if (roll.Seat.IsTank()) mitigateAt = t + late;
                         break;
                     case ("ability", ActionId.WaveCannonWildCharge):
                         Queue(t, () => AutoSpots[roll.Seat]);

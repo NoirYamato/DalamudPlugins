@@ -42,6 +42,10 @@ NoirMech change:
     `TopActions.cs`), `TopP6Mechanics.cs` (Alpha Omega and the attacks it plays), `TopP6LimitBreaks.cs` (a run's
     limit breaks and their gauge), `TopP6LpduAi.cs` (strat pieces) and `TopP6UnlimitedWaveCannonRows.cs` (settings
     rows);
+  - a human tank's own mitigation at Cosmo Dive and Wild Charge, asked only of a tank's job (below): Cosmo Dive calls
+    upstream's `DamageCheck.LethalCause`, and `TopP6Actions.WildCharge` copies upstream's Wild Charge effects (and
+    `TopActions`' private `MagicVulns`) with a `MinMit` on its front hit, wrapping upstream's Wild Charge split in a
+    `Distribution` of its own that drops the `MinMit` for a player on another job;
   - new Core pieces: `SpawnedHelperPool`, `HelperCast`, `ExaflareLane`, `BaitedPuddles` and `Verdicts` in
     `Core/Game/`, `PartyLimitBreakCast` in `Core/Game/Party/`, and `EnemyActionTimes` in `Core/EnemyActions/`;
   - one check in upstream's `RunController.StartRefusal`: a local Start is refused, with the reason, while the
@@ -372,26 +376,51 @@ multiplayer.
     everyone.
   - Either enrage's reason says how many of its adds the human's own LB3s caught in all, once one went off while they
     showed.
-  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends while Run: ****mi*'s is up, 232.0 to 247.7
-    (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is heard a frame or two
-    later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise its damage kills everyone at 262.0. One
-    started up to a cast before the bar counts, one landing before it is wasted, and one the bar's own frame settled
-    before Run: ****mi* listens is counted as it starts listening. Whether the gauge was short is read as the bar ends.
+  - The enrage: a melee LB3 on Alpha Omega whose own cast bar ends from Run: ****mi*'s cast start until before its
+    damage, 232.0 to 262.0 (`TopP6LimitBreakPress.LandsAMeleeLimitBreak3On`, by `LandsAt`, since the human's resolve is
+    heard a frame or two later), defeats Alpha Omega once it resolves (`SimEnemy.Defeat`); otherwise the damage kills
+    everyone at 262.0. The "Carry the Clear" TOP healing plan has top groups killing it from the bar's end (247.7)
+    until just before the damage (5:08 to 5:22 on its P6 timer). One started up to a cast before the cast counts, one
+    landing before it is wasted, one landing as the damage does or later is too late, and one the cast's own frame
+    settled before Run: ****mi* listens is counted as it starts listening. The damage waits up to 0.25s for the resolve
+    of a human's that landed before it. It is queued only if Alpha Omega still stands as the bar ends, so a run that
+    finishes it in the cast ends without waiting it out. Whether the gauge was short is read as the damage lands, when
+    the strat's press gives up.
   - Melee (the user's rule, the human only): for each of its duties the human's melee LB3 must start in the window,
     aim at Alpha Omega and land, or the human dies as the window closes, or as the cast is cut off if that is later.
     The first: from Cosmo Dive 2's bar end (149.8) to 161.0; the second: from the first's landing to 165.5. The
     enrage's (`TopP6MeleeWindow.LandsBy`) counts the presses that defeat Alpha Omega, by the same call: started 227.5
-    to 243.2, landing while the bar is up. A press landing before the bar is wasted, so the window kills at 243.2 and
-    Run: ****mi* then wipes. The bar's end is the Gauntlet's cut-off (the fight's is the damage). A window remembers its
-    target's id, since Alpha Omega despawns 9.7s after falling, which can be before the enrage's window closes. Bots'
-    melee LB3s aren't held to windows.
+    to 257.5 (the damage less the 4.5s cast), landing from the cast's start until before the damage. A press landing
+    before the cast is wasted, so the window kills at 257.5 and the damage then kills the rest at 262.0, inside the 5s
+    before a death freezes the run. A window remembers its target's id, since Alpha Omega despawns 9.7s after falling,
+    which can be before the enrage's window closes. An open window keeps the run going only until it is filled, looking
+    every second, so a run that fills the enrage's early still ends about 9.7s after Alpha Omega falls, as its other
+    events do. Bots' melee LB3s aren't held to windows.
   - Death reasons state the fight's rule or the Gauntlet's, never a strat spot.
+- A human tank's own mitigation is checked under each Cosmo Dive buster (39.4, 152.5) and at the front of each Wild
+  Charge (84.4, 118.3) as an EnemyAction's `MinMit` checks it: the human's alone (bots and a debug-driven player always
+  pass), only with "Require tank mitigation" and "Resolve your own actions" on, and the shields it counted are spent.
+  Only a human on a tank's job (WAR, DRK, PLD or GNB, as its client has it) is held to it: one the Role setting seats
+  in a tank seat on another job has none of a tank's cooldowns and passes, as a bot does, just as
+  `TopP6GauntletLimitBreakPlan` holds it to none of its seat's limit breaks (`HumanFits`). Its seat's spots still
+  count, and a non-tank seat in Wild Charge's front two dies whatever its job. In `Mitigation.Effective`'s terms,
+  against the hits' magic damage, a buster needs 0.38 and the front 0.45 (`P6Rules`, UNVERIFIED: the sim has no damage
+  data). LPDU's TOP mitigation sheet gives each tank a personal set at each hit, and every one reaches at least 0.388
+  and 0.49 (an invuln 1), while Rampart and one short cooldown reaches 0.28 to 0.36, or up to 0.42 inside the 4s of
+  Stem the Flow, Clarity of Corundum or Knight's Resolve, which passes a buster only. Cosmo Dive's bar ends 2.4s before
+  its busters, inside those 4s, so a warrior, gunbreaker or paladin pressing Rampart and its short cooldown as the bar
+  ends lives through its buster; only a dark knight, or a short cooldown pressed over 4s ahead, needs more there. Cosmo
+  Dive decides it in `LandCosmoDive` through `DamageCheck.LethalCause`, last of its `Verdicts`, so a tank in the wrong
+  spot hears of its spot; Wild Charge through its front hit's `TankBuster.MinMit`, which the engine asks of the human
+  whatever its job, so `TopP6Actions`' `MinMitOnTankJobsOnly` drops it for a player on another job. Both read the job
+  through `TopP6AlphaOmega.OnATankJob`. Limit breaks count whatever the setting says, as the settings' Limit breaks
+  tooltip tells.
 - Every other mistake also kills on the spot with a reason. Exaflares, puddles, the bait, exasquares, lasers and Wild
   Charge kill through their actions. The rest is decided in code from where everyone stands as the hits land, those
   actions only showing them: Flash Gale (a non-tank target, or within 5y of one), Cosmo Dive (a non-tank buster
-  target, within 8y of one, one in the stack, a stack under 6), the meteor spreads (in another's, or one's own while
-  still vulnerable), and the flares and stack (within 20y of a flare, a flare in the stack, a stack under 5).
-  `Verdicts` keeps each player's first reason.
+  target, within 8y of one, one in the stack, a stack under 6, then a human tank's mitigation), the meteor spreads (in
+  another's, or one's own while still vulnerable), and the flares and stack (within 20y of a flare, a flare in the
+  stack, a stack under 5). `Verdicts` keeps each player's first reason.
 - The Gauntlet always needs limit breaks. It refuses to start with "Resolve your own actions" off (a
   `SettingsConflicts` entry, which greys out Start with the reason as its tooltip and shows in red atop its
   settings): only that module plays the human's own limit break in the sim. A headless run the debug driver walks is
@@ -414,7 +443,8 @@ multiplayer.
   its 8.1s marker and when the markers show, the meteor stack's 5, the spreads' 3s vulnerability, Cosmo Dive taking
   its targets as it hits, both adds' enrages and 31669 from both kinds, the tank LB3's 1.0s and its status's 8s
   (upstream's `JobActions`; the game's tooltip says 12s), the mark's 1.3s and 6s, Run: ****mi*'s damage 30s after its
-  cast, the gauge's rebuild and the human's melee windows. In `TopP6LimitBreaks`: the client's current-target
+  cast (consistent with the healing plan's kill times, but unmeasured), the gauge's rebuild, the human's melee windows
+  and the tank mitigation a buster and Wild Charge's front need. In `TopP6LimitBreaks`: the client's current-target
   stand-in, and that the client fills its own cast's ground point, within the sheet's 25y plus a yalm. In the State,
   the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's (the sources call those
   random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait, Flash Gale, Cosmo Dive, the
@@ -433,8 +463,12 @@ multiplayer.
   - the bots' press times above, and the autos' spots for both Magic Numbers and the enrage.
 - Change bot movement only with that part's `TopP6Gauntlet<Part>LpduHumanTests` and `LpduMarginTests` green, and
   `TopP6GauntletMagicNumberLpduHumanTests` for the Magic Number part. The human suites press the seat's own limit
-  breaks at the guides' cues. Change the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each
-  seat with each of its role's jobs, pressed right, late, never, twice, at another seat's duty, at the wrong level,
-  cut off, with the rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere
-  while another seat's limit break casts, as the client greys the human's out. The soak filter is
+  breaks at the guides' cues and, with "Resolve your own actions" on, a human tank's own LPDU set before its Cosmo Dive
+  or Wild Charge (`TopP6HumanMitigation`). Change the tank mitigation only with `TopP6TankMitigationTests` green: each
+  job's sets, Rampart and its short cooldown pressed early and as Cosmo Dive's bar ends, an invuln, the setting or the
+  module off, godmode, a bot tank, a human on another job in a tank seat through every hit, and a non-tank seat at Wild
+  Charge's front. Change the limit breaks only with the `TopP6GauntletLimitBreak*Tests` green: each seat with each of
+  its role's jobs, pressed right, late, never, twice, at another seat's duty, at the wrong level, cut off, with the
+  rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere while another seat's
+  limit break casts, as the client greys the human's out. The soak filter is
   `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.

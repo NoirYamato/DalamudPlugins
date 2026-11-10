@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using AnoMech.Core.EnemyActions;
+using AnoMech.Core.SimObjects;
 using static AnoMech.Core.EnemyActions.EnemyActionEffects;
 using static AnoMech.Core.EnemyActions.Severity;
 using static AnoMech.Scenarios.Top.TopConstants;
@@ -12,6 +14,12 @@ namespace AnoMech.Scenarios.Top;
 public static class TopP6Actions
 {
     private const string HitByAnExaflare = "Hit by an exaflare: each goes off on the rim, then every 8 y through the centre to the far side";
+
+    // TopActions' magic vulnerabilities, which it keeps private.
+    private static readonly VulnSpec MagicVulns = VulnSpec.None
+        .VulnerableTo(StatusId.MagicVulnerabilityUp)
+        .VulnerableTo(StatusId.VulnerabilityUp)
+        .VulnerableTo(StatusId.MagicVulnerabilityUpMini, minStacks: 2);
 
     // -- Cosmo Memory --
     // TopP6AlphaOmega decides who it kills, everyone's limit breaks counted; the action shows the hit and leaves
@@ -67,9 +75,10 @@ public static class TopP6Actions
     };
 
     // -- Wave Cannon --
-    // Upstream's lasers and Wild Charge, hits and rules unchanged, with what kills said in the fight's words. UNVERIFIED
-    // in P6: the lasers' 2.5 s vulnerability, and that Wild Charge kills everyone in its line when fewer than 8 share it
-    // and a non-tank among the two nearest Alpha Omega.
+    // Upstream's lasers and Wild Charge, hits and rules unchanged, with what kills said in the fight's words, but for Wild
+    // Charge's front two: a human tank there on a tank's job also needs P6Rules.WildChargeFrontMitigation. UNVERIFIED in
+    // P6: the lasers' 2.5 s vulnerability, and that Wild Charge kills everyone in its line when fewer than 8 share it and a
+    // non-tank among the two nearest Alpha Omega.
     public static readonly EnemyAction WaveCannonLaser = TopActions.WaveCannonProtean with
     {
         DeathExplanation = "Hit by two Wave Cannon lasers: each fires from Alpha Omega down a line through its target and leaves a vulnerability",
@@ -77,7 +86,12 @@ public static class TopP6Actions
 
     public static readonly EnemyAction WildCharge = TopActions.WaveCannonWildCharge with
     {
-        DeathExplanation = "Wild Charge's line from Alpha Omega needs all eight players in it, with the two tanks nearest Alpha Omega",
+        Effects =
+        [
+            Damage(MagicVulns, split: new MinMitOnTankJobsOnly(
+                Distribution.WildCharge(front: 2, min: 8, frontHit: TankBuster.MinMit(P6Rules.WildChargeFrontMitigation)))),
+        ],
+        DeathExplanation = "Wild Charge's line from Alpha Omega needs all eight players in it, with the two tanks nearest Alpha Omega under their big cooldowns",
     };
 
     // -- Cosmo Meteor --
@@ -105,4 +119,16 @@ public static class TopP6Actions
 
     // Cast by each add still alive at its kind's enrage; TopP6CosmoMeteor decides that everyone dies.
     public static readonly EnemyAction CosmoMeteorEnrage = new(P6ActionId.CosmoMeteorEnrage) { Effects = [Damage()] };
+
+    // `Split`, the MinMit of its hits asked only of a player on a tank's job (TopP6AlphaOmega.OnATankJob). The engine asks
+    // it of the human whatever its job, and the Role setting can seat a human on another job in a tank seat.
+    private sealed record MinMitOnTankJobsOnly(Distribution Split) : Distribution
+    {
+        internal override (Hit? Hit, string? Reason) Assign(EnemyActionContext ctx, IReadOnlyList<SimCharacter> hits, int index, SimCharacter target)
+        {
+            var (hit, reason) = Split.Assign(ctx, hits, index, target);
+            if (hit is null || TopP6AlphaOmega.OnATankJob(target)) return (hit, reason);
+            return (hit with { Severity = hit.Severity with { MinMitigation = 0f } }, reason);
+        }
+    }
 }

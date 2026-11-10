@@ -27,9 +27,11 @@ namespace AnoMech.Tests;
 //   second melee to the middle and the MT back a step to make room for it.
 // A melee presses its own limit break 3 on Alpha Omega as its client does: the first melee as Cosmo Dive's bar ends, on
 // the hold; the second once in the middle and the first's has landed. It stands still through the 4.5 s cast; a walk
-// cued meanwhile sets off as the cast ends. Whatever its seat, the roll, the exaflares' step, its reaction time and its
-// walk, nobody may die, the bots hold their spots at the dive, and the human keeps the slack the margin tests ask of the
-// bots from every hit it dodges.
+// cued meanwhile sets off as the cast ends. A tank presses its own LPDU set for its buster as Cosmo Dive's bar ends, as
+// late (the warrior main tank Rampart, Thrill of Battle and Bloodwhetting, the paladin off-tank Rampart, Bulwark and Holy
+// Sheltron), with "Resolve your own actions" on, so its mitigation is checked. Whatever its seat, the roll, the
+// exaflares' step, its reaction time and its walk, nobody may die, the bots hold their spots at the dive, and the human
+// keeps the slack the margin tests ask of the bots from every hit it dodges.
 public class TopP6GauntletExaflares2LpduHumanTests
 {
     // The way out of the middle is the tight one: leave before about 12.5 and the second puddles drop where the start
@@ -78,6 +80,7 @@ public class TopP6GauntletExaflares2LpduHumanTests
             run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), LpduStrat, seed, new ScenarioRunOptions
             {
                 PlayerRole = seat,
+                UserActionsEnabled = true,
                 Overrides = o => Pin((TopP6GauntletStateOverrides)o, first, clockwise, step),
                 Takeovers = [new Takeover(0f, null)],
                 Probe = p =>
@@ -100,6 +103,8 @@ public class TopP6GauntletExaflares2LpduHumanTests
             problems.Add($"the human set off on {guide.Walks} of its {guide.Legs} walks");
         if (guide.Duty is { } duty && guide.PressedAt is null)
             problems.Add($"the human never pressed its {duty} limit break 3");
+        if (seat.IsTank() && !guide.Mitigated)
+            problems.Add("the human tank never pressed its own set for its buster");
         return problems.Select(problem => $"{seat}, first {first}, clockwise {clockwise} ({walk}, {step:F1}s step, {delay:F1}s late, seed {seed}): {problem}")
                        .ToList();
     }
@@ -131,6 +136,7 @@ public class TopP6GauntletExaflares2LpduHumanTests
         public int Walks { get; private set; }
         public TopP6LimitBreakDuty? Duty { get; private set; }
         public float? PressedAt { get; private set; }
+        public bool Mitigated { get; private set; }
 
         private readonly Random rng = new(seed);
         private (Func<float?> Cue, Func<Vector2> To)[]? route;
@@ -155,7 +161,16 @@ public class TopP6GauntletExaflares2LpduHumanTests
             ReadThePlan(p);
             ReadTheTimeline(p);
             PressOnTheCue(p);
+            MitigateOnTheCue(p);
             Advance(p, me);
+        }
+
+        // A tank's own set for its buster, as the dive's bar ends.
+        private void MitigateOnTheCue(ScenarioProbe p)
+        {
+            if (!seat.IsTank() || Mitigated || diveBarEnded is not { } ended || p.Time < ended + late) return;
+            Mitigated = true;
+            TopP6HumanMitigation.PressTheSeatsLpduSetNow(p.World, seat, TopP6TankHit.CosmoDive2);
         }
 
         private void ReadThePlan(ScenarioProbe p)

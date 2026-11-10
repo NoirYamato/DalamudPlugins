@@ -232,7 +232,7 @@ public sealed class TopP6GauntletLpduAi : IScenarioAi<TopP6GauntletState>
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber1Healer, start + ASecondAfterMagicNumber1sMark, start + MagicNumber1sMarkRunsOut);
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber2Tank, start + EarlyInMagicNumber2, start + MagicNumber2Decides);
         PressOnceTheGaugeAllows(TopP6LimitBreakDuty.MagicNumber2Healer, start + ASecondAfterMagicNumber2sMark, start + MagicNumber2sMarkRunsOut);
-        PressOnceTheGaugeAllows(TopP6LimitBreakDuty.Enrage, start + EarlyInRunMi, TopP6AlphaOmega.RunMiFinishedBy(start + RunMiCast));
+        PressOnceTheGaugeAllows(TopP6LimitBreakDuty.Enrage, start + EarlyInRunMi, TopP6AlphaOmega.RunMiLandsAt(start + RunMiCast));
     }
 
     private void PressOnceTheGaugeAllows(TopP6LimitBreakDuty duty, float at, float givingUpAfter)

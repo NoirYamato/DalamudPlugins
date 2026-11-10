@@ -35,6 +35,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         "Stood in a Cosmo Dive buster aimed at someone else: each hits everyone within 8 y of its target";
     internal const string CosmoDiveBusterAndStack =
         "Took a Cosmo Dive buster and its stack: the two players closest to Alpha Omega must stay out of the farthest one's stack";
+    internal const string CosmoDiveBusterWithoutBigCooldowns =
+        "Took a Cosmo Dive buster without enough mitigation: each needs a tank's big cooldowns";
 
     internal static string TooFewInTheCosmoDiveStack(int count)
         => $"Cosmo Dive's stack on the player farthest from Alpha Omega had {count} in it: it needs {P6Rules.CosmoDiveStack}";
@@ -44,9 +46,12 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     internal const string MagicNumberMarkRanOut =
         "its mark kills as it runs out unless a healer's limit break 3 lands while it is on everyone";
     internal const string RunMiLanded =
-        "it kills everyone unless Alpha Omega has fallen: the Gauntlet's last melee limit break 3 finishes it, landing while the cast bar is up";
+        "it kills everyone unless Alpha Omega has fallen: the Gauntlet's last melee limit break 3 finishes it, landing after the cast starts and before this damage";
 
     private const int LasersPerSet = 4;
+
+    // The human's resolve reaches the run a frame or two after its cast bar ends.
+    private const float AHumansResolveIsHeardWithin = 0.25f;
 
     private static readonly Placement FacingNorth = new(Vector3.Zero, -MathF.PI);
 
@@ -150,20 +155,38 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         At(marksAt + P6Duration.MagicNumberMark, mark.RunOut, file, line);
     }
 
-    // Run: ****mi*, the enrage. A melee limit break 3 on Alpha Omega whose own cast bar ends while the enrage's is up, from
-    // castAt to RunMiFinishedBy, defeats Alpha Omega once it resolves (the human's resolve is heard a frame or two after it
-    // lands), so one started before the cast can count; otherwise its damage lands P6Duration.RunMiLands after the cast
-    // starts and kills everyone. The Gauntlet's enrage window counts the same presses (TopP6MeleeWindow.LandsBy). Whether
-    // the gauge was short is read as the bar ends, while a press that gives up then is still waiting.
+    // Run: ****mi*, the enrage. A melee limit break 3 on Alpha Omega whose own cast bar ends from castAt until before the
+    // damage (RunMiLandsAt) defeats Alpha Omega once it resolves, so one started before the cast can count; otherwise the
+    // damage kills everyone. The Gauntlet's enrage window counts the same presses (TopP6MeleeWindow.LandsBy). The human's
+    // resolve is heard a frame or two after it lands, so the damage waits a moment for one that landed before it. The
+    // damage is queued only if Alpha Omega still stands as the cast bar ends, so a run that finishes it in the cast ends
+    // without waiting it out. Whether the gauge was short is read as the damage lands, while a press that gives up then is
+    // still waiting.
     public void RunMi(float castAt, TopP6LimitBreaks limitBreaks, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
-        var finishedBy = RunMiFinishedBy(castAt);
+        var landsAt = RunMiLandsAt(castAt);
+        string? why = null;
+
+        bool Finishes(TopP6LimitBreakPress press)
+            => Enemy is { } enemy && press.LandsAMeleeLimitBreak3On((ulong)enemy.GameObjectId, castAt, landsAt);
 
         void Finish(TopP6LimitBreakPress press)
         {
-            if (press.ResolvedAt is not null && Enemy is { } enemy && enemy.IsAlive()
-                && press.LandsAMeleeLimitBreak3On((ulong)enemy.GameObjectId, castAt, finishedBy))
+            if (press.ResolvedAt is not null && Enemy is { } enemy && enemy.IsAlive() && Finishes(press))
                 enemy.Defeat();
+        }
+
+        void Land(bool waited)
+        {
+            limitBreaks.CatchUp();
+            why ??= RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
+            if (!waited && Enemy.IsAlive() && limitBreaks.Presses.Any(press => press.IsCasting && Finishes(press)))
+            {
+                world.Events.Add(AHumansResolveIsHeardWithin, () => Land(waited: true), file, line);
+                return;
+            }
+            limitBreaks.Resolved -= Finish;
+            if (Enemy.IsAlive()) world.Party.WipeAllPlayers(P6ActionId.RunMi, why);
         }
 
         // A press the cast's own frame settled before this runs is judged as one resolving after it.
@@ -174,25 +197,15 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             foreach (var press in limitBreaks.Presses.ToList()) Finish(press);
             limitBreaks.Resolved += Finish;
         }, file, line);
-        At(finishedBy, () =>
+        At(castAt + Actions.RunMi.ResolvesAfter(), () =>
         {
-            var why = RunMiLanded + (limitBreaks.StarvedOfGauge ? TopP6LimitBreaks.GaugeWasShort : "");
-            if (!Enemy.IsAlive())
-            {
-                limitBreaks.Resolved -= Finish;
-                return;
-            }
-            At(castAt + P6Duration.RunMiLands, () =>
-            {
-                limitBreaks.CatchUp();
-                limitBreaks.Resolved -= Finish;
-                if (Enemy.IsAlive()) world.Party.WipeAllPlayers(P6ActionId.RunMi, why);
-            }, file, line);
+            if (Enemy.IsAlive()) At(landsAt, () => Land(waited: false), file, line);
+            else limitBreaks.Resolved -= Finish;
         }, file, line);
     }
 
-    // When Run: ****mi* cast at `castAt` stops counting a melee limit break 3: as its cast bar ends.
-    public static float RunMiFinishedBy(float castAt) => castAt + Actions.RunMi.ResolvesAfter();
+    // When the damage of Run: ****mi* cast at `castAt` lands: a melee limit break 3 must land on Alpha Omega before it.
+    public static float RunMiLandsAt(float castAt) => castAt + P6Duration.RunMiLands;
 
     // Wave Cannon: Alpha Omega's visual, then a laser from it at each of four players and at the other four, and Wild
     // Charge at its target.
@@ -239,7 +252,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // Cosmo Dive: P6Duration.CosmoDiveHitsAfterCast after its cast ends, a buster on each of the two players closest
-    // to Alpha Omega and a stack on the farthest of the rest.
+    // to Alpha Omega and a stack on the farthest of the rest. A human tank on a tank's job under a buster needs its big
+    // cooldowns (P6Rules.CosmoDiveBusterMitigation).
     public void CosmoDive(float castAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(castAt, () => Cast(Actions.CosmoDive), file, line);
@@ -294,7 +308,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     }
 
     // UNVERIFIED: that a buster kills a non-tank it targets, or anyone else it catches, and that the stack kills a buster
-    // target in it, or everyone in it when fewer than P6Rules.CosmoDiveStack share it.
+    // target in it, or everyone in it when fewer than P6Rules.CosmoDiveStack share it. A tank's mitigation is checked
+    // last, so a tank in the wrong spot hears of its spot.
     private void LandCosmoDive(CosmoDiveTargets targets)
     {
         var party = world.Party;
@@ -315,6 +330,8 @@ public sealed class TopP6AlphaOmega(SimWorld world)
                 foreach (var soaker in soakers)
                     verdicts.Kill(soaker, ActionId.CosmoDive_7BA8, TooFewInTheCosmoDiveStack(soakers.Count));
         }
+        foreach (var tank in busters.Where(IsTank).Where(tank => ShortOfMitigation(tank, ActionId.CosmoDive_7BA7, P6Rules.CosmoDiveBusterMitigation)))
+            verdicts.Kill(tank, ActionId.CosmoDive_7BA7, CosmoDiveBusterWithoutBigCooldowns);
         verdicts.Deal();
         foreach (var target in busters)
             CastFromHelper(Actions.CosmoDiveBuster, target);
@@ -348,6 +365,21 @@ public sealed class TopP6AlphaOmega(SimWorld world)
     private static Placement Column(float x) => new(new Vector3(x, 0f, -Geometry.ArenaRadius), 0f);
 
     private static bool IsTank(SimCharacter member) => member is ISimPartyMember { Role: var role } && role.IsTank();
+
+    // Only a tank's job has a tank's cooldowns, and the Role setting can seat a human on any job in a tank seat. The
+    // human's job is its client's.
+    internal static bool OnATankJob(SimCharacter member) => PartyPresets.SkipRoleForJob(member switch
+    {
+        SimPlayer => Natives.BattleCharas.LocalPlayer.ClassJob,
+        SimPartyNpc bot => bot.ClassJob,
+        _ => 0,
+    }).IsTank();
+
+    // As an EnemyAction's MinMit checks it, against the hit's own damage type: the human's alone, only while
+    // Mitigation.Required, and the shields it counts are spent. A tank seat's human on another job passes, as a bot does.
+    private bool ShortOfMitigation(SimCharacter tank, uint actionId, float required)
+        => OnATankJob(tank) && DamageCheck.LethalCause(tank, VulnSpec.None, Severity.TankBuster.MinMit(required),
+            DamageKinds.FromAttackType(Natives.Data.Action(actionId)?.AttackType ?? 0), world.Party) is not null;
 
     private void KillWhoeverLacksATankLimitBreak3(TopP6LimitBreaks limitBreaks, uint actionId, string rule)
     {

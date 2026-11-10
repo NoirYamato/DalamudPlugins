@@ -21,7 +21,9 @@ namespace AnoMech.Tests;
 //   in first:  wave 2 back out past home, wave 4 the side step, wave 5 the laser spot, wave 6 the stack;
 //   out first: wave 2 back home, wave 3 the side step, wave 4 the laser spot, laser set 2 the stack;
 //   the Wild Charge: back to its spot for the autos.
-// The waves count from the first rolling lines (11.91), every 2 s.
+// The waves count from the first rolling lines (11.91), every 2 s. A human tank also presses its own LPDU set for the
+// front of the line on the second laser set, as late (the warrior main tank Vengeance and Bloodwhetting, the paladin
+// off-tank Sentinel and Holy Sheltron), with "Resolve your own actions" on, so its mitigation is checked.
 // Whatever its seat, pattern, laser split, Wild Charge target and reaction time, nobody may die, and the human keeps the
 // slack the margin tests ask of the bots from every hit it dodges: surviving a line by a few hundredths is a death in
 // the game.
@@ -83,6 +85,7 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
             run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), LpduStrat, roll.Seed, new ScenarioRunOptions
             {
                 PlayerRole = roll.Seat,
+                UserActionsEnabled = true,
                 Overrides = o => roll.Pin((TopP6GauntletStateOverrides)o),
                 Takeovers = [new Takeover(0f, null)],
                 Probe = p =>
@@ -105,6 +108,8 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
             problems.Add($"the human set off on {guide.Walks} of its {guide.Legs} walks");
         if (run.Passed && guide.Legs != 7)
             problems.Add($"the human saw {guide.Legs} of its 7 cues");
+        if (roll.Seat.IsTank() && !guide.Mitigated)
+            problems.Add("the human tank never pressed its own set for the front of the Wild Charge");
         return problems.Select(problem => $"{roll} ({delay:F1}s late): {problem}").ToList();
     }
 
@@ -141,6 +146,7 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
         public bool? InFirstRead { get; private set; }
         public int Legs { get; private set; }
         public int Walks { get; private set; }
+        public bool Mitigated { get; private set; }
 
         private readonly Random rng = new(roll.Seed);
         private readonly Queue<(float Depart, Stage To)> legs = new();
@@ -148,6 +154,7 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
         private int rowsRead, firstTelegraphOmens, firstSets, waves, laserSets;
         private string? firstTelegraphAt;
         private float lastFirstSet = float.NegativeInfinity, lastWave = float.NegativeInfinity, lastLaserSet = float.NegativeInfinity;
+        private float? mitigateAt;
         private bool wildChargeSeen;
 
         public void Tick(ScenarioProbe p)
@@ -155,6 +162,12 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
             var me = p.Member(roll.Seat)!;
             if (!me.IsAlive()) return;
             ReadTheTimeline(p);
+            if (mitigateAt is { } mitigate && p.Time >= mitigate)
+            {
+                mitigateAt = null;
+                Mitigated = true;
+                TopP6HumanMitigation.PressTheSeatsLpduSetNow(p.World, roll.Seat, TopP6TankHit.WildCharge2);
+            }
             Advance(p, me);
         }
 
@@ -217,6 +230,7 @@ public class TopP6GauntletCosmoArrow2LpduHumanTests
         private void OnTheLaserSet(float now, int set)
         {
             if (InFirstRead == false && set == 2) Queue(now, Stage.Stack);
+            if (roll.Seat.IsTank() && set == 2) mitigateAt = now + late;
         }
 
         private void Queue(float cue, Stage to)

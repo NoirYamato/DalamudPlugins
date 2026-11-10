@@ -18,8 +18,10 @@ namespace AnoMech.Tests;
 // set's lines once they show (two casts, the cross: in first; four, the outer lines: out first), each wave of lines going
 // off, Cosmo Dive's bar ending and its hits. At each cue it walks to its next LPDU spot a fixed reaction time late,
 // straight, curving or sprinting, and never steps round anyone. Cosmo Memory kills everyone unless a tank's limit break 3
-// has taken hold: a human main tank's own, any other seat the bot main tank's. Whatever its seat, pattern, walk and
-// reaction time, nobody may die, and the human keeps the slack the margin tests ask of the bots from every hit it dodges.
+// has taken hold: a human main tank's own, any other seat the bot main tank's. A human tank presses its own LPDU set for
+// its buster as Cosmo Dive's bar ends, the same reaction time late (the warrior main tank Rampart, Thrill of Battle and
+// Bloodwhetting, the paladin off-tank Rampart, Bulwark and Holy Sheltron). Whatever its seat, pattern, walk and reaction
+// time, nobody may die, and the human keeps the slack the margin tests ask of the bots from every hit it dodges.
 public class TopP6GauntletCosmoMemoryLpduHumanTests
 {
     // Three fixed seeds per seat, for the bots' jitter; HumanSeeds asks for more, as SunnySeeds does for the soak.
@@ -95,6 +97,8 @@ public class TopP6GauntletCosmoMemoryLpduHumanTests
             problems.Add($"the human set off on {guide.Walks} of its {guide.Legs} walks");
         if (seat == MainTank && !guide.Pressed)
             problems.Add("the human main tank never pressed its limit break 3");
+        if (seat.IsTank() && !guide.Mitigated)
+            problems.Add("the human tank never pressed its own set for its buster");
         return problems.Select(problem => $"seed {seed}, {seat} ({(inFirst ? "in" : "out")} first, {walk}, {delay:F1}s late): {problem}").ToList();
     }
 
@@ -107,12 +111,13 @@ public class TopP6GauntletCosmoMemoryLpduHumanTests
         public int Walks { get; private set; }
         public bool? ReadInFirst { get; private set; }
         public bool Pressed { get; private set; }
+        public bool Mitigated { get; private set; }
 
         private readonly Random rng = new(seed);
         private readonly Queue<(float Depart, Func<Vector2> To)> legs = new();
         private (float Depart, Vector2[] Points, float Speed)? walking;
         private int rowsRead, waves, firstSetCasts;
-        private float? firstSetCastAt, pressAt;
+        private float? firstSetCastAt, pressAt, mitigateAt;
         private float lastWave = float.NegativeInfinity;
         private bool started, diveCastEnded, diveHit;
 
@@ -133,6 +138,12 @@ public class TopP6GauntletCosmoMemoryLpduHumanTests
                 pressAt = null;
                 Pressed = true;
                 TopP6GauntletCosmoMemoryScenarioTests.PressLimitBreak3(p.World, seat);
+            }
+            if (mitigateAt is { } mitigate && p.Time >= mitigate)
+            {
+                mitigateAt = null;
+                Mitigated = true;
+                TopP6HumanMitigation.PressTheSeatsLpduSetNow(p.World, seat, TopP6TankHit.CosmoDive1);
             }
             Advance(p, me);
         }
@@ -165,6 +176,7 @@ public class TopP6GauntletCosmoMemoryLpduHumanTests
                     case ActionId.CosmoDive when !cast && !diveCastEnded:
                         diveCastEnded = true;
                         if (!seat.IsTank()) Queue(p.Time, () => WaymarkTwoStack);
+                        else mitigateAt = p.Time + late;
                         break;
                     case ActionId.CosmoDive_7BA7 when !cast && !diveHit:
                         diveHit = true;
