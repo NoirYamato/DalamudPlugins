@@ -2,7 +2,7 @@
 
 Custom Dalamud plugin repository for **NoirMech**, a modified version of
 [AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4, P5
-Delta, P5 Omega and P6, and a pause.
+Delta, P5 Omega and P6, and practice tools: a pause, Retry and Drill.
 Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
 
 ## Install
@@ -14,7 +14,7 @@ Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can 
    Click **+**, make sure it's ticked, then **Save and Close**.
 2. Type `/xlplugins`, search for **NoirMech** and click **Install**.
 3. If you also have **AnoMech** installed, disable it. The two hook the same parts of the game and must
-   never run at the same time.
+   never run at the same time, so NoirMech won't start a run while AnoMech is loaded.
 4. Go to any inn and type `/noirmech` (or `/noir`).
 
 Updates arrive through the plugin installer. If your Dalamud auto-update is set to update only main-repo
@@ -35,7 +35,9 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   [Hello World](https://ff14.toolboxgaming.space/?id=702399575985961&preview=1) and
   [Monitors](https://ff14.toolboxgaming.space/?id=736282987145761&preview=1). P3 Monitors' settings have an
   **Automarkers** option: On (the default) marks the three monitor players Bind 1-3 and everyone else Attack
-  1-5, in line-up order.
+  1-5, in line-up order. Hello World's towers, tethers and timers follow real pulls: a set's towers land on the
+  cardinals or the intercardinals (its **Towers** setting can force either), and remote tethers break past 9 y. In
+  Monitors, Omega's own monitor hits everyone on his side.
 - **TOP P3 Intermission:** a new scenario with an `[LPDU] Light PF` strat under the **EU** button, following
   the [LPDU P3 Intermission raidplan](https://raidplan.io/plan/46r495ZATq3kCqz1). Its settings have an
   **Automarkers** option: On (the default) marks the spreads, stacks and their partners in conga order; Off
@@ -43,7 +45,8 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
 - **TOP P4 Blue Screen:** a new scenario with an `[LPDU] Light PF` strat under the **EU** button, following
   the [LPDU Blue Screen toolbox](https://ff14.toolboxgaming.space/?id=595188367474761&preview=1). Its settings
   can force or rule out your marker in each set, and whether both of a set's markers land in one light party,
-  so someone has to flex.
+  so someone has to flex. As in the game, each beam follows its player as it fires, while the repeat lines keep
+  the aim.
 - **TOP P5 Delta:** an `[LPDU] Light PF` strat under the **EU** button, following the
   [LPDU Delta toolbox](https://ff14.toolboxgaming.space/?id=955389449416761&preview=1). It is the default; NA pf
   is still under the **NA** button. In each colour, when only one tether pair has a healer, that pair takes the
@@ -63,9 +66,16 @@ stops loading NoirMech until you reinstall it. To change it, remove the entry an
   one plays out as in the fight, and a late or missed melee one kills you as its window closes; a chat line at the
   start names yours. Its settings can start from any part, force whether each Cosmo Arrow starts in or out, where
   each Unlimited Wave Cannon's first exaflare starts and which way they turn, and whether you get a flare, and
-  change your own tank, melee or healer limit breaks. Limit breaks always count, whatever **Require tank
-  mitigation** says, and it needs **Resolve your own actions** on. It plays with bots only and replaces all five
-  P6 entries, AnoMech's own Exasquares/WC2 included, so P6 has no NA pf strat, solo or multiplayer for now.
+  change your own tank, melee or healer limit breaks. R2's caster limit break must be centred on Alpha Omega to
+  catch every comet, and the enrage's melee limit break counts if it lands before Run: ****mi* hits. Limit breaks
+  always count; **Require tank mitigation** decides whether a tank must also have its own cooldowns up for Cosmo
+  Dive's busters and Wild Charge. It needs **Resolve your own actions** on. It plays with bots only and replaces
+  all five P6 entries, AnoMech's own Exasquares/WC2 included, so P6 has no NA pf strat, solo or multiplayer for
+  now.
+- **Practice:** **Retry this roll** (the button, or `/noirmech retry`) plays the roll you just played again, and
+  **Drill** replays a roll you failed, after a 3 s look at where everyone stood, until you clear it. Auto-restart
+  rolls fresh every run. Your role, region, strat and every scenario's settings are kept across game restarts,
+  and the **Rotate** role alternates MT/OT or M1/M2 each run.
 - **Pause:** `/noirmech pause`, `resume` or `toggle` (or the Pause button) freezes a solo run mid-mechanic:
   cast bars, omens, debuff timers, bots and boss animations all hold. You can still walk but not use actions.
 - Renamed to NoirMech (commands `/noirmech` and `/noir`), so it installs alongside AnoMech instead of
