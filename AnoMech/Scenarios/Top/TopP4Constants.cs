@@ -17,7 +17,7 @@ public static class TopP4Constants
         public const uint WaveCannonVisual4 = 31620;
         public const uint StackMarker = 22393;                      // helper->player, instant; marks a line stack's target
         public const uint WaveCannonBeam = 31614;                   // helper->self, instant, rect 100 x 6; one per player
-        public const uint WaveCannonRepeat = 31616;                 // helper->self, 5.3s, rect 100 x 6; down the beams' lines
+        public const uint WaveCannonRepeat = 31616;                 // helper->self, 5.3s, rect 100 x 6; down the aimed lines
         public const uint LineStack = 31615;                        // helper->self, instant, rect 100 x 6
     }
 

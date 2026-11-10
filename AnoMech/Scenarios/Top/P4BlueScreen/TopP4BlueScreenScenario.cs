@@ -130,7 +130,7 @@ public sealed class TopP4BlueScreenScenario : IScenario
     }
 
     // A directional cast at a character re-aims at it when it resolves, so each repeat's helper is turned to its
-    // player and casts at nothing: the repeats keep the aim's lines. UNVERIFIED: the lines start at the centre.
+    // player and casts at nothing: the repeats keep the aim's lines.
     private void AimEveryonesLine()
     {
         aimedAt.Clear();
