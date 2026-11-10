@@ -67,8 +67,8 @@ NoirMech change:
   `e0c03f0`, as on upstream's v0.5.1.0; `89aa318` alone fixes none of them;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
-- the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that measures TOP's
-  UNVERIFIED values in the user's ACT logs, and the ACT log parser it reads them with;
+- the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that checks TOP's values,
+  UNVERIFIED or settled, against the user's ACT logs, and the ACT log parser it reads them with;
 - Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
   (it keeps a replayed roll off the streak and lets Drill make the restart); upstream's `RunController` is `partial`,
   with Retry in `RunController.Retry.cs` and a `checkSettings` flag on its `StartRefusal`; in upstream's `Plugin`,
@@ -239,8 +239,8 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
 ## Pull-log report
 `tests/AnoMech.Tests/Reports/TopPullLogs/TopPullLogReport.cs` (`TopUnverifiedValues`, [Explicit]) reads every
 `Network_*.log` in the folder the `PullLogs` parameter names (ACT's is `%APPDATA%\Advanced Combat Tracker\FFXIVLogs`),
-splits out the TOP pulls and checks NoirMech's TOP values marked UNVERIFIED against them. Without the parameter it
-is skipped. From Git Bash, after a build:
+splits out the TOP pulls and checks NoirMech's TOP values against them, UNVERIFIED or settled. Without the parameter
+it is skipped. From Git Bash, after a build:
 `dotnet test tests/AnoMech.Tests --no-build --filter Name=TopUnverifiedValues -- 'TestRunParameters.Parameter(name="PullLogs", value="<folder>")'`.
 It takes seconds and writes `pull-logs/top-unverified.txt` in the test run's output folder (`bin/`, ignored by git).
 It reads the logs where they are, the one ACT is still writing included, so ACT can stay open; never copy the logs
@@ -249,10 +249,14 @@ anywhere, since they hold other players' names.
   their count and spread, and a verdict: matches, differs, inconclusive or not in these logs. Constants and event
   times (from the scenario's `world.Events.Add` lines) are read from the code of the checkout the tests were built
   in, so the report follows their edits; a rule or layout the measure class describes in words has to be updated
-  with the sim. `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for:
-  a finding on an UNVERIFIED value looks for its UNVERIFIED note, so settling the value fails there, and one on a
-  settled rule looks for the code line that plays it, so a change to the rule usually does too. The report changes
-  no sim value.
+  with the sim. The report changes no sim value.
+- `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for. A finding on a
+  constant looks for its declaration and one on an event time for its `world.Events.Add` line, so dropping an
+  UNVERIFIED mark beside them fails nothing; the finding on the void zone's spawn arguments looks for their
+  UNVERIFIED note instead. A finding on a rule described in words looks for the rule's UNVERIFIED note while it has
+  one and for the code line that plays it once settled, so settling the rule fails there and changing a settled one
+  usually does. The findings on the Sniper Cannon and two-beam kills look for their death reasons and the one on the
+  line stacks' aim for its comment, so a change to those rules can pass with their wording stale.
 - `Reports/ActLogs/` is the parser: pulls split as upstream's `tools/parser.py` splits them (the game's combat flag
   on 260 lines, else the duty director's codes), and the line types the report reads as typed events. It blanks
   every name field as it reads a line and the report names players by job; never copy log lines into the repo.

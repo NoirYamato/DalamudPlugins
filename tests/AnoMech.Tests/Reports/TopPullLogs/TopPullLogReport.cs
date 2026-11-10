@@ -3,8 +3,8 @@ using AnoMech.Scenarios.Top;
 
 namespace AnoMech.Tests;
 
-// Measures NoirMech's UNVERIFIED TOP values in the pulls of a folder of ACT network logs (CLAUDE.md's "Pull-log report"
-// says how to run it). The report goes to the test run's output folder, never the repo.
+// Checks NoirMech's TOP values, UNVERIFIED or settled, against the pulls of a folder of ACT network logs (CLAUDE.md's
+// "Pull-log report" says how to run it). The report goes to the test run's output folder, never the repo.
 public class TopPullLogReport
 {
     [Explicit]
@@ -53,7 +53,7 @@ public class TopPullLogReport
     private static string Write(List<string> logs, List<(string Pull, string Reached)> reached, List<string> quiet, List<LogFinding> findings)
     {
         var text = new StringBuilder();
-        text.AppendLine("TOP pull-log report: NoirMech's UNVERIFIED values against real pulls");
+        text.AppendLine("TOP pull-log report: NoirMech's values, UNVERIFIED or settled, against real pulls");
         text.AppendLine($"Logs: {string.Join(", ", logs.Select(Path.GetFileName))}");
         text.AppendLine($"TOP pulls: {reached.Count}. Furthest mechanic reached:");
         foreach (var (name, _) in TopPull.Milestones)
