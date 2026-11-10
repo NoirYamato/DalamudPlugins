@@ -12,7 +12,7 @@ namespace AnoMech.Tests;
 // its beams, set 3 to 10.5 y after ring 6. When both markers of a set are on one side, the southernmost of
 // them swaps sides with the other side's melee for that set only.
 //
-//   8.0 / 18.28 / 28.53  aims; beams 0.54-0.6 s later. 13.0 / 23.28 / 33.53 repeat snapshots; 13.6 / 23.71 / 33.96 stacks.
+//   8.0 / 18.28 / 28.53  aims; beams 0.53-0.6 s later. 13.0 / 23.28 / 33.53 repeat snapshots; 13.6 / 23.71 / 33.96 stacks.
 //   Rings: 15.7 (r < 6), 18.1 (6-12), 20.1 (12-18), 22.1 (18-24); 33.23, 35.65, 37.7, 39.75.
 public class TopP4BlueScreenLpduAiTests
 {
