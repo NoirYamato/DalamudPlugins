@@ -24,7 +24,7 @@ public sealed class TopP3IntermissionState
     public IReadOnlyList<float> SecondSetBearings => FirstArms == FirstArms.NorthTriangle ? SouthTriangle : NorthTriangle;
 
     // The three left arms' bearings; the other three are right arms, so a set can be all one kind. Both kinds cast
-    // the same Colossal Blow, only their warp-in differs.
+    // the same Colossal Blow; the kind only changes how an arm looks and warps in.
     public IReadOnlyList<float> LeftArmBearings { get; }
 
     private static readonly float[] NorthTriangle = [0f, 120f, 240f];

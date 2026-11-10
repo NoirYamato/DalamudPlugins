@@ -185,17 +185,17 @@ to multiplayer peers, so both sides need the same build.
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the
 `TopZone.P3` phase. Their ids are in `TopP3Constants.cs`. Values nobody has measured (weather, rot contact
-radius, the void zone's radius and spawn args, some durations) are marked UNVERIFIED there; tune them in that
-one place.
+radius, the void zone's radius and spawn args) are marked UNVERIFIED there; tune them in that one place.
 - Intermission runs from the end of P2 until Omega turns targetable: Wave Repeater rings, Colossal Blow arms
   (the set that warps in first goes off first; the State rolls three left and three right arms onto random
-  spots, so a set can be all one kind, which only changes the warp-in), Sniper Cannon spreads and stacks (their
-  19s statuses run out 0.1s before both go off), and the void zone, shown from 5.46s after the first Wave
-  Repeater's cast until 21.4s after it (its end UNVERIFIED). Every mistake kills on the spot with a reason; the
-  first ring's deaths show 0.6s after its bar (UNVERIFIED), ahead of the void zone in the same circle. Its one
-  strat has an Automarkers On/Off setting (default On); it lives in the overrides and the State, and only
-  `TopP3IntermissionLpduAi` reads it, to add signs: both settings put everyone on the same spots. Change bot
-  movement only with `TopP3IntermissionLpduHumanTests` and `TopP3IntermissionLpduMarginTests` green.
+  spots, so a set can be all one kind, which changes only how an arm looks and warps in), Sniper Cannon spreads
+  and stacks (their 19s statuses run out 0.1s before both go off), and the void zone, shown from 5.46s after the
+  first Wave Repeater's cast until its model changes 21.4s after it (when it stops killing is UNVERIFIED). Every
+  mistake kills on the spot with a reason; the first ring's deaths show 0.6s after its bar (UNVERIFIED), ahead of
+  the void zone in the same circle. Its one strat has an Automarkers On/Off setting (default On); it lives in the
+  overrides and the State, and only `TopP3IntermissionLpduAi` reads it, to add signs: both settings put everyone
+  on the same spots. Change bot movement only with `TopP3IntermissionLpduHumanTests` and
+  `TopP3IntermissionLpduMarginTests` green.
 - Hello World tracks each player's debuffs itself (pairs rotating through defamation, remote tether, stack and
   local tether; rots spreading on contact; Debuggers as immunity) and decides every kill with a death
   explanation. Fixed events are absolute time literals in `Run`, except the tower debuffs, which `ResolveSet`

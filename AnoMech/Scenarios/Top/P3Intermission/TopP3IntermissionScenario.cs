@@ -72,7 +72,6 @@ public sealed class TopP3IntermissionScenario : IScenario
         // UNVERIFIED: Omega starts to appear as P2's bosses start to merge.
         world.Events.Add(9.3f, () => omega?.PlayActionTimeline(P3TimelineId.OmegaShow));
         world.Events.Add(9.3f, () => firstWaveHelper?.Cast(Actions.WaveRepeater, Vector3.Zero));
-        // UNVERIFIED: both warp-in times.
         world.Events.Add(12.3f, () => WarpIn(state.FirstSetBearings));
         world.Events.Add(14.76f, SpawnVoidZone);
         world.Events.Add(15.4f, () => WarpIn(state.SecondSetBearings));
