@@ -318,9 +318,11 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
             "each beam goes off from the centre toward where its player stands as it fires; only the repeats keep the aimed lines",
             beamResults.Count == 0 ? "no beams"
                 : $"{beamResults.Count - strays.Count} of {beamResults.Count} beams went off within {OnLineDegrees} degrees of one of their "
-                  + $"round's aimed lines; {strays.Count} left every one of them, by up to {Spread.F(offLines.Max)} degrees: {closer} passed "
-                  + $"closer to their target where it stood as they hit than where it stood at the aim, {farther} farther and "
-                  + $"{judged.Count - closer - farther} about as close, give or take {ClientSlack} y (client positions)"
+                  + "round's aimed lines"
+                  + (strays.Count == 0 ? ""
+                      : $"; {strays.Count} left every one of them, by up to {Spread.F(offLines.Max)} degrees: {closer} passed closer to their "
+                        + $"target where it stood as they hit than where it stood at the aim, {farther} farther and "
+                        + $"{judged.Count - closer - farther} about as close, give or take {ClientSlack} y (client positions)")
                   + (strays.Count > judged.Count ? $"; {strays.Count - judged.Count} had no position for their target at the aim" : "")
                   + $". {beamsHittingMore} beams hit more than one player",
             beamResults.Count == 0 ? Verdict.NotInTheseLogs

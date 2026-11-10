@@ -50,7 +50,13 @@ public class TopP4BlueScreenPullLogsTests
 
     [Test]
     public void BeamsOfPlayersStandingStillAreInconclusive()
-        => Assert.That(Beams(walked: 0, dancerBeamBearing: 90).Verdict, Is.EqualTo(Verdict.Inconclusive));
+    {
+        var beams = Beams(walked: 0, dancerBeamBearing: 90);
+
+        Assert.That((beams.Measured, beams.Verdict),
+                    Is.EqualTo(("2 of 2 beams went off within 0.5 degrees of one of their round's aimed lines. 0 beams hit more than one player",
+                                Verdict.Inconclusive)));
+    }
 
     [Test]
     public void ABeamThatLeftItsLineWhileTheLogsShowItsPlayerStillIsInconclusive()
