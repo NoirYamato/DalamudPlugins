@@ -15,12 +15,13 @@ public class TopP3MonitorsPullLogsTests
     [Test]
     public void NineCirclesFitOmegasMonitorHittingHisWholeSideNotTwo()
     {
-        var measured = Who().Measured;
+        var who = Who();
 
         Assert.Multiple(() =>
         {
-            Assert.That(measured, Does.Contain("topped up from the other side: 0 of 1"));
-            Assert.That(measured, Does.Contain("the players' two at random as above: 1 of 1"));
+            Assert.That(who.Measured, Does.Contain("Omega's too, hits two random players on its side, topped up from the other side: 0 of 1"));
+            Assert.That(who.Measured, Does.Contain("and each player's monitor hits two random players on its side, topped up from the other side: 1 of 1"));
+            Assert.That(who.Verdict, Is.EqualTo(Verdict.Matches));
         });
     }
 

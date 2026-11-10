@@ -249,8 +249,10 @@ anywhere, since they hold other players' names.
   their count and spread, and a verdict: matches, differs, inconclusive or not in these logs. Constants and event
   times (from the scenario's `world.Events.Add` lines) are read from the code of the checkout the tests were built
   in, so the report follows their edits; a rule or layout the measure class describes in words has to be updated
-  with the sim. `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for.
-  It changes no sim value.
+  with the sim. `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for:
+  a finding on an UNVERIFIED value looks for its UNVERIFIED note, so settling the value fails there, and one on a
+  settled rule looks for the code line that plays it, so a change to the rule usually does too. The report changes
+  no sim value.
 - `Reports/ActLogs/` is the parser: pulls split as upstream's `tools/parser.py` splits them (the game's combat flag
   on 260 lines, else the duty director's codes), and the line types the report reads as typed events. It blanks
   every name field as it reads a line and the report names players by job; never copy log lines into the repo.

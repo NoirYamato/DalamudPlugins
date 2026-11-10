@@ -18,6 +18,9 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
     // A beam whose heading lies within this of an aimed line went off along it.
     private const double OnLineDegrees = 0.5;
 
+    // How far, in yalms, a client position can lie from the server's: a distance between two players is good to about a yalm.
+    private const double ClientSlack = 0.5;
+
     private readonly Dictionary<string, List<double>> times = [];
     private readonly List<double> resolveAfterAim = [], lineStartOffCentre = [], omegaHeadings = [];
     private readonly List<Beam> beamResults = [];
@@ -29,8 +32,9 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
     private readonly List<string> beamDetails = [], beamTakerDetails = [], lineStackDetails = [], markedRounds = [];
     private int consecutiveMarks, markPairs, beamsHittingMore, beamTakersShielded, lineStackTargetsShielded;
 
-    // In degrees: off the nearest line its round aimed, and off its target's bearing as it hit and as the round aimed.
-    private sealed record Beam(double OffLines, double OffTargetHit, double OffTargetAimed);
+    // How far it went off the nearest line its round aimed, in degrees, and how far its line passed from its target where that
+    // player stood as it hit and as the round aimed, in yalms (NaN when the logs don't place the target at the aim).
+    private sealed record Beam(double OffLines, double MissHit, double MissAimed);
 
     // One line stack: how far it went off the line to its marked player, how many it hit, whether they were all tanks, and how
     // many of those not under an invulnerability it killed and how many lived.
@@ -47,8 +51,8 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
         ("visual 32534 1", "Omega's first 32534", "omega?.Cast(P4ActionId.WaveCannonVisual)", 1),
         ("line stacks 1", "Round 1's line stacks", "FireLineStacks(0)", 1),
         ("markers 2", "Round 2's markers", "MarkStackTargets(1)", 1),
-        ("aim 2", "Round 2's aim", "AimEveryonesLine);", 2),
         ("ring 2 1", "The first Wave Repeater's second ring", "ringHelper?.Cast(Actions.WaveRepeaterRing2)", 1),
+        ("aim 2", "Round 2's aim", "AimEveryonesLine);", 2),
         ("visual 32534 2", "Omega's second 32534", "omega?.Cast(P4ActionId.WaveCannonVisual)", 2),
         ("beams 2", "Round 2's beams", "FireBeams);", 2),
         ("ring 3 1", "The first Wave Repeater's third ring", "ringHelper?.Cast(Actions.WaveRepeaterRing3)", 1),
@@ -134,26 +138,26 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
                          h => $"{TopPull.WaveRepeaterRing(h.Action)} {At(h)}");
     }
 
-    // The round's lines are the repeats' casts' headings. A beam that left them says where the game aims it: compare its
-    // heading with its target's bearing as the round aimed and as the beam hit (the target is whichever player it points
-    // closest to as hit).
+    // The round's lines are the repeats' casts' headings. A beam that left them says where the game aims it: compare how far
+    // its line passed from its target as the round aimed and as the beam hit (the target is the player it hit who stood
+    // nearest its line).
     private void ObserveBeams(TopPull pull, int round, List<ActCast> aim, List<ActHit> beams)
     {
         var lines = aim.Select(pull.CastAt).OfType<ActCastAt>().Select(at => (double)at.Heading).ToList();
         foreach (var shot in beams.GroupBy(b => b.Source).Select(g => g.ToList()))
         {
             if (shot[0].Rotation is not { } rotation || lines.Count == 0) continue;
-            double Off(Vector2 at) => Degrees(TopPull.AngleBetween(TopPull.HeadingTo(TopPull.Centre, at), rotation));
             var hit = shot.Where(b => b.HitSomeone && b.TargetPosition is not null).ToList();
             if (hit.Count == 0) continue;
-            var target = hit.MinBy(h => Off(h.TargetPosition!.Value));
-            var beam = new Beam(Degrees(lines.Min(l => TopPull.AngleBetween(l, rotation))), Off(target.TargetPosition!.Value),
-                                pull.Positions.At(target.Target, aim[0].Time) is { } aimed ? Off(aimed.Position) : double.NaN);
+            var target = hit.MinBy(h => Miss(h.TargetPosition!.Value, rotation));
+            var beam = new Beam(Degrees(lines.Min(l => TopPull.AngleBetween(l, rotation))), Miss(target.TargetPosition!.Value, rotation),
+                                pull.Positions.At(target.Target, aim[0].Time) is { } aimed ? Miss(aimed.Position, rotation) : double.NaN);
             beamResults.Add(beam);
             if (hit.Count > 1) beamsHittingMore++;
+            var asAimed = double.IsNaN(beam.MissAimed) ? "?" : $"{Spread.F(beam.MissAimed)} y";
             beamDetails.Add($"{pull.Name} round {round}, beam at {pull.Who(target.Target)}{(hit.Count > 1 ? $" (hit {hit.Count})" : "")}: "
-                            + $"{Spread.F(beam.OffLines)} degrees off the nearest aimed line, off its target {Spread.F(beam.OffTargetAimed)} "
-                            + $"as aimed and {Spread.F(beam.OffTargetHit)} as hit");
+                            + $"{Spread.F(beam.OffLines)} degrees off the nearest aimed line; it passed {asAimed} from its target as aimed "
+                            + $"and {Spread.F(beam.MissHit)} y as hit");
         }
 
         foreach (var taken in beams.Where(b => b.HitSomeone).GroupBy(b => b.Target).Select(g => g.ToList()))
@@ -172,6 +176,15 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
     }
 
     private static double Degrees(double radians) => radians * 180 / Math.PI;
+
+    // How far a point stands from the line that leaves the centre along the heading (0 faces south), in yalms.
+    private static double Miss(Vector2 at, double heading)
+    {
+        var offset = at - TopPull.Centre;
+        var (sin, cos) = Math.SinCos(heading);
+        var along = offset.X * sin + offset.Y * cos;
+        return along <= 0 ? offset.Length() : Math.Abs(offset.X * cos - offset.Y * sin);
+    }
 
     // Each line stack goes off toward one marked player, from the centre. A dead marker's line still goes off, at someone
     // else, so only lines with a living marker show where they aim.
@@ -217,7 +230,7 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
         var repeatCast = new DataminingGameData(new FakeRsvFunctions()).Action(P4ActionId.WaveCannonRepeat)?.CastSeconds;
         var resolve = new Spread(resolveAfterAim);
         yield return new LogFinding(Section, "Each round's repeats resolve, after its aim",
-            SimSource.Line(Scenario, "UNVERIFIED: no log times the later aims and beams"),
+            SimSource.Line(Scenario, "repeatHelpers[role]?.Cast(Actions.WaveCannonRepeat)"),
             repeatCast is { } repeatSeconds ? $"{Spread.F(repeatSeconds)} s, the repeat's cast" : "the repeat's cast",
             resolve.Describe(" s"), repeatCast is { } cast ? LogFinding.Compare(resolve, cast, 0.15) : Verdict.Inconclusive);
 
@@ -225,21 +238,7 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
             SimSource.Line(Constants, "float RepeatOmenDelay ="), $"shown {P4Duration.RepeatOmenDelay} s into the cast",
             "what the client draws, and when, is not logged", Verdict.NotInTheseLogs);
 
-        var offLines = new Spread(beamResults.Select(b => b.OffLines));
-        var strays = beamResults.Where(b => b.OffLines > OnLineDegrees).ToList();
-        var followed = strays.Count(b => b.OffTargetHit < b.OffTargetAimed);
-        yield return new LogFinding(Section, "The beams fire down the lines fixed at the aim, not at the players where they now stand",
-            SimSource.Line(Scenario, "UNVERIFIED: the beams fire down the lines fixed at the aim"),
-            "each beam goes off along its player's line from the aim",
-            beamResults.Count == 0 ? "no beams"
-                : $"{beamResults.Count - strays.Count} of {beamResults.Count} beams went off within {OnLineDegrees} degrees of one of their "
-                  + $"round's aimed lines; {strays.Count} left every one of them, by up to {Spread.F(offLines.Max)} degrees, and {followed} "
-                  + "of those pointed closer to their target where it stood as they hit than where it stood at the aim (client positions). "
-                  + $"{beamsHittingMore} beams hit more than one player",
-            beamResults.Count == 0 ? Verdict.NotInTheseLogs : strays.Count == 0 ? Verdict.Matches : Verdict.Differs)
-        {
-            Details = beamDetails,
-        };
+        yield return BeamsFollowTheirPlayers();
 
         var doubled = beamTakers.Where(t => t.Beams >= 2).ToList();
         var single = beamTakers.Where(t => t.Beams == 1).ToList();
@@ -264,7 +263,8 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
 
         var offCentre = new Spread(lineStartOffCentre);
         yield return new LogFinding(Section, "The lines start at the centre: each repeat cast's location",
-            SimSource.Line(Scenario, "UNVERIFIED: the lines start at the centre"), "the centre", offCentre.Describe(" y from the centre"),
+            SimSource.Line(Scenario, "Placement LineFromCentreTo(Vector3 position) => new Placement(Vector3.Zero"), "the centre",
+            offCentre.Describe(" y from the centre"),
             offCentre.Count == 0 ? Verdict.NotInTheseLogs : offCentre.Max < 0.1 ? Verdict.Matches : Verdict.Differs);
 
         var stackOff = new Spread(lineStacks.Where(l => !double.IsNaN(l.OffTarget)).Select(l => l.OffTarget));
@@ -300,6 +300,36 @@ internal sealed class TopP4BlueScreenPullLogs : ITopPullLogMeasures
             "the sim casts them from invisible helpers", "what the client draws is not logged", Verdict.NotInTheseLogs);
         yield return new LogFinding(Section, "P4's weather and music", SimSource.Line(Constants, "byte Weather ="),
             $"P3's: weather {TopP4Constants.Weather}, BGM {TopP4Constants.Bgm}", "ACT logs neither", Verdict.NotInTheseLogs);
+    }
+
+    // A beam whose player stood still stays on its aimed line whichever rule holds. One that left the aimed lines followed its
+    // player when it passed closer to that player, where the logs have it as the beam hit, than where they have it at the aim;
+    // client positions trail the server's, so a walking player shows short of where its beam found it, and one that set off
+    // late shows no walk at all.
+    private LogFinding BeamsFollowTheirPlayers()
+    {
+        var offLines = new Spread(beamResults.Select(b => b.OffLines));
+        var strays = beamResults.Where(b => b.OffLines > OnLineDegrees).ToList();
+        var judged = strays.Where(b => !double.IsNaN(b.MissAimed)).ToList();
+        var closer = judged.Count(b => b.MissHit < b.MissAimed - ClientSlack);
+        var farther = judged.Count(b => b.MissHit > b.MissAimed + ClientSlack);
+        return new LogFinding(Section, "Each beam fires toward its player where that player stands as it fires, not down the line aimed at it",
+            SimSource.Line(Scenario, "(Role: role, Line: LineFromCentreTo(party.Get(role)!.Position))"),
+            "each beam goes off from the centre toward where its player stands as it fires; only the repeats keep the aimed lines",
+            beamResults.Count == 0 ? "no beams"
+                : $"{beamResults.Count - strays.Count} of {beamResults.Count} beams went off within {OnLineDegrees} degrees of one of their "
+                  + $"round's aimed lines; {strays.Count} left every one of them, by up to {Spread.F(offLines.Max)} degrees: {closer} passed "
+                  + $"closer to their target where it stood as they hit than where it stood at the aim, {farther} farther and "
+                  + $"{judged.Count - closer - farther} about as close, give or take {ClientSlack} y (client positions)"
+                  + (strays.Count > judged.Count ? $"; {strays.Count - judged.Count} had no position for their target at the aim" : "")
+                  + $". {beamsHittingMore} beams hit more than one player",
+            beamResults.Count == 0 ? Verdict.NotInTheseLogs
+            : farther > 0 ? Verdict.Differs
+            : closer > 0 ? Verdict.Matches
+            : Verdict.Inconclusive)
+        {
+            Details = beamDetails,
+        };
     }
 
     // A line with a non-tank in it that killed someone puts the game's minimum above its size, and one all its targets lived

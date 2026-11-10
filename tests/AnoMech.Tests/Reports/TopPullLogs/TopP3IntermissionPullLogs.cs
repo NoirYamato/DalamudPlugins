@@ -36,6 +36,7 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
     private readonly List<VoidZoneVisit> voidZoneVisits = [];
     private readonly List<string> armSets = [];
     private readonly List<int> leftArmsPerPull = [];
+    private readonly List<string> leftArmSpots = [];
     private readonly Dictionary<uint, List<double>> merges = [];
     private readonly LethalHits ringHits = new(), blowHits = new();
     private readonly List<(HitOutcome Outcome, string Detail)> doubledCannons = [], singleCannons = [], loneStacks = [];
@@ -122,11 +123,16 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
                         .GroupBy(c => c.Actor).ToDictionary(g => g.Key, g => g.Last().BNpcBase == BNpcBaseId.LeftArmUnit);
         var placed = pull.Moves.Where(m => m.Placed && kinds.ContainsKey(m.Actor) && TopPull.Seconds(waves.Time, m.Time) is >= 0 and < 15)
                          .ToList();
-        if (placed.Count == 6) leftArmsPerPull.Add(placed.Count(m => kinds[m.Actor]));
+        if (placed.Count == 6)
+        {
+            var left = placed.Where(m => kinds[m.Actor]).ToList();
+            leftArmsPerPull.Add(left.Count);
+            leftArmSpots.Add(string.Join(", ", left.Select(m => Spot(TopPull.Bearing(m.Position))).Order()));
+        }
         foreach (var (set, index) in TopPull.Clusters(placed, m => m.Time, 1).Take(2).Select((s, i) => (s, i)))
         {
             var arms = set.Select(m => (Move: m, Bearing: TopPull.Bearing(m.Position), Left: kinds[m.Actor]))
-                          .Select(a => (a.Move, a.Bearing, Spot: (int)(Math.Round(a.Bearing / 60) * 60) % 360, a.Left))
+                          .Select(a => (a.Move, a.Bearing, Spot: Spot(a.Bearing), a.Left))
                           .OrderBy(a => a.Spot)
                           .ToList();
             foreach (var arm in arms)
@@ -147,6 +153,9 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
                 (index == 0 ? firstWarps : secondWarps).Add(TopPull.Seconds(waves.Time, warpsOfSet.Min(t => t.Time)));
         }
     }
+
+    // The hexagon's corner nearest the bearing, in degrees from north.
+    private static int Spot(double bearing) => (int)(Math.Round(bearing / 60) * 60) % 360;
 
     private void ObserveOmega(TopPull pull, ActCast waves)
     {
@@ -230,7 +239,7 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         }
         var together = new Spread(stacksAfterSpreads);
         yield return new LogFinding(Section, "The stacks go off with the spreads: the stacks' hit after the spreads'",
-            SimSource.Line(Scenario, "UNVERIFIED: the stacks going off with the spreads"), "0 s: one volley",
+            SimSource.Line(Scenario, ".Concat(Alive(stackHolders)"), "0 s: one volley",
             together.Describe(" s"), LogFinding.Compare(together, 0, 0.1));
 
         yield return TwoCannonsKill();
@@ -243,23 +252,10 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
 
         var offHexagon = new Spread(armOffHexagon);
         yield return new LogFinding(Section, "Arm units stand on a hexagon from north that never turns: each arm's bearing off the nearest 60 degrees",
-            SimSource.Line(State, "UNVERIFIED: the hexagon is assumed never to turn"), "0 degrees",
+            SimSource.Line(State, "float[] NorthTriangle = [0f, 120f, 240f]"), "0 degrees",
             offHexagon.Describe(" degrees"), offHexagon.Count == 0 ? Verdict.NotInTheseLogs : offHexagon.Max < 1 ? Verdict.Matches : Verdict.Differs);
 
-        var simLeft = new[] { 0, 240, 300 };
-        var byBearing = armKinds.GroupBy(a => a.Bearing).OrderBy(g => g.Key)
-                                .Select(g => $"{g.Key}: {g.Count(a => a.Left)} left, {g.Count(a => !a.Left)} right").ToList();
-        var agree = armKinds.Count(a => a.Left == simLeft.Contains(a.Bearing));
-        yield return new LogFinding(Section, "Which kind of arm stands where",
-            SimSource.Line(Scenario, "LeftArmBearings ="),
-            "left arms at 0, 240 and 300 degrees, right arms at 60, 120 and 180, so each set has both kinds",
-            armKinds.Count == 0 ? "no arms"
-                : $"{agree} of {armKinds.Count} arms where the sim has their kind; by bearing: {string.Join("; ", byBearing)}. "
-                  + $"Left arms per pull: {string.Join(", ", leftArmsPerPull)}; {singleKindSets} of {armSets.Count} sets are all one kind",
-            armKinds.Count == 0 ? Verdict.NotInTheseLogs : agree == armKinds.Count ? Verdict.Matches : Verdict.Differs)
-        {
-            Details = armSets,
-        };
+        yield return ArmKinds();
 
         var simTimelines = warps.All(w => w.Timeline == (w.Left ? ActionTimelineId.WarpEnd2 : ActionTimelineId.WarpEnd));
         yield return new LogFinding(Section, "Each kind's warp-in timeline",
@@ -270,7 +266,7 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
 
         var facing = new Spread(armOffFacing);
         yield return new LogFinding(Section, "Arm units face the centre: each arm's heading off the centre's direction",
-            SimSource.Line(Scenario, "UNVERIFIED: the arms face the centre"), "0 degrees", facing.Describe(" degrees"),
+            SimSource.Line(Scenario, "MathF.Atan2(-position.X, -position.Z)"), "0 degrees", facing.Describe(" degrees"),
             facing.Count == 0 ? Verdict.NotInTheseLogs : facing.Max < 1 ? Verdict.Matches : Verdict.Differs);
 
         var unknownDamage = SimSource.Line(Actions, "UNVERIFIED: no damage values are known, so every");
@@ -332,6 +328,28 @@ internal sealed class TopP3IntermissionPullLogs : ITopPullLogMeasures
         yield return new LogFinding(Section, "Whether the instant rings show anything from an invisible helper",
             SimSource.Line(Scenario, "UNVERIFIED: whether the instant rings show anything"), "the sim casts them from invisible helpers",
             "what the client draws is not logged", Verdict.NotInTheseLogs);
+    }
+
+    // The sim rolls which three of the six spots get the left arms, so each pull with all six placed should show three of
+    // each kind, on spots that change from pull to pull.
+    private LogFinding ArmKinds()
+    {
+        var byBearing = armKinds.GroupBy(a => a.Bearing).OrderBy(g => g.Key)
+                                .Select(g => $"{g.Key}: {g.Count(a => a.Left)} left, {g.Count(a => !a.Left)} right");
+        var spots = leftArmSpots.Distinct().Count();
+        return new LogFinding(Section, "Which kind of arm stands where",
+            SimSource.Line(State, "LeftArmBearings = rng."),
+            "three left arms and three right, the left on three of the six spots rolled at random, so a set can be all one kind",
+            armKinds.Count == 0 ? "no arms"
+                : $"left arms per pull: {string.Join(", ", leftArmsPerPull)}; {spots} different choices of spots for the left arms in "
+                  + $"{leftArmSpots.Count} pulls; {singleKindSets} of {armSets.Count} sets are all one kind; by bearing: {string.Join("; ", byBearing)}",
+            armKinds.Count == 0 ? Verdict.NotInTheseLogs
+            : leftArmsPerPull.Any(n => n != 3) ? Verdict.Differs
+            : spots >= 2 ? Verdict.Matches
+            : Verdict.Inconclusive)
+        {
+            Details = armSets,
+        };
     }
 
     private LogFinding TwoCannonsKill()

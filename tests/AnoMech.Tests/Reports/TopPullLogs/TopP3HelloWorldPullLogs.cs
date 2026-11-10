@@ -10,6 +10,7 @@ internal sealed class TopP3HelloWorldPullLogs : ITopPullLogMeasures
     private const string Section = "P3 Hello World";
     private const string Constants = "AnoMech/Scenarios/Top/TopP3Constants.cs";
     private const string Scenario = "AnoMech/Scenarios/Top/P3HelloWorld/TopP3HelloWorldScenario.cs";
+    private const string State = "AnoMech/Scenarios/Top/P3HelloWorld/TopP3HelloWorldState.cs";
 
     private readonly List<double> towerRadii = [];
     private readonly List<TowerSet> towerSets = [];
@@ -197,21 +198,7 @@ internal sealed class TopP3HelloWorldPullLogs : ITopPullLogMeasures
             SimSource.Line(Constants, "TowerRingRadius ="), $"{P3Geometry.TowerRingRadius} y",
             radii.Describe(" y"), LogFinding.Compare(radii, P3Geometry.TowerRingRadius, 0.1));
 
-        var cardinals = towerSets.Count(s => s.Placement == "cardinals");
-        var adjacent = towerSets.Count(s => s.SameColoursAdjacent);
-        var repeats = towerSets.Count(s => s.SameAsLastSet);
-        var followers = towerSets.Count(s => s.Set > 1);
-        yield return new LogFinding(Section, "Tower layout",
-            SimSource.Line(Scenario, "(-45f, state.DefamationColour)"),
-            "always on the cardinals, each colour's two towers side by side either side of a random intercardinal",
-            towerSets.Count == 0 ? "no tower sets"
-                : $"{cardinals} of {towerSets.Count} sets on the cardinals, {towerSets.Count(s => s.Placement == "intercardinals")} on the "
-                  + $"intercardinals, {towerSets.Count(s => s.Placement == "elsewhere")} elsewhere; each colour's towers side by side in "
-                  + $"{adjacent}; {repeats} of {followers} later sets repeat the set before",
-            towerSets.Count == 0 ? Verdict.NotInTheseLogs : cardinals == towerSets.Count && adjacent == towerSets.Count ? Verdict.Matches : Verdict.Differs)
-        {
-            Details = towerSets.Select(s => $"{s.Pull} set {s.Set}: {s.Layout}").ToList(),
-        };
+        yield return TowerLayout();
 
         var debuffDurations = new Spread(towerDebuffs.Select(d => d.Duration));
         yield return new LogFinding(Section, "Tower debuff's duration",
@@ -219,8 +206,8 @@ internal sealed class TopP3HelloWorldPullLogs : ITopPullLogMeasures
             debuffDurations.Describe(" s"), LogFinding.Compare(debuffDurations, P3Duration.TowerDebuff, 0.05));
         var debuffDelays = new Spread(towerDebuffs.Select(d => d.Delay));
         yield return new LogFinding(Section, "Tower debuff lands, after the tower's hit on its soaker",
-            SimSource.Line(Scenario, "member.AddStatus(colour.TowerDebuffStatusId"), "0 s: with the hit",
-            debuffDelays.Describe(" s"), LogFinding.Compare(debuffDelays, 0, 0.15));
+            SimSource.Line(Constants, "float TowerDebuffDelay ="), $"{P3Duration.TowerDebuffDelay} s",
+            debuffDelays.Describe(" s"), LogFinding.Compare(debuffDelays, P3Duration.TowerDebuffDelay, 0.15));
 
         var latentDurations = new Spread(latentDefects.Select(d => d.Duration));
         yield return new LogFinding(Section, "Latent Defect's duration",
@@ -260,6 +247,32 @@ internal sealed class TopP3HelloWorldPullLogs : ITopPullLogMeasures
 
         foreach (var finding in TimelineFindings())
             yield return finding;
+    }
+
+    // The sim rolls each set's layout from all eight directions: the towers stand on the cardinals for an intercardinal
+    // layout and on the intercardinals for a cardinal one, so the logs should show sets on both rings and none elsewhere.
+    private LogFinding TowerLayout()
+    {
+        var cardinals = towerSets.Count(s => s.Placement == "cardinals");
+        var intercardinals = towerSets.Count(s => s.Placement == "intercardinals");
+        var elsewhere = towerSets.Count - cardinals - intercardinals;
+        var adjacent = towerSets.Count(s => s.SameColoursAdjacent);
+        var repeats = towerSets.Count(s => s.SameAsLastSet);
+        var followers = towerSets.Count(s => s.Set > 1);
+        return new LogFinding(Section, "Tower layout",
+            $"{SimSource.Line(Scenario, "(-45f, state.DefamationColour)")}, {SimSource.Line(State, "_ => rng.NextDirection()")}",
+            "each colour's two towers side by side, the defamation colour's either side of a layout rolled from all eight directions, "
+            + "so a set stands on the cardinals or on the intercardinals",
+            towerSets.Count == 0 ? "no tower sets"
+                : $"{cardinals} of {towerSets.Count} sets on the cardinals, {intercardinals} on the intercardinals, {elsewhere} elsewhere; "
+                  + $"each colour's towers side by side in {adjacent}; {repeats} of {followers} later sets repeat the set before",
+            towerSets.Count == 0 ? Verdict.NotInTheseLogs
+            : elsewhere > 0 || adjacent < towerSets.Count ? Verdict.Differs
+            : cardinals > 0 && intercardinals > 0 ? Verdict.Matches
+            : Verdict.Inconclusive)
+        {
+            Details = towerSets.Select(s => $"{s.Pull} set {s.Set}: {s.Layout}").ToList(),
+        };
     }
 
     private const double CatchSampleGap = 0.15;

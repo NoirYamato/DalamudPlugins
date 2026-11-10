@@ -69,7 +69,8 @@ internal sealed class TopP3MonitorsPullLogs : ITopPullLogMeasures
 
         var explained = Rules.Select(r => (r.Name, Pulls: volleys.Count(v => Fits(v, r)))).ToList();
         yield return new LogFinding(Section, "Who the monitors hit: how many pulls each rule explains, circle for circle",
-            SimSource.Line(Scenario, "party.Find.OnSideN(world.Rng, source, side.Mul(), TargetsPerMonitor"),
+            $"{SimSource.Line(Scenario, "IEnumerable<SimCharacter> EveryoneOnOmegasSide()")}, "
+            + SimSource.Line(Scenario, "party.Find.OnSideN(world.Rng, source, side.Mul(), TargetsPerMonitor"),
             Rules[0].Name,
             volleys.Count == 0 ? "no monitors fired"
                 : string.Join("; ", explained.Select(e => $"{e.Name}: {e.Pulls} of {volleys.Count}"))
@@ -93,16 +94,17 @@ internal sealed class TopP3MonitorsPullLogs : ITopPullLogMeasures
             fireSeconds - startSeconds is { } simFired ? LogFinding.Compare(fired, simFired, 0.25) : Verdict.Inconclusive);
     }
 
-    // A rule for whom each monitor targets: two players on its side, topped up from the other side as the sim's are, or,
-    // for Omega's with OmegaHitsItsSide, every player on its side and nobody else.
+    // A rule for whom each monitor targets: two players on its side, topped up from the other side, or, for Omega's with
+    // OmegaHitsItsSide, every player on its side and nobody else. The first rule is the sim's.
     private sealed record Rule(string Name, bool OmegaHitsItsSide, bool Nearest);
 
     private static readonly Rule[] Rules =
     [
+        new("Omega's monitor hits every player on its side and no other, and each player's monitor hits two random players on its "
+            + "side, topped up from the other side", true, false),
+        new("the same, but each player's monitor hits the two nearest its owner", true, true),
         new("every monitor, Omega's too, hits two random players on its side, topped up from the other side", false, false),
         new("the same, but each hits the two nearest its owner", false, true),
-        new("Omega's monitor hits every player on its side and no other, the players' two at random as above", true, false),
-        new("the same, but the players' hit the two nearest their owner", true, true),
     ];
 
     // Each monitor's hits as slots, one per circle, each taking a circle that holds a player it may target.

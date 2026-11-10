@@ -6,8 +6,7 @@ using static AnoMech.Tests.ActLogLines;
 
 namespace AnoMech.Tests;
 
-// The first Wave Repeater's cast starts at 0 s. The void zone's object stands from 5.5 s to 24.5 s, and a Ninja stands 3 y
-// from the centre from 23 s, its first sample, so from 22.6 s on.
+// The first Wave Repeater's cast starts at 0 s.
 public class TopP3IntermissionPullLogsTests
 {
     private const uint Boss = 0x40000010, Zone = 0x40000030, Spreader = 0x40000041, Stacker = 0x40000042;
@@ -67,6 +66,50 @@ public class TopP3IntermissionPullLogsTests
         });
     }
 
+    [Test]
+    public void ThreeLeftArmsAPullOnSpotsThatChangeMatch()
+    {
+        var kinds = ArmKinds(Arms(0, 120, 240), Arms(60, 120, 240));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(kinds.Measured, Does.StartWith("left arms per pull: 3, 3; 2 different choices of spots for the left arms in 2 pulls; "
+                                                       + "2 of 4 sets are all one kind"));
+            Assert.That(kinds.Verdict, Is.EqualTo(Verdict.Matches));
+        });
+    }
+
+    [Test]
+    public void APullWithFourLeftArmsDiffers()
+        => Assert.That(ArmKinds(Arms(0, 60, 120, 180), Arms(0, 120, 240)).Verdict, Is.EqualTo(Verdict.Differs));
+
+    [Test]
+    public void LeftArmsOnTheSameSpotsEveryPullAreInconclusive()
+        => Assert.That(ArmKinds(Arms(60, 120, 240), Arms(60, 120, 240)).Verdict, Is.EqualTo(Verdict.Inconclusive));
+
+    private static LogFinding ArmKinds(params string[][] pulls)
+        => Findings(pulls).Single(f => f.Name == "Which kind of arm stands where");
+
+    // The server places the six arms 14 y out facing the centre, the north triangle at 3 s and the south one at 6.1 s; the
+    // arms on the given bearings are left arms, the rest right arms.
+    private static string[] Arms(params int[] leftBearings)
+    {
+        var lines = new List<string>();
+        for (var i = 0; i < 6; i++)
+        {
+            var bearing = i * 60;
+            var actor = 0x40000050u + (uint)i;
+            var radians = bearing * MathF.PI / 180f;
+            var at = new Vector2(100f + 14f * MathF.Sin(radians), 100f - 14f * MathF.Cos(radians));
+            var heading = MathF.Atan2(100f - at.X, 100f - at.Y);
+            lines.Add(Enemy(0, actor, leftBearings.Contains(bearing) ? BNpcBaseId.LeftArmUnit : BNpcBaseId.RightArmUnit, at, heading));
+            lines.Add(Placed(bearing % 120 == 0 ? 3 : 6.1, actor, at, heading));
+        }
+        return [.. lines];
+    }
+
+    // The void zone's object stands from 5.5 s to 24.5 s, and a Ninja stands 3 y from the centre from 23 s, its first sample,
+    // so from 22.6 s on.
     private static string[] VoidZone(double? diesAt)
     {
         var lines = new List<string>
@@ -80,16 +123,22 @@ public class TopP3IntermissionPullLogsTests
         return [.. lines];
     }
 
-    private static List<LogFinding> Findings(string[] lines)
+    private static List<LogFinding> Findings(string[] lines) => Findings([lines]);
+
+    // Each array is one pull's lines.
+    private static List<LogFinding> Findings(string[][] pulls)
     {
-        var pull = new ActPull
-        {
-            File = "Network_test.log", Number = 1, Start = Origin,
-            Jobs = new() { [Player1] = (uint)JobId.Ninja, [Player2] = (uint)JobId.Warrior },
-        };
-        pull.Lines.AddRange(lines.Prepend(Cast(0, Boss, P3ActionId.WaveRepeater, 4.7f)).Select(l => ActLine.Parse(l)!));
         var measures = new TopP3IntermissionPullLogs();
-        measures.Observe(new TopPull(pull));
+        foreach (var (lines, number) in pulls.Select((lines, i) => (lines, i + 1)))
+        {
+            var pull = new ActPull
+            {
+                File = "Network_test.log", Number = number, Start = Origin,
+                Jobs = new() { [Player1] = (uint)JobId.Ninja, [Player2] = (uint)JobId.Warrior },
+            };
+            pull.Lines.AddRange(lines.Prepend(Cast(0, Boss, P3ActionId.WaveRepeater, 4.7f)).Select(l => ActLine.Parse(l)!));
+            measures.Observe(new TopPull(pull));
+        }
         return measures.Findings().ToList();
     }
 }
