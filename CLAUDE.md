@@ -60,11 +60,18 @@ NoirMech change:
   release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
   `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
   `IsPlayerAction` change are left out;
+- upstream's unreleased `89aa318` and `e0c03f0`, backported line for line so the release that carries them merges
+  clean: Black Hole's bots grab each new set of tethers once their client shows it (`UmadP3BlackHoleAi.cs`), and a
+  status keeps its source once its applier despawns (`Multiplayer/PacketRecorder.cs` and `PacketReplay.cs`). The
+  13 Dancing Mad P3 Black Hole multiplayer tests (`PeerParityTests`, `LinkInterruptionTests`) fail without
+  `e0c03f0`, as on upstream's v0.5.1.0; `89aa318` alone fixes none of them;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that measures TOP's
   UNVERIFIED values in the user's ACT logs, and the ACT log parser it reads them with;
 - tests for all of these;
+- the test gate (below): `tools/test.ps1`, `StratLintTests`, and a `PauseSeeds` run parameter in upstream's
+  `test.runsettings` for `GamePauseTests`' sweep;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
 
@@ -96,8 +103,21 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   expects this repo at `..\Anomech` on `noirmech-stable` with a clean tree, builds Release with
   `-p:Version=<csproj major.minor.build>.<n>` (`n` = previous revision + 1, reset to 1 when the base changes),
   copies the zip, manifest and a `git archive` source zip into `plugins/NoirMech/`, then commits and pushes
-  `main`. It never pushes `noirmech-stable`: push source commits separately. Don't bump `<Version>` by hand; it
-  tracks the upstream base.
+  `main`. It never pushes `noirmech-stable`: push source commits separately, and first, since it publishes only
+  a commit in `plugins/noirmech-stable` as last fetched (`-Fetch` fetches it). Don't bump `<Version>` by hand;
+  it tracks the upstream base.
+- `publish.ps1` also refuses without `-Changelog`, without `TestResults\green-stamp.txt` saying
+  `green <HEAD> full` (below), and unless its identity scan comes back clean. The scan reads the built plugin zip
+  and the source zip, entry names, DLL strings and each DLL's embedded PDB included, as ASCII, UTF-8 and UTF-16,
+  for the terms in `%APPDATA%\NoirMech\identity-terms.txt` in any case (a missing or empty file refuses too), and
+  must find its controls, so a scan that reads nothing can't pass: NAudio's own build path, UTF-16 strings and
+  `/_/` paths in `NoirMech.dll`, a NoirMech file name and `/_/` in its PDB, and NoirMech source. The terms live
+  outside both repos; never write them into either. `-DryRun` runs every gate, the build and the scan, and stops
+  before copying anything. It also refuses unless its own checkout is on `main` with nothing uncommitted or
+  untracked, and its commit takes only `plugins/NoirMech` and `repo.json`.
+- `publish.ps1` is gentle the way `tools\test.ps1` is (below): before it starts any process it drops itself to
+  Idle priority on its `-Affinity` CPUs (`0xF0`), and its build skips the build servers, so all of it runs there.
+  Run it plainly: `cmd /c start /wait` hands back `start`'s exit code, 0, so a refusal there reads as a pass.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
@@ -107,10 +127,46 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
   inner quotes) and filter with `Name~Synergy` (NUnit filters can't contain spaces). The soak runs under the
   catalog name, so a two-word scenario needs each word: `Name~Blue&Name~Screen`, not `Name~BlueScreen`, which
   only matches the scenario's own test classes.
+- `tools\test.ps1` is the gate (`powershell -ExecutionPolicy Bypass -File tools\test.ps1`; `-Plan` prints its
+  shards and their filters and runs nothing). It builds once, then runs AnoMech.Tests as `-Shards` parallel
+  `dotnet test --no-build` processes and AnoMech.Relay.Tests as one more, prints each process's counts and time
+  and one summary, and exits non-zero on any failure.
+  - A run is green only when no test failed or ran twice, every process exited 0 with a readable trx, and
+    AnoMech.Tests ran tests; in a full or quick run, where every process holds tests, each must have run some.
+    The NUnit adapter only logs it when it can't load the test assembly (a dependency missing, say), and every
+    shard then exits 0 with a trx of no tests, so a count over all processes isn't enough: the relay's tests alone
+    would pass it.
+  - Gentle by default: before it starts any process, git included, it drops itself to Idle priority on the
+    `-Affinity` CPUs (`0xF0`, 4 of the 16), so the build, every test process and the test hosts those start are
+    born there, and `-Shards` defaults to one per CPU in the mask (4); it restores its own priority on its way
+    out. The build passes `--disable-build-servers`: Roslyn starts its shared compiler server at normal priority
+    whatever its parent runs at. `-Affinity 0xFF00` (8 CPUs, so 8 shards) is faster when nobody needs the PC.
+  - The shards are dealt from `$Buckets` by each bucket's single-process time, heaviest onto the lightest shard. A
+    shard takes what its buckets match that no earlier shard took and the shard holding the rest takes everything
+    else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket
+    times or split a bucket; keep `[Explicit]` tests out of every bucket, since a filter that selects one can run
+    it.
+  - `-Preset full` (the default) runs everything at the run settings' seeds: 12 minutes here with the defaults,
+    the PC's CPU load staying under a quarter, against about 37 for a plain `dotnet test` and 28 for one capped
+    process. `-Preset quick` drops the `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed, about 3
+    minutes; `-Phase P3` runs one TOP phase's `TopP3*` classes and the catalog-wide tests' cases for its
+    scenarios, with `-Preset quick` too if wanted; `-SunnySeeds 2000` makes any of them a soak.
+- A green full run of a clean tree writes `green <HEAD> full` to `TestResults\green-stamp.txt` (gitignored), which
+  `publish.ps1` requires. A full run deletes it first, and one with uncommitted changes, `-NoBuild` or
+  `-SunnySeeds`, or one HEAD moved under, writes none.
+- `test.runsettings` sets the seeds: `SunnySeeds` (40) for each catalog strat's sunny day and `PauseSeeds` (5) for
+  `GamePauseTests`' sweep of every catalog strat with pauses; override either as above.
+- `StratLintTests` runs every catalog strat on 3 fixed seeds (`LintSeeds`) and reads `AiManager`'s move lines in
+  each trace. A `Move` with an `arrivalTime` measures its bots' departures from where they stand as it fires, and
+  the deferred `MoveTo` can't be cancelled, so the lint fails when a bot's deferred departure lands at or after
+  that bot's next move, or when a deferred move is planned while its bot still walks from the one before (the 10s
+  Party Synergy flex), naming both sites. `Known` holds upstream's FRU P3 Apocalypse walk at 36.05, which two
+  bots finish up to 0.19s after the 37.0 deadline move plans their departures, inside `AiManager`'s 0.25s margin;
+  an entry fails the test once it's no longer found.
 
-- Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
-  cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
-  development PC.
+- Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Several test processes
+  at normal priority on every CPU have frozen the development PC: run them through `tools\test.ps1`, or one
+  `dotnet test` at a time at Idle priority on a few CPUs, and never two heavy runs at once.
 
 ## Pull-log report
 `tests/AnoMech.Tests/Reports/TopPullLogs/TopPullLogReport.cs` (`TopUnverifiedValues`, [Explicit]) reads every
