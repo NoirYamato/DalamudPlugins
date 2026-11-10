@@ -62,6 +62,8 @@ NoirMech change:
   `IsPlayerAction` change are left out;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
+- the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that measures TOP's
+  UNVERIFIED values in the user's ACT logs, and the ACT log parser it reads them with;
 - tests for all of these;
 - comment-only edits in six upstream files that dropped mentions of BossMod (expect comment conflicts when
   merging upstream releases).
@@ -109,6 +111,38 @@ NoirMech must not run alongside AnoMech: they install the same hooks and share I
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Run one at a time and
   cap them (`-- NUnit.NumberOfTestWorkers=4`, low process priority): several in parallel have frozen the
   development PC.
+
+## Pull-log report
+`tests/AnoMech.Tests/Reports/TopPullLogs/TopPullLogReport.cs` (`TopUnverifiedValues`, [Explicit]) reads every
+`Network_*.log` in the folder the `PullLogs` parameter names (ACT's is `%APPDATA%\Advanced Combat Tracker\FFXIVLogs`),
+splits out the TOP pulls and checks NoirMech's TOP values marked UNVERIFIED against them. Without the parameter it
+is skipped. From Git Bash, after a build:
+`dotnet test tests/AnoMech.Tests --no-build --filter Name=TopUnverifiedValues -- 'TestRunParameters.Parameter(name="PullLogs", value="<folder>")'`.
+It takes seconds and writes `pull-logs/top-unverified.txt` in the test run's output folder (`bin/`, ignored by git).
+It reads the logs where they are, the one ACT is still writing included, so ACT can stay open; never copy the logs
+anywhere, since they hold other players' names.
+- Each value prints its constant (file:line, found by the line's text), the sim's value, the measured values with
+  their count and spread, and a verdict: matches, differs, inconclusive or not in these logs. Constants and event
+  times (from the scenario's `world.Events.Add` lines) are read from the code of the checkout the tests were built
+  in, so the report follows their edits; a rule or layout the measure class describes in words has to be updated
+  with the sim. `TopPullLogReportTests` fails, naming the finding, when an edit drops the text a finding looks for.
+  It changes no sim value.
+- `Reports/ActLogs/` is the parser: pulls split as upstream's `tools/parser.py` splits them (the game's combat flag
+  on 260 lines, else the duty director's codes), and the line types the report reads as typed events. It blanks
+  every name field as it reads a line and the report names players by job; never copy log lines into the repo.
+  A combat segment where no enemy cast or used an ability (the plugin's own runs make them) is listed and left out.
+- Deaths: a player is dead from its first 0-HP line (37/38/39); the death line (25) comes about 2 s later. A hit
+  killed when its effect result (the 37 line with its sequence) left the target at 0 HP, or, with none logged, when
+  the target died within 3 s. A hit on a player under an invulnerability (Hallowed Ground, Holmgang, Living Dead,
+  Walking Dead, Superbolide, Undead Rebirth) is listed but left out of every kill rule.
+- When something stops killing is told from players who stood in it and lived on, not from when its object leaves
+  the client's object table: the P3 void zone's object stands until about 24.5 s, but players lived within the
+  sim's 6 y from about 23.2 s.
+- Positions: the logging player's own run a little ahead of the server's and the other players' trail it by a few
+  tenths of a second, so a distance between players is good to about a yalm. Server placements (271 lines) and cast
+  locations (263 lines) are exact to about 0.03 y, and the report measures from them where it can.
+- The measures cover what the logs reach (P3 and P4 Blue Screen); a phase's values need a measure class beside
+  the others, listed in `TopPullLogReport.Measures`.
 
 ## LPDU strat timing
 Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only extra step. The flex has no
