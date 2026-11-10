@@ -81,7 +81,9 @@ public static class TopP3Constants
     public static class P3Geometry
     {
         public const float TowerRingRadius = 14f;
-        public const float RotContactRadius = 1.5f;                 // UNVERIFIED, must stay under the 2.5y a stack partner stands off
+        // UNVERIFIED. It must stay over the 1.3y from its stack holder at which each LPDU remote member takes its
+        // rot, and under the 2.5y a stack partner stands off.
+        public const float RotContactRadius = 1.5f;
         public const float RemoteRegressionBreakDistance = 9f;      // breaks above
         public const float LocalRegressionBreakDistance = 9f;       // breaks below
 

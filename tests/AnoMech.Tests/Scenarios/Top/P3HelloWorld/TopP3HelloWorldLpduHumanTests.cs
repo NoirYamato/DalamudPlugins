@@ -12,8 +12,10 @@ namespace AnoMech.Tests;
 // The sunny-day soak drives the player's seat with the bots' own AI. Here the seat is a human who
 // plays the guides and nothing else: it waits on its loose-spread spot, then walks at each cue to
 // its role's spot from the design table, a fixed reaction time late, and steps round nobody but a
-// soaker holding its tower spot. The bots must keep every rot off it and off themselves, for every
-// kit in every seat, on layouts from all eight directions.
+// soaker holding its tower spot. Its one spot off the table is the remote pass: on its stack partner,
+// where the table puts it, the remote tether would break, so it takes its rot 1.3 y inside its stack,
+// toward the other stack, as the bots do. The bots must keep every rot off it and off themselves, for
+// every kit in every seat, on layouts from all eight directions.
 public class TopP3HelloWorldLpduHumanTests
 {
     // Ten fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.

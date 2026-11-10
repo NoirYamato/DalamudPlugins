@@ -208,17 +208,19 @@ one place.
   tower's debuff lands 0.62s after it goes off and runs 10s; Latent Defect runs 27s from Hello World's hit, so
   whoever no defamation cleansed dies at 32s.
 - Both regression tethers break at 9y, the remote one past it and the local one inside it, from the moment they
-  go live. So the remote pair takes its rots 1.3y inside its stacks, toward each other, and stands 7.9y apart
-  until its pop. A bot walks to a pass's spot exactly, without the 0.3y jitter, so it stays within the rot's
-  reach.
-- Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots.
-  Every spot is placed from the set's layout, so they play both rings alike; only the loose spread before the
-  first towers and the Monitors line-up stand fixed in the arena. They plan each walk round everyone's live
-  positions and debuffs, give the human more room than each other (`HumanSwapClearance`), step aside for it, and
-  hold their spots through each resolve. The bots-only soak can't see human conflicts, so change bot movement only
-  with `TopP3HelloWorldLpduHumanTests` green: it scripts the player's seat through every kit, seat, walking style
-  and reaction delay, on layouts from all eight directions. Like a player, it walks round a soaker holding its
-  tower spot in its way, unless it takes the guides' lanes.
+  go live. Standing on its stack partners, where the strat's slideshow takes the pass, the remote pair would be
+  about 10.5y apart and break its tether. So it takes its rots 1.3y inside its stacks, toward each other, and
+  stands 7.9y apart until its pop. No source gives that spot (UNVERIFIED), and it reaches the rot only while
+  `RotContactRadius` (1.5y, UNVERIFIED) stays over 1.3y. A bot walks to a pass's spot exactly, without the 0.3y
+  jitter, so it stays within the rot's reach.
+- Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots and
+  that remote pass. Every spot is placed from the set's layout, so they play both rings alike; only the loose
+  spread before the first towers and the Monitors line-up stand fixed in the arena. They plan each walk round
+  everyone's live positions and debuffs, give the human more room than each other (`HumanSwapClearance`), step
+  aside for it, and hold their spots through each resolve. The bots-only soak can't see human conflicts, so change
+  bot movement only with `TopP3HelloWorldLpduHumanTests` green: it scripts the player's seat through every kit,
+  seat, walking style and reaction delay, on layouts from all eight directions. Like a player, it walks round a
+  soaker holding its tower spot in its way, unless it takes the guides' lanes.
 - Monitors: Omega's monitor hits every player on its half of the arena, however many (nobody when the half is
   empty, UNVERIFIED). Each player's monitor hits 2 random players on its side (`CharacterFind.OnSideN`, as P5
   does), filling up with random others when fewer stand there. Bots aim theirs by turning after they arrive.
