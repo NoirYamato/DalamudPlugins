@@ -8,7 +8,7 @@ namespace AnoMech;
 
 // The user's Start / Reset / Leave (main window, /ano), routed to the local Game or, for a
 // multiplayer peer, to the host.
-internal sealed class RunController
+internal sealed partial class RunController
 {
     private readonly Game game;
     private readonly MultiplayerManager multiplayer;
@@ -27,8 +27,9 @@ internal sealed class RunController
 
     public void Tick() => startWait.Tick();
 
-    public string? StartRefusal(ScenarioSelection? selection, bool solo)
+    public string? StartRefusal(ScenarioSelection? selection, bool solo, bool checkSettings = true)
     {
+        if (Plugin.AnoMechPresence.Refusal is { } anoMech) return anoMech;
         if (selection is not { Scenario: var scenario }) return "No scenario selected.";
         if (solo && !scenario.SupportsSolo) return $"{scenario.Name} does not support Solo mode.";
         // Starting here bypasses MultiplayerManager: a host would run the fight without a
@@ -36,7 +37,7 @@ internal sealed class RunController
         if (scenario.SupportsMultiplayer && multiplayer.IsConnected)
             return "In a multiplayer session -- only the host's Start button runs it.";
         // ScenarioSession refuses these too, but only after zoning in and seating the party.
-        if (scenario.SettingsConflicts is [var conflict, ..]) return conflict;
+        if (checkSettings && scenario.SettingsConflicts is [var conflict, ..]) return conflict;
         if (startWait.WaitingOn is { } waiting) return $"Waiting for {waiting} to settle before starting...";
         // A settle only delays the start; Start waits it out.
         if (ZoneControl.StartBlockedReason(out var settling) is { } blocked && settling == null)
@@ -52,7 +53,7 @@ internal sealed class RunController
             Plugin.Log.Warning(refusal);
             return;
         }
-        var party = new LocalPartyProvider { RoleOverride = selection!.RoleOverride, Solo = solo };
+        var party = PartyFor(selection!.RoleOverride, selection.RotateSeats, solo);
         var p = new RunScenarioParams(selection.Scenario, party, solo ? null : selection.Strat, selection.Waymark, selection.Seed);
         if (ZoneControl.StartBlockedReason(out var settling) != null && settling != null)
         {

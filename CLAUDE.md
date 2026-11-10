@@ -69,6 +69,28 @@ NoirMech change:
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that measures TOP's
   UNVERIFIED values in the user's ACT logs, and the ACT log parser it reads them with;
+- Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
+  (it keeps a replayed roll off the streak and lets Drill make the restart); upstream's `RunController` is `partial`,
+  with Retry in `RunController.Retry.cs` and a `checkSettings` flag on its `StartRefusal`; in upstream's `Plugin`,
+  `/noirmech retry` and the Drill tick in `OnFrameworkUpdate`. With them, the fix for Auto-restart replaying one roll:
+  upstream's `Game.EnterAndStart` raises `RunStarted` with the params as asked, not with the seed it draws to seat the
+  party before a zone-in;
+- the refusal to run while AnoMech is loaded (below): `AnoMechPresence.cs` and `AnoMechWatch.cs`; upstream's `Plugin`
+  holds the presence (`Plugin.AnoMechPresence`) and the watch, which it starts and disposes with one line each; and a
+  first check in `RunController.StartRefusal` and in `ZoneControl`'s `StartBlockedReason` and `HoldBlockedReason`;
+- the setup kept across game restarts and the Role pick Rotate (below): `SetupMemory.cs`,
+  `Core/Game/Party/SeatRotation.cs`, `ScenarioSelection.RotateSeats`, and `RunController.Rotate.cs`, whose `PartyFor`
+  upstream's `RunController.Start` takes its party from. In upstream's `MainWindow.cs`: "Rotate" is `RoleLabels[1]`,
+  which moves every seat's label up one (index 2 is MT; `RolePick` maps both ways), `DrawRoleSelector` goes through
+  `RolePick`, `ReconcileSetup` clears Rotate in a session, and `SelectScenario` and `Dispose` keep the setup;
+- the main window is `partial`: what Retry, Drill, the AnoMech warning and the kept setup add sits in
+  `MainWindow.RunControls.cs` and `MainWindow.Setup.cs`, with one-line hooks in upstream's `MainWindow.cs` (the older
+  pause button sits in `MainWindow.cs` itself);
+- upstream's FRU P4 Crystallize Time settings window reads its "Your debuffs" pick back from the overrides every
+  frame, as every other settings window does, so a kept setup, a replay or a host's settings show there (one line and
+  a `using`);
+- test support for runs back to back: `FakeFramework` models `RunOnTick` on a clock `FakeGame.Frame` moves,
+  `TimelineScenario` takes settings overrides and conflicts, and `tests/AnoMech.Tests/Support/PracticeRun.cs`;
 - tests for all of these;
 - the test gate (below): `tools/test.ps1`, `StratLintTests`, and a `PauseSeeds` run parameter in upstream's
   `test.runsettings` for `GamePauseTests`' sweep;
@@ -89,7 +111,9 @@ and a Dalamud config separate from AnoMech's. `Plugin.DisplayName` holds the use
   `.github/workflows/*` (upstream's: `pr-build.yml` runs, harmlessly, on every push to the plugin repo; the
   release workflows can't run there).
 
-NoirMech must not run alongside AnoMech: they install the same hooks and share ImGui window ids.
+NoirMech must not run alongside AnoMech: they install the same hooks and share ImGui window ids. While AnoMech is
+loaded NoirMech still loads and hooks, but refuses every zone-in and start and leaves a stay already up (see AnoMech
+alongside).
 
 ## Repos, branches, releases
 - Upstream is `anomek/AnoMech`. Merge only its **release tags** into `noirmech-stable`; its `master` holds
@@ -206,9 +230,10 @@ Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only ex
 measures its delay from where the bot stands when the move fires, so a flex still walking at 11s made the
 dodge's 14.8s deadline lose a bot in 21-29% of seeds (a 10s flex). Keep each `arrivalTime` before the next move,
 and give every strat a `Group`. `selectedAi` is an index into `AiStrats`, and the main window opens a scenario on
-the first strat and its region, so the order sets the default. Reorder only after updating every test that passes
-a strat index (the scenario's own tests, `GamePauseTests`); the index isn't saved across sessions, but it is sent
-to multiplayer peers, so both sides need the same build.
+the first strat and its region unless `SetupMemory` kept a pick for it, so the order sets the default. Reorder only
+after updating every test that passes a strat index (the scenario's own tests, `GamePauseTests`); the index isn't
+saved across sessions (a kept pick goes by name), but it is sent to multiplayer peers, so both sides need the same
+build.
 
 ## Pause
 `/noirmech pause|resume|toggle`, the main-window Pause/Resume button and the title-bar icon toggle
@@ -231,6 +256,102 @@ to multiplayer peers, so both sides need the same build.
 - A paused run doesn't count toward the streak. Known gaps: knockbacks and carries finish during the pause,
   BGM runs on, short head-marker VFX can expire, and GCD and cooldowns keep running.
 - `tests/AnoMech.Tests/Core/Game/GamePauseTests.cs` covers this headlessly.
+
+## Retry and Drill
+`Core/Game/RollReplay.cs`, owned by upstream's `PracticeLoop` (`Plugin.Practice.Rolls`), which reports each run's
+start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws both.
+- Auto-restart rolls fresh. `Game.EnterAndStart` draws a seed before a zone-in to seat the party on the run's stream,
+  and `RunStarted` reports the params as asked (`StartScenarioNow`'s `asked`), so that seed no longer sticks to every
+  Auto-restart after a Start from the inn. A seed the player asked for (the debug build's Seed field) still repeats.
+- `RollReplay.Last` is the last local run as it played (`PlayedRun`): `Fresh`, what it started from; `AsPlayed`, the
+  same with the seed it played (`World.Rng.Seed` at `RunStarted`) and the player's seat pinned, Solo kept; `Settings`,
+  its scenario's overrides as `ScenarioSettingsSync` serialized them as it started. `Replay()` puts those settings
+  back on the scenario, where its panel shows them, and returns a copy of `AsPlayed` that `RunStarted` hands back by
+  reference, which makes the run a replay (`Replaying`). A fresh roll after a replay starts from its `Fresh`.
+- Retry: "Retry this roll" beside Start (or Stop and Pause during a run), `/noirmech retry` and `/noir retry`, in
+  `RunController.Retry.cs`. `RetryRefusal` refuses, with a chat line from the command and as the button's tooltip:
+  first while AnoMech is loaded, then in a multiplayer session or stay, with no local run yet this session, in another
+  zone's stay, and wherever Start would, asking `StartRefusal` with the last run's selection.
+- Retry puts the run's settings back before it starts, so a conflict in the live settings refuses it only when they
+  are the run's own (`StartRefusal`'s `checkSettings`). `Retry` asks `StartRefusal` again once `Replay()` has put them
+  back, so a conflict they don't fix (the P6 Gauntlet's module check) still refuses before anything zones in, and
+  leaves the run's settings in place. It starts through `EnterAndStart` as Start does, zoning in from the inn and
+  waiting out a settle, and the window first selects the retried scenario.
+- Drill (beside Auto-restart, in every build; forced off in a session): a run in which anyone died plays its roll
+  again 3 s after it freezes (`RollReplay.FreezeHoldSeconds`), so the player sees the frozen scene, or, when godmode
+  kept everyone up, as soon as it ends; a clean run moves on to a fresh roll. Deaths switch Auto-restart off but not
+  Drill, and with Drill on Drill makes the restart. A run stopped before it froze isn't played again.
+- The freeze is polled: `Rolls.Tick` runs after `Game.Tick` in `Plugin.OnFrameworkUpdate` and counts the hold on the
+  frame's own seconds, since the sim's clock stands still through the freeze. Drill ticked on during a freeze replays
+  3 s after the tick. Whatever ends or replaces the frozen run within the 3 s drops the replay (Stop or Reset, Start,
+  Retry, Leave, the zone going away), and so does ticking Drill off; Pause is refused through the freeze.
+- A replayed roll (Retry, or Drill's repeat) doesn't add to the streak; a death still resets it.
+- `PracticeLoopTests` and `RollReplayTests` play runs back to back on a `TimelineScenario`
+  (`tests/AnoMech.Tests/Support/PracticeRun.cs`), Drill in a host's stay included; `RunControllerRetryTests` covers
+  Retry's refusals and their chat lines. `ZoneControl.StartBlockedReason` can't pass headless (it reads "not logged
+  in"), so no test reaches Retry's second ask, after the settings are back.
+
+## AnoMech alongside
+- `AnoMechPresence` decides from plain data (`InstalledPlugin(InternalName, IsLoaded)`) whether AnoMech is loaded.
+  `AnoMechWatch` reads `PluginInterface.InstalledPlugins` at load and on `ActivePluginsChanged` (on the framework
+  thread) and prints one chat line each time it finds AnoMech newly loaded; the main window shows the reason in red.
+- While AnoMech is loaded, `RunController.StartRefusal` and `ZoneControl.StartBlockedReason` refuse first, with that
+  reason (`Refusal`, and `StartBlock` worded as the start gate's other reasons). Every zone-in and start asks the
+  latter: Start, Retry, Drill, Auto-restart, the multiplayer start check, `ScenarioSession` and `ZoneControl.Enter`.
+  The debug send hold is refused the same way (`ZoneControl.HoldBlockedReason`).
+- NoirMech's guard and firewall act only in its own stays. Every trip check, `GuardTerritoryChanged` and
+  `GuardLogout` need `guardArmed`, which only `ZoneControl.Enter` sets; the rest of `TickGuard` times NoirMech's own
+  start gate; the firewall hooks are on only in a stay and under the debug send hold. Its always-on hooks act only
+  for its own sim (the UseAction block in its user pause, `UserActions` while its own map is in an instance, steering
+  when its sim steers) or only log. So while AnoMech runs its sim and NoirMech has no stay, NoirMech stays inert. The
+  overlap is a NoirMech stay already up when AnoMech loads: a zone load of AnoMech's could trip NoirMech's guard (a
+  zone transition or a territory drift under its firewall), which stops the game.
+- On detection the watch ends such a stay and releases a debug send hold. A local stay, or a host's, ends through
+  `RunController.Leave` (the inn reload and the verified lift); a host's party goes back to the inn with it, since the
+  host's sim is theirs. A peer leaves its session and its own stay at once, as Disconnect does: its Leave would only
+  ask the host to end the run, and its own stay would stay up until the host answered. The host then ends the run it
+  lost a player from, as it does for any peer that leaves mid-run.
+- `AnoMechPresenceTests`, `AnoMechWatchTests`, `RunControllerTests`.
+
+## Setup memory and Rotate
+- `SetupMemory` keeps the main window's setup in `setup.json` in the plugin's config folder
+  (`%APPDATA%\XIVLauncher\pluginConfigs\NoirMech\`), not in upstream's `Configuration`: the Role pick by label, the
+  seat Rotate last gave (below), and per scenario (by `FullName`) its region, its strat by name and its settings
+  overrides as `ScenarioSettingsSync` serializes them, which leaves out the internal test pins. At load
+  `MainWindow.RestoreSetup` puts back the Role pick, Rotate's seat and each scenario's region and settings, before the
+  last scenario is selected again; a scenario's strat comes back by name as it is selected, and one it no longer has in
+  that region leaves the region's first.
+- `MainWindow.RememberSetup` runs every frame from `PreOpenCheck` and saves what changed (the settings are read every
+  0.5s), and before `SelectScenario` switches scenario, so a setting changed just before is kept for its own. On
+  unload and after a session it also reads every kept scenario's settings again (`SetupMemory.RememberSettings`); a
+  scenario never shown has no entry, since only the shown one's settings can be changed.
+- A multiplayer session overrides part of the setup, and `SetupMemory` keeps that part out of the file (`Track` tells
+  it the window's session every frame): the Role pick, which a session resets, for everyone; and everything of a
+  scenario for a guest, who plays the host's scenario, strat and settings. A host's region, strat and settings are
+  kept as they change. When the session ends `Track` says so once, and the window puts back the kept Role pick and,
+  for a guest, the selected scenario's region and strat; a guest's own settings come back through
+  `MultiplayerManager`'s restore, as before.
+- Every settings window reads its picks back from the overrides every frame, so a kept setup, a replay or a host's
+  settings show there. Upstream's FRU P4 Crystallize Time window alone kept its "Your debuffs" pick in a field and
+  showed "Random" over restored debuffs; it reads the pick back now too.
+- Rotate, a Role pick: tanks alternate MT and OT and melee M1 and M2 on each local run, from the seat Auto gives;
+  healers and ranged keep their job's seat. Start seats the run through a `RotatingPartyProvider` on
+  `RunController.Seats`, asked again for every run started from it, so Auto-restart and Drill's fresh rolls rotate
+  too; the rotation moves on as such a run starts (`RollReplay.Started`). A replay keeps the seat it played and leaves
+  the rotation alone. Multiplayer seats stay the Party panel's.
+- Rotate goes on across game restarts. `SetupMemory` keeps the tank or melee seat the rotation last gave
+  (`SeatRotation.Last`, by its label in `RotateSeat`; a healer or ranged run after it leaves it be), and `RestoreSetup`
+  hands it back to `RunController.Seats` as a seat played, so that role goes on alternating from it, on any job of the
+  role. The other role starts from the seat Auto gives, even if it had a turn before the restart.
+- Beside the pick the window shows the player's seat: the one the next Start gives on the current job ("You: M2"),
+  or during a run that run's, with Rotate followed by the next fresh roll's ("You: MT (next OT)") unless Drill will
+  play the roll again (`RollReplay.DrillReplays`). Retry plays the seat its run gave.
+- The P6 Gauntlet builds its limit break plan each run from the seats and the human's client job, so a rotated tank
+  or melee gets its duties by job priority against the bot beside it (a PLD: Cosmo Memory and Magic Number 1 in MT
+  beside the OT PLD bot, Magic Number 2 in OT beside the MT WAR bot). Every seat Rotate gives fits the job, so the
+  chat line names the duties (`TopP6GauntletLimitBreakPlanTests`).
+- `SetupMemoryTests` (every catalog scenario's settings, off their defaults, survive a save and a load; what a
+  session keeps; Rotate's seat across a restart) and `SeatRotationTests`.
 
 ## TOP P3
 `Scenarios/Top/P3Intermission/`, `Scenarios/Top/P3HelloWorld/` and `Scenarios/Top/P3Monitors/` in the

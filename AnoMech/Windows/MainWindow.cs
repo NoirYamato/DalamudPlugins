@@ -22,7 +22,7 @@ using AnoMech.Core.Native.Implementations;
 
 namespace AnoMech.Windows;
 
-public unsafe class MainWindow : Window, IDisposable
+public unsafe partial class MainWindow : Window, IDisposable
 {
     private const float ScenarioButtonExtraPadding = 6f;
     private const float SetupDropdownWidth = 180f;
@@ -57,7 +57,7 @@ public unsafe class MainWindow : Window, IDisposable
     private IScenario? _selectedScenario;
 
     internal ScenarioSelection? Selection => _selectedScenario is { } scenario
-        ? new ScenarioSelection(scenario, HasStartableStrat() ? _selectedStrat : null, _selectedWaymark, SelectedSeed, _roleOverride)
+        ? new ScenarioSelection(scenario, HasStartableStrat() ? _selectedStrat : null, _selectedWaymark, SelectedSeed, _roleOverride, _rotateSeats)
         : null;
 
     private PartyRole? _roleOverride;
@@ -89,11 +89,11 @@ public unsafe class MainWindow : Window, IDisposable
     // The last region picked per grouped scenario, restored on a switch back to it.
     private readonly Dictionary<IScenario, string> _stratGroupMemory = new();
 
-    // Index 0 = Auto (null override); indices 1..8 map to (PartyRole)(idx - 1).
+    // Index 0 = Auto (null override), 1 = Rotate; indices 2..9 map to (PartyRole)(idx - 2).
     // Labels are the canonical raid role abbreviations: MT/OT tanks, H1/H2 healers
     // (H1 = regen), M1/M2 melee DPS, R1/R2 ranged DPS (R1 = phys).
     private static readonly string[] RoleLabels =
-        ["Auto", "MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
+        ["Auto", "Rotate", "MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
 
 #if DEBUG
     private readonly DebugMenu debugMenu;
@@ -128,6 +128,7 @@ public unsafe class MainWindow : Window, IDisposable
         PartyPanel = new PartyPanelWindow(this, Plugin.Multiplayer);
         multiplayerUi = new MultiplayerUi(plugin);
         IsOpen = false;
+        RestoreSetup();
         RestoreSelectedScenario();
 
         autoCollapseButton = new TitleBarButton
@@ -171,6 +172,7 @@ public unsafe class MainWindow : Window, IDisposable
 
     public void Dispose()
     {
+        KeepSetupOnUnload();
 #if DEBUG
         debugMenu.Dispose();
 #endif
@@ -273,6 +275,7 @@ public unsafe class MainWindow : Window, IDisposable
         _wasScenarioActive = scenarioActive;
         _lastStatus = status;
         _wasInInstance = inInstance;
+        RememberSetup();
     }
 
     private void RequestCollapsed(bool collapsed)
@@ -444,6 +447,7 @@ public unsafe class MainWindow : Window, IDisposable
     // Select a scenario and reset its per-scenario UI state (strat, waymark, remembered region).
     private void SelectScenario(IScenario scenario, bool persist = true)
     {
+        RememberSetup(checkSettingsNow: true);
         if (_selectedScenario is { } previousScenario)
             _waymarkMemory[previousScenario.Phase.Zone] = _selectedWaymark;
 
@@ -457,6 +461,7 @@ public unsafe class MainWindow : Window, IDisposable
         // Restore the last region picked for this scenario; ReconcileStrat snaps null to its first region.
         _selectedStratGroup = _stratGroupMemory.GetValueOrDefault(scenario);
         ReconcileStrat();
+        RestoreStratPick(scenario);
 
         if (persist)
         {
@@ -479,6 +484,7 @@ public unsafe class MainWindow : Window, IDisposable
     private void DrawMainContent()
     {
         var inSession = InSession;
+        DrawAnoMechWarning();
         if (_selectedScenario == null)
         {
             DrawScenarioPanelToggle();
@@ -512,7 +518,7 @@ public unsafe class MainWindow : Window, IDisposable
     // is broadcast and run; each is reset, not just disabled, so a stale pick can't apply.
     private void ReconcileSetup(bool mpConnected, bool mpGuest)
     {
-        if (mpConnected) _roleOverride = null;
+        if (mpConnected) (_roleOverride, _rotateSeats) = (null, false);
         if (mpGuest)
         {
             _selectedStrat = 0;
@@ -758,6 +764,7 @@ public unsafe class MainWindow : Window, IDisposable
             multiplayerUi.DrawStartButton(actionSize, Selection);
         else
             DrawStartButton(actionSize);
+        if (!inSession) DrawRetryButton();
 
         if (game.World.Map.IsInInstance)
         {
@@ -965,6 +972,7 @@ public unsafe class MainWindow : Window, IDisposable
             ImGui.SetTooltip(mpActive
                 ? MpDisabledReason
                 : "Restart the same scenario immediately after a successful run. A death turns this back off.");
+        DrawDrillOption(practice, mpActive);
         ImGui.SameLine();
         ImGui.TextDisabled($"Streak: {practice.Streak}");
     }
@@ -994,11 +1002,12 @@ public unsafe class MainWindow : Window, IDisposable
 
     private void DrawRoleSelector()
     {
-        var idx = _roleOverride is { } role ? (int)role + 1 : 0;
+        var idx = RolePick;
         SettingsGrid.Row("Role:");
         ImGui.SetNextItemWidth(SetupDropdownWidth * ImGuiHelpers.GlobalScale);
         if (ImGui.Combo("##role", ref idx, RoleLabels, RoleLabels.Length))
-            _roleOverride = idx == 0 ? null : (PartyRole)(idx - 1);
+            RolePick = idx;
+        DrawSeatLabel();
     }
 
     // Only meaningful when a scenario offers more than one strat; hidden otherwise.

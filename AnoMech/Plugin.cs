@@ -47,6 +47,7 @@ public sealed class Plugin : IDalamudPlugin
     internal static Configuration Config { get; private set; } = null!;
     internal static Game Game { get; private set; } = null!;
     internal static PracticeLoop Practice { get; private set; } = null!;
+    internal static AnoMechPresence AnoMechPresence { get; private set; } = new();
     internal static MultiplayerManager Multiplayer { get; private set; } = null!;
     internal RunController Runs { get; private set; } = null!;
 
@@ -62,6 +63,7 @@ public sealed class Plugin : IDalamudPlugin
 #endif
 
     private OpcodeUpdater? opcodeUpdater;
+    private AnoMechWatch? anoMechWatch;
 
     public Plugin()
     {
@@ -98,7 +100,7 @@ public sealed class Plugin : IDalamudPlugin
 
             CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
-                HelpMessage = $"Open {DisplayName}. Subcommands: config, mp, start, reset, leave, pause, resume, toggle (pause/resume)"
+                HelpMessage = $"Open {DisplayName}. Subcommands: config, mp, start, reset, leave, pause, resume, toggle (pause/resume), retry"
             });
             CommandManager.AddHandler(CommandAlias, new CommandInfo(OnCommand)
             {
@@ -116,6 +118,7 @@ public sealed class Plugin : IDalamudPlugin
             DutyState.DutyStarted += OnDutyStarted;
             DutyState.DutyWiped += OnDutyWiped;
             DutyState.DutyCompleted += OnDutyCompleted;
+            anoMechWatch = AnoMechWatch.Start(Game, Multiplayer, Runs);
 
             // Initialize Pointers
             EventObjectManagerPointers.Initialize();
@@ -176,6 +179,7 @@ public sealed class Plugin : IDalamudPlugin
         DutyState.DutyStarted -= OnDutyStarted;
         DutyState.DutyWiped -= OnDutyWiped;
         DutyState.DutyCompleted -= OnDutyCompleted;
+        anoMechWatch?.Dispose();
 
         windowSystem.RemoveAllWindows();
 
@@ -213,6 +217,8 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Runs.Tick threw: {e}"); }
         try { Game.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Game.Tick threw: {e}"); }
+        try { Practice.Rolls.Tick(fw->FrameDeltaTime); }
+        catch (Exception e) { DiagnosticLog.Warn($"[Plugin] Practice.Rolls.Tick threw: {e}"); }
 #if DEBUG
         try { DamageDebugWindow.Instance?.Tick(fw->FrameDeltaTime); }
         catch (Exception e) { DiagnosticLog.Warn($"[Plugin] DamageDebugWindow.Tick threw: {e}"); }
@@ -293,6 +299,9 @@ public sealed class Plugin : IDalamudPlugin
                 break;
             case "toggle":
                 Runs.TogglePause();
+                break;
+            case "retry":
+                MainWindow.Retry();
                 break;
             default:
                 MainWindow.Toggle();

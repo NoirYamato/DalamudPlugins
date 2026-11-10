@@ -80,7 +80,7 @@ internal sealed class FakeGame
     // Update (the plugin), then the game runs its own update (cast bars, carries, spawns).
     public void Frame(float deltaSeconds, Action<float> update)
     {
-        Framework.RunPending();
+        Framework.RunPending(deltaSeconds);
         update(deltaSeconds);
         WalkSteeredPlayer(deltaSeconds);
         BattleCharas.Tick(deltaSeconds);
