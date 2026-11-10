@@ -5,7 +5,7 @@
         "Punchline":  "AnoMech with LPDU strats for TOP P2, P3, P4, P5 Delta, P5 Omega and P6, and a pause. Go to an inn and start practice.",
         "Description":  "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen, P5 Delta and P5 Omega, the P6 Gauntlet (all of P6 through the enrage, where you press your own limit breaks as LPDU assigns them), and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
         "InternalName":  "NoirMech",
-        "AssemblyVersion":  "0.5.1.11",
+        "AssemblyVersion":  "0.5.1.12",
         "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins",
         "ApplicableVersion":  "any",
         "Tags":  [
@@ -22,13 +22,13 @@
                  ],
         "DalamudApiLevel":  15,
         "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/noirmech.png",
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.11.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.11.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.11.zip",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.12.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.12.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/NoirMech/NoirMech-0.5.1.12.zip",
         "IsHide":  false,
         "IsTestingExclusive":  false,
         "DownloadCount":  0,
-        "LastUpdate":  "1794190570",
-        "Changelog":  "TOP P6: the five P6 entries are now one P6 Gauntlet, all of P6 from Cosmo Memory through the enrage on the [LPDU] Light PF strat (EU). You press your own limit breaks as LPDU assigns them, and you can start from any part. It needs Resolve your own actions on and plays with bots only; AnoMech\u0027s Exasquares/WC2 (NA pf, solo and multiplayer) is gone with the old entries. TOP P5 Omega: the LPDU bot tether takers now fetch a Blaster tether left on a non-taker, you included."
+        "LastUpdate":  "1794283074",
+        "Changelog":  "Practice: Retry this roll (/noirmech retry) and Drill, which replays a failed roll after a 3 s look until you clear it. Auto-restart now rolls fresh every run. Your role, region, strat and settings are kept across restarts, and a Rotate role alternates MT/OT or M1/M2. NoirMech won\u0027t start while AnoMech is loaded. TOP P3 and P4 now play as real pulls do: Hello World towers land on the cardinals or the intercardinals, remote tethers break past 9 y, Omega\u0027s monitor hits his whole side, Blue Screen beams follow you, and timings are corrected. TOP P6 Gauntlet: R2\u0027s Meteor must be centred on Alpha Omega, tanks need their cooldowns at Cosmo Dive and Wild Charge while Require tank mitigation is on, and the last melee LB3 counts until the enrage hits."
     }
 ]
