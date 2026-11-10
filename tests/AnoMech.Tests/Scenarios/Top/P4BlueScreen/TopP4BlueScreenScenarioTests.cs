@@ -143,14 +143,15 @@ public class TopP4BlueScreenScenarioTests
             .TeleportAt(2f, to: new(0, 21))
             .ShouldKill(TheEnvironment, MainTank);
 
-    // MT stands in R1's line at the aim and leaves the arena before the beams: MT's line fires nothing, so R1
-    // takes only its own. Stopped before the west line stack, which is a player short without MT.
+    // MT stands 1 y from R1 at the aim, then leaves the arena behind R1 before the beams. A beam down the line
+    // aimed at MT or toward MT's body would cross R1, but MT fires none, so R1 takes only its own. Stopped before
+    // the west line stack, which is a player short without MT.
     [Test]
     public void APlayerWhoDiedSinceTheAimFiresNoBeam()
     {
         var run = Run(MainTank, SplitMarkers, stopAt: 10f,
                       new Takeover(7.5f, new Vector2(-13.5f, -1f)),
-                      new Takeover(8.2f, new Vector2(0, 21)));
+                      new Takeover(8.2f, new Vector2(-21f, 0f)));
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)),
