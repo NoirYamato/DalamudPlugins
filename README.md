@@ -52,25 +52,40 @@ Full step-by-step instructions are in **[docs/INSTALL.md](docs/INSTALL.md)**. In
 
 ## Quick start
 
+This version has two gaps that later updates close: it loads its fight data and plans only when a preview
+starts (step 2), and no plans come with it yet (step 4).
+
 1. Type `/mitcue` to open the settings window. The **Status** line at the top tells you what MitCue is doing
    right now.
-2. **General** tab: set **My usual party slot** (for example H1 for the White Mage, H2 for the Scholar). MitCue
+2. Type `/mitcue preview`, and if a preview starts, type `/mitcue preview` again to stop it. This loads the
+   fight data and the plans. If you have no plan yet, MitCue answers *No plan for The Omega Protocol
+   (Ultimate)*: the data is loaded all the same. **Do this every time you start the game, and again whenever
+   MitCue is reloaded (for example after an update).** Until then the Status line says *Fight data did not
+   load*, the **Plans** tab only says *Loading...*, and MitCue shows no reminders in TOP.
+3. **General** tab: set **My usual party slot** (for example H1 for the White Mage, H2 for the Scholar). MitCue
    uses it to work out which column of a plan is yours.
-3. **Plans** tab: make sure your plan is listed. Plans bundled with the plugin appear on their own. A plan
-   someone shares with you is a share code: paste it and click **Import share code**. Then, in **Active plan
-   per fight and job**, find the row *The Omega Protocol (Ultimate)* with your job and:
+4. **Plans** tab: add your plan. No plans come with the plugin yet, so you get yours from whoever looks after
+   the static's plans, or from MitCue's developer, in one of two forms:
+   - a **share code**, one long line of text that starts with `MITCUE1:`. Paste it into **Share code** and
+     click **Import share code**;
+   - a **plan file** called `<plan id>.json`. Copy it into the plans folder,
+     `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\` (the **Debug** tab shows the exact path; create the
+     `plans` folder if it is missing), then click **Reload plans**.
+
+   Then, in **Active plan per fight and job**, find the row *The Omega Protocol (Ultimate)* with your job and:
    - choose the plan under **Active plan**, or leave it on *automatic*, which uses the first plan that has a
      column for your job;
    - check **My column**: MitCue suggests a column from your job and slot, and you can pick another one (for
      example *White Mage* or *H2 SCH*).
-4. Type `/mitcue preview top` to watch a simulated pull: a 10-second countdown, then the fight at real speed.
+5. Type `/mitcue preview top` to watch a simulated pull: a 10-second countdown, then the fight at real speed.
    Drag the overlay to where you want it. `/mitcue preview top p3` starts at phase 3, and `/mitcue preview`
    stops the preview.
-5. **Overlay** tab: tick **Lock position**, and **Click-through** if you like. Adjust **Scale**, **Background
+6. **Overlay** tab: tick **Lock position**, and **Click-through** if you like. Adjust **Scale**, **Background
    opacity** and **Maximum rows**.
-6. In TOP there is nothing to switch on. When you enter the zone on a job that has an active plan, the overlay
-   shows *TOP - waiting for pull*. Start a `/countdown` and the pre-pull reminders appear. From the pull
-   onwards the reminders follow the boss. After a wipe you get a one-line summary in chat.
+7. In TOP, with the fight data loaded (step 2): when you enter the zone on a job that has an active plan, the
+   Status line says *Ready* and the overlay shows *TOP - waiting for pull*. Start a `/countdown` and the
+   pre-pull reminders appear. From the pull onwards the reminders follow the boss. After a wipe you get a
+   one-line summary in chat.
 
 ## Commands
 
@@ -91,8 +106,8 @@ real fight. Use it to place the overlay and to read through a plan before raid n
   (for example you are on a Dancer, or in town on a crafter), MitCue takes the first plan for the fight and
   previews it as the job of the column you saved for it, or else as the plan's first job.
 - **Timing:** a whole-fight preview begins with a simulated 10-second countdown. A phase preview starts
-  2 seconds before that phase. Tick **Run /mitcue preview at 4x speed** in **General** to run it 4 times as
-  fast.
+  2 seconds before a simulated pull and jumps to that phase about 2 seconds after the pull. Tick **Run
+  /mitcue preview at 4x speed** in **General** to run it 4 times as fast.
 - **Your own presses count:** go to a striking dummy and use your actions when they turn **NOW**. They are
   marked done, so you can try the usage tracking out of combat. Cooldown and resource warnings are not
   shown in the preview.
@@ -192,13 +207,22 @@ hold every player's column. Each player picks theirs in **My column**, so the wh
 
 **Available now**
 
-- **Bundled plans.** These ship inside the plugin and appear in the Plans tab as *bundled*: the static's TOP
-  plans, converted from the original sheets (`plans/` in this repository). You can't edit or delete them.
 - **Share codes.** **Copy share code** in the plan list copies a plan as one long line of text that starts
   with `MITCUE1:`. Send it to a static member. They paste it into the **Share code** box (or click **Paste from
   clipboard**) and click **Import share code**. Imported plans are listed as *user* plans and can be deleted
   (click **Delete**, then click again to confirm).
-- **Reload plans** re-reads the plan files, for example after you copy a plan file into the plans folder.
+- **Plan files.** MitCue keeps each imported plan as a `<plan id>.json` file in
+  `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder, for example after
+  you copy a plan `.json` file into it. Only `.json` files are read there: YAML plan files (`*.mitplan.yaml`,
+  the format in [docs/DESIGN.md](docs/DESIGN.md) §3.2) are not.
+
+**Coming later**
+
+- **Bundled plans.** The static's TOP plans, converted from the original sheets, will ship inside the plugin
+  (from `plans/` in this repository) and appear in the Plans tab as *bundled*, read-only. This version
+  contains none yet.
+- **The developer command line** (`tools/MitCue.Cli`, to convert sheets and simulate pulls) is not written
+  yet.
 
 **Coming soon: the import window**
 
@@ -213,8 +237,7 @@ note in chat. It will offer three ways in:
 
 Whichever way you use, the result goes through a **review** screen: each entry shows how sure the importer
 is, you correct whatever it got wrong, and your corrections are remembered as personal shorthand for next
-time. Until then, plans are converted with the developer tools (see [docs/DESIGN.md](docs/DESIGN.md) §6) and
-shared as bundled plans or share codes.
+time. Until then, plans reach MitCue as share codes or plan files from the developer.
 
 ## Troubleshooting
 
@@ -227,9 +250,10 @@ Read the **Status** line at the top of `/mitcue`:
 - *no plan for WHM. Choose one in /mitcue > Plans*: no plan has a column for your job. Pick one in the Plans
   tab.
 - *none of its N entries match …*: the plan is active, but the column chosen in **My column** is not yours.
-- *Fight data did not load*, or the Plans tab only says *Loading...*: test builds load their fight data the
-  first time a preview starts. Type `/mitcue preview`, then `/mitcue preview` again to stop it. If the problem
-  stays, look at the **Problems** list.
+- *Fight data did not load*, or the Plans tab only says *Loading...*: this version loads its fight data and
+  plans only when a preview starts, so this is what you see after every game start or plugin reload (see
+  [Quick start](#quick-start) step 2). Type `/mitcue preview`, and `/mitcue preview` again if a preview
+  started. If the message stays after that, look at the **Problems** list.
 - Also check that the overlay is switched on (`/mitcue overlay`, or **Show the overlay** in the Overlay tab).
 
 **Reminders come too early or too late, or the clock jumps**
@@ -250,8 +274,9 @@ send the debug report.
 **An error appeared, or reminders stopped**
 
 The **Problems** list (top of the settings window, and at the end of the debug report) names what failed.
-`/mitcue reset` restarts the live session. **Reload data** in the Debug tab reloads the fight data; in test
-builds the reload only happens when the next `/mitcue preview` starts. Dalamud's own log (`/xllog`) has the
+`/mitcue reset` restarts the live session. **Reload data** in the Debug tab unloads the fight data and ends
+the live session; both come back only when the next `/mitcue preview` loads the data again, so don't press it
+during a pull. Plans are re-read with **Reload plans** in the Plans tab. Dalamud's own log (`/xllog`) has the
 full error.
 
 ### Sending a bug report
@@ -320,7 +345,7 @@ Repository layout:
 src/MitCue.Core/        core library: plans, timelines, sync engine, reminders, importer (no Dalamud)
 src/MitCue/             the Dalamud plugin
 tests/MitCue.Core.Tests xUnit tests (+ tests/fixtures/sheets: snapshots of the example sheets)
-tools/MitCue.Cli/       developer command line (convert and simulate)
+tools/MitCue.Cli/       developer command line (convert and simulate; not written yet)
 tools/make-repo-json.py writes the Dalamud custom-repository file (repo.json)
 tools/RepoJsonCheck/    checks repo.json and the plugin zip with Dalamud's own manifest types
 data/                   fight timelines (cactbot), fight catalogs, action data and shorthand aliases
@@ -333,7 +358,10 @@ release (cached per Dalamud version), builds the solution in Release, runs the u
 tests, writes a sample `repo.json` and checks it, together with the zip, against Dalamud's own manifest
 types. It uploads `latest.zip` as the **MitCue-plugin** artifact. The check runs with `--strict`. If a new
 Dalamud release adds a manifest field, CI fails at this step until `tools/make-repo-json.py` writes the new
-field too. Releases are not blocked by this.
+field too. Releases are not blocked by this. For a few minutes after a Dalamud release, Dalamud's version file
+and its `latest.zip` can disagree. CI and releases then fail at the Dalamud download step instead of caching
+the wrong Dalamud: re-run the job a little later. The tools' tests (`tools/tests`) also run the workflows'
+Dalamud download and `repo` branch steps against local stand-ins.
 
 ## Releasing
 
@@ -355,14 +383,23 @@ field too. Releases are not blocked by this.
    - creates the GitHub release with `latest.zip` attached and checks that it downloads without signing in;
    - commits `repo.json` to the **`repo`** branch. That branch serves
      `https://raw.githubusercontent.com/OWNER/REPO/repo/repo.json`. The run's summary shows the exact URL.
+     Next to it, `published.json` records the release and commit each listed version was built from.
 
 Rules:
 
 - Tags are `vMAJOR.MINOR`, `vMAJOR.MINOR.PATCH` or `vMAJOR.MINOR.PATCH.REVISION`, with numbers only.
   Pre-release suffixes such as `-beta` are rejected, because Dalamud compares plain version numbers.
-- Every release must be newer than the one in `repo.json`. The workflow refuses to publish a lower version.
+- Each new release needs a higher version than the one in `repo.json`. Dalamud only offers an update when the
+  version goes up, so the workflow refuses a lower version, and also the same version built from another tag
+  or commit: players who installed that version would never get the new build. For example `v1.3` and
+  `v1.3.0` are both version 1.3.0.0, and a tag that is moved to another commit keeps its version. **Never
+  move a released tag to another commit**: tag the fix as a new version, such as `v1.3.1`.
+- Re-running a release job (same tag, same commit) replaces the release's `latest.zip` and publishes
+  `repo.json` again.
+- Push one release tag at a time. Releases run one after another, and tags pushed together wait their turn,
+  but they may start in any order, and an older version that runs after a newer one is refused.
 - The repository must be **public**, because Dalamud downloads anonymously.
-- Re-running a release job replaces the release's `latest.zip` and publishes `repo.json` again.
+- Leave `repo.json` and `published.json` on the `repo` branch to the workflow.
 
 To build a `repo.json` by hand, run `python3 tools/make-repo-json.py --help` and
 `dotnet run --project tools/RepoJsonCheck -- --help`.

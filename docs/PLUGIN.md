@@ -56,9 +56,9 @@ queue, which the next framework tick empties.
 | `OwnUse`, `OwnUseDeduper`, `PetActions` | `Game/` | Detected action uses. Merges duplicates found by different paths. Maps fairy and Seraph actions to the Scholar command that triggered them |
 | `PullRecorder` | `Game/PullRecorder.cs` | Optional JSON-lines log of every event, one file per zone visit (§2.6) |
 | `SoundPlayer` | `Game/SoundPlayer.cs` | Plays chat sound effect `<se.N>` through `UIGlobals.PlaySoundEffect` |
-| `CoreData` | `Data/CoreData.cs` | Loads the fight library (`data/fights`, cactbot timelines), action catalog and alias dictionary embedded in `MitCue.Core.dll`, and adds the personal aliases. Loading is lazy and every call is guarded |
+| `CoreData` | `Data/CoreData.cs` | Loads the fight library (`data/fights`, cactbot timelines), action catalog and alias dictionary embedded in `MitCue.Core.dll`, and adds the personal aliases. Loading is lazy and every call is guarded. In this version only a preview start loads it (§2.0) |
 | `GameData` | `Data/GameData.cs` | Lumina lookups: action names in the client language, icons, the GCD flag, job abbreviations, zone names (cached) |
-| `PlanStore` | `Plans/PlanStore.cs` | Bundled plans (embedded, read-only) plus user plans (`pluginConfigs/MitCue/plans/*.json`). Works out the active plan per fight and job (the user's choice, otherwise the first plan with a column for the job) and "my column" (the saved choice, otherwise a suggestion from job and slot). Imports and exports share codes |
+| `PlanStore` | `Plans/PlanStore.cs` | Bundled plans (embedded, read-only; none ship yet) plus user plans (`pluginConfigs/MitCue/plans/*.json`). Works out the active plan per fight and job (the user's choice, otherwise the first plan with a column for the job) and "my column" (the saved choice, otherwise a suggestion from job and slot). Imports and exports share codes. Loaded together with `CoreData`, and again with **Reload plans** |
 | `SessionManager` | `Runtime/SessionManager.cs` | Owns the live `EncounterSession`: builds it, rebuilds it when something changes, feeds it every frame, prints the pull summary and asks for the sound |
 | `EncounterSession` | `Runtime/EncounterSession.cs` | One fight, plan and player: a core `TimelinePlayer` plus a `ReminderScheduler` for your entries and an optional one for other columns. Handles the countdown, pull start and pull end |
 | `PreviewDriver` | `Runtime/PreviewDriver.cs` | `/mitcue preview`: the core `FightSimulator` produces a pull, which plays through a separate `EncounterSession` |
@@ -115,9 +115,10 @@ to it, or jumps for phase pushes. In TOP, the phases are entered through these s
 
 ### 1.5 Sessions, pulls and reminders
 
-**When there is a live session.** You must be logged in, in a zone that has a fight definition (for now
-TOP, territory 1122), on a combat job, and there must be an active plan for that fight and job. Otherwise the
-Status line says what is missing.
+**When there is a live session.** The fight data must be loaded (in this version, by a preview start since
+the plugin loaded: §2.0). You must be logged in, in a zone that has a fight definition (for now TOP, territory
+1122), on a combat job, and there must be an active plan for that fight and job. Otherwise the Status line
+says what is missing.
 
 **Rebuilds.** The session is rebuilt when the zone, job, level, plan, settings, data or client language
 changes:
@@ -168,8 +169,9 @@ and does not break the frame. If the live session itself throws, it stops ("Stop
 `FightSimulator`: the cactbot timeline, with the casts and abilities that satisfy its syncs. Then:
 
 - **Clock.** The pull happens at simulated clock 1000. A whole-fight preview starts 10 s earlier, with a
-  simulated countdown. A phase preview drops the earlier phases' events, so the phase's own sync jumps the
-  timeline, and starts 2 s before the phase.
+  simulated countdown. A phase preview starts 2 s before the pull, without a countdown. It drops the earlier
+  phases' events, so P1 starts at the pull and the chosen phase begins 2 s after it, where the phase's own
+  sync jumps the timeline.
 - **Separate session.** The preview has its own `EncounterSession`, with English name matching, because the
   simulated names come from the timeline. Simulated events never reach the live session.
 - **Your presses.** Your real action uses are forwarded at the simulated time, so you can test usage tracking
@@ -192,8 +194,10 @@ and does not break the frame. If the live session itself throws, it stops ("Stop
 ### 1.8 Data, files and packaging
 
 - **Embedded data.** `MitCue.Core.dll` contains `data/**` (fight catalogs, cactbot timelines, action data,
-  aliases) as `MitCue.data/...`, and `plans/**/*.yaml` (bundled plans) as `MitCue.plans/...`. **Reload data**
-  in the Debug tab reloads them.
+  aliases) as `MitCue.data/...`. It also embeds `plans/**/*.yaml` (bundled plans) as `MitCue.plans/...`, but
+  the repository has no `plans/` folder yet, so no bundled plans ship. **Reload data** in the Debug tab
+  unloads the fight data, actions and aliases and ends the live session; they are loaded again by the next
+  preview start. It does not touch plans: **Plans** > **Reload plans** re-reads them.
 - **Files.** Settings are in `pluginConfigs/MitCue.json`. User plans are in `pluginConfigs/MitCue/plans/`.
   Recordings are in `pluginConfigs/MitCue/recordings/`. See [INSTALL.md](INSTALL.md#where-mitcue-keeps-its-files).
 - **Package.** `src/MitCue/MitCue.csproj` uses `Dalamud.NET.Sdk/15.0.0`. DalamudPackager turns the csproj
@@ -217,20 +221,26 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
 
 - [ ] Install MitCue (either route in [INSTALL.md](INSTALL.md)). In `/mitcue` > **About**, note the version.
 - [ ] In `/mitcue` > **Debug**, click **Clear problems**, so that new problems stand out.
-- [ ] **Known issue in early test builds:** fight data and plans are loaded the first time a preview starts.
-      If the Plans tab only says *Loading...* or the Status line says *Fight data did not load*, run
-      `/mitcue preview` once and stop it with `/mitcue preview`. Report whether you needed this.
+- [ ] **Load the data.** This version loads its fight data and plans only when a preview starts. Until then
+      the Status line says *Fight data did not load*, the Plans tab only says *Loading...*, and there is no
+      live session, in TOP too. Type `/mitcue preview`, and `/mitcue preview` again if a preview started
+      (without a plan it answers *No plan for …*, and the data is loaded anyway). **Repeat this after every
+      game start and every plugin reload**, including before TOP (§2.4).
+- [ ] **Get a plan.** No plans ship with this version. Ask the developer for a share code or a plan file:
+      paste a share code into **Plans** > **Share code** and click **Import share code**, or copy a
+      `<plan id>.json` file into the plans folder (the path is in the Debug tab, *Data* section) and click
+      **Reload plans**.
 
 ### 2.1 Loading and settings (5 minutes, anywhere)
 
 - [ ] `/mitcue` opens the settings window with the tabs **General, Overlay, Plans, Debug, About**. `/mitcue`
       again closes it. The settings button in `/xlplugins` opens it too.
 - [ ] The **Status** line makes sense for where you are. In town: *No supported fight in this zone (…)*.
-- [ ] **Plans** lists the plans. Bundled plans show *bundled*. The table *Active plan per fight and job* has a
+- [ ] **Plans** lists the plan you imported, marked *user*. The table *Active plan per fight and job* has a
       row for TOP and your current job, with a suggested **My column**.
 - [ ] **General** > **Test** plays the sound. Try two different *Sound effect* numbers.
 - [ ] Change a few settings, switch MitCue off and on in `/xlplugins` (or restart the game), and check they
-      are kept.
+      are kept. Then load the data again (§2.0).
 - [ ] **Problems** stays empty. If not, copy the text.
 
 ### 2.2 `/mitcue preview top` (15–20 minutes, near a striking dummy)
@@ -262,7 +272,9 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
   - [ ] **Reset position** moves it back;
   - [ ] **Always show** shows `SAMPLE - drag to position` when nothing runs.
 - [ ] **General** > tick **Also show the plan's other columns**, then restart the preview: the other columns'
-      calls appear dimmed with a tag like `[H2]`, and your own rows still come first.
+      calls appear dimmed with a tag like `[H2]`. All rows are in press-time order, so a co-healer's call that
+      comes first is drawn above yours. Other columns only fill the rows your own reminders leave free: your
+      own rows are never pushed out.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
@@ -285,8 +297,10 @@ This checks the game event capture outside TOP. MitCue shows no reminders here.
   - [ ] your own actions appear as `Ability … by you`;
   - [ ] pulls show `InCombat 1` / `InCombat 0`;
   - [ ] a wipe or leaving the zone shows `Reset Wipe` / `Reset LeftZone`.
-- [ ] **Debug** > *Recent own uses* lists your actions `via ActionEffect`. As Scholar, the fairy's Whispering
-      Dawn shows up as Whispering Dawn `via Pet`.
+- [ ] **Debug** > *Recent own uses* lists your actions `via ActionEffect`. As Scholar, use Whispering Dawn:
+      it is listed once, never twice. Usually that is `via ActionEffect`, because your own command's effect
+      arrives before the fairy's, and the fairy's then counts as the same use. If the command itself sends no
+      effect, it is `via Pet`. Note which one you saw.
 - [ ] Type `/countdown 10`: **Debug** shows `countdown 9.6` counting down, then `-` after the pull.
 - [ ] The **General** tab shows *Recording to <zone>-<date>-<time>.jsonl (N lines)*, and N goes up. Open the
       file in a text editor: the first line is a `Header` with the zone id and MitCue version. Check that no
@@ -297,6 +311,7 @@ This checks the game event capture outside TOP. MitCue shows no reminders here.
 
 Before the first pull (tick **Record pulls** before you zone in):
 
+- [ ] Since the last game start or plugin reload, you have loaded the data with `/mitcue preview` (§2.0).
 - [ ] Status: *Ready: <plan> (N of M entries are yours).* The overlay shows `TOP - waiting for pull (<plan>)`.
 - [ ] **Debug** > *Data*: `fights: top (territory 1122, level 90, 6 phases, … mechanics)`, `action catalog:
       loaded; aliases: loaded`.
@@ -324,8 +339,10 @@ During pulls:
       after it.
 - [ ] `/mitcue reset` during a pull clears the reminders without a summary. Note whether MitCue picks the
       fight up again before the pull ends. The next pull must work normally.
-- [ ] Optional: `/xlstats` (Dalamud's plugin statistics) shows MitCue's draw and update times. Note anything
-      noticeably high.
+- [ ] Optional: `/xlstats` opens Dalamud's plugin statistics. It lists no plugins until you switch tracking
+      on: tick **Enable Draw Time Tracking** on the **Draw times** tab and **Enable Framework Update
+      Tracking** on the **Framework times** tab. Play for a few minutes, then read MitCue's rows and note
+      anything noticeably high.
 
 After the session:
 
@@ -352,7 +369,9 @@ The Debug tab rebuilds its text four times a second. **Copy to clipboard** copie
 Buttons:
 
 - **Reset live session**: the same as `/mitcue reset`.
-- **Reload data**: reloads the fights, timelines, actions and aliases.
+- **Reload data**: in this version it unloads the fights, timelines, actions and aliases and ends the live
+  session. Nothing is loaded again until the next `/mitcue preview` starts (§2.0), so **don't press it during
+  a pull**. Plans are not affected: **Plans** > **Reload plans** re-reads them.
 - **Clear problems**: empties the list.
 
 ### 2.6 Sending a recording

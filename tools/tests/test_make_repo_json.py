@@ -41,6 +41,10 @@ MANIFEST = {
 }
 
 URL = "https://github.com/owner/MitCue/releases/download/v0.1.0/latest.zip"
+URL_V13 = "https://github.com/owner/MitCue/releases/download/v1.3/latest.zip"
+URL_V130 = "https://github.com/owner/MitCue/releases/download/v1.3.0/latest.zip"
+COMMIT_A = "1111111111a1" + "0" * 28
+COMMIT_B = "2222222222b2" + "0" * 28
 
 # docs/research/dalamud-api.md fact 62: the JSON properties of Dalamud 15's RemotePluginManifest.
 FACT_62_FIELDS = {
@@ -180,9 +184,58 @@ class MergeTests(unittest.TestCase):
         entry = build()
         self.assertEqual(mrj.merge_with_previous(entry, [other, old]), [other, entry])
 
-    def test_same_version_is_allowed(self):
+    def test_same_version_is_allowed_for_a_rerun(self):
+        # Same version, same release (download link) and same commit: a re-run of the published release.
         entry = build()
-        self.assertEqual(mrj.merge_with_previous(entry, [dict(entry, LastUpdate=1)]), [entry])
+        record = {"MitCue": {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL, "Commit": COMMIT_A}}
+        self.assertEqual(
+            mrj.merge_with_previous(entry, [dict(entry, LastUpdate=1)], commit=COMMIT_A, record=record), [entry])
+        # A short commit id names the same commit.
+        self.assertEqual(
+            mrj.merge_with_previous(entry, [dict(entry, LastUpdate=1)], commit=COMMIT_A[:12], record=record), [entry])
+
+    def test_same_version_from_another_tag_is_refused(self):
+        # Review finding: v1.3 and then v1.3.0 on a newer commit are both 1.3.0.0. Dalamud offers an update
+        # only for a higher version, so players who installed v1.3 would never get the v1.3.0 build.
+        listed = build(dict(MANIFEST, AssemblyVersion="1.3.0.0"), download_url=URL_V13)
+        entry = build(dict(MANIFEST, AssemblyVersion="1.3.0.0"), download_url=URL_V130)
+        record = {"MitCue": {"AssemblyVersion": "1.3.0.0", "DownloadLinkInstall": URL_V13, "Commit": COMMIT_A}}
+        with self.assertRaisesRegex(mrj.RepoJsonError, "already lists MitCue 1.3.0.0 from .*/v1.3/latest.zip"):
+            mrj.merge_with_previous(entry, [listed], commit=COMMIT_B, record=record)
+        warnings = []
+        self.assertEqual(
+            mrj.merge_with_previous(entry, [listed], commit=COMMIT_B, record=record, allow_same_version=True,
+                                    warnings=warnings), [entry])
+        self.assertTrue(any("1.3.0.0" in w for w in warnings), warnings)
+
+    def test_same_version_from_a_moved_tag_is_refused(self):
+        # Review finding: the tag was deleted and pushed again on a fix commit; the release URL stays the same.
+        entry = build()
+        record = {"MitCue": {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL, "Commit": COMMIT_A}}
+        with self.assertRaisesRegex(mrj.RepoJsonError, "built from commit 1111111111a1.*moved"):
+            mrj.merge_with_previous(entry, [dict(entry, LastUpdate=1)], commit=COMMIT_B, record=record)
+
+    def test_same_version_needs_the_record_and_the_commit(self):
+        entry = build()
+        listed = dict(entry, LastUpdate=1)
+        record = {"MitCue": {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL, "Commit": COMMIT_A}}
+        with self.assertRaisesRegex(mrj.RepoJsonError, "--commit"):
+            mrj.merge_with_previous(entry, [listed], record=record)
+        with self.assertRaisesRegex(mrj.RepoJsonError, "does not say which commit"):
+            mrj.merge_with_previous(entry, [listed], commit=COMMIT_A)
+        # A record for another version (stale) or another release does not count either.
+        for stale in ({"AssemblyVersion": "0.0.9.0", "DownloadLinkInstall": URL, "Commit": COMMIT_A},
+                      {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL_V13, "Commit": COMMIT_A},
+                      {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL},
+                      "nonsense"):
+            with self.subTest(stale=stale), self.assertRaisesRegex(mrj.RepoJsonError, "does not say which commit"):
+                mrj.merge_with_previous(entry, [listed], commit=COMMIT_A, record={"MitCue": stale})
+
+    def test_a_newer_version_needs_no_record(self):
+        entry = build()
+        old = {"InternalName": "MitCue", "AssemblyVersion": "0.0.9.0", "DownloadLinkInstall": URL_V13}
+        self.assertEqual(mrj.merge_with_previous(entry, [old], commit=COMMIT_B), [entry])
+        self.assertEqual(mrj.merge_with_previous(entry, [old]), [entry])
 
     def test_refuses_downgrade(self):
         entry = build()
@@ -196,6 +249,31 @@ class MergeTests(unittest.TestCase):
     def test_rejects_non_list(self):
         with self.assertRaises(mrj.RepoJsonError):
             mrj.merge_with_previous(build(), {"InternalName": "MitCue"})
+
+
+class RecordTests(unittest.TestCase):
+    """The publish record (published.json next to repo.json): which build each listed version is."""
+
+    def test_records_this_plugin_and_keeps_the_others(self):
+        other = {"AssemblyVersion": "9.0.0.0", "DownloadLinkInstall": "https://example.org/o.zip", "Commit": COMMIT_A}
+        old = {"AssemblyVersion": "0.0.9.0", "DownloadLinkInstall": URL_V13, "Commit": COMMIT_A}
+        record = mrj.updated_record({"OtherPlugin": other, "mitcue": old}, build(), COMMIT_B)
+        self.assertEqual(record, {
+            "OtherPlugin": other,
+            "MitCue": {"AssemblyVersion": "0.1.0.0", "DownloadLinkInstall": URL, "Commit": COMMIT_B},
+        })
+        self.assertEqual(mrj.updated_record(None, build(), COMMIT_B)["MitCue"]["Commit"], COMMIT_B)
+
+    def test_validates_the_commit_and_the_file(self):
+        self.assertEqual(mrj.check_commit(COMMIT_A.upper()), COMMIT_A)
+        self.assertIsNone(mrj.check_commit(None))
+        for bad in ("", "12345", "v1.3.0", "g" * 40, "1" * 65):
+            with self.subTest(bad=bad), self.assertRaises(mrj.RepoJsonError):
+                mrj.check_commit(bad)
+        self.assertEqual(mrj.load_record({}, "published.json"), {})
+        for bad in ([], "x", None):
+            with self.subTest(bad=bad), self.assertRaises(mrj.RepoJsonError):
+                mrj.load_record(bad, "published.json")
 
 
 class LastUpdateTests(unittest.TestCase):
@@ -284,6 +362,71 @@ class CommandLineTests(unittest.TestCase):
                                   "--output", self.out)
         self.assertEqual(code, 1)
         self.assertIn("cannot read", log)
+
+    def publish(self, tag, commit, branch, version="1.3.0.0"):
+        """One run of the release workflow's repo.json step against the 'repo' branch folder `branch`."""
+        with open(self.manifest, "w", encoding="utf-8") as f:
+            json.dump(dict(MANIFEST, AssemblyVersion=version), f)
+        previous = []
+        if os.path.exists(os.path.join(branch, "repo.json")):
+            previous += ["--previous", os.path.join(branch, "repo.json")]
+        if os.path.exists(os.path.join(branch, "published.json")):
+            previous += ["--previous-record", os.path.join(branch, "published.json")]
+        out = os.path.join(self.dir.name, "release-" + tag)
+        code, log = self.run_main(
+            "--manifest", self.manifest, "--download-url", f"https://github.com/owner/MitCue/releases/download/{tag}/latest.zip",
+            "--expect-version", tag[1:], "--commit", commit, *previous,
+            "--output", os.path.join(out, "repo.json"), "--record-output", os.path.join(out, "published.json"))
+        if code == 0:
+            os.makedirs(branch, exist_ok=True)
+            for name in ("repo.json", "published.json"):
+                os.replace(os.path.join(out, name), os.path.join(branch, name))
+        return code, log, out
+
+    def test_release_sequence(self):
+        # The review's end-to-end scenarios, replayed against the generator the release workflow runs.
+        branch = os.path.join(self.dir.name, "repo-branch")
+        code, log, _ = self.publish("v1.3", COMMIT_A, branch)
+        self.assertEqual(code, 0, log)
+        with open(os.path.join(branch, "published.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["MitCue"]["Commit"], COMMIT_A)
+
+        # v1.3.0 on a newer commit is the same version 1.3.0.0: refused, and nothing is written.
+        code, log, out = self.publish("v1.3.0", COMMIT_B, branch)
+        self.assertEqual(code, 1)
+        self.assertIn("already lists MitCue 1.3.0.0", log)
+        self.assertFalse(os.path.exists(os.path.join(out, "repo.json")))
+        self.assertFalse(os.path.exists(os.path.join(out, "published.json")))
+
+        # v1.3 moved to a newer commit and pushed again: refused.
+        code, log, _ = self.publish("v1.3", COMMIT_B, branch)
+        self.assertEqual(code, 1)
+        self.assertIn("moved", log)
+
+        # A re-run of v1.3 (same tag, same commit) publishes again.
+        code, log, _ = self.publish("v1.3", COMMIT_A, branch)
+        self.assertEqual(code, 0, log)
+
+        # The fix as a new version is fine, and is recorded.
+        code, log, _ = self.publish("v1.3.1", COMMIT_B, branch, version="1.3.1.0")
+        self.assertEqual(code, 0, log)
+        with open(os.path.join(branch, "repo.json"), encoding="utf-8") as f:
+            listed = json.load(f)
+        self.assertEqual([(e["AssemblyVersion"], e["DownloadLinkInstall"].split("/")[-2]) for e in listed],
+                         [("1.3.1.0", "v1.3.1")])
+        with open(os.path.join(branch, "published.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f), {"MitCue": {
+                "AssemblyVersion": "1.3.1.0",
+                "DownloadLinkInstall": "https://github.com/owner/MitCue/releases/download/v1.3.1/latest.zip",
+                "Commit": COMMIT_B,
+            }})
+
+    def test_record_output_needs_the_commit(self):
+        code, log = self.run_main("--manifest", self.manifest, "--download-url", URL, "--output", self.out,
+                                  "--record-output", os.path.join(self.dir.name, "published.json"))
+        self.assertEqual(code, 1)
+        self.assertIn("--commit", log)
+        self.assertFalse(os.path.exists(self.out))
 
 
 if __name__ == "__main__":

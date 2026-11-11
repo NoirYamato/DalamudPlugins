@@ -60,22 +60,39 @@ jobs:
           path: ${{ env.DALAMUD_HOME }}
           key: dalamud-${{ runner.os }}-${{ steps.dalamud.outputs.version }}
 
-      - name: Download Dalamud ${{ steps.dalamud.outputs.version }}
-        if: steps.dalamud-cache.outputs.cache-hit != 'true'
+      # Same script in release.yml (tools/tests/test_workflows.py runs it). The cache is saved only when the
+      # job succeeds, so failing on a mismatch keeps another Dalamud out of the cache entry for this version.
+      - name: Download Dalamud ${{ steps.dalamud.outputs.version }} (or use the cached copy)
+        id: dalamud-files
         env:
           EXPECTED: ${{ steps.dalamud.outputs.version }}
+          CACHE_HIT: ${{ steps.dalamud-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
-          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/dalamud.zip" "$DALAMUD_DISTRIB/latest.zip"
-          rm -rf "$DALAMUD_HOME"
-          mkdir -p "$DALAMUD_HOME"
-          unzip -q "$RUNNER_TEMP/dalamud.zip" -d "$DALAMUD_HOME"
-          rm -f "$RUNNER_TEMP/dalamud.zip"
-          test -f "$DALAMUD_HOME/Dalamud.dll"
-          actual="$(jq -r '.libraries | keys[] | select(startswith("Dalamud/"))' "$DALAMUD_HOME/Dalamud.deps.json" | head -n 1)"
-          if [ "$actual" != "Dalamud/$EXPECTED" ]; then
-            echo "::warning::latest.zip contains $actual, the version file said $EXPECTED (a Dalamud release is probably in progress)"
+          # The Dalamud version in DALAMUD_HOME, from Dalamud.deps.json (empty when there is none).
+          installed() {
+            jq -r '.libraries | keys[] | select(startswith("Dalamud/")) | ltrimstr("Dalamud/")' \
+              "$DALAMUD_HOME/Dalamud.deps.json" 2> /dev/null | head -n 1 || true
+          }
+          if [ "$CACHE_HIT" = true ] && [ -f "$DALAMUD_HOME/Dalamud.dll" ] && [ "$(installed)" = "$EXPECTED" ]; then
+            echo "Using the cached Dalamud $EXPECTED."
+          else
+            if [ "$CACHE_HIT" = true ]; then
+              echo "::warning::The cache for Dalamud $EXPECTED holds Dalamud '$(installed)'; downloading Dalamud again."
+            fi
+            curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/dalamud.zip" "$DALAMUD_DISTRIB/latest.zip"
+            rm -rf "$DALAMUD_HOME"
+            mkdir -p "$DALAMUD_HOME"
+            unzip -q "$RUNNER_TEMP/dalamud.zip" -d "$DALAMUD_HOME"
+            rm -f "$RUNNER_TEMP/dalamud.zip"
+            test -f "$DALAMUD_HOME/Dalamud.dll"
+            actual="$(installed)"
+            if [ "$actual" != "$EXPECTED" ]; then
+              echo "::error::latest.zip contains Dalamud '$actual', but $DALAMUD_DISTRIB/version says $EXPECTED. A Dalamud release is probably still reaching the download server; re-run this job in about 10 minutes."
+              exit 1
+            fi
           fi
+          echo "version=$(installed)" >> "$GITHUB_OUTPUT"
 
       - name: Cache NuGet packages
         uses: actions/cache@v4

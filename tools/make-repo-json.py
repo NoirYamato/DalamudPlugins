@@ -22,14 +22,22 @@ Rules taken from the Dalamud 15.0.4.0 source:
   * Updates are offered only when DalamudApiLevel equals Dalamud's API level (15) and the
     new AssemblyVersion is greater than the installed one.
 
+So with --previous (the repo.json being replaced), a lower version is refused, and so is the
+same version unless it is the same build: the same download link (release) and the same git
+commit. Otherwise players who installed the listed build would never be offered the new one,
+for example after tagging v1.3.0 when v1.3 (also 1.3.0.0) is listed, or after moving a tag to
+another commit. The commit of each listed build is kept in a publish record next to repo.json
+(published.json on the 'repo' branch): --record-output writes it, --previous-record reads it.
+
 Example (this is what .github/workflows/release.yml runs):
 
   python3 tools/make-repo-json.py \\
       --manifest src/MitCue/bin/Release/MitCue/MitCue.json \\
       --download-url https://github.com/OWNER/REPO/releases/download/v1.2.3/latest.zip \\
       --repo-url https://github.com/OWNER/REPO \\
-      --expect-version 1.2.3 --require-api-level 15 \\
-      --previous old-repo.json --output repo.json
+      --expect-version 1.2.3 --require-api-level 15 --commit "$(git rev-parse HEAD)" \\
+      --previous old/repo.json --previous-record old/published.json \\
+      --output repo.json --record-output published.json
 
 Only the Python standard library is used (Python 3.8 or newer).
 """
@@ -114,6 +122,7 @@ PACKAGER_FIELDS = frozenset(
 )
 
 _VERSION_RE = re.compile(r"^\d+(\.\d+){1,3}$")
+_COMMIT_RE = re.compile(r"^[0-9a-f]{7,64}$")
 _INT32_MAX = 2**31 - 1
 
 
@@ -368,17 +377,96 @@ def build_entry(
     return {key: values[key] for key in REMOTE_MANIFEST_FIELDS}
 
 
+def check_commit(commit: Optional[str]) -> Optional[str]:
+    """A git commit id (7 to 64 hex digits), lower-cased; None stays None."""
+    if commit is None:
+        return None
+    value = commit.strip().lower()
+    if not _COMMIT_RE.match(value):
+        raise RepoJsonError(f"--commit {commit!r} is not a git commit id")
+    return value
+
+
+def load_record(data: Any, source: str) -> Dict[str, Any]:
+    """Checks that a publish record is a JSON object: InternalName -> {AssemblyVersion, DownloadLinkInstall, Commit}.
+
+    The entries themselves are checked where they are used: one that does not match the listed build
+    counts as unknown, which only matters when the same version is published again.
+    """
+    if not isinstance(data, dict):
+        raise RepoJsonError(f"{source} is not a publish record (expected a JSON object)")
+    return data
+
+
+def updated_record(record: Optional[Dict[str, Any]], entry: Dict[str, Any], commit: str) -> Dict[str, Any]:
+    """The publish record for the new repo.json: this plugin's build replaces its old one, others are kept."""
+    key = entry["InternalName"].lower()
+    result = {name: value for name, value in (record or {}).items() if name.lower() != key}
+    result[entry["InternalName"]] = {
+        "AssemblyVersion": entry["AssemblyVersion"],
+        "DownloadLinkInstall": entry["DownloadLinkInstall"],
+        "Commit": commit,
+    }
+    return result
+
+
+def _same_commit(a: str, b: str) -> bool:
+    """True when two commit ids name the same commit (either may be abbreviated)."""
+    a, b = a.lower(), b.lower()
+    return len(min(a, b, key=len)) >= 7 and (a.startswith(b) or b.startswith(a))
+
+
+def _same_version_problem(
+    entry: Dict[str, Any], old: Dict[str, Any], commit: Optional[str], record: Optional[Dict[str, Any]]
+) -> Optional[str]:
+    """None when publishing `entry` over the listed `old` (same version) is a re-run of the same build.
+
+    Dalamud offers an update only for a higher version, so a different build under the listed version
+    reaches new installs only: the players who already have that version keep the old build.
+    """
+    name, version = old["InternalName"], old["AssemblyVersion"]
+    old_link = old.get("DownloadLinkInstall")
+    if old_link != entry["DownloadLinkInstall"]:
+        return f"the repository already lists {name} {version} from {old_link}, a different release"
+    if commit is None:
+        return f"the repository already lists {name} {version}, and without --commit this build cannot be checked to be the same one"
+    recorded = None
+    for key, value in (record or {}).items():
+        if key.lower() == name.lower():
+            recorded = value
+    if (
+        not isinstance(recorded, dict)
+        or not isinstance(recorded.get("Commit"), str)
+        or recorded.get("DownloadLinkInstall") != old_link
+        or not isinstance(recorded.get("AssemblyVersion"), str)
+        or not _VERSION_RE.match(recorded["AssemblyVersion"])
+        or parse_version(recorded["AssemblyVersion"]) != parse_version(version)
+    ):
+        return f"the repository already lists {name} {version}, and --previous-record does not say which commit it was built from"
+    if not _same_commit(recorded["Commit"], commit):
+        return (
+            f"the repository already lists {name} {version} built from commit {recorded['Commit'][:12]}, "
+            f"but this build is from commit {commit[:12]} (was the tag moved?)"
+        )
+    return None
+
+
 def merge_with_previous(
     entry: Dict[str, Any],
     previous: Optional[List[Any]],
     *,
     allow_downgrade: bool = False,
+    allow_same_version: bool = False,
+    commit: Optional[str] = None,
+    record: Optional[Dict[str, Any]] = None,
     warnings: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Replaces the entry with the same InternalName in an existing pluginmaster, keeping the others.
 
     Refuses to publish a lower AssemblyVersion than the one already listed (a re-run of an old
     release would otherwise roll everyone's installer back) unless allow_downgrade is set.
+    The same AssemblyVersion is accepted only as a re-run of the listed build: the same download
+    link, and the same commit as the publish record says (unless allow_same_version is set).
     """
     warnings = warnings if warnings is not None else []
     if previous is None:
@@ -410,6 +498,16 @@ def merge_with_previous(
                     f"{entry['AssemblyVersion']}; refusing to downgrade (use --allow-downgrade to force)"
                 )
             warnings.append(f"downgrading {old_name} from {old_version} to {entry['AssemblyVersion']}")
+        elif newer == older:
+            problem = _same_version_problem(entry, old, commit, record)
+            if problem is not None:
+                if not allow_same_version:
+                    raise RepoJsonError(
+                        f"{problem}. Dalamud offers an update only when the version goes up, so players who "
+                        f"installed {old_version} would never get this build: give it a new version number "
+                        "(--allow-same-version publishes it anyway)"
+                    )
+                warnings.append(f"{problem}; publishing it anyway, but existing installs will not update to it")
         if not placed:
             result.append(entry)
             placed = True
@@ -447,16 +545,47 @@ def _parse_args(argv: Optional[Sequence[str]]) -> argparse.Namespace:
     p.add_argument("--require-api-level", type=int, metavar="N",
                    help="fail unless the manifest's DalamudApiLevel is N")
     p.add_argument("--previous", metavar="PATH",
-                   help="current repo.json: other plugins in it are kept, and a lower version than the listed one is refused")
+                   help="current repo.json: other plugins in it are kept, a lower version than the listed one is refused, "
+                        "and so is the same version unless it is the same build (same download link and --commit)")
+    p.add_argument("--previous-record", metavar="PATH",
+                   help="the publish record written with --previous (published.json): which commit each listed build is from")
+    p.add_argument("--commit", metavar="SHA", help="the git commit the plugin was built from (recorded with --record-output)")
     p.add_argument("--allow-downgrade", action="store_true", help="publish even if --previous lists a newer version")
+    p.add_argument("--allow-same-version", action="store_true",
+                   help="publish even if --previous lists the same version from another release or commit "
+                        "(players who installed it will not be offered this build)")
     p.add_argument("--output", "-o", default="repo.json", metavar="PATH", help="where to write (default: repo.json; '-' = stdout)")
+    p.add_argument("--record-output", metavar="PATH",
+                   help="also write the publish record for the new repo.json (needs --commit); keep it next to repo.json")
     return p.parse_args(argv)
+
+
+def _read_json_file(path: str, option: str) -> Any:
+    try:
+        with open(path, "r", encoding="utf-8-sig") as f:
+            return _read_json_text(f.read(), path)
+    except OSError as e:
+        raise RepoJsonError(f"cannot read {option}: {e}") from e
+
+
+def _write_text(path: str, text: str) -> None:
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+        f.write(text)
+    os.replace(tmp, path)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = _parse_args(argv)
     warnings: List[str] = []
     try:
+        commit = check_commit(args.commit)
+        if args.record_output and commit is None:
+            raise RepoJsonError("--record-output needs --commit")
+        if args.record_output and args.output == "-":
+            raise RepoJsonError("--record-output cannot be used with --output -")
+
         manifest, source = load_manifest(args.manifest)
 
         changelog = args.changelog
@@ -485,15 +614,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             warnings=warnings,
         )
 
-        previous = None
-        if args.previous:
-            try:
-                with open(args.previous, "r", encoding="utf-8-sig") as f:
-                    previous = _read_json_text(f.read(), args.previous)
-            except OSError as e:
-                raise RepoJsonError(f"cannot read --previous: {e}") from e
-        entries = merge_with_previous(entry, previous, allow_downgrade=args.allow_downgrade, warnings=warnings)
+        previous = _read_json_file(args.previous, "--previous") if args.previous else None
+        record = None
+        if args.previous_record:
+            record = load_record(_read_json_file(args.previous_record, "--previous-record"), args.previous_record)
+        entries = merge_with_previous(
+            entry,
+            previous,
+            allow_downgrade=args.allow_downgrade,
+            allow_same_version=args.allow_same_version,
+            commit=commit,
+            record=record,
+            warnings=warnings,
+        )
         text = render(entries)
+        record_text = render(updated_record(record, entry, commit)) if args.record_output and commit else None
     except RepoJsonError as e:
         for w in warnings:
             print(f"warning: {w}", file=sys.stderr)
@@ -506,17 +641,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.output == "-":
         sys.stdout.write(text)
     else:
-        directory = os.path.dirname(os.path.abspath(args.output))
-        os.makedirs(directory, exist_ok=True)
-        tmp = args.output + ".tmp"
-        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
-            f.write(text)
-        os.replace(tmp, args.output)
+        _write_text(args.output, text)
         print(
             f"wrote {args.output}: {entry['Name']} {entry['AssemblyVersion']} (API {entry['DalamudApiLevel']}), "
             f"{len(entries)} plugin(s), LastUpdate {entry['LastUpdate']}",
             file=sys.stderr,
         )
+        if record_text is not None:
+            _write_text(args.record_output, record_text)
+            print(f"wrote {args.record_output}: {entry['Name']} {entry['AssemblyVersion']} built from {commit}", file=sys.stderr)
     return 0
 
 

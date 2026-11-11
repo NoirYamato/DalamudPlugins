@@ -73,9 +73,13 @@ the repository you installed from. Keep the same repository URL from then on.
 
 `/xlplugins` > **Installed Plugins** > MitCue: switch the plugin off, then click the trash-can button
 (**Delete plugin**). Your settings, imported plans and recordings stay on disk (see [Where MitCue keeps its
-files](#where-mitcue-keeps-its-files)). To remove them as well, right-click MitCue in **Installed Plugins**
-and choose **Reset plugin data and reload** *before* you delete the plugin, or delete those files yourself
-afterwards.
+files](#where-mitcue-keeps-its-files)). To remove them as well, delete them yourself once the plugin is gone:
+the file `pluginConfigs\MitCue.json` and the folder `pluginConfigs\MitCue\`.
+
+**Reset plugin data and reload** (right-click MitCue in **Installed Plugins**) deletes the same files, but if
+MitCue is switched on at the time, Dalamud loads it again straight away, and switching it off afterwards
+saves a default `MitCue.json`. That file and an empty `MitCue` folder then stay behind and still need
+deleting by hand.
 
 ---
 
@@ -123,9 +127,12 @@ Don't point Dalamud at a file inside the zip or inside your Downloads folder. To
 ### 4. Load it
 
 1. Type `/xlplugins` and open **Dev Tools** > **Installed Dev Plugins**.
-2. Switch MitCue on. Hover over the small buttons on the plugin's row to find **Start on boot**, so it loads
-   with the game, and **Automatic reloading**, which reloads MitCue whenever the DLL changes.
-3. Type `/mitcue`.
+2. Switch MitCue on.
+3. Leave the two small buttons on the plugin's row as they are: **Start on boot** (power icon), which loads
+   MitCue with the game, and **Automatic reloading** (arrows icon), which reloads it whenever the DLL changes.
+   Both are on by default, shown in green. Each click switches one off (red) or on again, so don't click them
+   unless you mean to.
+4. Type `/mitcue`.
 
 Notes:
 
@@ -151,8 +158,9 @@ recordings folder in **General** and every path in the **Debug** tab.
 | Pull recordings (if enabled) | `%AppData%\XIVLauncher\pluginConfigs\MitCue\recordings\<zone id>-<date>-<time>.jsonl` |
 | Installed plugin (route A) | `%AppData%\XIVLauncher\installedPlugins\MitCue\<version>\` |
 
-On Linux (XIVLauncher.Core), `%AppData%\XIVLauncher` is `~/.xlcore`. Bundled plans and all fight data are
-inside `MitCue.Core.dll`, so there is nothing else to install.
+On Linux (XIVLauncher.Core), `%AppData%\XIVLauncher` is `~/.xlcore`. All fight data is inside
+`MitCue.Core.dll`, so there is nothing else to install. Bundled plans will be inside it too once they ship;
+this version has none (see [Plans and importing](../README.md#plans-and-importing)).
 
 ## If something goes wrong
 

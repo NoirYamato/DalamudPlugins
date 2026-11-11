@@ -3,7 +3,9 @@
 #   2. writes repo.json (the Dalamud "pluginmaster") whose download links point at this release's latest.zip,
 #      and checks it and the zip with Dalamud's own manifest types (tools/RepoJsonCheck);
 #   3. creates the GitHub release with latest.zip attached and checks that it downloads without signing in;
-#   4. commits repo.json to the 'repo' branch. The custom repository URL players add in Dalamud is
+#   4. commits repo.json to the 'repo' branch, with published.json (the commit each listed build is from,
+#      so that a re-run can be told apart from a different build under the same version). The custom
+#      repository URL players add in Dalamud is
 #      https://raw.githubusercontent.com/<owner>/<repo>/repo/repo.json (printed in the run summary).
 # The GitHub repository must be public: Dalamud downloads repo.json and latest.zip anonymously.
 name: Release
@@ -16,9 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  # One release at a time, so two tags cannot race on the 'repo' branch.
+  # One release at a time, so tags cannot race on the 'repo' branch. By default GitHub keeps only the
+  # newest waiting run and cancels the others; queue: max keeps every pushed tag waiting for its turn.
+  # Waiting runs may start in any order, and an older version that runs after a newer one is refused.
   group: release
   cancel-in-progress: false
+  queue: max
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: '1'
@@ -91,22 +96,39 @@ jobs:
           path: ${{ env.DALAMUD_HOME }}
           key: dalamud-${{ runner.os }}-${{ steps.dalamud.outputs.version }}
 
-      - name: Download Dalamud ${{ steps.dalamud.outputs.version }}
-        if: steps.dalamud-cache.outputs.cache-hit != 'true'
+      # Same script in ci.yml (tools/tests/test_workflows.py runs it). The cache is saved only when the
+      # job succeeds, so failing on a mismatch keeps another Dalamud out of the cache entry for this version.
+      - name: Download Dalamud ${{ steps.dalamud.outputs.version }} (or use the cached copy)
+        id: dalamud-files
         env:
           EXPECTED: ${{ steps.dalamud.outputs.version }}
+          CACHE_HIT: ${{ steps.dalamud-cache.outputs.cache-hit }}
         run: |
           set -euo pipefail
-          curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/dalamud.zip" "$DALAMUD_DISTRIB/latest.zip"
-          rm -rf "$DALAMUD_HOME"
-          mkdir -p "$DALAMUD_HOME"
-          unzip -q "$RUNNER_TEMP/dalamud.zip" -d "$DALAMUD_HOME"
-          rm -f "$RUNNER_TEMP/dalamud.zip"
-          test -f "$DALAMUD_HOME/Dalamud.dll"
-          actual="$(jq -r '.libraries | keys[] | select(startswith("Dalamud/"))' "$DALAMUD_HOME/Dalamud.deps.json" | head -n 1)"
-          if [ "$actual" != "Dalamud/$EXPECTED" ]; then
-            echo "::warning::latest.zip contains $actual, the version file said $EXPECTED (a Dalamud release is probably in progress)"
+          # The Dalamud version in DALAMUD_HOME, from Dalamud.deps.json (empty when there is none).
+          installed() {
+            jq -r '.libraries | keys[] | select(startswith("Dalamud/")) | ltrimstr("Dalamud/")' \
+              "$DALAMUD_HOME/Dalamud.deps.json" 2> /dev/null | head -n 1 || true
+          }
+          if [ "$CACHE_HIT" = true ] && [ -f "$DALAMUD_HOME/Dalamud.dll" ] && [ "$(installed)" = "$EXPECTED" ]; then
+            echo "Using the cached Dalamud $EXPECTED."
+          else
+            if [ "$CACHE_HIT" = true ]; then
+              echo "::warning::The cache for Dalamud $EXPECTED holds Dalamud '$(installed)'; downloading Dalamud again."
+            fi
+            curl -fsSL --retry 3 --retry-all-errors -o "$RUNNER_TEMP/dalamud.zip" "$DALAMUD_DISTRIB/latest.zip"
+            rm -rf "$DALAMUD_HOME"
+            mkdir -p "$DALAMUD_HOME"
+            unzip -q "$RUNNER_TEMP/dalamud.zip" -d "$DALAMUD_HOME"
+            rm -f "$RUNNER_TEMP/dalamud.zip"
+            test -f "$DALAMUD_HOME/Dalamud.dll"
+            actual="$(installed)"
+            if [ "$actual" != "$EXPECTED" ]; then
+              echo "::error::latest.zip contains Dalamud '$actual', but $DALAMUD_DISTRIB/version says $EXPECTED. A Dalamud release is probably still reaching the download server; re-run this job in about 10 minutes."
+              exit 1
+            fi
           fi
+          echo "version=$(installed)" >> "$GITHUB_OUTPUT"
 
       - name: Build (Release, version ${{ steps.version.outputs.version }})
         env:
@@ -141,6 +163,7 @@ jobs:
           cat "$notes"
 
       - name: Check out the '${{ env.REPO_BRANCH }}' branch
+        id: repo-branch # tools/tests/test_workflows.py runs this script
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -148,6 +171,9 @@ jobs:
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$auth"
           header="http.$GITHUB_SERVER_URL/.extraheader=AUTHORIZATION: basic $auth"
+          # Always the full ref name: git reads a short 'repo' as a pattern (ls-remote also matches
+          # 'docs/repo') or prefers a tag called 'repo' (fetch).
+          ref="refs/heads/$REPO_BRANCH"
           dir="$RUNNER_TEMP/repo-branch"
           rm -rf "$dir"
           git -c init.defaultBranch="$REPO_BRANCH" init --quiet "$dir"
@@ -155,23 +181,16 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
-          set +e
-          git -c "$header" ls-remote --exit-code --heads origin "$REPO_BRANCH" > /dev/null
-          found=$?
-          set -e
-          case "$found" in
-            0)
-              git -c "$header" fetch --quiet --depth=1 origin "$REPO_BRANCH"
-              git checkout --quiet -B "$REPO_BRANCH" FETCH_HEAD
-              ;;
-            2)
-              echo "The '$REPO_BRANCH' branch does not exist yet; this release creates it."
-              ;;
-            *)
-              echo "::error::Could not list the branches of $GITHUB_REPOSITORY (git ls-remote exit code $found)."
-              exit 1
-              ;;
-          esac
+          if ! refs="$(git -c "$header" ls-remote origin "$ref")"; then
+            echo "::error::Could not list the branches of $GITHUB_REPOSITORY."
+            exit 1
+          fi
+          if cut -f2 <<< "$refs" | grep -Fx -- "$ref" > /dev/null; then
+            git -c "$header" fetch --quiet --depth=1 origin "$ref"
+            git checkout --quiet -B "$REPO_BRANCH" FETCH_HEAD
+          else
+            echo "The '$REPO_BRANCH' branch does not exist yet; this release creates it."
+          fi
           echo "REPO_DIR=$dir" >> "$GITHUB_ENV"
 
       - name: Write repo.json and check it with Dalamud's types
@@ -184,9 +203,17 @@ jobs:
           out="$RUNNER_TEMP/release"
           mkdir -p "$out"
           cp "$PACKAGE_DIR/latest.zip" "$out/latest.zip"
+          commit="$(git rev-parse HEAD)"
+          # repo.json and its publish record (which commit each listed build is from). make-repo-json refuses
+          # a lower version than the listed one, and the same version unless this run rebuilds that exact
+          # release (same tag and commit): Dalamud would never offer a different build under that version
+          # to the players who installed it (v1.3.0 after v1.3, or a moved tag).
           previous=()
           if [ -f "$REPO_DIR/repo.json" ]; then
-            previous=(--previous "$REPO_DIR/repo.json")
+            previous+=(--previous "$REPO_DIR/repo.json")
+          fi
+          if [ -f "$REPO_DIR/published.json" ]; then
+            previous+=(--previous-record "$REPO_DIR/published.json")
           fi
           download_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$TAG/latest.zip"
           python3 tools/make-repo-json.py \
@@ -196,12 +223,15 @@ jobs:
             --changelog-file "$NOTES_FILE" \
             --expect-version "$VERSION" \
             --require-api-level "$API_LEVEL" \
+            --commit "$commit" \
             "${previous[@]}" \
-            --output "$out/repo.json"
+            --output "$out/repo.json" \
+            --record-output "$out/published.json"
           dotnet run --project tools/RepoJsonCheck -c Release -- "$out/repo.json" \
             --zip "$out/latest.zip" --internal-name "$PLUGIN"
           echo "RELEASE_DIR=$out" >> "$GITHUB_ENV"
           echo "DOWNLOAD_URL=$download_url" >> "$GITHUB_ENV"
+          echo "BUILD_COMMIT=$commit" >> "$GITHUB_ENV"
 
       - name: Create the GitHub release
         env:
@@ -211,7 +241,7 @@ jobs:
         run: |
           set -euo pipefail
           if gh release view "$TAG" > /dev/null 2>&1; then
-            echo "Release $TAG exists (re-run); replacing latest.zip."
+            echo "Release $TAG already exists (a re-run, or an earlier run that stopped before publishing repo.json); replacing latest.zip."
             gh release upload "$TAG" "$RELEASE_DIR/latest.zip" --clobber
           else
             gh release create "$TAG" "$RELEASE_DIR/latest.zip" --verify-tag \
@@ -240,13 +270,13 @@ jobs:
           set -euo pipefail
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$auth"
-          cp "$RELEASE_DIR/repo.json" "$REPO_DIR/repo.json"
+          cp "$RELEASE_DIR/repo.json" "$RELEASE_DIR/published.json" "$REPO_DIR/"
           cd "$REPO_DIR"
-          git add repo.json
+          git add repo.json published.json
           if git diff --cached --quiet; then
             echo "repo.json is unchanged."
           else
-            git commit --quiet -m "repo.json: $PLUGIN $VERSION ($TAG)"
+            git commit --quiet -m "repo.json: $PLUGIN $VERSION ($TAG, ${BUILD_COMMIT:0:12})"
             git -c "http.$GITHUB_SERVER_URL/.extraheader=AUTHORIZATION: basic $auth" \
               push --quiet origin "HEAD:refs/heads/$REPO_BRANCH"
           fi
@@ -255,7 +285,7 @@ jobs:
         env:
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
-          DALAMUD: ${{ steps.dalamud.outputs.version }}
+          DALAMUD: ${{ steps.dalamud-files.outputs.version }}
         run: |
           {
             echo "## $PLUGIN $VERSION"

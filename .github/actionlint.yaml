@@ -1,0 +1,8 @@
+# Configuration for actionlint (https://github.com/rhysd/actionlint), run by hand from the repository root:
+#   actionlint .github/workflows/ci.yml .github/workflows/release.yml
+paths:
+  .github/workflows/release.yml:
+    ignore:
+      # GitHub accepts concurrency.queue (docs.github.com, workflow syntax > concurrency; the workflow
+      # schema in actions/languageservices), but actionlint 1.7.12 does not know the key yet.
+      - 'unexpected key "queue" for "concurrency" section'
