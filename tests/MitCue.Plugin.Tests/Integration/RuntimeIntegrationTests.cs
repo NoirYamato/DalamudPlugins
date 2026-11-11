@@ -8,6 +8,7 @@ using MitCue.Core.Reminders;
 using MitCue.Core.Simulation;
 using MitCue.Core.Timelines;
 using MitCue.Data;
+using MitCue.Game;
 using MitCue.PluginTests.Support;
 using MitCue.Runtime;
 
@@ -149,6 +150,88 @@ public class RuntimeIntegrationTests
         Assert.All(session.Scheduler.All.Where(r => r.PressAt < 400), r => Assert.Equal(ReminderState.Skipped, r.State));
         Assert.All(session.Scheduler.Summarize().MissedReminders, r => Assert.True(r.PressAt >= 400));
         Assert.Empty(chatLog.FirstArgs("PrintError"));
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("party")]
+    [InlineData("settings")]
+    public void AChangeDuringTheCountdownKeepsThePrePullCallDone(string change)
+    {
+        // Review finding (41d2893): a party change during /countdown (the co-healer swaps job) was held until the countdown
+        // reached 0, then rebuilt the session before combat started and dropped the pre-pull call already pressed:
+        // "0 done, 3 missed. Missed: Divine Benison". Settings edits had the same gap. The rebuild now waits for the pull.
+        const double pull = 1000;
+        var config = new Configuration { ShowOtherAssignees = true };
+        var plan = TopWhmPlan();
+        plan.Assignees.Add(new Assignee { Key = "Scholar", Job = Job.SCH });
+        plan.Assignees.Add(new Assignee { Key = "Astrologian", Job = Job.AST });
+        plan.Entries.Add(Kit.Entry("p1.loop_set3", -3, Kit.SacredSoil, "Sacred Soil", Job.SCH, assignee: "Scholar"));
+        plan.Entries.Add(Kit.Entry("p1.loop_set3", -3, 3613, "Collective Unconscious", Job.AST, assignee: "Astrologian"));
+        var parts = ManagerWithPlan(plan, config);
+        parts.Plans.SetActive("top", Job.WHM, plan.Id);
+        parts.Data.EnsureLoaded();
+        var top = parts.Data.GetFight("top")!;
+        var events = FightSimulator.Generate(parts.Data.TryLoadTimeline(top)!, top, new SimulationOptions { PullClock = pull, Seed = 3 })
+            .Where(GameVisibleEvents.Contains)
+            .Append(new DutyReset(pull + 140, DutyResetKind.Wipe))
+            .OrderBy(e => e.Time)
+            .ToList();
+        var withSch = PartyJobs.Mask([Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT]);
+        var withAst = PartyJobs.Mask([Job.WAR, Job.DRK, Job.WHM, Job.AST, Job.SAM, Job.RPR, Job.DNC, Job.PCT]);
+
+        var next = 0;
+        var inCombat = false;
+        var party = withSch;
+        uint? press = null;
+        var generation = -1;
+        for (var clock = pull - 30; clock <= pull + 141; clock += 0.1)
+        {
+            if (Math.Abs(clock - (pull - 7)) < 0.05)
+            {
+                press = Kit.DivineBenison; // the pre-pull call (pull -5), pressed during the countdown
+                generation = parts.Manager.Generation;
+            }
+
+            if (Math.Abs(clock - (pull - 6)) < 0.05)
+            {
+                if (change == "party")
+                    party = withAst;
+                else if (change == "settings")
+                {
+                    config.DefaultSlot = "H1"; // changes the session's shape (its slot)
+                    config.Touch();
+                }
+            }
+
+            var frame = SessionManagerTests.InTop(clock);
+            var list = new List<GameEvent>();
+            while (next < events.Count && events[next].Time <= clock)
+            {
+                var e = events[next++];
+                if (e is CombatStateChanged c)
+                    inCombat = c.InCombat;
+                list.Add(e);
+            }
+
+            frame.Events = list;
+            frame.InCombat = inCombat;
+            frame.Countdown = clock < pull - 1.5 ? (float)(pull - 1.5 - clock) : null; // "0" 1.5 s before the boss is engaged
+            frame.PartyJobMask = party;
+            if (press is { } id)
+                frame.OwnUses.Add(new OwnUse(id, clock, OwnUseSource.ActionEffect));
+            press = null;
+            parts.Manager.Update(frame);
+
+            if (clock < pull + 1)
+                Assert.True(parts.Manager.Generation == generation || generation < 0, $"rebuilt at {clock - pull:0.0} s");
+        }
+
+        var summary = Assert.Single(parts.Chat.FirstArgs("Print"));
+        Assert.Contains("1 done", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("Divine Benison", summary, StringComparison.Ordinal);
+        if (change != "none")
+            Assert.True(parts.Manager.Generation > generation); // rebuilt after the pull
     }
 
     [CoreFact]

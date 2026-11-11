@@ -24,7 +24,7 @@ public class PlanCommandTests : IDisposable
     {
         var r = this.kit.Run("plan", this.whm, "--job", "WHM", "--slot", "H1");
         Assert.True(r.ExitCode == 0, r.ToString());
-        Assert.Equal("\"Test WHM\" (top, level 90) as WHM, slot H1: 9 of 10 entries, 10 items", r.OutLines[0]);
+        Assert.Equal("\"Test WHM\" (top, level 90) as WHM, slot H1, column \"White Mage\": 9 of 10 entries, 10 items", r.OutLines[0]);
 
         var rows = Rows(r);
         Assert.Equal(["e1", "e2", "e3", "e4", "e9", "e5", "e6", "e7", "e7", "e8"], rows.Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)[^1]));
@@ -63,6 +63,29 @@ public class PlanCommandTests : IDisposable
         Assert.Contains("no entry of the plan applies to AST", none.Err);
 
         Assert.Contains("unknown slot 'X9'", this.kit.Run("plan", this.whm, "--job", "WHM", "--slot", "X9").Err);
+    }
+
+    [Theory]
+    [InlineData(new[] { "--job", "SCH" }, "as SCH, slot H2: 31 of 475 entries", "any column for SCH in slot H2")]
+    [InlineData(new[] { "--job", "SCH", "--slot", "H2" }, "as SCH, slot H2: 31 of 475 entries", null)]
+    [InlineData(new[] { "--job", "WHM" }, "as WHM, slot H1: 11 of 475 entries", "any column for WHM in slot H1")]
+    [InlineData(new[] { "--job", "WAR", "--slot", "MT" }, "as WAR, slot MT, column \"WAR/DRK WAR\": 24 of 475 entries", "column \"WAR/DRK WAR\"")]
+    [InlineData(new[] { "--job", "WAR" }, "as WAR, column \"WAR/DRK WAR\": 9 of 475 entries", "column \"WAR/DRK WAR\"")]
+    [InlineData(new[] { "--job", "WAR", "--slot", "MT", "--assignee", "*" }, "as WAR, slot MT: 65 of 475 entries", null)]
+    public void Plan_WithoutAnAssigneeSelectsWhatThePluginShows(string[] options, string header, string? note)
+    {
+        // Review finding (41d2893): without --slot the CLI left out the job-less "H2" calls the plugin shows a Scholar
+        // (29 entries against 31), and without --assignee a tank got every tank pair's column (65 entries for WAR MT).
+        var r = this.kit.Run(["plan", Path.Combine(CliKit.RepoRoot, "plans", "top-lpdu.yaml"), .. options]);
+
+        Assert.True(r.ExitCode == 0, r.ToString());
+        Assert.Contains(header, r.OutLines[0], StringComparison.Ordinal);
+        if (note != null)
+            Assert.Contains($"note: {note}", r.Err, StringComparison.Ordinal);
+        else if (!options.Contains("*"))
+            Assert.DoesNotContain("as the plugin chooses", r.Err, StringComparison.Ordinal);
+        if (options.Contains("*"))
+            Assert.Contains("note: entries of 6 columns apply", r.Err, StringComparison.Ordinal);
     }
 
     [Fact]

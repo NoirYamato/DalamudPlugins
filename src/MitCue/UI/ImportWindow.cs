@@ -1330,10 +1330,13 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
             else if (choice.Missed > 0)
             {
+                // A kept choice, or the job's column when no single choice has every call without another column's (LPDU's
+                // tank pairs: the job-less "MT" calls are left out rather than showing every pair's calls).
+                var whose = choice.Kept ? "Your column choice for the plan this replaces" : "The column the plan gets for you";
                 ImGui.TextColoredWrapped(
                     ColorWarning,
-                    $"Your column choice for the plan this replaces ({ImportColumns.Describe(choice.Mapping, job)}) leaves out {Plural(choice.Missed, "of your calls", "of your calls")} " +
-                    $"(in {string.Join(", ", choice.Columns)}): after saving, check \"My column\" in /mitcue > Plans.");
+                    $"{whose} ({ImportColumns.Describe(choice.Mapping, job)}) leaves out {Plural(choice.Missed, "of your calls", "of your calls")} " +
+                    $"(in {string.Join(", ", choice.MissedIn)}): after saving, check \"My column\" in /mitcue > Plans.");
             }
         }
 
@@ -1407,25 +1410,36 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (this.columnChoice != null && this.columnChoiceKey.Equals(key))
             return this.columnChoice;
 
-        var kept = this.replaceId != null && store.Get(this.replaceId) is { } replaced ? store.SavedMapping(replaced.Plan, job) : null;
+        // The replaced plan's choice, its column named as this import names it: PlanStore.Save carries the saved choices over
+        // the same way ("WARDRK WAR" of an import that kept the xlsx export's tab names is "WAR/DRK WAR" here).
+        var kept = this.replaceId != null && store.Get(this.replaceId) is { } replaced ? PlanStore.CarryOver(model.Plan, store.SavedMapping(replaced.Plan, job)) : null;
         this.columnChoice = ImportColumns.Choose(model.Plan, job, model.Fight.SyncLevel, slot, kept);
         this.columnChoiceKey = key;
         return this.columnChoice;
     }
 
-    /// <summary>The earlier import of the same sheet, tabs and columns, if there is exactly one: replaced by default.</summary>
-    private static string? DefaultReplacement(PlanStore store, MitPlan plan)
+    /// <summary>
+    /// The earlier import of the same sheet, tabs and columns, if there is exactly one: replaced by default. Column keys
+    /// compare in their xlsx-export form, like tab names (<see cref="SameSource"/>): LPDU's "WAR/DRK WAR" is "WARDRK WAR"
+    /// in an import that kept the export's tab names.
+    /// </summary>
+    internal static string? DefaultReplacement(PlanStore store, MitPlan plan)
     {
-        var columns = plan.Assignees.Select(a => a.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var columns = plan.Assignees.Select(a => ImportPipeline.WithoutExcelInvalidCharacters(a.Key)).ToHashSet(StringComparer.Ordinal);
         var same = store.All
             .Where(p => !p.IsReadOnly && string.Equals(p.Plan.Fight, plan.Fight, StringComparison.OrdinalIgnoreCase) && SameSource(p.Plan.Source, plan.Source))
             .Where(p => p.Plan.Source?.Tabs is { Count: > 0 } && plan.Source?.Tabs is { Count: > 0 })
-            .Where(p => columns.SetEquals(p.Plan.Assignees.Select(a => a.Key)))
+            .Where(p => columns.SetEquals(p.Plan.Assignees.Select(a => ImportPipeline.WithoutExcelInvalidCharacters(a.Key))))
             .ToList();
         return same.Count == 1 ? same[0].Id : null;
     }
 
-    private static bool SameSource(PlanSource? a, PlanSource? b)
+    /// <summary>
+    /// True for two imports of the same file and tabs. Tab names compare as the xlsx export has them
+    /// (<see cref="ImportPipeline.ExcelTabName"/>): the link import restores Google's names ("P1/P2") when it can read the
+    /// sheet's tab list, and keeps the export's ("P1P2") when it cannot or the plan was imported before it could.
+    /// </summary>
+    internal static bool SameSource(PlanSource? a, PlanSource? b)
     {
         if (a?.Url is not { Length: > 0 } ua || b?.Url is not { Length: > 0 } ub)
             return false;
@@ -1436,7 +1450,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             return false;
         var ta = a.Tabs ?? [];
         var tb = b.Tabs ?? [];
-        return ta.Count == 0 || tb.Count == 0 || ta.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(tb);
+        return ta.Count == 0 || tb.Count == 0 || ta.Select(ImportPipeline.ExcelTabName).ToHashSet(StringComparer.Ordinal).SetEquals(tb.Select(ImportPipeline.ExcelTabName));
     }
 
     private void SavePlan(ReviewModel model, Job job)

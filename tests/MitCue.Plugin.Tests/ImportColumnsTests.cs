@@ -175,6 +175,55 @@ public class ImportColumnsTests
         Assert.Equal(1, choice.Missed);
     }
 
+    /// <summary>LPDU's tank columns: the MT slot column (with a job-less Reprisal) and one Warrior column per tank pair.</summary>
+    private static MitPlan TankPairs() => new()
+    {
+        Id = Guid.NewGuid().ToString("D"),
+        Fight = "top",
+        Assignees =
+        [
+            new Assignee { Key = "MT", Slot = "MT" },
+            new Assignee { Key = "WAR/DRK WAR", Job = Job.WAR },
+            new Assignee { Key = "WAR/GNB WAR", Job = Job.WAR },
+        ],
+        Entries =
+        [
+            Make("mt-war", "p1.pantokrator", "MT", Job.WAR, "MT"),
+            Make("mt-reprisal", "p1.pantokrator", "MT", null, "MT"),
+            Make("wd-holmgang", "p2.solar_ray", "WAR/DRK WAR", Job.WAR, null),
+            Make("wg-holmgang", "p2.solar_ray", "WAR/GNB WAR", Job.WAR, null),
+        ],
+    };
+
+    [Fact]
+    public void ATanksImportKeepsTheirPairColumnAndSaysWhichCallsItLeavesOut()
+    {
+        // Review finding (41d2893): the tank pairs' columns are alternatives. "Any column for WAR in slot MT" has the
+        // job-less MT call, but also the Holmgang of every pair; it is not saved, and the job's column says what it misses.
+        var choice = ImportColumns.Choose(TankPairs(), Job.WAR, 90, "MT");
+
+        Assert.False(choice.Save);
+        Assert.False(choice.Kept);
+        Assert.Equal("WAR/DRK WAR", choice.Mapping.AssigneeKey);
+        Assert.Equal(new[] { "MT", "WAR/DRK WAR" }, choice.Columns);
+        Assert.Equal(2, choice.Mine);
+        Assert.Equal(1, choice.Missed);
+        Assert.Equal(new[] { "MT" }, choice.MissedIn);
+    }
+
+    [Fact]
+    public void AKeptTankPairColumnIsNotCountedAsMissingTheOtherPairs()
+    {
+        var kept = new PlayerMapping { AssigneeKey = "WAR/GNB WAR", Slot = "MT" };
+
+        var choice = ImportColumns.Choose(TankPairs(), Job.WAR, 90, "MT", kept);
+
+        Assert.True(choice.Kept);
+        Assert.Equal(new[] { "MT", "WAR/GNB WAR" }, choice.Columns);
+        Assert.Equal(1, choice.Missed); // the job-less MT call, not the WAR/DRK pair's Holmgang
+        Assert.Equal(new[] { "MT" }, choice.MissedIn);
+    }
+
     [Fact]
     public void SavesNothingWhenThePlayersColumnsNameDifferentSlots()
     {

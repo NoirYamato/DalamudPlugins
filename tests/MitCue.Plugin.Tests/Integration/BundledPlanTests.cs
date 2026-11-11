@@ -1,5 +1,6 @@
 using Dalamud.Plugin.Services;
 using MitCue.Core;
+using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Import;
 using MitCue.Plans;
@@ -154,6 +155,52 @@ public class BundledPlanTests
         Assert.Equal(own.Count, choice.Mine);
     }
 
+    [Theory]
+    [InlineData(Job.WAR, "MT", "WAR/DRK WAR", 24)]
+    [InlineData(Job.WAR, "OT", "WAR/DRK WAR", 23)]
+    [InlineData(Job.WAR, null, "WAR/DRK WAR", 9)]
+    [InlineData(Job.DRK, "MT", "WAR/DRK DRK", 23)]
+    [InlineData(Job.DRK, "OT", "WAR/DRK DRK", 22)]
+    [InlineData(Job.DRK, null, "WAR/DRK DRK", 8)]
+    public void OnLpduATankGetsOneTankPairColumn(Job job, string? slot, string column, int entries)
+    {
+        // Review finding (41d2893): the suggestion for a tank became "any column for my job", which has LPDU's job-less MT
+        // calls but also every tank pair's column of the job (WAR/DRK, WAR/GNB and WAR/PLD WAR) and both Cosmo Memory
+        // roles; without a slot even the MT and the OT calls. The job's column (one pair) stays the suggestion.
+        var parts = Live(job, slot);
+
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.Equal(Lpdu, parts.Manager.Plan?.Id);
+        Assert.Equal(column, parts.Manager.Mapping?.AssigneeKey);
+        Assert.True(parts.Manager.Mapping!.IsSuggestion);
+        var own = parts.Manager.Session!.Scheduler.All.Select(r => r.Entry).Distinct().ToList();
+        Assert.Equal(entries, own.Count);
+        Assert.All(own, e => Assert.True(
+            e.Who.Assignee == null || e.Who.Assignee == column || (slot != null && e.Who.Assignee == slot && e.Who.Job == job),
+            $"{e.Id} {e.Who.Assignee} {e.Who.Slot}/{e.Who.Job}"));
+    }
+
+    [Theory]
+    [InlineData("MT")]
+    [InlineData(null)]
+    public void OnLpduAWarriorsHolmgangAtSolarRay3IsCalledOnceAndDoneWhenPressed(string? slot)
+    {
+        // The reviewer's probe: three Holmgang reminders at Solar Ray 3 (one per tank pair); one press satisfies one
+        // reminder, so two always ended Missed, and Land Waker (LB3) was called for both Cosmo Memory roles.
+        const uint holmgang = 43;
+        const uint landWaker = 4240;
+        var parts = Live(Job.WAR, slot);
+        var scheduler = parts.Manager.Session!.Scheduler;
+
+        var reminder = Assert.Single(scheduler.All, r => r.Mechanic.Id == "p5.solar_ray_3" && r.Item.ActionIds().Contains(holmgang));
+        Assert.DoesNotContain(scheduler.All, r => r.Item.ActionIds().Contains(landWaker));
+        scheduler.Update(reminder.PressAt - 20);
+        scheduler.Update(reminder.PressAt);
+        scheduler.OnOwnAction(holmgang, reminder.PressAt);
+        scheduler.Update(reminder.Latest + 1);
+        Assert.Equal(MitCue.Core.Reminders.ReminderState.Done, reminder.State);
+    }
+
     [Fact]
     public void OnLpduTheScholarsCoHealerCallsAreTheOtherHealerSlotsAndInAPartyTheWhiteMages()
     {
@@ -172,6 +219,26 @@ public class BundledPlanTests
         others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
         Assert.All(others, e => Assert.True(e.Who.Slot == "H1" && e.Who.Job is null or Job.WHM, $"{e.Id} {e.Who.Slot}/{e.Who.Job}/{e.Who.Assignee}"));
         Assert.Equal(11, others.Count);
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, "MT", Job.DRK, "WAR/DRK DRK")]
+    [InlineData(Job.DRK, "OT", Job.WAR, "WAR/DRK WAR")]
+    public void OnLpduATanksCoTankCallsAreThePairsColumn(Job job, string slot, Job coTank, string pairColumn)
+    {
+        // Review finding (41d2893): with a WAR/DRK party the co-tank rows held the Dark Knight's column of every tank pair
+        // (e251 DRK/GNB DRK and e252 DRK/PLD DRK: Living Dead at Solar Ray 3, while this pair's is at Solar Ray 2).
+        var config = new Configuration { ShowOtherAssignees = true, DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Manager.Update(Frame(job, 1, PartyJobs.Mask([Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT])));
+
+        var others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
+        Assert.All(others, e => Assert.True(e.Who.Job == null || e.Who.Job == coTank, $"{e.Id} {e.Who.Assignee} {e.Who.Job}"));
+        Assert.Equal(job == Job.WAR ? 41 : 49, others.Count); // 57 and 65 before the fix
+        var columns = others.Select(e => e.Who.Assignee).Distinct().ToList();
+        Assert.Contains(pairColumn, columns);
+        Assert.DoesNotContain(columns, c => c != null && c.Contains('/', StringComparison.Ordinal) && c != pairColumn);
+        Assert.Contains(slot == "MT" ? "OT" : "MT", columns); // the co-tank's slot column
     }
 
     [Fact]
@@ -286,8 +353,82 @@ public class PlanCheckTests
         Assert.Contains("problems:", message, StringComparison.Ordinal);
         Assert.Contains("Problems in /mitcue", message, StringComparison.Ordinal);
         var problem = Assert.Single(parts.Errors.Snapshot(), p => p.Key == "plans.load.check.tea-probe");
-        Assert.Contains("Expedient is not available at level 80", problem.Message, StringComparison.Ordinal);
-        Assert.Contains("p9.nothing", problem.Message, StringComparison.Ordinal);
+        Assert.Contains("Entry 'e1': Expedient is learned at level 90, above this fight's level 80, so the call can never be done", problem.Message, StringComparison.Ordinal);
+        Assert.Contains("Entry 'e2': TEA has no mechanic \"p9.nothing\", so the call is never shown", problem.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A plan as the AI route writes it and the review accepts it: an action name in other letter case, an either/or of
+    /// which the Scholar has one option, and a hit index past the mechanic's last hit (the nearest hit is used).
+    /// </summary>
+    private static MitPlan ReviewedPlan() => new()
+    {
+        Id = "ai-plan",
+        Name = "AI plan",
+        Fight = "top",
+        Source = new PlanSource { Kind = "llm" },
+        Assignees = [new Assignee { Key = "Scholar", Job = Job.SCH, Slot = "H2" }],
+        Entries =
+        [
+            new PlanEntry { Id = "e1", Mechanic = "p1.loop_set1", Offset = -3, Who = new WhoSpec { Job = Job.SCH, Slot = "H2", Assignee = "Scholar" }, Do = [PlanItem.ForAction(Kit.SacredSoil, "Sacred soil")] },
+            new PlanEntry { Id = "e2", Mechanic = "p1.pantokrator", Offset = -3, Who = new WhoSpec { Job = Job.SCH, Slot = "H2", Assignee = "Scholar" }, Do = [PlanItem.AnyOf([PlanItem.ForAction(Kit.SacredSoil, "Sacred Soil"), PlanItem.ForAction(24298, "Kerachole")])] },
+            new PlanEntry { Id = "e3", Mechanic = "p1.pantokrator", HitIndex = 9, Offset = 1, Who = new WhoSpec { Job = Job.SCH, Slot = "H2", Assignee = "Scholar" }, Do = [PlanItem.ForAction(16538, "Fey Illumination")] },
+        ],
+    };
+
+    [Fact]
+    public void WhatTheReviewAcceptsIsNotAProblem()
+    {
+        // Review finding (41d2893): the checks were the core PlanValidator's, stricter than the review where the runtime
+        // does not mind (names compared exactly, every either/or option for the job, hit indexes), so a reviewed plan was
+        // listed in Problems after every restart and its share code said its calls could never be done, though they work.
+        var parts = Checked();
+        var plan = ReviewedPlan();
+        var top = parts.Data.GetFight("top")!;
+        // The review has no error for them (the hit index is a warning there: "the nearest one is used").
+        Assert.All(plan.Entries, e => Assert.DoesNotContain(ReviewValidator.CheckEntry(e, plan, top, parts.Data.Actions, true), i => i.Severity >= DiagnosticSeverity.Error));
+
+        Assert.Empty(PlanChecks.Find(plan, parts.Data));
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(plan), out _, out var message), message);
+        Assert.DoesNotContain("problem", message, StringComparison.Ordinal);
+        parts.Plans.Reload();
+        Assert.DoesNotContain(parts.Errors.Snapshot(), p => p.Key.StartsWith("plans.load.check.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SlotSynonymsAreStoredAsTheStandardSlots()
+    {
+        // The plan checks follow the review, which reads "D3" as R1; the runtime compares slots by name, so the store
+        // writes the standard name: the R1 player sees the call with any column choice, not only the suggested one.
+        var parts = Checked();
+        var plan = new MitPlan
+        {
+            Id = "d3-plan",
+            Name = "D3 plan",
+            Fight = "top",
+            Assignees = [new Assignee { Key = "D3", Slot = "D3" }],
+            Entries = [new PlanEntry { Id = "e1", Mechanic = "p1.loop_set3", Offset = -3, Who = new WhoSpec { Slot = "D3", Assignee = "D3" }, Do = [PlanItem.ForAction(7560, "Addle")] }],
+        };
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(plan), out var imported, out var message), message);
+
+        Assert.DoesNotContain("problem", message, StringComparison.Ordinal);
+        Assert.Equal("R1", imported!.Assignees[0].Slot);
+        Assert.Equal("R1", imported.Entries[0].Who.Slot);
+        parts.Plans.SetMapping(imported, Job.BLM, new PlayerMapping { AssigneeKey = "D3", Slot = "R1" }); // as /mitcue > Plans saves it
+        var mapping = parts.Plans.MappingFor(imported, Job.BLM);
+        Assert.Single(PlanSelection.For(imported, new PlayerContext(Job.BLM, 90, mapping.Slot, mapping.AssigneeKey)));
+    }
+
+    [Fact]
+    public void AnEitherOrWithNoOptionForTheJobIsAProblem()
+    {
+        var parts = Checked();
+        var plan = ReviewedPlan();
+        plan.Entries[1].Do = [PlanItem.AnyOf([PlanItem.ForAction(24298, "Kerachole"), PlanItem.ForAction(24310, "Holos")])];
+
+        var problem = Assert.Single(PlanChecks.Find(plan, parts.Data));
+        Assert.Equal("Entry 'e2': None of Kerachole / Holos is a SCH action, so the call can never be done.", problem);
     }
 
     [Fact]

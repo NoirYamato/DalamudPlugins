@@ -1,6 +1,7 @@
 using MitCue.Core;
 using MitCue.Core.Data;
 using MitCue.Core.Plans;
+using MitCue.Import;
 using MitCue.Util;
 
 namespace MitCue.Plans;
@@ -175,7 +176,8 @@ internal sealed class PlanStore
 
     /// <summary>
     /// Saves (adds or replaces) a user plan as JSON. A user plan with the id of a bundled plan (its share code imported)
-    /// takes the bundled plan's place, as when the plans are loaded.
+    /// takes the bundled plan's place, as when the plans are loaded. The column choices saved for a plan it replaces
+    /// follow their columns (<see cref="CarryOver"/>).
     /// </summary>
     public bool Save(MitPlan plan, out string? error)
     {
@@ -190,11 +192,13 @@ internal sealed class PlanStore
             File.WriteAllText(temp, json);
             File.Move(temp, path, overwrite: true);
 
-            this.plans.RemoveAll(p => string.Equals(p.Id, plan.Id, StringComparison.OrdinalIgnoreCase));
+            var replaced = this.plans.RemoveAll(p => string.Equals(p.Id, plan.Id, StringComparison.OrdinalIgnoreCase)) > 0;
             this.plans.Add(new StoredPlan(plan, PlanOrigin.User, path));
             this.SortPlans();
             this.errors.Clear(CheckKey(plan.Id)); // problems of the plan this one replaces (it is checked again on load)
             this.Revision++;
+            if (replaced)
+                this.CarryOverMappings(plan);
             return true;
         }
         catch (Exception ex)
@@ -291,7 +295,7 @@ internal sealed class PlanStore
         message = $"Imported \"{plan.Name}\" ({plan.Entries.Count} entries, fight {plan.Fight}).";
         var problems = this.CheckUserPlan(plan, $"share code \"{plan.Name}\"");
         if (problems.Count > 0)
-            message += " " + PlanChecks.Summary(problems, max: 1) + " Calls with a problem can never be done; see Problems in /mitcue.";
+            message += " " + PlanChecks.Summary(problems, max: 1) + " See Problems in /mitcue."; // each problem says what it does to the call
         return true;
     }
 
@@ -416,32 +420,26 @@ internal sealed class PlanStore
 
     /// <summary>
     /// The automatic column choice for a plan and job (<see cref="PlayerMapping.IsSuggestion"/> = true): what
-    /// <see cref="MappingFor"/> returns when nothing is saved. It is the job's column (<see cref="ColumnMapping"/>),
-    /// unless that leaves out calls of the player's other columns (LPDU's job-less "H2" calls for a Scholar); then the
-    /// narrowest choice that has them all (<see cref="ColumnSuggestion.Complete"/>), the same one an import saves.
+    /// <see cref="MappingFor"/> returns when nothing is saved (<see cref="ColumnSuggestion.Suggest"/>). It is the job's
+    /// column (<see cref="ColumnMapping"/>), unless that leaves out the job-less calls of the player's slot (LPDU's "H2"
+    /// calls for a Scholar); then the narrowest choice that has them too and no call of another column, the same one an
+    /// import saves. Other columns of the job are alternatives (LPDU's tank pairs), never added to it.
     /// </summary>
-    public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot)
-    {
-        var column = ColumnMapping(plan, job, defaultSlot);
-        if (ColumnSuggestion.Complete(plan, job, defaultSlot, column) is not { } complete)
-            return column;
-        return new PlayerMapping { AssigneeKey = complete.AssigneeKey, Slot = complete.Slot, IsSuggestion = true };
-    }
+    public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot) =>
+        Suggestion(ColumnSuggestion.Suggest(plan, job, defaultSlot));
 
     /// <summary>
     /// The job's own column as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true), from
     /// <see cref="SuggestAssignee"/>; <see cref="SuggestedMapping"/> starts from it.
     /// </summary>
-    public static PlayerMapping ColumnMapping(MitPlan plan, Job job, string? defaultSlot)
-    {
-        var suggested = SuggestAssignee(plan, job, defaultSlot);
-        return new PlayerMapping
-        {
-            AssigneeKey = suggested?.Key,
-            Slot = suggested?.Slot ?? defaultSlot,
-            IsSuggestion = true,
-        };
-    }
+    public static PlayerMapping ColumnMapping(MitPlan plan, Job job, string? defaultSlot) =>
+        Suggestion(ColumnSuggestion.ForJob(plan, job, defaultSlot));
+
+    /// <summary>A column choice of the core as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true).</summary>
+    public static PlayerMapping Suggestion(ColumnPick pick) => new() { AssigneeKey = pick.AssigneeKey, Slot = pick.Slot, IsSuggestion = true };
+
+    /// <summary>A mapping as a column choice of the core.</summary>
+    public static ColumnPick Pick(PlayerMapping mapping) => new(mapping.AssigneeKey, mapping.Slot);
 
     /// <summary>
     /// Saves the column choice for a plan and job (null = back to the automatic suggestion). The other jobs keep
@@ -468,28 +466,42 @@ internal sealed class PlanStore
 
     /// <summary>
     /// Suggests "my column": the assignee whose job is the current job (preferring the configured slot when
-    /// several match), else the assignee whose slot is the configured slot.
+    /// several match), else the assignee whose slot is the configured slot (<see cref="ColumnSuggestion.JobColumn"/>).
     /// </summary>
-    public static Assignee? SuggestAssignee(MitPlan plan, Job job, string? slot)
+    public static Assignee? SuggestAssignee(MitPlan plan, Job job, string? slot) => ColumnSuggestion.JobColumn(plan, job, slot);
+
+    /// <summary>
+    /// A column choice made for an earlier version of <paramref name="plan"/> (a re-import that replaces it), with its
+    /// column's key as <paramref name="plan"/> names it when the key changed only by the characters an xlsx export removes
+    /// from tab names: an import that kept the export's tab names has LPDU's "WARDRK WAR", one that restored Google's has
+    /// "WAR/DRK WAR". The same mapping otherwise (also when it is null or its column is gone).
+    /// </summary>
+    public static PlayerMapping? CarryOver(MitPlan plan, PlayerMapping? mapping)
     {
-        Assignee? byJob = null;
-        Assignee? bySlot = null;
-        foreach (var a in plan.Assignees)
+        if (mapping?.AssigneeKey is not { } key || plan.Assignees.Exists(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)))
+            return mapping;
+        var form = ImportPipeline.WithoutExcelInvalidCharacters(key);
+        var same = plan.Assignees.Where(a => ImportPipeline.WithoutExcelInvalidCharacters(a.Key) == form).ToList();
+        return same.Count == 1 ? new PlayerMapping { AssigneeKey = same[0].Key, Slot = mapping.Slot, IsSuggestion = mapping.IsSuggestion } : mapping;
+    }
+
+    /// <summary>The saved column choices of a plan (every job, and an older whole-plan one) after it was replaced: <see cref="CarryOver"/>.</summary>
+    private void CarryOverMappings(MitPlan plan)
+    {
+        var prefix = plan.Id + "/";
+        var changed = false;
+        foreach (var key in this.config.PlayerMappings.Keys.Where(k => string.Equals(k, plan.Id, StringComparison.OrdinalIgnoreCase) || k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
         {
-            var slotMatches = slot != null && Slots.TryNormalize(a.Slot, out var s) && s == slot;
-            if (a.Job == job && job != Job.None)
+            var mapping = this.config.PlayerMappings[key];
+            if (CarryOver(plan, mapping) is { } carried && !ReferenceEquals(carried, mapping))
             {
-                if (slotMatches)
-                    return a;
-                byJob ??= a;
-            }
-            else if (slotMatches)
-            {
-                bySlot ??= a;
+                this.config.PlayerMappings[key] = Copy(carried);
+                changed = true;
             }
         }
 
-        return byJob ?? bySlot;
+        if (changed)
+            this.SaveConfig();
     }
 
     /// <summary>A mapping can be <paramref name="job"/>'s unless its column belongs to another job.</summary>
@@ -517,6 +529,11 @@ internal sealed class PlanStore
             return c != 0 ? c : string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
         });
 
+    /// <summary>
+    /// Repairs a plan read from text or a share code, and writes slot synonyms ("D3", "T1") as the standard slot names:
+    /// <see cref="PlanSelection"/> compares slots by name, and the configured slot and a column picked in /mitcue > Plans
+    /// are standard names, so an entry for "D3" would never be shown to the R1 player (the plan checks do not flag it).
+    /// </summary>
     private static void Normalize(MitPlan plan)
     {
         if (string.IsNullOrWhiteSpace(plan.Id))
@@ -527,10 +544,18 @@ internal sealed class PlanStore
         plan.Entries ??= [];
         plan.Assignees.RemoveAll(a => a == null);
         plan.Entries.RemoveAll(e => e == null);
+        foreach (var a in plan.Assignees)
+        {
+            if (Slots.TryNormalize(a.Slot, out var slot))
+                a.Slot = slot;
+        }
+
         foreach (var e in plan.Entries)
         {
             e.Who ??= new WhoSpec();
             e.Do ??= [];
+            if (Slots.TryNormalize(e.Who.Slot, out var slot))
+                e.Who.Slot = slot;
         }
     }
 

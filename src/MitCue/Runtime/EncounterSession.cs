@@ -179,8 +179,11 @@ internal sealed class EncounterSession
     /// <summary>True from the timeline start until the pull ends.</summary>
     public bool PullActive { get; private set; }
 
-    /// <summary>True during a pull or countdown (settings changes wait until it is over).</summary>
-    public bool IsBusy => this.PullActive || this.Mode == SessionMode.Countdown;
+    /// <summary>
+    /// True during a pull or countdown, and between the countdown's end and the pull (the pre-pull reminders are held
+    /// then): settings and party changes wait until it is over, so a rebuild never drops a pre-pull call already done.
+    /// </summary>
+    public bool IsBusy => this.PullActive || this.Mode == SessionMode.Countdown || this.countdownEndedClock != null;
 
     /// <summary>The player's reminders to display, ordered by press time.</summary>
     public IReadOnlyList<Reminder> Visible { get; private set; } = NoReminders;

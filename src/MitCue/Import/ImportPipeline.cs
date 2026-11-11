@@ -61,48 +61,74 @@ internal sealed class LoadedSource
 internal static class ImportPipeline
 {
     /// <summary>
+    /// How long a link import waits for the tab list (<see cref="OriginalTabNamesAsync"/>) once the workbook is in. The
+    /// list is asked for together with the workbook and usually arrives first; a slow or stuck page only keeps the
+    /// export's tab names, and never holds a finished download for the fetcher's whole time limit.
+    /// </summary>
+    public static readonly TimeSpan TabListGrace = TimeSpan.FromSeconds(3);
+
+    /// <summary>
     /// Downloads a link and reads it into a document. A cancelled download ends with an
     /// <see cref="OperationCanceledException"/> (a cancelled task, not a failed one).
     /// </summary>
-    public static async Task<LoadedSource> LoadLinkAsync(SheetFetcher fetcher, GoogleLink link, CancellationToken cancel)
+    /// <param name="fetcher">The downloader.</param>
+    /// <param name="link">The link.</param>
+    /// <param name="cancel">The player's cancellation.</param>
+    /// <param name="tabListGrace">How long to wait for the tab list once the workbook is in (default <see cref="TabListGrace"/>).</param>
+    public static async Task<LoadedSource> LoadLinkAsync(SheetFetcher fetcher, GoogleLink link, CancellationToken cancel, TimeSpan? tabListGrace = null)
     {
-        var result = await fetcher.FetchAsync(link, cancel).ConfigureAwait(false);
-        ThrowIfCancelled(result, cancel);
-        if (!link.IsSheet)
-            return await LoadDocAsync(fetcher, link, result, cancel).ConfigureAwait(false);
-
-        if (!result.Ok || result.Bytes == null)
-            throw new ImportStepException(result.Message);
-
-        var title = result.Title ?? "Google Sheet";
-        var workbook = Guard("Reading .xlsx workbooks", () => SheetReaders.FromXlsx(new MemoryStream(result.Bytes, writable: false), title));
-        if (workbook.Tabs.Count == 0)
-            throw new ImportStepException("The spreadsheet has no tabs.");
-
-        string? linkedTab = null;
-        if (link.Gid != null && workbook.Tabs.Count > 1)
-            linkedTab = await FindLinkedTabAsync(fetcher, link, workbook, result.Title, cancel).ConfigureAwait(false);
-        else if (workbook.Tabs.Count == 1)
-            linkedTab = workbook.Tabs[0].Name;
-        cancel.ThrowIfCancellationRequested();
-
-        // The xlsx export renames the tabs Excel does not allow ("P1/P2" becomes "P1P2"), and the names are the plan's
-        // provenance and its column names: restore Google's names, as the CLI does. The linked tab was found by the
-        // export's names (the one-tab export uses them too), so it is renamed with the others.
-        if (await OriginalTabNamesAsync(fetcher, link, cancel).ConfigureAwait(false) is { } names)
+        // The tab list is asked for at once, next to the workbook (best effort: it never fails the import).
+        using var tabList = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        var names = OriginalTabNamesAsync(fetcher, link, tabList.Token);
+        try
         {
-            var renamed = WithTabNames(workbook, names);
-            var linkedIndex = linkedTab == null ? -1 : workbook.Tabs.ToList().FindIndex(t => t.Name == linkedTab);
-            linkedTab = linkedIndex >= 0 ? renamed.Tabs[linkedIndex].Name : linkedTab;
-            workbook = renamed;
-        }
+            var result = await fetcher.FetchAsync(link, cancel).ConfigureAwait(false);
+            ThrowIfCancelled(result, cancel);
+            if (!link.IsSheet)
+                return await LoadDocAsync(fetcher, link, result, cancel).ConfigureAwait(false);
 
-        return new LoadedSource { Document = workbook, Kind = "google-sheet", Url = link.BrowserUrl, LinkedTab = linkedTab };
+            if (!result.Ok || result.Bytes == null)
+                throw new ImportStepException(result.Message);
+
+            var title = result.Title ?? "Google Sheet";
+            var workbook = Guard("Reading .xlsx workbooks", () => SheetReaders.FromXlsx(new MemoryStream(result.Bytes, writable: false), title));
+            if (workbook.Tabs.Count == 0)
+                throw new ImportStepException("The spreadsheet has no tabs.");
+
+            string? linkedTab = null;
+            if (link.Gid != null && workbook.Tabs.Count > 1)
+                linkedTab = await FindLinkedTabAsync(fetcher, link, workbook, result.Title, cancel).ConfigureAwait(false);
+            else if (workbook.Tabs.Count == 1)
+                linkedTab = workbook.Tabs[0].Name;
+            cancel.ThrowIfCancellationRequested();
+
+            // The xlsx export renames the tabs Excel does not allow ("P1/P2" becomes "P1P2"), and the names are the plan's
+            // provenance and its column names: restore Google's names, as the CLI does. The linked tab was found by the
+            // export's names (the one-tab export uses them too), so it is renamed with the others.
+            tabList.CancelAfter(tabListGrace ?? TabListGrace);
+            var original = await names.ConfigureAwait(false);
+            cancel.ThrowIfCancellationRequested();
+            if (original != null)
+            {
+                var renamed = WithTabNames(workbook, original);
+                var linkedIndex = linkedTab == null ? -1 : workbook.Tabs.ToList().FindIndex(t => t.Name == linkedTab);
+                linkedTab = linkedIndex >= 0 ? renamed.Tabs[linkedIndex].Name : linkedTab;
+                workbook = renamed;
+            }
+
+            return new LoadedSource { Document = workbook, Kind = "google-sheet", Url = link.BrowserUrl, LinkedTab = linkedTab };
+        }
+        finally
+        {
+            // A failed or cancelled import leaves no tab-list request behind (the task never throws).
+            tabList.Cancel();
+        }
     }
 
     /// <summary>
-    /// The tab names as Google shows them, from the spreadsheet's htmlview page (<see cref="GoogleHtmlView"/>). Best
-    /// effort: null when the page cannot be read or lists no tabs (the export's names are kept); cancelling still cancels.
+    /// The tab names as Google shows them, from the spreadsheet's htmlview page (<see cref="GoogleHtmlView"/>), or null:
+    /// for documents and published links, and when the page cannot be read, lists no tabs or is cancelled (the export's
+    /// names are kept). Best effort: never throws; the caller checks its own cancellation.
     /// </summary>
     private static async Task<IReadOnlyList<string>?> OriginalTabNamesAsync(SheetFetcher fetcher, GoogleLink link, CancellationToken cancel)
     {
@@ -111,15 +137,14 @@ internal static class ImportPipeline
         try
         {
             var page = await fetcher.FetchUrlAsync(url, ExpectedContent.Html, "tab list", cancel).ConfigureAwait(false);
-            ThrowIfCancelled(page, cancel);
             if (!page.Ok || page.Bytes == null)
                 return null;
             var names = GoogleHtmlView.TabNames(Encoding.UTF8.GetString(page.Bytes));
             return names.Count > 0 ? names : null;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception)
         {
-            return null;
+            return null; // cancelled (the grace ran out, or the import was cancelled: the caller checks), or anything else
         }
     }
 
@@ -316,13 +341,18 @@ internal static class ImportPipeline
     }
 
     /// <summary>A tab name as an xlsx export can have it, for comparisons: without \ / ? * [ ] :, cut at 31 characters, upper case.</summary>
-    private static string ExcelTabName(string name)
+    internal static string ExcelTabName(string name)
     {
         var cleaned = WithoutExcelInvalidCharacters(name);
         return cleaned.Length > 31 ? cleaned[..31] : cleaned;
     }
 
-    private static string WithoutExcelInvalidCharacters(string s) =>
+    /// <summary>
+    /// Text without the characters Excel does not allow in tab names (\ / ? * [ ] :), trimmed, upper case: a column key
+    /// made from a tab name compares equal whether the import restored Google's tab names or kept the xlsx export's
+    /// ("WAR/DRK WAR" and "WARDRK WAR").
+    /// </summary>
+    internal static string WithoutExcelInvalidCharacters(string s) =>
         new string(s.Where(c => c is not ('\\' or '/' or '?' or '*' or '[' or ']' or ':')).ToArray()).Trim().ToUpperInvariant();
 
     /// <summary>
