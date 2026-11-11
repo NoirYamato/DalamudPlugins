@@ -30,5 +30,33 @@
         "DownloadCount":  0,
         "LastUpdate":  "1794283074",
         "Changelog":  "Practice: Retry this roll (/noirmech retry) and Drill, which replays a failed roll after a 3 s look until you clear it. Auto-restart now rolls fresh every run. Your role, region, strat and settings are kept across restarts, and a Rotate role alternates MT/OT or M1/M2. NoirMech won\u0027t start while AnoMech is loaded. TOP P3 and P4 now play as real pulls do: Hello World towers land on the cardinals or the intercardinals, remote tethers break past 9 y, Omega\u0027s monitor hits his whole side, Blue Screen beams follow you, and timings are corrected. TOP P6 Gauntlet: R2\u0027s Meteor must be centred on Alpha Omega, tanks need their cooldowns at Cosmo Dive and Wild Charge while Require tank mitigation is on, and the last melee LB3 counts until the enrage hits."
+    },
+    {
+        "Author":  "Noir Yamato",
+        "Name":  "MitCue",
+        "Punchline":  "Mitigation plan reminders, synced to the fight.",
+        "Description":  "Imports your raid\u0027s mitigation plan (Google Sheets or pasted text) and shows a small window telling you which of your actions to press next, synced to the boss. Reminder-only: it never presses anything for you.",
+        "InternalName":  "MitCue",
+        "AssemblyVersion":  "0.1.0.1",
+        "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins/tree/mitcue",
+        "ApplicableVersion":  "any",
+        "Tags":  [
+                     "mitigation",
+                     "healer",
+                     "raid",
+                     "ultimate",
+                     "timeline",
+                     "reminder"
+                 ],
+        "DalamudApiLevel":  15,
+        "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/mitcue.png",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.1.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.1.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.1.zip",
+        "IsHide":  false,
+        "IsTestingExclusive":  false,
+        "DownloadCount":  0,
+        "LastUpdate":  "1794408091",
+        "Changelog":  "First release. Reminder-only mitigation cues for your own actions, synced to the boss from your raid\u0027s mitigation plan. Comes with TOP plans from Carry the Clear (White Mage, Scholar) and LPDU (every job); TEA and DMU work with a plan you import from a Google Sheets or Docs link, pasted cells or a share code."
     }
 ]
