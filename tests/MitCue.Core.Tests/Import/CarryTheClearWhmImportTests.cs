@@ -10,6 +10,11 @@ namespace MitCue.Core.Tests.Import;
 /// docs/research/mechanics.md §4 (row-relative offsets: <c>t_item − t_row + δ</c>; the hit is the first one at or after
 /// the press, or for heals the last one before it).
 /// </summary>
+/// <remarks>
+/// The White Mage tab has no phase-end item (none of its actions sits on an enrage row); the sheet's "just before P3
+/// ends" item is the Scholar's (<see cref="CarryTheClearWhmSchImportTests.JustBeforeP3Ends_IsAPhaseEndEntry"/>), and
+/// LPDU's "Rampart as P1 dies" is in <see cref="LpduImportTests.WarriorMainTank"/>.
+/// </remarks>
 public class CarryTheClearWhmImportTests
 {
     private const string Tab = "'TOP – White Mage'!";
