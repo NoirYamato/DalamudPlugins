@@ -180,10 +180,16 @@ internal sealed class EncounterSession
     public bool PullActive { get; private set; }
 
     /// <summary>
-    /// True during a pull or countdown, and between the countdown's end and the pull (the pre-pull reminders are held
-    /// then): settings and party changes wait until it is over, so a rebuild never drops a pre-pull call already done.
+    /// True during a pull, between the countdown's end and the pull (the pre-pull reminders are held then), and during a
+    /// countdown once a call (the player's or a partner's) is shown or done: settings and party changes wait until it is
+    /// over, so a rebuild never drops a pre-pull call already shown or done. Before that a countdown loses nothing to a
+    /// rebuild (the new session takes the countdown up on its first update), so a co-tank who shows up in the party list
+    /// after /countdown still gets the player their tank pair's column for the pull.
     /// </summary>
-    public bool IsBusy => this.PullActive || this.Mode == SessionMode.Countdown || this.countdownEndedClock != null;
+    public bool IsBusy =>
+        this.PullActive
+        || this.countdownEndedClock != null
+        || (this.Mode == SessionMode.Countdown && (this.AnyReminderTouched() || (this.Others != null && AnyTouched(this.Others))));
 
     /// <summary>The player's reminders to display, ordered by press time.</summary>
     public IReadOnlyList<Reminder> Visible { get; private set; } = NoReminders;
@@ -416,9 +422,12 @@ internal sealed class EncounterSession
         return false;
     }
 
-    private bool AnyReminderTouched()
+    private bool AnyReminderTouched() => AnyTouched(this.Scheduler);
+
+    /// <summary>True when a reminder of <paramref name="scheduler"/> has left <see cref="ReminderState.Pending"/> (shown or finished).</summary>
+    private static bool AnyTouched(ReminderScheduler scheduler)
     {
-        foreach (var r in this.Scheduler.All)
+        foreach (var r in scheduler.All)
         {
             if (r.State != ReminderState.Pending)
                 return true;

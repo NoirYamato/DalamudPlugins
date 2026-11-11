@@ -121,6 +121,49 @@ public class PlanCommandTests : IDisposable
         Assert.Contains("as WAR, slot MT: 1 entry", tank.Out, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void Plan_DoesNotUseASlotOfAnotherRole()
+    {
+        // Review round 4: "--job WAR --slot M1" selected the M1 column's Feint ("any column for WAR in slot M1"); the plugin
+        // does not use a usual party slot of another role either.
+        var plan = this.kit.Write("roles.yaml", """
+            format: mitcue-plan/1
+            name: Roles
+            fight: top
+            assignees:
+              - {key: MT, slot: MT}
+              - {key: M1, slot: M1}
+              - {key: WAR, job: WAR}
+            entries:
+              - id: e001
+                mechanic: p1.pantokrator
+                who: {slot: MT, assignee: MT}
+                do:
+                  - {action: 7535, name: Reprisal}
+              - id: e002
+                mechanic: p1.pantokrator
+                who: {slot: M1, assignee: M1}
+                do:
+                  - {action: 7549, name: Feint}
+              - id: e003
+                mechanic: p2.solar_ray
+                who: {job: WAR, assignee: WAR}
+                do:
+                  - {action: 40, name: Thrill of Battle}
+            """);
+
+        var melee = this.kit.Run("plan", plan, "--job", "WAR", "--slot", "M1");
+        Assert.True(melee.ExitCode == 0, melee.ToString());
+        Assert.Contains("note: M1 is not a slot of WAR's role, so it is not used", melee.Err, StringComparison.Ordinal);
+        Assert.Contains("as WAR, column \"WAR\": 1 of 3 entries", melee.OutLines[0], StringComparison.Ordinal);
+        Assert.Equal(["e003"], Rows(melee).Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)[^1]));
+
+        var tank = this.kit.Run("plan", plan, "--job", "WAR", "--slot", "MT");
+        Assert.True(tank.ExitCode == 0, tank.ToString());
+        Assert.DoesNotContain("not a slot", tank.Err, StringComparison.Ordinal);
+        Assert.Equal(["e001", "e003"], Rows(tank).Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)[^1]));
+    }
+
     [Theory]
     [InlineData("H2")]
     [InlineData(null)]

@@ -1,5 +1,6 @@
 using Dalamud.Plugin.Services;
 using MitCue.Core;
+using MitCue.Core.Plans;
 using MitCue.Data;
 using MitCue.Game;
 using MitCue.Plans;
@@ -36,6 +37,44 @@ public class SessionManagerTests
         ClassJobId = (uint)Job.WHM,
         Level = 90,
     };
+
+    [Fact]
+    public void AUsualSlotOfAnotherRoleShowsNoneOfThatSlotsCalls()
+    {
+        // Review round 4: a White Mage whose usual slot is MT followed a role sheet's "MT" column (it has no White Mage
+        // column) and was reminded of the tanks' Reprisal; "(any column for my job)" showed it too.
+        var plan = new MitPlan
+        {
+            Id = "role-sheet",
+            Name = "Roles",
+            Fight = "top",
+            Assignees = [new Assignee { Key = "MT", Slot = "MT" }, new Assignee { Key = "H1", Slot = "H1" }],
+            Entries =
+            [
+                Kit.Entry("p1.loop_set1", -3, Kit.Reprisal, "Reprisal", job: null, slot: "MT", assignee: "MT"),
+                Kit.Entry("p1.loop_set1", -3, Kit.Temperance, "Temperance", job: null, slot: "H1", assignee: "H1"),
+            ],
+        };
+        var parts = NewManager(new Configuration { DefaultSlot = "MT" });
+        parts.Plans.EnsureLoaded();
+        Assert.True(parts.Plans.Save(plan, out var error), error);
+        parts.Plans.SetActive("top", Job.WHM, plan.Id);
+        parts.Plans.SetActive("top", Job.WAR, plan.Id);
+
+        parts.Manager.Update(InTop(1));
+        Assert.Empty(parts.Manager.Session!.Scheduler.All);
+
+        parts.Plans.SetMapping(plan, Job.WHM, new PlayerMapping { AssigneeKey = null, Slot = null }); // "(any column for my job)"
+        parts.Manager.Update(InTop(2));
+        Assert.Empty(parts.Manager.Session!.Scheduler.All);
+
+        // On a job of the slot's role it is the player's slot.
+        var tank = InTop(3);
+        tank.Job = Job.WAR;
+        tank.ClassJobId = (uint)Job.WAR;
+        parts.Manager.Update(tank);
+        Assert.Equal(["Reprisal"], parts.Manager.Session!.Scheduler.All.Select(r => r.Item.Name));
+    }
 
     [Fact]
     public void TheFirstFrameLoadsFightDataAndPlans()

@@ -44,16 +44,89 @@ public class ShareCodeImportTests
         Assert.Equal("role-sheet", parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
     }
 
-    [Fact]
-    public void WithoutASlotARoleSheetSaysToSetOne()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("MT")] // a slot of another role is not the White Mage's slot
+    public void WithoutASlotARoleSheetSaysWhichSlotToSetAndToChooseIt(string? defaultSlot)
     {
-        var parts = SessionManagerTests.NewManager();
+        // Review round 4: the message said to set "My usual party slot" or choose the plan, but setting the slot never made
+        // the plan active (only plans with a column for the job are chosen automatically): both steps are needed.
+        var config = new Configuration { DefaultSlot = defaultSlot };
+        var parts = SessionManagerTests.NewManager(config);
         parts.Plans.EnsureLoaded();
 
         Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(RoleSheet()), Job.WHM, makeActive: true, out _, out var message), message);
 
-        Assert.Contains("It has no calls for WHM without a slot: set \"My usual party slot\" in the General tab", message, StringComparison.Ordinal);
+        Assert.Contains("It has calls for WHM only in slot H1 or H2: set \"My usual party slot\" in the General tab, then choose it in the table above to use it.", message, StringComparison.Ordinal);
         Assert.Equal(CarryTheClearWhm, parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
+
+        // Both steps: the role sheet's H1 call is the White Mage's.
+        config.DefaultSlot = "H1";
+        parts.Plans.SetActive("top", Job.WHM, "role-sheet");
+        var frame = SessionManagerTests.InTop(1);
+        frame.Job = Job.WHM;
+        frame.ClassJobId = (uint)Job.WHM;
+        parts.Manager.Update(frame);
+        Assert.Equal("role-sheet", parts.Manager.Plan?.Id);
+        Assert.Equal(["e1"], parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id));
+    }
+
+    [Fact]
+    public void ARoleSheetWithoutCallsForTheJobsRoleSaysNothingAboutTheSlot()
+    {
+        // Review round 4: a White Mage without a slot was told to set one for a sheet with tank calls only.
+        var tanks = new MitPlan
+        {
+            Id = "tanks-only",
+            Name = "Tanks only",
+            Fight = "top",
+            Assignees = [new Assignee { Key = "MT", Slot = "MT" }, new Assignee { Key = "OT", Slot = "OT" }],
+            Entries =
+            [
+                Kit.Entry("p1.pantokrator", -3, Kit.Reprisal, "Reprisal", job: null, slot: "MT", assignee: "MT"),
+                Kit.Entry("p1.pantokrator", -3, Kit.Reprisal, "Reprisal", job: null, slot: "OT", assignee: "OT"),
+            ],
+        };
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(tanks), Job.WHM, makeActive: true, out _, out var message), message);
+
+        Assert.Contains("It has no calls for WHM: choose it in the table above for the job it is for.", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("My usual party slot", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AnotherJobsCallInTheColumnOfTheSameSlotIsNotTheirs()
+    {
+        // Review round 4: a call of "H1 AST" that names no job (an AI answer, a hand-edited plan) was shown to the White
+        // Mage who follows "H1 WHM" in H1, as a call of their slot; the review and the plan checks read it as the
+        // Astrologian's, and it is now read so everywhere.
+        var plan = new MitPlan
+        {
+            Id = "healer-columns",
+            Name = "Healer columns",
+            Fight = "top",
+            Assignees = [new Assignee { Key = "H1 WHM", Slot = "H1", Job = Job.WHM }, new Assignee { Key = "H1 AST", Slot = "H1", Job = Job.AST }],
+            Entries =
+            [
+                Kit.Entry("p1.loop_set1", -3, Kit.Temperance, "Temperance", Job.WHM, slot: "H1", assignee: "H1 WHM"),
+                Kit.Entry("p1.loop_set1", -3, 3613, "Collective Unconscious", job: null, slot: "H1", assignee: "H1 AST"),
+            ],
+        };
+        var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "H1" });
+        parts.Plans.EnsureLoaded();
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(plan), Job.WHM, makeActive: true, out var copy, out var message), message);
+
+        Assert.Equal(Job.AST, copy!.Entries[1].Who.Job);
+        Assert.Equal(1, parts.Plans.CallsFor(copy, Job.WHM));
+        var frame = SessionManagerTests.InTop(1);
+        frame.Job = Job.WHM;
+        frame.ClassJobId = (uint)Job.WHM;
+        parts.Manager.Update(frame);
+        Assert.Equal("H1 WHM", parts.Manager.Mapping?.AssigneeKey);
+        Assert.Equal(["Temperance"], parts.Manager.Session!.Scheduler.All.Select(r => r.Item.Name));
     }
 
     [Theory]

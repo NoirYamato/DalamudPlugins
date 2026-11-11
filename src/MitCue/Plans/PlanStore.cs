@@ -269,10 +269,11 @@ internal sealed class PlanStore
             var fightName = plan!.Fight.ToUpperInvariant();
             if (this.CallsFor(plan, job) == 0)
             {
-                // A role sheet (columns by slot only) has calls for every job, but only in a slot.
-                var bySlot = this.config.DefaultSlot == null && plan.Entries.Exists(e => e.Who.Job == null && Slots.TryNormalize(e.Who.Slot, out _));
-                message += bySlot
-                    ? $" It has no calls for {job} without a slot: set \"My usual party slot\" in the General tab, or choose it in the table above for the job it is for."
+                // A role sheet (columns by slot only) has calls for a job only in a slot of its role. Setting the slot does
+                // not choose the plan (only plans with a column for the job are chosen automatically), so say both steps.
+                var slots = this.SlotsWithCallsFor(plan, job);
+                message += slots.Count > 0
+                    ? $" It has calls for {job} only in slot {string.Join(" or ", slots)}: set \"My usual party slot\" in the General tab, then choose it in the table above to use it."
                     : $" It has no calls for {job}: choose it in the table above for the job it is for.";
             }
             else
@@ -301,8 +302,26 @@ internal sealed class PlanStore
         if (job == Job.None)
             return 0;
         var mapping = this.MappingFor(plan, job);
-        var me = new PlayerContext(job, 0, mapping.Slot ?? this.config.DefaultSlot, mapping.AssigneeKey);
+        var me = new PlayerContext(job, 0, mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, job), mapping.AssigneeKey);
         return plan.Entries.Count(e => e != null && PlanSelection.Applies(e, me));
+    }
+
+    /// <summary>
+    /// The slots of <paramref name="job"/>'s role (<see cref="Slots.Fits"/>) in which the overlay would show calls of the
+    /// plan, with the saved or suggested column for that slot: where "My usual party slot" has to be for a role sheet.
+    /// </summary>
+    private List<string> SlotsWithCallsFor(MitPlan plan, Job job)
+    {
+        var slots = new List<string>();
+        foreach (var slot in Slots.Standard.Where(s => Slots.Fits(s, job)))
+        {
+            var mapping = this.SavedMapping(plan, job) ?? SuggestedMapping(plan, job, slot);
+            var me = new PlayerContext(job, 0, mapping.Slot ?? slot, mapping.AssigneeKey);
+            if (plan.Entries.Exists(e => e != null && PlanSelection.Applies(e, me)))
+                slots.Add(slot);
+        }
+
+        return slots;
     }
 
     private bool ImportShareCodeCore(string code, out MitPlan? plan, out string message, out IReadOnlyList<string> problems)
@@ -604,10 +623,11 @@ internal sealed class PlanStore
         });
 
     /// <summary>
-    /// Repairs a plan read from text or a share code or built by the import window, and writes slot synonyms ("D3", "T1")
-    /// as the standard slot names (<see cref="PlanNormalizer.NormalizeSlots"/>, which every plan reader of the core
-    /// applies too): <see cref="PlanSelection"/> compares slots by name, and the configured slot and a column picked in
-    /// /mitcue > Plans are standard names, so an entry for "D3" would never be shown to the R1 player.
+    /// Repairs a plan read from text or a share code or built by the import window, writes slot synonyms ("D3", "T1")
+    /// as the standard slot names and gives job-less entries of a column with a job that job
+    /// (<see cref="PlanNormalizer.Normalize"/>, which every plan reader of the core applies too): <see cref="PlanSelection"/>
+    /// compares slots by name, and the configured slot and a column picked in /mitcue > Plans are standard names, so an
+    /// entry for "D3" would never be shown to the R1 player.
     /// </summary>
     private static void Normalize(MitPlan plan)
     {
@@ -625,7 +645,7 @@ internal sealed class PlanStore
             e.Do ??= [];
         }
 
-        PlanNormalizer.NormalizeSlots(plan);
+        PlanNormalizer.Normalize(plan);
     }
 
     private static string SafeFileName(string id)

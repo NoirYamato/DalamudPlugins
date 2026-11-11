@@ -133,6 +133,31 @@ public class EncounterSessionTests
     }
 
     [Fact]
+    public void ACountdownKeepsTheSessionOnceACallIsShown()
+    {
+        // Review round 4: a countdown held every rebuild until the pull ended, also when nothing had been shown yet, so a
+        // co-tank who showed up after /countdown left the pull on the first tank pair's column. Pre-pull Divine Benison:
+        // press 1 s before the pull, shown 15 s before that.
+        var engine = new ScriptedSyncEngine();
+        var session = Kit.Session(Kit.Fight(), [Kit.Entry("p1.raid", -31, Kit.DivineBenison, "Divine Benison")], engine);
+        Assert.False(session.IsBusy);
+
+        session.Update(980, 20f, false, null);
+        Assert.Equal(SessionMode.Countdown, session.Mode);
+        Assert.Empty(session.Visible);
+        Assert.False(session.IsBusy); // nothing to lose
+
+        for (var clock = 980.1; clock < 984.5; clock += 0.1)
+            session.Update(clock, (float)(1000 - clock), false, null);
+        Assert.Single(session.Visible);
+        Assert.True(session.IsBusy); // the call is shown: changes wait for the pull to end
+
+        // Cancelled: nothing is held any more.
+        session.Update(985, null, false, null);
+        Assert.False(session.IsBusy);
+    }
+
+    [Fact]
     public void SkipBeforeMarksEarlierCallsSkippedSoNothingIsMissedAtThePull()
     {
         // Review finding: a phase preview starts the fight at that phase; the earlier calls were never shown.

@@ -79,7 +79,7 @@ public class BundledPlanTests
         var parts = SessionManagerTests.NewManager(config);
         var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
 
-        Assert.True(preview.Start("top", null, 1122, Job.SCH, 0, out var message), message);
+        Assert.True(preview.Start("top", null, 1122, Job.SCH, null, 0, out var message), message);
         Assert.Contains("\"LPDU TOP Mitigation\" as SCH", message, StringComparison.Ordinal);
         Assert.Contains("31 entries are yours", message, StringComparison.Ordinal);
     }

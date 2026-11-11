@@ -239,8 +239,8 @@ public static class PlanSerializer
     }
 
     /// <summary>
-    /// Checks the format, repairs nulls so callers can rely on non-null collections, and writes slot synonyms as the
-    /// standard slots (<see cref="PlanNormalizer.NormalizeSlots"/>).
+    /// Checks the format, repairs nulls so callers can rely on non-null collections, writes slot synonyms as the
+    /// standard slots and gives job-less entries of a column with a job that job (<see cref="PlanNormalizer.Normalize"/>).
     /// </summary>
     private static MitPlan Finish(MitPlan plan)
     {
@@ -281,8 +281,8 @@ public static class PlanSerializer
             RepairItems(e.Do);
         }
 
-        // Every reader (the plugin's store and AI route, the CLI) then selects calls from the same slots.
-        PlanNormalizer.NormalizeSlots(plan);
+        // Every reader (the plugin's store and AI route, the CLI) then selects calls from the same slots and jobs.
+        PlanNormalizer.Normalize(plan);
         return plan;
     }
 
