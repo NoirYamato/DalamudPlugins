@@ -48,7 +48,7 @@ as NoirMech's, `%APPDATA%\NoirMech\identity-terms.txt`, one term per line.
 
 ### The first push
 
-Done: `mitcue` is on GitHub and MitCue 0.1.0.1 is published. The steps stay here for reference.
+Done: `mitcue` is on GitHub, and MitCue has been published since 0.1.0.1. The steps stay here for reference.
 
 The first push of `mitcue` makes its whole history public at once, while the publish script only starts from a
 pushed commit. So the history is scanned before that push, with the commits only on the maintainer's PC:

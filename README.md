@@ -98,11 +98,12 @@ removed, disabled or changed. Updates, uninstalling, test builds and where MitCu
 `/mitcue preview` plays a simulated pull through its own copy of the reminder engine, so it never affects the
 real fight. Use it to place the overlay and to read through a plan before raid night.
 
-- **Which plan:** the plan MitCue would use in the fight on your current job. If no plan applies to your job
-  (for example in town on a crafter, or in TOP on a melee job you have chosen no plan for), MitCue takes the
-  first plan for the fight: your own plans first, then the bundled ones, each by name. It previews that plan
-  as the job of the column you chose for it, or else as the plan's first job. In TOP, while you have no TOP
-  plan of your own, that is *Carry the Clear - SCH* as Scholar. TEA and DMU have no plan until you import one.
+- **Which plan:** the plan MitCue would use in the fight on your current job, with the column and co-healer
+  rows it would use in your current party. If no plan applies to your job (for example in town on a crafter,
+  or in TOP on a melee job you have chosen no plan for), MitCue takes the first plan for the fight: your own
+  plans first, then the bundled ones, each by name. It previews that plan as the job of the column you chose
+  for it, or else as the plan's first job. In TOP, while you have no TOP plan of your own, that is *Carry the
+  Clear - SCH* as Scholar. TEA and DMU have no plan until you import one.
 - **Timing:** a whole-fight preview begins with a simulated 10-second countdown. A phase preview starts
   2 seconds before a simulated pull and jumps to that phase about 2 seconds after the pull. Tick **Run
   /mitcue preview at 4x speed** in **General** to run it 4 times as fast.
@@ -162,9 +163,10 @@ with no enemy activity. The chat summary then reads, for example:
 ## Settings
 
 Changes apply immediately and are saved automatically. The exception is changes that need a new reminder
-session, such as switching plan or column: those wait until the current pull is over, and a change made
-during a countdown waits through the pull that follows (it applies at once if you cancel the countdown, or
-20 s after "0" if no pull starts).
+session, such as switching plan or column: those wait until the current pull is over. During a countdown
+they apply at once until the first reminder (yours or your co-healer's) appears; after that, and after "0",
+they wait through the pull that follows (they apply at once if you cancel the countdown, or 20 s after "0"
+if no pull starts).
 
 **General**
 
@@ -179,9 +181,9 @@ during a countdown waits through the pull that follows (it applies at once if yo
 | *Reminders* | | |
 | Track done/missed (keep used and missed calls listed with a check or a cross) | on | Off: a call disappears once used or once its time has passed, and no summary is printed |
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
-| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns. In a party, only columns of jobs someone in the party plays. Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
+| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). In a party, only columns of jobs someone in the party plays, and not a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
-| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU misses the calls of its MT or OT slot) |
+| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU misses the calls of its MT or OT slot). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs it counts as not set |
 | Run /mitcue preview at 4x speed | off | Preview speed |
 | *Recording* | | |
 | Record pulls (event log for tuning the sync; no player names) | off | Writes a log of each duty or fight-zone visit (see [Recording pulls](#recording-pulls)). The folder is shown under the checkbox |
@@ -258,11 +260,17 @@ job (in green).
   MitCue takes your job's column (the one in your slot if there are several, else the first), else your
   slot's column. When your job's calls are in several of its columns (one per phase or tab), it takes the
   narrowest choice that has them all and no other column's calls, such as *any column for my job in slot
-  H2*. Columns for team compositions (LPDU's tank pairs) are alternatives: a tank gets the pair with the
-  party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*; without a party and in the preview, the
-  first: *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank (Reprisal, Rampart),
-  when **My usual party slot** is set. The *CM LB Tank* and *CM Rep Tank* columns are left out: pick one
-  here to follow it instead.
+  H2*. When the plan has no column for your job and **My usual party slot** is not one of your role's, you
+  get the first slot your job's calls are in, passing over a slot that your party gives another job (one
+  whose calls are all in it): on LPDU, whose ranged jobs have their calls in the R1 and R2 columns, a Red
+  Mage gets *any column for my job in slot R1*, or R2 next to a Bard. For the other seat, set **My usual
+  party slot** or choose its column here; *(any column for my job)* shows both. Columns for team
+  compositions (LPDU's tank pairs) are alternatives, and one composition's columns in several phase tabs
+  count as one: a tank gets the pair with the party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*;
+  without a party, the first: *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank
+  (Reprisal, Rampart), when **My usual party slot** is MT or OT. A party that plays none of your job's
+  compositions gets your job's column that is not for one, if the plan has it. The *CM LB Tank* and
+  *CM Rep Tank* columns are left out: pick one here to follow it instead.
 
 ### Importing a plan
 
@@ -292,12 +300,13 @@ steps.
 4. **Save:** the plan name; **Save as** a new plan or in place of an earlier import of the same sheet (which
    keeps that plan's active-plan and column settings; an import that kept the export's tab names, such as
    `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
-   calls for your job. Unticked, the plan is only saved: your job keeps the plan it has where a bundled plan
-   or your choice covers it (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)),
-   and the chat line after saving says which plan is active for your job. When your calls are in several
-   columns of your job (one per phase or tab), the plan is saved with the column choice that has them all.
-   When no choice has all of your calls without another column's (a general tank column next to several
-   tank-pair columns), this step names the columns of the calls left out: check **My column** after saving.
+   calls for your job (this step counts them as the overlay will show them, in your current party).
+   Unticked, the plan is only saved: your job keeps the plan it has where a bundled plan or your choice
+   covers it (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)), and the chat
+   line after saving says which plan is active for your job. When your calls are in several columns of your
+   job (one per phase or tab), the plan is saved with the column choice that has them all. When no choice
+   has all of your calls without another column's (a general tank column next to several tank-pair
+   columns), this step names the columns of the calls left out: check **My column** after saving.
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
@@ -318,20 +327,22 @@ it, and closing the window cancels it too.
   (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
   The message under the box then says which plan your job has: *It is your active plan for TOP as WHM.*,
   *Your active plan for TOP as WHM stays "NoirMit - WHM": choose this one in the table above to use it.*, or
-  *It has no calls for WHM: choose it in the table above for the job it is for.* When no slot is set and the
-  plan has calls for a slot but no job (a sheet with a column per slot), the last one reads *It has no calls
-  for WHM without a slot: set "My usual party slot" in the General tab, or choose it in the table above for
-  the job it is for.*
+  *It has no calls for WHM: choose it in the table above for the job it is for.* When a sheet with a column
+  per slot (and none per job) has no calls for your job in your slot, the last one reads *It has calls for
+  WHM only in slot H1 or H2: choose it in the table above for WHM, then its column "H1" or "H2" under "My
+  column".*, or, while **My usual party slot** is not set, *It has calls for WHM only in slot H1 or H2: set
+  "My usual party slot" in the General tab, then choose it in the table above to use it.*
 - **Plan files.** MitCue keeps each user plan as a `<plan id>.json` file in
   `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder and the bundled
   plans, for example after you copy a plan `.json` file into it. Only `.json` files are read there.
 - **Checks.** Share codes and plan files skip the review, so MitCue checks them with the review's rules when
-  they load and reports only calls that can never work: a mechanic the fight doesn't have, an offset that is
-  not a number or a call for no job whose slot is not a party slot (each never shown), an unknown action
-  (never tracked), and an action the entry's job or slot can't use, or not at the fight's level. Up to five
-  problems per plan are listed under **Problems** (then *and N more*), each with what it does to the call,
-  for example *Entry 'e1': Expedient is learned at level 90, above this fight's level 80, so the call can
-  never be done.* The share-code message names the first one and ends *See Problems in /mitcue.*
+  they load and reports only calls that can never work as planned: a mechanic the fight doesn't have, an
+  offset that is not a number or a call for no job whose slot is not a party slot (each never shown; an
+  offset of minus infinity instead makes the call come at the start of the countdown or pull), an unknown
+  action (never tracked), and an action the entry's job or slot can't use, or not at the fight's level. Up
+  to five problems per plan are listed under **Problems** (then *and N more*), each with what it does to the
+  call, for example *Entry 'e1': Expedient is learned at level 90, above this fight's level 80, so the call
+  can never be done.* The share-code message names the first one and ends *See Problems in /mitcue.*
 - **Delete.** User plans have a **Delete** button: click it, then **Click again to delete**.
 
 ## Troubleshooting
@@ -469,7 +480,8 @@ Repository layout:
 src/MitCue.Core/           core library (no Dalamud): fights, timelines, sync engine, plans, reminders, importer
 src/MitCue/                the Dalamud plugin
 tests/MitCue.Core.Tests/   core tests (+ tests/fixtures/sheets: snapshots of the two example sheets)
-tests/MitCue.Plugin.Tests/ plugin tests (sessions, plan store, import window logic; built against Dalamud)
+tests/MitCue.Plugin.Tests/ plugin tests (sessions, plan store, import window logic; built against Dalamud;
+                           references tools/MitCue.Cli for the invariant sweep that compares it with the plugin)
 tests/MitCue.Cli.Tests/    CLI tests
 tools/MitCue.Cli/          developer CLI: import sheets, print checklists, simulate pulls, check plans and data
 tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's own manifest types
