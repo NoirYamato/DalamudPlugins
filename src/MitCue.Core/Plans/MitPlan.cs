@@ -88,6 +88,9 @@ public sealed class PlanItem
         {
             foreach (var o in this.Any)
             {
+                // Plans built in code (importer, review edits) may hold a null option; files are repaired on load.
+                if (o == null)
+                    continue;
                 foreach (var a in o.ActionIds())
                     yield return a;
             }

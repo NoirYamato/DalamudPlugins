@@ -117,6 +117,9 @@ internal sealed class EncounterSession
         {
             foreach (var item in entry.Do)
             {
+                // A null item (possible in plans built in code) must not stop the whole session from starting.
+                if (item == null)
+                    continue;
                 foreach (var id in item.ActionIds())
                     ids.Add(id);
             }
