@@ -8,7 +8,10 @@ public class ReminderUsageTests
 {
     private static readonly uint TemperanceId = Kit.Temperance.Id;
 
-    /// <summary>Temperance at the 100 s raidwide with the default offset: press 94, earliest 81, latest 99.7; uses count from 94 − 15 = 79.</summary>
+    /// <summary>
+    /// Temperance at the 100 s raidwide with the default offset: press 94, earliest 81, latest 99.7;
+    /// uses count from min(earliest, press − max(lookahead 15, due lead 1.5)) = 79.
+    /// </summary>
     private static PlanEntry Temperance() => Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance));
 
     [Fact]
@@ -70,7 +73,7 @@ public class ReminderUsageTests
     }
 
     [Fact]
-    public void UseBeforeTheLookahead_IsIgnoredButRecorded()
+    public void UseBeforeTheWindow_IsIgnoredButRecorded()
     {
         var s = Kit.Scheduler(Temperance());
         var r = s.All[0];
@@ -80,6 +83,57 @@ public class ReminderUsageTests
         Assert.Equal(ReminderState.Pending, r.State);
         Assert.Null(r.UsedAt);
         Assert.Equal(new ActionUse(TemperanceId, 78.99, null), Assert.Single(s.RecentUses));
+    }
+
+    [Fact]
+    public void ShortLookahead_UseFromEarliestOn_StillCounts()
+    {
+        var s = Kit.Scheduler(new ReminderOptions { Lookahead = 3 }, Temperance()); // shown from 91, earliest 81
+        var r = s.All[0];
+
+        s.OnOwnAction(TemperanceId, 80.99);                // before earliest and before it is shown
+        Assert.Equal(ReminderState.Pending, r.State);
+
+        s.Update(88);
+        s.OnOwnAction(TemperanceId, 89);                   // not shown yet, but the 20 s effect covers the hit
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.False(r.UsedEarly);
+
+        s.Update(100);
+        Assert.Equal(ReminderState.Done, r.State);         // not missed
+    }
+
+    [Fact]
+    public void DueLeadLongerThanLookahead_PressOnNow_Counts()
+    {
+        // Hallowed Ground (10 s) at the 100 s raidwide: press 98, earliest 91; NOW from 98 − 8 = 90.
+        var s = Kit.Scheduler(new ReminderOptions { Lookahead = 3, DueLead = 8 }, Kit.Entry("p1.raidwide", null, Kit.Do(Kit.HallowedGround)));
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.Update(90);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal([r], due);
+
+        s.OnOwnAction(Kit.HallowedGround.Id, 90.5);        // the player obeys the NOW
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.True(r.UsedEarly);                          // before earliest: flagged, but counted
+    }
+
+    [Fact]
+    public void LongEffect_UsedBeforeItIsShown_ButCoveringTheHit_Counts()
+    {
+        // Adloquium (30 s shield, 2 s cast) at the 100 s raidwide: press 95.5, shown from 80.5, earliest 71.
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Adloquium)));
+        var r = s.All[0];
+        Assert.Equal(71, r.Earliest, Kit.Tolerance);
+
+        s.OnOwnAction(Kit.Adloquium.Id, 70.99);            // would expire before the hit
+        Assert.Null(Assert.Single(s.RecentUses).Matched);
+
+        s.OnOwnAction(Kit.Adloquium.Id, 78);               // the shield lasts until 108
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.False(r.UsedEarly);
     }
 
     [Fact]

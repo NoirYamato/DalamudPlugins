@@ -12,7 +12,7 @@ public class ReminderJumpTests
     private static PlanEntry At(string mechanic) => Kit.Entry(mechanic, -5, Kit.Do(Kit.Temperance));
 
     [Fact]
-    public void ForwardJump_SkipsPendingAndUpcomingRemindersInTheJumpedSpan()
+    public void ForwardJump_SkipsRemindersWhoseHitItJumpedOver()
     {
         var s = Kit.Scheduler(At("p1.raidwide"), At("p1.buster"), At("p1.triple"), At("p2.raidwide"));
         var due = Kit.RecordDue(s);
@@ -21,16 +21,16 @@ public class ReminderJumpTests
         s.Update(90);
         Assert.Equal((ReminderState.Upcoming, ReminderState.Pending), (a.State, b.State));
 
-        s.OnTimelineJump(90, 125);
+        s.OnTimelineJump(90, 130);                         // phase push past the raidwide (100) and the buster (130)
 
         Assert.Equal(ReminderState.Skipped, a.State);
-        Assert.Equal(125, a.FinishedAt);
-        Assert.Equal(ReminderState.Skipped, b.State);     // press 125 == jump target: inclusive
+        Assert.Equal(130, a.FinishedAt);
+        Assert.Equal(ReminderState.Skipped, b.State);     // hit 130 == jump target: inclusive
         Assert.Equal(ReminderState.Pending, c.State);
         Assert.Equal(ReminderState.Pending, d.State);
 
-        Assert.Empty(s.Update(125));                       // skipped reminders are hidden by default
-        for (var t = 125.0; t < 150; t += 0.5)
+        Assert.Empty(s.Update(130));                       // skipped reminders are hidden by default
+        for (var t = 130.0; t < 150; t += 0.5)
             s.Update(t);
         Assert.Empty(due);                                 // skipped reminders never become due
         Assert.Equal(ReminderState.Skipped, a.State);
@@ -45,6 +45,106 @@ public class ReminderJumpTests
 
         Assert.Equal(ReminderState.Pending, s.All[0].State); // press 95 == jump origin
         Assert.Equal(ReminderState.Pending, s.All[1].State); // press 125 after the target
+    }
+
+    /// <summary>
+    /// Dancing Mad: on P2 success the timeline jumps from the 483.2 cast-start sync to 597.0, and
+    /// "Aero III Assault" hits at 600.0. Temperance with the default offset: press 594, latest 599.7.
+    /// </summary>
+    [Fact]
+    public void ForwardJump_PastThePressTimeButBeforeTheHit_ReminderBecomesDue()
+    {
+        var fight = Kit.Fight(100, Kit.Mech("p2.trine", 469.5), Kit.Mech("p3.aero", 600));
+        var s = Kit.Scheduler(fight, new ReminderOptions(), Kit.Entry("p3.aero", null, Kit.Do(Kit.Temperance)));
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+        Assert.Equal(594, r.PressAt, Kit.Tolerance);
+
+        s.Update(483.2);
+        s.OnTimelineJump(483.2, 597);                      // lands 3 s before the hit
+
+        Assert.Equal(ReminderState.Pending, r.State);      // not skipped: the mechanic is still to come
+        Assert.Same(r, Assert.Single(s.Update(597)));
+        Assert.Equal(ReminderState.Due, r.State);          // NOW at once...
+        Assert.Equal([r], due);                            // ...with its sound
+
+        s.OnOwnAction(TemperanceId, 598);
+        Assert.Equal(ReminderState.Done, r.State);
+        var summary = s.Summarize();
+        Assert.Equal((1, 1, 0, 0), (summary.Total, summary.Done, summary.Missed, summary.Skipped));
+    }
+
+    [Fact]
+    public void ForwardJump_LandingOnThePressTime_ReminderBecomesDue()
+    {
+        var fight = Kit.Fight(100, Kit.Mech("p3.aero", 600));
+        var s = Kit.Scheduler(fight, new ReminderOptions(), Kit.Entry("p3.aero", -3, Kit.Do(Kit.Temperance))); // press 597
+        var due = Kit.RecordDue(s);
+
+        s.OnTimelineJump(483.2, 597);
+        s.Update(597);
+
+        Assert.Equal(ReminderState.Due, s.All[0].State);
+        Assert.Equal([s.All[0]], due);
+    }
+
+    [Fact]
+    public void ForwardJump_BeforeTheHit_UseCountsForThatHit_NotTheNextOne()
+    {
+        var fight = Kit.Fight(90, Kit.Mech("a", 100), Kit.Mech("b", 110));
+        var s = Kit.Scheduler(fight, new ReminderOptions(), Kit.Entry("a", null, Kit.Do(Kit.DivineBenison)), Kit.Entry("b", null, Kit.Do(Kit.DivineBenison)));
+        var (first, second) = (s.All[0], s.All[1]);       // press 96 (hit 100) / 106 (hit 110)
+
+        s.Update(88);
+        s.OnTimelineJump(88, 97);
+        s.Update(97);
+        s.OnOwnAction(Kit.DivineBenison.Id, 98);           // pressed for the 100 s buster
+
+        Assert.Equal(ReminderState.Done, first.State);
+        Assert.Equal(ReminderState.Upcoming, second.State);
+        Assert.Contains(second, s.Update(105));            // the 110 s buster is still reminded
+        Assert.Equal(ReminderState.Due, second.State);
+    }
+
+    [Fact]
+    public void ForwardJump_PastTheUseWindow_SkipsEvenBeforeTheHit()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance))); // press 94, latest 99.7, hit 100
+        var r = s.All[0];
+
+        s.Update(90);
+        s.OnTimelineJump(90, 99.8);                        // too late to cover the hit
+
+        Assert.Equal(ReminderState.Skipped, r.State);
+        Assert.Equal(99.8, r.FinishedAt);
+    }
+
+    [Fact]
+    public void ForwardJump_PastTheHit_SkipsTheHealForItToo()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Tetragrammaton))); // press 101, latest 106
+        var r = s.All[0];
+
+        s.Update(95);
+        s.OnTimelineJump(95, 105.5);                       // the raidwide at 100 was jumped over
+
+        Assert.Equal(ReminderState.Skipped, r.State);
+    }
+
+    [Fact]
+    public void ForwardJump_AfterTheHit_HealWithItsWindowOpen_BecomesDue()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", 4, Kit.Do(Kit.Tetragrammaton))); // press 104, latest 109
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.Update(100.5);
+        s.OnTimelineJump(100.5, 106);                      // the raidwide landed before the jump
+
+        Assert.Equal(ReminderState.Upcoming, r.State);
+        s.Update(106);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal([r], due);
     }
 
     [Fact]
@@ -85,10 +185,11 @@ public class ReminderJumpTests
 
         var shown = Kit.Scheduler(new ReminderOptions { ShowSkipped = true }, At("p1.raidwide"), At("p1.buster"));
         shown.Update(90);
-        shown.OnTimelineJump(90, 125);
-        Assert.Equal(shown.All, shown.Update(125));
-        Assert.Equal(2, shown.Update(128).Count);          // KeepFinishedFor = 3 after the jump target
-        Assert.Empty(shown.Update(128.01));
+        shown.OnTimelineJump(90, 130);
+        Assert.Equal(shown.All, shown.Update(130));
+        Assert.Equal(2, shown.Update(128).Count);          // a small correction back does not hide them (no flicker)
+        Assert.Equal(2, shown.Update(133).Count);          // KeepFinishedFor = 3 after the jump target
+        Assert.Empty(shown.Update(133.01));
     }
 
     [Fact]
@@ -126,17 +227,69 @@ public class ReminderJumpTests
     }
 
     [Fact]
-    public void BackwardJump_OnlyRestoresRemindersAfterTheTarget()
+    public void BackwardJump_OnlyRestoresRemindersWhoseWindowIsOpenAtTheTarget()
     {
         var s = Kit.Scheduler(At("p1.buster"), At("p1.triple"));
         var (b, c) = (s.All[0], s.All[1]);
 
         s.Update(140);                                     // b missed, c upcoming
         s.OnTimelineJump(140, 170);                        // c skipped
-        s.OnTimelineJump(170, 126);                        // 44 s back, but b's press time (125) is before 126
+        s.OnTimelineJump(170, 131);                        // 39 s back, but b's window closed at 129.7
 
         Assert.Equal(ReminderState.Missed, b.State);
+        Assert.Equal(140, b.FinishedAt);
         Assert.Equal(ReminderState.Pending, c.State);
+    }
+
+    [Theory]
+    [InlineData(129.7, ReminderState.Pending)]           // the target is the last useful moment: reopened
+    [InlineData(129.71, ReminderState.Missed)]
+    public void BackwardJump_WindowBoundIsInclusive(double to, ReminderState expected)
+    {
+        var s = Kit.Scheduler(At("p1.buster"));            // press 125, latest 129.7
+
+        s.Update(140);
+        s.OnTimelineJump(140, to);
+
+        Assert.Equal(expected, s.All[0].State);
+    }
+
+    [Fact]
+    public void BackwardJump_IntoAnOpenWindow_ReopensAMissedReminder()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance))); // press 94, latest 99.7, hit 100
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.Update(93);
+        s.Update(106);                                     // missed: the timeline ran ahead
+        s.OnTimelineJump(106, 95);                         // resync 11 s back: the hit is ahead again
+
+        Assert.Equal(ReminderState.Pending, r.State);      // although its press time (94) is before the target
+        Assert.Null(r.FinishedAt);
+        s.Update(95);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal([r, r], due);                         // a second chance, announced again
+
+        s.OnOwnAction(TemperanceId, 96);
+        Assert.Equal(ReminderState.Done, r.State);
+        var summary = s.Summarize();
+        Assert.Equal((1, 1, 0), (summary.Total, summary.Done, summary.Missed));
+    }
+
+    [Fact]
+    public void BackwardJump_ReopensSkippedRemindersInsideTheirWindowToo()
+    {
+        var s = Kit.Scheduler(At("p1.raidwide"));          // press 95, latest 99.7
+        var r = s.All[0];
+
+        s.Update(90);
+        s.OnTimelineJump(90, 110);                         // skipped (hit 100 jumped over)
+        s.OnTimelineJump(110, 97);                         // the push was a false alarm: back before the hit
+
+        Assert.Equal(ReminderState.Pending, r.State);
+        s.Update(97);
+        Assert.Equal(ReminderState.Due, r.State);
     }
 
     [Fact]
@@ -157,6 +310,92 @@ public class ReminderJumpTests
         s.OnTimelineJump(141, 120);
         Assert.Equal(ReminderState.Pending, c.State);
         Assert.Equal(ReminderState.Pending, b.State);
+    }
+
+    [Fact]
+    public void BackwardJump_TakingADueReminderOutOfDue_AnnouncesItAgainWhenDue()
+    {
+        var s = Kit.Scheduler(At("p1.buster"));            // press 125, due from 123.5
+        var due = Kit.RecordDue(s);
+        var b = s.All[0];
+
+        s.Update(124);                                     // NOW (and sound) came too early: the timeline ran ahead
+        s.OnTimelineJump(124, 118);                        // 6 s back
+
+        Assert.Equal(ReminderState.Upcoming, Assert.Single(s.Update(118)).State); // counts down again, no stale NOW
+        s.Update(123.4);
+        Assert.Equal([b], due);
+        s.Update(123.5);
+        Assert.Equal(ReminderState.Due, b.State);
+        Assert.Equal([b, b], due);                         // announced again at the right moment
+    }
+
+    [Fact]
+    public void BackwardJump_ReminderStillDueAtTheTarget_StaysDue_WithoutASecondBecameDue()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.buster", null, Kit.Do(Kit.Rampart))); // press 124, due from 122.5, latest 129.7
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.Update(123);
+        s.Update(129.5);
+        s.OnTimelineJump(129.5, 123);                      // 6.5 s back, still inside the due span
+
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Same(r, Assert.Single(s.Update(123)));
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal([r], due);                            // no second sound for an unbroken NOW
+
+        s.OnOwnAction(Kit.Rampart.Id, 124);
+        Assert.Equal(ReminderState.Done, r.State);
+    }
+
+    [Fact]
+    public void BackwardJump_StillDueWhenReadyEntry_ObservesTheCooldownAgain()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance)).AsWhenReady()); // press 94, latest 99.7
+        var r = s.All[0];
+        var cooldowns = new FakeCooldowns();
+
+        s.Update(93, cooldowns.Set(Kit.Temperance, 10));   // due, waiting for the cooldown
+        s.Update(103, cooldowns.Set(Kit.Temperance, 0));   // ready at 103: due until 108
+        s.Update(106, cooldowns);
+        s.OnTimelineJump(106, 99);                         // 7 s back: still due
+
+        s.Update(99, cooldowns);                           // ready "since 99" now: due until max(99.7, 99 + 5) = 104
+        Assert.Equal(ReminderState.Due, r.State);
+        s.Update(104, cooldowns);
+        Assert.Equal(ReminderState.Due, r.State);
+        s.Update(104.01, cooldowns);
+        Assert.Equal(ReminderState.Missed, r.State);
+    }
+
+    [Fact]
+    public void BackwardJump_HidesFinishedRowsFromBeforeTheRewind()
+    {
+        var s = Kit.Scheduler(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance)), At("p1.buster")); // press 94 / 125
+        var (a, b) = (s.All[0], s.All[1]);
+
+        s.Update(90);
+        s.OnOwnAction(TemperanceId, 94);                   // a done at 94
+        s.Update(129.8);                                   // b missed at 129.8
+        s.Update(136);
+        s.OnTimelineJump(136, 130);                        // 6 s back: b's window (129.7) stays closed
+
+        Assert.Equal(ReminderState.Missed, b.State);       // outcomes stand...
+        Assert.Empty(s.Update(130));                       // ...but the rows are not listed again (b would be "0.2 s ago")
+
+        s.OnTimelineJump(130, 90);                         // a rewind before a's use
+        Assert.Equal(ReminderState.Done, a.State);
+        Assert.Equal(94, a.FinishedAt);
+        Assert.Empty(s.Update(90));                        // not listed as done 4 s before its use
+        Assert.Empty(s.Update(95));
+        Assert.Equal(ReminderState.Done, a.State);
+
+        s.Reset();                                         // the next pull lists finished rows again
+        s.Update(90);
+        s.OnOwnAction(TemperanceId, 94);
+        Assert.Same(a, Assert.Single(s.Update(94)));
     }
 
     [Fact]
