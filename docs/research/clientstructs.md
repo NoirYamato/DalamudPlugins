@@ -67,7 +67,10 @@ How to read it:
      address with signature …")` from `InteropGenerator.Runtime.ThrowHelper.ThrowNullAddress`;
    - `ActionManager.StaticAddressPointers.pInstance` returns `null` instead of throwing.
 
-   So check `.Value != 0` before hooking, and turn the feature off cleanly if it is 0.
+   So check `.Value != 0` before hooking, and turn the feature off cleanly if it is 0. Hooking address 0 does not
+   fail softly: `Hook<T>.FromAddress` passes the address to `HookManager.FollowJmp`, which throws
+   `InvalidOperationException` ("Address was <= 0 …"), so an unchecked hook created in the plugin constructor fails
+   the whole plugin load. The short skeletons in 2.5 (variant) and 6.5 leave the check out for brevity.
 5. **Hooks** (Dalamud `IGameInteropProvider`, decompiled from `Dalamud.dll`):
    - `Hook<T> HookFromAddress<T>(nint procAddress, T detour, HookBackend backend = Automatic) where T : Delegate`.
      There are also `nuint` and `void*` overloads.
@@ -84,7 +87,9 @@ How to read it:
      if the address is a resolved CS function and your delegate's parameter count differs, or a parameter or return
      type differs in size from the CS signature, it logs "Hook verification failed - this may cause crashes and
      subtle bugs". It only logs; the hook is still created. A CS-generated `T.Delegates.Name` passes trivially
-     (same type).
+     (same type). Parameters and returns of identical type also pass without a size comparison (`CheckParam`
+     returns true when both types are equal), so an unannotated `bool` in your own delegate, checked against a CS
+     `bool`, is never flagged: the verifier cannot catch the marshalling risk described in the next bullet.
    - `FFXIVClientStructs.dll` is compiled with `[assembly: DisableRuntimeMarshalling]` (read from its assembly
      metadata); a plugin built with `Dalamud.NET.Sdk` is not. Dalamud's `HookVerifier` models `bool` as 1 byte in a
      delegate declared in such an assembly and as 4 bytes otherwise, and the generator adds
@@ -183,7 +188,9 @@ ECommons declares its own `EffectHeader` with the same offsets (`ActionID@8`, `A
 `effects` points to an array of `NumTargets` `TargetEffects`. Iterate it like this:
 `for (i < NumTargets) foreach (ref var e in effects[i].Effects)`.
 
-CS has **no enum for `Effect.Type`**. BossMod's `ActionEffectType` (BSD-3) uses these values:
+CS has **no enum for `Effect.Type`**. BossMod's `ActionEffectType` (BSD-3, `BossMod/Data/ActionEffect.cs`) uses
+these values. The table is a subset: BossMod also defines 9 FailMissingStatus, 12/13 TpLoss/TpGain, 25/26
+EnmityAmountUp/Down, 34–36 AttractCustom1–3 and 39 Mount.
 
 | Value | Name | Value | Name |
 |---|---|---|---|
@@ -382,8 +389,13 @@ public sealed unsafe class ActionEffectWatcherAlt : IDisposable
   - one line per target, with `targetIndex`/`targetCount` (cactbot `LogGuide.md`).
 
   So treat one call as one cactbot `Ability` event, and use `GlobalSequence` to de-duplicate.
-- **Field correspondence** with the cactbot 21/22 field names (matched by name and position; not checked field by
-  field, **UNVERIFIED**):
+- **Field correspondence** with the cactbot 21/22 field names. Names and offsets are confirmed from source:
+  Machina's open-source ActionEffect header (`Machina.FFXIV/Headers/Global/Server_ActionEffect.cs`, GPL-3; Machina
+  is the packet library of the ACT plugin that writes these lines) uses the cactbot names at the CS offsets:
+  `actionId` 0x08, `globalEffectCounter` 0x0C, `animationLockTime` 0x10, `rotation` 0x1A, `actionAnimationId`
+  0x1C, `effectDisplayType` 0x1F and `effectCount` 0x21. Its `effectDisplayType` enum (0 hide name, 1 action,
+  2 item, 0x0D mount) has the same numbering as `ActionType`. The ACT plugin itself is closed source, so whether
+  the logged values are exactly these fields is still **UNVERIFIED**:
 
   | cactbot 21/22 field | CS |
   |---|---|
@@ -623,18 +635,20 @@ an in-game check:
 | Concitation (37013) | L100, under Seraphism | Accession (37016) |
 | Aetherpact (7437) | tethered | Dissolve Union (7869) |
 | Succor (186) | L96+ trait upgrade (trait 628 "Succor Mastery"; applies in DMU, not TEA or TOP) | Concitation (37013) |
+| Medica II (133) | L96+ trait upgrade (trait 624 "Medica Mastery"; applies in DMU, not TEA or TOP) | Medica III (37010) |
 
-**Caveat: read "is the planned action ready?" from the base id, not the adjusted id.** Three follow-ups in this
-table have their own recast groups in `Action.csv`: Divine Caress 37011 (CooldownGroup 2, 1 s), the bell
-detonation 28509 (CooldownGroup 1, 1 s) and Consolation 16546 (CooldownGroup 11, two charges). While one of them is
+**Caveat: read "is the planned action ready?" from the base id, not the adjusted id.** Four follow-ups in this
+table have a recast group of their own in `Action.csv`: Divine Caress 37011 (CooldownGroup 2, 1 s), the bell
+detonation 28509 (CooldownGroup 1, 1 s), Consolation 16546 (CooldownGroup 11, two charges) and Dissolve Union 7869
+(CooldownGroup 2, 1 s; Aetherpact 7437 is group 6, 3 s). The first three matter: while one of them is
 on the button, which is right after Temperance, Liturgy of the Bell or Summon Seraph was used, the adjusted id's
 timers describe the follow-up (usually ready), not the base action, which is on its 120–180 s cooldown. So read
 recast, charges and status for the planned (base) id, and use the adjusted id only for the name and icon and for
 matching. BossMod's action definitions likewise take the recast group from each action's own sheet row
 (`CooldownGroup − 1`); in `ActionManagerEx` it calls `GetAdjustedActionId` only on actions it is about to queue or
-execute (`NormalizeActionForQueue`, the imminent-action recast). That
-`GetRecastTime(baseId)` reports the base action's own group while the button shows the follow-up is
-**UNVERIFIED** in-game.
+execute (`NormalizeActionForQueue`, the imminent-action recast), and its public `AdjustAction` wrapper is used by
+`UIRotationWindow` only to pick the icon and name it displays. That `GetRecastTime(baseId)` reports the base
+action's own group while the button shows the follow-up is **UNVERIFIED** in-game.
 
 ### 3.8 Local player only
 
@@ -1306,8 +1320,9 @@ public sealed class Plugin : IDalamudPlugin
    - bell actions 25863/25864;
    - zero-target boss abilities;
    - meaning of `Effect.Value` and the `Param` bytes for each type.
-3. Whether ECommons' prologue signature and the CS `Receive` signature resolve to the same address. Also the
-   field-by-field match between cactbot's 21/22 fields and `Header` (section 2.6).
+3. Whether ECommons' prologue signature and the CS `Receive` signature resolve to the same address. Also whether
+   the values in cactbot's 21/22 fields are exactly the `Header` fields (section 2.6; the names and offsets match
+   Machina's header, but the ACT plugin that writes the lines is closed source).
 4. Runtime results of:
    - `GetAdjustedActionId` mappings (section 3.7);
    - `GetMaxCharges(id, 0)` under level sync (expected: Benison 1 in TEA, 2 in TOP/DMU; Tetragrammaton 2 only in DMU);
@@ -1317,7 +1332,7 @@ public sealed class Plugin : IDalamudPlugin
    - `GetActionStatus` with the default (no) target for targeted actions;
    - recast, charge and status reads for a base id whose button currently shows a follow-up (Temperance during
      Divine Caress, Summon Seraph while Seraph is out, Liturgy while the bell is placed), and `GetActionStatus` for
-     a base id that a trait upgraded (Succor at L96+);
+     a base id that a trait upgraded (Succor or Medica II at L96+);
    - local-player recast values including trait reductions (Enhanced Deployment Tactics/Recitation/Swiftcast).
 5. Countdown:
    - when `Active` turns false relative to `TimeRemaining` reaching 0 (`CountdownTracker` threshold);
@@ -1330,10 +1345,13 @@ public sealed class Plugin : IDalamudPlugin
 
 ## 9. Snippet compile record
 
-- `scratchpad/probes/clientstructs`: the original probe (all files above plus extra checks:
+- `scratchpad/probes/clientstructs`: the original probe. It holds earlier drafts of the snippets above (namespace
+  `CsProbe`; they differ from the fences in this file) plus extra checks:
   `Character.GetActionEffectHandler()`/`IncomingEffects`, `RaptureHotbarModule.GetSlotById`, `IDutyState` event
   signatures, `GetHotbarCooldownInfo`, `Cooldowns` span, `BattleChara.GetCastInfo()`/`CastInfo.IsCasting`,
-  `GetAdjustedCastTime`). Result: Build succeeded, 0 warnings, 0 errors.
+  `GetAdjustedCastTime`. Result: Build succeeded, 0 warnings, 0 errors. Its `CooldownReader.cs` still reads
+  timers and charges for the adjusted id, which section 3.7 rejects: copy code from this document, not from that
+  directory.
 - `scratchpad/probes/clientstructs-neg`: negative control. It fails with the 8 expected errors.
 - `scratchpad/probes/clientstructs-doc`: every `csharp` fence in this document (8 fences), extracted with
   `scratchpad/scripts/extract_csharp.py` into one file per fence and compiled with `Dalamud.NET.Sdk/15.0.0`,
@@ -1372,7 +1390,7 @@ in section 0.
   properties; the `Effect`, `TargetEffects` and `EffectEntry` layouts; `GameObjectId`; the BossMod
   `ActionEffectType` values (all 31 listed); and the BossMod and ECommons hook code and comments.
 - **Section 3:**
-  - all 17 rows of the 3.1 table (static or instance, exact parameter and return types, signature strings);
+  - all 18 rows of the 3.1 table (static or instance, exact parameter and return types, signature strings);
   - the `ActionManager` fields, `RecastDetail`, `HotbarCooldownInfo` and the `ActionType` values;
   - BossMod's GCD group 57, `CooldownGroup − 1` and the group ranges 0–79, 80–81 and 82–86.
 - **Section 4:** the countdown layout, `AgentId.CountDownSettingDialog = 251`, the generated `Instance()`, the
@@ -1469,7 +1487,8 @@ in section 0.
   signature string listed above.
 - All 30 cooldown-table rows, the pet and bell ids, the trait levels and values, and all quoted LogMessage texts.
 - The cactbot and Dalamud director-command mapping; the BossMod and ECommons citations, including the "5 functions"
-  and "deemed to be minor" comments, pomander 579 and `LuminaRow<LogMessage>` (in `BossMod/Debug/DebugAction.cs`).
+  and "deemed to be minor" comments, pomander 579 (`BossMod/Framework/ActionManagerEx.cs`) and
+  `LuminaRow<LogMessage>` (`ActionManagerEx.cs` and `BossMod/Debug/DebugAction.cs`).
 - The BSD-3 (BossMod) and MIT (ECommons) licences.
 
 ### Still UNVERIFIED (needs the running game)
@@ -1483,3 +1502,139 @@ Also the runtime marshalling of unannotated `bool` in plugin-declared delegates 
 items include the next-charge formula (BossMod documents that the game sets `Total` = recast × max charges at the
 level cap and `Elapsed` = recast × (max charges at the current level − 1) on first use, which is consistent with it)
 and every in-game behaviour listed in section 8.
+
+---
+
+## Verification (second pass)
+
+A second, independent check of the whole report, including the first verifier's corrections and their Verification
+section. Every claim below was re-derived from primary sources with this pass's own probes, scripts and downloads;
+nothing in the researcher's or the first verifier's working directories was used as evidence. `scratchpad` is the
+same directory as in section 0.
+
+### How it was checked
+
+| Source | What this pass did |
+|---|---|
+| Source trees | Read CS at `80cb4a7b`. Read Dalamud at `12e318c1`: `DutyState.cs`, `IDutyState.cs`, `DutyStateEventArgs.cs`, `IGameInteropProvider.cs`, `GameInteropProviderPluginScoped.cs`, `Hook.cs`, `ReloadedHook.cs`, `HookManager.cs`, `HookVerifier.cs`, `Window.cs`/`IWindow.cs`/`WindowHost.cs`, `SeStringCreatorWidget.cs`, `IGameGui.cs`, `IObjectTable.cs`, `BattleChara.cs`, `GameObject.cs`, `IFramework.cs`, `Dalamud.cs`. Also read `Dalamud.NET.Sdk/15.0.0` `Sdk.props`, ECommons `bc38dc71`, cactbot `e79ea7f1` (`LogGuide.md`, `netregexes.ts`), OverlayPlugin `43afdd59` (`LineAbilityExtra.cs`) and Machina `2bd9a7d2` (`Server_ActionEffect.cs`, `Server_MessageHeader.cs`). BossMod: a full depth-1 clone at the same commit `6e410ef8` in `scratchpad/probes/verify-clientstructs-pass2-bossmod-full`, because the sparse clone lacks `BossMod/Debug`, `ActionQueue` and `Data`. |
+| Bundled DLLs | New ilspycmd decompiles in `scratchpad/probes/verify-clientstructs-pass2-decomp`: `ActionManager`, `ActionEffectHandler`, `AgentCountDownSettingDialog`, `UIGlobals`, `PacketDispatcher`, `RaptureHotbarModule`, `ContentDirector`, and `InteropGenerator.Runtime.Address`/`ThrowHelper`. Assembly attributes read with `MetadataLoadContext` (`scratchpad/probes/verify-clientstructs-pass2-attr`): `DisableRuntimeMarshalling` is on `FFXIVClientStructs.dll`, and on neither `Dalamud.dll` nor a `Dalamud.NET.Sdk` plugin. XML member entries looked up by full name. |
+| Compile probe | `scratchpad/probes/verify-clientstructs-pass2` (copy of `buildtest/Probe`; `Pass2Exact.cs`, `Pass2VirtualFn.cs`). It has 39 typed function-pointer assignments (`&Type.Method` for static members, `T.MemberFunctionPointers.X` for instance members; both compile only on an identical signature) and 130 `Exact<T>(ref x)` assertions (a `ref` argument needs an identity conversion, so field and return types are exact). It also has 5 method-group conversions to generated delegates, calls that rely on the default and named parameters, and every Dalamud service member the report uses. 0 warnings, 0 errors. |
+| Negative control | `scratchpad/probes/verify-clientstructs-pass2-neg`: 16 deliberately wrong variants, each failing with the expected error: CS0407 ×3, CS1503 ×3, CS0266 ×2, CS0117 ×4 (no `Addresses` or `MemberFunctionPointers` for a virtual function, no `Delegates` for a static address), CS0176, CS0120, CS8757, CS1061. Copies of the researcher's probe and negative control (`scratchpad/probes/verify-clientstructs-pass2-rcopy`) rebuild with 0/0 and with exactly the 8 errors claimed in section 0. |
+| Runtime layout | `scratchpad/probes/verify-clientstructs-pass2-layout`: a net10.0 console app that loads the bundled `FFXIVClientStructs.dll`. Without calling game code, it checks 143 items: struct sizes, field offsets, enum values, bit-field properties, span lengths, vtable slot offsets, `Address` metadata and the unresolved-address behaviour. 143 of 143 pass. |
+| Fences | The 8 `csharp` fences, extracted with this pass's own script (`scratchpad/scripts-verify-pass2/extract_fences.py`) into `scratchpad/probes/verify-clientstructs-pass2-fences`. Compiled verbatim before and after the edits below: 0 warnings, 0 errors, and all 13 named types are in the output assembly. |
+| Game data | `research/gamedata/{Action,ClassJob,ClassJobCategory,TerritoryType,ContentFinderCondition}.csv`. `Trait.csv`, `TraitTransient.csv` and `LogMessage.csv` downloaded again into `scratchpad/probes/verify-clientstructs-pass2-data`. |
+
+### What was checked
+
+- **API surface (sections 1–7).** Every name the report states, with its static or instance split, exact
+  parameter and return types, default values, field offsets and types, struct sizes, enum values, vtable indexes
+  and generated members.
+  - ActionEffect: the 12 `Header` fields and its 2 bit properties, `GameObjectId`, `EffectEntry`.
+  - ActionManager: all 18 rows of the 3.1 table, `RecastDetail`, `HotbarCooldownInfo`, the 21 `ActionType` values.
+  - Countdown and sound: the countdown agent and `AgentId` 251, `SoundManager`.
+  - Hotbars: the hotbar module, slot, slot-type and addon structs.
+  - Packets and directors: the three `PacketDispatcher` handlers and both packet layouts, `ContentDirector` (VF325),
+    `EventFramework`.
+  - Characters: `Character` (VF80 and VF82) and `BattleChara.CastInfo`.
+- **Behaviour without the game.**
+  - `ActionManager.Instance()` and the static `GetMaxCharges` throw `InvalidOperationException` with the exact
+    `ThrowNullAddress` text quoted in 1.4, and `StaticAddressPointers.pInstance` is null.
+  - `Addresses.Receive` follows the relative call at byte 1, and its `.Value` is 0 until resolved.
+  - `UIGlobals.PlayChatSoundEffect(0)` and `(17)` throw `ArgumentException`. `(1)` passes the range check and then
+    reaches the null-address check of `PlaySoundEffect`.
+  - Bits 0 and 1 of `Header.Flags` drive `ShowInLog` and `ForceAnimationLock`.
+  - `AgentCountDownSettingDialog.Instance()` throws (from `Framework.Instance()`) only while the Framework
+    signature is unresolved, as 4.1 says.
+- **Dalamud.**
+  - Hooks: the `HookFromAddress` overloads and the `Hook<T>` members. The `backend` argument is only warned about
+    (`WarnForDeprecatedBackend`). Hooks start disabled, because the default Reloaded backend calls `Activate()` and
+    then `Disable()`. Also plugin-scoped tracking, and `HookVerifier` (Developer Mode only, logs only, size rules).
+  - Duty state: the `IDutyState` events and their delegate and argument types, the `DutyState` command switch,
+    once-per-territory completion, and the framework-tick fallback.
+  - Other services: the `IGameGui.GetAddonByName` overloads, `IObjectTable.SearchByEntityId`, and the
+    `IBattleChara` and `IGameObject` members.
+  - Window and sound: `IWindow.DisableWindowSounds` and sound ids 23/24; the `PlayChatSoundEffect(u32 + 1)` call in
+    `SeStringCreatorWidget`.
+  - Startup and SDK: the resolver order in `Dalamud.cs`, `Sdk.props`, and that `Dalamud.xml` has no ActionEffect
+    or countdown service.
+- **BossMod, ECommons, cactbot.**
+  - BossMod hooks and comments: the hook construction (`HookAddress` → `HookFromAddress`, then `Enable`); the three
+    comments in `ProcessPacketActionEffectDetour`; the countdown read; the cast-position hook; the map-effect hooks
+    and the "exactly 3" multisig; `SetDirectorData`.
+  - BossMod data and citations: GCD group 57, `CooldownGroup − 1` and the 80–81 and 82–86 ranges; the
+    first-charge comment; pomander 579 and `LuminaRow<LogMessage>`; the `IncomingEffects` read;
+    `DirectorUpdate = 109`; the 31 listed `ActionEffectType` values.
+  - ECommons: the signature, delegate shape and `EffectHeader` offsets; HQ items and mounts; `Wipe`; the
+    `ApplyMapEffect` hook.
+  - cactbot: the 21/22 prose and the "Seed Of The Sky" line; the `2[12]` regex; the director command list and the
+    `wipe` regex (`40000010`/`4000000F`).
+  - Licences: BSD-3 (BossMod) and MIT (ECommons).
+- **Data (96 entries, all match):**
+  - all 30 rows of the 3.4 table (5 columns each);
+  - 19 action ids: the 9 pet, bell and detonation ids, and the base and follow-up ids of 3.7, including Medica
+    II/III;
+  - traits 490, 494, 624, 625, 628, 629, 644 and ClassJobCategory 199;
+  - the 20 LogMessage rows quoted in 3.5 and 4.2;
+  - TerritoryType 1122/887/1363, with ContentFinderCondition sync levels 90/80/100;
+  - 16 randomly sampled TOP timeline `Ability` ids. 15 resolve to Action rows named like the label (without its
+    suffix, for example "Blaster 4" → Blaster); the 16th is an unnamed `--sync--` row.
+- **Completeness of the 3.4 trait table.**
+  - Read every Trait row for WHM, SCH, CNJ and ACN, and for every role category that includes them, together with
+    its `TraitTransient` description.
+  - Only 490, 494, 625, 629 and 644 change a recast or a charge count.
+  - The traits with `Value 0` (for example 310 Enhanced Asylum, 313 Enhanced Sacred Soil, 623, 626, 627, 656)
+    change neither.
+
+### Errors found and corrected in place
+
+1. **Section 9 called the original probe "all files above plus extra checks".**
+   - Its files are earlier drafts (namespace `CsProbe`) that differ from every fence.
+   - Its `CooldownReader.cs` still reads timers and charges for `GetAdjustedActionId(id)`, the logic section 3.7
+     rejects.
+   - Reworded, with a note to copy code from this document only.
+2. **Section 3.7 said three follow-ups have a recast group of their own.** There are four in the table: Dissolve
+   Union 7869 is CooldownGroup 2 (1 s), while Aetherpact 7437 is group 6 (3 s). Corrected; the paragraph now says
+   which three matter.
+3. **The first-pass Verification section had two wrong details.**
+   - It said "all 17 rows of the 3.1 table"; the table has 18. Corrected.
+   - It placed the pomander-579 comment in `BossMod/Debug/DebugAction.cs`. The comment is in
+     `BossMod/Framework/ActionManagerEx.cs` (`LuminaRow<LogMessage>` is in both files). Corrected.
+
+### Omissions and precisions added
+
+1. **3.7:** Medica II (133) → Medica III (37010), from trait 624 "Medica Mastery". It is WHM L96
+   (`TraitTransient`: "Upgrades Medica II to Medica III"), so it applies in DMU only. Added to the table and to the
+   runtime check in section 8. Also cited BossMod's `UIRotationWindow`, which uses the adjusted id only for the
+   displayed icon and name.
+2. **1.4:** what happens when the `.Value != 0` check is skipped.
+   - `Hook<T>.FromAddress` calls `HookManager.FollowJmp`, which throws `InvalidOperationException` for an
+     address ≤ 0, so the plugin fails to load.
+   - Added that the 2.5 variant and the 6.5 skeletons leave the check out.
+3. **1.5:** `HookVerifier.CheckParam` accepts identical types before comparing sizes. An unannotated `bool` checked
+   against a CS `bool` is therefore never flagged, so the verifier is no safety net for the marshalling advice.
+4. **2.3:** the `ActionEffectType` table is a subset. Named the values it leaves out (9, 12, 13, 25, 26, 34–36, 39)
+   and the source file.
+5. **2.6 and section 8 (upgraded from fully UNVERIFIED):** the names and offsets of the cactbot 21/22 extra fields
+   match Machina's open-source ActionEffect header.
+   - Machina's header follows a 0x20-byte message header, so its offsets line up with `Header`.
+   - Its `effectDisplayType` enum (0/1/2/0x0D) has the `ActionType` numbering, which also supports the
+     "same numbering" note in 3.3.
+   - The ACT plugin that writes the lines is closed source, so whether the logged values match stays UNVERIFIED.
+
+### Checked and left unchanged
+
+- **Everything else.** Every other API statement in sections 1–7 and every data value listed above is correct. No
+  signature, offset, enum value, vtable index or data value had to change.
+- **1.5, "disposes leftovers".** The plugin-scoped `trackedHooks` is a weak collection (`ConditionalWeakTable`).
+  But Dalamud's global `HookManager.TrackedHooks` holds each hook and its detour strongly until the hook is
+  disposed, so the statement holds.
+- **2.4, "BossMod uses this".** `WorldStateGameSync` reads `GetActionEffectHandler()->IncomingEffects` every frame,
+  and BossMod also hooks the EffectResult packets.
+- **4.1, "No other countdown struct exists in CS".** The other countdown-named members in CS are not `/countdown`
+  state: `ReadyCheckModule.CountdownLength`, the `ContentDirector.ContentTimeLeft` remark, two spawn-packet timers
+  and a replay chapter type.
+
+### Still UNVERIFIED (needs the running game)
+
+Everything in section 8, which now includes the Medica II → Medica III mapping. Also the runtime marshalling of an
+unannotated `bool` in a plugin-declared delegate on Windows.
