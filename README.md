@@ -101,9 +101,9 @@ it was built from.
 
 MitCue shows reminder-only mitigation cues: during the fight, a small window tells you which of **your** actions
 to press next, synced to the boss from your raid's mitigation plan. It never presses, queues or targets anything,
-and only reads what your game already shows you. It comes with plans for The Omega Protocol (Ultimate) from
-Carry the Clear (White Mage and Scholar tabs) and LPDU (every job), and also follows The Epic of Alexander (Ultimate)
-and Dancing Mad (Ultimate) with a plan you import.
+and only reads what your game already shows you. It comes with two plans for The Omega Protocol (Ultimate):
+NoirMit - WHM for the White Mage (made from Carry the Clear's White Mage tab) and LPDU (every job). It also follows
+The Epic of Alexander (Ultimate) and Dancing Mad (Ultimate) with a plan you import.
 
 ### Install
 
@@ -114,7 +114,7 @@ and Dancing Mad (Ultimate) with a plan you import.
 
 1. Type `/mitcue` to open its settings, and in **General** set **My usual party slot** (H1, H2, ...).
 2. In the **Plans** tab, check the **Active plan** and **My column** in the row for your fight and job. In TOP a
-   White Mage gets Carry the Clear and a Scholar gets LPDU without choosing anything. To use your raid's own plan,
+   White Mage gets NoirMit - WHM and a Scholar gets LPDU without choosing anything. To use your raid's own plan,
    click **Import from sheet...** to bring it in from its Google Sheets link, or paste a share code you were sent.
 3. Type `/mitcue preview top` to watch a simulated TOP pull, and drag the overlay where you want it.
    `/mitcue preview` stops the preview.
