@@ -68,6 +68,7 @@ public class CommandLineTests : IDisposable
     [InlineData(new[] { "import", "https://example.com/sheet", "--fight", "top" }, "is not a Google Sheets link")]
     [InlineData(new[] { "import", "x.xlsx", "--fight", "top", "--calibration", "nope" }, "no calibration preset 'nope'")]
     [InlineData(new[] { "import", "x.xlsx", "--fight", "top", "--date", "11/11/2026" }, "ISO date")]
+    [InlineData(new[] { "import", "x.xlsx", "--fight", "top", "--id", "plan-1" }, "needs a GUID")]
     [InlineData(new[] { "validate", "--data" }, "--data needs a value")]
     public void BadArguments_AreUsageErrors(string[] args, string message)
     {

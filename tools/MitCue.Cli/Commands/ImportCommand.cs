@@ -32,6 +32,7 @@ internal static partial class ImportCommand
             new("name", "text", "Plan name (default: chosen by the importer from the sheet)."),
             new("url", "text", "Source link stored in the plan (default: the link imported, if any)."),
             new("date", "yyyy-mm-dd", "Import date stamped on the plan (default: today)."),
+            new("id", "guid", "Plan id to use (default: the importer's); keeps re-imports of a sheet the same plan."),
             new("save", "file.xlsx", "Also save the downloaded workbook (Google Sheets links only)."),
             new("output", "plan.yaml", "Write the plan here (\"-\" = standard output, the default).", "o"),
         ],
@@ -59,6 +60,13 @@ internal static partial class ImportCommand
         var date = args.Get("date") ?? ctx.Environment.Today();
         if (!IsoDate().IsMatch(date))
             throw new UsageException($"import: --date needs an ISO date like 2026-11-11, not '{date}'.");
+        Guid? id = null;
+        if (args.Get("id") is { } idText)
+        {
+            if (!Guid.TryParse(idText, out var parsed))
+                throw new UsageException($"import: --id needs a GUID like 6f1c2b9e-0000-4000-8000-000000000001, not '{idText}'.");
+            id = parsed;
+        }
 
         var source = args.Positionals[0];
         if (args.Has("save") && !GoogleSheetLink.TryParse(source, out _))
@@ -91,6 +99,8 @@ internal static partial class ImportCommand
         };
 
         var result = new PlanImporter().Import(document, options);
+        if (id is { } planId)
+            result.Plan.Id = planId.ToString("D");
 
         var output = args.Get("output") ?? "-";
         var report = output == "-" ? ctx.Err : ctx.Out;

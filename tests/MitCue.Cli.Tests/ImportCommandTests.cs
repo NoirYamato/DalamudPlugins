@@ -150,11 +150,16 @@ public class ImportCommandTests : IDisposable
     [ImporterFact]
     public void Import_ToStandardOutput_SendsTheReportToStandardError()
     {
-        var r = this.kit.Run("import", Path.Combine(CliKit.Fixtures, "carry-the-clear", "top-white-mage.json"), "--fight", "top", "--date", "2026-01-02");
+        const string id = "6f1c2b9e-0000-4000-8000-000000000001";
+        var r = this.kit.Run("import", Path.Combine(CliKit.Fixtures, "carry-the-clear", "top-white-mage.json"), "--fight", "top", "--date", "2026-01-02", "--id", id.ToUpperInvariant());
         Assert.True(r.ExitCode is 0 or 1, r.ToString());
         Assert.StartsWith("Source: \"top-white-mage\" (fixture file)", r.Err);
         var plan = PlanSerializer.FromYaml(r.Out);
         Assert.Equal("2026-01-02", plan.Source?.Imported);
+        Assert.Equal(id, plan.Id);
+
+        // Same input, same options: the same plan file.
+        Assert.Equal(r.Out, this.kit.Run("import", Path.Combine(CliKit.Fixtures, "carry-the-clear", "top-white-mage.json"), "--fight", "top", "--date", "2026-01-02", "--id", id).Out);
     }
 
     [ImporterFact]
