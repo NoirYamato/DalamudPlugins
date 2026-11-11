@@ -170,10 +170,34 @@ internal static class SheetSource
 
             if (response.Content.Headers.ContentLength is > MaxDownloadBytes)
                 throw new FailureException($"the workbook is larger than {MaxDownloadBytes / (1024 * 1024)} MB.");
-            var bytes = response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult();
+            var bytes = ReadBounded(response.Content);
             var title = TitleFrom(response.Content.Headers.ContentDisposition) ?? "Google Sheet " + link.Id;
             using var stream = new MemoryStream(bytes, writable: false);
             return new LoadedSheet(SheetReaders.FromXlsx(stream, title), "google-sheet link", original, bytes);
+        }
+    }
+
+    /// <summary>The body, at most <see cref="MaxDownloadBytes"/> (also when the server sends no length).</summary>
+    private static byte[] ReadBounded(HttpContent content)
+    {
+        try
+        {
+            using var stream = content.ReadAsStream();
+            using var buffer = new MemoryStream();
+            var chunk = new byte[81920];
+            int read;
+            while ((read = stream.Read(chunk, 0, chunk.Length)) > 0)
+            {
+                if (buffer.Length + read > MaxDownloadBytes)
+                    throw new FailureException($"the workbook is larger than {MaxDownloadBytes / (1024 * 1024)} MB.");
+                buffer.Write(chunk, 0, read);
+            }
+
+            return buffer.ToArray();
+        }
+        catch (Exception ex) when (ex is HttpRequestException or IOException)
+        {
+            throw new FailureException($"download failed: {ex.Message}");
         }
     }
 

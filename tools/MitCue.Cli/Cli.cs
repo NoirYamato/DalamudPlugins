@@ -77,6 +77,14 @@ internal static class Cli
             error.WriteLine("error: " + ex.Message);
             return ExitCodes.Failure;
         }
+        catch (Exception ex)
+        {
+            // A bug (here or in the core): say what happened, with the stack trace for the developer.
+            output.Flush();
+            error.WriteLine($"error: unexpected {ex.GetType().Name}: {ex.Message}");
+            error.WriteLine(ex.StackTrace);
+            return ExitCodes.Failure;
+        }
     }
 
     public static void WriteGlobalHelp(TextWriter output)

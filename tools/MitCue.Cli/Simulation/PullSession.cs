@@ -11,9 +11,9 @@ namespace MitCue.Cli.Simulation;
 /// The plugin's encounter session without the game: a <see cref="TimelinePlayer"/> fed with game events and a
 /// <see cref="ReminderScheduler"/> advanced from timeline time and own action uses. Mirrors
 /// src/MitCue/Runtime/EncounterSession.cs (the CLI cannot reference the plugin): the timeline does not stop when combat
-/// ends (<see cref="TimelinePlayer.StopOnCombatEnd"/> false), the pull ends after a prolonged out-of-combat, a duty
-/// reset or a timeline reset, timeline jumps are forwarded to the scheduler, and a /countdown runs the reminders on
-/// timeline time = −remaining.
+/// ends (<see cref="TimelinePlayer.StopOnCombatEnd"/> false, and InCombat edges are not passed to it during a pull), the
+/// pull ends after a prolonged out-of-combat, a duty reset or a timeline reset, timeline jumps are forwarded to the
+/// scheduler, and a /countdown runs the reminders on timeline time = −remaining.
 /// </summary>
 internal sealed class PullSession
 {
@@ -67,6 +67,11 @@ internal sealed class PullSession
         this.StepClock = e.Time;
         if (e is CastStarted or AbilityResolved { SourceIsPlayer: false })
             this.lastNpcActivityClock = Math.Max(this.lastNpcActivityClock, e.Time);
+
+        // A dead player can lose the InCombat flag while the fight goes on: during a pull the edges do not reach the
+        // timeline (its InCombat sync would restart it at 0); the pull ends by a duty reset or a prolonged out-of-combat.
+        if (e is CombatStateChanged && this.PullActive)
+            return;
 
         this.Player.Process(e);
         if (e is DutyReset reset)
@@ -194,6 +199,12 @@ internal sealed class PullSession
         this.TimelineTime = t;
         this.Scheduler.Update(t);
     }
+
+    /// <summary>
+    /// Marks every reminder planned before timeline time <paramref name="time"/> as skipped: a phase preview starts the
+    /// fight at that phase, so the earlier reminders were never shown and must not be judged missed at the pull.
+    /// </summary>
+    public void SkipBefore(double time) => this.Scheduler.OnTimelineJump(double.NegativeInfinity, Math.BitDecrement(time));
 
     /// <summary>Ends the pull: raises <see cref="PullEnded"/> with the summary when anything happened.</summary>
     public void EndPull(string reason, double clock)

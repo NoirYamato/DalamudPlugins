@@ -46,7 +46,7 @@ internal static class SimulateCommand
 
             --push p2=110 makes phase p2 start 110 s (real time) after the pull; the previous phase's events stop 3 s
             before. Times may be written as seconds or m:ss. --from p3 starts at that phase like /mitcue preview (earlier
-            phases are cut; the phase starts 2 s after the pull).
+            phases are cut and their reminders skipped; the phase starts 2 s after the pull).
             """,
         Options =
         [
@@ -106,7 +106,7 @@ internal static class SimulateCommand
         var events = generated.Where(e => allEvents || GameEventTypes.Contains(e.GetType())).OrderBy(e => e.Time).ToList();
 
         var run = new PullRun(fight, timeline, player.Entries, actions, miss, args.Has("syncs"));
-        run.Play(events, countdown);
+        run.Play(events, countdown, from);
 
         WriteHeader(ctx, player, run, sim, countdown, from, pushNotes, miss, events.Count, generated.Count, allEvents);
         run.WriteLog(ctx.Out);
@@ -294,7 +294,7 @@ internal static class SimulateCommand
 
         public PullSession Session { get; }
 
-        public void Play(IReadOnlyList<GameEvent> events, double countdown)
+        public void Play(IReadOnlyList<GameEvent> events, double countdown, Phase? from)
         {
             var simStart = PullClock - (countdown > 0 ? countdown : PhaseLeadIn);
             var lastEventTime = events.Count > 0 ? events[^1].Time : PullClock;
@@ -302,6 +302,13 @@ internal static class SimulateCommand
             var inCombat = false;
             if (countdown > 0)
                 this.Event(simStart, -countdown, "countdown", $"countdown {Text.Num(countdown)} s", string.Empty);
+
+            // As the plugin's preview: starting at a phase skips the earlier phases' reminders (never shown, not missed).
+            if (from != null)
+            {
+                this.Session.SkipBefore(from.Start);
+                this.Diff(simStart);
+            }
 
             for (long frame = 0; this.endReason == null; frame++)
             {

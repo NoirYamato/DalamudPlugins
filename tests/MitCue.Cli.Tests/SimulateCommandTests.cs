@@ -137,8 +137,12 @@ public partial class SimulateCommandTests : IDisposable
         Assert.Contains("from p2 (P2: Omega-M/F) at 0:02", r.OutLines[1]);
         var log = Log(r);
         Assert.DoesNotContain(log, l => l.Event == "countdown");
-        Assert.Equal(4, log.Count(l => l.Event == "Skipped")); // Asylum, Temperance, Bell, Benediction
-        Assert.Contains("Summary: 3 done, 1 missed (of 4), 4 skipped", r.Out); // the pre-pull Medica II cannot be pressed
+
+        // As in the preview, the earlier phases' reminders are skipped before the pull (never shown, not missed).
+        var skipped = log.Where(l => l.Event == "Skipped").ToList();
+        Assert.Equal(["Medica II", "Asylum", "Temperance", "Liturgy of the Bell", "Benediction"], skipped.Select(l => l.Rest.Split("  ")[0]));
+        Assert.All(skipped, l => Assert.Equal(-2.0, l.Real));
+        Assert.Contains("Summary: 3 done, 0 missed (of 3), 5 skipped", r.Out);
     }
 
     [Fact]
