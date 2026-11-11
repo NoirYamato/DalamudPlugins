@@ -9,10 +9,11 @@ Verification tags used below:
 |---|---|
 | **[code]** | Read in cactbot (or OverlayPlugin / Dalamud / BossMod) source at the commits listed in section 0. |
 | **[run]** | Observed by executing cactbot's own `TimelineParser` / `Timeline` classes under Node (section 8). |
-| **[probe]** | Compiled against Dalamud 15.0.3.9 + its FFXIVClientStructs (`Build succeeded`). |
+| **[probe]** | Compiled against the installed Dalamud + its FFXIVClientStructs (`Build succeeded`). The project brief calls this install 15.0.3.9; `Dalamud.dll` itself reports FileVersion 15.0.4.0 (`15.0.4.0+12e318c`). |
 | **[data]** | Looked up in the game-data CSVs (current patch, English). |
 | **[doc]** | Stated by `docs/TimelineGuide.md` or `docs/LogGuide.md`, not independently re-derived. |
 | **UNVERIFIED** | Could not be proven with the material available here. |
+| **[verify …]** | Added or corrected by the independent verification pass (see "Verification" at the end): `run` = cactbot's parser/engine under Node, `probe` = exact-type Dalamud compile probe, `DLL metadata` = field offsets read from `FFXIVClientStructs.dll`. |
 
 ---
 
@@ -24,7 +25,7 @@ Verification tags used below:
 | Timelines | same commit | `06-ew/ultimate/the_omega_protocol.txt` (TOP), `05-shb/ultimate/the_epic_of_alexander.txt` (TEA), `07-dt/ultimate/dancing_mad.txt` (DMU), plus `06-ew/ultimate/dragonsongs_reprise_ultimate.txt` (DSR) and `07-dt/ultimate/futures_rewritten.txt` (FRU) |
 | OverlayPlugin (`OverlayPlugin/OverlayPlugin`), sparse clone | `43afdd5`, 2026-11-10 | exact formatting of lines 257 MapEffect, 272 SpawnNpcExtra, 273 ActorControlExtra, 260 InCombat |
 | BossMod (BSD-3), sparse clone | `6e410ef` | `ActorControlCategory` values, DirectorUpdate / TargetIcon / Tether handling |
-| Dalamud 15.0.3.9 source clone + assemblies | as installed | `DutyState.cs` (DirectorUpdate argument order); probe build |
+| Dalamud source clone + installed assemblies | clone `12e318c` (`DalamudVersion` 15.0.4.0); the installed `Dalamud.dll` is FileVersion `15.0.4.0+12e318c`, the same commit (the brief labels it 15.0.3.9) | `DutyState.cs` (DirectorUpdate argument order); probe build |
 | Game data CSVs | current patch | `Action.csv` (cast times), `Status.csv`, `TerritoryType.csv`; `BNpcName.csv` downloaded from xivapi/ffxiv-datamining |
 
 cactbot is Apache-2.0 ([code] `LICENSE`, `package.json`), so the `.txt` timelines can be bundled with attribution.
@@ -111,7 +112,8 @@ comment    = "#" { any } ;                       (* whole line, or the rest of a
 
 hideall    = "hideall" ws '"' nonEmptyNoQuote '"' [ ws? comment ] ;
 label      = number ws "label" ws '"' noQuote '"' [ ws ] ;          (* NOTHING may follow, not even a comment *)
-entry      = number ws '"' noQuote '"' [ ws rest ] ;                 (* name may be empty, may contain '#' *)
+entry      = number ws '"' noQuote '"' [ [ ws ] rest ] ;             (* name may be empty, may contain '#'; no space is needed
+                                                                    after the closing quote: `2.1 "N"Ability {...}` parses [verify run] *)
 legacy     = alertall | infotext | alerttext | alarmtext | "define soundalert ..." | "define speaker ..." ;
 ```
 
@@ -133,9 +135,13 @@ The steps run in this order on the text after `time "name"`:
    - `#Ability { ... }`, the usual way to disable a sync, leaves a display-only entry.
    - A `#` inside a sync value cuts off the closing `}`, so the entry is rejected with "Extra text" [run,
      `id: "1#2"`].
-2. **Extract `duration`.** The first `duration N` that is at the start or preceded by whitespace, and followed by
-   whitespace or end of line, is removed and stored. `duration` may therefore appear **before or after** the sync
-   [run, edge-case entries at times 2.6 and 2.7].
+2. **Extract `duration`.** One `duration N` followed by whitespace or end of line is removed and stored. `duration`
+   may therefore appear **before or after** the sync [run, edge-case entries at times 2.6 and 2.7].
+   - Exact cactbot behaviour (the regex is unanchored, with an optional lazy prefix tried first): it takes the first
+     `duration N` that is preceded by whitespace; failing that, a `duration N` at the start or even glued to the
+     preceding text (`Ability { id: "1" }duration 3` keeps both the sync and the duration) [verify run].
+   - With two `duration`s on one line, only one is removed and the other is left over, so the entry is rejected with
+     "Extra text" [verify run]. None of the five files do either.
 3. **Old-style sync `sync /regex/`.** The regex runs from the first `/` after `sync` to the **last** `/` on the line
    (greedy). The text after it is `args`.
 4. **Network sync `Type { ... }`.** The object runs from the first `{` to the **last** `}` on the line (greedy). The
@@ -259,8 +265,9 @@ established. Values that are pure hex literals can instead be compared numerical
 
 ### 2.5 Old-style sync: `sync /regex/`
 
-- The regex text between the slashes is used as-is: spaces are kept, and `\y{...}` macros (`Timestamp`, `NetField`,
-  `LogType`, `AbilityCode`, `ObjectId`, `Name`, `Float`) are expanded. It is compiled case-insensitive.
+- The regex text between the slashes is used as-is: spaces are kept, and `\y{...}` macros (`Timestamp`,
+  `NetTimestamp`, `NetField`, `LogType`, `AbilityCode`, `ObjectId`, `Name`, `Float`) are expanded. It is compiled
+  case-insensitive.
 - `window` and `jump` follow the closing slash.
 
   Example [run]: `3.9 "Old sync" sync / 15:........:Foo:1234:/ window 5,5 jump 10` gives `/ 15:........:Foo:1234:/i`,
@@ -513,7 +520,9 @@ Labels are resolved at load time to plain numbers (2.6). At runtime a label jump
    - `/echo cactbot wipe...`;
    - `/echo end`.
 
-   On a wipe it calls `SetInCombat(true)` then `SetInCombat(false)`, which stops the timeline.
+   On a wipe it calls `SetInCombat(true)` (only if not already in combat) then `SetInCombat(false)`, which stops the
+   timeline. This path is gated by `resetWhenOutOfCombat` too: `SetInCombat` returns before stopping anything when it
+   is false [code `popup-text.ts`]. For the five files the default `true` applies.
 4. **Zone change** (and job change). The timeline is reloaded, which starts it stopped. The Dalamud equivalents are
    `IClientState.TerritoryChanged`, whose handler takes a `uint` territory id, and `IClientState.TerritoryType`
    [probe]. Load the timeline for territory 1122, 887 or 1363 and stop it on leaving.
@@ -521,7 +530,15 @@ Labels are resolved at load time to plain numbers (2.6). At runtime a label jump
 ### 3.9 After the last entry
 
 Nothing special happens: the timeline keeps running with nothing left to show. Syncs whose windows have not ended
-still match; in TOP and DMU that is only `--Reset--` (`[0,100000)`). Playback ends only through 3.8.
+still match [verify run, parser dump + `Timeline` sim]:
+- **TOP** (last entry 1421.9): `--Reset--` (`[0,100000)`), plus the 1391.9 `StartsUsing 7BA0` sync until 1441.9.
+- **DMU**: `--Reset--`, plus the 1087.7 `ActorControl { command: "80000027", data0: "2E" }` sync. Its window
+  `[-0.3,15087.7)` stays open through P5, after P5's end (1617.8) and past the file's last entry (15005.0). In the sim, a
+  repeated `80000027`/`2E` line at 1620 pulled the timeline back to 1087.7. Whether that director update can recur
+  after P4 starts is UNVERIFIED.
+- **TEA** has no `--Reset--`. Only the last entry's own ±2.5 s window (1247.6 `4897`, until 1250.1) outlives it.
+
+Playback ends only through 3.8.
 
 ### 3.10 cactbot quirks and what MitCue should do
 
@@ -630,7 +647,9 @@ Array-valued fields [run]:
 - FRU: `id` 19, `source` 3.
 
 No file uses `NameToggle` (targetability), `AddedCombatant`, `GameLog`, `SystemLogMessage`, `NpcYell` or
-`BattleTalk2`. The `--targetable--` and `--untargetable--` entries are display-only.
+`BattleTalk2`. The `--targetable--` and `--untargetable--` entries are display-only. The one targetability-named
+entry with a sync is DMU's `675.0 "--both targetable--"`, and it syncs on `LosesEffect` (Epic/Fated Villain), not on
+targetability [verify run].
 
 ### 4.2 Per type: log line, game event, and how a Dalamud plugin observes it
 
@@ -640,17 +659,17 @@ The Dalamud and ClientStructs members named in this table were compiled in the p
 
 | Type | Game event behind the line | Dalamud observation |
 |---|---|---|
-| `Ability` | An ActionEffect packet: the action resolves. ACT writes one 21/22 line per target, and still writes one line (target `E0000000`) when nothing is hit [doc]. | Hook `ActionEffectHandler.Receive`: `IGameInteropProvider.HookFromAddress<ActionEffectHandler.Delegates.Receive>(ActionEffectHandler.Addresses.Receive.Value, detour)`. The detour signature is `(uint casterEntityId, Character* caster, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targetEntityIds)`. Use `header->ActionId`. Get the caster name from the object table or from `NameId` (4.4). One call per action. |
-| `StartsUsing` | An ActorCast packet: the cast bar starts [doc]. | Each `IFramework.Update`, iterate `IObjectTable` and, for each `IBattleChara`, read `IsCasting`, `CastActionId`, `CastActionType`, `CurrentCastTime`, `TotalCastTime`, `Name`, `NameId` and `EntityId`. Edge-detect a new cast when `IsCasting` turns true, `CastActionId` changes, or `CurrentCastTime` decreases. Latency is one frame. Alternative: the `PacketDispatcher.HandleActorCastPacket` hook (clientstructs.md 6.4; not compiled here). Whether every invisible helper caster appears in `IObjectTable` is UNVERIFIED. |
+| `Ability` | An ActionEffect packet: the action resolves. ACT writes one 21/22 line per target, and still writes one line (target `E0000000`) when nothing is hit [doc]. | Hook `ActionEffectHandler.Receive`: `IGameInteropProvider.HookFromAddress<ActionEffectHandler.Delegates.Receive>(ActionEffectHandler.Addresses.Receive.Value, detour)`. The detour signature is `(uint casterEntityId, Character* caster, Vector3* targetPos, ActionEffectHandler.Header* header, ActionEffectHandler.TargetEffects* effects, GameObjectId* targetEntityIds)`. Use `header->ActionId`. Get the caster name from the object table or from `NameId` (4.4). One call per action. Caveat from BossMod, which hooks this same function: the action id is already unscrambled here, and the function is **not called if the caster object does not exist** client-side [code BossMod `ActionManagerEx.cs` `ProcessPacketActionEffectDetour` comment]. |
+| `StartsUsing` | An ActorCast packet: the cast bar starts [doc]. | Each `IFramework.Update`, iterate `IObjectTable` and, for each `IBattleChara`, read `IsCasting`, `CastActionId`, `CastActionType`, `CurrentCastTime`, `TotalCastTime`, `Name`, `NameId` and `EntityId`. Edge-detect a new cast when `IsCasting` turns true, `CastActionId` changes, or `CurrentCastTime` decreases. Latency is one frame. Alternative: the `PacketDispatcher.HandleActorCastPacket(uint casterEntityId, ActorCastPacket* packet)` hook (clientstructs.md 6.4). Its signature compiled in the verification probe; `ActorCastPacket` has `SpellId @0x0`, `ActionType @0x2` and `ActionId @0x4` [DLL metadata]. BossMod's `IDScramble.cs` says the ActorCast packet's action id is scrambled on the wire, and BossMod reads cast ids from the character's `CastInfo`, not from this packet. So whether `ActionId` is already unscrambled at this hook is UNVERIFIED; the polling approach avoids the question. Whether every invisible helper caster appears in `IObjectTable` is UNVERIFIED. |
 | `InCombat` | OverlayPlugin reads an in-game "in combat" byte by memory signature [code `InCombatMemory73.cs`] and writes a 260 line whenever ACT or game combat changes. | `ICondition[ConditionFlag.InCombat]`, false→true edge. That it is the same flag OverlayPlugin reads is UNVERIFIED; it has the same meaning (the local player's combat state). |
-| `ActorControl` | ActorControl(Self) category **0x6D DirectorUpdate**. cactbot's `instance` is `arg1` and `command` is `arg2` [code Dalamud `DutyState.cs`: `category == 0x6D`, `switch (arg2)`, `CreateEventArgs(arg1)`]. `data0`..`data3` = `arg3`..`arg6` is inferred from position (UNVERIFIED). | Hook `PacketDispatcher.HandleActorControlPacket(uint entityId, uint category, uint arg1, …, uint arg8, GameObjectId targetId, bool isRecorded)` via `PacketDispatcher.Delegates/Addresses.HandleActorControlPacket`. Filter `category == 0x6D`. For the wipe, `IDutyState.DutyWiped` exists (1-argument delegate, `args.TerritoryType`), but it fires on `0x40000005`, not on cactbot's `0x4000000F` [code]. |
-| `MapEffect` | A MapEffect packet. OverlayPlugin formats `flags = {flag2:X4}{flag1:X4}` and `location = {index:X2}` from struct fields `uint instanceContentID @0, ushort flags1 @4, ushort flags2 @6, byte index @8` [code `LineMapEffect.cs`]. | Hook `PacketDispatcher.HandleMapEffectPacket(MapEffectPacket*)`. ClientStructs `MapEffectPacket` has `EventId @0, State @4, TimelineIndex @6, Index @8` (field names compiled [probe]; offsets from clientstructs.md 6.3). So cactbot `flags` = `TimelineIndex:X4` + `State:X4` and `location` = `Index:X2`, by offset correspondence; that the ClientStructs fields mean the same thing is UNVERIFIED. OverlayPlugin also emits lines for the multi-entry MapEffect4/8/12 packets, which this hook does not see. Whether TOP's P2 effect is single-entry is UNVERIFIED. |
+| `ActorControl` | ActorControl(Self) category **0x6D DirectorUpdate**. cactbot's `instance` is `arg1` and `command` is `arg2` [code Dalamud `DutyState.cs`: `category == 0x6D`, `switch (arg2)`, `CreateEventArgs(arg1)`]. `data0`..`data3` = `arg3`..`arg6` is inferred from position (UNVERIFIED). | Hook `PacketDispatcher.HandleActorControlPacket(uint entityId, uint category, uint arg1, …, uint arg8, GameObjectId targetId, bool isRecorded)` via `PacketDispatcher.Delegates/Addresses.HandleActorControlPacket`. Filter `category == 0x6D`. For the wipe, `IDutyState.DutyWiped` exists (1-argument delegate `IDutyState.DutyWipedDelegate(IDutyStateEventArgs args)`; `args.TerritoryType` is a Lumina `RowRef<TerritoryType>`, so use `.RowId` [verify probe]), but it fires on `0x40000005`, not on cactbot's `0x4000000F` [code]. |
+| `MapEffect` | A MapEffect packet. OverlayPlugin formats `flags = {flag2:X4}{flag1:X4}` and `location = {index:X2}` from struct fields `uint instanceContentID @0, ushort flags1 @4, ushort flags2 @6, byte index @8` [code `LineMapEffect.cs`]. | Hook `PacketDispatcher.HandleMapEffectPacket(MapEffectPacket*)`. ClientStructs `MapEffectPacket` (size 16) has `uint EventId @0, ushort State @4, ushort TimelineIndex @6, byte Index @8` (names and exact types compiled [probe]; offsets read from `FFXIVClientStructs.dll` metadata [verify]). So cactbot `flags` = `TimelineIndex:X4` + `State:X4` and `location` = `Index:X2`, by offset correspondence; that the ClientStructs fields mean the same thing is UNVERIFIED. OverlayPlugin also emits lines for the multi-entry MapEffect4/8/12 packets, which this hook does not see. Whether TOP's P2 effect is single-entry is UNVERIFIED. |
 | `RemovedCombatant` | An actor leaves the scene: removed, died, out of range, or zone change [doc]. | Diff `IObjectTable` between frames (by `EntityId`) and match the name. |
 | `HeadMarker` | ActorControl category **TargetIcon = 34**, `p1` = marker id. BossMod: `OpIcon(actorID, p1 - Network.IDScramble.Delta, p2)` with `Delta = 0` at commit `6e410ef` [code]. | `HandleActorControlPacket`, `category == 34`, `arg1`; format as `X4`. UNVERIFIED in game. |
 | `GainsEffect` / `LosesEffect` | A status is added or removed. A refresh produces another 26 line [doc]. | Diff `IBattleChara.StatusList` (`StatusId`) per actor between frames. |
-| `SpawnNpcExtra` | The `tetherId` and `animationState` from an NpcSpawn packet. OverlayPlugin's struct `Server_NpcSpawn_Global_6_51` reads `tetherId` at offset 0x7C [code]. | No Dalamud service exists. It would need an NpcSpawn hook, which is not researched here. Not needed: DMU only uses it for display labels (section 5.3). |
+| `SpawnNpcExtra` | The `tetherId` and `animationState` from an NpcSpawn packet. OverlayPlugin's struct `Server_NpcSpawn_Global_6_51` reads `tetherId` at offset 0x7C [code]. | No Dalamud service exists, but ClientStructs has `PacketDispatcher.HandleSpawnNpcPacket(uint entityId, SpawnNpcPacket* packet)`; the hook compiled in the verification probe. `SpawnNpcPacket.Common` (`CommonSpawnData @0x10`) has `uint TetherTargetId @0x48`, `ushort TetherId @0x6C` and `byte AnimationState @0x85`. Those are packet offsets 0x58 / 0x7C / 0x95, exactly the offsets OverlayPlugin reads for `parentId` / `tetherId` / `animationState` [DLL metadata + code]. That they carry the same values in game is UNVERIFIED. Not needed: DMU only uses it for display labels (section 5.3). |
 | `ActorControlExtra` | ActorControl packets in OverlayPlugin's allow-list: 0x31, 0x3E SetAnimationState, 0x3F SetModelState, 0xB8, **0x197 PlayActionTimeline (407)**, **0x19D EObjAnimation (413)**, 0x834 DisplayPublicContentTextMessage [code `LineActorControlCommon.cs`, matches BossMod]. `id` is the actor. | `HandleActorControlPacket` with that `category`; `param1..4` = `arg1..arg4` is inferred (UNVERIFIED). |
-| `NetworkCancelAbility` (DSR) | A cast is cancelled or interrupted [doc]. | Heuristic: `IsCasting` turns false with no ActionEffect for that action. UNVERIFIED. |
+| `NetworkCancelAbility` (DSR) | A cast is cancelled or interrupted [doc]. | Heuristic: `IsCasting` turns false with no ActionEffect for that action. UNVERIFIED. A likely more direct source: BossMod lists ActorControl category `15 CancelCast` ("machina calls it CancelAbility") [code BossMod `ServerIPC.cs`], seen through `HandleActorControlPacket`. Also UNVERIFIED. |
 | `WasDefeated` (FRU) | An actor is defeated [doc]. | `IGameObject.IsDead` false→true edge, or ActorControl category 6 (Death, per BossMod). UNVERIFIED equivalence. |
 | `Tether` (only commented out, in DMU) | ActorControl category Tether = 35 (BossMod `OpTether(actorID, new(p2, p3))`). | Not needed. |
 
@@ -663,7 +682,7 @@ The Dalamud and ClientStructs members named in this table were compiled in the p
 | `InCombat` | medium. `StartsUsing 7B03` also starts P1, about 11 s in. | **critical**. It is the only sync that can start P1: P1's first sync, 11.4 `49B0` (`window 10,2.5`), is not active while stopped. | low–medium. Fallbacks are `ActorControl ... 00` (`window 1,5`) and `StartsUsing C403` (`window 20,10`). |
 | `ActorControl` | low. Only `--Reset--`; combat end or wipe detection covers it. | – | **critical**. The **P2 start** (297.4/297.6/306.9, `window 300,5`/`307,5`) and the **P4 start** (1087.7, `window 1088,14000`) have no wide Ability or StartsUsing alternative (section 6). Also P1 0.5, and mid-phase 189.4, 306.8, 633.2 and 1366.1. |
 | `MapEffect` | low. P2 200.0; fallback `StartsUsing 7B40` at 203.4 (`window 210,5`), which syncs 3.4 s later but still 3.0 s before Firewall (206.4) and 11.1 s before the first P2 hit, `Solar Ray` (214.5). | – | – |
-| `RemovedCombatant` | – | low. 196.0 `window 50,0` opens at 146.0, after P1's hard enrage (142.1), so it can only match if the timeline has already run past 146. The real Transition-1 sync is 200.0 `Hawk Blaster`. | – |
+| `RemovedCombatant` | – | low. 196.0 `window 50,0` opens at 146.0, after P1's hard enrage (142.1), so it can only match if the timeline has already run past 146. Corroboration: BossMod's TEA module ends P1 when Living Liquid dies and expects the first Hawk Blaster 5.2 s later [code BossMod `TEAStates.cs`]. The timeline puts the `Liquid Hand` removal 4.0 s before Hawk Blaster, so it lands about 1.2 s after the push, always before 146. The real Transition-1 sync is 200.0 `Hawk Blaster`. | – |
 | `HeadMarker`, `GainsEffect`, `LosesEffect`, `SpawnNpcExtra`, `ActorControlExtra` | – | – | low. All are mid-phase with default windows, mostly on display markers such as `--1 tether--`, `--both targetable--` and `--1st tower--`. |
 
 ### 4.4 Source-name matching and client language
@@ -813,10 +832,10 @@ labels: p2-success=597, p4-success=1355.6, p1-and-p4-enrage=10000, p2-enrage=110
 
 | Phase | Range | Entry sync(s) | Exits |
 |---|---|---|---|
-| P1 Kefka | 0.0 – ~197.5 | `0.0 InCombat window 0,1`; `0.5 "--sync--" ActorControl { command: "80000027", data0: "00" } window 1,5` (`# en: 'This is my first time, so please take it easy!'`); `10.6 "--sync--" StartsUsing { id: "C403", source: "Kefka" } window 20,10`. All three are active while stopped. | Enrage: `197.5 "--sync--" StartsUsing { id: "BABB", source: "Kefka" } jump "p1-and-p4-enrage"` → 10000, then `10005.0 "Light of Judgment (Enrage)"`. Otherwise the timeline runs on into the `?` previews: 202.4 `Light of Judgment (Enrage)?` (the P1 enrage hit), then 207.6 `--targetable?--`, 220.1 `Ultimate Embrace?`, 235.3 `Forsaken?`, 248.5 `The Path of Light 1?`. The last four are exactly the P2 entries 307.6–348.5 shifted by −100 s. |
+| P1 Kefka | 0.0 – ~197.5 | `0.0 InCombat window 0,1`; `0.5 "--sync--" ActorControl { command: "80000027", data0: "00" } window 1,5` (`# en (auto-translate): 'This is my first time, so please take it easy!'`); `10.6 "--sync--" StartsUsing { id: "C403", source: "Kefka" } window 20,10`. All three are active while stopped. | Enrage: `197.5 "--sync--" StartsUsing { id: "BABB", source: "Kefka" } jump "p1-and-p4-enrage"` → 10000, then `10005.0 "Light of Judgment (Enrage)"`. Otherwise the timeline runs on into the `?` previews: 202.4 `Light of Judgment (Enrage)?` (the P1 enrage hit), then 207.6 `--targetable?--`, 220.1 `Ultimate Embrace?`, 235.3 `Forsaken?`, 248.5 `The Path of Light 1?`. The last four are exactly the P2 entries 307.6–348.5 shifted by −100 s. |
 | P2 God Kefka | 297.4 – 486.2 | `297.4 "--sync--" ActorControl { command: "80000027", data0: "05" } window 300,5 # Only if Kefka <15% HP` ("Fake Duty Complete Path"); `297.6 … data0: "0D" … window 300,5` ("True Duty Complete Path"); `306.8 … "06"` (default window); `306.9 … "0E" window 307,5`. Then `315.1 HeadMarker { id: '0103' }` and `320.1 "Ultimate Embrace" Ability C24C`, both with default windows. | Enrage: `480.1 StartsUsing BAE1 jump "p2-enrage"` → 11000. Success: `483.2 "--sync--" StartsUsing { id: "C3F7", source: "Kefka" } window 485,5 jump "p2-success" # Kefka will skip mechanics at 0% HP`, plus `486.2 "Aero III Assault?" Ability { id: "C3F7", source: "Kefka" } forcejump "p2-success"` → 597.0. |
 | P3 Chaos + Exdeath | 597.0 – 951.8 | `597.0 label "p2-success"`; `600.0 "Aero III Assault" Ability { id: "C3F7", source: "Kefka" } window 600,20` (active while stopped); `600.8 "Down for the Count" GainsEffect { effectId: '306' } duration 32.5`. | Four syncs at 941.8:<br>• `StartsUsing C61F (Chaos) window 940,5 jump "p3-chaos-enrage"`: Exdeath died first → 14000.<br>• `StartsUsing C61E (Exdeath) window 940,5 jump "p3-exdeath-enrage"`: Chaos died first → 13000.<br>• `StartsUsing C258 (Exdeath)` and `C259 (Chaos) jump "p3-enrage"`: both alive → 12000. |
-| P4 Kefka + Chaos + Neo Exdeath | 1087.7 – ~1259.7 | `1087.7 "--sync--" ActorControl { command: "80000027", data0: "2E" } window 1088,14000 # Escape from the p3 exdeath enrage or chaos` (`# en: 'Boring!'`). Its window `[-0.3,15087.7)` lets it pull the timeline back from the 13000/14000 branches. | Enrage: `1213.2 StartsUsing BABB jump "p1-and-p4-enrage"` → 10000; the label is shared with P1. Success: `1215.3 "--middle?--" Ability { id: "C3FD", source: "Kefka" } window 90,5 jump "p4-success" # Kefka <20% HP` → 1355.6. |
+| P4 Kefka + Chaos + Neo Exdeath | 1087.7 – ~1259.7 | `1087.7 "--sync--" ActorControl { command: "80000027", data0: "2E" } window 1088,14000 # Escape from the p3 exdeath enrage or chaos` (`# en: 'Boring!'`). Its window `[-0.3,15087.7)` lets it pull the timeline back from the 13000/14000 branches. It also stays open through P5 and after it (3.9). | Enrage: `1213.2 StartsUsing BABB jump "p1-and-p4-enrage"` → 10000; the label is shared with P1. Success: `1215.3 "--middle?--" Ability { id: "C3FD", source: "Kefka" } window 90,5 jump "p4-success" # Kefka <20% HP` → 1355.6. |
 | P5 Kefka | 1355.6 – 1617.8 | `1355.6 label "p4-success"`; `1366.1 ActorControl … "22"` (default window); `1396.2 "--sync--" StartsUsing { id: "BB40", source: "Kefka" } window 1400,0` (active while stopped). | Ends with 1613.4 `Forsaken Null (Enrage)` (BB3A, a 26.0 s cast [data]), still linear. |
 
 Targetable markers: P2 307.6, P3 640.3 (`--both targetable--`), P4 1089.9, P5 1393.0.
@@ -834,7 +853,8 @@ wide Ability or StartsUsing sync.
 - `Spelldriver/Spellscatter/Spellwave` `["BAC0", "BAC1", "BAC2"]` ("can be resolved in different orders")
 - `Future's End/Past's End` `["BAD2", "BAD3"]`
 - `Intemperate Will/Gravitational Wave` `["BAB2", "BAB1"]`
-- `Stray Flames/Stray Spray` with source `["Chaos", "Kefka"]` ("Supposed to be from Chaos, but can bug")
+- `Stray Flames/Stray Spray` (682.0, 709.0) and `Inferno/Tsunami` (683.0) with source `["Chaos", "Kefka"]`. The
+  comment "Supposed to be from Chaos, but can bug" is on the `Inferno/Tsunami` line.
 - `Death Surge` / `Death Shriek` / `Death Wave` with **no source** ("can be incorrectly attributed to any boss")
 - `Fell Forces` `["C654", "C653", "C654"]` (a harmless duplicate element)
 
@@ -908,6 +928,12 @@ timeline lines; they use the same grammar. The times come from the file's own `-
 1095.0 "--sync--" StartsUsing { id: "C2DC", source: "Kefka" } window 1095,14000
 ```
 
+Supporting evidence for the choice of ids: cactbot's own DMU trigger file tracks phases with exactly these casts. Its
+`DMU Phase 1-4 Tracker` trigger is `StartsUsing` on `C24C` → p2, `C3F7` → p3 and `C2DC` → p4 [code `dancing_mad.ts`].
+The timeline already contains `1095.0 "--sync--" StartsUsing { id: "C2DC", source: "Kefka" }` (line 341) with the
+default window, so the P4 fallback amounts to widening that line's window. The times and windows above are still
+unverified against logs.
+
 Cost compared with ActorControl:
 - P2 syncs about 18 s later (315.1 instead of 297.4), giving only 5 s of lead before the first P2 tankbuster
   (320.1).
@@ -936,6 +962,11 @@ TOP and TEA need no fallbacks, provided `Ability`, `StartsUsing` and `InCombat` 
    on that, then restart via `InCombat` at 0 and be corrected by the next phase sync (3.7).
 8. The section 6 fallback lines. They are derived from cast data and `-p` anchors, not from logs.
 9. That `NetworkCancelAbility` and `WasDefeated` (DSR/FRU only) can be detected with the heuristics in 4.2.
+10. Whether `ActorCastPacket.ActionId` is already unscrambled at the `HandleActorCastPacket` hook. BossMod says the
+    wire value is scrambled and avoids the question by reading `CastInfo`.
+11. That `SpawnNpcPacket.Common.TetherId` / `AnimationState` / `TetherTargetId` carry the values OverlayPlugin logs for
+    `SpawnNpcExtra`. The offsets match; the values were not observed in game.
+12. Whether DMU's `80000027`/`2E` director update can recur after P4 starts. Its sync stays active until 15087.7 (3.9).
 
 ---
 
@@ -963,3 +994,121 @@ Build with `node build.mjs src/X.ts dist/X.mjs`, then run `node dist/X.mjs <args
 
 **Dalamud probe:** `/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/probes/cactbot-sync-events/`.
 Build with `dotnet build -c Release` (succeeded).
+
+---
+
+## Verification
+
+An independent pass on 2026-11-11 re-derived the report's claims from the primary sources: cactbot `e79ea7f`,
+OverlayPlugin `43afdd5`, BossMod `6e410ef`, the Dalamud clone `12e318c`, the installed Dalamud/ClientStructs
+assemblies, and the game-data CSVs. It used its own scripts and probes, not the researcher's. All artefacts live in the
+session scratchpad:
+
+| Artefact | Purpose |
+|---|---|
+| `/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/verify-cactbot-run/src/inv.ts`, `src/syncdump.ts` (output `inv.out`, `syncdump.json`) | Ran cactbot's `TimelineParser` on all five timelines: counts, windows, jumps, labels, stopped-active syncs, overlaps, full sync and event dump. |
+| `verify-cactbot-run/src/vprobe.ts` with `cases/vgrammar.txt` (44 lines) and `cases/vgrammar2.txt` | Grammar edge cases, written fresh. |
+| `verify-cactbot-run/src/vsim.ts` | cactbot's real `Timeline` class driven with a fake clock and fake timers: ordering, jumps, jump 0, forcejump overshoot and overhang, Q2, the 2 ms dedupe, and stopped-state starts on the real TOP and DMU files. |
+| `/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/probes/verify-cactbot-timelines/Plugin.cs` | Dalamud probe using exact-type checks: `Exact<T>(ref x)` and method-group-to-delegate conversions, so no implicit widening is accepted. `Build succeeded`. |
+| `probes/verify-cactbot-timelines-neg/` | Negative control. `Action<ushort>` for `TerritoryChanged`, `ushort` for `TerritoryType`/`StatusId`, `int` for `CastActionType` and `uint` for `MapEffectPacket.State` all fail to compile, which proves the positive probe's types are exact. |
+| `probes/verify-cactbot-timelines-meta/` | Reads struct field offsets from `FFXIVClientStructs.dll` metadata (`System.Reflection.Metadata`). |
+| `/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/vct-bnpc/BNpcName.csv` | A fresh download of xivapi `BNpcName.csv`, byte-identical to the researcher's copy. |
+
+### What was checked and confirmed
+
+- **Parser source.** Every regex in 2.1 matches `timeline_parser.ts` verbatim, and so does the statement order
+  (hideall, tts, soundalert, speaker, popup text, label, entry). Confirmed: the 57 netlog type names, the JSON5 parsing
+  with its error paths ("Invalid NetRegex arguments" or "Invalid NetRegex JSON" keep the entry without a sync), and the
+  label resolution (the last duplicate wins; an unresolved label leaves a plain sync, or a runtime throw for
+  `forcejump`).
+- **Grammar edge cases, all reproduced.** Empty name; `#` in a name; `#` inside a value; `duration` before and after
+  the sync; lowercase type; keywords before the sync; `window 10, 10`; number and unknown-key values; `capture`;
+  `type: "22"`; JSON5 escaping (`"E\\.D"` gives `E\.D`, `"E\.D"` gives `E.D`); uppercase keywords; `window 0,0`;
+  `forcejump` without a sync; `jump` plus `forcejump`; a label with a comment; a keyword inside a value; two types on
+  one line (an orphan sync of the second type); tabs and `\r`; invalid numbers; `1.25`; `1|2`; a label at 0; a missing
+  label; the old-style sync with its window and jump.
+- **Netregex construction.** `parseHelper`, `anyOf`, `Regexes.parse` (`i` flag) and the `NetField` gap macros all
+  match. The 15 example regexes in 2.4.2 are identical to the dumped ones. Field indices for all 13 types used were
+  checked in `netlog_defs.ts`. Values contain no `|`. The metacharacter counts are TOP 1, TEA 16, DSR 8.
+- **Playback** (code read in full, then simulated):
+  - activity is `start <= now < end`, and the list is ordered by end with ties in file order;
+  - the first match wins;
+  - a jump lands exactly (60.4 → 200.000), and `jump 0` stops;
+  - **Q1** reproduces (a late tick at 310.5 lands at 300.001);
+  - the overhang is `[300,305)`, appended last, and a late line resyncs it to 300.000;
+  - a match before the forcejump's time acts as a jump, and the loop re-arms;
+  - **Q2** reproduces (`nextForceJump` stays past F1 after a backward jump, and F1 never fires);
+  - the 2 ms dedupe holds;
+  - while stopped, TOP `7B13` starts at 400.0, TOP's MapEffect at 200.0 and DMU `80000027`/`2E` at 1087.7.
+- **Stop conditions.** `isWipe` is ActorControl `40000010`/`4000000F`, `/echo cactbot wipe…` or `/echo end`.
+  `resetWhenOutOfCombat` is set in none of the five trigger files. Zone and job changes reload the timeline.
+- **Inventory, all independently re-counted.** Per-type sync counts, entry counts (282/225/417/367/227), totals
+  (207/144/250/225/181), sourceless counts (DMU 3, FRU 26 Ability and 1 StartsUsing), array counts, commented-out
+  counts (inline and whole-line), labels, the 10 normal jumps plus 1 forcejump in DMU, DSR's jumps, stopped-active
+  sync lists, overlap lists (TOP 11, TEA 12, DMU 21) and wide-window lists.
+  - "Different-source overlaps: TOP 1, TEA/DMU 0" also holds with a stricter test (intersecting id sets after
+    expanding `7B0[45]`-style classes).
+- **Per-fight lines.** All cited lines, times, windows, ids, sources, comments and `-p` headers in TOP, TEA, DMU, DSR
+  and FRU were spot-checked against the `.txt` files. That includes every phase start and exit, every enrage, the TEA
+  typo on line 39, DMU's P1-tail previews (exactly the P2 entries shifted by −100 s), and the display-only lists.
+- **Game data.**
+  - `Action.csv` cast times: `7B45` 60.0 s; `7BA0` 16.0 + 14.4 s; `485A` 8.0 s; `C24C` 5.0 s; `C2DC` 5.0 s; `BB3A`
+    26.0 s; `C403`, `7B40`, `7B03`, `7AF8`, `7B48`, `C3F7` and `BB40` are consistent with their cast-start/ability
+    pairs.
+  - `Status.csv`: `306` = 774 Down for the Count; `1061`/`1063` = 4193/4195 Epic/Fated Villain; `1043` = 4163 Stun.
+  - `TerritoryType.csv` with `ContentFinderCondition.csv`: 887 TEA, 968 DSR, 1122 TOP, 1238 FRU, 1363 DMU.
+  - `BNpcName`: every one of the 27 distinct source/name strings in TOP/TEA/DMU syncs exists as an English singular,
+    except `"Liquid Rage "`. The row ids quoted in 4.4 are correct.
+- **Dalamud / ClientStructs, compiled with exact types.**
+  - Hook signatures for `ActionEffectHandler.Receive`, `PacketDispatcher.HandleActorControlPacket`,
+    `HandleMapEffectPacket`, `HandleActorCastPacket` and `HandleSpawnNpcPacket`, each through `HookFromAddress` with
+    `Addresses.*.Value`.
+  - Member types: `header->ActionId` uint; `IBattleChara.IsCasting` bool, `CastActionId` uint, `CastActionType` byte,
+    `CurrentCastTime`/`TotalCastTime` float, `EntityId` uint; `ICharacter.NameId` uint; `IGameObject.IsDead` bool;
+    `StatusList` `StatusId` uint; `ICondition[ConditionFlag.InCombat]` bool.
+  - `IClientState.TerritoryChanged` is `Action<uint>`, `TerritoryType` is uint and `ClientLanguage` is
+    `ClientLanguage`.
+  - `IDutyState.DutyWipedDelegate(IDutyStateEventArgs)`, whose `TerritoryType` is a `RowRef<TerritoryType>`.
+  - The English `BNpcName` lookup.
+  - The researcher's own probe also rebuilds cleanly.
+- **Dalamud source.** `DutyState.cs`: category `0x6D`, `switch (arg2)`, `CreateEventArgs(arg1)`, and `DutyWiped` on
+  `0x4000_0005`.
+- **OverlayPlugin.**
+  - MapEffect is `{flag2:X4}{flag1:X4}|{index:X2}` at `LineMapEffect.cs` line 478; the struct offsets are 0/4/6/8; the
+    multi-entry MapEffect4/8/12 packets exist and leave the instance field empty.
+  - SpawnNpcExtra is `{X8}|{X8}|{X4}|{X2}`, with `tetherId` at 0x7C.
+  - ActorControlExtra is `{X8}|{category:X4}|{param:X}…`, with the 7-category allow-list as listed.
+  - The 260 line is written on any ACT or game combat change (`LineInCombat.cs`), and `InCombatMemory73.cs` holds the
+    signature.
+- **BossMod.** `TargetIcon = 34`, `Tether = 35`, `DirectorUpdate = 109` (0x6D), `Death = 6`; `OpIcon(actorID, p1 -
+  IDScramble.Delta, p2)` with `Delta = 0`; `OpTether(actorID, new(p2, p3))`.
+- **Docs.** TimelineGuide: default window 2.5,2.5; single-value window; no space after the comma; "jump as if it had
+  synced exactly on time"; overhang; `jump 0` stops; jump and forcejump mutually exclusive; two backslashes; hideall
+  with timeline triggers. LogGuide: line 33 fade in/out, 21/22 lines per target, `E0000000`, the example field
+  values, and RemoveCombatant.
+- **Lint rules.** All seven in 2.9 match `test/helper/test_timeline.ts`, including the keyword order duration,
+  window, jump, forcejump.
+- **The researcher's data files.** All 1518 entries in `cactbot-run/out/*.json` (all five files) match the
+  independent parse in name, time, window start and end, regex, jump and jump type. All 259 rows of
+  `scripts-tl/nosync.out` match (time, line, name, duration), with no rows missing or extra.
+
+### What was wrong or incomplete, and what was changed
+
+| # | Section | Problem | Correction |
+|---|---|---|---|
+| 1 | 3.9 | "Syncs still active after the last entry: in TOP and DMU that is only `--Reset--`" is false. | DMU's 1087.7 `80000027`/`2E` sync stays active until 15087.7, through P5 and past the last entry; in the sim, a repeat at 1620 pulled the timeline back to 1087.7. TOP's 1391.9 `7BA0` stays active until 1441.9. Rewrote 3.9, added a pointer in the 5.3 P4 row, and added UNVERIFIED item 12. |
+| 2 | 0, tags | The installed `Dalamud.dll` and the source clone are both `15.0.4.0+12e318c`; the label "15.0.3.9" comes from the brief. | Sources row and `[probe]` tag now state the real version. No API conclusion changes. |
+| 3 | 4.2 SpawnNpcExtra | "Would need an NpcSpawn hook, which is not researched here." ClientStructs does have one. | Added `PacketDispatcher.HandleSpawnNpcPacket(uint, SpawnNpcPacket*)` (compiled), whose `Common.TetherTargetId` / `TetherId` / `AnimationState` sit at the same offsets OverlayPlugin reads. Value equivalence is UNVERIFIED (item 11). |
+| 4 | 2.2 | The EBNF required whitespace between the name's closing quote and the rest. | cactbot accepts `2.1 "N"Ability {...}`; the EBNF now makes that whitespace optional. |
+| 5 | 2.3 step 2 | "`duration` at the start or preceded by whitespace" was imprecise. | It also strips a glued `}duration 3`; two `duration`s give "Extra text". |
+| 6 | 2.5 | The `\y{}` macro list omitted `NetTimestamp`. | Added. |
+| 7 | 3.8 #3 | The wipe path was presented as unconditional. | `SetInCombat(true)` runs only if not already in combat, and the stop is also gated by `resetWhenOutOfCombat`. |
+| 8 | 5.3 | The quote "Supposed to be from Chaos, but can bug" was attributed to `Stray Flames/Stray Spray`. | It belongs to `Inferno/Tsunami` (683.0), which also has `["Chaos", "Kefka"]`. The P1 `0.5` comment is `# en (auto-translate): …`. |
+| 9 | 4.1 | "`--targetable--`/`--untargetable--` are display-only" did not mention DMU's synced `675.0 --both targetable--` (LosesEffect). | Clarified. |
+| 10 | 4.2 Ability / StartsUsing / ActorControl / MapEffect / NetworkCancelAbility | Missing caveats or precision. | Added: BossMod notes that `ActionEffectHandler.Receive` is not called when the caster object does not exist (the id is already unscrambled there). `HandleActorCastPacket` compiled, with the `ActorCastPacket` offsets and the scramble caveat (item 10). `DutyWiped` args type. `MapEffectPacket` offsets and types from DLL metadata. ActorControl category 15 CancelCast as a candidate for `NetworkCancelAbility`. |
+| 11 | 4.3 TEA RemovedCombatant | The "effectively inert" judgment rested on window arithmetic only. | Corroborated with BossMod's TEA state machine (Hawk Blaster about 5.2 s after Living Liquid dies, so the removal comes about 1.2 s after the push, before 146). |
+| 12 | 6 | The fallback lines carried no supporting evidence, and the existing `1095.0 StartsUsing C2DC` line was not mentioned. | Added that cactbot's own `DMU Phase 1-4 Tracker` uses `StartsUsing` C24C/C3F7/C2DC, and that the P4 fallback amounts to widening line 341's window. Times and windows remain UNVERIFIED against logs. |
+
+No other errors were found. In particular, the 16 "key facts" in the researcher's summary hold: those marked verified
+re-verified, and those marked UNVERIFIED are correctly marked (the ACT padding rules, the meaning of `80000027`/`data0`,
+the `data0 = arg3` mapping, and the section 6 fallbacks).
