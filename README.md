@@ -117,7 +117,9 @@ with a plan you import.
 2. In the **Plans** tab, check the **Active plan** and **My column** in the row for your fight and job. In TOP a
    White Mage gets NoirMit - WHM and a Scholar gets LPDU without choosing anything; a Scholar who follows Carry the
    Clear chooses *Carry the Clear - SCH* under **Active plan**. To use your raid's own plan,
-   click **Import from sheet...** to bring it in from its Google Sheets link, or paste a share code you were sent.
+   click **Import from sheet...** to bring it in from its Google Sheets link, or paste a share code you were sent
+   and tick **Make an imported share code my active plan as …** before **Import share code** (or choose the plan
+   under **Active plan** afterwards).
 3. Type `/mitcue preview top` to watch a simulated TOP pull, and drag the overlay where you want it.
    `/mitcue preview` stops the preview.
 
