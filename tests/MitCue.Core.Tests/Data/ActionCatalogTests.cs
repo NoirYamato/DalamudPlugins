@@ -534,6 +534,20 @@ public class ActionCatalogTests
         Assert.Contains(expectedInMessage, ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>A repeated key used to keep its last value without a word (here Reprisal's duration at 100 became 99).</summary>
+    [Theory]
+    [InlineData("    icon: 806", "    duration: {22: 99}\n    icon: 806", "duration", "line 16")]
+    [InlineData("duration: {22: 10, 98: 15}", "duration: {22: 10, 98: 15, 98: 99}", "98", "line 14")]
+    [InlineData("game_version: \"7.58\"", "game_version: \"7.58\"\ngame_version: \"7.59\"", "game_version", "line 3")]
+    public void Load_RejectsDuplicateKeys(string find, string replace, string key, string where)
+    {
+        var yaml = MinimalFile.Replace(find, replace, StringComparison.Ordinal);
+        var ex = Assert.Throws<FormatException>(() => ActionCatalog.Load(yaml));
+        Assert.Contains("duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(key, ex.Message, StringComparison.Ordinal);
+        Assert.Contains(where, ex.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Load_RejectsDuplicateIds()
     {

@@ -19,13 +19,17 @@ namespace MitCue.Core.Plans;
 /// <summary>Plan (de)serialization: YAML (human-editable), JSON (storage), share codes (compressed, base64url).</summary>
 /// <remarks>
 /// <para>
-/// YAML (docs/DESIGN.md §3.2) uses snake_case keys and leaves out nulls, <c>false</c>, empty lists and an empty
-/// <c>who</c>; items are written as <c>{action, name}</c>, <c>{any: [...]}</c> or <c>{note}</c>. JSON uses camelCase
-/// and keeps every value. A share code is <c>MITCUE1:</c> + base64url (no padding) of the raw-deflated UTF-8 JSON.
+/// YAML (docs/DESIGN.md §3.2) uses snake_case keys and leaves out nulls, <c>false</c>, empty lists (except an empty
+/// either/or group, <c>any: []</c>) and an empty <c>who</c>; items are written as <c>{action, name}</c>,
+/// <c>{any: [...]}</c> or <c>{note}</c>. JSON uses camelCase and keeps every value. A share code is <c>MITCUE1:</c> +
+/// base64url (no padding) of the raw-deflated UTF-8 JSON.
 /// </para>
 /// <para>
 /// Readers ignore unknown fields, accept a missing <c>format</c> (treated as the current one) and reject any other
-/// format with a <see cref="FormatException"/> that says so. Every reader error is a <see cref="FormatException"/>.
+/// format with a <see cref="FormatException"/> that says so. They reject a repeated key (instead of keeping its last
+/// value), YAML aliases (<c>*name</c>, which would share one object between places, or make a plan contain itself),
+/// and jobs that are not combat jobs; every format reads jobs with the same rules, so a plan read from one format
+/// can be written as another and read back. Every reader error is a <see cref="FormatException"/>.
 /// </para>
 /// </remarks>
 public static class PlanSerializer
@@ -45,9 +49,11 @@ public static class PlanSerializer
         .DisableAliases()
         .Build();
 
+    /// <summary>The YAML reader. Read through <see cref="NoAliasParser"/>: see there why aliases are rejected.</summary>
     private static readonly IDeserializer YamlReader = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
         .IgnoreUnmatchedProperties()
+        .WithDuplicateKeyChecking()
         .WithTypeConverter(new JobYamlConverter())
         .WithNodeDeserializer(new ScalarItemDeserializer(), where => where.OnTop())
         .Build();
@@ -86,7 +92,7 @@ public static class PlanSerializer
         MitPlan? plan;
         try
         {
-            plan = YamlReader.Deserialize<MitPlan>(text);
+            plan = YamlReader.Deserialize<MitPlan>(new NoAliasParser(new Parser(new StringReader(text))));
         }
         catch (YamlException ex)
         {
@@ -203,10 +209,12 @@ public static class PlanSerializer
             NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
             ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true,
+            AllowDuplicateProperties = false,
             WriteIndented = indented,
             Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
             TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
         };
+        options.Converters.Add(new JobJsonConverter()); // before the enum converter, so jobs use the YAML rules
         options.Converters.Add(new JsonStringEnumConverter());
         options.MakeReadOnly();
         return options;
@@ -282,8 +290,33 @@ public static class PlanSerializer
         }
     }
 
-    private static bool LooksLikeShareCode(string text) =>
-        text.StartsWith("MITCUE", StringComparison.OrdinalIgnoreCase) && text.IndexOf(':') is > 6 and < 16;
+    /// <summary>
+    /// True when the text starts like a share code, also behind the whitespace, quotes and backticks that chat puts
+    /// around it (Discord inline code), which <see cref="FromShareCode"/> ignores.
+    /// </summary>
+    private static bool LooksLikeShareCode(string text)
+    {
+        var start = 0;
+        while (start < text.Length && (char.IsWhiteSpace(text[start]) || text[start] is '`' or '"' or '\''))
+            start++;
+        var code = text.AsSpan(start);
+        return code.StartsWith("MITCUE", StringComparison.OrdinalIgnoreCase) && code.IndexOf(':') is > 6 and < 16;
+    }
+
+    /// <summary>
+    /// The job spellings every plan reader accepts: an abbreviation ("WHM", "whm"), an English job name ("White Mage"),
+    /// a ClassJob id ("24"), or "None". Shared by the YAML and JSON readers, so a plan read from any format can be
+    /// written as any other and read back.
+    /// </summary>
+    private static bool TryReadJob(string? text, out Job job)
+    {
+        if (Jobs.TryParse(text, out job))
+            return true;
+        job = Job.None;
+        return string.Equals(text?.Trim(), nameof(Job.None), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string UnknownJob(string? text) => $"Unknown job '{text}' (use an abbreviation such as WHM or SCH).";
 
     private static bool IsJson(string text)
     {
@@ -391,14 +424,18 @@ public static class PlanSerializer
         }
     }
 
-    /// <summary>Leaves out computed (read-only) properties, empty lists and an all-empty <c>who</c>.</summary>
+    /// <summary>
+    /// Leaves out computed (read-only) properties, empty lists that cannot be null (the readers turn a missing one into
+    /// an empty one) and an all-empty <c>who</c>. An empty list that can be null is kept, because there empty and
+    /// missing differ: <c>any: []</c> is an (empty) either/or group, no <c>any</c> means the item is not a group.
+    /// </summary>
     private sealed class OmitEmptyVisitor(IObjectGraphVisitor<IEmitter> next) : ChainedObjectGraphVisitor(next)
     {
         public override bool EnterMapping(IPropertyDescriptor key, IObjectDescriptor value, IEmitter context, ObjectSerializer serializer)
         {
             if (!key.CanWrite)
                 return false;
-            if (value.Value is ICollection { Count: 0 })
+            if (value.Value is ICollection { Count: 0 } && !key.AllowNulls) // AllowNulls: declared nullable (List<PlanItem>? Any)
                 return false; // strings are not ICollection, so "" is still written
             if (value.Value is WhoSpec { Slot: null, Job: null, Assignee: null })
                 return false;
@@ -406,7 +443,7 @@ public static class PlanSerializer
         }
     }
 
-    /// <summary>Reads jobs leniently ("WHM", "whm", "White Mage", "24"); "None" stays <see cref="Job.None"/>.</summary>
+    /// <summary>Reads jobs leniently with <see cref="TryReadJob"/> ("WHM", "whm", "White Mage", "24"); "None" stays <see cref="Job.None"/>.</summary>
     private sealed class JobYamlConverter : IYamlTypeConverter
     {
         public bool Accepts(Type type) => type == typeof(Job) || type == typeof(Job?);
@@ -416,15 +453,62 @@ public static class PlanSerializer
             var scalar = parser.Consume<Scalar>();
             if (scalar.Style is ScalarStyle.Plain or ScalarStyle.Any && YamlNodes.IsNullText(scalar.Value))
                 return type == typeof(Job?) ? null : Job.None;
-            if (Jobs.TryParse(scalar.Value, out var job))
+            if (TryReadJob(scalar.Value, out var job))
                 return job;
-            if (string.Equals(scalar.Value.Trim(), nameof(Job.None), StringComparison.OrdinalIgnoreCase))
-                return Job.None;
-            throw new YamlException(scalar.Start, scalar.End, $"Unknown job '{scalar.Value}' (use an abbreviation such as WHM or SCH).");
+            throw new YamlException(scalar.Start, scalar.End, UnknownJob(scalar.Value));
         }
 
         public void WriteYaml(IEmitter emitter, object? value, Type type, ObjectSerializer serializer) =>
             emitter.Emit(new Scalar(value?.ToString() ?? string.Empty));
+    }
+
+    /// <summary>
+    /// Reads JSON jobs with the YAML rules (<see cref="TryReadJob"/>), from a string or a number. The stock enum
+    /// converter also took any number (99) and flag combinations ("WHM, SCH" as SCH), which YAML rejects. Writes
+    /// what that converter wrote: the abbreviation (a value outside the enum as its number, which no reader accepts).
+    /// </summary>
+    private sealed class JobJsonConverter : JsonConverter<Job>
+    {
+        public override Job Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var text = reader.TokenType switch
+            {
+                JsonTokenType.String => reader.GetString(),
+                JsonTokenType.Number => Encoding.UTF8.GetString(reader.HasValueSequence ? reader.ValueSequence.ToArray() : reader.ValueSpan),
+                JsonTokenType.Null => null, // only for a non-nullable Job: a Job? null never reaches the converter
+                _ => throw new JsonException($"A job must be a text such as \"WHM\", not {reader.TokenType}."),
+            };
+            if (text == null)
+                return Job.None; // as the YAML reader does
+            return TryReadJob(text, out var job) ? job : throw new JsonException(UnknownJob(text));
+        }
+
+        public override void Write(Utf8JsonWriter writer, Job value, JsonSerializerOptions options)
+        {
+            if (Enum.IsDefined(value))
+                writer.WriteStringValue(value.ToString());
+            else
+                writer.WriteNumberValue((byte)value);
+        }
+    }
+
+    /// <summary>
+    /// Rejects YAML aliases (<c>*name</c>) before the deserializer resolves them. A resolved alias is the very object
+    /// its anchor (<c>&amp;name</c>) made, so <c>&amp;x {any: [*x]}</c> builds an item that contains itself (repairing
+    /// it overflowed the stack, which ends the process), and a few lines that each refer twice to the line before
+    /// expand to millions of items. Plans never need aliases; an anchor alone is harmless and still accepted.
+    /// </summary>
+    private sealed class NoAliasParser(IParser inner) : IParser
+    {
+        public ParsingEvent? Current => inner.Current;
+
+        public bool MoveNext()
+        {
+            var more = inner.MoveNext();
+            if (inner.Current is AnchorAlias alias)
+                throw new YamlException(alias.Start, alias.End, $"YAML aliases such as '*{alias.Value}' are not allowed in plans: write the item out in full.");
+            return more;
+        }
     }
 
     /// <summary>A plain text item in <c>do</c> (e.g. <c>- Temperance</c>) is read as a note, so nothing typed is lost.</summary>

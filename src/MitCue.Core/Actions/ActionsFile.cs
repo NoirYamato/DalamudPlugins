@@ -7,7 +7,8 @@ namespace MitCue.Core.Actions;
 
 /// <summary>
 /// Typed form of data/actions/actions.yaml (schema in docs/research/actions.md §6). Deserialized strictly:
-/// an unknown key is an error, so typos in the knowledge base are caught by the data tests.
+/// an unknown key is an error, and so is a repeated key (YamlDotNet would keep the last value), so typos and
+/// copy-paste slips in the knowledge base are caught by the data tests.
 /// </summary>
 internal sealed class ActionsFile
 {
@@ -15,6 +16,7 @@ internal sealed class ActionsFile
 
     private static readonly IDeserializer Deserializer = new DeserializerBuilder()
         .WithNamingConvention(UnderscoredNamingConvention.Instance)
+        .WithDuplicateKeyChecking()
         .Build();
 
     public string Schema { get; set; } = string.Empty;

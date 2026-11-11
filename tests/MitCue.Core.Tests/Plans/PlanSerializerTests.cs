@@ -510,4 +510,195 @@ public class PlanSerializerTests
         Assert.Contains("share code", Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(code)).Message, StringComparison.Ordinal);
         Assert.Contains("share code", Assert.Throws<FormatException>(() => PlanSerializer.FromJson(code)).Message, StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// Chat wraps codes in backticks (Discord inline code) or quotes; <see cref="PlanSerializer.FromShareCode"/> ignores
+    /// them, and <see cref="PlanSerializer.Parse"/> used to send such a code to the YAML reader ("Invalid plan YAML").
+    /// </summary>
+    [Theory]
+    [InlineData("`{0}`")]
+    [InlineData("``{0}``")]
+    [InlineData("\"{0}\"")]
+    [InlineData("'{0}'")]
+    [InlineData("  ` {0} `  ")]
+    [InlineData("```\n`{0}`\n```")]
+    public void Parse_ReadsShareCodesWrappedInBackticksOrQuotes(string wrapper)
+    {
+        var text = string.Format(System.Globalization.CultureInfo.InvariantCulture, wrapper, PlanSerializer.ToShareCode(Sample()));
+        AssertSamePlan(Sample(), PlanSerializer.Parse(text));
+
+        // The other readers recognize the wrapped code too, and say what it is.
+        Assert.Contains("share code", Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(text)).Message, StringComparison.Ordinal);
+        Assert.Contains("share code", Assert.Throws<FormatException>(() => PlanSerializer.FromJson(text)).Message, StringComparison.Ordinal);
+    }
+
+    // ---- hostile or sloppy input -----------------------------------------------------------------------------
+
+    /// <summary>
+    /// A resolved YAML alias is the same object as its anchor, so this item contains itself. Repairing it overflowed the
+    /// stack, which cannot be caught: it ended the test host (and, in the plugin, the game).
+    /// </summary>
+    [Fact]
+    public void Yaml_SelfReferencingAlias_IsRejected()
+    {
+        const string yaml = "format: mitcue-plan/1\nfight: top\nentries:\n  - id: e1\n    mechanic: p1.pull\n    do:\n      - &x {any: [*x]}\n";
+        var ex = Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(yaml));
+        Assert.Contains("alias", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("line 7", ex.Message, StringComparison.Ordinal);
+        Assert.Throws<FormatException>(() => PlanSerializer.Parse(yaml));
+    }
+
+    /// <summary>
+    /// Each line refers twice to the line before, so the plan doubles per line: these 0.5 KB expanded to 4096 actions
+    /// (3.7 MB of JSON); 30 lines took 16 s to read, and saving ran out of memory.
+    /// </summary>
+    [Fact]
+    public void Yaml_DoublingAliases_AreRejectedNotExpanded()
+    {
+        var yaml = new StringBuilder("format: mitcue-plan/1\nfight: top\nentries:\n  - id: e0\n    mechanic: p1.pull\n    do:\n      - &a0 {action: 16536, name: Temperance}\n");
+        for (var i = 1; i <= 12; i++)
+            yaml.Append("      - &a").Append(i).Append(" {any: [*a").Append(i - 1).Append(", *a").Append(i - 1).Append("]}\n");
+
+        var ex = Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(yaml.ToString()));
+        Assert.Contains("*a0", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("line 8", ex.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>Every alias is rejected, wherever it is: even a harmless-looking one would make two entries share one item object.</summary>
+    [Theory]
+    [InlineData("entries:\n  - id: e1\n    mechanic: m\n    do:\n      - &t {action: 16536, name: Temperance}\n  - id: e2\n    mechanic: n\n    do:\n      - *t\n")]
+    [InlineData("base: &b {id: e1, mechanic: m}\nentries:\n  - *b\n")]
+    [InlineData("base: &b {mechanic: m}\nentries:\n  - <<: *b\n    id: e1\n")]
+    [InlineData("author: &a someone\nreviewer: *a\nentries: []\n")]
+    public void Yaml_Aliases_AreRejectedAnywhere(string body)
+    {
+        var ex = Assert.Throws<FormatException>(() => PlanSerializer.FromYaml("fight: top\n" + body));
+        Assert.Contains("alias", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Yaml_AnchorsWithoutAliases_AreHarmlessAndAccepted()
+    {
+        var plan = PlanSerializer.FromYaml("fight: top\nentries:\n  - &e {id: e1, mechanic: m, do: [&t {action: 16536, name: Temperance}]}\n");
+        Assert.Equal(16536u, Assert.Single(Assert.Single(plan.Entries).Do).Action);
+    }
+
+    /// <summary>A repeated key used to keep only its last value: here e1 and e2 were dropped without a word.</summary>
+    [Theory]
+    [InlineData("format: mitcue-plan/1\nfight: top\nentries:\n  - { id: e1, mechanic: p1.a }\n  - { id: e2, mechanic: p1.b }\nentries:\n  - { id: e3, mechanic: p1.c }\n", "entries", "line 6")]
+    [InlineData("fight: top\nentries:\n  - { id: e1, mechanic: p1.a, id: e9 }\n", "id", "line 3")]
+    [InlineData("fight: top\nentries:\n  - id: e1\n    mechanic: p1.a\n    who: { job: WHM }\n    who: { job: SCH }\n", "who", "line 6")]
+    [InlineData("fight: top\nunknown: 1\nunknown: 2\n", "unknown", "line 3")]
+    public void Yaml_DuplicateKeys_AreRejected(string yaml, string key, string where)
+    {
+        var ex = Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(yaml));
+        Assert.Contains("duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(key, ex.Message, StringComparison.Ordinal);
+        Assert.Contains(where, ex.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>The same for JSON, which <see cref="PlanSerializer.FromYaml"/> and <see cref="PlanSerializer.Parse"/> also accept.</summary>
+    [Fact]
+    public void Json_DuplicateKeys_AreRejected()
+    {
+        const string json = """{"fight":"top","entries":[{"id":"e1","mechanic":"a"},{"id":"e2","mechanic":"b"}],"entries":[{"id":"e3","mechanic":"c"}]}""";
+        foreach (var read in new Func<string, MitPlan>[] { PlanSerializer.FromJson, PlanSerializer.FromYaml, PlanSerializer.Parse, t => PlanSerializer.FromShareCode(ShareCodeOf(t)) })
+            Assert.Contains("duplicate", Assert.Throws<FormatException>(() => read(json)).Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<FormatException>(() => PlanSerializer.FromJson("""{"fight":"top","entries":[{"id":"e1","who":{"job":"WHM","Job":"SCH"}}]}"""));
+    }
+
+    /// <summary>
+    /// Every reader accepts the same job spellings. JSON (and so share codes) used to take any number (99) and flag
+    /// combinations ("WHM, SCH" read as SCH), so a plan imported from a share code could be saved as YAML that MitCue
+    /// could not read back ("Unknown job '99'").
+    /// </summary>
+    [Theory]
+    [InlineData("\"WHM\"", "WHM", Job.WHM)]
+    [InlineData("\"whm\"", "whm", Job.WHM)]
+    [InlineData("\"White Mage\"", "White Mage", Job.WHM)]
+    [InlineData("24", "24", Job.WHM)]
+    [InlineData("\"28\"", "\"28\"", Job.SCH)]
+    [InlineData("\"None\"", "None", Job.None)]
+    public void Readers_AcceptTheSameJobs(string json, string yaml, Job expected)
+    {
+        foreach (var plan in JobPlans(json, yaml))
+        {
+            Assert.Equal(expected, plan.Assignees[0].Job);
+            Assert.Equal(expected, plan.Entries[0].Who.Job);
+            foreach (var back in AllFormats(plan))
+                Assert.Equal(expected, back.Entries[0].Who.Job);
+        }
+    }
+
+    [Theory]
+    [InlineData("99", "99")]
+    [InlineData("\"99\"", "\"99\"")]
+    [InlineData("1", "1")]
+    [InlineData("0", "0")]
+    [InlineData("\"WHM, SCH\"", "WHM, SCH")]
+    [InlineData("\"Wizard\"", "Wizard")]
+    public void Readers_RejectTheSameJobs(string json, string yaml)
+    {
+        var (fromJson, fromYaml) = JobDocuments(json, yaml);
+        var errors = new[]
+        {
+            Assert.Throws<FormatException>(() => PlanSerializer.FromJson(fromJson)),
+            Assert.Throws<FormatException>(() => PlanSerializer.FromShareCode(ShareCodeOf(fromJson))),
+            Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(fromYaml)),
+        };
+        foreach (var ex in errors)
+            Assert.Contains($"Unknown job '{yaml.Trim('"')}'", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("$.assignees[0].job", errors[0].Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UndefinedJobs_AreNotReadBackFromAnyFormat()
+    {
+        var plan = Sample();
+        plan.Entries[0].Who.Job = (Job)99;
+        Assert.Throws<FormatException>(() => PlanSerializer.FromYaml(PlanSerializer.ToYaml(plan)));
+        Assert.Throws<FormatException>(() => PlanSerializer.FromJson(PlanSerializer.ToJson(plan)));
+        Assert.Throws<FormatException>(() => PlanSerializer.FromShareCode(PlanSerializer.ToShareCode(plan)));
+    }
+
+    private static (string Json, string Yaml) JobDocuments(string json, string yaml) =>
+    (
+        $$$"""{"fight":"top","assignees":[{"key":"a","job":{{{json}}}}],"entries":[{"id":"e1","mechanic":"m","who":{"job":{{{json}}}}}]}""",
+        $"fight: top\nassignees:\n  - key: a\n    job: {yaml}\nentries:\n  - id: e1\n    mechanic: m\n    who:\n      job: {yaml}\n"
+    );
+
+    private static IEnumerable<MitPlan> JobPlans(string json, string yaml)
+    {
+        var (fromJson, fromYaml) = JobDocuments(json, yaml);
+        yield return PlanSerializer.FromJson(fromJson);
+        yield return PlanSerializer.FromShareCode(ShareCodeOf(fromJson));
+        yield return PlanSerializer.FromYaml(fromYaml);
+    }
+
+    /// <summary>A share code of exactly this JSON, as a hand-made code or one from another MitCue version could hold.</summary>
+    private static string ShareCodeOf(string json)
+    {
+        using var packed = new MemoryStream();
+        using (var deflate = new DeflateStream(packed, CompressionLevel.SmallestSize, leaveOpen: true))
+            deflate.Write(Encoding.UTF8.GetBytes(json));
+        return "MITCUE1:" + Convert.ToBase64String(packed.ToArray()).TrimEnd('=').Replace('+', '-').Replace('/', '_');
+    }
+
+    /// <summary>YAML used to leave out <c>any: []</c> like any empty list, and read the item back as nothing at all.</summary>
+    [Fact]
+    public void EmptyAnyGroup_SurvivesEveryFormat()
+    {
+        var plan = Sample();
+        plan.Entries[0].Do.Add(PlanItem.AnyOf([]));
+        plan.Entries[0].Do.Add(PlanItem.AnyOf([PlanItem.AnyOf([])]));
+
+        Assert.Contains("- {any: []}\n", PlanSerializer.ToYaml(plan), StringComparison.Ordinal);
+        Assert.Contains("- {any: [{any: []}]}\n", PlanSerializer.ToYaml(plan), StringComparison.Ordinal);
+        foreach (var back in AllFormats(plan))
+        {
+            Assert.Empty(back.Entries[0].Do[3].Any!);
+            Assert.Empty(Assert.Single(back.Entries[0].Do[4].Any!).Any!);
+            AssertSamePlan(plan, back);
+        }
+    }
 }
