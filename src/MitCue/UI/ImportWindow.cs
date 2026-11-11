@@ -136,6 +136,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
     public override void OnClose()
     {
         // No background work while the window is closed; what was loaded stays for the next time.
+        if (this.jobs.Busy)
+            this.SetStatus($"\"{this.jobs.Current?.TrimEnd('.')}\" was cancelled when the window closed.", true);
         this.jobs.Cancel();
     }
 
@@ -402,8 +404,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             this.pasteBox.Set(string.Empty);
         ImGui.SameLine();
         ImGui.AlignTextToFramePadding();
-        var lines = this.pasteBox.Text.Length == 0 ? 0 : this.pasteBox.Text.Count(c => c == '\n') + 1;
-        ImGui.TextDisabled($"{Plural(lines, "line")}, {(Encoding.UTF8.GetByteCount(this.pasteBox.Text) / 1024.0).ToString("0.0", CultureInfo.InvariantCulture)} KB");
+        ImGui.TextDisabled($"{Plural(this.pasteBox.Lines, "line")}, {(this.pasteBox.Bytes / 1024.0).ToString("0.0", CultureInfo.InvariantCulture)} KB");
         if (this.pasteBox.Truncated)
         {
             ImGui.SameLine();
@@ -1119,7 +1120,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (job != Job.None)
         {
             var mine = model.CountFor(job, this.plugin.Config.DefaultSlot);
-            ImGui.TextColored(mine > 0 ? ColorOk : ColorWarning, $"{Plural(mine, "entry", "entries")} apply to you as {job}" + (mine == 0 ? ": check the columns you imported." : "."));
+            ImGui.TextColored(mine > 0 ? ColorOk : ColorWarning, $"{Plural(mine, "entry applies", "entries apply")} to you as {job}" + (mine == 0 ? ": check the columns you imported." : "."));
         }
 
         var errors = model.CountWorst(DiagnosticSeverity.Error);
@@ -1177,6 +1178,18 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
         if (this.saveMessage.Length > 0)
             ImGui.TextColoredWrapped(ColorError, this.saveMessage);
+    }
+
+    /// <summary>The earlier import of the same sheet, tabs and columns, if there is exactly one: replaced by default.</summary>
+    private static string? DefaultReplacement(PlanStore store, MitPlan plan)
+    {
+        var columns = plan.Assignees.Select(a => a.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var same = store.All
+            .Where(p => !p.IsReadOnly && string.Equals(p.Plan.Fight, plan.Fight, StringComparison.OrdinalIgnoreCase) && SameSource(p.Plan.Source, plan.Source))
+            .Where(p => p.Plan.Source?.Tabs is { Count: > 0 } && plan.Source?.Tabs is { Count: > 0 })
+            .Where(p => columns.SetEquals(p.Plan.Assignees.Select(a => a.Key)))
+            .ToList();
+        return same.Count == 1 ? same[0].Id : null;
     }
 
     private static bool SameSource(PlanSource? a, PlanSource? b)
@@ -1254,6 +1267,12 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
         public bool Truncated { get; private set; }
 
+        /// <summary>Lines of <see cref="Text"/> (counted when it changes, not every frame).</summary>
+        public int Lines { get; private set; }
+
+        /// <summary>UTF-8 size of <see cref="Text"/>.</summary>
+        public int Bytes { get; private set; }
+
         public void Set(string value)
         {
             var buf = this.Buffer();
@@ -1269,7 +1288,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
             Array.Copy(bytes, buf, length);
             Array.Clear(buf, length, buf.Length - length);
-            this.Text = Encoding.UTF8.GetString(buf, 0, length);
+            this.SetText(Encoding.UTF8.GetString(buf, 0, length), length);
         }
 
         public bool Draw(string id, Vector2 size, ImGuiInputTextFlags flags)
@@ -1278,9 +1297,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
             if (!ImGui.InputTextMultiline(id, buf, size, flags))
                 return false;
             var end = Array.IndexOf(buf, (byte)0);
-            this.Text = Encoding.UTF8.GetString(buf, 0, end < 0 ? buf.Length : end);
+            var length = end < 0 ? buf.Length : end;
+            this.SetText(Encoding.UTF8.GetString(buf, 0, length), length);
             this.Truncated = false;
             return true;
+        }
+
+        private void SetText(string text, int bytes)
+        {
+            this.Text = text;
+            this.Bytes = bytes;
+            this.Lines = text.Length == 0 ? 0 : text.Count(c => c == '\n') + 1;
         }
 
         private byte[] Buffer() => this.buffer ??= new byte[this.capacity];

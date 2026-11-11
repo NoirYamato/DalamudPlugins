@@ -82,8 +82,8 @@ internal sealed partial class ImportWindow
         this.sortByTime = false;
         this.selectedUid = model.Rows.Count > 0 ? model.Rows[0].Uid : -1;
         this.saveMessage = string.Empty;
-        this.replaceId = null;
         model.Plan.Name = string.IsNullOrWhiteSpace(model.Plan.Name) ? name : model.Plan.Name;
+        this.replaceId = DefaultReplacement(this.plugin.Plans, model.Plan);
         var job = this.plugin.Frame.Job;
         this.setActive = job != Job.None && model.CountFor(job, this.plugin.Config.DefaultSlot) > 0;
         this.step = Step.Review;
