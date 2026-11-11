@@ -46,7 +46,11 @@ internal sealed class LlmPromptInput
     /// <summary>Suggested plan name.</summary>
     public string? PlanName { get; init; }
 
-    /// <summary>The player's party slot (MT/OT/H1/...), if known.</summary>
+    /// <summary>
+    /// The player's usual party slot (MT/OT/H1/..., the plugin's "My usual party slot"), if known. As everywhere in the
+    /// plugin, it counts only for the jobs of its role (<see cref="Slots.ForJob"/>): <see cref="LlmPrompt.Build"/> names
+    /// it for those jobs only, and gives the example's column a slot of its job's role.
+    /// </summary>
     public string? Slot { get; init; }
 
     /// <summary>A note shown when the action or alias list could not be built (e.g. data that failed to load).</summary>
@@ -65,14 +69,21 @@ internal static class LlmPrompt
     /// <summary>Marker line the user's plan text follows when it is not included.</summary>
     public const string PastePlaceholder = "(Paste the plan here: the cells copied from the sheet, or the text of the document.)";
 
-    /// <summary>Builds the prompt.</summary>
+    /// <summary>
+    /// Builds the prompt. The player's usual slot (<see cref="LlmPromptInput.Slot"/>) counts only for the jobs of its role
+    /// (<see cref="Slots.ForJob"/>): the prompt names it only when it is a slot of at least one job's role, and then with
+    /// those jobs when it is not a slot of every job's role ("The player's party slot is MT as Warrior (WAR)."). The
+    /// example's column is in the usual slot when that is a slot of the example job's role, else in the role's first slot
+    /// (MT, H1, M1, R1), so an AI that copies the example writes no calls for a seat the player never has on that job (a
+    /// White Mage in MT, a Warrior in H1).
+    /// </summary>
     public static string Build(LlmPromptInput input)
     {
         ArgumentNullException.ThrowIfNull(input);
         var fight = input.Fight;
         var ci = CultureInfo.InvariantCulture;
         var jobs = input.Jobs.Where(j => j != Job.None).Distinct().ToList();
-        var jobList = jobs.Count > 0 ? string.Join(", ", jobs.Select(j => $"{Jobs.FullName(j)} ({j})")) : "every job in the plan";
+        var jobList = jobs.Count > 0 ? string.Join(", ", jobs.Select(JobName)) : "every job in the plan";
         var sb = new StringBuilder(64 * 1024);
 
         sb.Append("# Task: convert a raid mitigation plan into MitCue plan YAML\n\n");
@@ -81,8 +92,17 @@ internal static class LlmPrompt
           .Append("MitCue checks every id you write, so only use ids from the lists below.\n\n");
         sb.Append(ci, $"- Fight: {fight.Name} (fight key `{fight.Key}`); players are synced to level {fight.SyncLevel}.\n");
         sb.Append(ci, $"- Convert the calls of: {jobList}.");
-        if (!string.IsNullOrWhiteSpace(input.Slot))
-            sb.Append(ci, $" The player's party slot is {input.Slot}.");
+
+        // The usual slot is the player's slot only on a job of its role: named with those jobs, or alone when it fits every job.
+        var slotJobs = jobs.Where(j => Slots.ForJob(input.Slot, j) != null).ToList();
+        if (slotJobs.Count > 0)
+        {
+            sb.Append(ci, $" The player's party slot is {Slots.ForJob(input.Slot, slotJobs[0])}");
+            if (slotJobs.Count < jobs.Count)
+                sb.Append(" as ").Append(EitherJob(slotJobs));
+            sb.Append('.');
+        }
+
         sb.Append(" Calls for other jobs can be left out.\n");
         if (!string.IsNullOrWhiteSpace(input.SourceUrl))
             sb.Append("- Source: ").Append(input.SourceUrl).Append('\n');
@@ -256,6 +276,16 @@ internal static class LlmPrompt
     private static bool SameMeaning(AliasExpansion a, AliasExpansion b) =>
         a.Sequence == b.Sequence && a.NoteOnly == b.NoteOnly && a.Actions.SequenceEqual(b.Actions, StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>"White Mage (WHM)".</summary>
+    private static string JobName(Job job) => $"{Jobs.FullName(job)} ({job})";
+
+    /// <summary>"Warrior (WAR)", "Warrior (WAR) or Dark Knight (DRK)", "Paladin (PLD), Warrior (WAR) or Dark Knight (DRK)".</summary>
+    private static string EitherJob(IEnumerable<Job> jobs)
+    {
+        var names = jobs.Select(JobName).ToList();
+        return names.Count < 2 ? string.Concat(names) : string.Join(", ", names.Take(names.Count - 1)) + " or " + names[^1];
+    }
+
     private static void AppendExample(StringBuilder sb, LlmPromptInput input, List<Job> jobs)
     {
         var ci = CultureInfo.InvariantCulture;
@@ -273,7 +303,8 @@ internal static class LlmPrompt
         string Item(PromptAction? a, string fallbackName) =>
             a != null ? $"{{ action: {a.Id.ToString(ci)}, name: {Quote(a.Name)} }}" : $"{{ action: <id>, name: {Quote(fallbackName)} }}";
 
-        var slot = string.IsNullOrWhiteSpace(input.Slot) ? "H1" : input.Slot;
+        // A seat of the job's role: the usual slot when it is one (Slots.ForJob), else the role's first slot (MT, H1, M1, R1).
+        var slot = Slots.ForJob(input.Slot, job) ?? Slots.Standard.FirstOrDefault(s => Slots.Fits(s, job)) ?? "H1";
         var key = Jobs.FullName(job);
         sb.Append("```yaml\n");
         sb.Append("format: mitcue-plan/1\n");

@@ -1,5 +1,6 @@
 using MitCue.Core;
 using MitCue.Core.Actions;
+using MitCue.Core.Plans;
 using MitCue.Import;
 
 namespace MitCue.PluginTests;
@@ -27,6 +28,18 @@ public class LlmPromptTests
             Slot = "H1",
         };
     }
+
+    /// <summary>A prompt for <paramref name="jobs"/> (in this order) with the usual party slot <paramref name="slot"/>.</summary>
+    private static LlmPromptInput JobsInput(Job[] jobs, string? slot) => new()
+    {
+        Fight = TestData.Top(),
+        Jobs = jobs,
+        Actions = LlmPrompt.ActionsFor(TestData.Catalog(), jobs, 90),
+        Slot = slot,
+    };
+
+    /// <summary>The prompt's example plan, read as an AI answer is.</summary>
+    private static MitPlan ExamplePlan(string prompt) => ImportPipeline.ParseYaml(prompt[prompt.IndexOf("```yaml\n", StringComparison.Ordinal)..]);
 
     [Fact]
     public void ContainsTheSchemaAndRules()
@@ -242,6 +255,120 @@ public class LlmPromptTests
         Assert.Equal("top", plan.Fight);
         Assert.Equal(2, plan.Entries.Count);
         Assert.All(plan.Entries, e => Assert.False(e.AtPhaseEnd));
+    }
+
+    [Fact]
+    public void NamesAUsualSlotOfEveryJobsRoleAsBefore()
+    {
+        // The static's prompt (White Mage and Scholar, usual slot H1): H1 is a slot of both jobs' role, so the prompt
+        // reads as it did before the usual slot counted only on a job of its role.
+        var prompt = LlmPrompt.Build(Input());
+
+        Assert.Contains("- Convert the calls of: White Mage (WHM), Scholar (SCH). The player's party slot is H1. Calls for other jobs can be left out.\n", prompt);
+        Assert.Contains("  - { key: \"White Mage\", slot: H1, job: WHM }\n", prompt);
+        Assert.Contains("    who: { job: WHM, slot: H1, assignee: \"White Mage\" }\n", prompt);
+        Assert.Contains("    who: { job: WHM, assignee: \"White Mage\" }\n", prompt);
+    }
+
+    [Fact]
+    public void DoesNotNameAUsualSlotOfAnotherRole()
+    {
+        // Review finding: a White Mage whose usual slot is MT got "The player's party slot is MT." and an example column
+        // in MT, a seat the plugin never gives a White Mage (Slots.ForJob). Now no slot sentence, and the example is in H1.
+        var prompt = LlmPrompt.Build(JobsInput([Job.WHM], "MT"));
+
+        Assert.Contains("- Convert the calls of: White Mage (WHM). Calls for other jobs can be left out.\n", prompt);
+        Assert.DoesNotContain("party slot is", prompt);
+        Assert.Contains("  - { key: \"White Mage\", slot: H1, job: WHM }\n", prompt);
+        Assert.Contains("    who: { job: WHM, slot: H1, assignee: \"White Mage\" }\n", prompt);
+        Assert.DoesNotContain("slot: MT", prompt);
+    }
+
+    [Fact]
+    public void NamesTheUsualSlotWithTheJobsOfItsRole()
+    {
+        // MT is the Warrior's slot, not the White Mage's: the sentence names the Warrior. The example is the first job's.
+        var prompt = LlmPrompt.Build(JobsInput([Job.WAR, Job.WHM], "MT"));
+
+        Assert.Contains("- Convert the calls of: Warrior (WAR), White Mage (WHM). The player's party slot is MT as Warrior (WAR). Calls for other jobs can be left out.\n", prompt);
+        Assert.Contains("  - { key: \"Warrior\", slot: MT, job: WAR }\n", prompt);
+        Assert.Contains("    who: { job: WAR, slot: MT, assignee: \"Warrior\" }\n", prompt);
+
+        // With the White Mage first, the example is the White Mage's, in a healer slot.
+        var whmFirst = LlmPrompt.Build(JobsInput([Job.WHM, Job.WAR], "MT"));
+        Assert.Contains("- Convert the calls of: White Mage (WHM), Warrior (WAR). The player's party slot is MT as Warrior (WAR). Calls for", whmFirst);
+        Assert.Contains("  - { key: \"White Mage\", slot: H1, job: WHM }\n", whmFirst);
+
+        // Several jobs of the slot's role, but not every job.
+        var tanks = LlmPrompt.Build(JobsInput([Job.PLD, Job.WAR, Job.DRK, Job.WHM], "OT"));
+        Assert.Contains(" The player's party slot is OT as Paladin (PLD), Warrior (WAR) or Dark Knight (DRK). Calls for", tanks);
+        Assert.Contains("  - { key: \"Paladin\", slot: OT, job: PLD }\n", tanks);
+        Assert.Contains(" The player's party slot is H1 as White Mage (WHM). Calls for", LlmPrompt.Build(JobsInput([Job.PLD, Job.WHM], "H1")));
+        Assert.Contains(" The player's party slot is MT as Paladin (PLD) or Warrior (WAR). Calls for", LlmPrompt.Build(JobsInput([Job.PLD, Job.WAR, Job.WHM], "MT")));
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, null, "MT")]
+    [InlineData(Job.WAR, "OT", "OT")]
+    [InlineData(Job.WAR, "H1", "MT")]
+    [InlineData(Job.WHM, null, "H1")]
+    [InlineData(Job.WHM, "MT", "H1")]
+    [InlineData(Job.SCH, "H2", "H2")]
+    [InlineData(Job.MNK, null, "M1")]
+    [InlineData(Job.MNK, "M2", "M2")]
+    [InlineData(Job.MNK, "R1", "M1")]
+    [InlineData(Job.BRD, null, "R1")]
+    [InlineData(Job.DNC, "R2", "R2")]
+    [InlineData(Job.BLM, null, "R1")]
+    public void TheExampleColumnIsInASlotOfItsJobsRole(Job job, string? usualSlot, string slot)
+    {
+        // Review finding: without a usual slot the example's column was always in H1 ("slot: H1, job: WAR"), so an AI that
+        // copied it wrote a Warrior's calls for H1, which a Warrior in MT never gets. The usual slot when it is one of the
+        // job's role, else the role's first slot: MT for tanks, H1 for healers, M1 for melee, R1 for ranged.
+        var prompt = LlmPrompt.Build(JobsInput([job], usualSlot));
+        var name = Jobs.FullName(job);
+
+        Assert.Contains($"  - {{ key: \"{name}\", slot: {slot}, job: {job} }}\n", prompt);
+        Assert.Contains($"    who: {{ job: {job}, slot: {slot}, assignee: \"{name}\" }}\n", prompt);
+        Assert.Contains($"    who: {{ job: {job}, assignee: \"{name}\" }}\n", prompt);
+        Assert.Equal(usualSlot == slot, prompt.Contains("party slot is", StringComparison.Ordinal));
+        if (usualSlot == slot)
+            Assert.Contains($". The player's party slot is {slot}. Calls for other jobs can be left out.\n", prompt);
+    }
+
+    [Theory]
+    [InlineData("MT")]
+    [InlineData(null)]
+    public void TheExampleCallsApplyToAWarriorWhoseUsualSlotIsMT(string? promptSlot)
+    {
+        // The example's column and calls, read as a plan, are those of a Warrior whose usual slot is MT, with the column the
+        // plugin suggests and with any column for the job (the example's calls in H1 were not: PlanSelection.Applies).
+        var input = new LlmPromptInput
+        {
+            Fight = TestData.Top(),
+            Jobs = [Job.WAR],
+            Actions =
+            [
+                new PromptAction(7535, "Reprisal", [Job.WAR], ActionKind.PartyMit),
+                new PromptAction(7531, "Rampart", [Job.WAR], ActionKind.TankMit),
+                new PromptAction(7388, "Shake It Off", [Job.WAR], ActionKind.Shield),
+            ],
+            Slot = promptSlot,
+        };
+        var plan = ExamplePlan(LlmPrompt.Build(input));
+        Assert.Equal(2, plan.Entries.Count);
+        Assert.Equal(7535u, plan.Entries[0].Do[0].Action);
+
+        var column = Assert.Single(plan.Assignees);
+        Assert.Equal("Warrior", column.Key);
+        Assert.Equal("MT", column.Slot);
+        Assert.Equal(Job.WAR, column.Job);
+        foreach (var pick in new[] { ColumnSuggestion.Suggest(plan, Job.WAR, "MT"), new ColumnPick(null, null) })
+        {
+            var me = ColumnSuggestion.Context(pick, Job.WAR, "MT", 90);
+            Assert.Equal("MT", me.Slot);
+            Assert.All(plan.Entries, e => Assert.True(PlanSelection.Applies(e, me), $"{e.Id} applies to {me}"));
+        }
     }
 
     [Fact]
