@@ -30,10 +30,14 @@ Examples:
 
 ```sh
 mitcue import tests/fixtures/sheets/carry-the-clear --fight top --tabs "TOP – White Mage" \
-       --calibration carry_the_clear -o plans/ctc-whm.yaml
-mitcue check plans/ctc-whm.yaml --job WHM --slot H1
-mitcue simulate plans/ctc-whm.yaml --job WHM --push p2=2:10,p3=5:20 --miss Temperance
+       --calibration carry_the_clear -o ctc-whm.yaml
+mitcue check ctc-whm.yaml --job WHM --slot H1
+mitcue simulate ctc-whm.yaml --job WHM --push p2=2:10,p3=5:20 --miss Temperance
+mitcue plan plans/top-lpdu.yaml --job SCH --slot H2      # a bundled plan, as the plugin's H2 Scholar gets it
 ```
+
+`plans/` holds the plans bundled with the plugin (every `.yaml` there is built into MitCue.Core), so write your own
+imports elsewhere.
 
 Notes:
 
@@ -46,9 +50,9 @@ Notes:
   `--from p3` starts at P3 like `/mitcue preview top p3`. The player presses every action at its press time except the
   `--miss` ones, with the button the job has at the sync level, and the session gets the action the game reports: a
   plan naming Raw Intuition at level 90 is reported as Bloodwhetting, so that reminder ends Missed, as in game (`check`
-  warns about it). The `Sync:` line says how many boss events the timeline was in sync with; DMU's P2 and P4 starts,
-  for example, are only seen through ActorControl lines, so pushes there are not followed without `--all-events`, as in
-  game.
+  warns about it). The `Sync:` line says how many boss events the timeline was in sync with, and where it was not.
+  cactbot syncs DMU's P2 and P4 starts only on ActorControl lines, which the plugin does not see; `dmu.yaml`'s
+  `timeline_additions` sync them on cast starts instead, so pushes there are followed without `--all-events` too.
 - `validate` compares each file of the data copy built into MitCue.Core with the folder's; a difference (a stale
   build) is a warning to rebuild.
 - `import` of a Google Sheets link downloads the whole workbook (`export?format=xlsx`; pick tabs with `--tabs`) and

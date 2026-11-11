@@ -7,8 +7,11 @@ window telling *you* which of *your* actions to press next, synced to the boss.
 
 It is **reminder-only**: it never presses, queues or targets anything.
 
-Status: draft v0.2 (requirements agreed 2026-11-11; implementation details are
-filled in from `docs/research/*` as they land).
+Status: requirements v0.2 (agreed 2026-11-11), implemented as MitCue 0.1. This page
+describes the design as built. Where the build differs from a decision or requirement,
+the original text stays and the difference is marked **As built** or **Changed**, with
+its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes:
+`docs/research/*`.
 
 ---
 
@@ -18,13 +21,13 @@ filled in from `docs/research/*` as they land).
 
 | # | Topic | Decision |
 |---|-------|----------|
-| D1 | Audience | Private: the author and their static. Distributed through a **custom plugin repository** (not the official Dalamud repo), so the official repo's combat-plugin pre-approval and AI-usage policy do not apply. We still follow the official rules' spirit: informational only, no automation, no FFLogs integration inside the plugin. |
-| D2 | First users | **WHM (H1)** following the *Carry the Clear* TOP sheet; **SCH (H2)** following the *LPDU TOP Mitigation Sheet*. Different players in one party may load different plans. |
-| D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. |
-| D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. |
-| D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. |
+| D1 | Audience | Private: the author and their static. Distributed through a **custom plugin repository** (not the official Dalamud repo), so the official repo's combat-plugin pre-approval and AI-usage policy do not apply. We still follow the official rules' spirit: informational only, no automation, no FFLogs integration inside the plugin. **Changed (2026-11-11):** the custom repository is the one of the author's other plugin, NoirMech: `https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/repo.json` serves both. MitCue's source is the `mitcue` branch of NoirYamato/DalamudPlugins, and `publish-mitcue.ps1` on its `main` branch publishes builds ([PUBLISHING.md](PUBLISHING.md)). The earlier plan (tag releases, a `repo` branch in MitCue's own repository) is retired. |
+| D2 | First users | **WHM (H1)** following the *Carry the Clear* TOP sheet; **SCH (H2)** following the *LPDU TOP Mitigation Sheet*. Different players in one party may load different plans. **As built:** both plans ship with the plugin and are the automatic choice for those jobs (§7). |
+| D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** in that order (§9), without plugin dependencies. |
+| D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
+| D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
 | D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. |
-| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). |
+| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). |
 | D8 | BossMod / cactbot as dependencies | **No runtime dependency.** cactbot is a browser overlay inside ACT/IINACT, so a Dalamud plugin cannot read its state; BossMod's IPC only exposes autorotation/AI/config controls, not fight timelines. Instead MitCue **bundles cactbot's timeline files** (Apache-2.0, attributed) and parses them itself. |
 
 ### 1.2 Functional requirements
@@ -46,6 +49,15 @@ filled in from `docs/research/*` as they land).
   timed text note rather than being dropped.
 - **F6 Config.** All timings, sound, visibility and overlay options configurable; preview
   mode to see/position the overlay out of combat; simulation of a fight for testing.
+  **Changed (final review, 2026-11-11):** of the timings, only the two lead times are
+  settings: when a reminder appears (3–60 s) and when it turns NOW (0–10 s). Fixed are
+  the end of the due window (0.3 s before the hit for mitigation, 5 s after the press for
+  heals, at least 8 s after a phase-end transition; §5.2), how long finished rows stay
+  listed (3 s), and the pull rules (10 s out of combat ends a pull, a countdown stopped
+  with more than 1 s left is cancelled, pre-pull reminders wait 20 s after a countdown;
+  §4, PLUGIN.md §1.5). Sound, visibility (done/missed tracking, the co-healer's calls,
+  skipped calls) and every overlay option are settings, as are the preview speed and pull
+  recording.
 - **F7 Multi-fight.** Fights are data (timeline + mechanic catalog); adding one requires
   no code.
 
@@ -56,43 +68,65 @@ filled in from `docs/research/*` as they land).
   follows the client language; source-name matching in timelines is optional.
 - Core logic (parsing, sync, import, scheduling) is plain .NET with no Dalamud
   dependency and is unit-tested in CI/the container; Dalamud-specific code is a thin layer.
-- Respect level sync: validate plans against the fight's sync level (80/90/100).
+- Respect level sync: validate plans against the fight's sync level (80/90/100). **As
+  built:** the import review checks every entry (`ReviewValidator`); share codes and plan
+  files are checked when they load, and the bundled plans in the tests (the core's
+  `PlanValidator`); the CLI's `check` and `validate` check plans too (`PlanChecker`).
 
 ---
 
 ## 2. Architecture
 
+As built (class names as in the code):
+
 ```
-            ┌────────────────────────── MitCue.Core (net10.0, no Dalamud) ──────────────────────────┐
- Sheet/Doc  │  Import: SheetDocument → LayoutDetector → CellParser → ActionResolver                 │
- link/paste ─►          → MechanicResolver → PhaseCalibrator → TimingAssigner → MitPlan + diagnostics│
-            │                                                                                       │
-            │  Data: FightCatalog (data/fights/*.yaml) · Timeline (cactbot *.txt) · ActionCatalog    │
-            │        (data/actions/actions.yaml) · AliasDictionary (data/actions/aliases.yaml)       │
-            │                                                                                       │
- GameEvents ─► TimelinePlayer (sync engine) ──► timeline time ──► ReminderScheduler ──► Reminder[]   │
-            │                                    UsageTracker ◄── own action uses                    │
-            └───────────────────────────────────────────────────────────────────────────────────────┘
-            ┌────────────────────────── MitCue (Dalamud plugin, net10.0-windows) ────────────────────┐
-            │ GameEventSource (cast polling, ActionEffect hook, InCombat, IDutyState, territory)     │
-            │ CooldownProvider (ActionManager) · ResourceProvider (job gauges) · LuminaActionCatalog │
-            │ OverlayWindow · ConfigWindow · ImportWindow (+ review) · PlanStore · SummaryReporter    │
-            └───────────────────────────────────────────────────────────────────────────────────────┘
- tools/MitCue.Cli: import a sheet/fixture → plan YAML; simulate a fight → print reminders over time.
+MitCue.Core (net10.0, no Dalamud)
+  Import      SheetReaders (xlsx, TSV/CSV, fixture JSON; GoogleHtmlView: tab names) → SheetDocument
+              → LayoutDetector → CellParser → PlanImporter: MechanicResolver, ActionResolver, HintParser,
+                RowTiming (phase zero fit, calibration presets, row offsets) → ImportResult (MitPlan + diagnostics)
+              PlanValidator: any plan against a fight and the action catalog
+  Data        FightLibrary, FightLoader (data/fights/*.yaml) · TimelineParser (data/timelines/*.txt)
+              · ActionCatalog (data/actions/actions.yaml) · AliasDictionary (data/actions/aliases.yaml)
+              · EmbeddedDataSource (data/** and plans/** are built into the DLL), DirectoryDataSource
+  Plans       MitPlan · PlanSelection · PlanSerializer (YAML, JSON, share codes) · PlanChecker (recasts, gauges)
+  Runtime     GameEvent ─► TimelinePlayer (sync) ─► timeline time ─► ReminderScheduler (TimingRules) ─► Reminder[]
+              own action uses ─► ReminderScheduler.OnOwnAction;  ICooldownProvider ─► "ready in 6s", "no Lily"
+  Simulation  FightSimulator (a generated pull from a timeline) · GameVisibleEvents (the kinds seen in game)
+
+MitCue (Dalamud plugin, Dalamud.NET.Sdk 15)
+  Game/       GameEventSource (cast polling, ActionEffectHook, InCombat, IDutyState, territory, countdown)
+              · CooldownProvider (ActionManager, job gauges) · OwnUseDeduper, PetActions · PullRecorder · SoundPlayer
+  Data/       CoreData (the core's embedded data + personal aliases) · GameData (Lumina: names, icons, zones)
+  Plans/      PlanStore (bundled and user plans, active plan, column choice, share codes)
+              · ColumnSuggestion · PlanChecks (PlanValidator for share codes and plan files)
+  Runtime/    SessionManager ─► EncounterSession (TimelinePlayer + ReminderScheduler) · PreviewDriver
+              · PartnerSelection (the co-healer's calls) · OverlayModel · ReminderText (labels, pull summary)
+  Import/     ImportPipeline · BackgroundJobs (thread pool) · SheetFetcher, GoogleLinks · DocHtmlReader, DocTextReader
+              · ImportAnalysis · ReviewModel, ReviewValidator · ImportColumns · LlmPrompt · PersonalAliases
+  UI/         OverlayWindow · ConfigWindow · ImportWindow (+ review) · DebugReport
+
+tools/MitCue.Cli: fights, mechanics, timeline, import, plan, simulate, check, validate, share, unshare.
 ```
 
 Repository layout:
 
 ```
-src/MitCue.Core/        core library
-src/MitCue/             Dalamud plugin
-tests/MitCue.Core.Tests xUnit tests (+ tests/fixtures/sheets/* snapshots of the example sheets)
-tools/MitCue.Cli/       developer CLI
-data/timelines/         cactbot timelines (Apache-2.0, see data/timelines/NOTICE)
-data/fights/            fight catalogs (top.yaml, tea.yaml, dmu.yaml)
-data/actions/           action knowledge base + shorthand aliases
-plans/                  converted plans shipped with the plugin
-docs/                   this design + research notes
+src/MitCue.Core/           core library
+src/MitCue/                Dalamud plugin
+tests/MitCue.Core.Tests/   core tests (+ tests/fixtures/sheets/*: snapshots of the example sheets)
+tests/MitCue.Plugin.Tests/ plugin tests (built against Dalamud's assemblies; no game needed)
+tests/MitCue.Cli.Tests/    CLI tests
+tools/MitCue.Cli/          developer CLI
+tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's own manifest types
+tools/make-repo-json.py    writes a repo.json from the plugin manifest (CI checks a sample)
+tools/tests/               Python tests of the two tools and of the CI workflow's Dalamud step
+data/timelines/            cactbot timelines (Apache-2.0, see data/timelines/NOTICE; DSR and FRU only for parser tests)
+data/fights/               fight catalogs (top.yaml, tea.yaml, dmu.yaml)
+data/actions/              action knowledge base + shorthand aliases
+plans/                     converted plans shipped with the plugin (top-ctc-whm, top-ctc-whm-sch, top-lpdu)
+assets/                    the icon (SVG source, PNG renders)
+docs/                      this design, PLUGIN.md, INSTALL.md, PUBLISHING.md, research notes
+.github/workflows/ci.yml   CI: build, every test project, the tools' tests, plugin zip and repo.json checks
 ```
 
 ---
@@ -112,26 +146,41 @@ phases:
 mechanics:
   - id: p6.cosmo_memory                   # stable id used by plans
     name: Cosmo Memory                    # short display name
-    phase: p6
+    phase: p6                             # optional: else the phase its hit falls in
     hit: 1167.8                           # timeline seconds of the (first) damage event
     hits: [1167.8]                        # all damage times for multi-hit mechanics
     entry: "Cosmo Memory"                 # cactbot entry at that time (validated in tests)
-    kind: raidwide                        # raidwide|tankbuster|multihit|stack|spread|mixed|lb_check|enrage|other
+    kind: raidwide                        # raidwide|tankbuster|multihit|stack|spread|mixed|lb_check|enrage|other|marker
     aliases: ["Cosmo Memory", "CM"]
 calibration:                              # known sheets' phase zero points (timeline seconds of sheet 0:00)
-  carry_the_clear: { p1: 0.0, p2: 202.0, ... }
+  carry_the_clear: { p1: 0.9, p2: 201.8, ... }
+row_offsets:                              # per sheet: seconds from a mechanic's first hit to what its row time marks
+  carry_the_clear: { p5.blind_faith: -1.2, ... }
 ```
 
-Pseudo-mechanics exist for anchors that are not damage (`p1.pull`, phase starts).
+Pseudo-mechanics (`kind: marker`) exist for anchors that are not damage (`p1.pull`,
+phase starts, the boss becoming targetable).
+
+`calibration` and `row_offsets` are keyed by sheet (the importer's calibration preset,
+§6). `row_offsets` names mechanics whose rows in that sheet time another event than the
+mechanic's hit (Carry the Clear times Blind Faith at the cast end, 1.2 s before the hit);
+the importer adds the value to row-relative offsets (§6 step 7).
 
 Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
-cactbot's). They are fallbacks for phase starts that cactbot syncs only on event types the plugin does not see (§4):
-`dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot uses director updates there.
-
-### 3.2 Plan (`*.mitplan.yaml`, also stored as JSON and shared as a compressed share code)
+cactbot's). Each line must have a sync and may not jump to a label. They are fallbacks for phase starts that
+cactbot syncs only on event types the plugin does not see (§4). `dmu.yaml` syncs DMU's P2 and P4 starts on cast
+starts, since cactbot uses director updates there:
 
 ```yaml
-format: mitcue-plan/1
+timeline_additions: |
+  315.1 "--sync--" StartsUsing { id: "C24C", source: "Kefka" } window 320,5
+  1095.0 "--sync--" StartsUsing { id: "C2DC", source: "Kefka" } window 1095,14000
+```
+
+### 3.2 Plan (YAML; stored as JSON, shared as a compressed share code)
+
+```yaml
+format: mitcue-plan/1                      # missing = this format; any other format is refused
 id: 6f1c…                                  # GUID
 name: Carry the Clear – WHM
 fight: top
@@ -141,7 +190,8 @@ assignees:                                 # one per source column; a player pic
 entries:
   - id: e012
     mechanic: p1.pantokrator               # anchor (always a mechanic id)
-    offset: -3.3                           # seconds relative to the mechanic's hit; omitted = automatic (§5.1)
+    hit_index: null                        # which hit of a multi-hit mechanic (0-based); omitted = the first
+    offset: -3.3                           # seconds relative to that hit; omitted = automatic (§5.1)
     who: { job: WHM }                      # slot and/or job (and/or assignee key)
     do:                                    # what to press; order matters when seq: true
       - { action: 16536, name: Temperance }
@@ -153,13 +203,27 @@ entries:
     detail: null                           # row notes column
     optional: false                        # grey/optional in the source: never counted as missed
     when_ready: false                      # "⏱"/"on CD": press at the planned time or as soon as it is ready
+    at_phase_end: false                    # "as P1 dies", "just before P3 ends": due at the transition (§5.2)
     severity: 3                            # source lethality (★ count), if any
     src: "'TOP – White Mage'!C18"          # provenance for review
 ```
 
-Selection rule for the local player: an entry applies when its `who.job` is empty or
-equals the current job, its `who.slot` is empty or equals the player's slot, and its
-assignee (if any) is the one the player picked for this plan.
+The bundled plans use both, e.g. Carry the Clear's Asylum before Program Loop's third set
+(`hit_index: 2`) and LPDU's "Rampart as P1 dies" (`at_phase_end: true`).
+
+Forms (`PlanSerializer`): YAML with snake_case keys, written without nulls, `false` and
+empty lists (`plans/*.yaml`, the CLI, the AI route); JSON with camelCase keys for user
+plans (`pluginConfigs/MitCue/plans/<id>.json`); share codes, `MITCUE1:` + base64url of
+the raw-deflated compact JSON. Readers ignore unknown fields and refuse repeated keys,
+YAML aliases and jobs that are not combat jobs.
+
+Selection rule for the local player (`PlanSelection`): an entry applies when
+
+- its `who.job` is empty or equals the current job;
+- its `who.slot` is empty or equals the player's slot; while the player's slot is
+  unknown, an entry with a slot applies only if it also names the job;
+- when the player picked a column, its assignee is empty or that column. An entry of
+  another column still applies when it names both the player's job and slot.
 
 ### 3.3 Actions (`data/actions/actions.yaml`) and aliases (`data/actions/aliases.yaml`)
 
@@ -170,7 +234,9 @@ names/icons and ActionManager the real (trait-adjusted) recast and charges.
 
 `aliases.yaml`: lowercase shorthand → action(s) (optionally per job), role phrases with
 per-job expansion ("party mit", "short cd"), and note-only phrases ("everything",
-"kitchen sink"). User corrections made during review are stored as personal aliases.
+"kitchen sink"). User corrections made during review are stored as personal aliases
+(**as built:** in the plugin's settings, `MitCue.json`, and added to the dictionary when
+the data loads).
 
 ---
 
@@ -178,7 +244,8 @@ per-job expansion ("party mit", "short cd"), and note-only phrases ("everything"
 
 - Timelines are cactbot `.txt` files parsed by `TimelineParser` (grammar and semantics:
   `docs/research/cactbot-timelines.md`). Entries have a time, a name, an optional sync
-  (event type + field matchers), a sync window, and optional jump/forcejump/label.
+  (event type + field matchers), a sync window, and optional jump/forcejump/label. A fight
+  file's `timeline_additions` (§3.1) are parsed with the same grammar and appended.
 - `TimelinePlayer` consumes `GameEvent`s with monotonic timestamps. While running, timeline
   time advances with the clock. When an event matches an entry's sync and the current time
   lies within that entry's window, time snaps to the entry (or to its jump target). Phase
@@ -186,10 +253,25 @@ per-job expansion ("party mit", "short cd"), and note-only phrases ("everything"
 - Supported event types for v1: `InCombat`, `StartsUsing` (boss cast start, from cast bars),
   `Ability` (resolved action, from the ActionEffect hook), wipe/reset (from duty state).
   Other types (`MapEffect`, `HeadMarker`, `GameLog`, …) are parsed and ignored unless a
-  fight needs them and has no fallback (see research notes per fight).
+  fight needs them and has no fallback (see research notes per fight). **As built:** no
+  fight needs them. TOP enters P2 on the Firewall cast (`StartsUsing 7B40`, 203.4) instead
+  of the `MapEffect` at 200.0; TEA's phase starts are all casts and abilities; DMU's P2 and
+  P4 starts are cactbot `ActorControl` syncs, so `dmu.yaml` adds cast-start fallbacks
+  (Ultimate Embrace at 315.1, Kefka Says at 1095.0), derived from cast data and not yet
+  checked against logs.
 - Matching uses ability IDs; `source` names are matched only when the client language
   matches the timeline's (English), otherwise ignored.
-- Reset on wipe, duty recommence, territory change, or prolonged out-of-combat.
+- Reset on wipe, duty recommence, territory change, or prolonged out-of-combat. **As
+  built:** also on a clear, on a sync that stops the timeline (cactbot's reset), and on
+  combat end once the timeline has stopped; prolonged out-of-combat is 10 s without combat
+  and without enemy casts or abilities. During a pull, combat edges are not passed to the
+  timeline, because a dead player loses the flag while the fight goes on.
+- A sync that moves time by more than 5 s is a jump: the scheduler skips the reminders it
+  passes, except phase-end reminders (§5.2). A timeline that starts mid-fight (a pull
+  joined in combat) counts as a jump from −∞.
+- Simulation: `FightSimulator` generates a pull from a timeline (the events its syncs
+  expect, with jitter and phase pushes). `GameVisibleEvents` keeps only the kinds the
+  plugin sees in game, for `/mitcue preview` and `mitcue simulate`.
 
 ---
 
@@ -245,11 +327,18 @@ otherwise its kind does (code: `TimingRules`).
 - `when_ready` entries stay Due past `press` until the action comes off cooldown, then
   until used or `latest`.
 
+Finished reminders (Done, Missed, and Skipped when shown) stay listed for 3 s; notes
+(and optional entries) whose time has passed become *Passed* and are not listed. **As
+built:** lookahead and dueLead are settings; the 0.3 s, 5 s ("heal late window"), 8 s
+and 3 s are fixed (`ReminderOptions` defaults; see F6). With done/missed tracking off, the
+overlay drops Done and Missed rows at once.
+
 ### 5.3 Cooldown and resource awareness
 
 At `press − lookahead` the plugin checks the action's remaining recast/charges and
 required resource (Lily, Blood Lily, Aetherflow, Addersgall, …). If it will not be ready
-by `press`, the reminder shows "ready in N s" in warning colour.
+by `press`, the reminder shows "ready in N s" in warning colour. **As built:** not in
+previews, which have no cooldown provider.
 
 ---
 
@@ -257,7 +346,11 @@ by `press`, the reminder shows "ready in N s" in warning colour.
 
 1. **Source → `SheetDocument`.** Tabs → rows → cells `{text, bg, fg, bold, runs, note}`.
    Readers: xlsx (downloaded from a public link, keeps colours and rich-text runs),
-   TSV/CSV paste (text only), JSON fixtures (tests).
+   TSV/CSV paste (text only), JSON fixtures (tests). **As built:** the xlsx export renames
+   tabs Excel does not allow (`P1/P2` → `P1P2`); the CLI and the plugin restore Google's
+   names from the sheet's `htmlview` page. Google Docs are read from their web page export
+   (each table becomes a tab, the other paragraphs a "Text" tab) or, when that is too
+   large, their plain-text export; colours are not kept.
 2. **Layout detection.** Find the header row; classify columns: time, mechanic label,
    assignee (slot/job/name headers such as `MT`, `H2 SCH`, `White Mage`), notes, ignored
    (statistics). Detect phase from tab names (`P3`), section rows (`P2 — Omega-M/F (from
@@ -287,13 +380,30 @@ by `press`, the reminder shows "ready in N s" in warning colour.
    is immune to drift. Only items without a usable row time use `offset = (zero + t) − hit`.
    Otherwise §5.1 defaults; parsed hints adjust the anchor (e.g. after the 1st hit). Items
    described as happening at a phase's end are anchored to that phase's enrage/end mechanic
-   and flagged `at_phase_end` (§5.2).
+   and flagged `at_phase_end` (§5.2). **As built:** δ per sheet and mechanic is the fight
+   file's `row_offsets` (§3.1). For Carry the Clear they are Blue Screen +1.0 s, the
+   Omega row +1.1 s, Blind Faith −1.2 s and the P6 enrage −14.0 s; P2 Cosmo Memory and
+   the Hello World rounds need none, because the catalog anchors them at the cast end
+   too. A timed item counts from the hit it belongs to (the first hit at or after its
+   press; for heals the last one at or before it), stored as `hit_index`.
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
-   fixes become personal aliases; save.
+   fixes become personal aliases; save. **As built** (the import window, PLUGIN.md §1.7):
+   each entry with the importer's diagnostics and the plugin's checks; the user can change
+   the mechanic, hit, offset, flags, target, note and items, and delete entries; replacing
+   a note with an action offers to save the shorthand as a personal alias; the plan is
+   saved as a user plan, optionally made the active plan, with the column choice that has
+   all of the player's calls.
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
-LLM and pastes the YAML back, which goes through the same validation and review.
+LLM and pastes the YAML back, which goes through the same validation and review. **As
+built:** the prompt also lists the chosen jobs' actions usable at the fight's sync level,
+and holds the loaded sheet's text when one is loaded; the YAML is read out of the answer
+(text around its code block is ignored).
+
+Code: steps 1–7 are the core's `SheetReaders`, `LayoutDetector`, `CellParser` and
+`PlanImporter` (`src/MitCue.Core/Import/README.md`); the CLI's `import` runs them on
+files and links; the plugin's import window adds downloading, the review and the AI route.
 
 ---
 
@@ -307,11 +417,24 @@ LLM and pastes the YAML back, which goes through the same validation and review.
   colours per state; optional click-through and lock; scale and opacity.
 - **Config defaults:** lookahead 15 s; due lead 1.5 s; max rows 5; sound on due (game SE);
   own calls only; co-healer calls off; show skipped off; post-pull summary on; overlay
-  locked off; hotbar glow not in v1.
+  locked off; hotbar glow not in v1. **As built:** also track done/missed on, sound effect
+  `<se.6>`, click-through off, preview at 1×, pull recording off.
 - **Plans tab:** list/import/export/share code, active plan per fight and job, "which
-  column is me".
+  column is me". **As built:** without a choice, the active plan for a fight and job is the
+  player's own plan with calls for the job, else the bundled plan meant for the job (TOP:
+  WHM → *Carry the Clear – WHM*, SCH → *LPDU TOP Mitigation*), else the first bundled plan
+  by name with calls for the job. "My column" without a choice is the job's column, or,
+  when that leaves out some of the player's calls, the narrowest choice that has them all
+  (`ColumnSuggestion`: LPDU's H2 Scholar gets every column for SCH in slot H2, including
+  the job-less "H2" column of P1/P2). Plans are exported as share codes, not as files.
+- **Co-healer's calls** (as built): the plan's other columns of the player's role, except
+  the player's own seat in another composition, and in a party only columns of jobs
+  someone in it plays.
 - **Preview/simulation:** run the fight timeline with simulated events at 1×/4× from any
-  phase to check the overlay and the plan.
+  phase to check the overlay and the plan. **As built:** only the event kinds the plugin
+  sees in game are played, so a preview syncs like a pull.
+- **Data loading** (as built): fight data and plans load on the first framework tick;
+  **Reload data** (Debug tab) reloads the fight data on the next tick.
 
 ---
 
@@ -326,12 +449,35 @@ LLM and pastes the YAML back, which goes through the same validation and review.
 - Later: replay real ACT/IINACT network logs from the static's pulls through the engine.
 - In-game testing happens on the user's PC (dev plugin path), using the preview mode.
 
+**As built:**
+
+- `tests/MitCue.Core.Tests`: the above, plus the bundled plans: each is the importer's
+  output for its sheet fixture and valid at level 90.
+- `tests/MitCue.Plugin.Tests`: sessions and pulls, the plan store with the automatic plan
+  and column choices on the bundled plans, the co-healer's calls, the import pipeline
+  (link parsing, downloads through a fake HTTP handler, pasted cells, the AI prompt and
+  YAML), the review model, background jobs. Built against Dalamud's assemblies; no game
+  needed.
+- `tests/MitCue.Cli.Tests`: every CLI command.
+- `tools/tests` (Python): `make-repo-json.py` and the CI workflow's Dalamud download step.
+- CI (`.github/workflows/ci.yml`) runs all of these on every push to the `mitcue` branch
+  and every pull request into it, and checks the plugin zip against Dalamud's manifest
+  types.
+- Real pulls: the plugin records them on request (`Record pulls`, JSON lines); replaying
+  recordings through the engine is still to come.
+- In-game test checklist: [PLUGIN.md](PLUGIN.md) §2.
+
 ---
 
 ## 9. Milestones
 
-1. Core: data, timeline parser, sync engine, plan model, scheduler, tests.
+1. Core: data, timeline parser, sync engine, plan model, scheduler, tests. **Done.**
 2. Importer (core) + CLI; convert both TOP plans; acceptance tests on both sheets.
+   **Done** (three plans: Carry the Clear's White Mage and combined tabs, LPDU).
 3. Plugin: events, overlay, config, plan store, preview; packaging; custom repo.
-4. In-game importer/review UI and link download; LLM prompt fallback.
-5. TEA and DMU data; plan checks (cooldown conflicts); polish.
+   **Done**; published through the shared repository (D1).
+4. In-game importer/review UI and link download; LLM prompt fallback. **Done.**
+5. TEA and DMU data; plan checks (cooldown conflicts); polish. **Partly done:** TEA and
+   DMU fight data ship as first drafts without plans; the recast and gauge checks are in
+   the CLI (`mitcue check`), and the plugin checks plans that skip the review against the
+   fight and the action data.

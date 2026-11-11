@@ -4,8 +4,8 @@ There are two ways to install MitCue:
 
 - **A. Custom plugin repository**: the normal way for the static. Dalamud installs MitCue and keeps it
   updated, like any other plugin.
-- **B. Dev plugin**: for trying a build that has not been released yet, such as a CI build of a branch or
-  your own build. You load the DLL from a folder and update it by hand.
+- **B. Dev plugin**: for trying a build that has not been published yet, such as a CI build or your own
+  build. You load the DLL from a folder and update it by hand.
 
 Use one route at a time. Both routes share the same settings and plans, because Dalamud stores them by the
 plugin's internal name (`MitCue`), so you can switch routes without losing anything.
@@ -30,13 +30,11 @@ open both from the Dalamud menu on the title screen.
 The repository URL is:
 
 ```
-https://raw.githubusercontent.com/OWNER/REPO/repo/repo.json
+https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/repo.json
 ```
 
-> **Maintainer:** replace `OWNER/REPO` with the GitHub account and repository name before you share this page.
-> Each release run prints the exact URL in its summary (Actions > Release > the run > Summary). Nothing is
-> served from that URL until the first `v*` tag has been released, and the repository must be **public**,
-> because Dalamud downloads `repo.json` and the plugin zip without signing in.
+It is the repository of NoirMech as well: one entry gives you both plugins. **If you already added it for
+NoirMech, skip to [Install MitCue](#install-mitcue).**
 
 ### Add the repository (once)
 
@@ -59,7 +57,7 @@ https://raw.githubusercontent.com/OWNER/REPO/repo/repo.json
 
 ### Updates
 
-Dalamud reads the repository when the game starts and each time you open `/xlplugins`. A new release can take
+Dalamud reads the repository when the game starts and each time you open `/xlplugins`. A new build can take
 a few minutes to show up, because GitHub caches `repo.json` for up to about five minutes.
 
 - To update by hand: `/xlplugins` > **Installed Plugins** > **Update plugins** (at the bottom of the window).
@@ -67,7 +65,11 @@ a few minutes to show up, because GitHub caches `repo.json` for up to about five
   *Auto-update main repository plugins* does **not** cover custom repositories such as this one.
 
 Dalamud only offers an update when the new version number is higher than the installed one, and only from
-the repository you installed from. Keep the same repository URL from then on.
+the repository you installed from.
+
+**Keep the repository row exactly as it is and enabled.** Dalamud loads a plugin installed from a custom
+repository only while that repository is in the list, enabled, with the same URL. If the row is removed,
+disabled or edited, MitCue (and NoirMech) stop loading until the row is back as it was.
 
 ### Uninstall
 
@@ -81,6 +83,8 @@ MitCue is switched on at the time, Dalamud loads it again straight away, and swi
 saves a default `MitCue.json`. That file and an empty `MitCue` folder then stay behind and still need
 deleting by hand.
 
+Uninstalling leaves the repository row in place. Keep it if you use NoirMech.
+
 ---
 
 ## B. Dev plugin (test builds)
@@ -89,25 +93,21 @@ deleting by hand.
 
 Choose one of these:
 
-- **A CI build**: on GitHub, open **Actions** > **CI** > the run for the commit or branch you want >
-  **Artifacts** > **MitCue-plugin**. You need to be signed in to GitHub to download artifacts. The download
-  contains `latest.zip` and `MitCue.json`.
-- **A release**: download `latest.zip` from the release page.
+- **A CI build**: CI runs in the [NoirYamato/DalamudPlugins](https://github.com/NoirYamato/DalamudPlugins)
+  repository for every push to its `mitcue` branch and every pull request into it. On GitHub, open
+  **Actions** > **CI** > the run for the commit you want > **Artifacts** > **MitCue-plugin**. You need to be
+  signed in to GitHub to download artifacts. The download contains `latest.zip` and `MitCue.json`.
+- **A published build**: `MitCue-<version>.zip` in
+  [`plugins/MitCue/`](https://github.com/NoirYamato/DalamudPlugins/tree/main/plugins/MitCue) on that
+  repository's `main` branch. The last two builds are kept there.
 - **Your own build**: run `dotnet build MitCue.slnx -c Release` (see
   [Building from source](../README.md#building-from-source)). The files are in `src/MitCue/bin/Release/MitCue/`.
 
 ### 2. Unpack it into a folder you keep
 
-Unzip **`latest.zip`** into a folder of its own that you will keep, for example `C:\FFXIV\MitCue-dev\`.
-Afterwards the folder must contain at least:
-
-```
-MitCue.dll          the plugin
-MitCue.json         its manifest (Dalamud needs it next to the DLL)
-MitCue.Core.dll     MitCue's core library (fight data and timelines are inside it)
-YamlDotNet.dll      a library MitCue needs
-MitCue.deps.json
-```
+Unzip the zip into a folder of its own that you will keep, for example `C:\FFXIV\MitCue-dev\`. Keep every
+file of the zip together (see [What the plugin zip contains](#what-the-plugin-zip-contains)): MitCue needs
+all of them. Without the Open XML and ExcelNumberFormat DLLs, for example, it cannot read a Google Sheets link.
 
 Don't point Dalamud at a file inside the zip or inside your Downloads folder. To update later, close the game
 (or unload MitCue), then overwrite the files in this folder.
@@ -146,6 +146,23 @@ Notes:
 
 ---
 
+## What the plugin zip contains
+
+| File | What it is | License |
+|------|------------|---------|
+| `MitCue.dll` | the plugin | MitCue's own code (no license file yet) |
+| `MitCue.json` | its manifest; Dalamud needs it next to the DLL | |
+| `MitCue.deps.json` | the list of libraries MitCue uses | |
+| `MitCue.Core.dll` | MitCue's core library. The fight data, cactbot timelines, action data, shorthand aliases and the three bundled TOP plans are built into it | MitCue's own code; timelines: Apache License 2.0, cactbot contributors |
+| `MitCue.Core.pdb`, `MitCue.Core.xml` | debug symbols and documentation of the core library | |
+| `YamlDotNet.dll` | reads and writes plans and data files (YAML) | MIT |
+| `DocumentFormat.OpenXml.dll`, `DocumentFormat.OpenXml.Framework.dll` | Open XML SDK: reads the `.xlsx` export of a Google Sheets link | MIT, © Microsoft Corporation |
+| `System.IO.Packaging.dll` | opens `.xlsx` files for the Open XML SDK (part of .NET) | MIT, © Microsoft Corporation |
+| `ExcelNumberFormat.dll` | shows numbers and times in sheet cells as the sheet displays them | MIT |
+
+Dalamud's own assemblies (Dalamud, FFXIVClientStructs, Lumina and the rest) are not in the zip: Dalamud
+provides them. Credits for all of these: [README > Credits and licenses](../README.md#credits-and-licenses).
+
 ## Where MitCue keeps its files
 
 On Windows, Dalamud's folder is `%AppData%\XIVLauncher\`. MitCue's settings window shows the full paths: the
@@ -153,21 +170,22 @@ recordings folder in **General** and every path in the **Debug** tab.
 
 | What | Where |
 |------|-------|
-| Settings | `%AppData%\XIVLauncher\pluginConfigs\MitCue.json` |
+| Settings, including your personal aliases (shorthand remembered in the import review) | `%AppData%\XIVLauncher\pluginConfigs\MitCue.json` |
 | Your imported plans | `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\<plan id>.json` |
 | Pull recordings (if enabled) | `%AppData%\XIVLauncher\pluginConfigs\MitCue\recordings\<zone id>-<date>-<time>.jsonl` |
 | Installed plugin (route A) | `%AppData%\XIVLauncher\installedPlugins\MitCue\<version>\` |
 
-On Linux (XIVLauncher.Core), `%AppData%\XIVLauncher` is `~/.xlcore`. All fight data is inside
-`MitCue.Core.dll`, so there is nothing else to install. Bundled plans will be inside it too once they ship;
-this version has none (see [Plans and importing](../README.md#plans-and-importing)).
+On Linux (XIVLauncher.Core), `%AppData%\XIVLauncher` is `~/.xlcore`. The fight data and the bundled plans
+are inside `MitCue.Core.dll`, so there is nothing else to install.
 
 ## If something goes wrong
 
 - **MitCue is not in "All Plugins"**: check that the repository row is **Enabled** and that you clicked
   **Save**. Then reopen `/xlplugins`. If it still doesn't appear, open the URL in a browser. You should see a
-  JSON list that contains `"InternalName": "MitCue"`. A 404 means the repository is private, or that no
-  release has run yet.
+  JSON list that contains `"InternalName": "MitCue"`. If the list has NoirMech but not MitCue, MitCue has not
+  been published there yet.
+- **MitCue (and NoirMech) stopped loading**: the repository row was removed, disabled or changed. Put it back
+  exactly as above (see [Updates](#updates)).
 - **"outdated" or "incompatible"**: Dalamud's API level changed. MitCue needs a rebuild for the new Dalamud.
 - **Installs but doesn't load**: type `/xllog` and look for red lines that mention MitCue. Then send the
   lines and the [debug report](../README.md#troubleshooting).

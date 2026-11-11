@@ -16,6 +16,7 @@ SheetReaders ──► SheetDocument ──► LayoutDetector ──► Document
 | `SheetReaders.FromXlsx(stream, title[, XlsxReadOptions])` | Google `export?format=xlsx`. Text as displayed (`_x000D_` escapes decoded, line breaks `\n`), fills, font colours (RGB, theme+tint, indexed; malformed ones → null), bold/strike, rich-text runs (with strike), merges, notes, hidden rows/cols, hidden tabs (`SheetTab.Hidden`), conditional-format colours (Google's first-match rule). Chart sheets are skipped but keep their place: `TabNames` and `SheetTab.Index` count every `<sheet>`. Excel names "P1/P2" `P1P2` and "WAR/DRK" `WARDRK`; pass `TabNames` to restore. Throws `InvalidDataException`. |
 | `SheetReaders.FromDelimited(text, '\t' or ',')` | Tab = Google clipboard rule (quoted only with a line break/tab inside); other separators = RFC 4180, except that a quote never closed is read raw (the rest of the text keeps its rows). `GuessSeparator(text)` picks one. Text only. |
 | `SheetReaders.FromFixtureJson` / `FromFixtureDirectory` | `tests/fixtures/sheets` format. |
+| `GoogleHtmlView.TabNames(html)` | The tab names a spreadsheet's `htmlview` page lists, as Google shows them ("P1/P2"). The CLI passes them as `XlsxReadOptions.TabNames`; the plugin's link import renames the tabs the export changed. |
 
 `SheetTab` gained `Index`, `Hidden`, `HiddenRows`, `HiddenCols`, `MergeAt`; `TextRun` gained `Strike`; `CellRange.Contains`.
 
@@ -98,8 +99,9 @@ after is a connector/target, or a time on the same line ("Soil      0:12"). "and
 
 # Import — back half
 
-Steps 4–8 (`docs/DESIGN.md` §6): `new PlanImporter().Import(document, options)` → `ImportResult` (`Plan`, `Diagnostics`,
-`PhaseZeros`, `PhaseSpread`). Check any plan (imported, hand-written, LLM) with `PlanValidator.Validate(plan, fight, actions)`.
+Steps 4–7 (`docs/DESIGN.md` §6; step 8, the review, is the plugin's import window): `new PlanImporter().Import(document,
+options)` → `ImportResult` (`Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`). Check any plan (imported, hand-written,
+LLM) with `PlanValidator.Validate(plan, fight, actions)`.
 
 ```
 DocumentLayout ─► rows ─► MechanicResolver (alias in phase; repeated labels by time or row order)
@@ -114,7 +116,7 @@ assignee cells ─► CellParser ─► ActionResolver (per candidate job) + Hin
 | `MechanicResolver.cs` | Row label → mechanic candidates (mechanics.md §2 normalization; simplified, prefix and fuzzy fallbacks); phase ends. |
 | `HintParser.cs` | "after 1st Hit", "after &lt;mechanic&gt;", "just before P3 ends" / "as P1 dies", "if MCH", a bare mechanic name. |
 | `RowTiming.cs` | Row times matched to hits (lists, ranges, times listed in a range row's label), sheet time → timeline, hit of a press. |
-| `PlanValidator.cs` | Mechanics exist, hit indexes valid, actions exist and are usable by the entry's job(s) at the sync level, ids unique. |
+| `PlanValidator.cs` | Mechanics exist, hit indexes valid, actions exist and are usable by the entry's job(s) at the sync level, ids unique. The plugin runs it on share codes and plan files (`PlanChecks`). |
 
 Rules worth knowing:
 
