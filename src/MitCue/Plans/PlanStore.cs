@@ -57,7 +57,7 @@ internal sealed class StoredPlan
 
 /// <summary>
 /// User plans (JSON files in ConfigDirectory/plans) plus read-only bundled plans (embedded YAML),
-/// the active plan per fight and job, and the per-plan "which column is me" mapping.
+/// the active plan per fight and job, and the "which column is me" mapping per plan and job.
 /// Used from the framework thread and from Draw (both the game's main thread).
 /// </summary>
 internal sealed class PlanStore
@@ -91,6 +91,9 @@ internal sealed class PlanStore
 
     /// <summary>Config key for the active plan of a fight and job, e.g. "top/WHM".</summary>
     public static string ActiveKey(string fightKey, Job job) => $"{fightKey.ToLowerInvariant()}/{job}";
+
+    /// <summary>Config key for the column choice of a plan and job, e.g. "6f1c…/SCH".</summary>
+    public static string MappingKey(string planId, Job job) => $"{planId}/{job}";
 
     /// <summary>Loads plans on first use (framework thread).</summary>
     public void EnsureLoaded()
@@ -209,7 +212,7 @@ internal sealed class PlanStore
 
         foreach (var key in this.config.ActivePlans.Where(kv => string.Equals(kv.Value, id, StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key).ToList())
             this.config.ActivePlans.Remove(key);
-        this.config.PlayerMappings.Remove(id);
+        this.RemoveMappings(id);
         this.SaveConfig();
 
         // Reload so a bundled plan with the same id (if the user copy overrode it) comes back.
@@ -235,6 +238,12 @@ internal sealed class PlanStore
         catch (NotImplementedException ex)
         {
             message = ErrorReporter.Describe(ex);
+            return false;
+        }
+        catch (FormatException ex)
+        {
+            // PlanSerializer's messages are written for players ("not a share code", "made by a newer MitCue", "damaged").
+            message = ex.Message;
             return false;
         }
         catch (Exception ex)
@@ -317,14 +326,22 @@ internal sealed class PlanStore
         this.SaveConfig();
     }
 
-    /// <summary>The user's saved column choice for a plan, or null.</summary>
-    public PlayerMapping? SavedMapping(string planId) =>
-        this.config.PlayerMappings.TryGetValue(planId, out var m) ? m : null;
+    /// <summary>
+    /// The user's saved column choice for a plan when playing <paramref name="job"/>, or null. A choice saved by an
+    /// older version for the whole plan still counts, unless its column belongs to another job.
+    /// </summary>
+    public PlayerMapping? SavedMapping(MitPlan plan, Job job)
+    {
+        var mappings = this.config.PlayerMappings;
+        if (mappings.TryGetValue(MappingKey(plan.Id, job), out var saved))
+            return saved;
+        return mappings.TryGetValue(plan.Id, out var legacy) && Fits(plan, legacy, job) ? legacy : null;
+    }
 
-    /// <summary>The saved mapping, or the automatic suggestion (<see cref="PlayerMapping.IsSuggestion"/> = true).</summary>
+    /// <summary>The saved mapping for this job, or the automatic suggestion (<see cref="PlayerMapping.IsSuggestion"/> = true).</summary>
     public PlayerMapping MappingFor(MitPlan plan, Job job)
     {
-        if (this.SavedMapping(plan.Id) is { } saved)
+        if (this.SavedMapping(plan, job) is { } saved)
             return saved;
 
         var suggested = SuggestAssignee(plan, job, this.config.DefaultSlot);
@@ -336,13 +353,26 @@ internal sealed class PlanStore
         };
     }
 
-    /// <summary>Saves the column choice for a plan (null = back to the automatic suggestion).</summary>
-    public void SetMapping(string planId, PlayerMapping? mapping)
+    /// <summary>
+    /// Saves the column choice for a plan and job (null = back to the automatic suggestion). The other jobs keep
+    /// theirs: a whole-plan choice saved by an older version is first copied to each of the plan's jobs it fits.
+    /// </summary>
+    public void SetMapping(MitPlan plan, Job job, PlayerMapping? mapping)
     {
+        var mappings = this.config.PlayerMappings;
+        if (mappings.Remove(plan.Id, out var legacy))
+        {
+            foreach (var other in JobsOf(plan))
+            {
+                if (other != job && Fits(plan, legacy, other))
+                    mappings.TryAdd(MappingKey(plan.Id, other), Copy(legacy));
+            }
+        }
+
         if (mapping == null)
-            this.config.PlayerMappings.Remove(planId);
+            mappings.Remove(MappingKey(plan.Id, job));
         else
-            this.config.PlayerMappings[planId] = new PlayerMapping { AssigneeKey = mapping.AssigneeKey, Slot = mapping.Slot };
+            mappings[MappingKey(plan.Id, job)] = Copy(mapping);
         this.SaveConfig();
     }
 
@@ -371,6 +401,17 @@ internal sealed class PlanStore
 
         return byJob ?? bySlot;
     }
+
+    /// <summary>A mapping can be <paramref name="job"/>'s unless its column belongs to another job.</summary>
+    private static bool Fits(MitPlan plan, PlayerMapping mapping, Job job)
+    {
+        if (mapping.AssigneeKey == null)
+            return true;
+        var column = plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, mapping.AssigneeKey, StringComparison.OrdinalIgnoreCase));
+        return column?.Job is not { } columnJob || columnJob == Job.None || columnJob == job;
+    }
+
+    private static PlayerMapping Copy(PlayerMapping mapping) => new() { AssigneeKey = mapping.AssigneeKey, Slot = mapping.Slot };
 
     private static void Normalize(MitPlan plan)
     {
@@ -401,6 +442,14 @@ internal sealed class PlanStore
     {
         this.Revision++;
         this.saveConfig();
+    }
+
+    /// <summary>Forgets every column choice of a plan (all jobs, and an older whole-plan one).</summary>
+    private void RemoveMappings(string planId)
+    {
+        var prefix = planId + "/";
+        foreach (var key in this.config.PlayerMappings.Keys.Where(k => string.Equals(k, planId, StringComparison.OrdinalIgnoreCase) || k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+            this.config.PlayerMappings.Remove(key);
     }
 
     private void LoadBundled()

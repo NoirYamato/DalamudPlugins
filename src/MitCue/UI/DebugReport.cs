@@ -129,7 +129,7 @@ internal static class DebugReport
         for (var i = 0; i < session.Syncs.Count; i++)
         {
             var s = session.Syncs[i];
-            sb.Append(ci, $"  [{s.Clock,10:0.000}] {s.FromTime,8:0.0} -> {s.ToTime,8:0.0}  line {s.Entry.Line} \"{s.Entry.Name}\" {s.Entry.Sync}{(s.Started ? " (start)" : string.Empty)}{(s.IsJump ? " (jump)" : string.Empty)}").AppendLine();
+            sb.Append(ci, $"  [{s.Clock,10:0.000}] {s.FromTime,8:0.0} -> {s.ToTime,8:0.0}  line {s.Entry.Line} \"{s.Entry.Name}\" {s.Entry.Sync}{(s.Started ? " (start)" : string.Empty)}{(s.IsJump ? " (jump)" : string.Empty)}{(s.Stopped ? " (stop)" : string.Empty)}").AppendLine();
         }
 
         sb.AppendLine("reminders:");
@@ -155,6 +155,24 @@ internal static class DebugReport
             if (r.MissingResources)
                 sb.Append(" no-resource");
             sb.AppendLine();
+        }
+
+        // Plan entries the scheduler dropped (e.g. a misspelt or stale mechanic id): their calls never show.
+        var problems = session.Scheduler.Problems;
+        sb.Append(ci, $"entries not scheduled: {problems.Count}").AppendLine();
+        foreach (var problem in problems)
+            sb.Append("  ").AppendLine(problem);
+
+        // Which reminder each own action use counted for ("why didn't my press count?").
+        var uses = session.Scheduler.RecentUses;
+        sb.Append(ci, $"own uses seen by the scheduler (last {uses.Count}):").AppendLine();
+        foreach (var use in uses)
+        {
+            var action = plugin.GameData.ActionName(use.ActionId) ?? "?";
+            var matched = use.Matched is { } m
+                ? string.Create(ci, $"done: {ReminderText.ItemName(m.Item, plugin.GameData)} @ {m.Mechanic.Id} (press {m.PressAt:0.0})")
+                : "no reminder in its window";
+            sb.Append(ci, $"  t {use.Time,8:0.0}  {GameEvent.Hex(use.ActionId)} {action} -> {matched}").AppendLine();
         }
     }
 

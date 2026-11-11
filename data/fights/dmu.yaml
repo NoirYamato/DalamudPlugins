@@ -1,0 +1,721 @@
+# MitCue fight catalog (FIRST DRAFT): Dancing Mad (Ultimate). Schema: docs/DESIGN.md section 3.1.
+# Timeline: data/timelines/dancing_mad.txt = cactbot ui/raidboss/data/07-dt/ultimate/dancing_mad.txt @ e79ea7f1.
+# Every hit/entry pair and every value in hits is a timeline entry (checked). Damage events were chosen from the
+# cactbot timeline and triggers, BossMod (awgil/ffxiv_bossmod @ 6e410ef8, BossMod.Ultimate) and Action.csv; see
+# docs/research/mechanics.md. No mitigation sheet has been mapped for this fight yet, so there is no calibration.
+# kind "marker" = MechanicKind.Marker (no damage). Aliases marked "# unverified" are community shorthand that was
+# not checked against a source; the others are cactbot or BossMod names and plain-text forms.
+fight: dmu
+name: Dancing Mad (Ultimate)
+territory: 1363
+sync_level: 100
+timeline: dancing_mad.txt
+phases:
+  - { id: p1, name: "P1: Kefka", start: 0.0 }   # InCombat (pull)
+  - { id: p2, name: "P2: God Kefka", start: 297.4 }   # ActorControl 80000027 data0 05/0D, window 300,5 (Kefka <15% HP); not a v1 sync type, next v1 sync is Ability C24C @320.1 (default window)
+  - { id: p3, name: "P3: Chaos + Exdeath", start: 597.0 }   # label "p2-success": StartsUsing C3F7 @483.2 (window 485,5) jumps here; Ability C3F7 @600.0, window 600,20
+  - { id: p4, name: "P4: Kefka + Chaos + Neo Exdeath", start: 1087.7 }   # ActorControl 80000027 data0 2E, window 1088,14000; not a v1 sync type, next v1 syncs are StartsUsing/Ability C2DC @1095.0/1100.0 (default window)
+  - { id: p5, name: "P5: Kefka", start: 1355.6 }   # label "p4-success": Ability C3FD @1215.3 (window 90,5) jumps here; StartsUsing BB40 @1396.2, window 1400,0
+mechanics:
+
+  # ---- P1: Kefka ----
+  - id: p1.pull
+    name: "Pull (combat start)"
+    phase: p1
+    hit: 0.0
+    hits: [0.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "Pull"
+      - "Prepull"
+  - id: p1.revolting_ruin_1
+    # ids: C403 (1st enmity) + C4E1 (2nd enmity), 120-degree cones
+    name: "Revolting Ruin III (two tank cones)"
+    phase: p1
+    hit: 15.6
+    hits: [15.6, 18.7]
+    entry: "Revolting Ruin III 1"
+    kind: tankbuster
+    aliases:
+      - "Revolting Ruin III"
+      - "Revolting Ruin"
+      - "Revolting Ruin III 1"
+  - id: p1.flagrant_fire_1
+    # ids: BAA2 spread / BAA3 stack
+    name: "Flagrant Fire III (spreads/stacks)"
+    phase: p1
+    hit: 38.3
+    hits: [38.3]
+    entry: "Flagrant Fire III"
+    kind: mixed
+    aliases:
+      - "Flagrant Fire III"
+      - "Flagrant Fire"
+      - "Flagrant Fire III 1"
+  - id: p1.wave_cannon
+    # ids: BAA8 Wave Cannon (lasers), BAAA Explosion (towers)
+    name: "Wave Cannon lasers + tower explosions"
+    phase: p1
+    hit: 42.5
+    hits: [42.5, 46.0]
+    entry: "Wave Cannon"
+    kind: mixed
+    aliases:
+      - "Wave Cannon"
+      - "Explosion"
+  - id: p1.confetti_1
+    # ids: BAA7 Double-trouble Trap stack (range 6 circle on players, synced); BAA6 @44.6 is the visual cast (cactbot calls it "Double-trouble Trap 1")
+    # note: mitigation relevance UNVERIFIED (BossMod: 4-player stack with knockback)
+    name: "Double-trouble Trap: confetti stack 1"
+    phase: p1
+    hit: 49.7
+    hits: [49.7]
+    entry: "Double-trouble Trap 2"
+    kind: stack
+    aliases:
+      - "Double-trouble Trap"
+      - "Double-trouble Trap 2"
+      - "Confetti 1"
+      - "Confetti"
+  - id: p1.light_of_judgment_1
+    # ids: C622
+    name: "Light of Judgment (raidwide)"
+    phase: p1
+    hit: 62.7
+    hits: [62.7]
+    entry: "Light of Judgment"
+    kind: raidwide
+    aliases:
+      - "Light of Judgment"
+      - "Light of Judgment 1"
+  - id: p1.hyperdrive_1
+    # ids: C24B (unsynced)
+    name: "Hyperdrive (3-hit tankbuster)"
+    phase: p1
+    hit: 65.8
+    hits: [65.8, 67.8, 69.8]
+    entry: "Hyperdrive 1"
+    kind: tankbuster
+    aliases:
+      - "Hyperdrive"
+      - "Hyperdrive 1"
+  - id: p1.gravitas_1
+    # ids: BAAC Gravitas, BAB0 Vitrophyre
+    name: "Gravitas stacks + Vitrophyre spreads"
+    phase: p1
+    hit: 87.2
+    hits: [87.2, 91.2]
+    entry: "Gravitas"
+    kind: mixed
+    aliases:
+      - "Gravitas"
+      - "Gravitas 1"
+      - "Vitrophyre"
+  - id: p1.revolting_ruin_2
+    name: "Revolting Ruin III (two tank cones)"
+    phase: p1
+    hit: 97.1
+    hits: [97.1, 100.2]
+    entry: "Revolting Ruin III 1"
+    kind: tankbuster
+    aliases:
+      - "Revolting Ruin III"
+      - "Revolting Ruin"
+      - "Revolting Ruin III 2"
+  - id: p1.gravitas_2
+    name: "Gravitas stacks + Vitrophyre spreads"
+    phase: p1
+    hit: 105.8
+    hits: [105.8, 109.8]
+    entry: "Gravitas"
+    kind: mixed
+    aliases:
+      - "Gravitas"
+      - "Gravitas 2"
+      - "Vitrophyre"
+  - id: p1.confetti_2
+    # ids: BAA7 (synced); cactbot: "If it was passed after first set"; BossMod: there may be no confetti holder left alive at this point
+    # note: mitigation relevance UNVERIFIED
+    name: "Double-trouble Trap: confetti stack 2"
+    phase: p1
+    hit: 118.1
+    hits: [118.1]
+    entry: "Double-trouble Trap 3"
+    kind: stack
+    aliases:
+      - "Double-trouble Trap"
+      - "Double-trouble Trap 3"
+      - "Confetti 2"
+      - "Confetti"
+  - id: p1.light_of_judgment_2
+    name: "Light of Judgment (raidwide)"
+    phase: p1
+    hit: 132.4
+    hits: [132.4]
+    entry: "Light of Judgment"
+    kind: raidwide
+    aliases:
+      - "Light of Judgment"
+      - "Light of Judgment 2"
+  - id: p1.hyperdrive_2
+    name: "Hyperdrive (3-hit tankbuster)"
+    phase: p1
+    hit: 135.6
+    hits: [135.6, 137.7, 139.7]
+    entry: "Hyperdrive 1"
+    kind: tankbuster
+    aliases:
+      - "Hyperdrive"
+      - "Hyperdrive 2"
+  - id: p1.flagrant_fire_2
+    name: "Flagrant Fire III (spreads/stacks)"
+    phase: p1
+    hit: 187.1
+    hits: [187.1]
+    entry: "Flagrant Fire III"
+    kind: mixed
+    aliases:
+      - "Flagrant Fire III"
+      - "Flagrant Fire"
+      - "Flagrant Fire III 2"
+
+  # ---- P2: God Kefka ----
+  - id: p2.ultimate_embrace_1
+    # ids: C24C
+    name: "Ultimate Embrace (shared tankbuster)"
+    phase: p2
+    hit: 320.1
+    hits: [320.1]
+    entry: "Ultimate Embrace"
+    kind: tankbuster
+    aliases:
+      - "Ultimate Embrace"
+      - "Ultimate Embrace 1"
+  - id: p2.forsaken
+    # ids: BABC
+    name: "Forsaken (raidwide)"
+    phase: p2
+    hit: 335.3
+    hits: [335.3]
+    entry: "Forsaken"
+    kind: raidwide
+    aliases:
+      - "Forsaken"
+  - id: p2.path_of_light_1
+    # ids: BABE towers, BAC0/BAC1/BAC2 Spelldriver/Spellscatter/Spellwave (synced); BAD2/BAD3 Future's/Past's End cast end, whose boss/clone hits BAD6-BAD9 (-ii line) land about 0.5 s later (BossMod "Clones")
+    name: "Forsaken set 1: towers + spells + Future's/Past's End"
+    phase: p2
+    hit: 348.5
+    hits: [348.5, 349.1, 357.8, 358.4, 359.1]
+    entry: "The Path of Light 1"
+    kind: multihit
+    aliases:
+      - "The Path of Light 1"
+      - "Path of Light 1"
+      - "Set 1"   # unverified
+  - id: p2.path_of_light_2
+    name: "Forsaken set 2"
+    phase: p2
+    hit: 369.4
+    hits: [369.4, 370.0, 378.7, 379.4, 380.1]
+    entry: "The Path of Light 3"
+    kind: multihit
+    aliases:
+      - "The Path of Light 3"
+      - "Path of Light 2"
+      - "Set 2"   # unverified
+  - id: p2.path_of_light_3
+    name: "Forsaken set 3"
+    phase: p2
+    hit: 390.5
+    hits: [390.5, 391.2, 400.0, 400.5, 401.1]
+    entry: "The Path of Light 5"
+    kind: multihit
+    aliases:
+      - "The Path of Light 5"
+      - "Path of Light 3"
+      - "Set 3"   # unverified
+  - id: p2.path_of_light_4
+    name: "Forsaken set 4"
+    phase: p2
+    hit: 411.4
+    hits: [411.4, 412.0, 420.7, 421.4, 422.0]
+    entry: "The Path of Light 7"
+    kind: multihit
+    aliases:
+      - "The Path of Light 7"
+      - "Path of Light 4"
+      - "Set 4"   # unverified
+  - id: p2.light_of_judgment
+    # ids: BABD
+    name: "Light of Judgment (raidwide)"
+    phase: p2
+    hit: 441.1
+    hits: [441.1]
+    entry: "Light of Judgment"
+    kind: raidwide
+    aliases:
+      - "Light of Judgment"
+  - id: p2.wings_of_destruction
+    # ids: C487 cast end; hits BACF (ignored by cactbot). The earlier "Wings of Destruction" @459.4 is the left/right cleave
+    name: "Wings of Destruction (tankbusters on nearest/furthest)"
+    phase: p2
+    hit: 469.5
+    hits: [469.5]
+    entry: "Wings of Destruction"
+    kind: tankbuster
+    aliases:
+      - "Wings of Destruction"
+  - id: p2.ultimate_embrace_2
+    name: "Ultimate Embrace (shared tankbuster)"
+    phase: p2
+    hit: 476.7
+    hits: [476.7]
+    entry: "Ultimate Embrace"
+    kind: tankbuster
+    aliases:
+      - "Ultimate Embrace"
+      - "Ultimate Embrace 2"
+
+  # ---- P3: Chaos + Exdeath ----
+  - id: p3.aero_iii_assault
+    # ids: C3F7 (3 s cast, CastType 2, EffectRange 40)
+    # note: damage UNVERIFIED: BossMod models it only as a knockback (15) and gives no Raidwide hint
+    name: "Aero III Assault (knockback)"
+    phase: p3
+    hit: 600.0
+    hits: [600.0]
+    entry: "Aero III Assault"
+    kind: raidwide
+    aliases:
+      - "Aero III Assault"
+  - id: p3.bowels_of_agony
+    # ids: BAF2
+    name: "Bowels of Agony (raidwide)"
+    phase: p3
+    hit: 662.9
+    hits: [662.9]
+    entry: "Bowels of Agony"
+    kind: raidwide
+    aliases:
+      - "Bowels of Agony"
+  - id: p3.elements_1
+    name: "Elements 1: Stray Flames/Spray, Inferno/Tsunami, Cyclone"
+    phase: p3
+    hit: 682.0
+    hits: [682.0, 683.0, 684.7]
+    entry: "Stray Flames/Stray Spray"
+    kind: mixed
+    aliases:
+      - "Stray Flames/Stray Spray"
+      - "Inferno/Tsunami"
+      - "Cyclone"
+      - "Elements 1"   # unverified
+  - id: p3.thunder_buster_1
+    # ids: BB09 cast @691.2 (sync), hits BB0C (unsynced)
+    name: "Thunder III (2-hit tankbuster)"
+    phase: p3
+    hit: 691.3
+    hits: [691.3, 694.3]
+    entry: "Thunder III 1"
+    kind: tankbuster
+    aliases:
+      - "Thunder III"
+      - "Thunder III 1"
+  - id: p3.elements_2
+    name: "Elements 2: Stray Spray/Flames, Tsunami/Inferno, Cyclone"
+    phase: p3
+    hit: 709.0
+    hits: [709.0, 710.0, 711.7]
+    entry: "Stray Spray/Stray Flames"
+    kind: mixed
+    aliases:
+      - "Stray Spray/Stray Flames"
+      - "Tsunami/Inferno"
+      - "Cyclone"
+      - "Elements 2"   # unverified
+  - id: p3.ultima_blaster
+    # ids: BAE3 raidwides (unsynced), BB00 Umbra Smash, BB13 Vacuum Wave; the later BAE4 "Ultima Blaster" lines @742.2-743.6 are dodges
+    name: "Ultima Blaster x8 raidwides + Umbra Smash + Vacuum Wave"
+    phase: p3
+    hit: 720.1
+    hits: [720.1, 722.1, 724.1, 724.2, 726.1, 727.4, 728.2, 730.2, 732.2, 734.2]
+    entry: "Ultima Blaster 1"
+    kind: multihit
+    aliases:
+      - "Ultima Blaster"
+  - id: p3.thunder_buster_2
+    name: "Thunder III (2-hit tankbuster)"
+    phase: p3
+    hit: 749.7
+    hits: [749.7, 752.7]
+    entry: "Thunder III 1"
+    kind: tankbuster
+    aliases:
+      - "Thunder III"
+      - "Thunder III 2"
+  - id: p3.thunder_buster_3
+    name: "Thunder III (2-hit tankbuster)"
+    phase: p3
+    hit: 766.9
+    hits: [766.9, 769.9]
+    entry: "Thunder III 1"
+    kind: tankbuster
+    aliases:
+      - "Thunder III"
+      - "Thunder III 3"
+  - id: p3.earthquake
+    # ids: C571 cast end; raidwide C572 (range 100 in Action.csv; cactbot lists C572 as VFX)
+    name: "Earthquake (raidwide + debuffs)"
+    phase: p3
+    hit: 772.0
+    hits: [772.0]
+    entry: "Earthquake"
+    kind: raidwide
+    aliases:
+      - "Earthquake"
+  - id: p3.crust_quakes
+    # ids: BAFA Earthquake (no cast, CastType 2, EffectRange 100; on the -ii line); all entries are unsynced cactbot estimates, most marked "?"
+    # note: UNVERIFIED: cactbot says BAFA is cast when Accretion or Primordial Crust is cleansed ("Determined by healing player to full"), so the times depend on the players; damage per quake not checked
+    name: "Earthquakes when Accretion / Primordial Crust are cleansed (player-timed)"
+    phase: p3
+    hit: 777.1
+    hits: [777.1, 781.2, 806.9, 830.3, 835.8, 840.5, 864.6, 869.7, 874.8, 898.2, 905.4]
+    entry: "Accretion Earthquake 1?"
+    kind: multihit
+    aliases:
+      - "Accretion Earthquake"
+      - "Primordial Crust Quake"
+      - "Quakes"   # unverified
+  - id: p3.slap_happy_1
+    # ids: BAEA party cleave / BAEB role cleaves (unsynced)
+    name: "Slap Happy: Shocking Impact/Shockwave (party or role cleave stacks)"
+    phase: p3
+    hit: 790.8
+    hits: [790.8]
+    entry: "Shocking Impact/Shockwave"
+    kind: stack
+    aliases:
+      - "Slap Happy"
+      - "Slap Happy 1"
+      - "Shocking Impact/Shockwave"
+  - id: p3.thunder_buster_4
+    name: "Thunder III (2-hit tankbuster)"
+    phase: p3
+    hit: 808.5
+    hits: [808.5, 811.5]
+    entry: "Thunder III 1"
+    kind: tankbuster
+    aliases:
+      - "Thunder III"
+      - "Thunder III 4"
+  - id: p3.slap_happy_2
+    name: "Slap Happy: Shocking Impact/Shockwave"
+    phase: p3
+    hit: 821.2
+    hits: [821.2]
+    entry: "Shocking Impact/Shockwave"
+    kind: stack
+    aliases:
+      - "Slap Happy"
+      - "Slap Happy 2"
+      - "Shocking Impact/Shockwave"
+  - id: p3.thunder_buster_5
+    name: "Thunder III (2-hit tankbuster)"
+    phase: p3
+    hit: 849.8
+    hits: [849.8, 852.8]
+    entry: "Thunder III 1"
+    kind: tankbuster
+    aliases:
+      - "Thunder III"
+      - "Thunder III 5"
+  - id: p3.slap_happy_3
+    name: "Slap Happy: Shocking Impact/Shockwave"
+    phase: p3
+    hit: 889.2
+    hits: [889.2]
+    entry: "Shocking Impact/Shockwave"
+    kind: stack
+    aliases:
+      - "Slap Happy"
+      - "Slap Happy 3"
+      - "Shocking Impact/Shockwave"
+  - id: p3.knock_down
+    # ids: BB03
+    name: "Knock Down stacks x2 (Stomp-a-Mole)"
+    phase: p3
+    hit: 918.3
+    hits: [918.3, 923.8]
+    entry: "Knock Down 1"
+    kind: stack
+    aliases:
+      - "Knock Down"
+      - "Stomp-a-Mole"   # unverified
+  - id: p3.deep_freeze
+    # note: UNVERIFIED damage: BB11 is a 4 s, range-100 cast (Action.csv); BossMod labels it "Deep freeze" without a raidwide hint
+    name: "Blizzard III (Deep Freeze)"
+    phase: p3
+    hit: 927.0
+    hits: [927.0]
+    entry: "Blizzard III"
+    kind: other
+    aliases:
+      - "Deep Freeze"
+      - "Blizzard III"
+
+  # ---- P4: Kefka + Chaos + Neo Exdeath ----
+  - id: p4.grand_cross_1
+    # ids: BB14
+    name: "Grand Cross (raidwide)"
+    phase: p4
+    hit: 1113.9
+    hits: [1113.9]
+    entry: "Grand Cross"
+    kind: raidwide
+    aliases:
+      - "Grand Cross"
+      - "Grand Cross 1"
+  - id: p4.inferno_tsunami_1
+    # ids: BB20/BB21
+    name: "Inferno/Tsunami (raidwide)"
+    phase: p4
+    hit: 1118.9
+    hits: [1118.9]
+    entry: "Inferno/Tsunami"
+    kind: raidwide
+    aliases:
+      - "Inferno/Tsunami"
+      - "Inferno"
+      - "Tsunami"
+      - "Fire/Water 1"   # unverified
+  - id: p4.grand_cross_2
+    name: "Grand Cross (raidwide)"
+    phase: p4
+    hit: 1128.7
+    hits: [1128.7]
+    entry: "Grand Cross"
+    kind: raidwide
+    aliases:
+      - "Grand Cross"
+      - "Grand Cross 2"
+  - id: p4.inferno_tsunami_2
+    name: "Tsunami/Inferno (raidwide)"
+    phase: p4
+    hit: 1133.7
+    hits: [1133.7]
+    entry: "Tsunami/Inferno"
+    kind: raidwide
+    aliases:
+      - "Tsunami/Inferno"
+      - "Inferno"
+      - "Tsunami"
+      - "Fire/Water 2"   # unverified
+  - id: p4.grand_cross_3
+    name: "Grand Cross (raidwide)"
+    phase: p4
+    hit: 1143.6
+    hits: [1143.6]
+    entry: "Grand Cross"
+    kind: raidwide
+    aliases:
+      - "Grand Cross"
+      - "Grand Cross 3"
+  - id: p4.death_surge
+    # note: UNVERIFIED as a party-wide hit: BB1C/BB1D are range-100 debuff explosions (Action.csv / cactbot notes)
+    name: "Death Surge"
+    phase: p4
+    hit: 1159.9
+    hits: [1159.9]
+    entry: "Death Surge"
+    kind: raidwide
+    aliases:
+      - "Death Surge"
+  - id: p4.death_debuffs_1
+    # ids: BB18/BB19 Death Bolt, BB1A/BB1B Death Wave (unsynced here)
+    name: "Death Bolt/Death Wave 1 (stack/spread)"
+    phase: p4
+    hit: 1164.5
+    hits: [1164.5]
+    entry: "Death Wave"
+    kind: mixed
+    aliases:
+      - "Death Bolt"
+      - "Death Wave"
+      - "Stack/Spread 1"   # unverified
+  - id: p4.ultima_upsurge_1
+    # ids: C24A
+    name: "Ultima Upsurge (raidwide)"
+    phase: p4
+    hit: 1182.5
+    hits: [1182.5]
+    entry: "Ultima Upsurge"
+    kind: raidwide
+    aliases:
+      - "Ultima Upsurge"
+      - "Ultima Upsurge 1"
+  - id: p4.death_debuffs_2
+    name: "Death Wave/Death Bolt 2 (stack/spread)"
+    phase: p4
+    hit: 1189.4
+    hits: [1189.4]
+    entry: "Death Wave"
+    kind: mixed
+    aliases:
+      - "Death Wave"
+      - "Death Bolt"
+      - "Stack/Spread 2"   # unverified
+
+  # ---- P5: Kefka ----
+  - id: p5.ultima_upsurge
+    # note: BossMod treats this as the last P4 cast ("Raidwide + boss disappears")
+    name: "Ultima Upsurge (transition raidwide)"
+    phase: p5
+    hit: 1362.0
+    hits: [1362.0]
+    entry: "Ultima Upsurge"
+    kind: raidwide
+    aliases:
+      - "Ultima Upsurge"
+      - "Ultima Upsurge 2"
+  - id: p5.ultima_repeater_1
+    # ids: BB40 cast, BB41 hits (unsynced)
+    name: "Ultima Repeater x4 (raidwides)"
+    phase: p5
+    hit: 1401.3
+    hits: [1401.3, 1402.1, 1402.8, 1403.6]
+    entry: "Ultima Repeater 1"
+    kind: multihit
+    aliases:
+      - "Ultima Repeater"
+      - "Ultima Repeater 1"
+  - id: p5.fell_forces_1
+    # ids: C653 tank / C654 healer / C655 DPS
+    name: "Fell Forces x3 (shared hits on a tank, a healer and a DPS)"
+    phase: p5
+    hit: 1406.2
+    hits: [1406.2, 1409.4, 1412.5]
+    entry: "Fell Forces 1"
+    kind: multihit
+    aliases:
+      - "Fell Forces"
+      - "Fell Forces 1"
+  - id: p5.flood
+    # ids: C13F cast @1417.8; BB4F stacks (unsynced, duration 2.9)
+    name: "Flood: Chaotic Flood stacks x4"
+    phase: p5
+    hit: 1419.0
+    hits: [1419.0]
+    entry: "Chaotic Flood x4"
+    kind: stack
+    aliases:
+      - "Flood"
+      - "Chaotic Flood"
+  - id: p5.maddening_orchestra_1
+    # ids: BB54 Holy, BB52 Flare, BB53 Chaotic Flare (stack buster), BB56 Chaotic Holy, BB55 Flare Diffusion
+    name: "Maddening Orchestra: Holy/Flare spreads, Chaotic Flare, Chaotic Holy"
+    phase: p5
+    hit: 1431.9
+    hits: [1431.9, 1435.1, 1438.6]
+    entry: "Holy"
+    kind: mixed
+    aliases:
+      - "Maddening Orchestra"
+      - "Maddening Orchestra 1"
+  - id: p5.fell_forces_2
+    name: "Fell Forces x2"
+    phase: p5
+    hit: 1443.2
+    hits: [1443.2, 1446.3]
+    entry: "Fell Forces 1"
+    kind: multihit
+    aliases:
+      - "Fell Forces"
+      - "Fell Forces 2"
+  - id: p5.celestriad
+    # ids: BB42 cast @1452.7; towers BB43/BB44/BB45; Quake/Tornado BB4A/BB4B are dodges
+    name: "Celestriad: elemental towers x3 + Quake/Tornado"
+    phase: p5
+    hit: 1461.8
+    hits: [1461.8, 1467.8, 1473.8]
+    entry: "Fire III/Blizzard III/Thunder III"
+    kind: mixed
+    aliases:
+      - "Celestriad"
+  - id: p5.ultima_repeater_2
+    name: "Ultima Repeater x4 (raidwides)"
+    phase: p5
+    hit: 1483.2
+    hits: [1483.2, 1484.0, 1484.7, 1485.5]
+    entry: "Ultima Repeater 1"
+    kind: multihit
+    aliases:
+      - "Ultima Repeater"
+      - "Ultima Repeater 2"
+  - id: p5.fell_forces_3
+    name: "Fell Forces x2"
+    phase: p5
+    hit: 1488.1
+    hits: [1488.1, 1491.3]
+    entry: "Fell Forces 1"
+    kind: multihit
+    aliases:
+      - "Fell Forces"
+      - "Fell Forces 3"
+  - id: p5.stray_entropy
+    # ids: BB3F; Stray Apocalypse exaflares BB3D are dodges
+    name: "Stray Apocalypse -> Stray Entropy spreads"
+    phase: p5
+    hit: 1514.7
+    hits: [1514.7]
+    entry: "Stray Entropy"
+    kind: spread
+    aliases:
+      - "Stray Entropy"
+      - "Stray Apocalypse"
+  - id: p5.maddening_orchestra_2
+    name: "Maddening Orchestra 2"
+    phase: p5
+    hit: 1523.9
+    hits: [1523.9, 1527.1, 1530.6]
+    entry: "Holy"
+    kind: mixed
+    aliases:
+      - "Maddening Orchestra"
+      - "Maddening Orchestra 2"
+  - id: p5.fell_forces_4
+    name: "Fell Forces x3"
+    phase: p5
+    hit: 1535.2
+    hits: [1535.2, 1538.3, 1541.4]
+    entry: "Fell Forces 1"
+    kind: multihit
+    aliases:
+      - "Fell Forces"
+      - "Fell Forces 4"
+  - id: p5.forsaken
+    # ids: BB35/BB36 raidwides, BB39 Forsaken Bonds stacks
+    name: "Forsaken x4 raidwides + Forsaken Bonds stacks"
+    phase: p5
+    hit: 1552.7
+    hits: [1552.7, 1558.7, 1560.9, 1565.9, 1569.0, 1574.0, 1577.2, 1582.2]
+    entry: "Forsaken 1"
+    kind: multihit
+    aliases:
+      - "Forsaken"
+      - "P5 Forsaken"
+  - id: p5.forsaken_null
+    # ids: BB3A
+    name: "Forsaken Null (enrage)"
+    phase: p5
+    hit: 1613.4
+    hits: [1613.4]
+    entry: "Forsaken Null (Enrage)"
+    kind: enrage
+    aliases:
+      - "Forsaken Null"
+      - "Enrage"
+
+# calibration: no known sheet yet
+calibration: {}

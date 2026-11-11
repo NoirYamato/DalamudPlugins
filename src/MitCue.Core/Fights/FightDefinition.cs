@@ -106,7 +106,7 @@ public sealed class FightLibrary
         this.data = data;
         this.Fights = data.List("fights")
             .Where(p => p.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
-            .Select(p => FightLoader.Load(data.ReadText(p)))
+            .Select(p => FightLoader.Load(data.ReadText(p), p))
             .ToList();
     }
 
@@ -126,11 +126,4 @@ public sealed class FightLibrary
         }
         return t;
     }
-}
-
-/// <summary>Reads the fight YAML schema documented in docs/DESIGN.md §3.1.</summary>
-public static class FightLoader
-{
-    /// <summary>Parses one fight YAML document. Throws <see cref="FormatException"/> with a helpful message on invalid data.</summary>
-    public static FightDefinition Load(string yaml) => throw new NotImplementedException();
 }

@@ -1,0 +1,705 @@
+# MitCue fight catalog (FIRST DRAFT): The Epic of Alexander (Ultimate). Schema: docs/DESIGN.md section 3.1.
+# Timeline: data/timelines/the_epic_of_alexander.txt = cactbot ui/raidboss/data/05-shb/ultimate/the_epic_of_alexander.txt @ e79ea7f1.
+# Every hit/entry pair and every value in hits is a timeline entry (checked). Damage events were chosen from the
+# cactbot timeline and triggers, BossMod (awgil/ffxiv_bossmod @ 6e410ef8, BossMod.Ultimate) and Action.csv; see
+# docs/research/mechanics.md. No mitigation sheet has been mapped for this fight yet, so there is no calibration.
+# kind "marker" = MechanicKind.Marker (no damage). Aliases marked "# unverified" are community shorthand that was
+# not checked against a source; the others are cactbot or BossMod names and plain-text forms.
+fight: tea
+name: The Epic of Alexander (Ultimate)
+territory: 887
+sync_level: 80
+timeline: the_epic_of_alexander.txt
+phases:
+  - { id: p1, name: "P1: Living Liquid", start: 0.0 }   # InCombat (pull)
+  - { id: p2, name: "P2: Cruise Chaser + Brute Justice (Limit Cut transition first)", start: 200.0 }   # Ability 4830 Hawk Blaster, window 200,0 (preceded by RemovedCombatant "Liquid Hand" @196.0, not a v1 sync type)
+  - { id: p3, name: "P3: Alexander Prime (Temporal Stasis, Inception, Wormhole, DPS check)", start: 492.0 }   # StartsUsing 485A Temporal Stasis, window 500,0
+  - { id: p4, name: "P4: Perfect Alexander", start: 900.0 }   # Ability 4A8B (Perfect Alexander auto-attack), window 900,0
+mechanics:
+
+  # ---- P1: Living Liquid ----
+  - id: p1.pull
+    name: "Pull (combat start)"
+    phase: p1
+    hit: 0.0
+    hits: [0.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "Pull"
+      - "Prepull"
+  - id: p1.fluid_swing_1
+    # ids: 49B0
+    name: "Fluid Swing (tank cleave)"
+    phase: p1
+    hit: 11.4
+    hits: [11.4]
+    entry: "Fluid Swing"
+    kind: tankbuster
+    aliases:
+      - "Fluid Swing"
+      - "Fluid Swing 1"
+  - id: p1.cascade_1
+    # ids: 4826
+    name: "Cascade (raidwide)"
+    phase: p1
+    hit: 19.5
+    hits: [19.5]
+    entry: "Cascade"
+    kind: raidwide
+    aliases:
+      - "Cascade"
+      - "Cascade 1"
+  - id: p1.hand_1
+    # ids: 482B/482C (damage depends on distance to the boss)
+    name: "Hand of Parting/Prayer (raidwide)"
+    phase: p1
+    hit: 35.8
+    hits: [35.8]
+    entry: "Hand of Prayer/Parting"
+    kind: raidwide
+    aliases:
+      - "Hand of Prayer/Parting"
+      - "Hand of Parting/Prayer"
+      - "Hand of Prayer"
+      - "Hand of Parting"
+  - id: p1.fluid_swing_2
+    # ids: 49B0 + 49B7
+    name: "Fluid Swing + Fluid Strike (both tanks)"
+    phase: p1
+    hit: 37.7
+    hits: [37.7]
+    entry: "Fluid Swing"
+    kind: tankbuster
+    aliases:
+      - "Fluid Swing"
+      - "Fluid Strike"
+      - "Fluid Swing 2"
+      - "Cleaves"   # unverified
+  - id: p1.hand_of_pain_1
+    # ids: 482D
+    name: "Hand of Pain 1 (raidwide, HP check)"
+    phase: p1
+    hit: 42.8
+    hits: [42.8]
+    entry: "Hand of Pain"
+    kind: raidwide
+    aliases:
+      - "Hand of Pain"
+      - "Hand of Pain 1"
+  - id: p1.fluid_swing_3
+    name: "Fluid Swing + Fluid Strike (both tanks)"
+    phase: p1
+    hit: 56.7
+    hits: [56.7]
+    entry: "Fluid Swing"
+    kind: tankbuster
+    aliases:
+      - "Fluid Swing"
+      - "Fluid Strike"
+      - "Fluid Swing 3"
+  - id: p1.hand_of_pain_2
+    name: "Hand of Pain 2"
+    phase: p1
+    hit: 70.0
+    hits: [70.0]
+    entry: "Hand of Pain"
+    kind: raidwide
+    aliases:
+      - "Hand of Pain"
+      - "Hand of Pain 2"
+  - id: p1.splash_1
+    # note: 6 hits ~1.1 s apart over 5.6 s (cactbot "duration 5.6"; sub-hits are not timeline entries)
+    name: "Splash x6 (raidwide multi-hit)"
+    phase: p1
+    hit: 81.1
+    hits: [81.1]
+    entry: "Splash x6"
+    kind: multihit
+    aliases:
+      - "Splash"
+      - "Splash x6"
+      - "Splash 1"
+  - id: p1.drainage
+    # ids: 4827
+    name: "Drainage (tethered tankbusters)"
+    phase: p1
+    hit: 86.6
+    hits: [86.6]
+    entry: "Drainage"
+    kind: tankbuster
+    aliases:
+      - "Drainage"
+  - id: p1.hand_of_pain_3
+    name: "Hand of Pain 3"
+    phase: p1
+    hit: 89.1
+    hits: [89.1]
+    entry: "Hand of Pain"
+    kind: raidwide
+    aliases:
+      - "Hand of Pain"
+      - "Hand of Pain 3"
+  - id: p1.cascade_2
+    name: "Cascade (raidwide)"
+    phase: p1
+    hit: 91.7
+    hits: [91.7]
+    entry: "Cascade"
+    kind: raidwide
+    aliases:
+      - "Cascade"
+      - "Cascade 2"
+  - id: p1.hand_of_pain_4
+    name: "Hand of Pain 4"
+    phase: p1
+    hit: 109.0
+    hits: [109.0]
+    entry: "Hand of Pain"
+    kind: raidwide
+    aliases:
+      - "Hand of Pain"
+      - "Hand of Pain 4"
+  - id: p1.hand_2
+    name: "Hand of Parting/Prayer (raidwide)"
+    phase: p1
+    hit: 124.2
+    hits: [124.2]
+    entry: "Hand of Prayer/Parting"
+    kind: raidwide
+    aliases:
+      - "Hand of Prayer/Parting"
+      - "Hand of Parting/Prayer"
+      - "Hand of Prayer"
+      - "Hand of Parting"
+  - id: p1.splash_2
+    # note: cactbot says x6; BossMod counts 4 hits here (UNVERIFIED)
+    name: "Splash (raidwide multi-hit)"
+    phase: p1
+    hit: 127.4
+    hits: [127.4]
+    entry: "Splash x6"
+    kind: multihit
+    aliases:
+      - "Splash"
+      - "Splash x6"
+      - "Splash 2"
+  - id: p1.hand_of_pain_5
+    name: "Hand of Pain 5"
+    phase: p1
+    hit: 129.3
+    hits: [129.3]
+    entry: "Hand of Pain"
+    kind: raidwide
+    aliases:
+      - "Hand of Pain"
+      - "Hand of Pain 5"
+  - id: p1.fluid_swing_4
+    name: "Fluid Swing (tank cleave)"
+    phase: p1
+    hit: 134.1
+    hits: [134.1]
+    entry: "Fluid Swing"
+    kind: tankbuster
+    aliases:
+      - "Fluid Swing"
+      - "Fluid Swing 4"
+  - id: p1.cascade_enrage
+    # ids: 49B3
+    name: "Cascade (P1 enrage)"
+    phase: p1
+    hit: 142.1
+    hits: [142.1]
+    entry: "Cascade Enrage"
+    kind: enrage
+    aliases:
+      - "Cascade Enrage"
+      - "P1 Enrage"
+
+  # ---- P2: Cruise Chaser + Brute Justice (Limit Cut transition first) ----
+  - id: p2.limit_cut
+    # ids: 4834 Alpha Sword, 4B4F Super Blassty Charge (Hawk Blaster puddles 4830 are dodges)
+    name: "Limit Cut: Alpha Sword / Super Blassty Charge #1-#8"
+    phase: p2
+    hit: 207.4
+    hits: [207.4, 208.9, 212.1, 213.6, 216.8, 218.3, 221.4, 222.9]
+    entry: "#1 Alpha Sword"
+    kind: multihit
+    aliases:
+      - "Limit Cut"
+      - "LC"   # unverified
+  - id: p2.j_kick
+    # ids: 4854
+    name: "J Kick (raidwide)"
+    phase: p2
+    hit: 226.1
+    hits: [226.1]
+    entry: "J Kick"
+    kind: raidwide
+    aliases:
+      - "J Kick"
+  - id: p2.whirlwind_1
+    # ids: 49C2
+    name: "Whirlwind (raidwide)"
+    phase: p2
+    hit: 238.3
+    hits: [238.3]
+    entry: "Whirlwind"
+    kind: raidwide
+    aliases:
+      - "Whirlwind"
+      - "Whirlwind 1"
+  - id: p2.photon_1
+    # ids: 4836 Photon (3 s cast, visual) then 4837 PhotonAOE sets every player to 1 HP (BossMod), so mitigation does not matter; heal after
+    name: "Photon (everyone to 1 HP)"
+    phase: p2
+    hit: 262.5
+    hits: [262.5]
+    entry: "Photon"
+    kind: raidwide
+    aliases:
+      - "Photon"
+      - "Photon 1"
+  - id: p2.water_thunder_1
+    # ids: 4841 Crashing Thunder (2-person lightning stack, synced) + 4840 Crashing Wave (3+ person water stack) at the same time (BossMod)
+    name: "Water and Thunder 1 (compressed water/lightning stacks)"
+    phase: p2
+    hit: 277.3
+    hits: [277.3]
+    entry: "Water and Thunder"
+    kind: stack
+    aliases:
+      - "Water and Thunder"
+      - "Water and Thunder 1"
+      - "Water/Lightning 1"   # unverified
+  - id: p2.water_thunder_2
+    name: "Water and Thunder 2"
+    phase: p2
+    hit: 306.7
+    hits: [306.7]
+    entry: "Water and Thunder"
+    kind: stack
+    aliases:
+      - "Water and Thunder"
+      - "Water and Thunder 2"
+      - "Water/Lightning 2"   # unverified
+  - id: p2.whirlwind_2
+    name: "Whirlwind (raidwide)"
+    phase: p2
+    hit: 327.6
+    hits: [327.6]
+    entry: "Whirlwind"
+    kind: raidwide
+    aliases:
+      - "Whirlwind"
+      - "Whirlwind 2"
+  - id: p2.water_thunder_3
+    name: "Water and Thunder 3"
+    phase: p2
+    hit: 336.2
+    hits: [336.2]
+    entry: "Water and Thunder"
+    kind: stack
+    aliases:
+      - "Water and Thunder"
+      - "Water and Thunder 3"
+      - "Water/Lightning 3"   # unverified
+  - id: p2.gavel
+    # note: UNVERIFIED as a raidwide: BossMod enum "??? raidwide, nisi resolve" (no Raidwide hint in its states); Action.csv 483C: 5 s cast, EffectRange 80
+    name: "Gavel (Nisi resolution)"
+    phase: p2
+    hit: 356.5
+    hits: [356.5]
+    entry: "Gavel"
+    kind: raidwide
+    aliases:
+      - "Gavel"
+  - id: p2.photon_2
+    name: "Photon (everyone to 1 HP)"
+    phase: p2
+    hit: 366.8
+    hits: [366.8]
+    entry: "Photon"
+    kind: raidwide
+    aliases:
+      - "Photon"
+      - "Photon 2"
+  - id: p2.double_rocket_punch
+    # ids: 4847
+    name: "Double Rocket Punch (shared tankbuster)"
+    phase: p2
+    hit: 374.8
+    hits: [374.8]
+    entry: "Double Rocket Punch"
+    kind: tankbuster
+    aliases:
+      - "Double Rocket Punch"
+      - "DRP"   # unverified
+  - id: p2.super_jump
+    # note: who takes the jump/ray is UNVERIFIED (BossMod: jump baited on the farthest player)
+    name: "Super Jump + Apocalyptic Ray"
+    phase: p2
+    hit: 382.1
+    hits: [382.1, 384.4]
+    entry: "Super Jump"
+    kind: other
+    aliases:
+      - "Super Jump"
+      - "Apocalyptic Ray"
+  - id: p2.whirlwind_3
+    name: "Whirlwind (raidwide)"
+    phase: p2
+    hit: 395.0
+    hits: [395.0]
+    entry: "Whirlwind"
+    kind: raidwide
+    aliases:
+      - "Whirlwind"
+      - "Whirlwind 3"
+  - id: p2.whirlwind_4
+    name: "Whirlwind (raidwide)"
+    phase: p2
+    hit: 403.1
+    hits: [403.1]
+    entry: "Whirlwind"
+    kind: raidwide
+    aliases:
+      - "Whirlwind"
+      - "Whirlwind 4"
+  - id: p2.final_sentence
+    # ids: 4856
+    name: "Final Sentence (Brute Justice enrage)"
+    phase: p2
+    hit: 413.7
+    hits: [413.7]
+    entry: "Final Sentence"
+    kind: enrage
+    aliases:
+      - "Final Sentence"
+  - id: p2.eternal_darkness
+    # ids: 483A
+    name: "Eternal Darkness (Cruise Chaser enrage)"
+    phase: p2
+    hit: 423.7
+    hits: [423.7]
+    entry: "Eternal Darkness Enrage"
+    kind: enrage
+    aliases:
+      - "Eternal Darkness"
+      - "P2 Enrage"
+
+  # ---- P3: Alexander Prime (Temporal Stasis, Inception, Wormhole, DPS check) ----
+  - id: p3.temporal_stasis
+    # ids: 485A cast end @500.0; 4861 Plaint of Severity, Alpha Sword 486B, Flarethrower 486C (all but 4861 unsynced)
+    name: "Temporal Stasis resolution (Severity/Solidarity/Surety + baited cleaves)"
+    phase: p3
+    hit: 503.1
+    hits: [503.1, 505.1, 505.2, 506.1, 507.2, 507.4]
+    entry: "Surety and Severity"
+    kind: mixed
+    aliases:
+      - "Temporal Stasis"
+      - "TS"   # unverified
+  - id: p3.chastening_heat_1
+    # ids: 4A80
+    name: "Chastening Heat (tankbuster + vuln)"
+    phase: p3
+    hit: 521.5
+    hits: [521.5]
+    entry: "Chastening Heat"
+    kind: tankbuster
+    aliases:
+      - "Chastening Heat"
+      - "Chastening Heat 1"
+  - id: p3.divine_spear_1
+    # ids: 4A82 (unsynced)
+    name: "Divine Spear x3 (tank cones)"
+    phase: p3
+    hit: 524.6
+    hits: [524.6, 526.7, 528.8]
+    entry: "Divine Spear 1"
+    kind: tankbuster
+    aliases:
+      - "Divine Spear"
+      - "Divine Spear 1"
+  - id: p3.inception
+    # ids: 4861 Plaint of Severity (synced; BossMod: aggravated assault damage + vulns) with the shared sentence; Alpha Swords 486B (unsynced) and Super Jump 484A; the Sacrament cross 485F @589.4 is a dodge
+    name: "Inception resolution (aggravated assault, shared sentence, Alpha Swords, Super Jump)"
+    phase: p3
+    hit: 589.1
+    hits: [589.1, 595.3, 596.4, 597.5, 598.3]
+    entry: "Surety, Solidarity and Severity"
+    kind: mixed
+    aliases:
+      - "Inception"
+      - "Inception Formation"
+  - id: p3.chastening_heat_2
+    name: "Chastening Heat (tankbuster + vuln)"
+    phase: p3
+    hit: 610.9
+    hits: [610.9]
+    entry: "Chastening Heat"
+    kind: tankbuster
+    aliases:
+      - "Chastening Heat"
+      - "Chastening Heat 2"
+  - id: p3.divine_spear_2
+    name: "Divine Spear x3 (tank cones)"
+    phase: p3
+    hit: 616.0
+    hits: [616.0, 618.1, 620.2]
+    entry: "Divine Spear 1"
+    kind: tankbuster
+    aliases:
+      - "Divine Spear"
+      - "Divine Spear 2"
+  - id: p3.wormhole
+    # ids: Super Jump 484A, #1-#8 Alpha Sword 4834 / Super Blassty Charge 49C3, Apocalyptic Ray, Repentance 1-3 soaks 4869/4868/4867; the Sacrament cross 4857 @657.9 is a dodge
+    name: "Wormhole resolution (Limit Cut #1-#8, Super Jump, Apocalyptic Ray, Repentance soaks)"
+    phase: p3
+    hit: 650.9
+    hits: [650.9, 652.4, 653.3, 655.2, 655.6, 656.7, 659.5, 659.7, 660.8, 663.6, 664.0, 665.1]
+    entry: "Super Jump"
+    kind: multihit
+    aliases:
+      - "Wormhole"
+      - "Wormhole Formation"
+      - "WH"   # unverified
+  - id: p3.incinerating_heat
+    # ids: 4A51
+    name: "Incinerating Heat (party stack)"
+    phase: p3
+    hit: 670.0
+    hits: [670.0]
+    entry: "Incinerating Heat"
+    kind: stack
+    aliases:
+      - "Incinerating Heat"
+  - id: p3.mega_holy_1
+    # ids: 4A83
+    name: "Mega Holy (raidwide)"
+    phase: p3
+    hit: 682.9
+    hits: [682.9]
+    entry: "Mega Holy"
+    kind: raidwide
+    aliases:
+      - "Mega Holy"
+      - "Mega Holy 1"
+  - id: p3.mega_holy_2
+    name: "Mega Holy (raidwide)"
+    phase: p3
+    hit: 690.0
+    hits: [690.0]
+    entry: "Mega Holy"
+    kind: raidwide
+    aliases:
+      - "Mega Holy"
+      - "Mega Holy 2"
+  - id: p3.j_storm
+    # ids: 4876 J Storm, 4877 J Wave
+    name: "J Storm + J Waves (raidwides every ~3 s during the DPS check)"
+    phase: p3
+    hit: 705.7
+    hits: [705.7]
+    entry: "J Storm + Waves x16"
+    kind: multihit
+    aliases:
+      - "J Storm"
+      - "J Waves"
+      - "J Storm + Waves"
+      - "DPS Check"   # unverified
+  - id: p3.eternal_darkness
+    # ids: 4875
+    name: "Eternal Darkness (Cruise Chaser enrage, DPS check)"
+    phase: p3
+    hit: 731.7
+    hits: [731.7]
+    entry: "Eternal Darkness Enrage"
+    kind: enrage
+    aliases:
+      - "Eternal Darkness"
+  - id: p3.alexander_down
+    # note: cactbot names this "Divine Judgment Enrage" but syncs on 4879 = DivineJudgmentSuccess (BossMod)
+    name: "Alexander Prime defeated (Divine Judgment interrupted)"
+    phase: p3
+    hit: 771.9
+    hits: [771.9]
+    entry: "Divine Judgment Enrage"
+    kind: marker
+    aliases:
+      - "Alexander Prime Down"
+  - id: p3.divine_judgment
+    # ids: 487A (source "Alexander")
+    name: "Divine Judgment (tank LB3 raidwide)"
+    phase: p3
+    hit: 787.3
+    hits: [787.3]
+    entry: "Divine Judgment"
+    kind: lb_check
+    aliases:
+      - "Divine Judgment"
+      - "Tank LB3"
+      - "DJ"   # unverified
+
+  # ---- P4: Perfect Alexander ----
+  - id: p4.start
+    name: "P4 start (Perfect Alexander first auto-attack)"
+    phase: p4
+    hit: 900.0
+    hits: [900.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P4 Start"
+  - id: p4.optical_sight
+    # ids: 488C spreads / 488D stacks
+    name: "Optical Sight x2 (Individual/Collective Reprobation)"
+    phase: p4
+    hit: 938.6
+    hits: [938.6, 944.7]
+    entry: "Individual/Collective Reprobation"
+    kind: mixed
+    aliases:
+      - "Optical Sight"
+      - "Individual/Collective Reprobation"
+      - "Reprobation"
+  - id: p4.fate_alpha
+    name: "Fate Calibration alpha resolution (defamation, shared sentence, 3x severity, sacraments)"
+    phase: p4
+    hit: 992.8
+    hits: [992.8, 993.8]
+    entry: "Obloquy, Solidarity and 3x Severity"
+    kind: mixed
+    aliases:
+      - "Fate Calibration α"
+      - "Fate Projection α"
+      - "Fate Calibration Alpha"
+      - "Fate Projection Alpha"
+      - "Alpha"
+      - "Fate Alpha"   # unverified
+  - id: p4.ocp_1
+    # ids: 4893 (unsynced)
+    name: "Ordained Capital Punishment 1 (shared 3-hit tankbuster)"
+    phase: p4
+    hit: 1011.1
+    hits: [1011.1, 1012.2, 1013.3]
+    entry: "Ordained Capital Punishment 1"
+    kind: tankbuster
+    aliases:
+      - "Ordained Capital Punishment"
+      - "Ordained Capital Punishment 1"
+      - "OCP"   # unverified
+      - "OCP 1"   # unverified
+  - id: p4.op_1
+    # ids: 4891
+    name: "Ordained Punishment 1 (solo tankbuster)"
+    phase: p4
+    hit: 1017.2
+    hits: [1017.2]
+    entry: "Ordained Punishment"
+    kind: tankbuster
+    aliases:
+      - "Ordained Punishment"
+      - "Ordained Punishment 1"
+      - "OP 1"   # unverified
+  - id: p4.fate_beta
+    name: "Fate Calibration beta resolution (shared sentence, J Jumps, stack/spread)"
+    phase: p4
+    hit: 1081.5
+    hits: [1081.5, 1082.5, 1088.6]
+    entry: "Surety and Solidarity"
+    kind: mixed
+    aliases:
+      - "Fate Calibration β"
+      - "Fate Projection β"
+      - "Fate Calibration Beta"
+      - "Fate Projection Beta"
+      - "Beta"
+      - "Fate Beta"   # unverified
+  - id: p4.ocp_2
+    name: "Ordained Capital Punishment 2 (shared 3-hit tankbuster)"
+    phase: p4
+    hit: 1109.9
+    hits: [1109.9, 1111.0, 1112.1]
+    entry: "Ordained Capital Punishment 1"
+    kind: tankbuster
+    aliases:
+      - "Ordained Capital Punishment"
+      - "Ordained Capital Punishment 2"
+      - "OCP"   # unverified
+      - "OCP 2"   # unverified
+  - id: p4.op_2
+    name: "Ordained Punishment 2 (solo tankbuster)"
+    phase: p4
+    hit: 1116.0
+    hits: [1116.0]
+    entry: "Ordained Punishment"
+    kind: tankbuster
+    aliases:
+      - "Ordained Punishment"
+      - "Ordained Punishment 2"
+      - "OP 2"   # unverified
+  - id: p4.irresistible_grace_1
+    # ids: 4894; exatrines 4890 are dodges
+    name: "Almighty Judgment 1 -> Irresistible Grace (party stack)"
+    phase: p4
+    hit: 1142.5
+    hits: [1142.5]
+    entry: "Irresistible Grace"
+    kind: stack
+    aliases:
+      - "Irresistible Grace"
+      - "Irresistible Grace 1"
+      - "Almighty Judgment"
+      - "Almighty Judgment 1"
+  - id: p4.ocp_3
+    name: "Ordained Capital Punishment 3 (shared 3-hit tankbuster)"
+    phase: p4
+    hit: 1155.7
+    hits: [1155.7, 1156.8, 1157.9]
+    entry: "Ordained Capital Punishment 1"
+    kind: tankbuster
+    aliases:
+      - "Ordained Capital Punishment"
+      - "Ordained Capital Punishment 3"
+      - "OCP"   # unverified
+      - "OCP 3"   # unverified
+  - id: p4.op_3
+    name: "Ordained Punishment 3 (solo tankbuster)"
+    phase: p4
+    hit: 1161.8
+    hits: [1161.8]
+    entry: "Ordained Punishment"
+    kind: tankbuster
+    aliases:
+      - "Ordained Punishment"
+      - "Ordained Punishment 3"
+      - "OP 3"   # unverified
+  - id: p4.irresistible_grace_2
+    name: "Almighty Judgment 2 -> Irresistible Grace (party stack)"
+    phase: p4
+    hit: 1187.9
+    hits: [1187.9]
+    entry: "Irresistible Grace"
+    kind: stack
+    aliases:
+      - "Irresistible Grace"
+      - "Irresistible Grace 2"
+      - "Almighty Judgment"
+      - "Almighty Judgment 2"
+  - id: p4.temporal_prison
+    # ids: 4896 Temporal Interference @1202.8, 4897 Temporal Prison
+    name: "Temporal Prison (enrage)"
+    phase: p4
+    hit: 1247.6
+    hits: [1247.6]
+    entry: "Temporal Prison Enrage"
+    kind: enrage
+    aliases:
+      - "Temporal Prison"
+      - "Temporal Interference"
+      - "Enrage"
+
+# calibration: no known sheet yet
+calibration: {}

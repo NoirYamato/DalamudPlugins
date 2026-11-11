@@ -1,0 +1,1075 @@
+# MitCue fight catalog: The Omega Protocol (Ultimate). Schema: docs/DESIGN.md section 3.1.
+# Timeline: data/timelines/the_omega_protocol.txt = cactbot ui/raidboss/data/06-ew/ultimate/the_omega_protocol.txt @ e79ea7f1.
+# Every hit/entry pair and every value in hits is a timeline entry (checked); analysis and sheet mapping:
+# docs/research/mechanics.md. hit = the damage a mitigation must cover; where cactbot has no entry for the damage
+# itself, the "# anchor:" comment gives the delay from the anchor entry to the real hit.
+# kind "marker" = MechanicKind.Marker in src/MitCue.Core/Fights/FightDefinition.cs: pseudo-mechanics (pull, phase
+# starts, boss targetable) that carry no damage. Aliases marked "# unverified" are community shorthand that appears in
+# neither source sheet; the others are sheet labels (verbatim), cactbot entry names or plain-text forms.
+fight: top
+name: The Omega Protocol (Ultimate)
+territory: 1122
+sync_level: 90
+timeline: the_omega_protocol.txt
+phases:
+  - { id: p1, name: "P1: Omega", start: 0.0 }   # InCombat (pull)
+  - { id: p2, name: "P2: Omega-M/F", start: 200.0 }   # MapEffect 00020001/0A, window 200,0 (v1 engine: StartsUsing 7B40 Firewall @203.4, window 210,5)
+  - { id: p3, name: "P3: Omega Reconfigured", start: 400.0 }   # Ability 7B13 (BossMod DieF: Omega-M/F death visual), window 400,0
+  - { id: p4, name: "P4: Blue Screen", start: 600.0 }   # Ability 7B47 (BossMod P3End), window 600,0
+  - { id: p5, name: "P5: Run: Dynamis", start: 700.0 }   # Ability 7B7C (Blue Screen hit, P4 check passed), window 700,0
+  - { id: p6, name: "P6: Alpha Omega", start: 1100.0 }   # Ability 7F72 (Blind Faith hit, P5 check passed), window 1100,0
+mechanics:
+
+  # ---- P1: Omega ----
+  - id: p1.pull
+    # note: marker (no damage): the InCombat sync; anchor for pre-pull and opener entries
+    name: "Pull (combat start)"
+    phase: p1
+    hit: 0.0
+    hits: [0.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "Pull"
+      - "Prepull"
+      - "Pre-pull"
+  - id: p1.program_loop
+    # ids: 7B04 Storage Violation (1-man towers, synced) + 7B0A Blaster AoE on each tether target (on the -ii line) with the 7B08/7B09 "Blaster N" visuals
+    # note: umbrella for the Carry the Clear row (all four sets); parts p1.loop_set1..4
+    name: "Program Loop: towers + blasters (sets 1-4)"
+    phase: p1
+    hit: 29.1
+    hits: [29.1, 38.1, 47.1, 56.1]
+    entry: "Storage Violation 1"
+    kind: multihit
+    aliases:
+      - "Program Loop"
+      - "Looper"
+      - "Program Loop: towers + blasters"
+      - "Program Loop: towers (36k) + blasters (HP to 1%) ★"
+  - id: p1.loop_set1
+    name: "Program Loop: towers/blasters set 1"
+    phase: p1
+    hit: 29.1
+    hits: [29.1]
+    entry: "Storage Violation 1"
+    kind: mixed
+    aliases:
+      - "Looper Set 1"
+      - "Loop 1"
+      - "Tower 1"
+      - "Program Loop 1"
+      - "Storage Violation 1"
+      - "Blaster 1"
+  - id: p1.loop_set2
+    name: "Program Loop: towers/blasters set 2"
+    phase: p1
+    hit: 38.1
+    hits: [38.1]
+    entry: "Storage Violation 2"
+    kind: mixed
+    aliases:
+      - "Looper Set 2"
+      - "Loop 2"
+      - "Tower 2"
+      - "Program Loop 2"
+      - "Storage Violation 2"
+      - "Blaster 2"
+  - id: p1.loop_set3
+    name: "Program Loop: towers/blasters set 3"
+    phase: p1
+    hit: 47.1
+    hits: [47.1]
+    entry: "Storage Violation 3"
+    kind: mixed
+    aliases:
+      - "Looper Set 3"
+      - "Loop 3"
+      - "Tower 3"
+      - "Program Loop 3"
+      - "Storage Violation 3"
+      - "Blaster 3"
+  - id: p1.loop_set4
+    name: "Program Loop: towers/blasters set 4"
+    phase: p1
+    hit: 56.1
+    hits: [56.1]
+    entry: "Storage Violation 4"
+    kind: mixed
+    aliases:
+      - "Looper Set 4"
+      - "Loop 4"
+      - "Tower 4"
+      - "Program Loop 4"
+      - "Storage Violation 4"
+      - "Blaster 4"
+  - id: p1.pantokrator
+    # ids: 7B0F Condensed Wave Cannon Kyrios (line stack) + 7B0E Guided Missile Kyrios (on the in-line players), all synced
+    # note: umbrella for the LPDU and Carry the Clear "Pantokrator" rows; parts p1.panto_stack1..4
+    name: "Pantokrator: line stacks + missiles (x4)"
+    phase: p1
+    hit: 81.3
+    hits: [81.3, 87.3, 93.3, 99.3]
+    entry: "Condensed Wave Cannon Kyrios 1"
+    kind: multihit
+    aliases:
+      - "Pantokrator"
+      - "Panto"   # unverified
+      - "Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit)"
+  - id: p1.panto_stack1
+    name: "Pantokrator line stack 1"
+    phase: p1
+    hit: 81.3
+    hits: [81.3]
+    entry: "Condensed Wave Cannon Kyrios 1"
+    kind: stack
+    aliases:
+      - "1st Stack"
+      - "First Stack"
+      - "Panto Stack 1"
+      - "Pantokrator 1"
+      - "Condensed Wave Cannon Kyrios 1"
+  - id: p1.panto_stack2
+    name: "Pantokrator line stack 2"
+    phase: p1
+    hit: 87.3
+    hits: [87.3]
+    entry: "Condensed Wave Cannon Kyrios 2"
+    kind: stack
+    aliases:
+      - "2nd Stack"
+      - "Second Stack"
+      - "Panto Stack 2"
+      - "Pantokrator 2"
+      - "Condensed Wave Cannon Kyrios 2"
+  - id: p1.panto_stack3
+    name: "Pantokrator line stack 3"
+    phase: p1
+    hit: 93.3
+    hits: [93.3]
+    entry: "Condensed Wave Cannon Kyrios 3"
+    kind: stack
+    aliases:
+      - "3rd Stack"
+      - "Third Stack"
+      - "Panto Stack 3"
+      - "Pantokrator 3"
+      - "Condensed Wave Cannon Kyrios 3"
+  - id: p1.panto_stack4
+    name: "Pantokrator line stack 4"
+    phase: p1
+    hit: 99.3
+    hits: [99.3]
+    entry: "Condensed Wave Cannon Kyrios 4"
+    kind: stack
+    aliases:
+      - "4th Stack"
+      - "Fourth Stack"
+      - "Panto Stack 4"
+      - "Pantokrator 4"
+      - "Condensed Wave Cannon Kyrios 4"
+  - id: p1.wave_cannon_kyrios
+    # ids: 7B11 Wave Cannon Kyrios (spreads, synced: 108.0, 116.8) + 7B10 Diffuse Wave Cannon Kyrios (5 cleaves on the 2 furthest; display entry "x5" at 108.0, duration 8; the other 4 cleaves are not entries)
+    name: "Wave Cannon Kyrios spreads + Diffuse Wave Cannon Kyrios tank cleaves"
+    phase: p1
+    hit: 108.0
+    hits: [108.0, 116.8]
+    entry: "Wave Cannon Kyrios 1"
+    kind: mixed
+    aliases:
+      - "Wave Cannon Kyrios"
+      - "Diffuse Wave Cannon Kyrios"
+      - "Diffuse Wave Cannon Kyrios x5"
+      - "Diffuse Wave Cannon"
+      - "DWC"   # unverified
+      - "P1 Wave Cannon"
+      - "Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★"
+  - id: p1.atomic_ray
+    # ids: 7AF8
+    name: "Atomic Ray (P1 enrage)"
+    phase: p1
+    hit: 127.7
+    hits: [127.7]
+    entry: "Atomic Ray Enrage"
+    kind: enrage
+    aliases:
+      - "Atomic Ray"
+      - "Atomic Ray Enrage"
+      - "P1 Enrage"
+      - "Atomic Ray (P1 enrage — push before)"
+
+  # ---- P2: Omega-M/F ----
+  - id: p2.start
+    # note: marker (no damage): the P2 sync point
+    name: "P2 start (Omega-M/F)"
+    phase: p2
+    hit: 200.0
+    hits: [200.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P2 Start"
+      - "P1 End"
+  - id: p2.targetable
+    # note: marker (no damage)
+    name: "P2 Omega-M/F targetable"
+    phase: p2
+    hit: 202.3
+    hits: [202.3]
+    entry: "--targetable--"
+    kind: marker
+    aliases:
+      - "P2 Boss Targetable"
+  - id: p2.solar_ray
+    # ids: 7E6A (Omega-M, synced) + 7E6B (Omega-F, on the -ii line): 5 s casts that hit one tank each when they end
+    name: "Solar Ray (both tanks)"
+    phase: p2
+    hit: 214.5
+    hits: [214.5]
+    entry: "Solar Ray"
+    kind: tankbuster
+    aliases:
+      - "Solar Ray"
+      - "P2 Solar Ray"
+      - "Solar Ray ×2 (180k on both tanks) ★★ (tankbuster)"
+  - id: p2.party_synergy_spreads
+    # ids: 7B2F (synced)
+    name: "Party Synergy: Optimized Fire III spreads"
+    phase: p2
+    hit: 247.7
+    hits: [247.7]
+    entry: "Optimized Fire III"
+    kind: spread
+    aliases:
+      - "Party Synergy"
+      - "Party Synergy spreads"
+      - "Optimized Fire III"
+      - "PS"   # unverified
+      - "Synergy"   # unverified
+      - "Party Synergy: Optimized Fire III spreads (35k)"
+  - id: p2.party_synergy_stacks
+    # ids: 7B30 Spotlight (stacks, synced); 7B26 Efficient Bladework (dodge) at the same time
+    name: "Party Synergy: Spotlight stacks + Efficient Bladework"
+    phase: p2
+    hit: 259.1
+    hits: [259.1]
+    entry: "Spotlight x2"
+    kind: stack
+    aliases:
+      - "Spotlight"
+      - "Spotlight x2"
+      - "Party Synergy stacks"
+      - "PS stacks"   # unverified
+      - "Efficient Bladework + Spotlight stacks (60k, 3 players) ★"
+  - id: p2.bladedance
+    # ids: 7B34 Optimized Bladedance (synced cast end); the tethered cone hits 7F75 (-ii line) resolve with it; 7B33 Optimized Sagittarius Arrow (synced) @295.7
+    name: "Limitless Synergy: Optimized Bladedance tank cleaves + Sagittarius Arrow"
+    phase: p2
+    hit: 295.6
+    hits: [295.6, 295.7]
+    entry: "Optimized Bladedance x2"
+    kind: mixed
+    aliases:
+      - "Optimized Bladedance"
+      - "Optimized Bladedance x2"
+      - "Bladedance"
+      - "Optimized Sagittarius Arrow"
+      - "Sagittarius Arrow"
+      - "Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★"
+  - id: p2.limitless
+    # note: umbrella for the LPDU "Limitless" rows (party mitigation for the flares and Cosmo Memory); Bladedance (295.6) is p2.bladedance
+    name: "Limitless Synergy raidwides: flares + Pile Pitch, then Cosmo Memory"
+    phase: p2
+    hit: 309.7
+    hits: [309.7, 318.8]
+    entry: "Optimized Meteor"
+    kind: multihit
+    aliases:
+      - "Limitless"
+      - "Limitless Synergy"
+      - "LS"   # unverified
+  - id: p2.flares
+    # ids: 7B31 Optimized Meteor (synced cast end); flares 7B32 (-ii line) resolve with it; 7B29 Pile Pitch stack (synced) @310.0
+    name: "Optimized Meteor flares + Pile Pitch"
+    phase: p2
+    hit: 309.7
+    hits: [309.7, 310.0]
+    entry: "Optimized Meteor"
+    kind: mixed
+    aliases:
+      - "Optimized Meteor"
+      - "Pile Pitch"
+      - "Flares"
+      - "P2 Flares"
+      - "Optimized Meteor flares + Pile Pitch ★★★"
+  - id: p2.cosmo_memory
+    # ids: 7B22 (synced cast end, visual) then 7B24 raidwide (-ii line)
+    # anchor: 7B22 cast end; the raidwide 7B24 (1.5 s cast) lands about 1.4 s later (BossMod: 10.2 s after Pile Pitch)
+    name: "Cosmo Memory (P2 raidwide)"
+    phase: p2
+    hit: 318.8
+    hits: [318.8]
+    entry: "Cosmo Memory"
+    kind: raidwide
+    aliases:
+      - "Cosmo Memory"
+      - "P2 Cosmo Memory"
+      - "CM"   # unverified
+      - "Cosmo Memory ×2 (100k raidwide) ★★★"
+  - id: p2.laser_shower
+    # ids: 7B45 (60 s cast)
+    name: "Laser Shower (P2 enrage)"
+    phase: p2
+    hit: 347.4
+    hits: [347.4]
+    entry: "Laser Shower Enrage"
+    kind: enrage
+    aliases:
+      - "Laser Shower"
+      - "Laser Shower Enrage"
+      - "P2 Enrage"
+      - "Laser Shower (P2 enrage — push before)"
+
+  # ---- P3: Omega Reconfigured ----
+  - id: p3.start
+    # note: marker (no damage): the P3 sync point
+    name: "P3 start (Omega Reconfigured)"
+    phase: p3
+    hit: 400.0
+    hits: [400.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P3 Start"
+      - "P2 End"
+  - id: p3.transition
+    # ids: 7B54 High-powered Sniper Cannon (2-man stacks) @427.3 + 7B53 Sniper Cannon (spreads) @428.4, both unsynced ("a little sloppy")
+    name: "P3 transition: Sniper Cannon spreads + High-powered Sniper Cannon stacks"
+    phase: p3
+    hit: 427.3
+    hits: [427.3, 428.4]
+    entry: "High-powered Sniper Cannon x2"
+    kind: mixed
+    aliases:
+      - "Transition"
+      - "P3 Transition"
+      - "Sniper Cannon"
+      - "High-powered Sniper Cannon"
+      - "Intermission"   # unverified
+      - "P3 Intermission"   # unverified
+      - "Transition: spreads (74k) + stacks (78k) ★★"
+  - id: p3.targetable
+    # note: marker (no damage)
+    name: "P3 boss targetable"
+    phase: p3
+    hit: 432.3
+    hits: [432.3]
+    entry: "--targetable--"
+    kind: marker
+    aliases:
+      - "P3 Boss Targetable"
+  - id: p3.hello_world
+    # ids: 7B55 (synced; the cast end is the hit)
+    name: "Hello, World (raidwide)"
+    phase: p3
+    hit: 441.3
+    hits: [441.3]
+    entry: "Hello, World"
+    kind: raidwide
+    aliases:
+      - "Hello World"
+      - "Hello, World"
+      - "P3 Hello World"
+      - "HW"   # unverified
+      - "Hello, World (62k raidwide) ★★"
+  - id: p3.latent_1
+    # ids: 7B6F Latent Defect (synced cast end); towers 7B5F/7B60, stacks 7B56, defamations 7B57 (-ii line); Patch 7B63 tether breaks (unsynced) @466.9
+    # anchor: Latent Defect cast end; towers, stacks and defamations land 1.0 s later, rots about 6 s after that
+    name: "Hello World round 1 (Latent Defect 1)"
+    phase: p3
+    hit: 464.4
+    hits: [464.4, 466.9]
+    entry: "Latent Defect 1"
+    kind: mixed
+    aliases:
+      - "Latent 1"
+      - "Latent Defect 1"
+      - "Round 1"
+      - "HW Round 1"
+      - "Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★"
+  - id: p3.latent_2
+    # anchor: Latent Defect cast end; the hits land 1.0 s later
+    name: "Hello World round 2 (Latent Defect 2)"
+    phase: p3
+    hit: 485.4
+    hits: [485.4, 487.9]
+    entry: "Latent Defect 2"
+    kind: mixed
+    aliases:
+      - "Latent 2"
+      - "Latent Defect 2"
+      - "Round 2"
+      - "HW Round 2"
+      - "Round 2 ★★"
+  - id: p3.latent_3
+    # anchor: Latent Defect cast end; the hits land 1.0 s later
+    name: "Hello World round 3 (Latent Defect 3)"
+    phase: p3
+    hit: 506.5
+    hits: [506.5, 509.0]
+    entry: "Latent Defect 3"
+    kind: mixed
+    aliases:
+      - "Latent 3"
+      - "Latent Defect 3"
+      - "Round 3"
+      - "HW Round 3"
+      - "Round 3 ★★"
+  - id: p3.latent_4
+    # anchor: Latent Defect cast end; the hits land 1.0 s later
+    # note: the unsynced "Patch" at 527.5, just before this entry, is a round-3 tether break
+    name: "Hello World round 4 (Latent Defect 4)"
+    phase: p3
+    hit: 527.8
+    hits: [527.8, 533.5]
+    entry: "Latent Defect 4"
+    kind: mixed
+    aliases:
+      - "Latent 4"
+      - "Latent Defect 4"
+      - "Round 4"
+      - "HW Round 4"
+      - "Round 4 (party shares the stacks) ★★"
+  - id: p3.critical_error
+    # ids: 7B64 (synced; the cast end is the hit)
+    name: "Critical Error (raidwide)"
+    phase: p3
+    hit: 550.1
+    hits: [550.1]
+    entry: "Critical Error"
+    kind: raidwide
+    aliases:
+      - "Critical Error"
+      - "CE"   # unverified
+      - "Critical Error (89k raidwide) ★★★"
+  - id: p3.monitors
+    # ids: 7B6B/7B6C (synced cast end, visual); spreads 7B6D (-ii line)
+    # anchor: cast end; the 7B6D spreads land 0.1 s later (BossMod)
+    name: "Oversampled Wave Cannon (P3 monitors)"
+    phase: p3
+    hit: 571.4
+    hits: [571.4]
+    entry: "Oversampled Wave Cannon"
+    kind: spread
+    aliases:
+      - "Oversampled Wave Cannon"
+      - "Monitors"
+      - "P3 Monitors"
+      - "OWC"   # unverified
+      - "Oversampled Wave Cannon: monitors (52k) ★"
+  - id: p3.ion_efflux
+    # ids: 7B48
+    name: "Ion Efflux (P3 enrage)"
+    phase: p3
+    hit: 587.4
+    hits: [587.4]
+    entry: "Ion Efflux Enrage"
+    kind: enrage
+    aliases:
+      - "Ion Efflux"
+      - "Ion Efflux Enrage"
+      - "P3 Enrage"
+      - "Ion Efflux (P3 enrage — push before)"
+
+  # ---- P4: Blue Screen ----
+  - id: p4.start
+    # note: marker (no damage): the P4 sync point (end of P3)
+    name: "P4 start (Blue Screen)"
+    phase: p4
+    hit: 600.0
+    hits: [600.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P4 Start"
+      - "P3 End"
+  - id: p4.targetable
+    # note: marker (no damage); LPDU P4 note "Shields bevor the boss is targetable"
+    name: "P4 boss targetable"
+    phase: p4
+    hit: 607.1
+    hits: [607.1]
+    entry: "--targetable--"
+    kind: marker
+    aliases:
+      - "P4 Boss Targetable"
+  - id: p4.wave_cannon
+    # ids: "Wave Cannon A"/"Wave Cannon B" are boss visuals (7B81, 7F16, 7B82, 7B83, 7B84); protean lasers 7B7E and baited lasers 7B80 are on the -ii line; stacks 7B7F (synced)
+    # anchor: boss visual; the first lasers 7B7E land about 0.6 s later (BossMod)
+    # note: umbrella for the Carry the Clear row and the LPDU tank row "Proteans"; parts p4.protean_1..3 and p4.stack_1..3
+    name: "Wave Cannon x6: 3 protean sets + 3 line stacks"
+    phase: p4
+    hit: 621.4
+    hits: [621.4, 627.0, 631.5, 636.8, 641.6, 646.9]
+    entry: "Wave Cannon A"
+    kind: multihit
+    aliases:
+      - "Wave Cannon"
+      - "Wave Cannon x6"
+      - "P4 Wave Cannon"
+      - "Proteans"
+      - "Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)"
+  - id: p4.protean_1
+    # anchor: boss visual; the 7B7E lasers land about 0.6 s later (BossMod)
+    name: "P4 protean lasers 1"
+    phase: p4
+    hit: 621.4
+    hits: [621.4]
+    entry: "Wave Cannon A"
+    kind: spread
+    aliases:
+      - "Protean 1"
+      - "Proteans 1"
+      - "Lasers 1"
+  - id: p4.stack_1
+    # ids: 7B7F (synced); a baited laser 7B80 lands about 0.2 s earlier
+    name: "P4 line stack 1"
+    phase: p4
+    hit: 627.0
+    hits: [627.0]
+    entry: "Wave Cannon (stacks)"
+    kind: stack
+    aliases:
+      - "Stack 1"
+      - "Line Stack 1"
+      - "Wave Cannon Stack 1"
+  - id: p4.protean_2
+    # anchor: boss visual; the 7B7E lasers land about 0.7 s later (BossMod)
+    name: "P4 protean lasers 2"
+    phase: p4
+    hit: 631.5
+    hits: [631.5]
+    entry: "Wave Cannon A"
+    kind: spread
+    aliases:
+      - "Protean 2"
+      - "Proteans 2"
+      - "Lasers 2"
+  - id: p4.stack_2
+    name: "P4 line stack 2"
+    phase: p4
+    hit: 636.8
+    hits: [636.8]
+    entry: "Wave Cannon (stacks)"
+    kind: stack
+    aliases:
+      - "Stack 2"
+      - "Line Stack 2"
+      - "Wave Cannon Stack 2"
+  - id: p4.protean_3
+    # anchor: boss visual; the 7B7E lasers land about 0.5-0.9 s later
+    name: "P4 protean lasers 3"
+    phase: p4
+    hit: 641.6
+    hits: [641.6]
+    entry: "Wave Cannon A"
+    kind: spread
+    aliases:
+      - "Protean 3"
+      - "Proteans 3"
+      - "Lasers 3"
+  - id: p4.stack_3
+    name: "P4 line stack 3"
+    phase: p4
+    hit: 646.9
+    hits: [646.9]
+    entry: "Wave Cannon (stacks)"
+    kind: stack
+    aliases:
+      - "Stack 3"
+      - "Line Stack 3"
+      - "Wave Cannon Stack 3"
+  - id: p4.blue_screen
+    # ids: 7B7B (8 s cast, visual) then 7B7C raidwide (1 s cast), which is the P5 sync
+    # anchor: 7B7B cast end; the raidwide 7B7C lands 1.0 s later and makes the timeline jump to 700.0
+    # note: actions planned after this hit must anchor to p5.start (700.0)
+    name: "Blue Screen (check passed: raidwide)"
+    phase: p4
+    hit: 661.6
+    hits: [661.6]
+    entry: "Blue Screen Enrage"
+    kind: raidwide
+    aliases:
+      - "Blue Screen"
+      - "Blue Screen Enrage"
+      - "Blue Screen (76k, phase end) ★"
+
+  # ---- P5: Run: Dynamis ----
+  - id: p5.start
+    # note: marker (no damage): the P5 sync point = the Blue Screen hit 7B7C
+    name: "P5 start (after Blue Screen)"
+    phase: p5
+    hit: 700.0
+    hits: [700.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P5 Start"
+      - "P4 End"
+  - id: p5.targetable
+    # note: marker (no damage); Carry the Clear P5 times count from here
+    name: "P5 boss targetable"
+    phase: p5
+    hit: 715.6
+    hits: [715.6]
+    entry: "--targetable--"
+    kind: marker
+    aliases:
+      - "P5 Boss Targetable"
+  - id: p5.solar_ray_1
+    # ids: 81AC (5 s cast) + 7B01 (Omega-M), both synced
+    name: "P5 Solar Ray 1 (2 hits on one tank)"
+    phase: p5
+    hit: 723.6
+    hits: [723.6, 726.8]
+    entry: "Solar Ray 1"
+    kind: tankbuster
+    aliases:
+      - "Solar Ray 1"
+      - "Solar Ray"
+      - "P5 Solar Ray 1"
+      - "Solar Ray ×2 (290k tankbuster) ★★★"
+  - id: p5.delta
+    # ids: 7B88 (synced)
+    name: "Run: ****mi* (Delta Version) raidwide"
+    phase: p5
+    hit: 740.0
+    hits: [740.0]
+    entry: "Run: ****mi* (Delta Version)"
+    kind: raidwide
+    aliases:
+      - "Delta"
+      - "Run: ****mi* (Delta Version)"
+      - "Run: Dynamis (Delta Version)"
+      - "Delta Raidwide"
+      - "Trio 1"
+      - "Run: ****mi* (Delta): 140k raidwide ★★★"
+  - id: p5.delta_all
+    # note: umbrella for the Carry the Clear "Delta: ..." row; parts p5.delta_patch, p5.delta_monitors, p5.delta_hello_world
+    name: "Delta: tethers, monitors + Hyper Pulse + Pile Pitch, Hello Near/Distant World"
+    phase: p5
+    hit: 761.2
+    hits: [761.2, 764.9, 771.1, 773.6, 774.0, 782.0, 784.0, 787.0, 788.0, 789.0]
+    entry: "Patch"
+    kind: multihit
+    aliases:
+      - "Delta Mechanic"
+      - "Delta Resolution"
+      - "Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★"
+  - id: p5.delta_patch
+    # ids: 7B63 Patch (raidwide on each tether break); all four entries are unsynced, cactbot's estimate of when players break them
+    name: "Delta tethers (Patch)"
+    phase: p5
+    hit: 761.2
+    hits: [761.2, 764.9, 782.0, 784.0]
+    entry: "Patch"
+    kind: raidwide
+    aliases:
+      - "Patch"
+      - "Delta Tethers"
+      - "Delta Patch"
+  - id: p5.delta_monitors
+    # ids: 7B70 Hyper Pulse @771.1, 7B6D Oversampled Wave Cannon @773.6, 7B29 Pile Pitch @774.0 (all synced)
+    name: "Delta: monitors + Hyper Pulse + Pile Pitch"
+    phase: p5
+    hit: 771.1
+    hits: [771.1, 773.6, 774.0]
+    entry: "Hyper Pulse"
+    kind: mixed
+    aliases:
+      - "Delta Monitors"
+      - "Monitors"
+      - "Oversampled Wave Cannon"
+  - id: p5.delta_hello_world
+    # ids: 8110 Hello, Distant World + 7B89 Hello, Near World (synced); jumps 8111/7B8A at +1/+2 s (unsynced)
+    name: "Delta: Hello Near/Distant World"
+    phase: p5
+    hit: 787.0
+    hits: [787.0, 788.0, 789.0]
+    entry: "Hello, Distant World 1"
+    kind: mixed
+    aliases:
+      - "Hello World"
+      - "Hello Near/Distant World"
+      - "Hello, Near World"
+      - "Hello, Distant World"
+      - "Delta Hello World"
+  - id: p5.solar_ray_2
+    # ids: 81AC + 7B01, both synced (cactbot names every first hit "Solar Ray 1")
+    name: "P5 Solar Ray 2 (2 hits on one tank)"
+    phase: p5
+    hit: 805.2
+    hits: [805.2, 808.5]
+    entry: "Solar Ray 1"
+    kind: tankbuster
+    aliases:
+      - "Solar Ray 2"
+      - "Solar Ray"
+      - "P5 Solar Ray 2"
+      - "Solar Ray ×2 ★★★"
+  - id: p5.sigma
+    # ids: 8014 (synced)
+    name: "Run: ****mi* (Sigma Version) raidwide"
+    phase: p5
+    hit: 821.7
+    hits: [821.7]
+    entry: "Run: ****mi* (Sigma Version)"
+    kind: raidwide
+    aliases:
+      - "Sigma"
+      - "Run: ****mi* (Sigma Version)"
+      - "Run: Dynamis (Sigma Version)"
+      - "Sigma Raidwide"
+      - "Trio 2"
+      - "Run: ****mi* (Sigma): 140k raidwide ★★★"
+  - id: p5.sigma_proteans
+    # ids: 7B72 Hyper Pulse (synced) @843.8; 7B73 Wave Cannon (synced cast end, visual) @844.0 with the protean cones 7B74 (-ii line)
+    name: "Sigma: Hyper Pulse + Wave Cannon proteans"
+    phase: p5
+    hit: 843.8
+    hits: [843.8, 844.0]
+    entry: "Hyper Pulse"
+    kind: mixed
+    aliases:
+      - "Sigma Proteans"
+      - "Sigma Wave Cannon"
+      - "Sigma Hyper Pulse"
+      - "Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★"
+  - id: p5.sigma_towers
+    # ids: 7B04/7B05 (synced)
+    name: "Sigma towers (Storage Violation)"
+    phase: p5
+    hit: 856.4
+    hits: [856.4]
+    entry: "Storage Violation x5 / Storage Violation x6"
+    kind: spread
+    aliases:
+      - "Sigma Towers"
+      - "Storage Violation"
+      - "Storage Violation towers (33k)"
+  - id: p5.sigma_hello_world
+    # ids: 7B89/8110 + 7B72 (synced); jumps unsynced
+    name: "Sigma: Hello Near/Distant World + Hyper Pulse"
+    phase: p5
+    hit: 880.6
+    hits: [880.6, 881.6, 882.6]
+    entry: "Hello, Near World 1"
+    kind: mixed
+    aliases:
+      - "Hello World"
+      - "Hello Near/Distant World"
+      - "Sigma Hello World"
+      - "Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★"
+  - id: p5.solar_ray_3
+    # ids: 81AD + 7B02 (after the model swap), both synced
+    name: "P5 Solar Ray 3 (2 hits on one tank)"
+    phase: p5
+    hit: 894.3
+    hits: [894.3, 897.4]
+    entry: "Solar Ray 1"
+    kind: tankbuster
+    aliases:
+      - "Solar Ray 3"
+      - "Solar Ray"
+      - "P5 Solar Ray 3"
+      - "Solar Ray ×2 ★★★"
+  - id: p5.omega
+    # ids: 8015 (synced)
+    name: "Run: ****mi* (Omega Version) raidwide"
+    phase: p5
+    hit: 910.7
+    hits: [910.7]
+    entry: "Run: ****mi* (Omega Version)"
+    kind: raidwide
+    aliases:
+      - "Omega"
+      - "Run: ****mi* (Omega Version)"
+      - "Run: Dynamis (Omega Version)"
+      - "Omega Raidwide"
+      - "Trio 3"
+      - "Run: ****mi* (Omega): 140k raidwide ★★★"
+  - id: p5.omega_all
+    # note: umbrella for the Carry the Clear "Omega: ..." row; its first two times are the cone dodges, the first party damage is 945.4; parts p5.omega_cannons, p5.omega_hello_world_1, p5.omega_hello_world_2
+    name: "Omega: cones (dodge), monitors + Hello World, blasters + Hello World"
+    phase: p5
+    hit: 927.8
+    hits: [927.8, 931.9, 945.4, 945.8, 946.4, 947.4, 961.6, 963.4, 964.4, 965.4]
+    entry: "Diffuse Wave Cannon"
+    kind: multihit
+    aliases:
+      - "Omega Mechanic"
+      - "Omega Resolution"
+      - "Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★"
+  - id: p5.omega_cannons
+    # ids: 7B9B/7B9C (8 s cast, visual) then 7B77/7B78 (synced); the cones 7B79 (1 s cast, -ii line) land 1.1 s after each
+    name: "Omega: Diffuse Wave Cannon cones (dodge)"
+    phase: p5
+    hit: 927.8
+    hits: [927.8, 931.9]
+    entry: "Diffuse Wave Cannon"
+    kind: other
+    aliases:
+      - "Diffuse Wave Cannon"
+      - "Omega Cones"
+  - id: p5.omega_hello_world_1
+    # ids: 8110/7B89 (synced) + 7B6D Oversampled Wave Cannon (synced) @945.8; jumps unsynced
+    name: "Omega: monitors + Hello Near/Distant World (1st)"
+    phase: p5
+    hit: 945.4
+    hits: [945.4, 945.8, 946.4, 947.4]
+    entry: "Hello, Distant World 1"
+    kind: mixed
+    aliases:
+      - "Hello World"
+      - "Hello Near/Distant World"
+      - "Omega Hello World 1"
+      - "Omega Monitors"
+      - "Monitors"
+      - "Oversampled Wave Cannon"
+  - id: p5.omega_hello_world_2
+    # ids: 7E75 Blaster (tethers, synced) + 8110/7B89 (synced); jumps unsynced
+    name: "Omega: blasters + Hello Near/Distant World (2nd)"
+    phase: p5
+    hit: 961.6
+    hits: [961.6, 963.4, 964.4, 965.4]
+    entry: "Blaster x2"
+    kind: mixed
+    aliases:
+      - "Hello World"
+      - "Hello Near/Distant World"
+      - "Omega Hello World 2"
+      - "Blasters"
+      - "Blaster x2"
+      - "Omega Blasters"
+  - id: p5.solar_ray_4
+    # ids: 81AD + 7B02, both synced
+    name: "P5 Solar Ray 4 (2 hits on one tank)"
+    phase: p5
+    hit: 976.8
+    hits: [976.8, 979.9]
+    entry: "Solar Ray 1"
+    kind: tankbuster
+    aliases:
+      - "Solar Ray 4"
+      - "Solar Ray"
+      - "P5 Solar Ray 4"
+      - "Solar Ray ×2 ★★★"
+  - id: p5.blind_faith
+    # ids: 7B87 (10 s cast, visual) ends @998.5; the hit (1.2 s cast) is 7F72 on success (= the P6 sync) or 7F73 on failure (synced here), both @999.7
+    # note: actions planned after this hit must anchor to p6.start (1100.0)
+    name: "Blind Faith (check passed: raidwide + knockback)"
+    phase: p5
+    hit: 999.7
+    hits: [999.7]
+    entry: "Blind Faith Enrage"
+    kind: raidwide
+    aliases:
+      - "Blind Faith"
+      - "Blind Faith Enrage"
+      - "BF"   # unverified
+      - "Blind Faith (72k + knockback, phase end) ★"
+
+  # ---- P6: Alpha Omega ----
+  - id: p6.start
+    # note: marker (no damage): the P6 sync point = the Blind Faith hit 7F72; Carry the Clear P6 times count from here
+    name: "P6 start (after Blind Faith)"
+    phase: p6
+    hit: 1100.0
+    hits: [1100.0]
+    entry: "--sync--"
+    kind: marker
+    aliases:
+      - "P6 Start"
+      - "P5 End"
+  - id: p6.targetable
+    # note: marker (no damage)
+    name: "P6 boss targetable"
+    phase: p6
+    hit: 1154.7
+    hits: [1154.7]
+    entry: "--targetable--"
+    kind: marker
+    aliases:
+      - "P6 Boss Targetable"
+  - id: p6.cosmo_memory
+    # ids: 7BA1 (6 s cast, synced; the cast end is the hit)
+    name: "Cosmo Memory (tank LB3 raidwide)"
+    phase: p6
+    hit: 1167.8
+    hits: [1167.8]
+    entry: "Cosmo Memory"
+    kind: lb_check
+    aliases:
+      - "Cosmo Memory"
+      - "P6 Cosmo Memory"
+      - "CM"   # unverified
+      - "Cosmo Memory (405k raidwide) ★★★★"
+  - id: p6.cosmo_arrow_1
+    # ids: 7BA2 (synced cast end, visual); exasquare lines follow every 2 s (dodge)
+    name: "Cosmo Arrow 1 (exasquares, dodge)"
+    phase: p6
+    hit: 1182.2
+    hits: [1182.2]
+    entry: "Cosmo Arrow"
+    kind: other
+    aliases:
+      - "Cosmo Arrow"
+      - "Cosmo Arrow 1"
+      - "Exasquares"
+      - "Cosmo Arrow (exaflares — dodge)"
+  - id: p6.cosmo_dive_1
+    # ids: 7BA7 (tankbusters, "Cosmo Dive Near x2") + 7BA8 (stack, "Cosmo Dive Far"), unsynced, 2.4 s after the 7BA6 cast end @1196.9 (synced)
+    name: "Cosmo Dive 1 (2 tankbusters + 6-player stack)"
+    phase: p6
+    hit: 1199.3
+    hits: [1199.3]
+    entry: "Cosmo Dive Far"
+    kind: mixed
+    aliases:
+      - "CD1"
+      - "Cosmo Dive 1"
+      - "Cosmo Dive"
+      - "Cosmo Dive Far"
+      - "Cosmo Dive Near x2"
+      - "Cosmo Dive (274k) ★★★"
+  - id: p6.wave_cannon_1
+    # ids: 7BAB proteans @1236.0/1238.0 and 7BAA Wild Charge @1244.3, all unsynced; Wild Charge lands 0.4 s after the 7BA9 cast end (synced @1243.9); the exaflares and puddles before them are dodges
+    name: "Wave Cannon 1: proteans x2 + Wild Charge (after Unlimited Wave Cannon 1)"
+    phase: p6
+    hit: 1236.0
+    hits: [1236.0, 1238.0, 1244.3]
+    entry: "Wave Cannon 1"
+    kind: mixed
+    aliases:
+      - "WC1"
+      - "Wave Cannon 1"
+      - "Wave Cannon"
+      - "Unlimited Wave Cannon"
+      - "Unlimited Wave Cannon 1"
+      - "Wild Charge 1"
+      - "Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★"
+  - id: p6.wave_cannon_2
+    # ids: 7BAB @1269.9/1271.9 and 7BAA @1278.2, unsynced (7BA9 cast end synced @1277.8)
+    # note: cactbot names the two protean sets of EACH Wave Cannon "Wave Cannon 1"/"Wave Cannon 2"; the aliases mean the 1st/2nd mechanic
+    name: "Wave Cannon 2: proteans x2 + Wild Charge (with Cosmo Arrow 2)"
+    phase: p6
+    hit: 1269.9
+    hits: [1269.9, 1271.9, 1278.2]
+    entry: "Wave Cannon 1"
+    kind: mixed
+    aliases:
+      - "WC2"
+      - "Wave Cannon 2"
+      - "Wave Cannon"
+      - "Cosmo Arrow 2"
+      - "Wild Charge 2"
+      - "Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★"
+  - id: p6.unlimited_wave_cannon_2
+    # ids: 7BAC (synced cast end @1291.7); baited puddles 7BAF (unsynced, dodge)
+    name: "Unlimited Wave Cannon 2 (exaflares + puddles, dodge)"
+    phase: p6
+    hit: 1299.7
+    hits: [1299.7, 1301.5, 1303.4, 1305.3, 1307.2, 1309.2]
+    entry: "Wave Cannon Puddle 1"
+    kind: other
+    aliases:
+      - "Unlimited Wave Cannon 2"
+      - "Unlimited Wave Cannon 2 (exaflares + puddles — dodge)"
+  - id: p6.cosmo_dive_2
+    # ids: 7BA7 + 7BA8 @1312.4 (unsynced), 2.4 s after the 7BA6 cast end @1310.0 (synced)
+    name: "Cosmo Dive 2 (2 tankbusters + 6-player stack)"
+    phase: p6
+    hit: 1312.4
+    hits: [1312.4]
+    entry: "Cosmo Dive Far"
+    kind: mixed
+    aliases:
+      - "CD2"
+      - "Cosmo Dive 2"
+      - "Cosmo Dive"
+      - "Cosmo Dive 2 (274k) ★★★"
+  - id: p6.cosmo_meteor
+    # ids: 7BB0 (synced cast end @1331.6, visual); 7BB2 baited meteors (4 s cast, synced) @1335.6; spreads 7FBB @1336.7/1337.7/1342.7/1343.7 (unsynced)
+    name: "Cosmo Meteor: baited big meteors + spreads x4"
+    phase: p6
+    hit: 1335.6
+    hits: [1335.6, 1336.7, 1337.7, 1342.7, 1343.7]
+    entry: "Cosmo Meteor Baits"
+    kind: multihit
+    aliases:
+      - "Meteors"
+      - "Cosmo Meteor"
+      - "Meteor"
+      - "Cosmo Meteor Baits"
+      - "Cosmo Meteor (105k raidwide) + meteor baits ★★★"
+  - id: p6.flares
+    # ids: 7BB4 flares + 7BB3 stack (both synced)
+    name: "Cosmo Meteor flares + stack"
+    phase: p6
+    hit: 1354.7
+    hits: [1354.7]
+    entry: "Cosmo Meteor Flare x3"
+    kind: mixed
+    aliases:
+      - "Flares"
+      - "Cosmo Meteor Flares"
+      - "Cosmo Meteor Flare x3"
+      - "Cosmo Meteor Stack"
+      - "Flares (78k) ★★"
+  - id: p6.magic_number_1
+    # ids: 7BB6 (5 s cast, synced; the cast end is the hit)
+    name: "Magic Number 1 (tank + healer LB3)"
+    phase: p6
+    hit: 1366.7
+    hits: [1366.7]
+    entry: "Magic Number"
+    kind: lb_check
+    aliases:
+      - "Magic Number"
+      - "Magic Number 1"
+      - "MN1"   # unverified
+      - "Magic Number (252k) ★★★★"
+  - id: p6.magic_number_2
+    # ids: 7BB6 (synced)
+    name: "Magic Number 2 (tank + healer LB3)"
+    phase: p6
+    hit: 1382.8
+    hits: [1382.8]
+    entry: "Magic Number"
+    kind: lb_check
+    aliases:
+      - "Magic Number"
+      - "Magic Number 2"
+      - "MN2"   # unverified
+      - "Magic Number (252k) ★★★★"
+  - id: p6.run_mi_enrage
+    # ids: 7BA0: cast starts @1391.9 (16 s cast bar ends @1407.9); cactbot places the effect 30 s after the cast start
+    name: "Run: ****mi* (P6 enrage)"
+    phase: p6
+    hit: 1421.9
+    hits: [1421.9]
+    entry: "Run: ****mi* Enrage"
+    kind: enrage
+    aliases:
+      - "Run: ****mi*"
+      - "Run: ****mi* Enrage"
+      - "Run: Dynamis"
+      - "P6 Enrage"
+      - "Enrage"
+      - "Run: ****mi* (enrage — top groups kill at 5:08–5:22)"
+
+# calibration: timeline seconds that correspond to sheet time 0:00 of each phase (median of the per-row offsets
+# timeline hit - sheet time, A/B/C rows; spread, drift and outliers in docs/research/mechanics.md section 4.2).
+# Importers should prefer a row's own time when it has one and use these only for rows without a time.
+calibration:
+  carry_the_clear: { p1: 0.9, p2: 201.8, p3: 399.4, p4: 606.7, p5: 714.7, p6: 1099.3 }

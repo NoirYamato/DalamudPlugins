@@ -45,6 +45,12 @@ internal sealed class PullRecorder : IDisposable
     /// <summary>Lines written to the current file.</summary>
     public int LinesWritten { get; private set; }
 
+    /// <summary>
+    /// Whether to record this frame: the setting is on and the player is in a supported fight's zone or bound by a
+    /// duty. Towns, housing and the open world are never recorded (other players' action uses would be logged).
+    /// </summary>
+    public static bool ShouldRecord(bool enabled, bool boundByDuty, bool fightZone) => enabled && (boundByDuty || fightZone);
+
     /// <summary>Opens or closes the recording for this frame.</summary>
     /// <param name="shouldRecord">Recording enabled and in a fight zone or duty.</param>
     /// <param name="currentTerritory">Current territory id (a new file starts on each zone change).</param>

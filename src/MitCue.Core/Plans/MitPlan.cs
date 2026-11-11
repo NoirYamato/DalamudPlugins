@@ -133,6 +133,13 @@ public sealed class PlanEntry
     /// <summary>Press at the planned time or as soon as it comes off cooldown.</summary>
     public bool WhenReady { get; set; }
 
+    /// <summary>
+    /// The entry belongs to the end of its phase ("Deploy just before P3 ends", "Rampart as P1 dies"):
+    /// if a phase push makes the timeline jump past it, it becomes Due at the jump instead of Skipped
+    /// (DESIGN §5.2). Usually anchored to the phase's enrage/end mechanic.
+    /// </summary>
+    public bool AtPhaseEnd { get; set; }
+
     /// <summary>Source lethality (★ count), if any.</summary>
     public int? Severity { get; set; }
 
@@ -167,21 +174,4 @@ public static class PlanSelection
         }
         return true;
     }
-}
-
-/// <summary>Plan (de)serialization: YAML (human-editable), JSON (storage), share codes (compressed, base64url).</summary>
-public static class PlanSerializer
-{
-    public static string ToYaml(MitPlan plan) => throw new NotImplementedException();
-
-    public static MitPlan FromYaml(string yaml) => throw new NotImplementedException();
-
-    public static string ToJson(MitPlan plan) => throw new NotImplementedException();
-
-    public static MitPlan FromJson(string json) => throw new NotImplementedException();
-
-    /// <summary>"MITCUE1:" + base64url(deflate(json)).</summary>
-    public static string ToShareCode(MitPlan plan) => throw new NotImplementedException();
-
-    public static MitPlan FromShareCode(string code) => throw new NotImplementedException();
 }

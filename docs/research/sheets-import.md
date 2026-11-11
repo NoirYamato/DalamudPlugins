@@ -56,11 +56,16 @@ prefix `https://docs.google.com/spreadsheets/d/<ID>/`. Status is the final statu
 | `export?format=zip` | lpdu / ctc | 200 | `application/zip` (one HTML file per tab + `resources/sheet.css` + images) | 472,916 / 19,869 | 1 |
 | `export?format=ods` / `pdf` | lpdu | 200 | `application/vnd.oasis.opendocument.spreadsheet` / `application/pdf` | 408,587 / 532,607 | 1 |
 | `export?format=xlsx` with an unknown ID | – | **404** | `text/html` | 8,007 | 0 |
-| `export?format=csv&gid=123` (gid that does not exist) | ctc | **400** | `text/html` | 7,982 | 0 |
+| `export?format=csv&gid=123` (gid that does not exist) | ctc | **400** | `text/html` | 7,982 | 1 (the 307 to googleusercontent.com comes first; the 400 is the final response) |
 
 The same xlsx downloads were repeated with .NET `HttpClient` (default handler, console probe
 `--download` mode). The 307 redirect to `doc-…-sheets.googleusercontent.com` is followed
 automatically, the body parses, and an unknown ID gives `404 text/html`.
+
+The xlsx bytes are **not stable** between downloads: the same unchanged sheets came back as 420,485 / 420,533 /
+420,553 B (LPDU) and 188,206 / 187,931 / 187,435 B (Carry the Clear). Google reorders `sharedStrings.xml` and
+the style records on every export; the parsed cells are identical (0 mismatches against the fixtures for a fresh
+download). Compare parsed content, never file hashes. The per-tab CSV exports were byte-identical across downloads.
 
 ### 1.2 Observations that matter for the importer
 
@@ -79,6 +84,8 @@ automatically, the body parses, and an unknown ID gives `404 text/html`.
   same as in Google. **gids are not in the xlsx.** The original names and gids are in the `htmlview` page as
   `items.push({name: "P1\/P2", pageUrl: "…", gid: "871196336", …})`, one entry per tab in tab order. This
   was verified on both sheets, but the page is undocumented, so use it only as a best-effort extra.
+  How Google sanitises Excel's other forbidden name characters (`\ ? * [ ] :`) and names longer than
+  Excel's 31-character limit did not occur in the samples: **UNVERIFIED**.
 - **CSV/TSV exports:** one tab per request (`gid`). Line endings are CRLF and there is no final newline.
   Trailing empty rows and columns are dropped, leading ones are kept, so A1 positions stay valid. Values
   are byte-identical to the API's `formattedValue` for all 16 tabs (checked). Colours, rich text and
@@ -86,7 +93,8 @@ automatically, the body parses, and an unknown ID gives `404 text/html`.
   so quoting for those is **UNVERIFIED**.
 - **`gviz` is unsuitable:** it **drops empty rows**, so row positions move: ALOO 22→6 rows, WAR/DRK 13→10,
   Carry the Clear 68→62/63. It also quotes every field and returns all grid columns, including the hidden
-  I:U. Lookup by `sheet=<name>` works for names with `/` and with the en dash (URL-encoded).
+  I:U. Lookup by `sheet=<name>` works for names with `/` and with the en dash (URL-encoded). An **unknown**
+  `sheet=` name does not fail: it silently returns the first tab (`sheet=NoSuchTab` gave ALOO, 200 `text/csv`).
 - **`htmlview`** is now a JavaScript shell. The static HTML has no cell data (0 `<table>`, 0 `<td>`).
 - **Published-to-web links** (`/spreadsheets/d/e/2PACX-…/pubhtml`, export `…/pub?output=xlsx`):
   **UNVERIFIED**, because neither sample is published.
@@ -181,7 +189,9 @@ line endings. Rules, as implemented in `normalize_sheets.py`:
    column-B colours exist only as CF rules (§4.4).
 4. **`bold` / `strike`** come from `effectiveFormat.textFormat`.
 5. **`runs`** come from `textFormatRuns` and are `[]` when the API returns none. `start` is the API
-   `startIndex` in **UTF-16 code units**, which is the C# string index; a missing value means 0.
+   `startIndex` in **UTF-16 code units**, which is the C# string index; a missing value means 0. (The unit is
+   stated in the Sheets API discovery document. The samples contain no characters outside the BMP, so the
+   fixtures themselves cannot tell UTF-16 offsets from code-point offsets; Python's `len()` counts code points.)
    Each run's `fg`/`bold` is the run's own value when set, otherwise the cell's effective value, because
    API runs inherit the cell format. `fg: null` again means black.
 6. **`note`** is the cell note. Both sheets have 0 notes.
@@ -213,8 +223,9 @@ fields: spreadsheetId, properties.title, properties.locale, properties.timeZone,
 
 The MCP tool rejects parenthesised field masks (`properties(title,locale)` returns "Invalid field"), so
 dotted paths are required. Large responses (388 KB and 1.28 MB here) are written by the harness to a
-file under `~/.claude/projects/…/tool-results/`. That file was copied and passed to
-`python3 -I normalize_sheets.py <file> <out-dir>`.
+file under `~/.claude/projects/…/tool-results/`, wrapped as `{"content": <Spreadsheet>}`. That file was copied
+and passed to `python3 -I normalize_sheets.py <file> <out-dir>`. The script also accepts a raw
+`spreadsheets.get` response (unwrapped).
 
 ### 2.4 Cross-checks
 
@@ -228,19 +239,28 @@ file under `~/.claude/projects/…/tool-results/`. That file was copied and pass
 
 - **LPDU:** the header row and phase column are black (`bg #000000`) with white text (`fg #ffffff`). Each
   role column has its own fill. In P1/P2: MT/OT `#98bfff`, H1/H2 `#b6d7a8`, M1/M2 `#ea9999`, R1 `#dd7e6b`,
-  R2 `#c27ba0`. Footnote markers are **red rich-text runs** (`#ff0000`): P6 `Rep*` with only the `*` red,
-  and `Party Mit after 6th puddle + Rep*`. The footnote sits in a later row: P6 B11
-  `*WAR/PLD use Mit after Protean befor Stack`, red text on black with a white `*` run. Some cells hold only spaces, or long runs of spaces
-  before the text. The only number is `'General Tank Mit til P5'!B9` = 0.3, shown as `30%`. ALOO has a
+  R2 `#c27ba0`. All 5 rich-text cells are in P6. Footnote markers are **red rich-text runs** (`#ff0000`) after
+  the action: B5 `Rep*` (the red run is `*` plus 3 spaces, then 19 more spaces in black), C4
+  `Party Mit after 6th puddle + Rep*` and I5 `Feint*`. The footnotes sit in later rows and use two different
+  styles: B11 `*WAR/PLD use Mit after Protean befor Stack` is red text on black with a white `*` run, and E14 is
+  white text on black (36 spaces, a red `*` run, then `Press 10s Mit when doing the side dodge to catch both
+  Proteans and the Stack`). Some cells hold only spaces, or long runs of spaces before the text. The only number is `'General Tank Mit til P5'!B9` = 0.3, shown as `30%`. ALOO has a
   hyperlink cell (discord.gg) and P6 has an imgur link. The "General Tank Mit til P5" tab carries a large
   image, which is not part of the fixture.
-- **Carry the Clear:** the legend in C12:E14 is merged. **Grey runs (`#808080`) = optional**, and **blue
-  bold runs (`#1154cc`) = the author's own placement ("Plenary\*")**; both are run-level and inside cells.
+- **Carry the Clear:** the legend rows C12:E12, C13:E13 and C14:E14 are each merged (three single-row
+  merges, plus a C9:E11 block above them). **Grey runs (`#808080`) = optional**, and **blue bold runs
+  (`#1154cc`) = the author's own placement ("Plenary\*")**; both are run-level and inside cells. The legend
+  rows use the same colours for other things (in the White Mage tab, C12's credit `M-Spec` is blue bold and
+  C13's explanation after `Plenary* (blue)` is a grey *bold* run), so interpret run colours only in the plan
+  rows (17–68).
   Column A times are `#545454` italic. Column B mechanic colour = lethality via conditional formatting:
   ★★★★ `#d100d1`, ★★★ `#d92f24`, ★★ `#c25200`, ★ `#926c02`, text matching `enrage|dodge` `#4974b9`,
-  anything else `#178038`. Column C is filled `#ebd2d3` (WHM) or `#c3d7cd` (SCH), and the combined tab has
-  both. Header cells C15:C16, D15:D16 and E15:E16 are merged. Rows 1–5 and columns I–U are hidden and
-  empty.
+  anything else `#178038`. The column layout differs between tabs (headers in row 15): the single-job tabs
+  have C = the job (`White Mage` filled `#ebd2d3`, or `Scholar` filled `#c3d7cd`), D = `Notes` (`#e0cfc1`) and
+  E = `Top WHMs (of 36)` / `Top SCHs (of 58)` (`#dadada`); the combined tab has C = `Scholar` (`#c3d7cd`),
+  D = `White Mage` (`#ebd2d3`), E = `Notes` (`#e0cfc1`) and no counts column. Row 16 holds `Damage Events`
+  (A16) and the phase title (B16). Header cells C15:C16, D15:D16 and E15:E16 are merged. Rows 1–5 and
+  columns I–U are hidden and empty.
 
 ---
 
@@ -269,6 +289,9 @@ code is minified, so function names change with every Google build; the quotes a
   - A cell is wrapped in `"…"`, with inner `"` doubled, **only if it contains a newline or a tab**.
   - **A cell that contains quotes but no newline or tab is written raw**: `"Kera" on MT` stays exactly
     that. A standard RFC 4180 parser would misread it.
+  - Before that test the writer passes the text through `sCm`, which under a feature check prepends
+    `"  "` × (n−1) to the cell (n looks like an indent or nesting level). Pasted cells may therefore carry
+    extra leading spaces; trim when parsing. What triggers it is **UNVERIFIED**.
   - From reading the loop: in a merged range the anchor carries the value and covered cells are empty
     fields.
 - **`text/html`** comes from the same loop and from the `fCm`/`lCm`/`zyk` functions. It contains a
@@ -279,7 +302,9 @@ code is minified, so function names change with every Google build; the quotes a
   cell becomes `<br/>`, and `" ' & < >` are escaped. The attribute registry includes `data-sheets-value`,
   `data-sheets-formula`, `data-sheets-numberformat`, `data-sheets-userformat`, `data-sheets-note`,
   `data-sheets-textstyleruns` and `data-sheets-hyperlink`. Which of these appear on a plain copy is
-  **UNVERIFIED**. There is a "Table is too large to copy." path; the limit is **UNVERIFIED**.
+  **UNVERIFIED**. There is a "Table is too large to copy." path. In the minified code it is guarded by
+  `Jl().Pa("fectsl")&&Math.imul(yc(Qa.ea,2),Qa.ea.Rd())>1E6`, apparently rows × columns > 1,000,000 behind a
+  feature flag, which suggests the limit; the actual behaviour is **UNVERIFIED**.
 
 ### 3.2 How the browser hands it to Windows
 
@@ -295,9 +320,11 @@ Source: Chromium `main`, `ui/base/clipboard/clipboard_format_type_win.cc` and `c
 
 ### 3.3 What a Dalamud plugin can read
 
-- **`ImGui.GetClipboardText()`** (static, returns `string`; there is also `GetClipboardTextU8()`) works.
+- **`ImGui.GetClipboardText()`** (static, returns `string`; there is also `GetClipboardTextU8()`, which returns
+  `ReadOnlySpan<byte>`) works.
   It is backed by Dalamud's internal `ImGuiClipboardFunctionProvider` (source: goatcorp/Dalamud `master`
-  @43b34118, matching the remark in the installed `Dalamud.xml`). It calls `OpenClipboard`, reads
+  @43b34118, matching the remark in the installed `Dalamud.xml`; the installed build is 12e318c1
+  (`15.0.3.9-31-g12e318c19`), a descendant of 43b34118 in which this file is identical). It calls `OpenClipboard`, reads
   **`CF_UNICODETEXT` only**, applies `str.ReplaceLineEndings("\r\n")` and passes UTF-8 to ImGui. So the
   plugin gets **plain text with every line ending converted to `\r\n`**, including those inside quoted
   cells. .NET's `ReplaceLineEndings` also turns U+0085, U+2028, U+2029 and U+000C into `\r\n` but keeps
@@ -309,10 +336,16 @@ Source: Chromium `main`, `ui/base/clipboard/clipboard_format_type_win.cc` and `c
   Pasting TSV into a normal box therefore **destroys the columns**. Use a button that calls
   `ImGui.GetClipboardText()`. If a paste box is wanted, use
   `ImGui.InputTextMultiline(label, ref buf, maxLength, size, ImGuiInputTextFlags.AllowTabInput)` with a
-  large `maxLength`. Both calls compile against Dalamud 15.
+  large `maxLength`. Both calls compile against Dalamud 15. The exact overload (from the
+  `Dalamud.Bindings.ImGui.dll` metadata) is `bool InputTextMultiline(ImU8String label, ref string buf,
+  int maxLength = 512, Vector2 size = default, ImGuiInputTextFlags flags = None,
+  ImGuiInputTextCallbackDelegate callback = null)`, so the **default `maxLength` is only 512** and must be
+  raised for a pasted plan.
 - **HTML flavour:** plain P/Invoke works from any thread, and no STA thread or WinForms is needed
-  (Dalamud.NET.Sdk does not set `UseWindowsForms`). This code compiled inside a Dalamud.NET.Sdk 15.0.0
-  plugin with 0 warnings. File:
+  (Dalamud.NET.Sdk does not set `UseWindowsForms`). `[LibraryImport]` needs `<AllowUnsafeBlocks>true`
+  (otherwise error SYSLIB1062). Dalamud.NET.Sdk sets it for the plugin project, but MitCue.Core is a plain
+  net10.0 project, so keep this code in the plugin or enable unsafe blocks in Core. The code below compiled
+  inside a Dalamud.NET.Sdk 15.0.0 plugin with 0 warnings. File:
   `/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/probes/sheets-plugin/Probe/Win32Clipboard.cs`:
   ```csharp
   [LibraryImport("user32.dll", StringMarshalling = StringMarshalling.Utf16, SetLastError = true)]
@@ -344,6 +377,9 @@ Source: Chromium `main`, `ui/base/clipboard/clipboard_format_type_win.cc` and `c
   end, **and** the unescaped body contains `\n`, `\r` or `\t` (Google's condition). Otherwise read the
   field raw up to the next `\t`, `\r` or `\n`.
 - Rows end at `\r\n`, `\n` or `\r`. A trailing newline is tolerated. Inside cells, normalise `\r\n` to `\n`.
+- Google's format is inherently ambiguous in one case: two raw cells `"a` and `b"` in the same row produce
+  exactly the same text as one cell containing `a<TAB>b` (`"a\tb"`). The parser returns the single cell
+  (tested). This needs a cell that starts with a quote and a later cell that ends with one, so it is rare.
 
 Tests (`--selftest`, all pass): simple grid, quoted multi-line cell, raw quotes left alone, doubled
 quotes plus newline, empty trailing cells, quoted tab, the line-ending behaviour above, and a **round
@@ -461,8 +497,13 @@ DocumentFormat.OpenXml.Framework 3.5.1, ExcelNumberFormat 1.2.0 and System.IO.Pa
 transitive. **DalamudPackager's `latest.zip` contains them all:** 2,282,175 B compressed, 8.74 MB
 unpacked. Dalamud ships none of these assemblies (checked in `Hooks/dev`), so there is nothing to
 conflict with. Loading them inside the game is **UNVERIFIED** (the game cannot run here). On Windows the
-shared `Microsoft.WindowsDesktop.App` framework, which Dalamud's runtimeconfig loads, may supply its own
-System.IO.Packaging; either copy works.
+shared `Microsoft.WindowsDesktop.App` framework, which Dalamud's runtimeconfig loads (checked in
+`Hooks/dev/Dalamud.runtimeconfig.json`), does ship its own System.IO.Packaging (assembly version 10.0.0.0, per
+the 10.0.0 targeting pack's `FrameworkList.xml`). Dalamud loads plugins with `PreferSharedTypes = false` and
+pins only Dalamud, Dalamud.Common, and Lumina and Lumina.Excel (with their references) to the shared context
+(`LocalPlugin.SetupLoaderConfig`). `ManagedLoadContext.Load` then resolves other assemblies from the plugin's
+`deps.json` first, so the plugin's own copy is expected to load into the plugin's context. Both copies should work; this is **UNVERIFIED** at
+runtime.
 
 ### 4.4 Gotchas found with the real files (all handled in the probe)
 
@@ -479,7 +520,9 @@ System.IO.Packaging; either copy works.
    evaluator.
 2. **Theme colours.** LPDU fonts use `<color theme="1"/>` (336 cells). Excel's index order swaps
    0↔1 and 2↔3 relative to `<a:clrScheme>`, so theme 1 = `dk1` (#000000). This mapping matches the API
-   on every compared cell, including ALOO row 1; the naive order would give white. Everything else in both files is ARGB `rgb="FFrrggbb"`.
+   on every compared cell, including ALOO row 1; the naive order would give white (`lt1` = `FFFFFF` in both
+   themes). Only index 1 occurs in the samples, so the 2↔3 swap follows the same convention but is not
+   exercised. Everything else in both files is ARGB `rgb="FFrrggbb"`.
    There are no indexed or auto colours.
 3. **Rich text.** Every run in the Google exports has an `rPr` with an explicit `<color>`. 0 runs lack
    either. Run `start` = cumulative `string.Length` of the earlier runs (UTF-16), which equals the API
@@ -502,6 +545,12 @@ System.IO.Packaging; either copy works.
    are ignored.
 10. **Performance:** 0.28–0.62 s per workbook on a cold start in this container, mostly JIT. Parse
     off the framework thread (`Task.Run`) and cap the download size (for example 20 MB).
+11. **Empty shared strings:** Google writes many blank cells as `t="s"` pointing at an empty string (169 such
+    cells in Carry the Clear). The API has no `formattedValue` for them, so map an empty string to `null`
+    (the probe does: `string.IsNullOrEmpty(text) ? null : text`).
+12. **OpenXml 3.x "enums" are structs:** `CellValues`, `PatternValues` and `ConditionalFormatValues` are
+    value types (structs), not C# enums, in 3.5.1, so `case CellValues.SharedString:` does not compile (error CS9135). Compare with
+    `==` or `Equals`, as the probe does.
 
 ---
 
@@ -527,7 +576,7 @@ Three public FFXIV Docs found by web search were exported as html, txt, md and d
 `1Dsmp2i8Nm5_1oaPvZstFISSA2ThGgu2gZVshNONpE30` ("An In Depth look at Paladin": 1 table, 347 paragraphs,
 39 images), `1HwRiYvvRYPFD6uh4VM-R1eN42ozLz12MamFTdQVe0jQ` ("World Prog Logistics": 2 tables,
 212 paragraphs) and `1wKE4Hj7asv5PsJT4w4mL5chDRMTtgUbdPCsJWqGsuJk` ("FFXIV The Epic of Alexander Raid
-Strategy Guide": 40 images, no tables).
+Strategy Guide": 40 images (36 distinct image parts in the docx), no tables).
 `Content-Disposition` `filename*` holds the document title (`World Prog Logistics.docx`).
 
 ### 5.2 How tables and prose come out
@@ -535,9 +584,9 @@ Strategy Guide": 40 images, no tables).
 | Format | Prose | Tables | Formatting | Size |
 |--------|-------|--------|------------|------|
 | `txt` | UTF-8 **BOM**, **CRLF**, one paragraph per line | flattened: each cell's lines in order, and the next cell starts with `\t` on its first line. **Cannot be rebuilt into a grid reliably** | none | small (27–103 KB) |
-| `md` | headings `#`, bold `**`, lists | GitHub pipe tables; **the first row becomes the header row**, with a `\| :---: \|` line inserted after it; **a line break inside a cell becomes U+000B** (vertical tab) | no colours | images are inlined as base64 `[imageN]: <data:image/png;base64,…>`: 10 MB for the TEA guide |
+| `md` | headings `#`, bold `**`, lists | GitHub pipe tables; **the first row becomes the header row**, with an alignment line inserted after it (`\| :---: \|` in the Paladin doc, `\| :---- \|` in World Prog Logistics, so accept any `:?-+:?`); **a line break inside a cell becomes U+000B** (vertical tab) | no colours | images are inlined as base64 `[imageN]: <data:image/png;base64,…>`: 10 MB for the TEA guide |
 | `html` | `<p class="cN"><span class="cN">` with styles in **CSS classes** in `<head><style>` (`.c1{color:#…;font-weight:700}`) | `<table><tr><td colspan rowspan><p><span>`; line breaks `<br>` | colours via class rules; links rewritten through `https://www.google.com/url?q=…` | images inline as base64: 12–13.6 MB |
-| `docx` | `w:body` → `w:p` in order, style in `w:pPr/w:pStyle` (`Title`, `Subtitle`, `Heading1`, …) | `w:tbl/w:tr/w:tc`; `w:tcPr/w:shd/@w:fill` (cell fill, `auto` = none), `w:gridSpan`, `w:vMerge`; line break `<w:br w:type="textWrapping"/>` | runs `w:r/w:rPr`: `w:color w:val="1155cc"`, `w:b`, `w:strike`, `w:highlight`, `w:shd`; hyperlinks via relationships (direct URLs) | images are separate parts (7.8–9.8 MB with images, 23 KB without) |
+| `docx` | `w:body` → `w:p` in order, style in `w:pPr/w:pStyle` (`Title`, `Subtitle`, `Heading1`, …) | `w:tbl/w:tr/w:tc`; `w:tcPr/w:shd/@w:fill` (cell fill, `auto` = none), `w:gridSpan`, `w:vMerge` (these are the OOXML elements; the 3 tables in the samples have no `w:gridSpan`, no `w:vMerge` and only `w:fill="auto"`, so how Google exports merged or filled Docs cells is **UNVERIFIED**); line break `<w:br w:type="textWrapping"/>` | runs `w:r/w:rPr`: `w:color w:val="1155cc"`, `w:b`, `w:strike`, `w:highlight`, `w:shd`; hyperlinks via relationships (direct URLs) | images are separate parts (7.8–9.8 MB with images, 23 KB without) |
 
 ### 5.3 Recommendation
 
@@ -556,7 +605,11 @@ Strategy Guide": 40 images, no tables).
   Map the document onto the existing model: **each `w:tbl` becomes one `SheetTab`** ("Table 1", …). A
   cell's text is its paragraphs joined by `\n` (`w:br` → `\n`, `w:tab` → `\t`), with runs from `rPr`, `bg`
   from `w:shd/@w:fill` (`auto` → null), and merges from `gridSpan` (horizontal) and `vMerge`
-  restart/continue (vertical). **All paragraphs outside tables become one `SheetTab` named "Text"**, one
+  restart/continue (vertical). The probe compiles against these properties, but no sample table had a fill,
+  `gridSpan` or `vMerge`, so that part is **UNVERIFIED** with real Google output. Build cell and paragraph
+  text from the runs' `Text`/`Break`/`TabChar` elements, not `Paragraph.InnerText`: `InnerText` also returns
+  the text of drawing-position elements (the Paladin title paragraph reads
+  `An In Depth look at Paladin3467100533400`). A `w:strike w:val="0"` (off) also occurs, so honour `val`. **All paragraphs outside tables become one `SheetTab` named "Text"**, one
   row per paragraph: column A = text with runs, column B = style id (so headings such as "P3" can mark
   phases). The same layout detector and cell parser then handle Docs written as prose lines
   ("1:21 Pantokrator: Temperance").
@@ -594,6 +647,9 @@ Strategy Guide": 40 images, no tables).
 - Google xlsx export of notes, of time/date values, and of locale-specific number formatting.
 - Loading DocumentFormat.OpenXml inside the running game (packaging is verified; runtime is not).
 - Google Docs multi-tab documents; comments and suggestions in Docs exports.
+- Google Docs tables with merged cells (`gridSpan`/`vMerge`) or cell fills: no sample had any.
+- How the xlsx export renames tabs with other Excel-forbidden characters (`\ ? * [ ] :`) or names over 31
+  characters.
 
 ## Appendix: files produced by this research
 
@@ -612,3 +668,162 @@ Strategy Guide": 40 images, no tables).
 - Raw evidence (scratchpad `dl/`): endpoint probe bodies and `results.tsv`, Sheets client JS
   (`dl/sheetsjs/edit.js`), public Docs exports, NuGet packages. Sources: `research/repos2/dalamud`
   (goatcorp/Dalamud @43b34118), `research/imgui_widgets.cpp` (gc-imgui @33d28f5), `research/chromium/*.cc`.
+
+---
+
+## Verification
+
+Independent check on 2026-11-11 by a second agent. It used only primary sources: fresh HTTP requests, fresh
+Sheets API reads, compiled and executed probes, cloned source and NuGet metadata. The verifier's probes are in
+`/tmp/claude-0/-home-user/0206fee7-d20d-52fb-82e7-16c1ec9b7da1/scratchpad/probes/verify-sheets-import/`:
+`Probe` (a Dalamud.NET.Sdk 15.0.0 plugin) with `CoreLib`, plus `Runner`, `LibApi`, `CxApi`, `Sig`,
+`StructCheck`, `SwitchCheck`, `NoUnsafe`, `TsvAmbiguity` and `scripts/api_vs_fixture.py`. `rerun/` is a
+rebuilt copy of the researcher's SheetsProbe. Downloads are in `dl/` and the API dumps in `api/`.
+
+### What was checked
+
+Everything below was confirmed, except the items listed under "Corrected".
+
+1. **Endpoints (§1.1).** 35 fresh curl requests and 4 `HttpClient` requests were made: xlsx for both sheets
+   and for `&gid=777200`, csv/tsv per gid, csv without gid, an unknown ID, an unknown gid, gviz by name
+   (including `P1%2FP2`, `WAR%2FDRK` and the en dash) and as JSON, `htmlview`, `pubhtml`,
+   `export?format=html`, zip, and the Docs txt/md/html/docx/pub exports. Statuses, content types, sizes and redirect counts all match, except the
+   unknown-gid redirect count.
+2. **Content-Disposition.** `FileNameStar` was decoded by .NET `HttpClient` in the verifier's own runner, which
+   also follows the 307. An unknown ID gives `404 text/html`; an unknown gid gives `400 text/html` after the
+   redirect.
+3. **xlsx structure.** Sheet names are `P1P2` and `WARDRK`, the en dash is kept, and there are no `docProps`
+   and no gids. The `&gid=` workbook holds only "TOP – Scholar". The LPDU PNG is 390,833 B.
+4. **htmlview.** The `items.push` names and gids of all 16 tabs match the API.
+5. **gviz.** Rows drop 22→6, 13→10 and 68→62/63. Every line is quoted, and Carry the Clear returns 21 columns (A–U).
+6. **Fixtures against the live Sheets API.** Fresh `spreadsheets.get` dumps were re-derived with an
+   independent script, `scripts/api_vs_fixture.py`. All 2,163 cells (`v`, `bg`, `fg`, `bold`, `strike`,
+   `runs`, `note`), merges, hidden rows/columns, gids and indexes show 0 differences. A second endpoint,
+   `values.get`, on 180 cells (`'P3'!A1:K10` and `'TOP – Scholar'!A17:E30`) also shows 0 differences.
+   `values.get` on `F1:U1032` and `A69:U1032` returned nothing for all three Carry the Clear tabs.
+7. **Generator.** `normalize_sheets.py` run on the fresh dumps regenerates all 16 JSON files byte for byte.
+8. **Fixture JSON against the CSV exports.** All 16 tabs have the same size and values. 5 CSVs were
+   re-downloaded and are byte-identical. They use CRLF with no final newline, and only fields containing a
+   comma are quoted.
+9. **Fixture facts.**
+   - The §2.1 table and the totals (1,143/513/5 and 1,020/676/24) match.
+   - There are 0 notes, 0 strikethrough and 0 formulas (no `<f>` in either xlsx).
+   - There is one numeric cell, `B9` = 0.3 with `numFmtId 9`, which ExcelNumberFormat shows as "30%".
+   - The locales are `en_GB` and `en_US`.
+   - The §2.2 example equals row 18 of `top-white-mage.json`.
+   - The files are UTF-8 with LF and no `\u` escapes.
+   - `git check-attr` reports `text: unset`, and the committed CSV blob keeps its CRLF.
+10. **Conditional formatting.** The 6 rules, their ranges, colours and `stopIfTrue` were read both from the
+    API (`sheets.conditionalFormats`) and from `sheet1.xml`/`styles.xml`. Column B's user-entered colour is
+    black. With CF evaluation disabled, the researcher's reader gives exactly 141 mismatches, all in column B `fg`.
+11. **xlsx details.** `clrScheme` has `dk1` `000000` and `lt1` `FFFFFF`, and 336 cells use a `theme="1"` font.
+    Carry the Clear has 965 hidden rows and hidden columns I–U. Every run has an `rPr` with a `color`.
+12. **Researcher's probe, rebuilt from a copy.** It reports `COMPARED 1020 … 0 mismatches` and
+    `COMPARED 1143 … 0 mismatches`, and all `--selftest` checks pass. Fresh xlsx downloads, whose parts are in a
+    different order, also give 0 mismatches.
+13. **OpenXml 3.5.1 and ExcelNumberFormat 1.2.0 APIs (§4.2), and the Wordprocessing APIs (§5.3).** Every member
+    was compiled in the verifier's own `CoreLib`. The `NumberFormat` signature was confirmed by reflection. The
+    docx dump reproduces 347 paragraphs, 1 table and 39 image parts (Paladin), and 212 paragraphs and 2 tables
+    (World Prog Logistics).
+14. **Dalamud plugin.** The verifier's own plugin builds with 0 warnings and 0 errors. It uses its own
+    `LibraryImport` declarations, `ImGui.GetClipboardText()`, `GetClipboardTextU8()` and
+    `InputTextMultiline(..., AllowTabInput)`, and references a net10.0 core library with OpenXml and
+    ExcelNumberFormat. `latest.zip` contains DocumentFormat.OpenXml, DocumentFormat.OpenXml.Framework,
+    System.IO.Packaging and ExcelNumberFormat (2,269,787 B, 8.71 MB unpacked).
+15. **ImGui bindings metadata.**
+    - `GetClipboardText()` returns `string`, and `GetClipboardTextU8()` returns `ReadOnlySpan<byte>`.
+    - The `InputTextMultiline` overloads are as listed in §3.3, and `AllowTabInput` = 1024.
+    - `StaThreadService` and `ImGuiClipboardFunctionProvider` are internal.
+    - Dalamud's only public clipboard members handle images (`ITextureProvider.CreateFromClipboardAsync` and
+      `HasClipboardImage`, `ITextureReadbackProvider.CopyToClipboardAsync`).
+16. **Dalamud source.** The clipboard provider is identical at 43b34118 and at the installed 12e318c1:
+    `CF_UNICODETEXT` and `ReplaceLineEndings("\r\n")`.
+17. **ImGui version.** The chain is Dalamud 12e318c1 → `lib/cimgui` ecd32e56 → imgui 33d28f5, where
+    `IMGUI_VERSION` is "1.88". The filter and paste loop are as described, and `cimgui.dll` contains "1.88".
+18. **`ReplaceLineEndings`.** U+0085, U+2028, U+2029 and U+000C become CRLF; U+000B is kept.
+19. **Chromium.** The `HtmlToCFHtml` header and markup, `"HTML Format"`, `CF_UNICODETEXT` and
+    `"Chromium Web Custom MIME Data Format"` are as described.
+20. **Sheets client code (`edit.js`).** `rBm`, `bCm`, `sCm`, `fCm`, `lCm`, `zyk` and the row/cell separators
+    were found. `ji` resolves to `indexOf(String.fromCodePoint(c))` in core.js. The copy-format list quote is
+    present, with a line break inside it. So are `<google-sheets-html-origin>`, the style block,
+    `in-cell-link`, `<br/>` and the `data-sheets-*` registry.
+21. **NuGet.** The latest stable versions, licences, dependency groups and DLL sizes match. SixLabors.Fonts
+    1.0.0 is Apache-2.0; the LICENSE of 2.0.0 and 3.2.0 is the Six Labors Split License.
+22. **Other libraries.**
+    - ExcelDataReader and MiniExcel: the public APIs were confirmed by compiling and by reflection.
+    - ClosedXML (own probe): rich text, fills, theme resolution and merges work, and it reports 6 CF rules.
+      `GetFormattedString()` gives "30%". CF is not evaluated. The output is 10.06 MB.
+    - The `XLPredefinedFormat` id table is 1–4, 7, 9–22, 37–40 and 45–49.
+23. **SDK and environment.**
+    - Dalamud.NET.Sdk 15.0.0 `Sdk.props` targets net10.0-windows, sets `AllowUnsafeBlocks=true` and does not
+      set `UseWindowsForms`.
+    - `Dalamud.runtimeconfig.json` lists Microsoft.WindowsDesktop.App 10.0.0.
+    - `Hooks/dev` has no OpenXml, System.IO.Packaging or ExcelNumberFormat assembly.
+    - The SDK is 10.0.404 and `Dalamud.dll` is 15.0.4.0.
+24. **Google Docs exports.** The txt export has a BOM and CRLF. The md export (`text/x-markdown`) has U+000B in
+    table cells, pipe tables and base64 image definitions. The html export uses class CSS and
+    `google.com/url?q=` links. The docx uses direct link targets, and the Content-Disposition carries the title.
+25. **Sheets API discovery document (revision 20261109).**
+    - `startIndex` is in UTF-16 code units.
+    - Runs inherit the cell format.
+    - `GridRange` is half-open.
+    - `effectiveFormat` includes conditional formatting.
+26. **MCP field mask.** `properties(title,locale)` returns "Invalid field".
+
+### Corrected (wrong or overstated)
+
+- **§1.1:** the unknown-gid redirect count said 0. It is 1: a 307 to googleusercontent.com, then
+  `400 text/html`. The researcher's own header capture (`dl/neg/hdr2.txt`) shows the same.
+- **§5.2 and §5.3:** the researcher's summary said "docx keeps cell fills, spans, vertical merges". No sample
+  docx contains `w:gridSpan` or `w:vMerge`, and every table-cell fill is `auto`. These are now marked
+  **UNVERIFIED** for Google output and listed in §7.
+- **§2.5, LPDU:** the footnote description missed `Feint*` (P6 I5) and the second footnote style (P6 E14,
+  white text with a red `*`). The red run of `Rep*` is `*` plus 3 spaces. The bullet now covers all 5
+  rich-text cells.
+- **§2.5, Carry the Clear:** "the combined tab has both" fills did not say where they are. The combined tab
+  has C = Scholar, D = White Mage and E = Notes; the single-job tabs have C = the job, D = Notes and
+  E = counts. "The legend in C12:E14 is merged" is really three separate single-row merges. Both points are
+  rewritten, and a note now says that the legend rows reuse the run colours.
+- **§5.2, md:** the alignment row is not always `| :---: |`; World Prog Logistics has `| :---- |`.
+- **`normalize_sheets.py` and README:** the script always read `["content"]`, so it accepted only the
+  harness's tool-result file, while the README said "save the response". The script now accepts both forms,
+  and both regenerate byte-identical files. The README also notes that the xlsx bytes are not stable.
+
+### Added (omissions that matter to implementers)
+
+- **§1.1:** xlsx downloads are not byte-stable, because shared strings and styles are reordered on every export.
+- **§1.2:**
+  - gviz returns the first tab for an unknown `sheet=` name.
+  - How Google renames tabs that break Excel's other naming rules is **UNVERIFIED**.
+- **§2.2, rule 5:** the API discovery document confirms the UTF-16 unit, but the samples cannot tell the
+  difference because they contain no characters outside the BMP.
+- **§3.1:**
+  - The plain-text writer's `sCm` step can prepend spaces to a cell.
+  - The "too large to copy" check is `rows×cols > 1E6` behind a feature flag. It is still **UNVERIFIED** at
+    runtime.
+- **§3.3:**
+  - The exact `InputTextMultiline` overload, whose `maxLength` **defaults to 512**.
+  - The return type of `GetClipboardTextU8()`.
+  - The installed Dalamud commit.
+  - `[LibraryImport]` needs `AllowUnsafeBlocks`, otherwise the build fails with SYSLIB1062 (tested).
+    MitCue.Core does not set it.
+- **§3.4:** Google's TSV has an inherent `"a<TAB>b"` ambiguity (tested).
+- **§4.3:** the WindowsDesktop framework does ship System.IO.Packaging 10.0.0.0. With Dalamud's loader
+  settings, the plugin's own copy is expected to load.
+- **§4.4, gotchas 11 and 12:**
+  - Empty shared strings must become `null` (169 cells).
+  - OpenXml 3.x value types are structs, so `switch` case labels do not compile (CS9135, tested).
+- **§5.3:**
+  - Build text from the runs, not `Paragraph.InnerText`, which includes drawing offsets (tested).
+  - `w:strike w:val="0"` occurs in the samples.
+
+### Still UNVERIFIED after this check
+
+Everything in §7, in particular:
+
+- loading the assemblies inside the running game;
+- the Win32 HTML clipboard reader on Windows;
+- real Sheets clipboard payloads;
+- private and published links;
+- notes and time values in the xlsx export;
+- merged or filled table cells in Google Docs.
