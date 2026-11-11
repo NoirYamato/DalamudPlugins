@@ -241,7 +241,9 @@ Selection rule for the local player (`PlanSelection`): an entry applies when
 The player's slot is the column's slot, else the configured slot (the plugin's "My usual
 party slot", the CLI's `--slot`) when it is a slot of the job's role (`Slots.ForJob`: one
 usual slot serves every job, and a melee player's M1 is not their slot on a tank), else,
-for a plan without a column for the job, the slot of the job's calls (§7).
+without a saved choice and for a plan without a column for the job, the slot of the job's
+calls (§7). A saved "any column for my job" (the CLI's `--assignee "*"`) has no slot then
+and shows every seat's calls (LPDU's Red Mage: R1 and R2).
 
 Slots compare by name, so every plan reader (`PlanSerializer`: plan files, share codes,
 the AI's YAML, the CLI) writes the synonyms `T1`, `T2`/`ST` and `D1`–`D4`, in any letter
@@ -465,31 +467,31 @@ files and links; the plugin's import window adds downloading, the review and the
   share-code box sets a plan only when it has calls for the job as the overlay selects
   them; for a role sheet whose calls for the job are only in other slots' job-less
   columns, the message names those slots and says to choose the plan and then the slot's
-  column under "My column" (or, with no usual slot set, to set it first): one usual slot
-  serves every job of its role, so changing it would take the slot calls of the player's
-  main job away.
+  column under "My column" (or, only while no usual slot is set at all, to set it first; a
+  usual slot of another role gets the column hint too): one usual slot serves every job of
+  its role, so changing it would take the slot calls of the player's main job away.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),
   the narrowest choice that has them all and no call of another column
-  (`ColumnSuggestion`). The usual party slot counts only on a job of its role. Without a
-  column for the job and a slot (LPDU's ranged jobs, with calls per job in "R1" and
-  "R2"), the job's calls give the seat: the first slot of its role they name, passing over
-  a slot the party gives another job, one whose calls are all in it (a Red Mage gets R1,
-  or R2 next to a Bard). Columns for team compositions (keys naming two or more jobs) are
-  alternatives, never combined, and one composition split over per-phase tabs is one
-  seat: a Warrior on LPDU gets the tank pair with the party's co-tank ("WAR/PLD WAR" next
-  to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none of the job's
-  compositions gets the job's column that is no composition, if there is one (Carry the
-  Clear's White Mage tab for a White Mage next to a Sage). A job's column that repeats the
-  calls of its composition column is the same seat written twice, whichever tab comes
-  first (Carry the Clear's White Mage tab and its combined tab). Plans are exported as
-  share codes, not as files.
+  (`ColumnSuggestion`). For the column and the calls, the usual party slot counts only on a
+  job of its role. Without a column for the job and a slot (LPDU's ranged jobs, with calls
+  per job in "R1" and "R2"), the job's calls give the seat: the first slot of its role they
+  name, passing over a slot the party gives another job, one whose calls are all in it (a
+  Red Mage gets R1, or R2 next to a Bard). Columns for team compositions (keys naming two
+  or more jobs) are alternatives, never combined, and one composition split over per-phase
+  tabs is one seat: a Warrior on LPDU gets the tank pair with the party's co-tank
+  ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none
+  of the job's compositions gets the job's column that is no composition, if there is one
+  (Carry the Clear's White Mage tab for a White Mage next to a Sage). A job's column that
+  repeats the calls of its composition column is the same seat written twice, whichever
+  tab comes first (Carry the Clear's White Mage tab and its combined tab). Plans are
+  exported as share codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
-  party only columns of jobs someone in it plays, without a job's calls in a slot the
-  party gives another job (LPDU's Red Mage R1 calls next to a Bard). The partner's columns
+  party the columns of jobs nobody in it plays and a job's calls in a slot the party
+  gives another job (LPDU's Red Mage R1 calls next to a Bard). The partner's columns
   that are not a composition are kept (a general "DRK" next to "WAR/DRK DRK"); a
   combined-tab column that repeats the partner's other column is shown once. Columns for
   a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank") are no one's: not shown,

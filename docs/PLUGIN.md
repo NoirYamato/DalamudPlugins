@@ -168,7 +168,9 @@ it my active plan …**, the Plans tab's **Make an imported share code my active
 (`PlanStore.ImportShareCode` with the current job; it sets the plan only when it has calls for that job,
 counted by `PlanStore.CallsFor` as the overlay would select them; for a sheet whose calls for the job are
 only in other slots' job-less columns, its message names those slots and says to choose the plan and then
-the slot's column, or, without **My usual party slot**, to set it first), or the **Active plan** combo. A
+the slot's column, or, only while **My usual party slot** is not set at all, to set it first: the message
+reads the setting itself, so a usual slot of another role, which the column below does not use, also gets
+the column hint and the player's main job keeps its slot), or the **Active plan** combo. A
 share code of a bundled plan has that plan's id and takes its place, so it stays the automatic plan of the
 job the bundled plan is meant for.
 
@@ -176,12 +178,14 @@ job the bundled plan is meant for.
 uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
 column, the one in the configured slot when there are several, else the first; else the slot's column). The
 configured slot (**My usual party slot**) counts only on a job of its role (`Slots.ForJob`: MT/OT for tanks,
-H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged): on another job it is not set, while a column chosen
-in the Plans tab keeps its own slot. Without a column for the job and a slot (LPDU's ranged jobs, whose
-calls are per job in "R1" and "R2"), the slot is the first one of the job's role that its calls name
-(`SeatOfCalls`), passing over a slot the party gives another job (`PartySeats`: the one party job whose
-calls are all in it): a Red Mage gets "any column for my job in slot R1", 9 entries, or R2 next to a Bard,
-13; *(any column for my job)* still shows both (22). Any column, chosen or suggested, also shows other
+H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged): on another job the column and the calls are chosen as
+if it were not set, while a column chosen in the Plans tab keeps its own slot. Without a column for the job
+and a slot (LPDU's ranged jobs, whose calls are per job in "R1" and "R2"), the slot is the first one of the
+job's role that its calls name (`SeatOfCalls`), passing over a slot the party gives another job
+(`PartySeats`: the one party job whose calls are all in it): a Red Mage gets "any column for my job in slot
+R1", 9 entries, or R2 next to a Bard, 13; *(any column for my job)* still shows both (22). Calls that name
+no job give no slot: LPDU's melee jobs, whose calls are in the job-less "M1" and "M2", get none of them
+without the usual slot (M1 or M2) or a chosen column. Any column, chosen or suggested, also shows other
 columns' calls for the player's slot that are for their job, or for no job when the slot is one of the
 job's role (`PlanSelection.Applies`); an entry with no job in a column with a job is that job's (every plan
 reader gives it the column's job: `PlanNormalizer.JobsFromColumns`). When the job's calls are in several of
@@ -467,12 +471,12 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
         it is on, the overlay shows these sample rows in §2.4 and instead of *waiting for pull* in §2.5.
 - [ ] **General** > tick **Also show my co-healer's calls**, then restart the preview. As Scholar on LPDU,
       the H1 columns' calls appear dimmed with tags like `[H1 WHM]` (outside a party `[H1 AST]` too; in a
-      party, only the columns of its jobs), never `[H2 SGE]`. As White Mage, *NoirMit - WHM* has no Scholar
-      column, so first choose *LPDU TOP Mitigation* under **Active plan** (your own calls are then LPDU's
-      *H1 WHM*, 11 entries): the H2 columns' calls appear dimmed with tags like `[H2 SCH]` (outside a party
-      `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order, and your own rows are never
-      pushed out. White Mage: afterwards, set **Active plan** back to *(automatic: the bundled plan for this
-      job, else my own plan for it)*.
+      party, `[H1]` and only the columns of the party's jobs), never `[H2 SGE]`. As White Mage,
+      *NoirMit - WHM* has no Scholar column, so first choose *LPDU TOP Mitigation* under **Active plan** (your
+      own calls are then LPDU's *H1 WHM*, 11 entries): the H2 columns' calls appear dimmed with tags like
+      `[H2 SCH]` (outside a party `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order, and
+      your own rows are never pushed out. White Mage: afterwards, set **Active plan** back to *(automatic: the
+      bundled plan for this job, else my own plan for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 

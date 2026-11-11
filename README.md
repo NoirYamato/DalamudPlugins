@@ -181,9 +181,9 @@ if no pull starts).
 | *Reminders* | | |
 | Track done/missed (keep used and missed calls listed with a check or a cross) | on | Off: a call disappears once used or once its time has passed, and no summary is printed |
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
-| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). In a party, only columns of jobs someone in the party plays, and not a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
+| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). In a party, not the columns of jobs nobody in the party plays, nor a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
-| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU misses the calls of its MT or OT slot). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs it counts as not set |
+| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU misses the calls of its MT or OT slot, and a melee job all of its LPDU calls). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs your column and calls are chosen as if it were not set |
 | Run /mitcue preview at 4x speed | off | Preview speed |
 | *Recording* | | |
 | Record pulls (event log for tuning the sync; no player names) | off | Writes a log of each duty or fight-zone visit (see [Recording pulls](#recording-pulls)). The folder is shown under the checkbox |
@@ -255,22 +255,25 @@ job (in green).
   code of a bundled plan takes that plan's place until it is deleted, and so stays the automatic plan of the
   job the bundled plan is meant for.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
-  calls for your slot: those for your job, and those for no job when the slot suits your role. So on LPDU,
+  calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
+  column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,
   *H2 SCH* includes the Scholar's P1/P2 calls of the job-less "H2" column. Without a choice (*suggested*),
   MitCue takes your job's column (the one in your slot if there are several, else the first), else your
   slot's column. When your job's calls are in several of its columns (one per phase or tab), it takes the
   narrowest choice that has them all and no other column's calls, such as *any column for my job in slot
   H2*. When the plan has no column for your job and **My usual party slot** is not one of your role's, you
-  get the first slot your job's calls are in, passing over a slot that your party gives another job (one
+  get the first slot whose calls name your job, passing over a slot that your party gives another job (one
   whose calls are all in it): on LPDU, whose ranged jobs have their calls in the R1 and R2 columns, a Red
   Mage gets *any column for my job in slot R1*, or R2 next to a Bard. For the other seat, set **My usual
-  party slot** or choose its column here; *(any column for my job)* shows both. Columns for team
-  compositions (LPDU's tank pairs) are alternatives, and one composition's columns in several phase tabs
-  count as one: a tank gets the pair with the party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*;
-  without a party, the first: *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank
-  (Reprisal, Rampart), when **My usual party slot** is MT or OT. A party that plays none of your job's
-  compositions gets your job's column that is not for one, if the plan has it. The *CM LB Tank* and
-  *CM Rep Tank* columns are left out: pick one here to follow it instead.
+  party slot** or choose its column here; *(any column for my job)* shows both. Calls for no job in a
+  slot's column (LPDU's M1 and M2 for melee jobs) give no seat: they are yours when **My usual party slot**
+  is that slot, or when you choose that column here. Columns for team compositions (LPDU's tank pairs) are
+  alternatives, and one composition's columns in several phase tabs count as one: a tank gets the pair with
+  the party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*; without a party, the first:
+  *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank (Reprisal, Rampart), when
+  **My usual party slot** is MT or OT. A party that plays none of your job's compositions gets your job's
+  column that is not for one, if the plan has it. The *CM LB Tank* and *CM Rep Tank* columns are left out:
+  pick one here to follow it instead.
 
 ### Importing a plan
 
@@ -330,8 +333,10 @@ it, and closing the window cancels it too.
   *It has no calls for WHM: choose it in the table above for the job it is for.* When a sheet with a column
   per slot (and none per job) has no calls for your job in your slot, the last one reads *It has calls for
   WHM only in slot H1 or H2: choose it in the table above for WHM, then its column "H1" or "H2" under "My
-  column".*, or, while **My usual party slot** is not set, *It has calls for WHM only in slot H1 or H2: set
-  "My usual party slot" in the General tab, then choose it in the table above to use it.*
+  column".* when **My usual party slot** is set, even to a slot of another role (MT on your White Mage:
+  changing it would take your tank's slot calls away), or, while it is *(not set)*, *It has calls for WHM
+  only in slot H1 or H2: set "My usual party slot" in the General tab, then choose it in the table above to
+  use it.*
 - **Plan files.** MitCue keeps each user plan as a `<plan id>.json` file in
   `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder and the bundled
   plans, for example after you copy a plan `.json` file into it. Only `.json` files are read there.
@@ -356,7 +361,8 @@ Read the **Status** line at the top of `/mitcue`:
 - *… no plan for SCH. Choose one in /mitcue > Plans.*: no plan applies to your job, or you chose *(no
   plan)*. In TEA and DMU, import a plan first.
 - *… none of its N entries match …*: the plan is active, but the column chosen in **My column** is not
-  yours.
+  yours, or your calls are in a slot's column without a job (LPDU's M1 and M2 for melee jobs) and
+  **My usual party slot** is not that slot: set it, or choose that column under **My column**.
 - *… N of them could not be scheduled (unknown mechanic, see the Debug tab).*: some entries name a mechanic
   the fight doesn't have; the Debug tab lists them.
 - *Fight data did not load (see Problems in /mitcue).*: the data built into MitCue failed to load. Look at
