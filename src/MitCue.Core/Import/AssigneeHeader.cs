@@ -40,7 +40,10 @@ public sealed partial record AssigneeHeader
     /// <summary>Every job the header names, in order ("H1 WHM/AST" → [WHM, AST]); empty when none.</summary>
     public IReadOnlyList<Job> Jobs { get; init; } = [];
 
-    /// <summary>The role implied by the job, the slot or the role word (<see cref="Role.None"/> when unknown).</summary>
+    /// <summary>
+    /// The role implied by the job, the slot or the role word (<see cref="Role.None"/> when unknown). A ranged slot
+    /// alone (R1, R2, D3, D4) gives <see cref="Role.None"/>: it holds a physical ranged DPS or a caster.
+    /// </summary>
     public Role Role { get; init; }
 
     // Separators between the parts of a header: "H2 SCH", "H2 - SCH", "SCH (H2)", "H1 WHM/AST", "H2: SCH".
@@ -49,6 +52,10 @@ public sealed partial record AssigneeHeader
 
     [GeneratedRegex(@"^[\p{L}\p{N}\s/\-–—:()\[\],|&+.']+$")]
     private static partial Regex AllowedChars();
+
+    // "#1" after a word: "Healer #1" → "Healer 1".
+    [GeneratedRegex(@"(?<=\s|^)#\s*(\d)")]
+    private static partial Regex NumberSign();
 
     private static readonly Dictionary<string, string> SlotPhrases = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -75,7 +82,7 @@ public sealed partial record AssigneeHeader
 
     /// <summary>
     /// Parses a column header strictly: the whole text must be a slot, a job (abbreviation or English name), a slot
-    /// with job(s), a slot phrase ("Main Tank", "Healer 2") or a short name ending in a role word ("CM LB Tank").
+    /// with job(s), a slot phrase ("Main Tank", "Healer 2", "Healer #2") or a short name ending in a role word ("CM LB Tank").
     /// Anything else (titles like "TOP — White Mage", statistics like "Top WHMs (of 36)", plan text) is rejected.
     /// </summary>
     public static bool TryParse(string? header, [NotNullWhen(true)] out AssigneeHeader? result)
@@ -84,19 +91,24 @@ public sealed partial record AssigneeHeader
         if (string.IsNullOrWhiteSpace(header))
             return false;
         var key = Regex.Replace(header.Trim(), @"\s+", " ").TrimEnd(':').Trim();
-        if (key.Length == 0 || key.Length > 40 || !AllowedChars().IsMatch(key))
+        if (key.Length == 0 || key.Length > 40)
+            return false;
+
+        // "Healer #1", "Tank #2": a number sign before a slot number is only a numbering mark.
+        var text = NumberSign().Replace(key, "$1");
+        if (!AllowedChars().IsMatch(text))
             return false;
 
         // 1. A slot ("MT", "D3") or a slot phrase ("Main Tank", "Healer 2").
-        if (!Slots.TryNormalize(key, out var slot) && SlotPhrases.TryGetValue(key, out var phraseSlot))
+        if (!Slots.TryNormalize(text, out var slot) && SlotPhrases.TryGetValue(text, out var phraseSlot))
             slot = phraseSlot;
         if (slot.Length > 0)
         {
-            result = new AssigneeHeader { Key = key, Kind = AssigneeKind.Slot, Slot = slot, Role = Slots.RoleOf(slot) };
+            result = new AssigneeHeader { Key = key, Kind = AssigneeKind.Slot, Slot = slot, Role = SlotRole(slot) };
             return true;
         }
 
-        var parts = PartSeparator().Split(key).Where(p => p.Length > 0).ToList();
+        var parts = PartSeparator().Split(text).Where(p => p.Length > 0).ToList();
         if (parts.Count == 0)
             return false;
 
@@ -138,13 +150,13 @@ public sealed partial record AssigneeHeader
                 Slot = foundSlot,
                 Job = jobs.Count == 1 ? jobs[0] : null,
                 Jobs = jobs,
-                Role = MitCue.Core.Jobs.RoleOf(jobs[0]) is var r && jobs.All(j => MitCue.Core.Jobs.RoleOf(j) == r) ? r : (foundSlot is null ? Role.None : Slots.RoleOf(foundSlot)),
+                Role = MitCue.Core.Jobs.RoleOf(jobs[0]) is var r && jobs.All(j => MitCue.Core.Jobs.RoleOf(j) == r) ? r : (foundSlot is null ? Role.None : SlotRole(foundSlot)),
             };
             return true;
         }
 
         // 3. A short name ending in a role word: "CM LB Tank", "CM Rep Tank", "Shield Healer", "Tanks".
-        var words = key.Split(' ');
+        var words = text.Split(' ');
         if (words.Length <= 4 && RoleWords.TryGetValue(words[^1], out var role) && words.All(w => w.All(c => char.IsLetter(c) || c is '-' or '\'' or '.')))
         {
             result = new AssigneeHeader { Key = key, Kind = AssigneeKind.Custom, Role = role };
@@ -153,6 +165,12 @@ public sealed partial record AssigneeHeader
 
         return false;
     }
+
+    /// <summary>
+    /// The role a slot implies. <see cref="Slots.RoleOf(string)"/> files the ranged slots under casters; a column
+    /// headed only "R1" may as well be the physical ranged DPS (LPDU's R1 column assigns Dismantle), so it is unknown.
+    /// </summary>
+    private static Role SlotRole(string slot) => slot is "R1" or "R2" ? Role.None : Slots.RoleOf(slot);
 
     private static bool TryJob(string text, out Job job)
     {

@@ -12,7 +12,9 @@ namespace MitCue.Core.Import;
 /// xlsx → <see cref="SheetDocument"/> with DocumentFormat.OpenXml (docs/research/sheets-import.md §4). Produces the same
 /// shape as the JSON fixtures: text as displayed, effective fill/font colour (including conditional formatting, which
 /// the Google Sheets API reports as part of the effective format), bold/strike, rich-text runs, notes, merges and
-/// hidden rows/columns; trailing rows/columns without a value or note are trimmed.
+/// hidden rows/columns; trailing rows/columns without a value or note are trimmed. Hidden tabs are read and flagged
+/// (<see cref="SheetTab.Hidden"/>); chart sheets are skipped. OOXML string escapes (<c>_x000D_</c>) are decoded and
+/// line breaks become <c>\n</c>.
 /// </summary>
 internal static partial class XlsxReader
 {
@@ -52,6 +54,10 @@ internal static partial class XlsxReader
     [GeneratedRegex("^REGEXMATCH\\(\\$?[A-Z]+\\$?[0-9]+,\"(.*)\"\\)$")]
     private static partial Regex RegexMatchCall();
 
+    // ST_Xstring escape of a UTF-16 code unit: "_x000D_" is a carriage return, "_x005F_" a literal underscore.
+    [GeneratedRegex("_x([0-9A-Fa-f]{4})_")]
+    private static partial Regex XmlEscape();
+
     public static SheetDocument Read(Stream stream, string title, XlsxReadOptions? options)
     {
         ArgumentNullException.ThrowIfNull(stream);
@@ -68,7 +74,9 @@ internal static partial class XlsxReader
             using var doc = SpreadsheetDocument.Open(stream, false);
             return ReadDocument(doc, title, options);
         }
-        catch (Exception e) when (e is OpenXmlPackageException or FileFormatException or InvalidOperationException or System.Xml.XmlException or IOException and not FileNotFoundException)
+        catch (Exception e) when (e is OpenXmlPackageException or FileFormatException or InvalidOperationException or System.Xml.XmlException
+            or IOException and not FileNotFoundException or FormatException or ArgumentException or KeyNotFoundException or OverflowException
+            or IndexOutOfRangeException or InvalidCastException)
         {
             throw new InvalidDataException("Not a readable .xlsx workbook: " + e.Message, e);
         }
@@ -99,7 +107,7 @@ internal static partial class XlsxReader
                 return null;
             var tint = c.Tint?.Value ?? 0;
             if (c.Rgb?.Value is { Length: >= 6 } rgb)
-                return ApplyTint("#" + rgb[^6..].ToLowerInvariant(), tint);
+                return ApplyTint("#" + rgb[^6..].ToLowerInvariant(), tint); // null when it is not hex
             if (c.Theme?.Value is { } t)
             {
                 var i = t < ThemeIndexMap.Length ? ThemeIndexMap[t] : -1;
@@ -137,7 +145,7 @@ internal static partial class XlsxReader
         {
             var runs = item.Elements<X.Run>().ToList();
             if (runs.Count == 0)
-                return (item.GetFirstChild<X.Text>()?.Text ?? string.Empty, []);
+                return (NormalizeBreaks(Unescape(item.GetFirstChild<X.Text>()?.Text ?? string.Empty)), []);
             var sb = new StringBuilder();
             var result = new List<TextRun>(runs.Count);
             foreach (var run in runs)
@@ -159,10 +167,10 @@ internal static partial class XlsxReader
                 }
 
                 result.Add(new TextRun(sb.Length, fg, bold) { Strike = strike }); // UTF-16 offset == C# string index
-                sb.Append(run.Text?.Text ?? string.Empty);
+                sb.Append(Unescape(run.Text?.Text ?? string.Empty));
             }
 
-            return (sb.ToString(), result);
+            return NormalizeBreaks(sb.ToString(), result);
         }
 
         string FormatNumber(string raw, uint numFmtId)
@@ -186,12 +194,20 @@ internal static partial class XlsxReader
 
         var tabs = new List<SheetTab>();
         var sheets = wb.Workbook?.Sheets?.Elements<X.Sheet>().ToList() ?? [];
-        foreach (var sheet in sheets)
+        var dangling = 0;
+        for (var index = 0; index < sheets.Count; index++)
         {
-            if (sheet.Id?.Value is not { } rid || wb.GetPartById(rid) is not WorksheetPart part)
+            // The index counts every <sheet>, chart sheets included, so it lines up with TabNames and Google's tab order.
+            var sheet = sheets[index];
+            if (sheet.Id?.Value is not { } rid || !wb.TryGetPartById(rid, out var anyPart))
+            {
+                dangling++; // points to a part that is not in the file: skip it, keep the others
                 continue;
+            }
+
+            if (anyPart is not WorksheetPart part)
+                continue; // a chart or dialog sheet
             var ws = part.Worksheet;
-            var index = tabs.Count;
 
             // Column default styles and hidden columns (<cols><col min max hidden style/>; 1-based inclusive).
             var colStyle = new Dictionary<int, uint>();
@@ -246,8 +262,10 @@ internal static partial class XlsxReader
                             text = FormatNumber(raw, style.NumFmtId);
                         else if (type == X.CellValues.Boolean)
                             text = raw == "1" ? "TRUE" : "FALSE";
+                        else if (type == X.CellValues.String)
+                            text = NormalizeBreaks(Unescape(raw)); // formula result string
                         else
-                            text = raw; // str (formula string), e (error), d (ISO date)
+                            text = raw; // e (error), d (ISO date)
                     }
 
                     cells[(cr, cc)] = new XCell(string.IsNullOrEmpty(text) ? null : text, style.Bg, style.Fg, style.Bold, style.Strike, runs, null);
@@ -259,7 +277,7 @@ internal static partial class XlsxReader
             {
                 if (cm.Reference?.Value is not { } refA1 || !TryParseA1(refA1, out var key))
                     continue;
-                var note = cm.CommentText?.InnerText;
+                var note = cm.CommentText?.InnerText is { } inner ? NormalizeBreaks(Unescape(inner)) : null;
                 if (string.IsNullOrEmpty(note))
                     continue;
                 cells[key] = cells.TryGetValue(key, out var existing)
@@ -325,10 +343,12 @@ internal static partial class XlsxReader
             var name = sheet.Name?.Value ?? $"Sheet{index + 1}";
             if (options?.TabNames is { } names && index < names.Count && !string.IsNullOrWhiteSpace(names[index]))
                 name = names[index];
+            var state = sheet.State?.Value;
             tabs.Add(new SheetTab
             {
                 Name = name,
                 Index = index,
+                Hidden = state is { } sheetState && (sheetState == X.SheetStateValues.Hidden || sheetState == X.SheetStateValues.VeryHidden),
                 Rows = rows.Select(IReadOnlyList<SheetCell> (row) => row.Select(ToSheetCell).ToList()).ToList(),
                 Merges = merges,
                 HiddenRows = hiddenRows.Where(r => r < nRows).ToList(),
@@ -336,10 +356,13 @@ internal static partial class XlsxReader
             });
         }
 
+        if (sheets.Count > 0 && dangling == sheets.Count)
+            throw new InvalidDataException("Not a readable .xlsx workbook: none of its sheets is in the file.");
+
         if (options?.Gid is { } gid && tabs.Count == 1)
         {
             var t = tabs[0];
-            tabs[0] = new SheetTab { Name = t.Name, Gid = gid, Index = t.Index, Rows = t.Rows, Merges = t.Merges, HiddenRows = t.HiddenRows, HiddenCols = t.HiddenCols };
+            tabs[0] = new SheetTab { Name = t.Name, Gid = gid, Index = t.Index, Hidden = t.Hidden, Rows = t.Rows, Merges = t.Merges, HiddenRows = t.HiddenRows, HiddenCols = t.HiddenCols };
         }
 
         return new SheetDocument { Title = title, Tabs = tabs };
@@ -459,6 +482,44 @@ internal static partial class XlsxReader
         }
     }
 
+    /// <summary>Decodes ST_Xstring escapes: "_x000D_" → CR, "_x005F_" → "_" (Excel writes CR LF line breaks this way).</summary>
+    internal static string Unescape(string text) =>
+        text.Contains("_x", StringComparison.Ordinal)
+            ? XmlEscape().Replace(text, m => ((char)int.Parse(m.Groups[1].Value, NumberStyles.HexNumber, CultureInfo.InvariantCulture)).ToString())
+            : text;
+
+    private static string NormalizeBreaks(string text) => NormalizeBreaks(text, []).Text;
+
+    /// <summary>CR LF and lone CR → LF, moving rich-text run starts with the text.</summary>
+    private static (string Text, IReadOnlyList<TextRun> Runs) NormalizeBreaks(string text, List<TextRun> runs)
+    {
+        if (text.IndexOf('\r') < 0)
+            return (text, runs);
+        var map = new int[text.Length + 1];
+        var sb = new StringBuilder(text.Length);
+        for (var i = 0; i < text.Length; i++)
+        {
+            map[i] = sb.Length;
+            if (text[i] != '\r')
+                sb.Append(text[i]);
+            else if (i + 1 >= text.Length || text[i + 1] != '\n')
+                sb.Append('\n');
+        }
+
+        map[text.Length] = sb.Length;
+        var moved = new List<TextRun>(runs.Count);
+        foreach (var run in runs)
+        {
+            var start = map[run.Start];
+            if (moved.Count > 0 && moved[^1].Start == start)
+                moved[^1] = run with { Start = start }; // the run before was only the removed CR
+            else
+                moved.Add(run with { Start = start });
+        }
+
+        return (sb.ToString(), moved);
+    }
+
     /// <summary>On/off element semantics: present without val = true; val="0"/"false" = false.</summary>
     private static bool On(X.BooleanPropertyType? e) => e is not null && (e.Val?.Value ?? true);
 
@@ -491,7 +552,7 @@ internal static partial class XlsxReader
     private static List<string> ReadIndexedColors(X.Stylesheet? stylesheet)
     {
         var custom = stylesheet?.Colors?.IndexedColors?.Elements<X.RgbColor>()
-            .Select(c => c.Rgb?.Value is { Length: >= 6 } v ? v[^6..].ToLowerInvariant() : "000000")
+            .Select(c => c.Rgb?.Value is { Length: >= 6 } v && SheetColors.TryParse(v[^6..], out _, out _, out _) ? v[^6..].ToLowerInvariant() : "000000")
             .ToList();
         if (custom is null || custom.Count == 0)
             return [.. DefaultIndexedColors];
@@ -512,18 +573,21 @@ internal static partial class XlsxReader
             scheme.Accent5Color, scheme.Accent6Color, scheme.Hyperlink, scheme.FollowedHyperlinkColor,
         ];
         return order.Select(e =>
-            e?.GetFirstChild<D.RgbColorModelHex>()?.Val?.Value is { } hex ? "#" + hex.ToLowerInvariant()
-            : e?.GetFirstChild<D.SystemColor>()?.LastColor?.Value is { } last ? "#" + last.ToLowerInvariant()
+            e?.GetFirstChild<D.RgbColorModelHex>()?.Val?.Value is { } hex && SheetColors.Normalize(hex) is { } h1 ? h1
+            : e?.GetFirstChild<D.SystemColor>()?.LastColor?.Value is { } last && SheetColors.Normalize(last) is { } h2 ? h2
             : "#000000").ToList();
     }
 
-    private static string ApplyTint(string hex, double tint)
+    /// <summary>Applies an OOXML tint to "#rrggbb"; null when <paramref name="hex"/> is not a colour.</summary>
+    private static string? ApplyTint(string hex, double tint)
     {
+        if (!SheetColors.TryParse(hex, out var r8, out var g8, out var b8))
+            return null;
         if (tint == 0)
-            return hex;
-        var r = Convert.ToInt32(hex.Substring(1, 2), 16) / 255.0;
-        var g = Convert.ToInt32(hex.Substring(3, 2), 16) / 255.0;
-        var b = Convert.ToInt32(hex.Substring(5, 2), 16) / 255.0;
+            return SheetColors.Normalize(hex);
+        var r = r8 / 255.0;
+        var g = g8 / 255.0;
+        var b = b8 / 255.0;
         var max = Math.Max(r, Math.Max(g, b));
         var min = Math.Min(r, Math.Min(g, b));
         var l = (max + min) / 2;

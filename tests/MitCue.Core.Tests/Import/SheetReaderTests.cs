@@ -1,4 +1,6 @@
+using System.IO.Compression;
 using System.Text;
+using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using MitCue.Core.Import;
@@ -61,6 +63,13 @@ public class SheetReaderTests
         Assert.True(tab.Cell(0, 1).IsEmpty);
         Assert.True(tab.Cell(0, 2).Bold);
         Assert.Equal([new TextRun(1, "#ff0000", false)], tab.Cell(0, 2).Runs);
+    }
+
+    [Fact]
+    public void FromFixtureJson_ReadsTheHiddenFlag()
+    {
+        Assert.True(SheetReaders.FromFixtureJson("""{"tab":"Old","hidden":true,"rows":[]}""").Hidden);
+        Assert.False(SheetReaders.FromFixtureJson("""{"tab":"P3","rows":[]}""").Hidden);
     }
 
     [Fact]
@@ -335,10 +344,18 @@ public class SheetReaderTests
     [InlineData("a,,c,", """[["a","","c",""]]""")]
     [InlineData("a\nb,c,d\n", """[["a"],["b","c","d"]]""")]
     [InlineData("\"q\"tail,x", """[["qtail","x"]]""")] // lenient: text after the closing quote is kept
-    [InlineData("\"open,x\ny", """[["open,x\ny"]]""")] // unterminated quote runs to the end
+    [InlineData("\"open,x\ny", """[["\"open","x"],["y"]]""")] // a quote never closed is read raw: the rows after it survive
     [InlineData("raw \"quotes\" inside,x", """[["raw \"quotes\" inside","x"]]""")]
     public void FromDelimited_Csv_FollowsRfc4180(string text, string expected) =>
         Assert.Equal(expected, Grid(SheetReaders.FromDelimited(text, ',')));
+
+    [Fact]
+    public void FromDelimited_Csv_UnterminatedQuote_KeepsTheRowsAfterIt()
+    {
+        var tab = SheetReaders.FromDelimited("Mechanic,MT,OT\r\nPull,\"Rampart,Rep\r\nSolar Ray,Holmgang,Rep\r\nPantokrator,Rep,Rampart", ',', "P1");
+
+        Assert.Equal("""[["Mechanic","MT","OT"],["Pull","\"Rampart","Rep"],["Solar Ray","Holmgang","Rep"],["Pantokrator","Rep","Rampart"]]""", Grid(tab));
+    }
 
     [Fact]
     public void FromDelimited_SemicolonSeparatedAndTabName()
@@ -360,6 +377,206 @@ public class SheetReaderTests
     [Fact]
     public void FromDelimited_RejectsQuoteAsSeparator() =>
         Assert.Throws<ArgumentException>(() => SheetReaders.FromDelimited("a", '"'));
+
+    // ---- workbooks other than Google's exports (review regressions) ------------------------------
+
+    [Fact]
+    public void FromXlsx_DecodesExcelStringEscapes()
+    {
+        using var stream = ReviewWorkbook(null, new ReviewSheet("P1", ["MT"], ["Kera_x000D_\nSoil"], ["Rampart_x000D_\n_x000D_\nReprisal"], ["file_x005F_x000D_name"]));
+        var tab = SheetReaders.FromXlsx(stream, "t").Tabs.Single();
+
+        Assert.Equal("Kera\nSoil", tab.Cell(1, 0).Text);
+        Assert.Equal("Rampart\n\nReprisal", tab.Cell(2, 0).Text);
+        Assert.Equal("Rampart + Reprisal", CellParserTests.Render(CellParser.Default.Parse(tab.Cell(2, 0))));
+        Assert.Equal("file_x000D_name", tab.Cell(3, 0).Text); // "_x005F_" escapes the underscore of a literal "_x000D_"
+    }
+
+    [Fact]
+    public void FromXlsx_EscapedLineBreakInRichText_KeepsTheRunsInPlace()
+    {
+        var ms = new MemoryStream();
+        using (var doc = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
+        {
+            var wb = doc.AddWorkbookPart();
+            wb.Workbook = new X.Workbook();
+            var ws = wb.AddNewPart<WorksheetPart>();
+            ws.Worksheet = new X.Worksheet(new X.SheetData(new X.Row(new X.Cell
+            {
+                CellReference = "A1",
+                DataType = X.CellValues.InlineString,
+                InlineString = new X.InlineString(
+                    new X.Run(new X.RunProperties(new X.Color { Rgb = "FF808080" }), new X.Text("Kera_x000D_")),
+                    new X.Run(new X.RunProperties(new X.Color { Rgb = "FF000000" }), new X.Text("\nSoil") { Space = SpaceProcessingModeValues.Preserve })),
+            })
+            { RowIndex = 1 }));
+            wb.Workbook.AppendChild(new X.Sheets(new X.Sheet { Id = wb.GetIdOfPart(ws), SheetId = 1, Name = "P1" }));
+        }
+
+        ms.Position = 0;
+        var cell = SheetReaders.FromXlsx(ms, "t").Tabs[0].Cell(0, 0);
+
+        Assert.Equal("Kera\nSoil", cell.Text);
+        Assert.Equal([new TextRun(0, "#808080", false), new TextRun(4, null, false)], cell.Runs);
+        Assert.Equal("Kera opt #808080 + Soil", CellParserTests.Render(CellParser.Default.Parse(cell)));
+    }
+
+    [Fact]
+    public void FromXlsx_HiddenTabs_AreFlagged()
+    {
+        using var stream = ReviewWorkbook(
+            null,
+            new ReviewSheet("P3", ["P3", "MT"], ["Hello World", "Rep"]),
+            new ReviewSheet("P3 old", ["P3", "MT"], ["Hello World", "Holmgang"]) { State = X.SheetStateValues.Hidden },
+            new ReviewSheet("Template", ["P1", "MT"], ["Pull", "Rampart"]) { State = X.SheetStateValues.VeryHidden });
+        var doc = SheetReaders.FromXlsx(stream, "t");
+
+        Assert.Equal([false, true, true], doc.Tabs.Select(t => t.Hidden));
+        var layout = new LayoutDetector().Detect(doc);
+        Assert.Equal(["P3"], layout.PlanTabs.Select(t => t.Name));
+        Assert.Equal(["hidden-tab", "hidden-tab"], layout.Diagnostics.Select(d => d.Code));
+    }
+
+    [Fact]
+    public void FromXlsx_TabNamesAndIndexes_CountChartSheets()
+    {
+        using var stream = ReviewWorkbook(
+            null,
+            new ReviewSheet("P1", ["P1", "MT"], ["Pull", "Rampart"]) { ChartAfter = true },
+            new ReviewSheet("P3", ["P3", "MT"], ["Hello World", "Rep"]));
+        var doc = SheetReaders.FromXlsx(stream, "t", new XlsxReadOptions { TabNames = ["P1", "Chart 1", "P3"] });
+
+        Assert.Equal(["P1", "P3"], doc.Tabs.Select(t => t.Name));
+        Assert.Equal([0, 2], doc.Tabs.Select(t => t.Index));
+    }
+
+    [Fact]
+    public void FromXlsx_MalformedColours_AreIgnored()
+    {
+        using var stream = ReviewWorkbook(
+            st =>
+            {
+                st.Fonts!.AppendChild(new X.Font(new X.Color { Rgb = "FFZZZZZZ", Tint = 0.4 }));
+                st.Fonts!.AppendChild(new X.Font(new X.Color { Rgb = "FFZZZZZZ" }));
+                st.CellFormats!.AppendChild(new X.CellFormat { FontId = 1, ApplyFont = true });
+                st.CellFormats!.AppendChild(new X.CellFormat { FontId = 2, ApplyFont = true });
+            },
+            new ReviewSheet("Tinted", ["Kera"]) { Style = 1 },
+            new ReviewSheet("Plain", ["Kera"]) { Style = 2 });
+        var doc = SheetReaders.FromXlsx(stream, "t"); // no FormatException from the tint
+
+        Assert.Equal(["Kera", "Kera"], doc.Tabs.Select(t => t.Cell(0, 0).Text));
+        Assert.All(doc.Tabs, t => Assert.Null(t.Cell(0, 0).Fg)); // not "#zzzzzz"
+    }
+
+    [Fact]
+    public void FromXlsx_DanglingSheetRelationships()
+    {
+        // A sheet that points to a part missing from the file is skipped; a workbook whose sheets all do is unreadable.
+        using var partly = WithSheetRelationship(ReviewWorkbook(null, new ReviewSheet("P1", ["MT"]), new ReviewSheet("P3", ["OT"])), "P3", "rId99");
+        Assert.Equal(["P1"], SheetReaders.FromXlsx(partly, "t").Tabs.Select(t => t.Name));
+
+        using var none = WithSheetRelationship(ReviewWorkbook(null, new ReviewSheet("P1", ["MT"])), "P1", "rId99");
+        Assert.Throws<InvalidDataException>(() => SheetReaders.FromXlsx(none, "t"));
+    }
+
+    private sealed class ReviewSheet(string name, params string[][] rows)
+    {
+        public string Name { get; } = name;
+
+        public string[][] Rows { get; } = rows;
+
+        public X.SheetStateValues? State { get; init; }
+
+        /// <summary>A chart sheet follows this sheet in the workbook.</summary>
+        public bool ChartAfter { get; init; }
+
+        public uint Style { get; init; }
+    }
+
+    /// <summary>A workbook of inline-string cells (A1, B1, … from the top), one worksheet per <see cref="ReviewSheet"/>.</summary>
+    private static MemoryStream ReviewWorkbook(Action<X.Stylesheet>? styles, params ReviewSheet[] sheets)
+    {
+        var ms = new MemoryStream();
+        using (var doc = SpreadsheetDocument.Create(ms, SpreadsheetDocumentType.Workbook))
+        {
+            var wb = doc.AddWorkbookPart();
+            wb.Workbook = new X.Workbook();
+            var stylesPart = wb.AddNewPart<WorkbookStylesPart>();
+            stylesPart.Stylesheet = new X.Stylesheet(
+                new X.Fonts(new X.Font()),
+                new X.Fills(new X.Fill(new X.PatternFill { PatternType = X.PatternValues.None }), new X.Fill(new X.PatternFill { PatternType = X.PatternValues.Gray125 })),
+                new X.Borders(new X.Border()),
+                new X.CellFormats(new X.CellFormat()));
+            styles?.Invoke(stylesPart.Stylesheet);
+            var list = wb.Workbook.AppendChild(new X.Sheets());
+            uint id = 1;
+            foreach (var sheet in sheets)
+            {
+                var data = new X.SheetData();
+                for (var r = 0; r < sheet.Rows.Length; r++)
+                {
+                    var row = new X.Row { RowIndex = (uint)(r + 1) };
+                    for (var c = 0; c < sheet.Rows[r].Length; c++)
+                    {
+                        row.AppendChild(new X.Cell
+                        {
+                            CellReference = $"{(char)('A' + c)}{r + 1}",
+                            DataType = X.CellValues.InlineString,
+                            InlineString = new X.InlineString(new X.Text(sheet.Rows[r][c]) { Space = SpaceProcessingModeValues.Preserve }),
+                            StyleIndex = sheet.Style == 0 ? null : sheet.Style,
+                        });
+                    }
+
+                    data.AppendChild(row);
+                }
+
+                var part = wb.AddNewPart<WorksheetPart>();
+                part.Worksheet = new X.Worksheet(data);
+                var entry = new X.Sheet { Id = wb.GetIdOfPart(part), SheetId = id++, Name = sheet.Name };
+                if (sheet.State is { } state)
+                    entry.State = state;
+                list.AppendChild(entry);
+                if (sheet.ChartAfter)
+                {
+                    var chart = wb.AddNewPart<ChartsheetPart>();
+                    var drawing = chart.AddNewPart<DrawingsPart>();
+                    drawing.WorksheetDrawing = new DocumentFormat.OpenXml.Drawing.Spreadsheet.WorksheetDrawing();
+                    chart.Chartsheet = new X.Chartsheet(new X.ChartSheetViews(new X.ChartSheetView { WorkbookViewId = 0 }), new X.Drawing { Id = chart.GetIdOfPart(drawing) });
+                    list.AppendChild(new X.Sheet { Id = wb.GetIdOfPart(chart), SheetId = id++, Name = "Chart " + id });
+                }
+            }
+
+            wb.Workbook.Save();
+        }
+
+        ms.Position = 0;
+        return ms;
+    }
+
+    /// <summary>Points the named sheet of a workbook at relationship <paramref name="rid"/> (e.g. one that does not exist).</summary>
+    private static MemoryStream WithSheetRelationship(MemoryStream workbook, string sheetName, string rid)
+    {
+        var ms = new MemoryStream();
+        using (workbook)
+            workbook.CopyTo(ms);
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Update, true))
+        {
+            var entry = zip.GetEntry("xl/workbook.xml")!;
+            string xml;
+            using (var reader = new StreamReader(entry.Open()))
+                xml = reader.ReadToEnd();
+            entry.Delete();
+            var edited = Regex.Replace(xml, @"<(?:\w+:)?sheet\b[^>]*>", m =>
+                m.Value.Contains($"name=\"{sheetName}\"", StringComparison.Ordinal) ? Regex.Replace(m.Value, "r:id=\"[^\"]+\"", $"r:id=\"{rid}\"") : m.Value);
+            Assert.NotEqual(xml, edited);
+            using var writer = new StreamWriter(zip.CreateEntry("xl/workbook.xml").Open());
+            writer.Write(edited);
+        }
+
+        ms.Position = 0;
+        return ms;
+    }
 
     private static string Grid(SheetTab tab) =>
         System.Text.Json.JsonSerializer.Serialize(tab.Rows.Select(r => r.Select(c => c.Text ?? string.Empty)),

@@ -28,6 +28,8 @@ public class ParsedTimeTests
     [InlineData("1:02:03", 3723, null, false, "")]
     [InlineData("1:18.5", 78.5, null, false, "")]
     [InlineData("01:18", 78, null, false, "")]
+    [InlineData("0:40:", 40, null, false, "")] // "0:40: Rep"
+    [InlineData("1:21:00", 4860, null, false, "")] // three parts are h:mm:ss (the layout detector handles typed m:ss)
     public void TryParse_ReadsSheetTimes(string text, double seconds, double? end, bool approx, string more)
     {
         Assert.True(ParsedTime.TryParse(text, out var t));
@@ -69,6 +71,14 @@ public class ParsedTimeTests
         Assert.Equal("~1:22", m.Time.Text);
         Assert.True(m.Time.Approx);
         Assert.Equal(27, m.Index);
+    }
+
+    [Fact]
+    public void FindAll_TimeFollowedByAColon()
+    {
+        var m = Assert.Single(ParsedTime.FindAll("0:40: Rep"));
+        Assert.Equal(("0:40", 0, 4), (m.Time.Text, m.Index, m.Length));
+        Assert.Empty(ParsedTime.FindAll("1:2:3:4:5"));
     }
 
     [Fact]

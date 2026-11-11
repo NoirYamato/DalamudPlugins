@@ -58,7 +58,10 @@ public sealed record ParsedToken
     /// </summary>
     public IReadOnlyList<string> Hints { get; init; } = [];
 
-    /// <summary>The time written with this token (in a parenthetical or bare), or null.</summary>
+    /// <summary>
+    /// The time written with this token (in a parenthetical or bare), or null. Within an item that is not a sequence,
+    /// every token has this time or none (tokens with different times are split into separate items).
+    /// </summary>
     public ParsedTime? Time { get; init; }
 
     /// <summary>Optional: the head is in a grey colour (see <see cref="CellParserOptions.IsOptionalColor"/>) or the text says "optional".</summary>
@@ -103,7 +106,10 @@ public sealed record ParsedStep
 
     public required IReadOnlyList<ParsedToken> Tokens { get; init; }
 
-    /// <summary>The step's time: its last token's time, else the first time among its tokens.</summary>
+    /// <summary>
+    /// The step's time: its last token's time, else the first time among its tokens ("Protraction + Recit (2:44)": the
+    /// step, Protraction included, is at 2:44). Null when no token has a time.
+    /// </summary>
     public ParsedTime? Time => this.Tokens.Count == 0 ? null : this.Tokens[^1].Time ?? this.Tokens.Select(t => t.Time).FirstOrDefault(t => t is not null);
 
     /// <summary>The step's target: its last token's target, else the first among its tokens.</summary>
@@ -137,7 +143,9 @@ public sealed record ParsedItem
 
     /// <summary>
     /// The item's time: the time of its last step ("Protraction + Recit → Adlo → Deploy (1:07)" → 1:07), else the first
-    /// time written anywhere in it. Per-step times are on <see cref="ParsedStep.Time"/>.
+    /// time written anywhere in it; null when the item has no time of its own (then the row's mechanic decides, not the
+    /// row's time). For a sequence, per-step times are on <see cref="ParsedStep.Time"/>; an item that is not a sequence
+    /// has at most one time (tokens with different times become separate items).
     /// </summary>
     public ParsedTime? Time => this.Steps.Count == 0 ? null : this.Steps[^1].Time ?? this.Steps.Select(s => s.Time).FirstOrDefault(t => t is not null);
 
@@ -164,6 +172,9 @@ public sealed record ParsedCell
     public string? Src { get; init; }
 
     public required IReadOnlyList<ParsedItem> Items { get; init; }
+
+    /// <summary>Problems met while parsing ("unclosed-bracket"), with <see cref="Src"/> as their source; empty for a clean cell.</summary>
+    public IReadOnlyList<ImportDiagnostic> Diagnostics { get; init; } = [];
 
     public bool IsEmpty => this.Items.Count == 0;
 

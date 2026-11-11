@@ -87,8 +87,14 @@ public enum PhaseSource
     /// <summary>A bare label row ("P2", "P6").</summary>
     LabelRow,
 
-    /// <summary>A per-row phase column.</summary>
+    /// <summary>A per-row phase column ("P2", or a bare "2").</summary>
     PhaseColumn,
+
+    /// <summary>
+    /// A phase marker in front of a mechanic row's label ("P2 - Solar Ray"); the row itself is data. A last parenthetical
+    /// becomes the section's <see cref="PhaseSection.ZeroHint"/>, as for section rows, but may be mechanic detail.
+    /// </summary>
+    MechanicLabel,
 }
 
 /// <summary>A column of a plan tab.</summary>
@@ -160,7 +166,11 @@ public sealed record RowLayout
     /// </summary>
     public PhaseSection? Phase { get; init; }
 
-    /// <summary>Text of the mechanic label column, trimmed (null when empty or there is no such column).</summary>
+    /// <summary>
+    /// Text of the mechanic label column, trimmed (null when empty or there is no such column). A phase marker in front
+    /// of it ("P2 - Solar Ray") starts that phase (<see cref="PhaseSource.MechanicLabel"/>) and is left out ("Solar Ray");
+    /// <see cref="Texts"/> keeps the cell as written.
+    /// </summary>
     public string? Label { get; init; }
 
     /// <summary>Raw text of the time column, trimmed (null when empty).</summary>
@@ -205,6 +215,16 @@ public sealed class TabLayout
     /// <summary>Every column, in order (empty when there is no header).</summary>
     public IReadOnlyList<ColumnLayout> Columns { get; init; } = [];
 
+    /// <summary>
+    /// Assignee columns introduced by a header row repeated further down that names other players, or the same players
+    /// in other columns (stacked tables). The data rows below such a header carry these columns in
+    /// <see cref="AssigneeCell.Column"/>; see the "header-changed" diagnostic. Empty for a tab with one header.
+    /// </summary>
+    public IReadOnlyList<ColumnLayout> RepeatedHeaderColumns { get; init; } = [];
+
+    /// <summary>The tab is hidden in the workbook (<see cref="SheetTab.Hidden"/>); <see cref="DocumentLayout.PlanTabs"/> leaves it out.</summary>
+    public bool Hidden => this.Tab.Hidden;
+
     /// <summary>Every row of the tab, in order.</summary>
     public IReadOnlyList<RowLayout> Rows { get; init; } = [];
 
@@ -225,7 +245,8 @@ public sealed class TabLayout
 
     public IReadOnlyList<ImportDiagnostic> Diagnostics { get; init; } = [];
 
-    public IEnumerable<ColumnLayout> AssigneeColumns => this.Columns.Where(c => c.Role == ColumnRole.Assignee);
+    /// <summary>The assignee columns of the header, then those of repeated headers (<see cref="RepeatedHeaderColumns"/>).</summary>
+    public IEnumerable<ColumnLayout> AssigneeColumns => this.Columns.Where(c => c.Role == ColumnRole.Assignee).Concat(this.RepeatedHeaderColumns);
 
     public ColumnLayout? TimeColumn => this.Columns.FirstOrDefault(c => c.Role == ColumnRole.Time);
 
@@ -247,8 +268,11 @@ public sealed class DocumentLayout
 
     public required IReadOnlyList<TabLayout> Tabs { get; init; }
 
-    /// <summary>Tabs that hold a plan table.</summary>
-    public IEnumerable<TabLayout> PlanTabs => this.Tabs.Where(t => t.Kind == TabKind.Plan);
+    /// <summary>
+    /// Tabs that hold a plan table, except hidden ones (old versions, templates). A hidden tab the user picks by name
+    /// is still in <see cref="Tabs"/> with its <see cref="TabLayout.Kind"/>.
+    /// </summary>
+    public IEnumerable<TabLayout> PlanTabs => this.Tabs.Where(t => t.Kind == TabKind.Plan && !t.Hidden);
 
     /// <summary>Diagnostics of every tab, in tab order.</summary>
     public IReadOnlyList<ImportDiagnostic> Diagnostics => this.Tabs.SelectMany(t => t.Diagnostics).ToList();

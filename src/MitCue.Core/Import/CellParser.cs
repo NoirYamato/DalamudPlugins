@@ -24,17 +24,24 @@ public sealed class CellParserOptions
 /// <item><c> / </c> (a slash with whitespace on a side), <c>;</c> and <c>|</c> separate independent <b>items</b>, each possibly with its
 /// own time: "Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)". An item that is only a time
 /// joins the item before it ("Kera 0:28 / 0:37").</item>
-/// <item><c>→</c>, <c>-&gt;</c>, <c>=&gt;</c>, <c>⇒</c> separate the <b>steps</b> of a sequence: "Protraction + Recit → Adlo → Deploy (1:07)".</item>
+/// <item>Arrows separate the <b>steps</b> of a sequence: "Protraction + Recit → Adlo → Deploy (1:07)". That is any
+/// arrow character (→ ⇒ ⟶ ➔ ⇨ ➝ ⟹ …, the Unicode arrow blocks), "»", "-&gt;", "=&gt;", "--&gt;", "—&gt;", "~&gt;" and a
+/// bare "&gt;" or "&gt;&gt;" (but not "&gt;50%").</item>
 /// <item><c>+</c>, <c>,</c>, <c>&amp;</c>, and runs of 3+ spaces or line breaks separate simultaneous <b>tokens</b>
 /// ("Party Mit        Dismantle"), except that a whitespace run is only padding when the word before it expects a
-/// continuation ("Party Mit after          Solar Ray") or the word after it is a connector or mechanic word.</item>
+/// continuation ("Party Mit after          Solar Ray") or the word after it is a connector or mechanic word, or (for
+/// spaces, not line breaks) a time ("Soil      0:12").</item>
+/// <item>Tokens of one item that carry different times of their own become separate items, one per time
+/// ("Soil (0:12)\nDeploy (0:17)", "0:12 Soil\n0:17 Deploy"): a token without a time goes with the timed token on its
+/// line whose time covers it ("Kera + Soil (0:12)", "0:12 Soil + Kera"). Sequences keep their steps.</item>
 /// <item>Inside a token: "X/Y" between letters is an either/or (<see cref="ParsedToken.Alternatives"/>); parentheticals
 /// are times, targets or hints; bare times (<c>1:18</c>, <c>~1:22</c>, <c>at 0:40</c>, <c>2:44–2:46</c>) are times;
 /// <c>*</c> marks a footnote and <c>⏱</c> "when ready"; the words after the head are <see cref="ParsedToken.Trailing"/>.</item>
 /// </list>
 /// Formatting: text colours are kept per token (<see cref="ParsedToken.Runs"/>, <see cref="ParsedToken.Fg"/>); a grey
 /// head makes the token optional. No word of the cell is dropped: every letter/digit run ends up in a token's phrase,
-/// a hint, a target or a time text.
+/// a hint, a target or a time text. An unclosed "(" or "[" ends at the next item separator, arrow or line break and is
+/// reported in <see cref="ParsedCell.Diagnostics"/>.
 /// </remarks>
 public sealed partial class CellParser
 {
@@ -157,6 +164,9 @@ public sealed partial class CellParser
         public List<string> Hints = [];
         public ParsedTarget? ParenTarget;
         public ParsedTime? Time;
+
+        /// <summary>The time is written before the words ("0:12 Soil"), not after them ("Soil (0:12)").</summary>
+        public bool TimeFirst;
         public bool WhenReady;
         public bool Footnote;
         public bool Optional;
@@ -184,7 +194,12 @@ public sealed partial class CellParser
             }
 
             if (other.Time is not null)
+            {
+                if (this.Time is null)
+                    this.TimeFirst = otherFirst;
                 this.Time = this.Time is null ? other.Time : otherFirst ? ParsedTime.Merge(other.Time, this.Time) : ParsedTime.Merge(this.Time, other.Time);
+            }
+
             this.WhenReady |= other.WhenReady;
             this.Footnote |= other.Footnote;
             this.Optional |= other.Optional;
@@ -200,7 +215,10 @@ public sealed partial class CellParser
         private readonly string?[] fg;
         private readonly bool[] bold;
         private readonly bool[] strike;
+        private readonly bool guillemets;
         private readonly List<Lex> lexemes = [];
+        private readonly List<ImportDiagnostic> diagnostics = [];
+        private int[]? lineOf;
 
         public Run(CellParser owner, SheetCell cell, string text, string? src)
         {
@@ -208,6 +226,7 @@ public sealed partial class CellParser
             this.s = text;
             this.src = src;
             (this.fg, this.bold, this.strike) = CharFormats(cell, text);
+            this.guillemets = text.Contains('«'); // «quoted» text: "»" closes a quote, it is not an arrow
         }
 
         public ParsedCell Parse()
@@ -251,6 +270,19 @@ public sealed partial class CellParser
                 i--;
             }
 
+            // Tokens with different times of their own are separate items ("Soil (0:12)\nDeploy (0:17)").
+            for (var i = 0; i < itemBuilders.Count; i++)
+            {
+                if (itemBuilders[i].Count != 1)
+                    continue; // a sequence keeps its steps; per-step and per-token times stay on ParsedStep/ParsedToken
+                var groups = this.SplitByTime(itemBuilders[i][0]);
+                if (groups.Count <= 1)
+                    continue;
+                itemBuilders.RemoveAt(i);
+                itemBuilders.InsertRange(i, groups.Select(g => new List<List<TokenBuilder>> { g }));
+                i += groups.Count - 1;
+            }
+
             var items = new List<ParsedItem>(itemBuilders.Count);
             foreach (var steps in itemBuilders)
             {
@@ -268,7 +300,89 @@ public sealed partial class CellParser
                 items.Add(new ParsedItem { Index = items.Count, Text = this.s[itemStart..itemEnd], Start = itemStart, Steps = parsedSteps, Src = this.src });
             }
 
-            return new ParsedCell { Text = this.s, Src = this.src, Items = items };
+            return new ParsedCell { Text = this.s, Src = this.src, Items = items, Diagnostics = this.diagnostics };
+        }
+
+        /// <summary>
+        /// Splits a step whose tokens carry different times into groups, one per time, in writing order. A token without
+        /// a time joins a timed token on its line: the next one when that one's time follows its words ("Kera + Soil
+        /// (0:12)"), the previous one when its time comes first ("0:12 Soil + Kera"); otherwise the nearest one before
+        /// it (or after it, at the start). Neighbouring groups with the same time stay one group.
+        /// </summary>
+        private List<List<TokenBuilder>> SplitByTime(List<TokenBuilder> tokens)
+        {
+            if (tokens.Where(t => t.Time is not null).Select(t => TimeKey(t.Time!)).Distinct().Count() <= 1)
+                return [tokens];
+            var line = tokens.Select(t => this.LineOf(t.Start)).ToArray();
+            var anchor = new int[tokens.Count];
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (tokens[i].Time is not null)
+                {
+                    anchor[i] = i;
+                    continue;
+                }
+
+                var prev = Nearest(i, -1);
+                var next = Nearest(i, +1);
+                int? prevSame = prev is { } p && line[p] == line[i] ? p : null;
+                int? nextSame = next is { } q && line[q] == line[i] ? q : null;
+                anchor[i] = nextSame is { } a && !tokens[a].TimeFirst ? a
+                    : prevSame is { } b && tokens[b].TimeFirst ? b
+                    : prevSame ?? nextSame ?? prev ?? next!.Value;
+            }
+
+            var groups = new List<List<TokenBuilder>>();
+            var groupTimes = new List<string>();
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var key = TimeKey(tokens[anchor[i]].Time!);
+                if (i == 0 || anchor[i] != anchor[i - 1])
+                {
+                    if (groups.Count == 0 || groupTimes[^1] != key)
+                    {
+                        groups.Add([]);
+                        groupTimes.Add(key);
+                    }
+                }
+
+                groups[^1].Add(tokens[i]);
+            }
+
+            return groups;
+
+            int? Nearest(int from, int step)
+            {
+                for (var k = from + step; k >= 0 && k < tokens.Count; k += step)
+                {
+                    if (tokens[k].Time is not null)
+                        return k;
+                }
+
+                return null;
+            }
+
+            static string TimeKey(ParsedTime time) => string.Join(",", time.All.Select(x => x.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+        }
+
+        /// <summary>The 0-based line of a position in the cell.</summary>
+        private int LineOf(int position)
+        {
+            if (this.lineOf is null)
+            {
+                this.lineOf = new int[this.s.Length + 1];
+                var line = 0;
+                for (var k = 0; k < this.s.Length; k++)
+                {
+                    this.lineOf[k] = line;
+                    if (this.s[k] == '\n' || (this.s[k] == '\r' && (k + 1 >= this.s.Length || this.s[k + 1] != '\n')))
+                        line++;
+                }
+
+                this.lineOf[this.s.Length] = line;
+            }
+
+            return this.lineOf[Math.Clamp(position, 0, this.s.Length)];
         }
 
         /// <summary>Within an item: tokens that are only a time/hint/marker join the token before them (or after, at the start).</summary>
@@ -322,6 +436,10 @@ public sealed partial class CellParser
         {
             var s = this.s;
             var n = s.Length;
+            var closeOfParen = MatchBrackets(s, '(', ')');
+            var closeOfBracket = MatchBrackets(s, '[', ']');
+            var unclosed = 0;
+            string? firstUnclosed = null;
             var i = 0;
             while (i < n)
             {
@@ -351,24 +469,32 @@ public sealed partial class CellParser
                     continue;
                 }
 
+                if (this.IsArrowAt(i))
+                {
+                    var e = i + 1;
+                    while (e < n && (IsArrowChar(s[e]) || (s[e] == '»' && !this.guillemets)))
+                        e++;
+                    e = SkipVariation(s, e);
+                    this.Add(LexKind.SeqSep, i, e);
+                    i = e;
+                    continue;
+                }
+
                 switch (c)
                 {
                     case '(' or '[':
                     {
                         var close = c == '(' ? ')' : ']';
-                        var depth = 0;
-                        var j = i;
-                        for (; j < n; j++)
+                        var closed = (c == '(' ? closeOfParen : closeOfBracket).TryGetValue(i, out var j);
+                        var end = closed ? j + 1 : this.UnclosedEnd(i + 1);
+                        if (!closed)
                         {
-                            if (s[j] == c)
-                                depth++;
-                            else if (s[j] == close && --depth == 0)
-                                break;
+                            while (end > i + 1 && char.IsWhiteSpace(s[end - 1]))
+                                end--; // minus trailing whitespace
+                            if (unclosed++ == 0)
+                                firstUnclosed = $"'{c}' at character {i + 1} has no closing '{close}'; it is read up to {(end < n ? "the next separator" : "the end of the cell")}: '{s[i..end]}'.";
                         }
 
-                        var end = j < n ? j + 1 : n;
-                        while (j >= n && end > i + 1 && char.IsWhiteSpace(s[end - 1]))
-                            end--; // an unclosed parenthesis runs to the end, minus trailing whitespace
                         this.Add(LexKind.Paren, i, end);
                         i = end;
                         continue;
@@ -390,12 +516,7 @@ public sealed partial class CellParser
                         i++;
                         continue;
 
-                    case '→' or '⇒' or '⟶' or '➔' or '➜' or '➡' or '↦':
-                        this.Add(LexKind.SeqSep, i, SkipVariation(s, i + 1));
-                        i = SkipVariation(s, i + 1);
-                        continue;
-
-                    case '-' or '=' when IsArrow(s, i, out var arrowEnd):
+                    case '-' or '=' or '–' or '—' or '~' or '>' when IsAsciiArrow(s, i, out var arrowEnd):
                         this.Add(LexKind.SeqSep, i, arrowEnd);
                         i = arrowEnd;
                         continue;
@@ -419,6 +540,28 @@ public sealed partial class CellParser
                 this.Add(LexKind.Word, i, w);
                 i = w;
             }
+
+            if (firstUnclosed is not null)
+            {
+                var more = unclosed > 1 ? $" {unclosed - 1} more bracket(s) in the cell are not closed either." : string.Empty;
+                this.diagnostics.Add(new ImportDiagnostic(DiagnosticSeverity.Warning, "unclosed-bracket", firstUnclosed + more, this.src));
+            }
+        }
+
+        /// <summary>The matching close of every opening bracket that has one (nesting counted), in one pass.</summary>
+        private static Dictionary<int, int> MatchBrackets(string s, char open, char close)
+        {
+            var result = new Dictionary<int, int>();
+            var stack = new Stack<int>();
+            for (var k = 0; k < s.Length; k++)
+            {
+                if (s[k] == open)
+                    stack.Push(k);
+                else if (s[k] == close && stack.Count > 0)
+                    result[stack.Pop()] = k;
+            }
+
+            return result;
         }
 
         private LexKind? LastKind => this.lexemes.Count == 0 ? null : this.lexemes[^1].Kind;
@@ -428,14 +571,14 @@ public sealed partial class CellParser
         private bool EndsWord(int j, int wordStart)
         {
             var c = this.s[j];
-            if (char.IsWhiteSpace(c))
+            if (char.IsWhiteSpace(c) || this.IsArrowAt(j))
                 return true;
             switch (c)
             {
-                case '(' or '[' or '+' or ',' or '&' or ';' or '|' or '*' or '→' or '⇒' or '⟶' or '➔' or '➜' or '➡' or '↦' or '⏱' or '⏲' or '⌛' or '⏳':
+                case '(' or '[' or '+' or ',' or '&' or ';' or '|' or '*' or '⏱' or '⏲' or '⌛' or '⏳':
                     return true;
-                case '-' or '=':
-                    return IsArrow(this.s, j, out _);
+                case '-' or '=' or '–' or '—' or '~' or '>':
+                    return IsAsciiArrow(this.s, j, out _);
                 case '/':
                     // "Kera/Soil" stays one word; "Soil/ Kera" and a final "/" end it, except "w/" (with).
                     var atEnd = j + 1 >= this.s.Length || char.IsWhiteSpace(this.s[j + 1]);
@@ -445,20 +588,89 @@ public sealed partial class CellParser
             }
         }
 
-        private static bool IsArrow(string s, int i, out int end)
+        /// <summary>
+        /// An arrow character: the Unicode arrow blocks (→ ⇒ ↦ ⇨, ⟶ ⟹, ⤍, ➔ ➜ ➝ ➡, ⬅ ⮕ …). Left-pointing arrows also
+        /// separate steps: merging the actions around them would lose one. An arrow may start a line ("Recit\n→ Adlo").
+        /// </summary>
+        private static bool IsArrowChar(char c) => c switch
+        {
+            >= '\u2190' and <= '\u21FF' => true, // Arrows
+            >= '\u27F0' and <= '\u27FF' => true, // Supplemental Arrows-A
+            >= '\u2900' and <= '\u297F' => true, // Supplemental Arrows-B
+            >= '\u2794' and <= '\u27AF' or >= '\u27B1' and <= '\u27BE' => true, // Dingbat arrows (not the loops ➰ ➿)
+            >= '\u2B00' and <= '\u2B11' or >= '\u2B30' and <= '\u2B4F' or >= '\u2B5A' and <= '\u2B73' or >= '\u2B76' and <= '\u2B95' or >= '\u2B98' and <= '\u2BB9' => true, // arrows among the Misc Symbols and Arrows
+            _ => false,
+        };
+
+        /// <summary>
+        /// An arrow character at <paramref name="i"/>, or a "»" that follows text on its line (not a bullet, and not a
+        /// closing quote in a cell that quotes with «»).
+        /// </summary>
+        private bool IsArrowAt(int i)
+        {
+            var c = this.s[i];
+            if (c != '»')
+                return IsArrowChar(c);
+            return !this.guillemets && (i == 0 || this.s[i - 1] != '»') && FollowsText(this.s, i);
+        }
+
+        /// <summary>Some text comes before <paramref name="i"/> on its line.</summary>
+        private static bool FollowsText(string s, int i)
+        {
+            var k = i - 1;
+            while (k >= 0 && s[k] is ' ' or '\t')
+                k--;
+            return k >= 0 && s[k] is not ('\n' or '\r');
+        }
+
+        /// <summary>
+        /// A typed arrow at <paramref name="i"/>: up to three shaft characters (- = – — ~) and one to three "&gt;" ("-&gt;",
+        /// "==&gt;", "—&gt;", "~&gt;"), or a bare "&gt;"/"&gt;&gt;" that follows text on its line (not a quote marker or a
+        /// "&gt;&gt;note&lt;&lt;" decoration) and is not a comparison ("&gt;50%", "&gt;= 2", "&gt; 3 stacks").
+        /// Scans at most a few characters, so long rules ("-----") stay linear.
+        /// </summary>
+        private static bool IsAsciiArrow(string s, int i, out int end)
         {
             end = i;
             var j = i;
-            var first = s[i];
-            while (j < s.Length && s[j] == first)
+            while (j < s.Length && j - i <= 3 && s[j] is '-' or '=' or '–' or '—' or '~')
                 j++;
-            if (j < s.Length && s[j] == '>' && j - i <= 3)
+            if (j - i > 3)
+                return false; // a rule ("-----"), not an arrow
+            var k = j;
+            while (k < s.Length && k - j <= 3 && s[k] == '>')
+                k++;
+            if (k == j || k - j > 3)
+                return false;
+            if (j == i)
             {
-                end = j + 1;
-                return true;
+                if ((i > 0 && s[i - 1] == '>') || !FollowsText(s, i))
+                    return false;
+                var next = k;
+                while (next < s.Length && s[next] == ' ')
+                    next++;
+                if (next < s.Length && (char.IsDigit(s[next]) || s[next] is '=' or '%'))
+                    return false;
             }
 
-            return false;
+            end = k;
+            return true;
+        }
+
+        /// <summary>Where an unclosed "(" or "[" ends: at the next item separator, arrow or line break, else at the end.</summary>
+        private int UnclosedEnd(int from)
+        {
+            var s = this.s;
+            for (var k = from; k < s.Length; k++)
+            {
+                var c = s[k];
+                if (c is ';' or '|' or '\n' or '\r' || this.IsArrowAt(k) || (c is '-' or '=' or '–' or '—' or '~' or '>' && IsAsciiArrow(s, k, out _)))
+                    return k;
+                if (c == '/' && k > 0 && char.IsWhiteSpace(s[k - 1]) && (k + 1 >= s.Length || char.IsWhiteSpace(s[k + 1])))
+                    return k;
+            }
+
+            return s.Length;
         }
 
         private static int SkipVariation(string s, int i) => i < s.Length && s[i] == '\uFE0F' ? i + 1 : i; // emoji variation selector after a marker
@@ -515,12 +727,16 @@ public sealed partial class CellParser
             if (next.Value.Kind == LexKind.Word)
             {
                 var w = this.Text(next.Value).Trim('.', ',', ':');
-                if (Connectors.Contains(w) || TargetWords.Contains(w) || HasTimeAt(w))
-                    return false; // "Kera      after 1st Hit", "Nascent      Co-Tank", "Soil      0:12"
+                if (Connectors.Contains(w) || TargetWords.Contains(w))
+                    return false; // "Kera      after 1st Hit", "Nascent      Co-Tank"
+                if (HasTimeAt(w) && !this.HasLineBreak(step[i]))
+                    return false; // "Soil      0:12"; a line that starts with a time starts a token ("0:12 Soil\n0:17 Deploy")
             }
 
             return true;
         }
+
+        private bool HasLineBreak(Lex l) => this.s.AsSpan(l.Start, l.End - l.Start).IndexOfAny('\n', '\r') >= 0;
 
         private static bool HasTimeAt(string w) => ParsedTime.FindAll(w) is { Count: > 0 } m && m[0].Index == 0;
 
@@ -602,6 +818,7 @@ public sealed partial class CellParser
             // All times of the token, bare or in parentheses, in writing order.
             foreach (var (_, time) in times.OrderBy(x => x.Position))
                 t.Time = t.Time is null ? time : ParsedTime.Merge(t.Time, time);
+            t.TimeFirst = times.Count > 0 && t.Words.Count > 0 && times.Min(x => x.Position) < t.Words[0].Start;
             return t;
         }
 

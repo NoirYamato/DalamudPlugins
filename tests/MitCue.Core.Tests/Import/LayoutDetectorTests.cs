@@ -88,11 +88,11 @@ public class LayoutDetectorTests
 
     public static TheoryData<string, string, string> AssigneeSpecs => new()
     {
-        { "lpdu", "P1/P2", "MT=MT/-/Tank|OT=OT/-/Tank|H1=H1/-/Healer|H2=H2/-/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/Caster|R2=R2/-/Caster" },
-        { "lpdu", "P3", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/Caster|R2=R2/-/Caster" },
-        { "lpdu", "P4", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/Caster|R2=R2/-/Caster" },
-        { "lpdu", "P5", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/Caster|R2=R2/-/Caster" },
-        { "lpdu", "P6", "CM LB Tank=-/-/Tank|CM Rep Tank=-/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/Caster|R2=R2/-/Caster" },
+        { "lpdu", "P1/P2", "MT=MT/-/Tank|OT=OT/-/Tank|H1=H1/-/Healer|H2=H2/-/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/None|R2=R2/-/None" },
+        { "lpdu", "P3", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/None|R2=R2/-/None" },
+        { "lpdu", "P4", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/None|R2=R2/-/None" },
+        { "lpdu", "P5", "MT=MT/-/Tank|OT=OT/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/None|R2=R2/-/None" },
+        { "lpdu", "P6", "CM LB Tank=-/-/Tank|CM Rep Tank=-/-/Tank|H1 WHM=H1/WHM/Healer|H1 AST=H1/AST/Healer|H2 SCH=H2/SCH/Healer|H2 SGE=H2/SGE/Healer|M1=M1/-/Melee|M2=M2/-/Melee|R1=R1/-/None|R2=R2/-/None" },
         { "lpdu", "General Tank Mit til P5", "MT=MT/-/Tank|OT=OT/-/Tank" },
         { "lpdu", "WAR/DRK", "WAR=-/WAR/Tank|DRK=-/DRK/Tank" },
         { "lpdu", "WAR/GNB", "WAR=-/WAR/Tank|GNB=-/GNB/Tank" },
@@ -267,7 +267,9 @@ public class LayoutDetectorTests
         Assert.Equal(12, lpdu.PlanTabs.Count());
 
         var ctc = Detector.Detect(Fixtures.CarryTheClear);
-        Assert.Empty(ctc.Diagnostics);
+        Assert.Equal(
+            [("ignored-column", "'TOP – White Mage'!E15", DiagnosticSeverity.Info), ("ignored-column", "'TOP – Scholar'!E15", DiagnosticSeverity.Info)],
+            ctc.Diagnostics.Select(d => (d.Code, d.Src, d.Severity))); // the "Top WHMs (of 36)" statistics columns
         Assert.Equal(3, ctc.PlanTabs.Count());
         Assert.NotNull(ctc.Tab("top – scholar"));
     }
@@ -280,7 +282,7 @@ public class LayoutDetectorTests
 
         Assert.Equal(["omega", "omega_mf", "reconfigured", "blue_screen", "dynamis", "alpha_omega"], layout.Sections.Select(s => s.Id));
         Assert.Equal("dynamis", layout.Rows[42].PhaseId);
-        Assert.Empty(layout.Diagnostics);
+        Assert.Equal(["ignored-column"], layout.Diagnostics.Select(d => d.Code));
         Assert.Equal("p9", new LayoutDetector(fight).PhaseId(9));
     }
 
@@ -310,6 +312,7 @@ public class LayoutDetectorTests
             Assert.Equal(Kinds(expected), Kinds(xlsx.Tabs[t])); // "P1P2" (the xlsx name) still names phases 1 and 2
             Assert.Equal(Phases(expected), Phases(xlsx.Tabs[t]));
             Assert.Equal(Assignees(expected), Assignees(xlsx.Tabs[t]));
+            Assert.Equal(expected.NameJobs, xlsx.Tabs[t].NameJobs); // "WARDRK" (the xlsx name) still names WAR and DRK
 
             // Text only (no fills, no hidden rows): notes are told apart by their wording.
             var csvTab = SheetReaders.FromDelimited(File.ReadAllText(Fixtures.Csv(key, Fixtures.FileName(expected.Name))), ',', expected.Name);
@@ -317,6 +320,7 @@ public class LayoutDetectorTests
             Assert.Equal(Kinds(expected).Replace('h', 'E'), Kinds(csv));
             Assert.Equal(Phases(expected), Phases(csv));
             Assert.Equal(Assignees(expected), Assignees(csv));
+            Assert.Equal(expected.NameJobs, csv.NameJobs);
         }
     }
 
@@ -444,7 +448,8 @@ public class LayoutDetectorTests
 
         Assert.Equal("HDLDLD", Kinds(layout));
         Assert.Equal("114433", Phases(layout));
-        Assert.Equal(["phase-not-in-tab-name", "phase-not-in-tab-name", "phase-order"], layout.Diagnostics.Select(d => d.Code));
+        Assert.Equal(["phase-not-in-tab-name", "phase-not-in-tab-name", "phase-order", "phase-not-found"], layout.Diagnostics.Select(d => d.Code));
+        Assert.Contains("P2", layout.Diagnostics[3].Message, StringComparison.Ordinal); // the tab names P2, but no row starts it
     }
 
     [Fact]
@@ -542,6 +547,331 @@ public class LayoutDetectorTests
         Assert.Equal(-1, layout.HeaderRow);
     }
 
+    [Fact]
+    public void Detect_LpduR1Column_HasNoRole()
+    {
+        // R1 is the physical ranged column in LPDU ("Party Mit if MCH", Dismantle), not a caster column.
+        var layout = Detector.Detect(Fixtures.Tab("lpdu", "P4"));
+        var r1 = layout.AssigneeColumns.Single(c => c.Assignee!.Key == "R1");
+
+        Assert.Contains(layout.DataRows.SelectMany(r => r.Assignments), a => a.Column == r1 && a.Cell.Text == "Party Mit if MCH");
+        Assert.Equal(Role.None, r1.Assignee!.Role);
+    }
+
+    // ---- other people's sheets (review regressions) ------------------------------------------------
+
+    private static string Assigned(RowLayout row) => string.Join(",", row.Assignments.Select(a => a.Assignee.Key + "=" + a.Cell.Text));
+
+    private static SheetTab WithHiddenColumns(SheetTab tab, params int[] cols) =>
+        new() { Name = tab.Name, Rows = tab.Rows, Merges = tab.Merges, HiddenRows = tab.HiddenRows, HiddenCols = cols };
+
+    [Fact]
+    public void Detect_RepeatedHeaderWithReorderedPlayers_RemapsTheRowsBelowIt()
+    {
+        var tab = Synthetic(
+            "Tanks",
+            ["P1", "MT", "OT"],
+            ["Pull", "Rampart", "Reprisal"],
+            ["", "", ""],
+            ["P2", "OT", "MT"],
+            ["Solar Ray", "Holmgang", "Reprisal"]);
+        var layout = Detector.Detect(tab);
+
+        Assert.Equal("HDEHD", Kinds(layout));
+        Assert.Equal("11122", Phases(layout));
+        Assert.Equal("MT=Rampart,OT=Reprisal", Assigned(layout.Rows[1]));
+        Assert.Equal("OT=Holmgang,MT=Reprisal", Assigned(layout.Rows[4]));
+        Assert.Equal(["'Tanks'!B5", "'Tanks'!C5"], layout.Rows[4].Assignments.Select(a => a.Src));
+        Assert.Equal(["OT", "MT"], layout.RepeatedHeaderColumns.Select(c => c.Assignee!.Key));
+        Assert.Equal(["MT", "OT", "OT", "MT"], layout.AssigneeColumns.Select(c => c.Assignee!.Key));
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("header-changed", DiagnosticSeverity.Info, "'Tanks'!B4"), (d.Code, d.Severity, d.Src));
+        Assert.Equal(["MT", "OT"], Detector.Detect(new SheetDocument { Title = "t", Tabs = [tab] }).Assignees.Select(a => a.Key));
+    }
+
+    [Fact]
+    public void Detect_StackedTableForOtherPlayers_UsesItsOwnHeader()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["Mechanic", "MT", "OT", "H1", "H2"],
+            ["Pull", "Rampart", "Reprisal", "", ""],
+            ["", "", "", "", ""],
+            ["Mechanic", "H1", "H2", "", ""],
+            ["Pantokrator", "Kera", "Soil", "", ""],
+            ["Program Loop", "", "Soil", "notes?", ""]));
+
+        Assert.Equal("HDEHDD", Kinds(layout));
+        Assert.Equal("H1=Kera,H2=Soil", Assigned(layout.Rows[4]));
+        Assert.Equal("H2=Soil", Assigned(layout.Rows[5]));
+        Assert.Equal(["H1", "H2"], layout.Rows[4].Assignments.Select(a => a.Assignee.Slot));
+
+        // Column D lost its player in the second header: its text is reported, not given to H1.
+        Assert.Equal(["header-changed", "unlabelled-column"], layout.Diagnostics.Select(d => d.Code));
+        Assert.Equal("'P1'!D6", layout.Diagnostics[1].Src);
+    }
+
+    [Fact]
+    public void Detect_RepeatedHeaderTitledWithAPhase_StartsThePhase()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "Healers",
+            ["P1 Healers", "H1", "H2"],
+            ["Pull", "Kera", ""],
+            ["P2 Healers", "H2", "H1"],
+            ["Solar Ray", "Soil", "Kera"]));
+
+        Assert.Equal("MAA", Roles(layout));
+        Assert.Equal("HDHD", Kinds(layout));
+        Assert.Equal("1122", Phases(layout));
+        Assert.Equal([(1, "'Healers'!A1"), (2, "'Healers'!A3")], layout.Sections.Select(x => (x.Number, x.Src)));
+        Assert.Equal("H1=Kera", Assigned(layout.Rows[1]));
+        Assert.Equal("H2=Soil,H1=Kera", Assigned(layout.Rows[3]));
+        Assert.Equal(["guessed-phase", "guessed-phase", "header-changed"], layout.Diagnostics.Select(d => d.Code));
+
+        // Column keywords still win over a phase number in front of them.
+        Assert.Equal("MAN", Roles(Detector.Detect(Synthetic("Healers", ["P1 Mechanics", "H1", "P3 Notes"], ["Pull", "Kera", "swap"]))));
+    }
+
+    [Fact]
+    public void Detect_RowWhoseCellsNameSlots_StaysAMechanicRow()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["P1", "MT", "OT", "H1", "H2"],
+            ["Pull", "Rampart", "", "", ""],
+            ["Tether partner", "OT", "MT", "H2", "H1"],
+            ["Pantokrator", "", "Rep", "Kera", "Soil"]));
+
+        Assert.Equal("HDDD", Kinds(layout));
+        Assert.Equal("Tether partner", layout.Rows[2].Label);
+        Assert.Equal("MT=OT,OT=MT,H1=H2,H2=H1", Assigned(layout.Rows[2]));
+        Assert.Equal("OT=Rep,H1=Kera,H2=Soil", Assigned(layout.Rows[3])); // the columns did not change
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("header-like-row", DiagnosticSeverity.Info, "'P1'!A3"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Fact]
+    public void Detect_PhaseWrittenAboveTheTimeColumn_DoesNotMakeTheTimesLabels()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "Plan",
+            ["P1", "Mechanic", "MT", "OT"],
+            ["0:10", "Program Loop", "Rampart", ""],
+            ["1:21", "Pantokrator", "", "Rep"]));
+
+        Assert.Equal("TMAA", Roles(layout));
+        Assert.Equal(["Program Loop", "Pantokrator"], layout.DataRows.Select(r => r.Label));
+        Assert.Equal([10.0, 81], layout.DataRows.Select(r => r.Time!.Seconds));
+        Assert.Equal("111", Phases(layout));
+        var section = Assert.Single(layout.Sections);
+        Assert.Equal((1, PhaseSource.HeaderCell, "'Plan'!A1"), (section.Number, section.Source, section.Src));
+        Assert.Empty(layout.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_TwoLabelColumns_UsesTheFirstAndSaysSo()
+    {
+        // Two tables side by side: only the first label column is read.
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["P1", "MT", "OT", "", "P2", "MT", "OT"],
+            ["Pull", "Rampart", "", "", "Solar Ray", "Holmgang", ""]));
+
+        Assert.Equal("MAAEMAA", Roles(layout));
+        Assert.Equal(["multiple-label-columns", "duplicate-assignee", "duplicate-assignee"], layout.Diagnostics.Select(d => d.Code));
+        Assert.Equal(("'P1'!E1", DiagnosticSeverity.Warning), (layout.Diagnostics[0].Src, layout.Diagnostics[0].Severity));
+        Assert.Contains("only column A is used", layout.Diagnostics[0].Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Detect_PhaseColumnWithBareNumbers_SwitchesThePhase()
+    {
+        var named = Detector.Detect(Synthetic(
+            "P1/P2",
+            ["Phase", "Mechanic", "MT"],
+            ["1", "Pull", "Rampart"],
+            ["2", "Solar Ray", "Holmgang"]));
+        Assert.Equal("PMA", Roles(named));
+        Assert.Equal("112", Phases(named));
+        Assert.Equal([PhaseSource.TabName, PhaseSource.PhaseColumn], named.Sections.Select(s => s.Source));
+        Assert.Empty(named.Diagnostics);
+
+        var unnamed = Detector.Detect(Synthetic(
+            "Healers",
+            ["Phase", "Mechanic", "H1"],
+            ["1", "Pull", "Kera"],
+            ["2", "Solar Ray", "Soil"]));
+        Assert.Equal("-12", Phases(unnamed));
+        Assert.Empty(unnamed.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_PhaseLabelWithANameButNoSeparator_StartsThePhaseWhenItMovesForward()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P4/P5",
+            ["P4", "MT", "OT"],
+            ["Blue Screen", "Rep", ""],
+            ["P5 Delta", "", ""],
+            ["Run: Dynamis", "", "Rep"]));
+
+        Assert.Equal("HDSD", Kinds(layout));
+        Assert.Equal("4455", Phases(layout));
+        Assert.Equal((5, "Delta", PhaseSource.SectionRow), (layout.Sections[1].Number, layout.Sections[1].Name, layout.Sections[1].Source));
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("guessed-phase", DiagnosticSeverity.Info, "'P4/P5'!A3"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Fact]
+    public void Detect_PhaseNumberInAMechanicLabel_IsNotASectionWhenTheTabDoesNotHaveThatPhase()
+    {
+        var layout = Detector.Detect(Synthetic("P3", ["P3", "MT"], ["Hello World", "Rep"], ["P4 skip", ""], ["Looper", "Rampart"]));
+
+        Assert.Equal("HDDD", Kinds(layout));
+        Assert.Equal("3333", Phases(layout));
+        Assert.Equal("P4 skip", layout.Rows[2].Label);
+        Assert.Empty(layout.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_PhaseMarkerInFrontOfAMechanicLabel_StartsThePhaseAtThatRow()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P1/P2",
+            ["P1", "MT", "OT"],
+            ["Pull", "Rampart", ""],
+            ["P2 - Solar Ray (both tanks)", "Holmgang", ""],
+            ["Cosmo Memory", "", "Rep"]));
+
+        Assert.Equal("HDDD", Kinds(layout));
+        Assert.Equal("1122", Phases(layout));
+        Assert.Equal(["Pull", "Solar Ray (both tanks)", "Cosmo Memory"], layout.DataRows.Select(r => r.Label));
+        Assert.Equal("P2 - Solar Ray (both tanks)", layout.Rows[2].Texts[0].Text);
+        var section = layout.Sections[1];
+        Assert.Equal((2, PhaseSource.MechanicLabel, 2, "'P1/P2'!A3", "both tanks"), (section.Number, section.Source, section.Row, section.Src, section.ZeroHint));
+        Assert.Empty(layout.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_PhaseTheTabNameListsButNoRowStarts_IsReported()
+    {
+        var layout = Detector.Detect(Synthetic("P4/P5", ["P4", "MT"], ["Blue Screen", "Rep"], ["Run: Dynamis", "Rep"]));
+
+        Assert.Equal("444", Phases(layout));
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("phase-not-found", DiagnosticSeverity.Warning), (d.Code, d.Severity));
+        Assert.Contains("P5", d.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Detect_NumberSignPlayerHeaders_AreAssigneeColumns()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["Mechanic", "MT", "OT", "Healer #1", "Healer #2"],
+            ["Pull", "Rampart", "", "Kera", "Soil"]));
+
+        Assert.Equal("MAAAA", Roles(layout));
+        Assert.Equal("MT=Rampart,Healer #1=Kera,Healer #2=Soil", Assigned(layout.Rows[1]));
+        Assert.Equal(["H1", "H2"], layout.Columns.Skip(3).Select(c => c.Assignee!.Slot));
+        Assert.Empty(layout.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_StatisticsColumn_IsIgnoredAndReported()
+    {
+        var layout = Detector.Detect(Synthetic("P1", ["Mechanic", "MT", "# of clears"], ["Pull", "Rampart", "12"]));
+
+        Assert.Equal("MAI", Roles(layout));
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("ignored-column", DiagnosticSeverity.Info, "'P1'!C1"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Fact]
+    public void Detect_HiddenPlayerColumn_IsReported()
+    {
+        var layout = Detector.Detect(WithHiddenColumns(Synthetic("P1", ["P1", "MT", "OT", "H1"], ["Pull", "Rampart", "Rep", "Kera"]), 3));
+
+        Assert.Equal("MAAI", Roles(layout));
+        Assert.Equal("MT=Rampart,OT=Rep", Assigned(layout.Rows[1]));
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("hidden-content", DiagnosticSeverity.Info, "'P1'!D1"), (d.Code, d.Severity, d.Src));
+        Assert.Contains("'H1'", d.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Detect_LabelLessRowsThatReadLikeNotes_AreReported()
+    {
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["P1", "MT", "OT", "H1"],
+            ["Pantokrator", "Rampart", "Rep", "Kera"],
+            ["", "Reprisal.", "", ""],
+            ["", "", "", "Soil after the second hit then Succor"]));
+
+        Assert.Equal("HDNN", Kinds(layout));
+        Assert.Equal([("note-in-table", "'P1'!B3"), ("note-in-table", "'P1'!D4")], layout.Diagnostics.Select(d => (d.Code, d.Src)));
+        Assert.StartsWith("Row 3 ", layout.Diagnostics[0].Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Detect_KeywordHeadersWithATrailingColon()
+    {
+        var layout = Detector.Detect(Synthetic("P1", ["Time:", "Mechanic:", "MT", "Notes:"], ["0:10", "Pull", "Rampart", "swap after"]));
+
+        Assert.Equal("TMAN", Roles(layout));
+        var row = Assert.Single(layout.DataRows);
+        Assert.Equal(("Pull", 10.0, "swap after"), (row.Label, row.Time!.Seconds, row.Notes));
+        Assert.Empty(layout.Diagnostics);
+    }
+
+    [Fact]
+    public void Detect_TimeColumnOfTypedMinutesShownAsHms_IsReadAsMinutesAndSeconds()
+    {
+        // Sheets shows "1:21" typed into a time-formatted cell as "1:21:00" (1 h 21 min).
+        var layout = Detector.Detect(Synthetic(
+            "P1",
+            ["Time", "Mechanic", "MT"],
+            ["0:10:00", "Pull", "Rampart"],
+            ["1:21:00 / 1:27:00", "Pantokrator", "Rep"]));
+
+        Assert.Equal([10.0], layout.Rows[1].Time!.All);
+        Assert.Equal([81.0, 87], layout.Rows[2].Time!.All);
+        Assert.Equal("1:21:00 / 1:27:00", layout.Rows[2].TimeText);
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("time-as-hms", DiagnosticSeverity.Info, "'P1'!A1"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Fact]
+    public void Detect_RowTimeOfAnHourOrMore_IsReported()
+    {
+        var layout = Detector.Detect(Synthetic("P1", ["Time", "Mechanic", "MT"], ["1:21:05", "Pantokrator", "Rep"]));
+
+        Assert.Equal(4865, layout.Rows[1].Time!.Seconds); // real seconds: not typed minutes
+        var d = Assert.Single(layout.Diagnostics);
+        Assert.Equal(("implausible-time", DiagnosticSeverity.Warning, "'P1'!A2"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Fact]
+    public void Detect_HiddenTab_IsLeftOutOfPlanTabsAndReported()
+    {
+        var old = Synthetic("P3 old", ["P3", "OT"], ["Hello World", "Holmgang"]);
+        var layout = Detector.Detect(new SheetDocument
+        {
+            Title = "t",
+            Tabs = [Synthetic("P3", ["P3", "MT"], ["Hello World", "Rep"]), new SheetTab { Name = old.Name, Rows = old.Rows, Hidden = true }],
+        });
+
+        Assert.Equal(["P3"], layout.PlanTabs.Select(t => t.Name));
+        Assert.Equal(["MT"], layout.Assignees.Select(a => a.Key));
+        var hidden = layout.Tab("P3 old")!;
+        Assert.True(hidden.Hidden);
+        Assert.Equal(TabKind.Plan, hidden.Kind); // still there when the user picks it by name
+        var d = Assert.Single(hidden.Diagnostics);
+        Assert.Equal(("hidden-tab", DiagnosticSeverity.Info), (d.Code, d.Severity));
+    }
+
     // ---- helpers --------------------------------------------------------------------------------
 
     [Theory]
@@ -562,7 +892,9 @@ public class LayoutDetectorTests
 
     [Theory]
     [InlineData("WAR/DRK", "WAR,DRK")]
-    [InlineData("WARDRK", "")]
+    [InlineData("WARDRK", "WAR,DRK")] // Google's xlsx export drops the '/' of "WAR/DRK"
+    [InlineData("GNBPLD", "GNB,PLD")]
+    [InlineData("TOPWHM", "")]
     [InlineData("TOP – White Mage", "WHM")]
     [InlineData("TOP – WHM + SCH", "WHM,SCH")]
     [InlineData("TOP – Scholar", "SCH")]
@@ -581,6 +913,8 @@ public class LayoutDetectorTests
     [InlineData("P2", 2, null, null)]
     [InlineData("P1 ", 1, null, null)]
     [InlineData("Phase 6", 6, null, null)]
+    [InlineData("Phase Two", 2, null, null)]
+    [InlineData("Phase three: Omega Reconfigured", 3, "Omega Reconfigured", null)]
     public void TryParseSection_ReadsSectionRows(string text, int number, string? name, string? hint)
     {
         Assert.True(LayoutDetector.TryParseSection(text, out var n, out var nm, out var h));
@@ -592,6 +926,8 @@ public class LayoutDetectorTests
     [InlineData("Pantokrator")]
     [InlineData("Protean 1")]
     [InlineData("P4 skip")]
+    [InlineData("P5 Delta")] // no separator: only trusted on a row that moves the phase forward (see the synthetic tests)
+    [InlineData("Phase Twofold")]
     [InlineData("P0")]
     [InlineData("Atomic Ray (P1 enrage — push before)")]
     [InlineData("")]

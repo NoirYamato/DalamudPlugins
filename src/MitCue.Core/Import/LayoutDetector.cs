@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using MitCue.Core.Fights;
 
@@ -15,6 +16,7 @@ namespace MitCue.Core.Import;
 /// by content (mostly times → time; text left of the assignees → mechanic label); a row without label and time whose
 /// assignee cells carry the header's fill instead of the column's data fill (LPDU writes notes in white on black under
 /// its tables) is a note, otherwise long sentences and "*" footnotes are notes and short text is a label-less data row.
+/// A header row repeated further down with other players (stacked tables) re-maps the player columns below it.
 /// Everything uncertain is reported in <see cref="TabLayout.Diagnostics"/>.
 /// </remarks>
 public sealed partial class LayoutDetector
@@ -38,6 +40,8 @@ public sealed partial class LayoutDetector
 
     private static readonly HashSet<string> PhaseWords = new(StringComparer.OrdinalIgnoreCase) { "phase", "phases" };
 
+    private static readonly string[] NumberWords = ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"];
+
     public LayoutDetector(FightDefinition? fight = null)
     {
         this.Fight = fight;
@@ -48,6 +52,18 @@ public sealed partial class LayoutDetector
 
     [GeneratedRegex(@"^\s*(?:P|Phase\s*)(?<n>\d{1,2})\s*(?:[—–\-:|.]+\s*(?<name>.*?))?\s*(?:\((?<hint>[^()]*)\))?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex SectionRegex();
+
+    // "P5 Delta", "Phase 2 Omega-M/F": a phase number and a name with no separator between them.
+    [GeneratedRegex(@"^\s*(?:P|Phase\s*)(?<n>\d{1,2})\s+(?<name>\p{L}[^()]*?)\s*(?:\((?<hint>[^()]*)\))?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LooseSectionRegex();
+
+    // "Phase Two" → "Phase 2".
+    [GeneratedRegex(@"^\s*Phase\s+(?<w>one|two|three|four|five|six|seven|eight|nine|ten)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PhaseNumberWordRegex();
+
+    // The phase marker in front of a mechanic label: "P2 - " in "P2 - Solar Ray".
+    [GeneratedRegex(@"^\s*(?:P|Phase)\s*(?:\d{1,2}|one|two|three|four|five|six|seven|eight|nine|ten)\s*[—–\-:|.]+\s*", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex PhasePrefixRegex();
 
     [GeneratedRegex(@"^\s*(?:P|Phase\s*)(?<n>\d{1,2})(?:\s*(?<sep>/|&|\+|,|-|–|and|to)?\s*(?:P|Phase\s*)?(?<n>\d{1,2}))*\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TabPhasesRegex();
@@ -61,6 +77,10 @@ public sealed partial class LayoutDetector
     [GeneratedRegex(@"(?:^|\s)=(?:\s|$)|\b(?:key|legend)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LegendRegex();
 
+    // A three-part time "1:21:00": what Sheets shows for "1:21" typed into a cell it reads as a time of day.
+    [GeneratedRegex(@"(?<![\d:])(?<a>\d{1,2}):(?<b>\d{2}):(?<c>\d{2})(?![\d:])", RegexOptions.CultureInvariant)]
+    private static partial Regex HmsRegex();
+
     /// <summary>Detects the layout of every tab.</summary>
     public DocumentLayout Detect(SheetDocument document)
     {
@@ -73,23 +93,13 @@ public sealed partial class LayoutDetector
         this.Fight is { } f && number >= 1 && number <= f.Phases.Count ? f.Phases[number - 1].Id : "p" + number;
 
     /// <summary>
-    /// Parses a phase section or label: "P2", "Phase 3", "P2 — Omega-M/F  (from phase start)",
+    /// Parses a phase section or label: "P2", "Phase 3", "Phase Two", "P2 — Omega-M/F  (from phase start)",
     /// "P5 — Run: Dynamis  (from boss targetable; always 4:46 long)". <paramref name="name"/> and
-    /// <paramref name="hint"/> (the last parenthetical) are null for a bare label.
+    /// <paramref name="hint"/> (the last parenthetical) are null for a bare label. A name must follow a separator
+    /// (— – - : | .), so mechanic labels such as "P4 skip" are not sections.
     /// </summary>
-    public static bool TryParseSection(string? text, out int number, out string? name, out string? hint)
-    {
-        number = 0;
-        name = hint = null;
-        if (string.IsNullOrWhiteSpace(text) || SectionRegex().Match(text) is not { Success: true } m)
-            return false;
-        number = int.Parse(m.Groups["n"].Value, System.Globalization.CultureInfo.InvariantCulture);
-        if (number is < 1 or > 20)
-            return false;
-        name = m.Groups["name"].Success && m.Groups["name"].Value.Trim() is { Length: > 0 } n ? n : null;
-        hint = m.Groups["hint"].Success && m.Groups["hint"].Value.Trim() is { Length: > 0 } h ? h : null;
-        return true;
-    }
+    public static bool TryParseSection(string? text, out int number, out string? name, out string? hint) =>
+        TryParseSection(SectionRegex(), text, out number, out name, out hint);
 
     /// <summary>A bare phase label: "P2", "P1 ", "Phase 3", "P2:".</summary>
     public static bool TryParsePhaseLabel(string? text, out int number) =>
@@ -103,7 +113,7 @@ public sealed partial class LayoutDetector
     {
         if (string.IsNullOrWhiteSpace(name) || TabPhasesRegex().Match(name) is not { Success: true } m)
             return [];
-        var numbers = m.Groups["n"].Captures.Select(c => int.Parse(c.Value, System.Globalization.CultureInfo.InvariantCulture)).ToList();
+        var numbers = m.Groups["n"].Captures.Select(c => int.Parse(c.Value, CultureInfo.InvariantCulture)).ToList();
         var seps = m.Groups["sep"].Captures.ToList();
         var result = new List<int> { numbers[0] };
         for (var i = 1; i < numbers.Count; i++)
@@ -126,7 +136,10 @@ public sealed partial class LayoutDetector
         return result.Where(n => n is >= 1 and <= 20).Distinct().ToList();
     }
 
-    /// <summary>Jobs named in a tab name: "WAR/DRK" → [WAR, DRK], "TOP – White Mage" → [WHM], "TOP – WHM + SCH" → [WHM, SCH].</summary>
+    /// <summary>
+    /// Jobs named in a tab name: "WAR/DRK" → [WAR, DRK], "TOP – White Mage" → [WHM], "TOP – WHM + SCH" → [WHM, SCH].
+    /// Also the xlsx form of a pair name, which drops the '/' ("WARDRK" → [WAR, DRK]).
+    /// </summary>
     public static IReadOnlyList<Job> JobsFromTabName(string? name)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -144,6 +157,10 @@ public sealed partial class LayoutDetector
             {
                 result.Add(abbr);
             }
+            else if (words[i].Length >= 6 && words[i].Length % 3 == 0 && words[i].All(char.IsUpper) && AbbreviationRun(words[i]) is { } run)
+            {
+                result.AddRange(run); // "WARDRK": Google's xlsx export removes the '/' of "WAR/DRK"
+            }
             else if (words[i].Length > 3 && Jobs.TryParse(words[i], out var full))
             {
                 result.Add(full);
@@ -151,6 +168,19 @@ public sealed partial class LayoutDetector
         }
 
         return result.Distinct().ToList();
+
+        static List<Job>? AbbreviationRun(string word)
+        {
+            var jobs = new List<Job>();
+            for (var k = 0; k < word.Length; k += 3)
+            {
+                if (!Jobs.TryParse(word.Substring(k, 3), out var job))
+                    return null;
+                jobs.Add(job);
+            }
+
+            return jobs;
+        }
     }
 
     /// <summary>Number of ★ in a mechanic label (Carry the Clear's lethality marks).</summary>
@@ -163,9 +193,40 @@ public sealed partial class LayoutDetector
         return new TabScan(this, tab).Run();
     }
 
+    private static bool TryParseSection(Regex regex, string? text, out int number, out string? name, out string? hint)
+    {
+        number = 0;
+        name = hint = null;
+        if (string.IsNullOrWhiteSpace(text))
+            return false;
+        text = PhaseNumberWordRegex().Replace(text, w => "Phase " + (Array.IndexOf(NumberWords, w.Groups["w"].Value.ToLowerInvariant()) + 1).ToString(CultureInfo.InvariantCulture), 1);
+        if (regex.Match(text) is not { Success: true } m)
+            return false;
+        number = int.Parse(m.Groups["n"].Value, CultureInfo.InvariantCulture);
+        if (number is < 1 or > 20)
+            return false;
+        name = m.Groups["name"].Success && m.Groups["name"].Value.Trim() is { Length: > 0 } n ? n : null;
+        hint = m.Groups["hint"].Success && m.Groups["hint"].Value.Trim() is { Length: > 0 } h ? h : null;
+        return true;
+    }
+
+    /// <summary>"P5 Delta": a phase number and a name without a separator (only trusted on rows that move the phase forward).</summary>
+    private static bool TryParseLooseSection(string? text, out int number, out string? name, out string? hint) =>
+        TryParseSection(LooseSectionRegex(), text, out number, out name, out hint) && name is not null;
+
+    /// <summary>A phase column cell: a phase label or section ("P2", "Phase 2 — Omega-M/F") or a bare number ("2").</summary>
+    private static bool TryParsePhaseCell(string text, out int number)
+    {
+        if (TryParseSection(text, out number, out _, out _))
+            return true;
+        return int.TryParse(text.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out number) && number is >= 1 and <= 20;
+    }
+
     private static string? Txt(SheetTab tab, int r, int c) => tab.Cell(r, c).Text?.Trim() is { Length: > 0 } t ? t : null;
 
-    private static IEnumerable<string> HeaderWords(string text) => HeaderWordRegex().Matches(text).Select(m => m.Value);
+    // Header words without the colon of "Time:" or "Notes:" ("m:ss" keeps its inner colon).
+    private static IEnumerable<string> HeaderWords(string text) =>
+        HeaderWordRegex().Matches(text).Select(m => m.Value.Trim(':')).Where(w => w.Length > 0);
 
     private static bool IsNotesHeader(string h) => HeaderWords(h).Any(NotesWords.Contains);
 
@@ -177,9 +238,46 @@ public sealed partial class LayoutDetector
 
     private static bool IsStatsHeader(string h) => StatsHeaderRegex().IsMatch(h);
 
+    /// <summary>Text made only of column keywords ("Mechanic", "Time", "Boss Cast", "Notes"), as in a header row.</summary>
+    private static bool IsKeywordText(string h) =>
+        HeaderWords(h).ToList() is { Count: > 0 } words
+        && words.All(w => NotesWords.Contains(w) || TimeWords.Contains(w) || MechanicWords.Contains(w) || PhaseWords.Contains(w));
+
+    /// <summary>The label or time cell of a repeated header row: empty, a phase marker or column keywords.</summary>
+    private static bool IsHeaderCell(string? text) => text is null || TryParseSection(text, out _, out _, out _) || IsKeywordText(text);
+
     private static bool StartsWithTime(string text) => ParsedTime.FindAll(text) is { Count: > 0 } all && all[0].Index == 0;
 
     private static int WordCount(string text) => text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+
+    private static string Quote(string text) => text.Length <= 40 ? text : text[..37] + "...";
+
+    /// <summary>The player columns in force for a run of rows: the header's, or those of a repeated header row.</summary>
+    private sealed class Block
+    {
+        public Block(int headerRow, bool first, List<ColumnLayout> assignees, List<int> notes, HashSet<int> dropped)
+        {
+            this.HeaderRow = headerRow;
+            this.First = first;
+            this.Assignees = assignees;
+            this.AssigneeIdx = assignees.Select(c => c.Index).ToHashSet();
+            this.Notes = notes;
+            this.Dropped = dropped;
+        }
+
+        public int HeaderRow { get; }
+
+        public bool First { get; }
+
+        public List<ColumnLayout> Assignees { get; }
+
+        public HashSet<int> AssigneeIdx { get; }
+
+        public List<int> Notes { get; }
+
+        /// <summary>Columns that held a player above and are blank (or not a player) in this block's header.</summary>
+        public HashSet<int> Dropped { get; }
+    }
 
     /// <summary>The per-tab detection state.</summary>
     private sealed class TabScan
@@ -191,6 +289,12 @@ public sealed partial class LayoutDetector
         private readonly List<ImportDiagnostic> diags = [];
         private readonly IReadOnlyList<int> namePhases;
         private readonly List<PhaseSection> sections = [];
+        private readonly List<ColumnLayout> repeatedHeaderColumns = [];
+        private readonly Dictionary<int, string?> dataBg = [];
+        private int headerRow;
+        private int? mech;
+        private int? time;
+        private int? phaseCol;
 
         public TabScan(LayoutDetector owner, SheetTab tab)
         {
@@ -228,6 +332,8 @@ public sealed partial class LayoutDetector
             var columns = this.ClassifyColumns(headerRow, headerEnd);
             var rows = this.ClassifyRows(headerRow, columns, out var title, out var footnotes);
             var kind = columns.Any(c => c.Role == ColumnRole.Assignee) ? TabKind.Plan : TabKind.NotAPlan;
+            if (kind == TabKind.Plan && this.tab.Hidden)
+                this.Diag(DiagnosticSeverity.Info, "hidden-tab", $"Tab '{this.tab.Name}' is hidden in the workbook (an old version or a template?); it is not imported unless it is picked by name.", null);
             return new TabLayout
             {
                 Tab = this.tab,
@@ -235,6 +341,7 @@ public sealed partial class LayoutDetector
                 HeaderRow = headerRow,
                 HeaderRowEnd = headerEnd,
                 Columns = columns,
+                RepeatedHeaderColumns = this.repeatedHeaderColumns,
                 Rows = rows,
                 Sections = this.sections,
                 NamePhases = this.namePhases,
@@ -284,6 +391,22 @@ public sealed partial class LayoutDetector
             return best;
         }
 
+        /// <summary>The non-empty values of a column below <paramref name="fromRow"/> (hidden rows skipped).</summary>
+        private List<string> ColumnValues(int c, int fromRow)
+        {
+            var values = new List<string>();
+            for (var r = fromRow; r < this.nRows; r++)
+            {
+                if (!this.tab.IsRowHidden(r) && this.Txt(r, c) is { } v)
+                    values.Add(v);
+            }
+
+            return values;
+        }
+
+        private static bool MostlyTimes(List<string> values) =>
+            values.Count(StartsWithTime) is var timeLike && timeLike >= 2 && timeLike >= 0.6 * values.Count;
+
         private List<ColumnLayout> ClassifyColumns(int headerRow, int headerEnd)
         {
             var roles = new ColumnRole[this.nCols];
@@ -297,6 +420,8 @@ public sealed partial class LayoutDetector
                 if (this.tab.IsColumnHidden(c))
                 {
                     roles[c] = ColumnRole.Ignored;
+                    if (h is not null || this.ColumnValues(c, 0).Count > 0)
+                        this.Diag(DiagnosticSeverity.Info, "hidden-content", $"Column {ColumnName(c)}{(h is null ? string.Empty : $" ('{Quote(h)}')")} is hidden; its content is not imported.", this.tab.Ref(headerRow, c));
                     continue;
                 }
 
@@ -308,7 +433,8 @@ public sealed partial class LayoutDetector
 
                 if (TryParseSection(h, out _, out _, out _))
                 {
-                    roles[c] = ColumnRole.Mechanic; // "P1" heads the label column (LPDU)
+                    // "P1" heads the label column (LPDU), or a column of times when the phase is written above them.
+                    roles[c] = MostlyTimes(this.ColumnValues(c, headerEnd + 1)) ? ColumnRole.Time : ColumnRole.Mechanic;
                 }
                 else if (AssigneeHeader.TryParse(h, out var a))
                 {
@@ -322,6 +448,7 @@ public sealed partial class LayoutDetector
                 else if (IsStatsHeader(h))
                 {
                     roles[c] = ColumnRole.Ignored;
+                    this.Diag(DiagnosticSeverity.Info, "ignored-column", $"Column {ColumnName(c)} ('{Quote(h)}') looks like statistics; it is not imported.", this.tab.Ref(headerRow, c));
                 }
                 else if (IsTimeHeader(h))
                 {
@@ -334,6 +461,11 @@ public sealed partial class LayoutDetector
                 else if (IsPhaseHeader(h))
                 {
                     roles[c] = ColumnRole.Phase;
+                }
+                else if (TryParseLooseSection(h, out _, out _, out _))
+                {
+                    // "P1 Healers": a phase and a title over the label (or time) column.
+                    roles[c] = MostlyTimes(this.ColumnValues(c, headerEnd + 1)) ? ColumnRole.Time : ColumnRole.Mechanic;
                 }
                 else
                 {
@@ -348,21 +480,14 @@ public sealed partial class LayoutDetector
             var mechanicCandidates = new List<(int Col, int Count)>();
             foreach (var c in pending)
             {
-                var values = new List<string>();
-                for (var r = headerEnd + 1; r < this.nRows; r++)
-                {
-                    if (!this.tab.IsRowHidden(r) && this.Txt(r, c) is { } v)
-                        values.Add(v);
-                }
-
+                var values = this.ColumnValues(c, headerEnd + 1);
                 if (values.Count == 0)
                 {
                     roles[c] = ColumnRole.Empty;
                     continue;
                 }
 
-                var timeLike = values.Count(StartsWithTime);
-                if (timeLike >= 2 && timeLike >= 0.6 * values.Count)
+                if (MostlyTimes(values))
                 {
                     roles[c] = ColumnRole.Time;
                 }
@@ -393,6 +518,10 @@ public sealed partial class LayoutDetector
             foreach (var (c, _) in mechanicCandidates.Where(x => roles[x.Col] == ColumnRole.Unknown))
                 this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(c)} has no header and is not the label column; it is not imported.", this.tab.Ref(headerRow, c));
 
+            // Only the first label and time columns are read (two tables side by side are not supported).
+            this.ReportSecondColumns(roles, ColumnRole.Mechanic, "multiple-label-columns", "mechanic label", headerRow);
+            this.ReportSecondColumns(roles, ColumnRole.Time, "multiple-time-columns", "time", headerRow);
+
             var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             for (var c = 0; c < this.nCols; c++)
             {
@@ -403,48 +532,60 @@ public sealed partial class LayoutDetector
             return Enumerable.Range(0, this.nCols).Select(c => new ColumnLayout(c, roles[c], headers[c], parsed[c])).ToList();
         }
 
+        private void ReportSecondColumns(ColumnRole[] roles, ColumnRole role, string code, string what, int headerRow)
+        {
+            var cols = Enumerable.Range(0, roles.Length).Where(c => roles[c] == role).ToList();
+            if (cols.Count > 1)
+                this.Diag(DiagnosticSeverity.Warning, code, $"Columns {string.Join(", ", cols.Select(ColumnName))} all look like {what} columns; only column {ColumnName(cols[0])} is used.", this.tab.Ref(headerRow, cols[1]));
+        }
+
         private List<RowLayout> ClassifyRows(int headerRow, List<ColumnLayout> columns, out string? title, out List<RowText> footnotes)
         {
             var rows = this.ClassifyPreamble(headerRow, out title);
             footnotes = [];
-            var mech = columns.FirstOrDefault(c => c.Role == ColumnRole.Mechanic)?.Index;
-            var time = columns.FirstOrDefault(c => c.Role == ColumnRole.Time)?.Index;
-            var phaseCol = columns.FirstOrDefault(c => c.Role == ColumnRole.Phase)?.Index;
-            var assignees = columns.Where(c => c.Role == ColumnRole.Assignee).ToList();
-            var assigneeIdx = assignees.Select(c => c.Index).ToHashSet();
-            var notes = columns.Where(c => c.Role == ColumnRole.Notes).Select(c => c.Index).ToList();
+            this.headerRow = headerRow;
+            this.mech = columns.FirstOrDefault(c => c.Role == ColumnRole.Mechanic)?.Index;
+            this.time = columns.FirstOrDefault(c => c.Role == ColumnRole.Time)?.Index;
+            this.phaseCol = columns.FirstOrDefault(c => c.Role == ColumnRole.Phase)?.Index;
+            var (mech, time, phaseCol) = (this.mech, this.time, this.phaseCol);
+            var block = new Block(
+                headerRow,
+                true,
+                columns.Where(c => c.Role == ColumnRole.Assignee).ToList(),
+                columns.Where(c => c.Role == ColumnRole.Notes).Select(c => c.Index).ToList(),
+                []);
 
-            // The phase in force at the header: header label cell > tab name > the last phase label above the header.
+            // The phase in force at the header: a phase written in the label (or time, or phase) column's header cell >
+            // tab name > the last phase label above the header.
             PhaseSection? current = null;
-            if (mech is { } mc && this.Txt(headerRow, mc) is { } headerLabel && TryParseSection(headerLabel, out var hn, out var hname, out var hhint))
-                current = this.Section(hn, PhaseSource.HeaderCell, headerRow, hname, hhint, headerLabel, this.tab.Ref(headerRow, mc), null);
-            else if (this.namePhases.Count > 0)
+            foreach (var hc in new[] { mech, time, phaseCol })
+            {
+                if (hc is { } c && this.Txt(headerRow, c) is { } headerLabel && TryParseSection(headerLabel, out var hn, out var hname, out var hhint))
+                {
+                    current = this.Section(hn, PhaseSource.HeaderCell, headerRow, hname, hhint, headerLabel, this.tab.Ref(headerRow, c), null);
+                    break;
+                }
+            }
+
+            // "P1 Healers" over the label column: a phase and a title without a separator.
+            if (current is null && mech is { } lc && this.Txt(headerRow, lc) is { } looseHeader && TryParseLooseSection(looseHeader, out var ln0, out var lname0, out var lhint0)
+                && this.StartsLaterPhase(ln0, null))
+            {
+                current = this.Section(ln0, PhaseSource.HeaderCell, headerRow, lname0, lhint0, looseHeader, this.tab.Ref(headerRow, lc), null);
+                this.Diag(DiagnosticSeverity.Info, "guessed-phase", $"The header '{Quote(looseHeader)}' is read as the start of P{ln0}.", this.tab.Ref(headerRow, lc));
+            }
+
+            if (current is null && this.namePhases.Count > 0)
                 current = this.Section(this.namePhases[0], PhaseSource.TabName, headerRow, null, null, this.tab.Name, null, null);
-            else if (this.PreamblePhase(headerRow) is { } pre)
+            else if (current is null && this.PreamblePhase(headerRow) is { } pre)
                 current = pre;
             if (current is not null)
                 this.sections.Add(current);
 
-            // Typical fill of each assignee column in rows that have a label or a time (LPDU colours each role).
-            var dataBg = new Dictionary<int, string?>();
-            foreach (var a in assignees)
-            {
-                var fills = new List<string?>();
-                for (var r = headerRow + 1; r < this.nRows; r++)
-                {
-                    if (this.tab.IsRowHidden(r))
-                        continue;
-                    var label = mech is { } m2 ? this.Txt(r, m2) : null;
-                    var t = time is { } t2 ? this.Txt(r, t2) : null;
-                    if ((label is not null && !TryParseSection(label, out _, out _, out _)) || t is not null)
-                        fills.Add(this.tab.Cell(r, a.Index).Bg);
-                }
-
-                dataBg[a.Index] = fills.Count == 0 ? null : fills.GroupBy(f => f).OrderByDescending(g => g.Count()).First().Key;
-            }
-
+            var hmsAsMinutes = time is { } timeCol && this.TimesLookLikeTypedMinutes(timeCol, headerRow);
             var warnedNoPhase = false;
             var reportedMerges = new HashSet<CellRange>();
+            var reportedDropped = new HashSet<(int Block, int Col)>();
             for (var r = headerRow; r < this.nRows; r++)
             {
                 var texts = this.RowTexts(r);
@@ -472,12 +613,12 @@ public sealed partial class LayoutDetector
                 var label = mech is { } m ? this.Txt(r, m) : null;
                 var timeText = time is { } tc ? this.Txt(r, tc) : null;
                 var labelSrc = label is not null ? this.tab.Ref(r, mech!.Value) : src;
-                var assignments = this.Assignments(r, headerRow, assignees, assigneeIdx, reportedMerges);
-                var noteText = notes.Select(c => this.Txt(r, c)).Where(t => t is not null).ToList();
+                var assignments = this.Assignments(r, block, reportedMerges);
+                var noteText = block.Notes.Select(c => this.Txt(r, c)).Where(t => t is not null).ToList();
                 var notesJoined = noteText.Count > 0 ? string.Join("\n", noteText) : null;
 
                 // A per-row phase column switches the phase for this and the following rows.
-                if (phaseCol is { } pc && this.Txt(r, pc) is { } pt && TryParsePhaseLabel(pt, out var pn) && pn != current?.Number)
+                if (phaseCol is { } pc && this.Txt(r, pc) is { } pt && TryParsePhaseCell(pt, out var pn) && pn != current?.Number)
                 {
                     current = this.Section(pn, PhaseSource.PhaseColumn, r, null, null, pt, this.tab.Ref(r, pc), current);
                     this.sections.Add(current);
@@ -496,27 +637,52 @@ public sealed partial class LayoutDetector
                         rows.Add(new RowLayout { Index = r, Kind = isSection ? RowKind.Section : RowKind.PhaseLabel, Phase = current, Label = label, TimeText = timeText, Notes = notesJoined, Texts = texts, Src = this.tab.Ref(r, marker.Col!.Value) });
                         continue;
                     }
+
+                    // "P5 Delta": a phase number and a name with no separator. Trusted when it moves the phase forward.
+                    if (label is not null && TryParseLooseSection(label, out var ln, out var lname, out var lhint) && this.StartsLaterPhase(ln, current))
+                    {
+                        current = this.Section(ln, PhaseSource.SectionRow, r, lname, lhint, label, labelSrc, current);
+                        this.sections.Add(current);
+                        this.Diag(DiagnosticSeverity.Info, "guessed-phase", $"Row {r + 1} ('{Quote(label)}') is read as the start of P{ln}.", labelSrc);
+                        rows.Add(new RowLayout { Index = r, Kind = RowKind.Section, Phase = current, Label = label, TimeText = timeText, Notes = notesJoined, Texts = texts, Src = labelSrc });
+                        continue;
+                    }
                 }
 
-                // A repeated header row further down.
-                if (assignees.Count > 0 && assignees.Count(a => this.Txt(r, a.Index) is { } t && AssigneeHeader.TryParse(t, out _)) >= Math.Max(2, (assignees.Count + 1) / 2))
+                // A header row repeated further down (stacked tables): the players it names apply to the rows below it.
+                if (this.IsHeaderLike(r, block))
                 {
-                    if (label is not null && TryParseSection(label, out var rn, out var rname, out var rhint))
+                    var looseLabel = label is not null && TryParseLooseSection(label, out _, out _, out _); // "P2 Healers"
+                    if ((IsHeaderCell(label) || looseLabel) && IsHeaderCell(timeText))
                     {
-                        current = this.Section(rn, PhaseSource.HeaderCell, r, rname, rhint, label, labelSrc, current);
-                        this.sections.Add(current);
+                        var marker = new[] { (Text: label, Col: mech), (Text: timeText, Col: time) }.FirstOrDefault(x => x.Text is not null && TryParseSection(x.Text, out _, out _, out _));
+                        if (marker.Text is not null && TryParseSection(marker.Text, out var rn, out var rname, out var rhint))
+                        {
+                            current = this.Section(rn, PhaseSource.HeaderCell, r, rname, rhint, marker.Text, this.tab.Ref(r, marker.Col!.Value), current);
+                            this.sections.Add(current);
+                        }
+                        else if (looseLabel && TryParseLooseSection(label, out var hn2, out var hname2, out var hhint2) && this.StartsLaterPhase(hn2, current))
+                        {
+                            current = this.Section(hn2, PhaseSource.HeaderCell, r, hname2, hhint2, label, labelSrc, current);
+                            this.sections.Add(current);
+                            this.Diag(DiagnosticSeverity.Info, "guessed-phase", $"Row {r + 1} ('{Quote(label!)}') is read as the start of P{hn2}.", labelSrc);
+                        }
+
+                        block = this.RepeatHeader(r, block);
+                        rows.Add(new RowLayout { Index = r, Kind = RowKind.Header, Phase = current, Label = label, Texts = texts, Src = src });
+                        continue;
                     }
 
-                    rows.Add(new RowLayout { Index = r, Kind = RowKind.Header, Phase = current, Label = label, Texts = texts, Src = src });
-                    continue;
+                    this.Diag(DiagnosticSeverity.Info, "header-like-row", $"Row {r + 1} names players like a header row, but its label '{Quote(label ?? timeText!)}' is not a header; it is read as a mechanic row.", labelSrc);
                 }
 
                 var kind = RowKind.Data;
+                var byWording = false;
                 if (label is null && timeText is null)
                 {
                     if (assignments.Count == 0)
                         kind = RowKind.Note; // only notes / unknown columns: a notes continuation line or a stray remark
-                    else if (this.LooksLikeNote(r, headerRow, assignments, dataBg))
+                    else if (this.LooksLikeNote(r, block, assignments, out byWording))
                         kind = RowKind.Note;
                 }
 
@@ -525,22 +691,32 @@ public sealed partial class LayoutDetector
                     if (texts[0].Text.StartsWith('*'))
                         kind = RowKind.Footnote;
                     footnotes.AddRange(texts.Where(t => t.Text.StartsWith('*')));
+                    if (byWording)
+                        this.Diag(DiagnosticSeverity.Info, "note-in-table", $"Row {r + 1} has no label or time and its text in player columns ('{Quote(assignments[0].Cell.Text!.Trim())}') reads like a note; it is not imported as assignments.", assignments[0].Src);
                     rows.Add(new RowLayout { Index = r, Kind = kind, Phase = current, Notes = notesJoined, Texts = texts, Src = src });
                     continue;
                 }
 
-                // Data row.
-                ParsedTime? parsedTime = null;
-                if (timeText is not null)
+                // A phase marker in front of a mechanic label ("P2 - Solar Ray") starts that phase at this row.
+                var rowLabel = label;
+                if (label is not null && TryParseSection(label, out var dn, out var dname, out var dhint) && dname is not null
+                    && (dn == current?.Number || this.StartsLaterPhase(dn, current))
+                    && PhasePrefixRegex().Match(label) is { Success: true } prefix && label[prefix.Length..].Trim() is { Length: > 0 } rest)
                 {
-                    if (!ParsedTime.TryParse(timeText, out parsedTime))
+                    if (dn != current?.Number)
                     {
-                        parsedTime = ParsedTime.FindAll(timeText) is { Count: > 0 } found && found[0].Index == 0 ? found[0].Time : null;
-                        if (parsedTime is null)
-                            this.Diag(DiagnosticSeverity.Warning, "unparsed-time", $"'{timeText}' in the time column is not a time.", this.tab.Ref(r, time!.Value));
+                        current = this.Section(dn, PhaseSource.MechanicLabel, r, null, dhint, label, labelSrc, current);
+                        this.sections.Add(current);
                     }
+
+                    rowLabel = rest;
                 }
 
+                foreach (var t in texts.Where(t => block.Dropped.Contains(t.Column) && reportedDropped.Add((block.HeaderRow, t.Column))))
+                    this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(t.Column)} has no player in the header of row {block.HeaderRow + 1}; its text from row {r + 1} on is not imported.", t.Src);
+
+                // Data row.
+                var parsedTime = timeText is null ? null : this.RowTime(timeText, r, time!.Value, hmsAsMinutes);
                 if (label is null && timeText is null)
                     this.Diag(DiagnosticSeverity.Info, "missing-mechanic-label", $"Row {r + 1} has assignments but no mechanic label or time; it belongs to the mechanic before or after it.", src);
                 if (current is null && !warnedNoPhase)
@@ -555,7 +731,7 @@ public sealed partial class LayoutDetector
                     Index = r,
                     Kind = RowKind.Data,
                     Phase = current,
-                    Label = label,
+                    Label = rowLabel,
                     TimeText = timeText,
                     Time = parsedTime,
                     Severity = stars > 0 ? stars : null,
@@ -566,17 +742,129 @@ public sealed partial class LayoutDetector
                 });
             }
 
+            // A phase the tab name lists but no row starts: its rows went to the phase before.
+            foreach (var n in this.namePhases.Where(n => !this.sections.Any(s => s.Number == n)))
+                this.Diag(DiagnosticSeverity.Warning, "phase-not-found", $"The tab name lists P{n}, but no row starts it (a 'P{n}' label or section row); its rows are filed under the phase before.", null);
+
             return rows;
         }
 
-        /// <summary>A row without label and time: is it a note under/inside the table rather than label-less assignments?</summary>
-        private bool LooksLikeNote(int r, int headerRow, IReadOnlyList<AssigneeCell> assignments, Dictionary<int, string?> dataBg)
+        /// <summary>A phase number that may start a new section: later than the current phase and one the tab (and fight) has.</summary>
+        private bool StartsLaterPhase(int number, PhaseSection? current) =>
+            (current is null || number > current.Number)
+            && (this.namePhases.Count == 0 || this.namePhases.Contains(number))
+            && (this.owner.Fight is not { } fight || number <= fight.Phases.Count);
+
+        /// <summary>A row whose cells name players like a header row (outside the label, time and phase columns).</summary>
+        private bool IsHeaderLike(int r, Block block)
         {
+            if (block.Assignees.Count == 0)
+                return false;
+            var count = 0;
+            for (var c = 0; c < this.nCols; c++)
+            {
+                if (c == this.mech || c == this.time || c == this.phaseCol || this.tab.IsColumnHidden(c))
+                    continue;
+                if (this.Txt(r, c) is { } t && AssigneeHeader.TryParse(t, out _))
+                    count++;
+            }
+
+            return count >= Math.Max(2, (block.Assignees.Count + 1) / 2);
+        }
+
+        /// <summary>
+        /// A repeated header row: the same players keep their columns; a column naming another player (or the same
+        /// player elsewhere) gets a new <see cref="ColumnLayout"/>; a player column left blank holds nobody below it.
+        /// </summary>
+        private Block RepeatHeader(int r, Block block)
+        {
+            var assignees = new List<ColumnLayout>();
+            var notes = new List<int>();
+            var dropped = new HashSet<int>();
+            var changes = new List<string>();
+            int? firstChange = null;
+            for (var c = 0; c < this.nCols; c++)
+            {
+                if (c == this.mech || c == this.time || c == this.phaseCol || this.tab.IsColumnHidden(c))
+                    continue;
+                var h = this.Txt(r, c);
+                var old = block.Assignees.FirstOrDefault(a => a.Index == c);
+                string? change = null;
+                if (h is not null && AssigneeHeader.TryParse(h, out var a))
+                {
+                    if (old is not null && string.Equals(old.Assignee!.Key, a.Key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        assignees.Add(old);
+                        continue;
+                    }
+
+                    var column = new ColumnLayout(c, ColumnRole.Assignee, h, a);
+                    assignees.Add(column);
+                    this.repeatedHeaderColumns.Add(column);
+                    change = old is null ? $"{ColumnName(c)} '{a.Key}'" : $"{ColumnName(c)} '{a.Key}' instead of '{old.Assignee!.Key}'";
+                }
+                else if (h is not null && IsNotesHeader(h))
+                {
+                    notes.Add(c);
+                    if (old is not null)
+                        change = $"{ColumnName(c)} notes instead of '{old.Assignee!.Key}'";
+                }
+                else if (old is not null)
+                {
+                    dropped.Add(c);
+                    change = $"{ColumnName(c)} {(h is null ? "blank" : $"'{Quote(h)}'")} instead of '{old.Assignee!.Key}'";
+                }
+                else if (h is null && block.Notes.Contains(c))
+                {
+                    notes.Add(c);
+                }
+
+                if (change is not null)
+                {
+                    changes.Add(change);
+                    firstChange ??= c;
+                }
+            }
+
+            if (changes.Count == 0)
+                return block; // the same header again (a new phase or table with the same players)
+            this.Diag(DiagnosticSeverity.Info, "header-changed", $"Row {r + 1} repeats the header with other players ({string.Join(", ", changes)}); the rows below it use these columns.", this.tab.Ref(r, firstChange!.Value));
+            return new Block(r, false, assignees, notes, dropped);
+        }
+
+        /// <summary>The usual fill of a column in rows that have a label or a time (LPDU colours each role).</summary>
+        private string? DataBg(int c)
+        {
+            if (this.dataBg.TryGetValue(c, out var cached))
+                return cached;
+            var fills = new List<string?>();
+            for (var r = this.headerRow + 1; r < this.nRows; r++)
+            {
+                if (this.tab.IsRowHidden(r))
+                    continue;
+                var label = this.mech is { } m ? this.Txt(r, m) : null;
+                var t = this.time is { } t2 ? this.Txt(r, t2) : null;
+                if ((label is not null && !TryParseSection(label, out _, out _, out _)) || t is not null)
+                    fills.Add(this.tab.Cell(r, c).Bg);
+            }
+
+            var bg = fills.Count == 0 ? null : fills.GroupBy(f => f).OrderByDescending(g => g.Count()).First().Key;
+            this.dataBg[c] = bg;
+            return bg;
+        }
+
+        /// <summary>
+        /// A row without label and time: is it a note under/inside the table rather than label-less assignments? The
+        /// fills decide when they differ between header and data rows; otherwise the wording does (<paramref name="byWording"/>).
+        /// </summary>
+        private bool LooksLikeNote(int r, Block block, IReadOnlyList<AssigneeCell> assignments, out bool byWording)
+        {
+            byWording = false;
             int noteVotes = 0, dataVotes = 0;
             foreach (var a in assignments.Where(a => !a.Spread))
             {
-                var headerBg = this.tab.Cell(headerRow, a.Column.Index).Bg;
-                var typical = dataBg.GetValueOrDefault(a.Column.Index);
+                var headerBg = this.tab.Cell(block.HeaderRow, a.Column.Index).Bg;
+                var typical = this.DataBg(a.Column.Index);
                 if (string.Equals(headerBg, typical, StringComparison.OrdinalIgnoreCase))
                     continue; // header and data look alike: the fill says nothing
                 var bg = this.tab.Cell(r, a.Column.Index).Bg;
@@ -590,18 +878,60 @@ public sealed partial class LayoutDetector
                 return true;
             if (dataVotes > 0 && noteVotes == 0)
                 return false;
-            return assignments.Any(a => (a.Cell.Text?.Trim() ?? string.Empty) is var t && (WordCount(t) >= 6 || t.StartsWith('*') || t.EndsWith('.') || t.EndsWith('!')));
+            byWording = assignments.Any(a => (a.Cell.Text?.Trim() ?? string.Empty) is var t && (WordCount(t) >= 6 || t.StartsWith('*') || t.EndsWith('.') || t.EndsWith('!')));
+            return byWording;
         }
 
-        private List<AssigneeCell> Assignments(int r, int headerRow, List<ColumnLayout> assignees, HashSet<int> assigneeIdx, HashSet<CellRange> reportedMerges)
+        /// <summary>
+        /// Every three-part time in the column ends in ":00" ("1:21:00", "0:28:00"): the author typed m:ss into cells
+        /// that Sheets reads as times of day (h:mm), so they are read as m:ss.
+        /// </summary>
+        private bool TimesLookLikeTypedMinutes(int c, int headerRow)
+        {
+            string? example = null;
+            foreach (var v in this.ColumnValues(c, headerRow + 1))
+            {
+                foreach (Match m in HmsRegex().Matches(v))
+                {
+                    if (m.Groups["c"].Value != "00")
+                        return false;
+                    example ??= m.Value;
+                }
+            }
+
+            if (example is null)
+                return false;
+            this.Diag(DiagnosticSeverity.Info, "time-as-hms", $"Column {ColumnName(c)} writes its times as h:mm:00 ('{example}'), which is how Sheets shows m:ss typed into a time-formatted cell; they are read as m:ss.", this.tab.Ref(headerRow, c));
+            return true;
+        }
+
+        private ParsedTime? RowTime(string timeText, int r, int c, bool hmsAsMinutes)
+        {
+            var text = hmsAsMinutes ? HmsRegex().Replace(timeText, m => m.Groups["a"].Value + ":" + m.Groups["b"].Value) : timeText;
+            if (!ParsedTime.TryParse(text, out var parsed))
+            {
+                parsed = ParsedTime.FindAll(text) is { Count: > 0 } found && found[0].Index == 0 ? found[0].Time : null;
+                if (parsed is null)
+                {
+                    this.Diag(DiagnosticSeverity.Warning, "unparsed-time", $"'{timeText}' in the time column is not a time.", this.tab.Ref(r, c));
+                    return null;
+                }
+            }
+
+            if (parsed.All.Any(s => Math.Abs(s) >= 3600))
+                this.Diag(DiagnosticSeverity.Warning, "implausible-time", $"'{timeText}' in the time column is an hour or more; if the column holds m:ss times, format its cells as plain text.", this.tab.Ref(r, c));
+            return parsed;
+        }
+
+        private List<AssigneeCell> Assignments(int r, Block block, HashSet<CellRange> reportedMerges)
         {
             var list = new List<AssigneeCell>();
-            foreach (var col in assignees)
+            foreach (var col in block.Assignees)
             {
                 var c = col.Index;
                 var cell = this.tab.Cell(r, c);
                 var merge = this.tab.MergeAt(r, c);
-                if (merge is not null && merge.R0 <= headerRow)
+                if (merge is not null && merge.R0 <= block.HeaderRow && (block.First || merge.R0 == block.HeaderRow))
                     continue; // a header cell merged downwards (Carry the Clear C15:C16)
                 if (merge is not null && merge.R0 < r)
                 {
@@ -611,12 +941,12 @@ public sealed partial class LayoutDetector
                     continue;
                 }
 
-                var spread = merge is not null && Enumerable.Range(merge.C0, merge.C1 - merge.C0 + 1).Count(assigneeIdx.Contains) > 1;
+                var spread = merge is not null && Enumerable.Range(merge.C0, merge.C1 - merge.C0 + 1).Count(block.AssigneeIdx.Contains) > 1;
                 if (merge is not null && merge.C0 != c)
                 {
                     // Covered by a merge anchored to the left in this row: the anchor's text applies to this column too.
                     var anchor = this.tab.Cell(merge.R0, merge.C0);
-                    if (spread && !anchor.IsEmpty && assigneeIdx.Contains(merge.C0))
+                    if (spread && !anchor.IsEmpty && block.AssigneeIdx.Contains(merge.C0))
                         list.Add(new AssigneeCell(col, anchor, this.tab.Ref(merge.R0, merge.C0), true));
                     continue;
                 }

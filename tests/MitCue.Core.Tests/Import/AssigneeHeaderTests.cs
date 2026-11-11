@@ -8,7 +8,8 @@ public class AssigneeHeaderTests
     // LPDU
     [InlineData("MT", "MT", AssigneeKind.Slot, "MT", Job.None, Role.Tank)]
     [InlineData("H2", "H2", AssigneeKind.Slot, "H2", Job.None, Role.Healer)]
-    [InlineData("R1", "R1", AssigneeKind.Slot, "R1", Job.None, Role.Caster)]
+    [InlineData("R1", "R1", AssigneeKind.Slot, "R1", Job.None, Role.None)] // physical ranged or caster (LPDU's R1 assigns Dismantle)
+    [InlineData("R2", "R2", AssigneeKind.Slot, "R2", Job.None, Role.None)]
     [InlineData("H2 SCH", "H2 SCH", AssigneeKind.SlotAndJob, "H2", Job.SCH, Role.Healer)]
     [InlineData("H1 WHM", "H1 WHM", AssigneeKind.SlotAndJob, "H1", Job.WHM, Role.Healer)]
     [InlineData("CM LB Tank", "CM LB Tank", AssigneeKind.Custom, null, Job.None, Role.Tank)]
@@ -22,7 +23,11 @@ public class AssigneeHeaderTests
     [InlineData("  H2   SCH ", "H2 SCH", AssigneeKind.SlotAndJob, "H2", Job.SCH, Role.Healer)]
     [InlineData("SCH (H2)", "SCH (H2)", AssigneeKind.SlotAndJob, "H2", Job.SCH, Role.Healer)]
     [InlineData("H2 - Sage", "H2 - Sage", AssigneeKind.SlotAndJob, "H2", Job.SGE, Role.Healer)]
-    [InlineData("D3", "D3", AssigneeKind.Slot, "R1", Job.None, Role.Caster)]
+    [InlineData("D3", "D3", AssigneeKind.Slot, "R1", Job.None, Role.None)]
+    [InlineData("R1 MCH", "R1 MCH", AssigneeKind.SlotAndJob, "R1", Job.MCH, Role.PhysicalRanged)]
+    [InlineData("R2 - Black Mage", "R2 - Black Mage", AssigneeKind.SlotAndJob, "R2", Job.BLM, Role.Caster)]
+    [InlineData("Healer #1", "Healer #1", AssigneeKind.Slot, "H1", Job.None, Role.Healer)] // "#" numbering, not statistics
+    [InlineData("Tank #2", "Tank #2", AssigneeKind.Slot, "OT", Job.None, Role.Tank)]
     [InlineData("T1", "T1", AssigneeKind.Slot, "MT", Job.None, Role.Tank)]
     [InlineData("Main Tank", "Main Tank", AssigneeKind.Slot, "MT", Job.None, Role.Tank)]
     [InlineData("Off Tank", "Off Tank", AssigneeKind.Slot, "OT", Job.None, Role.Tank)]
@@ -56,6 +61,11 @@ public class AssigneeHeaderTests
         Assert.True(AssigneeHeader.TryParse("SCH/SGE", out var b));
         Assert.Equal(AssigneeKind.Job, b.Kind);
         Assert.Equal([Job.SCH, Job.SGE], b.Jobs);
+
+        // Jobs of different roles in a ranged slot: the slot does not say which role either.
+        Assert.True(AssigneeHeader.TryParse("R1 MCH/BLM", out var c));
+        Assert.Equal([Job.MCH, Job.BLM], c.Jobs);
+        Assert.Equal(Role.None, c.Role);
     }
 
     [Theory]
@@ -78,6 +88,8 @@ public class AssigneeHeaderTests
     [InlineData("WHM WHM")]
     [InlineData("WAR > DRK > PLD > GNB")]
     [InlineData("Credits to:")]
+    [InlineData("# of clears")]
+    [InlineData("Healer #")]
     [InlineData("Talk About LB3 order during the cutscene!!")]
     public void TryParse_RejectsEverythingElse(string? header) => Assert.False(AssigneeHeader.TryParse(header, out _));
 

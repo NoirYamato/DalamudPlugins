@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using MitCue.Core.Import;
 
@@ -167,13 +168,96 @@ public class CellParserTests
     [InlineData("Kera (?)", "Kera (?)")]
     [InlineData("(1:18)", "@1:18")]
     [InlineData("\"Kera\" on MT", "\"Kera\" ‹on MT› [MT]")]
-    [InlineData("Soil (2:20) + Kera (2:22)", "Soil @2:20 + Kera @2:22")]
+    [InlineData("Soil (2:20) + Kera (2:22)", "Soil @2:20 / Kera @2:22")] // each keeps its own time: separate items
     [InlineData("Kera (0:28 / 0:37)", "Kera @0:28,0:37")]
     [InlineData("SCH Soil", "SCH Soil job=SCH")]
     [InlineData("3rd/4th Kera", "3rd/4th Kera")]
     [InlineData("Asylum middle", "Asylum ‹middle›")]
     [InlineData("Soil under boss + Kera", "Soil ‹under boss› + Kera")]
+
+    // A line that starts with a time starts a new token; tokens with times of their own are separate items.
+    [InlineData("0:12 Soil\n0:17 Deploy", "Soil @0:12 / Deploy @0:17")]
+    [InlineData("0:12 Soil\r\n0:17 Deploy\r\n0:25 Seraph", "Soil @0:12 / Deploy @0:17 / Seraph @0:25")]
+    [InlineData("Soil\n0:17 Deploy", "Soil + Deploy @0:17")]
+    [InlineData("Soil (0:12)\nDeploy (0:17)", "Soil @0:12 / Deploy @0:17")]
+    [InlineData("Kera + Soil (0:12)\nDeploy (0:17)", "Kera + Soil @0:12 / Deploy @0:17")] // the time written after both covers both
+    [InlineData("0:12 Soil + Kera\n0:17 Deploy", "Soil @0:12 + Kera / Deploy @0:17")] // the time written first covers what follows
+    [InlineData("Soil (0:12) + Kera\nDeploy (0:17)", "Soil @0:12 + Kera / Deploy @0:17")]
+    [InlineData("Seraph (0:12) + Soil (0:12) + Deploy (0:17)", "Seraph @0:12 + Soil @0:12 / Deploy @0:17")]
+    [InlineData("Recit (0:12) + Soil (0:15) → Deploy (0:17)", "Recit @0:12 + Soil @0:15 → Deploy @0:17")] // a sequence keeps its steps
+    [InlineData("Soil\n0:12", "Soil @0:12")]
+
+    // Other ways to write a sequence.
+    [InlineData("Recit > Adlo > Deploy", "Recit → Adlo → Deploy")]
+    [InlineData("Recit >> Adlo", "Recit → Adlo")]
+    [InlineData("Recit>Adlo", "Recit → Adlo")]
+    [InlineData("Recit —> Adlo", "Recit → Adlo")]
+    [InlineData("Recit –> Adlo", "Recit → Adlo")]
+    [InlineData("Recit ~> Adlo", "Recit → Adlo")]
+    [InlineData("Recit » Adlo", "Recit → Adlo")]
+    [InlineData("Recit ⇨ Adlo", "Recit → Adlo")]
+    [InlineData("Recit ➝ Adlo", "Recit → Adlo")]
+    [InlineData("Recit ⟹ Adlo", "Recit → Adlo")]
+    [InlineData("Recit\n→ Adlo", "Recit → Adlo")]
+
+    // ... but not comparisons, decorations, bullets, quotes or a spaced hyphen.
+    [InlineData("Kera if HP > 50%", "Kera ‹if HP 50%›")]
+    [InlineData(">>Holy Melee LB3 Bible<<", ">>Holy Melee LB3 Bible<<")]
+    [InlineData("» Kera\n» Soil", "Kera + Soil")]
+    [InlineData("«Kera» or Soil", "«Kera»|Soil")]
+    [InlineData("Kera - after 1st hit", "Kera ‹after 1st hit›")]
+
+    // A time followed by a colon ("time: action").
+    [InlineData("0:40: Rep", "Rep @0:40")]
+    [InlineData("Rep 0:40:", "Rep @0:40")]
     public void Parse_SyntheticCells(string text, string expected) => Assert.Equal(expected, Render(Parser.Parse(text)));
+
+    [Fact]
+    public void Parse_LinesWithTheirOwnTimes_GiveEachItemItsTime()
+    {
+        var parsed = Parser.Parse("Soil (0:12)\nDeploy (0:17)");
+
+        Assert.Equal([12.0, 17], parsed.Items.Select(i => i.Time!.Seconds));
+        Assert.Equal(["Soil (0:12)", "Deploy (0:17)"], parsed.Items.Select(i => i.Text));
+        Assert.Equal([0, 1], parsed.Items.Select(i => i.Index));
+        Assert.Empty(parsed.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData("Temp (1:18 / Bell (~1:22) / Plenary (1:31)", "Temp @1:18 / Bell @~1:22 / Plenary @1:31")]
+    [InlineData("Temp (1:18) / Bell (right after the 1st stack, ~1:22 / Plenary* (1:31)", "Temp @1:18 / Bell (right after the 1st stack) @~1:22 / Plenary @1:31 *")]
+    [InlineData("Soil (after 1st hit / Kera (0:20)", "Soil (after 1st hit) / Kera @0:20")]
+    [InlineData("Soil (after 1st hit\nKera", "Soil (after 1st hit) + Kera")]
+    [InlineData("Soil [unclosed → Kera", "Soil (unclosed) → Kera")]
+    [InlineData("Soil (unclosed", "Soil (unclosed)")]
+    [InlineData("Soil (a / Kera (b", "Soil (a) / Kera (b)")] // two: one report that counts the second
+    public void Parse_UnclosedBracket_EndsAtTheNextSeparatorAndIsReported(string text, string expected)
+    {
+        var parsed = Parser.Parse(text, "'X'!A1");
+
+        Assert.Equal(expected, Render(parsed));
+        var d = Assert.Single(parsed.Diagnostics);
+        Assert.Equal(("unclosed-bracket", DiagnosticSeverity.Warning, "'X'!A1"), (d.Code, d.Severity, d.Src));
+    }
+
+    [Theory]
+    [InlineData("-", true)]
+    [InlineData("=", true)]
+    [InlineData(">", true)]
+    [InlineData("Kera (a / ", false)] // many unclosed brackets, each ended by the next separator
+    [InlineData("((((", false)]
+    public void Parse_LongCells_TakeLinearTime(string unit, bool empty)
+    {
+        Parser.Parse(string.Concat(Enumerable.Repeat(unit, 1_000 / unit.Length))); // warm up
+        var text = string.Concat(Enumerable.Repeat(unit, 50_000 / unit.Length)); // Google allows 50,000 characters per cell
+        var sw = Stopwatch.StartNew();
+        var parsed = Parser.Parse(text);
+        sw.Stop();
+
+        Assert.Equal(empty, parsed.IsEmpty);
+        Assert.True(sw.ElapsedMilliseconds < 1000, $"{sw.ElapsedMilliseconds} ms");
+        Assert.True(parsed.Diagnostics.Count <= 1); // one report per cell, not one per bracket
+    }
 
     [Theory]
     [InlineData(null)]
@@ -400,6 +484,8 @@ public class CellParserTests
 
             if (parsed.IsEmpty)
                 failures.Add($"{a.Src}: no items for '{a.Cell.Text}'");
+            foreach (var d in parsed.Diagnostics)
+                failures.Add($"{a.Src}: {d.Code}: {d.Message}");
             var kept = KeptTexts(parsed).SelectMany(Words).GroupBy(w => w).ToDictionary(g => g.Key, g => g.Count());
             foreach (var g in Words(a.Cell.Text).GroupBy(w => w))
             {

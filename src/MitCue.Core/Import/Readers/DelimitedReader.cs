@@ -11,7 +11,8 @@ namespace MitCue.Core.Import;
 /// text <b>and</b> the unescaped body contains a line break or tab; otherwise it is read raw.</item>
 /// <item><b>Any other separator</b> (CSV): RFC 4180. A field that starts with <c>"</c> is quoted; <c>""</c> is an
 /// escaped quote; the field may contain separators and line breaks. Characters after the closing quote and before the
-/// next separator are kept (lenient).</item>
+/// next separator are kept (lenient). A quote that is never closed does not start a quoted field: the field is read
+/// raw, like the tab rule does, so the rest of the text keeps its rows.</item>
 /// </list>
 /// Rows end at <c>\r\n</c>, <c>\n</c> or <c>\r</c>; line breaks inside quoted fields become <c>\n</c>. A trailing line
 /// break does not add a row. A leading BOM is skipped.
@@ -148,10 +149,10 @@ internal static class DelimitedReader
             j++;
         }
 
-        // Unterminated quote: everything to the end is the field (lenient).
-        value = NormalizeBreaks(sb.ToString());
-        next = s.Length;
-        return true;
+        // Unterminated quote: not a quoted field; the caller reads it raw up to the next separator or line break.
+        value = string.Empty;
+        next = i;
+        return false;
     }
 
     private static string NormalizeBreaks(string s) => s.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');

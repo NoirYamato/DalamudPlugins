@@ -5,7 +5,8 @@ namespace MitCue.Core.Import;
 /// <summary>
 /// Reads the JSON fixture format of docs/research/sheets-import.md §2.2: one tab per file with
 /// <c>tab</c>, <c>gid</c>, <c>index</c>, <c>rows[][]</c> of <c>{v,bg,fg,bold,strike,runs,note}</c>,
-/// inclusive <c>merges</c> and optional <c>hiddenRows</c>/<c>hiddenCols</c>. Unknown properties are ignored.
+/// inclusive <c>merges</c> and optional <c>hiddenRows</c>/<c>hiddenCols</c> and <c>hidden</c> (the tab itself, like the
+/// Sheets API's <c>sheetProperties.hidden</c>). Unknown properties are ignored.
 /// </summary>
 internal static class FixtureJsonReader
 {
@@ -67,6 +68,7 @@ internal static class FixtureJsonReader
                 Name = Str(root, "tab") ?? "Sheet1",
                 Gid = root.TryGetProperty("gid", out var gidEl) && gidEl.ValueKind == JsonValueKind.Number && gidEl.TryGetInt64(out var gid) ? gid : null,
                 Index = IndexOf(root) ?? 0,
+                Hidden = Bool(root, "hidden"),
                 Rows = rows,
                 Merges = merges,
                 HiddenRows = IntList(root, "hiddenRows"),

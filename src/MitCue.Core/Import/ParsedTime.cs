@@ -42,13 +42,14 @@ public sealed partial record ParsedTime
         }
     }
 
-    // One time with optional "at"/"@" and approximation prefix, optional sign, optional range end.
+    // One time with optional "at"/"@" and approximation prefix, optional sign, optional range end. A time may be
+    // followed by a colon ("0:40: Rep"), but not by another time component ("1:21:00" is one time).
     [GeneratedRegex(
         @"(?:(?<=^|[^\p{L}\p{N}])at\s+|@\s*)?" +
         @"(?:(?<ax>[~≈±])\s*|(?<=^|[^\p{L}\p{N}])(?<ax>ca\.?|approx\.?|about|around|roughly|circa)\s+)?" +
         @"(?<neg>(?<=^|[\s(\[~≈@])[-−])?" +
-        @"(?<![\d:.])(?<t1>(?:\d{1,2}:)?\d{1,2}:\d{2}(?:\.\d+)?)(?![\d:])" +
-        @"(?:\s*(?:[–—-]|(?<=\s)(?:to|until|till)(?=\s))\s*(?<ax2>[~≈])?\s*(?<t2>(?:\d{1,2}:)?\d{1,2}:\d{2}(?:\.\d+)?)(?![\d:]))?",
+        @"(?<![\d:.])(?<t1>(?:\d{1,2}:)?\d{1,2}:\d{2}(?:\.\d+)?)(?!\d|:\d)" +
+        @"(?:\s*(?:[–—-]|(?<=\s)(?:to|until|till)(?=\s))\s*(?<ax2>[~≈])?\s*(?<t2>(?:\d{1,2}:)?\d{1,2}:\d{2}(?:\.\d+)?)(?!\d|:\d))?",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex TimeRegex();
 

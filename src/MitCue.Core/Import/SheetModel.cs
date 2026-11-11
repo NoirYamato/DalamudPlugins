@@ -56,6 +56,9 @@ public sealed class SheetTab
     /// <summary>Position of the tab in its document (0-based), when the source records it.</summary>
     public int Index { get; init; }
 
+    /// <summary>The tab is hidden in the source workbook (xlsx <c>state="hidden"</c> or <c>"veryHidden"</c>).</summary>
+    public bool Hidden { get; init; }
+
     /// <summary>Rows of cells (ragged; missing cells are empty).</summary>
     public required IReadOnlyList<IReadOnlyList<SheetCell>> Rows { get; init; }
 
