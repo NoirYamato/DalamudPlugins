@@ -29,7 +29,7 @@ internal static class PlayerSelection
     public static readonly OptionSpec Assignee = new(
         "assignee",
         "key",
-        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (a column's slot is your slot; other columns' calls for your slot apply too), or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
+        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (a column's slot is your slot; other columns' calls for your slot, and your job's in the same team composition's other tabs, apply too), or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
 
     public static readonly OptionSpec FightOption = new("fight", "key", "Fight key (default: the plan's fight).");
 
