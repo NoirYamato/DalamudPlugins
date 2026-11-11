@@ -1,9 +1,9 @@
 """Runs steps of .github/workflows/*.yml locally (run: python3 -m unittest discover -s tools/tests -v).
 
 Each test takes the `run:` script of one step, by its `id:`, verbatim from the workflow file and runs it
-the way a GitHub-hosted Linux runner does (`bash -e`), against local stand-ins: a bare git repository
-served as a file:// URL in place of GitHub, and a folder in place of goatcorp's dalamud-distrib.
-They need Linux with bash, git, curl, jq and unzip, like ubuntu-latest; elsewhere they are skipped.
+the way a GitHub-hosted Linux runner does (`bash -e`), against a local stand-in: a folder in place of
+goatcorp's dalamud-distrib. They need Linux with bash, curl, jq and unzip, like ubuntu-latest; elsewhere
+they are skipped.
 """
 
 from __future__ import annotations
@@ -18,12 +18,12 @@ import tempfile
 import textwrap
 import unittest
 import zipfile
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_HERE))
 _WORKFLOWS = os.path.join(_ROOT, ".github", "workflows")
-_MISSING = [tool for tool in ("bash", "git", "curl", "jq", "unzip") if shutil.which(tool) is None]
+_MISSING = [tool for tool in ("bash", "curl", "jq", "unzip") if shutil.which(tool) is None]
 if platform.system() != "Linux":
     _MISSING.insert(0, "Linux (the workflows run on ubuntu-latest)")
 
@@ -115,12 +115,6 @@ class WorkflowStepTest(unittest.TestCase):
         self.runner_temp = os.path.join(self.temp, "runner")
         os.makedirs(self.runner_temp)
 
-    def git(self, *args: str, cwd: Optional[str] = None) -> str:
-        done = subprocess.run(["git", *args], cwd=cwd, env=self.env, capture_output=True, text=True)
-        if done.returncode != 0:
-            raise AssertionError(f"git {' '.join(args)} failed: {done.stderr}")
-        return done.stdout.strip()
-
     def run_step(self, workflow: str, step_id: str, env: Dict[str, str]) -> StepRun:
         script_path = os.path.join(self.temp, f"{step_id}.sh")
         with open(script_path, "w", encoding="utf-8") as f:
@@ -140,96 +134,10 @@ class WorkflowStepTest(unittest.TestCase):
         return StepRun(done.returncode, done.stdout, env_file, output_file)
 
 
-class RepoBranchCheckoutTests(WorkflowStepTest):
-    """release.yml, step 'repo-branch': clones the 'repo' branch that holds the published repo.json."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.server = os.path.join(self.temp, "server")
-        self.bare = os.path.join(self.server, "owner", "MitCue.git")
-        os.makedirs(self.bare)
-        self.git("init", "--quiet", "--bare", self.bare)
-        self.work = os.path.join(self.temp, "work")
-        self.git("init", "--quiet", "-b", "main", self.work)
-        with open(os.path.join(self.work, "README.md"), "w") as f:
-            f.write("MitCue\n")
-        self.git("add", "README.md", cwd=self.work)
-        self.git("commit", "--quiet", "-m", "main", cwd=self.work)
-        self.main_commit = self.git("rev-parse", "HEAD", cwd=self.work)
-        self.git("push", "--quiet", self.bare, "main:refs/heads/main", cwd=self.work)
-
-    def push_repo_branch(self, ref: str = "refs/heads/repo") -> str:
-        """Pushes an orphan commit holding repo.json to `ref`; returns the commit id."""
-        self.git("checkout", "--quiet", "--orphan", "published", cwd=self.work)
-        self.git("rm", "--quiet", "-rf", ".", cwd=self.work)
-        with open(os.path.join(self.work, "repo.json"), "w") as f:
-            json.dump([{"InternalName": "MitCue", "AssemblyVersion": "0.2.0.0"}], f)
-        self.git("add", "repo.json", cwd=self.work)
-        self.git("commit", "--quiet", "-m", "repo.json", cwd=self.work)
-        commit = self.git("rev-parse", "HEAD", cwd=self.work)
-        self.git("push", "--quiet", self.bare, f"HEAD:{ref}", cwd=self.work)
-        self.git("checkout", "--quiet", "main", cwd=self.work)
-        return commit
-
-    def run_checkout(self, server: Optional[str] = None) -> Tuple[StepRun, str]:
-        run = self.run_step("release.yml", "repo-branch", {
-            "GH_TOKEN": "ghs_test",
-            "GITHUB_SERVER_URL": "file://" + (server or self.server),
-            "GITHUB_REPOSITORY": "owner/MitCue",
-            "REPO_BRANCH": "repo",
-        })
-        return run, os.path.join(self.runner_temp, "repo-branch")
-
-    def test_checks_out_the_existing_branch(self):
-        published = self.push_repo_branch()
-        run, repo_dir = self.run_checkout()
-        self.assertEqual(run.returncode, 0, run.output)
-        self.assertEqual(run.github_env.get("REPO_DIR"), repo_dir)
-        self.assertEqual(self.git("rev-parse", "HEAD", cwd=repo_dir), published)
-        self.assertEqual(self.git("symbolic-ref", "--short", "HEAD", cwd=repo_dir), "repo")
-        self.assertTrue(os.path.isfile(os.path.join(repo_dir, "repo.json")))
-
-    def test_first_release_starts_an_empty_branch(self):
-        run, repo_dir = self.run_checkout()
-        self.assertEqual(run.returncode, 0, run.output)
-        self.assertIn("does not exist yet", run.output)
-        self.assertEqual(run.github_env.get("REPO_DIR"), repo_dir)
-        self.assertFalse(os.path.exists(os.path.join(repo_dir, "repo.json")))
-
-    def test_a_branch_that_only_ends_in_repo_is_not_the_repo_branch(self):
-        # Review finding: `ls-remote --heads origin repo` also matched docs/repo, and the fetch then failed.
-        self.git("push", "--quiet", self.bare, "main:refs/heads/docs/repo", cwd=self.work)
-        run, repo_dir = self.run_checkout()
-        self.assertEqual(run.returncode, 0, run.output)
-        self.assertIn("does not exist yet", run.output)
-        self.assertFalse(os.path.exists(os.path.join(repo_dir, "repo.json")))
-
-    def test_a_tag_named_repo_is_not_the_repo_branch(self):
-        # Review finding: `fetch origin repo` preferred refs/tags/repo over refs/heads/repo.
-        published = self.push_repo_branch()
-        self.git("push", "--quiet", self.bare, f"{self.main_commit}:refs/tags/repo", cwd=self.work)
-        run, repo_dir = self.run_checkout()
-        self.assertEqual(run.returncode, 0, run.output)
-        self.assertEqual(self.git("rev-parse", "HEAD", cwd=repo_dir), published)
-
-    def test_a_tag_named_repo_without_the_branch_starts_an_empty_branch(self):
-        self.git("push", "--quiet", self.bare, f"{self.main_commit}:refs/tags/repo", cwd=self.work)
-        run, repo_dir = self.run_checkout()
-        self.assertEqual(run.returncode, 0, run.output)
-        self.assertIn("does not exist yet", run.output)
-        self.assertFalse(os.path.exists(os.path.join(repo_dir, "repo.json")))
-
-    def test_an_unreachable_repository_fails(self):
-        run, _ = self.run_checkout(server=os.path.join(self.temp, "nowhere"))
-        self.assertNotEqual(run.returncode, 0, run.output)
-        self.assertIn("::error::", run.output)
-        self.assertNotIn("REPO_DIR", run.github_env)
-
-
 class DalamudDownloadTests(WorkflowStepTest):
-    """ci.yml and release.yml, step 'dalamud-files': puts the Dalamud named by /version into DALAMUD_HOME."""
+    """ci.yml, step 'dalamud-files': puts the Dalamud named by /version into DALAMUD_HOME."""
 
-    WORKFLOWS = ("ci.yml", "release.yml")
+    WORKFLOWS = ("ci.yml",)
 
     def setUp(self) -> None:
         super().setUp()
@@ -276,9 +184,6 @@ class DalamudDownloadTests(WorkflowStepTest):
         shutil.rmtree(self.home, ignore_errors=True)
         for name in os.listdir(self.distrib):
             os.remove(os.path.join(self.distrib, name))
-
-    def test_both_workflows_use_the_same_script(self):
-        self.assertEqual(step_script("ci.yml", "dalamud-files"), step_script("release.yml", "dalamud-files"))
 
     def test_downloads_on_a_cache_miss(self):
         for workflow in self.WORKFLOWS:
