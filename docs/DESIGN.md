@@ -217,6 +217,10 @@ When `offset` is not given (plans without times), it is derived from the action:
   `earliest` is flagged *early*.
 - **Missed:** `latest` passed without a matching use (not counted for optional entries).
 - **Skipped:** the timeline jumped past the entry (phase push) before it became due.
+  Exception — **phase-end reminders**: entries anchored to a phase's enrage/end mechanic
+  (kind `enrage`, or flagged `at_phase_end` by the importer, e.g. "Deploy just before P3
+  ends", "Rampart as P1 dies") are not skipped by the jump that ends their phase: they
+  become Due at the jump, because the transition is exactly when they should be pressed.
 - `when_ready` entries stay Due past `press` until the action comes off cooldown, then
   until used or `latest`.
 
@@ -252,9 +256,17 @@ by `press`, the reminder shows "ready in N s" in warning colour.
    is disambiguated by phase and order.
 6. **Phase calibration.** For timestamped plans, fit each phase's zero point as the median
    of `timeline hit − sheet time` over confidently matched rows (falling back to the fight's
-   `calibration` presets); report the spread.
-7. **Timing.** Explicit times → `offset = (zero + t) − hit`; otherwise §5.1 defaults; parsed
-   hints adjust the anchor (e.g. after the 1st hit).
+   `calibration` presets); report the spread. (TOP / Carry the Clear: P1 0.9, P2 201.8,
+   P3 399.4, P4 606.7, P5 714.7, P6 1099.3; spread ≤ 1 s in P1–P4, up to 2.4 s in P5–P6
+   because the sheet's reference log drifts against cactbot — docs/research/mechanics.md.)
+7. **Timing.** Prefer **row-relative** offsets: when an item has its own time and its row
+   has a damage time, `offset = t_item − t_row + δ`, where δ corrects rows whose time marks
+   the boss cast end rather than the damage (mechanics.md lists them: P2 Cosmo Memory
+   +1.4 s, Hello World rounds +1.0 s, Blind Faith, P6 enrage…). This needs no phase zero and
+   is immune to drift. Only items without a usable row time use `offset = (zero + t) − hit`.
+   Otherwise §5.1 defaults; parsed hints adjust the anchor (e.g. after the 1st hit). Items
+   described as happening at a phase's end are anchored to that phase's enrage/end mechanic
+   and flagged `at_phase_end` (§5.2).
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
    fixes become personal aliases; save.
 
