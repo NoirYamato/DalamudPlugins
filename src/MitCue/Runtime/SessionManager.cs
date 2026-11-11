@@ -106,6 +106,11 @@ internal sealed class SessionManager
     /// <summary>Per-frame update: feed events, rebuild when needed, advance reminders.</summary>
     public void Update(FrameContext ctx)
     {
+        // 0. Fight data and plans load on first use (framework thread); both calls return at once when loaded, and
+        //    load again after Debug > Reload data.
+        this.data.EnsureLoaded();
+        this.plans.EnsureLoaded();
+
         // 1. Feed the existing session first, so wipes and zone changes end its pull before any rebuild.
         var session = this.Session;
         if (session != null && !this.faulted)
@@ -192,6 +197,16 @@ internal sealed class SessionManager
         this.errors.Report(key, context, ex);
         this.faulted = true;
         this.Status = "Stopped after an error: " + ErrorReporter.Describe(ex) + " Use /mitcue reset to retry.";
+
+        // The overlay goes away with the session: tell the player once instead of silently dropping the calls.
+        try
+        {
+            this.chat.PrintError("MitCue reminders stopped after an error (" + ErrorReporter.Describe(ex) + "). Type /mitcue reset to restart them.", "MitCue");
+        }
+        catch (Exception chatEx)
+        {
+            this.errors.Report("session.faultchat", "Reporting a stopped session in chat", chatEx);
+        }
     }
 
     private Shape ComputeShape(FrameContext ctx)
@@ -202,6 +217,7 @@ internal sealed class SessionManager
         var fight = this.data.FightForTerritory(ctx.Territory);
         if (fight == null)
         {
+            // Loading was attempted at the start of Update, so a missing library means it failed (and was reported).
             var reason = this.data.Fights == null
                 ? "Fight data did not load (see Problems in /mitcue)."
                 : $"No supported fight in this zone ({this.gameData.TerritoryName(ctx.Territory)}).";
@@ -274,9 +290,7 @@ internal sealed class SessionManager
             var plan = stored.Plan;
             var me = new PlayerContext(ctx.Job, shape.Level, shape.Slot, mapping.AssigneeKey);
             var own = PlanSelection.For(plan, me).ToList();
-            var others = this.config.ShowOtherAssignees
-                ? plan.Entries.Where(e => !PlanSelection.Applies(e, me)).ToList()
-                : null;
+            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me) : null;
 
             var session = new EncounterSession(new SessionSetup
             {
@@ -295,8 +309,13 @@ internal sealed class SessionManager
             this.Session = session;
             this.Generation++;
 
+            // Entries whose mechanic the fight does not have are dropped by the scheduler: say so (details in Debug).
+            var dropped = session.Scheduler.Problems.Count;
+            var droppedNote = dropped > 0
+                ? $" {dropped} of them could not be scheduled (unknown mechanic, see the Debug tab)."
+                : string.Empty;
             this.Status = own.Count > 0
-                ? $"Ready: {stored.DisplayName} ({own.Count} of {plan.Entries.Count} entries are yours)."
+                ? $"Ready: {stored.DisplayName} ({own.Count} of {plan.Entries.Count} entries are yours).{droppedNote}"
                 : $"{stored.DisplayName}: none of its {plan.Entries.Count} entries match {ctx.Job}" +
                   (mapping.AssigneeKey != null ? $" / column \"{mapping.AssigneeKey}\"" : string.Empty) +
                   ". Check \"My column\" in /mitcue > Plans.";
@@ -326,7 +345,7 @@ internal sealed class SessionManager
     {
         try
         {
-            if (!this.config.PostPullSummary || summary.Done + summary.Missed + summary.Skipped == 0)
+            if (!this.config.TrackDoneMissed || !this.config.PostPullSummary || summary.Done + summary.Missed + summary.Skipped == 0)
                 return;
             this.chat.Print(ReminderText.Summary(session, summary, reason, this.gameData), "MitCue");
         }

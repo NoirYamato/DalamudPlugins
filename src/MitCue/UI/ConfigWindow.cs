@@ -103,6 +103,13 @@ internal sealed class ConfigWindow : Window
         this.dirty = true;
     }
 
+    /// <summary>A numeric setting changed: clamp every value into its range, then mark the change.</summary>
+    private void ChangedValues()
+    {
+        this.plugin.Config.ClampValues();
+        this.Changed();
+    }
+
     private void DrawContent()
     {
         this.DrawStatus();
@@ -156,10 +163,12 @@ internal sealed class ConfigWindow : Window
         var problems = this.plugin.Errors.Snapshot();
         if (problems.Length > 0)
         {
+            // Only the header is in the warning colour (read the normal text colour before pushing it).
+            var normalText = ImGui.GetStyle().Colors[(int)ImGuiCol.Text];
             using var color = ImRaii.PushColor(ImGuiCol.Text, ColorWarning);
             if (ImGui.CollapsingHeader($"Problems ({problems.Length})###mitcueProblems"))
             {
-                using var reset = ImRaii.PushColor(ImGuiCol.Text, ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+                using var reset = ImRaii.PushColor(ImGuiCol.Text, normalText);
                 foreach (var p in problems)
                     ImGui.TextWrapped($"{p.Context}: {p.Message}");
             }
@@ -174,19 +183,22 @@ internal sealed class ConfigWindow : Window
     {
         var cfg = this.plugin.Config;
 
+        // Every edit is clamped (Ctrl+click lets ImGui take any typed value); the due lead never exceeds the
+        // lookahead, since uses before the lookahead do not count for a reminder.
         ImGui.TextDisabled("Timing");
         var lookahead = cfg.Lookahead;
-        if (ImGui.SliderFloat("Show reminders this early", ref lookahead, 3f, 60f, "%.0f s"))
+        if (ImGui.SliderFloat("Show reminders this early", ref lookahead, Configuration.MinLookahead, Configuration.MaxLookahead, "%.0f s", ImGuiSliderFlags.AlwaysClamp))
         {
             cfg.Lookahead = lookahead;
-            this.Changed();
+            this.ChangedValues();
         }
 
         var dueLead = cfg.DueLead;
-        if (ImGui.SliderFloat("Turn \"NOW\" this early", ref dueLead, 0f, 10f, "%.1f s"))
+        var maxDueLead = Math.Min(Configuration.MaxDueLead, cfg.Lookahead);
+        if (ImGui.SliderFloat("Turn \"NOW\" this early", ref dueLead, 0f, maxDueLead, "%.1f s", ImGuiSliderFlags.AlwaysClamp))
         {
             cfg.DueLead = dueLead;
-            this.Changed();
+            this.ChangedValues();
         }
 
         ImGui.Spacing();
@@ -212,15 +224,25 @@ internal sealed class ConfigWindow : Window
 
         ImGui.Spacing();
         ImGui.TextDisabled("Reminders");
-        var summary = cfg.PostPullSummary;
-        if (ImGui.Checkbox("Print a done/missed summary after each pull", ref summary))
+        var track = cfg.TrackDoneMissed;
+        if (ImGui.Checkbox("Track done/missed (keep used and missed calls listed with a check or a cross)", ref track))
         {
-            cfg.PostPullSummary = summary;
+            cfg.TrackDoneMissed = track;
             this.Changed();
         }
 
+        using (ImRaii.Disabled(!cfg.TrackDoneMissed))
+        {
+            var summary = cfg.PostPullSummary;
+            if (ImGui.Checkbox("Print a done/missed summary after each pull", ref summary))
+            {
+                cfg.PostPullSummary = summary;
+                this.Changed();
+            }
+        }
+
         var others = cfg.ShowOtherAssignees;
-        if (ImGui.Checkbox("Also show the plan's other columns (e.g. the co-healer), dimmed", ref others))
+        if (ImGui.Checkbox("Also show my co-healer's calls (the plan's other columns for my role), dimmed", ref others))
         {
             cfg.ShowOtherAssignees = others;
             this.Changed();
@@ -294,24 +316,24 @@ internal sealed class ConfigWindow : Window
         this.Check("Always show (sample rows when idle, to position it)", cfg.AlwaysShowOverlay, v => cfg.AlwaysShowOverlay = v);
 
         var scale = cfg.OverlayScale;
-        if (ImGui.SliderFloat("Scale", ref scale, 0.5f, 3f, "%.2fx"))
+        if (ImGui.SliderFloat("Scale", ref scale, Configuration.MinOverlayScale, Configuration.MaxOverlayScale, "%.2fx", ImGuiSliderFlags.AlwaysClamp))
         {
             cfg.OverlayScale = scale;
-            this.Changed();
+            this.ChangedValues();
         }
 
         var opacity = cfg.OverlayOpacity;
-        if (ImGui.SliderFloat("Background opacity", ref opacity, 0f, 1f, "%.2f"))
+        if (ImGui.SliderFloat("Background opacity", ref opacity, 0f, 1f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
         {
             cfg.OverlayOpacity = opacity;
-            this.Changed();
+            this.ChangedValues();
         }
 
         var rows = cfg.MaxRows;
-        if (ImGui.SliderInt("Maximum rows", ref rows, 1, 15))
+        if (ImGui.SliderInt("Maximum rows", ref rows, Configuration.MinRows, Configuration.MaxRowsLimit, "%d", ImGuiSliderFlags.AlwaysClamp))
         {
-            cfg.MaxRows = Math.Clamp(rows, 1, 15);
-            this.Changed();
+            cfg.MaxRows = rows;
+            this.ChangedValues();
         }
 
         ImGui.Spacing();
@@ -468,18 +490,19 @@ internal sealed class ConfigWindow : Window
         if (!combo)
             return;
 
+        // Saved for this job only: the other jobs' rows keep their own column.
         var suggestion = PlanStore.SuggestAssignee(plan, job, this.plugin.Config.DefaultSlot);
         if (ImGui.Selectable($"(suggested: {(suggestion != null ? AssigneeLabel(suggestion) : "any column for my job")})", mapping.IsSuggestion))
-            store.SetMapping(plan.Id, null);
+            store.SetMapping(plan, job, null);
         if (ImGui.Selectable("(any column for my job)", !mapping.IsSuggestion && mapping.AssigneeKey == null))
-            store.SetMapping(plan.Id, new PlayerMapping { AssigneeKey = null, Slot = null });
+            store.SetMapping(plan, job, new PlayerMapping { AssigneeKey = null, Slot = null });
         foreach (var assignee in plan.Assignees)
         {
             var selected = !mapping.IsSuggestion && string.Equals(mapping.AssigneeKey, assignee.Key, StringComparison.OrdinalIgnoreCase);
             if (ImGui.Selectable($"{AssigneeLabel(assignee)}###{assignee.Key}", selected))
             {
                 var slot = Slots.TryNormalize(assignee.Slot, out var s) ? s : null;
-                store.SetMapping(plan.Id, new PlayerMapping { AssigneeKey = assignee.Key, Slot = slot });
+                store.SetMapping(plan, job, new PlayerMapping { AssigneeKey = assignee.Key, Slot = slot });
             }
         }
     }

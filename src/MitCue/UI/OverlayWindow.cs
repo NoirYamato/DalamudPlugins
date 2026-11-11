@@ -132,7 +132,8 @@ internal sealed class OverlayWindow : Window
         var model = this.plugin.Overlay;
         ImGui.SetWindowFontScale(cfg.OverlayScale);
 
-        if (cfg.ShowHeader || model.Rows.Count == 0)
+        // Sample rows always keep their "SAMPLE - drag to position" header, so they are never mistaken for real calls.
+        if (cfg.ShowHeader || model.Rows.Count == 0 || model.Source == OverlaySource.Sample)
             this.DrawHeader(model);
 
         if (model.Rows.Count > 0)
@@ -146,6 +147,12 @@ internal sealed class OverlayWindow : Window
 
     private void DrawHeader(OverlayModel model)
     {
+        if (model.Source == OverlaySource.Error)
+        {
+            ImGui.TextColored(ColorWarning, model.Message ?? "MitCue stopped after an error.");
+            return;
+        }
+
         using var color = ImRaii.PushColor(ImGuiCol.Text, ColorHeader);
         if (model.Source == OverlaySource.Preview)
         {

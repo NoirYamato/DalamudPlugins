@@ -45,6 +45,7 @@ internal sealed class PreviewDriver
     private double lastEventTime;
     private bool simInCombat;
     private bool withCountdown;
+    private int optionsRevision;
 
     /// <summary>Creates the driver.</summary>
     public PreviewDriver(
@@ -152,9 +153,7 @@ internal sealed class PreviewDriver
             var mapping = this.plans.MappingFor(plan, job);
             var me = new PlayerContext(job, fight.SyncLevel, mapping.Slot ?? this.config.DefaultSlot, mapping.AssigneeKey);
             var own = PlanSelection.For(plan, me).ToList();
-            var others = this.config.ShowOtherAssignees
-                ? plan.Entries.Where(e => !PlanSelection.Applies(e, me)).ToList()
-                : null;
+            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me) : null;
 
             var options = new SimulationOptions
             {
@@ -183,6 +182,10 @@ internal sealed class PreviewDriver
             session.PullEnded += this.OnPullEnded;
             session.BecameDue += this.OnBecameDue;
 
+            // Starting at a phase: the earlier phases' reminders were never shown, so they are skipped, not missed.
+            if (phase != null)
+                session.SkipBefore(phase.Start);
+
             this.events = sorted;
             this.nextEvent = 0;
             this.lastEventTime = sorted.Count > 0 ? sorted[^1].Time : PullClock;
@@ -192,6 +195,7 @@ internal sealed class PreviewDriver
             this.SimNow = this.simStart;
             this.simInCombat = false;
             this.Speed = this.config.PreviewFast ? 4 : 1;
+            this.optionsRevision = this.config.Revision;
             this.Session = session;
             this.Generation++;
 
@@ -239,6 +243,13 @@ internal sealed class PreviewDriver
 
         try
         {
+            // Timing edits apply immediately, as in the live session.
+            if (this.config.Revision != this.optionsRevision)
+            {
+                this.optionsRevision = this.config.Revision;
+                this.config.ApplyTo(session.Options);
+            }
+
             this.SimNow = this.simStart + ((realNow - this.realStart) * this.Speed);
             while (this.nextEvent < this.events.Count && this.events[this.nextEvent].Time <= this.SimNow)
             {
@@ -306,12 +317,11 @@ internal sealed class PreviewDriver
         if (first == null)
             return (null, currentJob);
 
-        // Not playing a job of this plan: preview it as the job of the saved/first column.
-        var job = Job.None;
-        if (this.plans.SavedMapping(first.Id)?.AssigneeKey is { } key)
-            job = first.Plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase))?.Job ?? Job.None;
+        // Not playing a job of this plan: preview it as a job whose column the player picked, else its first job.
+        var jobs = PlanStore.JobsOf(first.Plan).ToList();
+        var job = jobs.FirstOrDefault(j => this.plans.SavedMapping(first.Plan, j)?.AssigneeKey != null);
         if (job == Job.None)
-            job = PlanStore.JobsOf(first.Plan).FirstOrDefault();
+            job = jobs.FirstOrDefault();
         if (job == Job.None)
             job = currentJob;
         return (first, job);
@@ -321,7 +331,7 @@ internal sealed class PreviewDriver
     {
         try
         {
-            if (this.config.PostPullSummary && summary.Done + summary.Missed + summary.Skipped > 0)
+            if (this.config.TrackDoneMissed && this.config.PostPullSummary && summary.Done + summary.Missed + summary.Skipped > 0)
                 this.chat.Print(ReminderText.Summary(session, summary, reason, this.gameData), "MitCue");
         }
         catch (Exception ex)
