@@ -1,4 +1,3 @@
-using MitCue.Core.Actions;
 using MitCue.Core.Fights;
 using MitCue.Core.Plans;
 
@@ -59,6 +58,8 @@ public interface ICooldownProvider
 /// <summary>One item of one plan entry, scheduled on the timeline.</summary>
 public sealed class Reminder
 {
+    private IReadOnlyList<uint>? actionIds;
+
     public required PlanEntry Entry { get; init; }
 
     /// <summary>The item within <see cref="Entry"/> (action, either-or group, or note).</summary>
@@ -98,59 +99,22 @@ public sealed class Reminder
     /// <summary>True when a required job resource is missing.</summary>
     public bool MissingResources { get; set; }
 
+    /// <summary>
+    /// Action ids that satisfy this reminder, in plan order: the action, or every option of an
+    /// either-or item. Empty for notes. Computed once from <see cref="Item"/>.
+    /// </summary>
+    public IReadOnlyList<uint> ActionIds => this.actionIds ??= this.Item.ActionIds().ToArray();
+
+    /// <summary>True when the item names an action, so it can be done or missed; false for notes (never missed).</summary>
+    public bool IsAction => this.ActionIds.Count > 0;
+
     public double SecondsUntilPress(double timelineTime) => this.PressAt - timelineTime;
 }
 
 public sealed record PullSummary(int Total, int Done, int Missed, int Skipped, IReadOnlyList<Reminder> MissedReminders);
 
-/// <summary>Default timing rules (docs/DESIGN.md §5).</summary>
-public static class TimingRules
-{
-    /// <summary>Default offset (press − hit) for an action used without an explicit time.</summary>
-    public static double DefaultOffset(ActionInfo? action, int syncLevel) => throw new NotImplementedException();
-
-    /// <summary>Earliest/latest useful use times for an item covering <paramref name="hit"/>.</summary>
-    public static (double Earliest, double Latest) UseWindow(ActionInfo? action, int syncLevel, double hit, double pressAt, ReminderOptions options) =>
-        throw new NotImplementedException();
-}
-
-/// <summary>
-/// Turns the player's plan entries into reminders and advances their states from timeline time,
-/// own action uses and cooldown information. Pure logic: no clock, no game access.
-/// </summary>
-public sealed class ReminderScheduler
-{
-    public ReminderScheduler(FightDefinition fight, IEnumerable<PlanEntry> entries, IActionCatalog actions, ReminderOptions options)
-    {
-        this.Fight = fight;
-        this.Options = options;
-        _ = entries;
-        _ = actions;
-    }
-
-    public FightDefinition Fight { get; }
-
-    public ReminderOptions Options { get; }
-
-    /// <summary>All reminders of the pull, ordered by press time.</summary>
-    public IReadOnlyList<Reminder> All => throw new NotImplementedException();
-
-    /// <summary>Raised once when a reminder becomes Due (the plugin plays a sound).</summary>
-    public event Action<Reminder>? BecameDue;
-
-    /// <summary>Back to the start of a pull (all reminders Pending).</summary>
-    public void Reset() => throw new NotImplementedException();
-
-    /// <summary>The timeline jumped from <paramref name="fromTime"/> to <paramref name="toTime"/>; reminders in between that never became due are Skipped.</summary>
-    public void OnTimelineJump(double fromTime, double toTime) => throw new NotImplementedException();
-
-    /// <summary>The local player used an action at the given timeline time.</summary>
-    public void OnOwnAction(uint actionId, double timelineTime) => throw new NotImplementedException();
-
-    /// <summary>Advances states to <paramref name="timelineTime"/> and returns the reminders to display, ordered by press time.</summary>
-    public IReadOnlyList<Reminder> Update(double timelineTime, ICooldownProvider? cooldowns = null) => throw new NotImplementedException();
-
-    public PullSummary Summarize() => throw new NotImplementedException();
-
-    private void RaiseBecameDue(Reminder r) => this.BecameDue?.Invoke(r);
-}
+/// <summary>An own action use seen by <see cref="ReminderScheduler.OnOwnAction"/>, kept for debugging.</summary>
+/// <param name="ActionId">The action that was used.</param>
+/// <param name="Time">Timeline time of the use.</param>
+/// <param name="Matched">The reminder the use satisfied, or null when it was outside every reminder's window.</param>
+public sealed record ActionUse(uint ActionId, double Time, Reminder? Matched);
