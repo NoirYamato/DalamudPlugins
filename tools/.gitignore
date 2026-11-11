@@ -1,0 +1,3 @@
+# Python bytecode from running tools/make-repo-json.py and its tests
+__pycache__/
+*.pyc
