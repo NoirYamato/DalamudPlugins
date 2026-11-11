@@ -66,16 +66,17 @@ public class PlanCommandTests : IDisposable
     }
 
     [Theory]
-    [InlineData(new[] { "--job", "SCH" }, "as SCH, slot H2: 31 of 475 entries", "any column for SCH in slot H2")]
-    [InlineData(new[] { "--job", "SCH", "--slot", "H2" }, "as SCH, slot H2: 31 of 475 entries", null)]
-    [InlineData(new[] { "--job", "WHM" }, "as WHM, slot H1: 11 of 475 entries", "any column for WHM in slot H1")]
-    [InlineData(new[] { "--job", "WAR", "--slot", "MT" }, "as WAR, slot MT, column \"WAR/DRK WAR\": 24 of 475 entries", "column \"WAR/DRK WAR\"")]
+    [InlineData(new[] { "--job", "SCH" }, "as SCH, slot H2, column \"H2 SCH\": 31 of 475 entries", "column \"H2 SCH\"")]
+    [InlineData(new[] { "--job", "SCH", "--slot", "H2" }, "as SCH, slot H2, column \"H2 SCH\": 31 of 475 entries", null)]
+    [InlineData(new[] { "--job", "WHM" }, "as WHM, slot H1, column \"H1 WHM\": 11 of 475 entries", "column \"H1 WHM\"")]
+    [InlineData(new[] { "--job", "WAR", "--slot", "MT" }, "as WAR, slot MT, column \"WAR/DRK WAR\": 35 of 475 entries", "column \"WAR/DRK WAR\"")]
     [InlineData(new[] { "--job", "WAR" }, "as WAR, column \"WAR/DRK WAR\": 9 of 475 entries", "column \"WAR/DRK WAR\"")]
     [InlineData(new[] { "--job", "WAR", "--slot", "MT", "--assignee", "*" }, "as WAR, slot MT: 65 of 475 entries", null)]
     public void Plan_WithoutAnAssigneeSelectsWhatThePluginShows(string[] options, string header, string? note)
     {
         // Review finding (41d2893): without --slot the CLI left out the job-less "H2" calls the plugin shows a Scholar
         // (29 entries against 31), and without --assignee a tank got every tank pair's column (65 entries for WAR MT).
+        // Review round 3: a column has the job-less calls of its slot (WAR MT: 24 + 8 Reprisals and 3 Ramparts).
         var r = this.kit.Run(["plan", Path.Combine(CliKit.RepoRoot, "plans", "top-lpdu.yaml"), .. options]);
 
         Assert.True(r.ExitCode == 0, r.ToString());
@@ -86,6 +87,77 @@ public class PlanCommandTests : IDisposable
             Assert.DoesNotContain("as the plugin chooses", r.Err, StringComparison.Ordinal);
         if (options.Contains("*"))
             Assert.Contains("note: entries of 6 columns apply", r.Err, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Plan_ReadsSlotSynonymsAsThePluginDoes()
+    {
+        // Review round 3: the plugin's store wrote "D3" as R1 and "T1" as MT, the CLI compared the names as written and
+        // selected nothing (and `check` said "No problems found" for 0 entries).
+        var plan = this.kit.Write("synonyms.yaml", """
+            format: mitcue-plan/1
+            name: Synonym slots
+            fight: top
+            entries:
+              - id: e001
+                mechanic: p1.pantokrator
+                who: {slot: D3}
+                do:
+                  - {action: 7560, name: Addle}
+              - id: e002
+                mechanic: p2.solar_ray
+                who: {slot: T1}
+                do:
+                  - {action: 7535, name: Reprisal}
+            """);
+
+        var bard = this.kit.Run("plan", plan, "--job", "BLM", "--slot", "D3");
+        Assert.True(bard.ExitCode == 0, bard.ToString());
+        Assert.Contains("as BLM, slot R1: 1 of 2 entries", bard.OutLines[0], StringComparison.Ordinal);
+        Assert.Equal(["e001"], Rows(bard).Select(l => l.Split(' ', StringSplitOptions.RemoveEmptyEntries)[^1]));
+
+        var tank = this.kit.Run("check", plan, "--job", "WAR", "--slot", "MT");
+        Assert.True(tank.ExitCode == 0, tank.ToString());
+        Assert.Contains("as WAR, slot MT: 1 entry", tank.Out, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("H2")]
+    [InlineData(null)]
+    public void Plan_TakesEveryColumnOfASheetWithOneColumnPerPhase(string? slot)
+    {
+        // Review round 3: a P1/P2 tab headed "SCH" and a P3 tab headed "H2 SCH" are one Scholar's calls; the CLI (like
+        // the plugin) took the other column for an alternative and selected one of them.
+        var plan = this.kit.Write("perphase.yaml", """
+            format: mitcue-plan/1
+            name: Per phase
+            fight: top
+            assignees:
+              - {key: SCH, job: SCH}
+              - {key: H2 SCH, slot: H2, job: SCH}
+            entries:
+              - id: e001
+                mechanic: p1.pantokrator
+                who: {job: SCH, assignee: SCH}
+                do:
+                  - {action: 188, name: Sacred Soil}
+              - id: e002
+                mechanic: p2.solar_ray
+                who: {job: SCH, assignee: SCH}
+                do:
+                  - {action: 188, name: Sacred Soil}
+              - id: e003
+                mechanic: p3.hello_world
+                who: {slot: H2, job: SCH, assignee: H2 SCH}
+                do:
+                  - {action: 188, name: Sacred Soil}
+            """);
+
+        string[] options = slot == null ? ["plan", plan, "--job", "SCH"] : ["plan", plan, "--job", "SCH", "--slot", slot];
+        var r = this.kit.Run(options);
+
+        Assert.True(r.ExitCode == 0, r.ToString());
+        Assert.Contains("as SCH, slot H2: 3 of 3 entries", r.OutLines[0], StringComparison.Ordinal);
     }
 
     [Fact]

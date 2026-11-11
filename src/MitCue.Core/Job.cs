@@ -141,4 +141,16 @@ public static class Slots
         "R1" or "R2" => Role.Caster, // ranged slots hold physical ranged or casters
         _ => Role.None,
     };
+
+    /// <summary>
+    /// True when <paramref name="slot"/> (a standard slot or a synonym) is a slot of <paramref name="job"/>'s role: MT/OT
+    /// for tanks, H1/H2 for healers, M1/M2 for melee, R1/R2 for physical ranged and casters.
+    /// </summary>
+    public static bool Fits(string? slot, Job job)
+    {
+        if (!TryNormalize(slot, out var s))
+            return false;
+        var role = Jobs.RoleOf(job);
+        return RoleOf(s) == role || (RoleOf(s) == Role.Caster && role == Role.PhysicalRanged);
+    }
 }

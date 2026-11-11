@@ -1330,8 +1330,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
             else if (choice.Missed > 0)
             {
-                // A kept choice, or the job's column when no single choice has every call without another column's (LPDU's
-                // tank pairs: the job-less "MT" calls are left out rather than showing every pair's calls).
+                // A kept choice, or the job's column when no single choice has every call without another column's (a
+                // general column of the job next to several tank-pair columns: the pair's calls are left out rather than
+                // showing every pair's calls).
                 var whose = choice.Kept ? "Your column choice for the plan this replaces" : "The column the plan gets for you";
                 ImGui.TextColoredWrapped(
                     ColorWarning,

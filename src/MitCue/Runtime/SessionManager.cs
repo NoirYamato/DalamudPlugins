@@ -135,7 +135,8 @@ internal sealed class SessionManager
             }
         }
 
-        // 2. Rebuild when the context changed.
+        // 2. Rebuild when the context changed. The party is part of it: it chooses the tank pair's column without a saved
+        //    choice, and the co-healer's columns while those are shown (the shape key tells whether either changed).
         var key = new ContextKey(
             ctx.LoggedIn,
             ctx.Territory,
@@ -145,7 +146,7 @@ internal sealed class SessionManager
             this.config.Revision,
             this.data.Revision,
             ctx.ClientIsEnglish,
-            this.config.ShowOtherAssignees ? ctx.PartyJobMask : 0);
+            ctx.PartyJobMask);
         if (this.invalidated || key != this.lastContext)
         {
             var hardChange = this.invalidated
@@ -239,7 +240,8 @@ internal sealed class SessionManager
             { Fight = fight };
         }
 
-        var mapping = this.plans.MappingFor(plan.Plan, ctx.Job);
+        // Without a saved choice, the column of the team composition the party plays (LPDU's tank pairs).
+        var mapping = this.plans.MappingFor(plan.Plan, ctx.Job, PartyJobs.Of(ctx.PartyJobMask));
         var slot = mapping.Slot ?? this.config.DefaultSlot;
         var level = ctx.Level > 0 ? Math.Min(ctx.Level, fight.SyncLevel) : fight.SyncLevel;
 

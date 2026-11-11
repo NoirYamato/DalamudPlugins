@@ -29,7 +29,7 @@ internal static class PlayerSelection
     public static readonly OptionSpec Assignee = new(
         "assignee",
         "key",
-        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\", or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
+        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (other columns' calls for your slot apply too), or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
 
     public static readonly OptionSpec FightOption = new("fight", "key", "Fight key (default: the plan's fight).");
 
@@ -83,9 +83,11 @@ internal static class PlayerSelection
         }
         else
         {
-            // The plugin's choice without a saved one (bundled plans, share codes): the job's column, or with the job-less
-            // calls of the player's slot when that column leaves them out (LPDU's "H2" for a Scholar), so the checklist and
-            // the simulated pull have the calls the overlay shows.
+            // The plugin's choice without a saved one (bundled plans, share codes): the job's column, which has the job-less
+            // calls of the player's slot too (LPDU's "H2" for a Scholar in "H2 SCH"), or the choice with every column of the
+            // job when its calls are in several (one per phase), so the checklist and the simulated pull have the calls the
+            // overlay shows. The CLI knows no party: of a job's tank-pair columns it takes the first, as the plugin does
+            // outside a party.
             var pick = ColumnSuggestion.Suggest(plan, job, slot);
             me = ColumnSuggestion.Context(pick, job, slot, fight.SyncLevel);
             var every = PlanSelection.For(plan, new PlayerContext(job, fight.SyncLevel, slot)).ToHashSet();
