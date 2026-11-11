@@ -441,7 +441,10 @@ internal sealed class DataValidator(IDataSource data)
         return section;
     }
 
-    /// <summary>Plans shipped with the plugin (plans/*.yaml next to data/): readable, for a known fight, and free of errors.</summary>
+    /// <summary>
+    /// Plans shipped with the plugin (plans/*.yaml next to data/): readable, for a known fight, and referring only to
+    /// mechanics and actions that exist and that each column's job can use at the sync level.
+    /// </summary>
     private CheckedSection CheckPlans()
     {
         var section = new CheckedSection("Plans");
@@ -491,21 +494,58 @@ internal sealed class DataValidator(IDataSource data)
 
             if (this.catalog == null)
                 continue;
-            var jobs = plan.Entries.Select(e => e.Who?.Job).OfType<Job>().Where(j => j != Job.None).Distinct().Order().ToList();
-            foreach (var job in jobs)
+
+            // Each player's view (a column with a job), each finding once: references to things that do not exist or
+            // cannot be used are problems; recast, gauge and follow-up findings are advice for the plan's author.
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var (label, me) in PlayersOf(plan, planFight.SyncLevel))
             {
-                var entries = plan.Entries.Where(e => e.Who?.Job == job).ToList();
-                foreach (var f in PlanChecker.Check(planFight, this.catalog, entries, job, planFight.SyncLevel))
+                foreach (var f in PlanChecker.Check(planFight, this.catalog, plan, me))
                 {
-                    var line = $"{job}: {f.Code}: {f.Message}";
-                    if (f.Severity == PlanFindingSeverity.Error)
+                    if (f.Severity == PlanFindingSeverity.Info || !seen.Add(f.Code + "|" + f.Message))
+                        continue;
+                    var line = $"{label}: {f.Code}: {f.Message}";
+                    if (f.Severity == PlanFindingSeverity.Error && StructuralCodes.Contains(f.Code))
                         item.Problems.Add(line);
-                    else if (f.Severity == PlanFindingSeverity.Warning)
+                    else
                         item.Warnings.Add(line);
                 }
             }
         }
 
         return section;
+    }
+
+    /// <summary>Plan-check codes that mean the plan refers to something that does not exist or cannot be used.</summary>
+    private static readonly HashSet<string> StructuralCodes = new(StringComparer.Ordinal)
+    {
+        "unknown-mechanic", "unknown-action", "wrong-job", "not-available-at-level",
+    };
+
+    /// <summary>
+    /// The players a plan is written for: one per column (assignee) and job (a slot-only column such as "MT" for every job
+    /// its entries name), as the plugin selects entries for a player who picked that column; plans without columns are
+    /// read per job.
+    /// </summary>
+    private static IEnumerable<(string Label, PlayerContext Me)> PlayersOf(MitPlan plan, int level)
+    {
+        var players = new List<(string, PlayerContext)>();
+        foreach (var assignee in plan.Assignees.Where(a => !string.IsNullOrWhiteSpace(a.Key)))
+        {
+            var jobs = assignee.Job is { } j && j != Job.None
+                ? [j]
+                : plan.Entries.Where(e => string.Equals(e.Who?.Assignee, assignee.Key, StringComparison.OrdinalIgnoreCase))
+                    .Select(e => e.Who?.Job).OfType<Job>().Where(x => x != Job.None).Distinct().Order().ToList();
+            foreach (var job in jobs)
+                players.Add(($"\"{assignee.Key}\" {job}", new PlayerContext(job, level, assignee.Slot, assignee.Key)));
+        }
+
+        if (players.Count == 0)
+        {
+            foreach (var job in plan.Entries.Select(e => e.Who?.Job).OfType<Job>().Where(x => x != Job.None).Distinct().Order())
+                players.Add((job.ToString(), new PlayerContext(job, level)));
+        }
+
+        return players;
     }
 }

@@ -17,7 +17,9 @@ internal static class ValidateCommand
             listed); the action knowledge base is consistent (unique names, upgrades and follow-ups point both ways, the
             sync maps agree with levels and durations); every alias resolves to actions its jobs can use at levels 80, 90
             and 100; and the copy built into MitCue.Core matches the folder. Plans in a plans/ folder next to data/ must
-            read, name a known fight and have no plan-check errors. Exit code 1 when there is a problem.
+            read, name a known fight, and use only known mechanics and actions their columns' jobs can use at the sync
+            level; their other plan-check findings (recasts, gauges) are listed as warnings. Exit code 1 when there is a
+            problem.
             """,
         Options = [new("verbose", null, "List every warning (default: the first 5 per file).")],
         MaxArgs = 0,

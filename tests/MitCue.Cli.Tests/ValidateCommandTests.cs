@@ -39,7 +39,7 @@ public class ValidateCommandTests : IDisposable
         Assert.Matches(@"warn\s+timelines/the_epic_of_alexander\.txt: 225 entries, 144 syncs, 0 labels \(1 warning\)", r.Out);
         Assert.Matches(@"ok\s+actions/actions\.yaml: \d+ actions \(game version 7\.58\)", r.Out);
         Assert.Matches(@"ok\s+actions/aliases\.yaml: \d+ keys; every alias resolves for its jobs at levels 80, 90 and 100", r.Out);
-        Assert.Contains("Result: 0 problems, 1 warning in ", r.Out);
+        Assert.Contains("Result: 0 problems, ", r.Out);
     }
 
     [Fact]
@@ -82,7 +82,12 @@ public class ValidateCommandTests : IDisposable
         var r = this.kit.Run("validate", "--data", data);
         Assert.Equal(1, r.ExitCode);
         Assert.Matches(@"ok\s+plans/good\.yaml: ""Test WHM"" \(top\): 10 entries", r.Out);
-        Assert.Matches(@"FAIL\s+plans/broken\.yaml: ""Broken WHM"" \(top\): 4 entries \(4 problems\)", r.Out);
-        Assert.Contains("problem: WHM: recast-conflict: Temperance planned at P2 0:10 and P2 0:48", r.Out);
+        Assert.Matches(@"FAIL\s+plans/broken\.yaml: ""Broken WHM"" \(top\): 4 entries \(3 problems, 1 warning\)", r.Out);
+        Assert.Contains("problem: WHM: unknown-mechanic: Entry b3: unknown mechanic 'p2.cosmo_memry'", r.Out);
+        Assert.Contains("problem: WHM: wrong-job: Kerachole is a SGE action, not WHM.", r.Out);
+        Assert.Contains("problem: WHM: not-available-at-level: Divine Caress at P3 0:41 is learned at level 100", r.Out);
+
+        // Recast conflicts are advice for the plan's author, not broken data.
+        Assert.Contains("warning: WHM: recast-conflict: Temperance planned at P2 0:10 and P2 0:48", r.Out);
     }
 }
