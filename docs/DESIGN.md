@@ -196,31 +196,44 @@ per-job expansion ("party mit", "short cd"), and note-only phrases ("everything"
 For each applicable entry: `hit` = the anchor mechanic's hit time (or the n-th hit when
 an "after the n-th hit" hint was parsed); `press = hit + offset`.
 
-When `offset` is not given (plans without times), it is derived from the action:
+When `offset` is not given (plans without times), it is derived from the action: its `when`
+field (`actions.yaml`, docs/research/actions.md §6) decides the side of the hit when present,
+otherwise its kind does (code: `TimingRules`).
 
-| kind | default press time |
-|------|--------------------|
-| party_mit, tank_mit, regen (duration D) | `hit − clamp(0.3·D, 2, 8)` |
+| action | default press time |
+|--------|--------------------|
+| `when: before` — heals placed before the damage that act on a later event: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos | `hit − lead` when the action has a `lead` (Earthly Star: 10 s to mature); otherwise a heal is timed like mitigation of the same duration, `hit − clamp(0.3·D, 2, 8)` (Bell −6, Excogitation −8, Macrocosmos −4.5, Horoscope −3), and other kinds keep their row below |
+| `when: after` (healer LBs) | `hit + 2` for limit breaks, else `hit + 1` |
+| party_mit, tank_mit, regen (duration D) | `hit − clamp(0.3·D, 2, 8)`; `hit − 3` when D is unknown |
 | shield (GCD, cast time C) | `hit − max(4, C + 2.5)` |
 | invuln | `hit − 2` |
 | heal / instant heal | `hit + 1` (after the damage) |
-| tank LB3 / healer LB3 | `hit − 3` / `hit + 2` |
-| other | `hit − 3` |
+| tank LB3 / healer LB3 (no `when`: by the role of the LB's jobs) | `hit − 3` / `hit + 2` |
+| buff, movement, other, notes, actions not in the catalog | `hit − 3` |
 
 ### 5.2 States
 
 - **Upcoming:** `press − lookahead ≤ now < press − dueLead` (defaults: lookahead 15 s, dueLead 1.5 s).
 - **Due (NOW):** from `press − dueLead` until `latest`, where `latest = hit − 0.3` for
-  mitigation/shields and `press + 5` for heals. Sound plays once on entering Due.
+  mitigation, shields and pre-placed heals (`when: before`), and `press + 5` for heals used
+  after the damage and anything planned after the hit (never before `press + 0.5`). Sound
+  plays once on entering Due.
 - **Done:** the action (or any alternative) was used between `earliest` and `latest`,
   with `earliest = hit − D + 1` for duration effects, else `press − 10`. A use before
-  `earliest` is flagged *early*.
+  `earliest` is flagged *early*. For `when: before` actions D is the longest of their
+  effects (Horoscope Helios 30 s), so a pre-placed heal still active at the hit (Bell up to
+  19 s, Excogitation up to 44 s before it) is on time, not early.
 - **Missed:** `latest` passed without a matching use (not counted for optional entries).
 - **Skipped:** the timeline jumped past the entry (phase push) before it became due.
   Exception — **phase-end reminders**: entries anchored to a phase's enrage/end mechanic
   (kind `enrage`, or flagged `at_phase_end` by the importer, e.g. "Deploy just before P3
   ends", "Rampart as P1 dies") are not skipped by the jump that ends their phase: they
   become Due at the jump, because the transition is exactly when they should be pressed.
+  They stay Due until `jump target + max(heal late window, 8 s)` (8 s with the defaults), then
+  Missed as usual; one already Due when the push comes is extended the same way, without a
+  second sound. The jump that ends their phase starts in the phase their press time belongs
+  to and lands in the next one; any other jump (a timeline started mid-fight, a preview that
+  cuts whole phases, an enrage branch) skips them like any other reminder.
 - `when_ready` entries stay Due past `press` until the action comes off cooldown, then
   until used or `latest`.
 

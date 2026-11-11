@@ -22,6 +22,9 @@ internal sealed class CoreData
     /// <summary>Embedded path of the shorthand alias dictionary.</summary>
     public const string AliasesPath = "actions/aliases.yaml";
 
+    /// <summary>Problem key prefix for fight files the library left out (one problem per file).</summary>
+    private const string FightFileKeyPrefix = "data.fights.";
+
     private readonly ErrorReporter errors;
     private readonly Func<IEnumerable<UserAliasEntry>> userAliases;
     private readonly Dictionary<string, Timeline?> timelines = new(StringComparer.OrdinalIgnoreCase);
@@ -41,7 +44,10 @@ internal sealed class CoreData
     /// <summary>Incremented on every (re)load.</summary>
     public int Revision { get; private set; }
 
-    /// <summary>The fight library, or null if it failed to load.</summary>
+    /// <summary>
+    /// The fight library, or null if it failed to load. Fight files that failed on their own are left out of it and
+    /// listed in <see cref="FightProblems"/>.
+    /// </summary>
     public FightLibrary? Fights { get; private set; }
 
     /// <summary>The action catalog; an empty catalog when the real one failed to load.</summary>
@@ -56,6 +62,9 @@ internal sealed class CoreData
     /// <summary>All loaded fights (empty when the library failed to load).</summary>
     public IReadOnlyList<FightDefinition> FightList => this.Fights?.Fights ?? [];
 
+    /// <summary>Fight files the library left out or warned about (also listed as problems); empty when none.</summary>
+    public IReadOnlyList<FightFileProblem> FightProblems => this.Fights?.Problems ?? [];
+
     /// <summary>Loads everything on first call. Framework thread.</summary>
     public void EnsureLoaded()
     {
@@ -67,8 +76,10 @@ internal sealed class CoreData
 
         try
         {
+            // A bad fight file does not stop the others from loading; each one is reported on its own.
             this.Fights = new FightLibrary(new EmbeddedDataSource());
             this.errors.Clear("data.fights");
+            this.ReportFightProblems(this.Fights);
         }
         catch (Exception ex)
         {
@@ -213,6 +224,24 @@ internal sealed class CoreData
         {
             this.errors.Report("data.actionlookup", "Looking up an action in the catalog", ex);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Lists every fight file problem of <paramref name="library"/> under its own key (exceptions with their details,
+    /// ignored files as warnings) and drops those of an earlier load.
+    /// </summary>
+    private void ReportFightProblems(FightLibrary library)
+    {
+        this.errors.ClearPrefix(FightFileKeyPrefix);
+        foreach (var problem in library.Problems)
+        {
+            var key = FightFileKeyPrefix + problem.Path;
+            var context = "Loading fight file data/" + problem.Path;
+            if (problem.Exception is { } ex)
+                this.errors.Report(key, context, ex);
+            else
+                this.errors.Warn(key, context, problem.Message);
         }
     }
 }

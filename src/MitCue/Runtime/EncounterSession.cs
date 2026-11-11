@@ -417,6 +417,11 @@ internal sealed class EncounterSession
         this.countdownEndedClock = null;
     }
 
+    /// <summary>
+    /// Forwards a timeline jump (a sync that moved time by more than 5 s, <see cref="SyncResult.IsJump"/>, or a jump
+    /// seen by a tick) to the schedulers: reminders a phase push jumped over are skipped, and the phase-end reminders
+    /// of the phase it ended become due at once (DESIGN §5.2; their sound plays on the next <see cref="Update"/>).
+    /// </summary>
     private void Jump(double from, double to)
     {
         this.Scheduler.OnTimelineJump(from, to);

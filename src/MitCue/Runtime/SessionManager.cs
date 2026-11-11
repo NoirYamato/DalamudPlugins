@@ -204,7 +204,9 @@ internal sealed class SessionManager
         {
             var reason = this.data.Fights == null
                 ? "Fight data did not load (see Problems in /mitcue)."
-                : $"No supported fight in this zone ({this.gameData.TerritoryName(ctx.Territory)}).";
+                : this.data.FightProblems.Count > 0
+                    ? $"No supported fight in this zone ({this.gameData.TerritoryName(ctx.Territory)}); some fight files did not load (see Problems in /mitcue)."
+                    : $"No supported fight in this zone ({this.gameData.TerritoryName(ctx.Territory)}).";
             return new Shape("none:" + ctx.Territory, reason);
         }
 
