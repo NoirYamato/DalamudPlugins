@@ -10,8 +10,15 @@ namespace MitCue.Core.Timelines;
 /// <param name="Started">True if this sync started a stopped timeline.</param>
 public sealed record SyncResult(double Clock, double FromTime, double ToTime, TimelineEntry Entry, bool Started)
 {
+    /// <summary>
+    /// True when the sync stopped the timeline (a jump to 0, such as cactbot's <c>--Reset--</c> on a wipe):
+    /// <see cref="ToTime"/> is 0 because the timeline is stopped, not because time moved back to 0.
+    /// </summary>
+    public bool Stopped { get; init; }
+
     /// <summary>True when the sync moved time forward by more than a normal correction (phase push / jump).</summary>
-    public bool IsJump => this.ToTime - this.FromTime > 5.0 || this.ToTime < this.FromTime - 5.0;
+    /// <remarks>Also true for a move back of more than 5 s; never for a stop (<see cref="Stopped"/>).</remarks>
+    public bool IsJump => !this.Stopped && (this.ToTime - this.FromTime > 5.0 || this.ToTime < this.FromTime - 5.0);
 }
 
 /// <summary>
@@ -38,7 +45,8 @@ public sealed record SyncResult(double Clock, double FromTime, double ToTime, Ti
 /// </para>
 /// <para>
 /// The timeline stops on a <see cref="DutyReset"/>, when combat ends (<see cref="CombatStateChanged"/>
-/// false), on a jump to 0, and by itself <see cref="EndGrace"/> seconds after <see cref="Timeline.EndTime"/>.
+/// false, unless <see cref="StopOnCombatEnd"/> is false), on a jump to 0 (reported with
+/// <see cref="SyncResult.Stopped"/>), and by itself <see cref="EndGrace"/> seconds after <see cref="Timeline.EndTime"/>.
 /// While stopped, <see cref="TimeAt"/> stays at the time it stopped at (0 after a jump to 0 or
 /// <see cref="Reset"/>). Events without a <see cref="GameEvent.SyncType"/> and player abilities are ignored.
 /// Not thread-safe.
@@ -88,6 +96,17 @@ public sealed class TimelinePlayer
 
     public SyncMatchOptions Options { get; }
 
+    /// <summary>
+    /// Whether combat ending (<see cref="CombatStateChanged"/> with InCombat false) stops the timeline, as it
+    /// does in cactbot. Default true.
+    /// </summary>
+    /// <remarks>
+    /// Set it to false when the owner decides when a pull is over: MitCue's session waits for a prolonged
+    /// out-of-combat (DESIGN §4), because the flag can drop for a moment while the fight goes on (a dead
+    /// player, possibly long transitions). A stopped timeline would restart at 0.0 on the next combat start.
+    /// </remarks>
+    public bool StopOnCombatEnd { get; init; } = true;
+
     /// <summary>True while time is advancing (after a start sync, until stop/reset).</summary>
     public bool IsRunning => this.running;
 
@@ -107,12 +126,13 @@ public sealed class TimelinePlayer
     /// </summary>
     /// <remarks>
     /// Force jumps due before the event are performed first. Combat ending (<see cref="CombatStateChanged"/>
-    /// with InCombat false) stops the timeline too. Feed events in clock order.
+    /// with InCombat false) stops the timeline too, unless <see cref="StopOnCombatEnd"/> is false. Feed
+    /// events in clock order.
     /// </remarks>
     public SyncResult? Process(GameEvent e)
     {
         ArgumentNullException.ThrowIfNull(e);
-        if (e is DutyReset or CombatStateChanged { InCombat: false })
+        if (e is DutyReset || (e is CombatStateChanged { InCombat: false } && this.StopOnCombatEnd))
         {
             this.Advance(e.Time);
             this.StopAt(e.Time);
@@ -196,7 +216,7 @@ public sealed class TimelinePlayer
             // cactbot: SyncTo(0) then Stop(): stopped at time 0.
             var wasRunning = this.running;
             this.StopAtZero();
-            var stopped = new SyncResult(clock, from, 0, entry, Started: false);
+            var stopped = new SyncResult(clock, from, 0, entry, Started: false) { Stopped = true };
             this.RaiseSynced(stopped);
             if (wasRunning)
                 this.RaiseStopped();
@@ -245,7 +265,7 @@ public sealed class TimelinePlayer
             if (target == 0)
             {
                 this.StopAtZero();
-                this.RaiseSynced(new SyncResult(jumpClock, f.Time, 0, f, Started: false));
+                this.RaiseSynced(new SyncResult(jumpClock, f.Time, 0, f, Started: false) { Stopped = true });
                 this.RaiseStopped();
                 return;
             }

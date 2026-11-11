@@ -107,7 +107,7 @@ public class EndToEndSyncTests
     public void Dmu_pulls_with_phase_pushes_reach_the_final_phase(int seed, double jitter)
     {
         var rng = new Random(seed * 15485863);
-        var o = new SimulationOptions { Seed = seed, Jitter = jitter };
+        var o = new SimulationOptions { Seed = seed, Jitter = jitter, CutPhasesLeaveByJump = true }; // the HP-gated casts leave P2 and P4
         var c1 = Between(rng, 100, 185);                            // Kefka < 15%
         var r2 = c1 + Between(rng, 3, 297.4 - c1 - 1);              // dialogue sync: window 300,5 = [-2.6, 302.4)
         var c2 = Between(rng, 350, 470);                            // Kefka at 0%: C3F7 jumps to 597
@@ -130,6 +130,88 @@ public class EndToEndSyncTests
         Assert.Contains(steps, s => s.Result is { ToTime: 1087.7, IsJump: true });
         Assert.Contains(steps, s => s.Result is { ToTime: 1355.6, IsJump: true });
         Assert.True(steps[^1].After >= 1355.6);
+    }
+
+    [Theory]
+    [InlineData(Top)]
+    [InlineData(Tea)]
+    [InlineData(Dmu)]
+    [InlineData(Dsr)]
+    [InlineData(Fru)]
+    public void Jitter_free_simulation_lands_exactly_on_every_entry_that_syncs(string file)
+    {
+        var timeline = Load(file);
+        var fight = file switch { Top => TopFight(), Tea => TeaFight(), Dmu => DmuFight(), _ => null };
+        var (_, steps) = Play(timeline, FightSimulator.Simulate(timeline, fight, new SimulationOptions { Seed = 3, Jitter = 0 }));
+        foreach (var s in steps.Where(s => s.Sim.SyncTime != null))
+        {
+            Assert.Equal(s.Sim.SyncTime!.Value, s.After, 0.003);
+            if (s.Result != null)
+                Assert.Same(s.Sim.Entry, s.Result.Entry);
+            else
+                Assert.Equal(0.0, s.Sim.Entry!.Window.After); // only "window N,0" syncs arriving at their exclusive end
+        }
+    }
+
+    /// <summary>
+    /// Review regression: the plugin's former preview options from DMU P2 (every later phase listed at its timeline
+    /// spacing from P2, so P3 at 2 + 302.6 s) moved the 483.2 success cast past the 486.2 forcejump, and all of
+    /// P3 ran about 111 s ahead of the engine.
+    /// </summary>
+    [Fact]
+    public void Dmu_preview_from_p2_keeps_phase_three_in_sync()
+    {
+        var timeline = Load(Dmu);
+        var fight = DmuFight();
+        var phases = fight.Phases.OrderBy(p => p.Start).ToList();
+        var from = phases[1];
+        var o = new SimulationOptions { PullClock = 1000, Seed = 5, Jitter = 0.15 };
+        o.PhaseCutoff[phases[0].Id] = phases[0].Start + 0.5;
+        for (var i = 1; i < phases.Count; i++)
+            o.PhaseRealStart[phases[i].Id] = 2 + (phases[i].Start - from.Start);
+
+        var (_, steps) = Play(timeline, FightSimulator.Simulate(timeline, fight, o));
+        var p3 = steps.Where(s => s.Sim.SyncTime is { } t && t >= 597 && t < 1087.7).ToList();
+        var off = p3.Where(s => Math.Abs(s.After - s.Sim.SyncTime!.Value) > 0.6).ToList();
+        Assert.True(
+            off.Count == 0,
+            $"{off.Count}/{p3.Count} P3 events out of sync, e.g. {off.FirstOrDefault()?.Sim.Entry}: engine {off.FirstOrDefault()?.After:0.0}");
+    }
+
+    /// <summary>
+    /// The plugin's preview from a phase (<c>PreviewDriver.ConfigurePhaseStart</c>: earlier phases cut, only the
+    /// chosen phase listed) is followed to the end of the fight, through DMU's jumps.
+    /// </summary>
+    [Theory]
+    [InlineData(Top, "p2", 1421.9)]
+    [InlineData(Top, "p5", 1421.9)]
+    [InlineData(Tea, "p3", 1247.6)]
+    [InlineData(Dmu, "p2", 1613.4)]
+    [InlineData(Dmu, "p3", 1613.4)]
+    [InlineData(Dmu, "p4", 1613.4)]
+    public void Previews_from_a_phase_stay_in_sync_to_the_end(string file, string phaseId, double lastSync)
+    {
+        var timeline = Load(file);
+        var fight = file switch { Top => TopFight(), Tea => TeaFight(), _ => DmuFight() };
+        var options = FightSimulatorTests.PreviewFrom(fight, phaseId, new SimulationOptions { Seed = 9, Jitter = 0.15 });
+        var start = fight.GetPhase(phaseId)!.Start;
+
+        var (_, steps) = Play(timeline, FightSimulator.Simulate(timeline, fight, options));
+        var chosen = steps.Where(s => s.Sim.SyncTime >= start).ToList();
+        Assert.All(chosen, s => Assert.InRange(s.After - s.Sim.SyncTime!.Value, -Tolerance, Tolerance));
+        Assert.Equal(lastSync, chosen[^1].Sim.SyncTime!.Value, 1e-9);
+    }
+
+    [Fact]
+    public void Dmu_preview_from_p5_syncs_from_its_first_wide_sync()
+    {
+        // P5 has no wide sync at its start (1355.6 is a label reached by P4's success jump): the preview's first
+        // P5 events cannot sync until 1396.2 BB40 (window 1400,0). From there on it stays in sync.
+        var timeline = Load(Dmu);
+        var fight = DmuFight();
+        var (_, steps) = Play(timeline, FightSimulator.Simulate(timeline, fight, FightSimulatorTests.PreviewFrom(fight, "p5", new SimulationOptions { Seed = 9 })));
+        Assert.Contains(steps, s => s.Result?.Entry.Time == 1396.2);
+        Assert.All(steps.Where(s => s.Sim.SyncTime >= 1396.2), s => Assert.InRange(s.After - s.Sim.SyncTime!.Value, -Tolerance, Tolerance));
     }
 
     [Fact]

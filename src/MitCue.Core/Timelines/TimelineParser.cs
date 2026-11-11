@@ -189,14 +189,14 @@ public static class TimelineParser
             rest = MatchNetSync(rest, draft, messages);
         }
 
+        // The sync's own problems come first: they are often why text is left over (cactbot reports both).
+        foreach (var message in messages)
+            state.Warn(lineNumber, message);
         if (rest.Length > 0)
         {
             state.Warn(lineNumber, $"unexpected text \"{rest}\"; the entry is ignored: {line}");
             return;
         }
-
-        foreach (var message in messages)
-            state.Warn(lineNumber, message);
         if (draft.Sync != null && draft.Window.IsEmpty)
             state.Warn(lineNumber, $"the sync window is empty (window {Format(draft.Window.Before)},{Format(draft.Window.After)}); this sync never matches");
         state.Drafts.Add(draft);

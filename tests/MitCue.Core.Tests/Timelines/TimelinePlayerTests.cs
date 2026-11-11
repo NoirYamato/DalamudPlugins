@@ -211,6 +211,60 @@ public class TimelinePlayerTests
     }
 
     [Fact]
+    public void Combat_end_can_be_left_to_the_owner()
+    {
+        // StopOnCombatEnd = false (the plugin's session, which waits for a prolonged out-of-combat): a combat flag
+        // that drops for a moment does not stop the pull, and re-engaging does not restart the timeline at 0.0.
+        var p = new TimelinePlayer(Load(Top)) { StopOnCombatEnd = false };
+        var stops = 0;
+        p.Stopped += () => stops++;
+        Assert.True(p.Process(Combat(1000))!.Started);
+        Assert.Equal(400.0, p.Process(Ability(1300, 0x7B13, "Omega"))!.ToTime); // a P3 push (window 400,0)
+
+        Assert.Null(p.Process(Combat(1423.4, false)));
+        Assert.True(p.IsRunning);
+        Assert.Null(p.Process(Combat(1426, true))); // the InCombat sync (window 0,1) is not active at 526
+        Assert.Equal(530.0, p.TimeAt(1430), Tol);
+        Assert.Equal(0, stops);
+
+        // A duty reset still stops it. The default stops on combat end too, like cactbot (see
+        // Stops_on_duty_reset_and_on_combat_end_with_time_frozen).
+        Assert.Null(p.Process(new DutyReset(1440, DutyResetKind.Wipe)));
+        Assert.False(p.IsRunning);
+        Assert.True(new TimelinePlayer(Load(Top)).StopOnCombatEnd);
+    }
+
+    [Fact]
+    public void A_jump_zero_stop_is_reported_as_a_stop_not_a_jump()
+    {
+        // Review regression: --Reset-- while running reported FromTime 523.4 -> ToTime 0 with IsJump true, which the
+        // plugin's session forwarded to the scheduler as a jump back to 0, re-arming every missed and skipped reminder.
+        var p = new TimelinePlayer(Load(Top));
+        var synced = new List<SyncResult>();
+        p.Synced += synced.Add;
+        p.Process(Combat(1000));
+        var r = p.Process(new DirectorCommand(1523.4, 0x4000000F)); // --Reset-- ... window 0,100000 jump 0
+        Assert.NotNull(r);
+        Assert.Equal((523.4, 0.0), (Math.Round(r.FromTime, 6), r.ToTime));
+        Assert.True(r.Stopped);
+        Assert.False(r.IsJump);
+        Assert.False(p.IsRunning);
+        Assert.Same(r, synced[^1]);
+
+        // A forcejump to 0 is a stop too; ordinary syncs and jumps are not.
+        var t = Parse(
+            "0.0 \"--sync--\" InCombat { inGameCombat: \"1\" } window 0,1",
+            "10 \"End\" Ability { id: \"1\" } forcejump 0");
+        var q = new TimelinePlayer(t);
+        var qSynced = new List<SyncResult>();
+        q.Synced += qSynced.Add;
+        Assert.False(q.Process(Combat(1000))!.Stopped);
+        q.Tick(1011);
+        Assert.True(qSynced[^1] is { Stopped: true, IsJump: false, ToTime: 0 });
+        Assert.All(synced.Take(synced.Count - 1), s => Assert.False(s.Stopped));
+    }
+
+    [Fact]
     public void Reset_rewinds_to_zero()
     {
         var p = Started(SimA);

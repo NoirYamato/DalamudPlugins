@@ -12,15 +12,26 @@ public sealed class SimulationOptions
 
     /// <summary>
     /// Real seconds from the pull at which each phase's first event happens (phase id → seconds).
-    /// Missing phases start at their timeline start (no push variance).
+    /// Missing phases get no push variance: they start where the timeline, played on from the previous
+    /// phase, reaches their start (at their timeline start when nothing before them was pushed or jumped).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Precisely: the phase's start (<see cref="Phase.Start"/>, its sync point) happens at this real time
     /// and the phase's events keep their timeline spacing from it. A missing phase gets no push of its
-    /// own: it follows the previous phase with the timeline's spacing, so with no pushes and no jumps
-    /// every event happens at its timeline time. A phase entered through a jump (DMU's success jumps)
-    /// starts when the jump happens unless it is listed here. Applies to the first time a phase is
-    /// entered only.
+    /// own: it follows the previous phase with the timeline's spacing (keeping that phase's push), so with
+    /// no pushes and no jumps every event happens at its timeline time. It is not put back at its own
+    /// timeline time after an earlier push: by then the engine would have run past its phase sync (a
+    /// <c>window N,0</c> sync closes at the phase start) and the rest of the pull could not be followed.
+    /// </para>
+    /// <para>
+    /// A phase entered through a jump (DMU's success jumps) starts when the jump happens unless it is
+    /// listed here. When it is listed, the jump's event is moved so that the phase starts on time, but only
+    /// as far as the engine, running on from the previous event, can still sync it: inside the jump
+    /// entry's window and before the next forcejump (DMU's 486.2 forcejump bounds the 483.2 success cast).
+    /// A listed start outside that range is not kept: the jump happens at its own time and the phase
+    /// starts from it. Applies to the first time a phase is entered only.
+    /// </para>
     /// </remarks>
     public Dictionary<string, double> PhaseRealStart { get; set; } = [];
 
@@ -29,11 +40,22 @@ public sealed class SimulationOptions
     /// phase id → timeline seconds. Missing = keep all events until the next phase.
     /// </summary>
     /// <remarks>
-    /// When the rest of the phase holds a jump the pull takes out of the phase (DMU's "Kefka &lt;20% HP"
-    /// success jumps), that jump's event still happens, right at the cutoff (or at the next phase's
-    /// <see cref="PhaseRealStart"/> when given): it is how the timeline leaves the phase.
+    /// Everything after the cutoff is dropped, including a jump out of the phase, so a phase cut at its
+    /// start produces no events at all (the plugin's preview skips phases this way). Set
+    /// <see cref="CutPhasesLeaveByJump"/> to keep that jump.
     /// </remarks>
     public Dictionary<string, double> PhaseCutoff { get; set; } = [];
+
+    /// <summary>
+    /// When true, a phase cut by <see cref="PhaseCutoff"/> still leaves through the jump the pull takes out
+    /// of it (DMU's success jumps, cast when the boss reaches its HP threshold). Default false: the jump is
+    /// dropped with the rest of the phase.
+    /// </summary>
+    /// <remarks>
+    /// The jump's event happens at the cutoff (or once its sync window opens, if that is later), or when
+    /// the next phase's <see cref="PhaseRealStart"/> asks for it, within the range described there.
+    /// </remarks>
+    public bool CutPhasesLeaveByJump { get; set; }
 
     /// <summary>Uniform random jitter (± seconds) added to each event time.</summary>
     public double Jitter { get; set; } = 0.15;
@@ -104,6 +126,12 @@ public static class FightSimulator
     /// <summary>How many times one jump entry is followed at most (bounds loops).</summary>
     public const int MaxJumpRepeats = 10;
 
+    /// <summary>
+    /// Seconds kept between a moved jump event and the edges of the range in which the engine can sync it,
+    /// on top of twice the jitter (the event's own and the engine's offset from the previous event).
+    /// </summary>
+    private const double SyncMargin = 0.1;
+
     public static IReadOnlyList<GameEvent> Generate(Timeline timeline, FightDefinition? fight, SimulationOptions options) =>
         Simulate(timeline, fight, options).Select(e => e.Event).ToList();
 
@@ -120,6 +148,7 @@ public static class FightSimulator
     {
         private readonly SimulationOptions options;
         private readonly TimelineEntry[] sorted;
+        private readonly TimelineEntry[] forceJumps;
         private readonly Phase[] phases;
         private readonly double[] farLabels;
         private readonly double mainEnd;
@@ -141,6 +170,7 @@ public static class FightSimulator
         {
             this.options = options;
             this.sorted = timeline.ByTime.ToArray();
+            this.forceJumps = this.sorted.Where(e => e.ForceJump && e.JumpTime != null).ToArray();
             this.phases = (fight?.Phases ?? []).OrderBy(p => p.Start).ToArray();
             this.entered = new bool[this.phases.Length];
             this.rng = new Random(options.Seed);
@@ -238,7 +268,7 @@ public static class FightSimulator
             {
                 // The timeline jumps when it reaches a forcejump, whether or not its event happens.
                 if (!this.RepeatsExhausted(e))
-                    this.TakeJump(e, e.Time + this.shift, emit: Emittable(e) && this.Choice(e) != false);
+                    this.TakeJump(e, e.Time + this.shift, e.Time, emit: Emittable(e) && this.Choice(e) != false);
                 return;
             }
 
@@ -248,26 +278,35 @@ public static class FightSimulator
             if (e.JumpTime != null)
             {
                 if (!this.RepeatsExhausted(e) && this.Decide(e))
-                    this.TakeJump(e, e.Time + this.shift, emit: true);
+                    this.TakeJump(e, e.Time + this.shift, e.Time, emit: true);
                 return;
             }
 
             this.Emit(e, e.Time + this.shift, e.Time);
         }
 
-        /// <summary>The boss died at <paramref name="cut"/>: leave the phase by its exit jump, or skip to the next phase.</summary>
+        /// <summary>
+        /// The boss died at <paramref name="cut"/>: skip to the next phase, or with
+        /// <see cref="SimulationOptions.CutPhasesLeaveByJump"/> leave the phase by its exit jump.
+        /// </summary>
         private void LeaveCutPhase(double cut)
         {
             var rangeEnd = this.phase + 1 < this.phases.Length ? Math.Min(this.phases[this.phase + 1].Start, this.mainEnd) : this.mainEnd;
-            for (var i = this.pos; i < this.sorted.Length && this.sorted[i].Time < rangeEnd; i++)
+            for (var i = this.pos; this.options.CutPhasesLeaveByJump && i < this.sorted.Length && this.sorted[i].Time < rangeEnd; i++)
             {
                 var x = this.sorted[i];
                 if (x.JumpTime is not { } target || target <= x.Time || target >= this.mainEnd || !Emittable(x) || this.RepeatsExhausted(x))
                     continue;
                 if (x.ForceJump ? this.Choice(x) == false : !this.Decide(x))
                     continue;
+
+                // At the cutoff, or once the jump's window opens (DMU's C3FD: window 90,5); never where it cannot sync.
+                var (lo, hi) = this.SyncableRange(x, cut);
+                var at = Math.Max(cut + this.shift, lo);
+                if (at > hi)
+                    continue;
                 this.pos = i + 1;
-                if (this.TakeJump(x, cut + this.shift, emit: true))
+                if (this.TakeJump(x, at, cut, emit: true))
                     return;
             }
 
@@ -275,23 +314,45 @@ public static class FightSimulator
         }
 
         /// <summary>Follows a jump; returns false when its event could not be generated (then the jump does not happen).</summary>
-        private bool TakeJump(TimelineEntry e, double defaultReal, bool emit)
+        /// <param name="e">The jump entry.</param>
+        /// <param name="defaultReal">Real time of the jump's event unless a listed phase start moves it.</param>
+        /// <param name="from">Timeline time the walk is at (the entry's time, or the cutoff of a cut phase).</param>
+        /// <param name="emit">Whether the jump's event happens (a refused forcejump jumps without it).</param>
+        private bool TakeJump(TimelineEntry e, double defaultReal, double from, bool emit)
         {
             var target = e.JumpTime!.Value;
             var real = defaultReal;
+            var startsFromJump = -1; // a listed phase whose start cannot be kept
             if (target > e.Time && target < this.mainEnd)
             {
+                double? moved = null;
+                var listed = -1;
                 var q = this.PhaseIndexAt(target);
                 if (q > this.phase && !this.entered[q] && this.RealStart(q) is { } rq)
                 {
-                    real = rq + (target - this.phases[q].Start);
+                    moved = rq + (target - this.phases[q].Start);
+                    listed = q;
                 }
                 else if (q == this.phase)
                 {
                     // Landing just before the next phase's sync point (DMU: 597 label, 600.0 phase sync).
                     var n = this.phase + 1;
                     if (n < this.phases.Length && !this.entered[n] && this.RealStart(n) is { } rn && !this.HasSyncedEntries(target, this.phases[n].Start))
-                        real = rn - (this.phases[n].Start - target);
+                    {
+                        moved = rn - (this.phases[n].Start - target);
+                        listed = n;
+                    }
+                }
+
+                if (moved is { } m)
+                {
+                    // Only as far as the engine, running on from the previous event, can still sync the jump.
+                    // Otherwise the listed start cannot happen: the phase starts from the jump at its own time.
+                    var (lo, hi) = this.SyncableRange(e, from);
+                    if (m >= lo && m <= hi)
+                        real = m;
+                    else
+                        startsFromJump = listed;
                 }
             }
 
@@ -303,6 +364,8 @@ public static class FightSimulator
                     return false;
             }
 
+            if (startsFromJump >= 0)
+                this.entered[startsFromJump] = true;
             this.jumpCounts[e] = this.jumpCounts.GetValueOrDefault(e) + 1;
             if (target == 0)
             {
@@ -425,6 +488,30 @@ public static class FightSimulator
         }
 
         private bool RepeatsExhausted(TimelineEntry e) => this.jumpCounts.GetValueOrDefault(e) >= MaxJumpRepeats;
+
+        /// <summary>
+        /// Real times at which the jump entry's sync still fires when the engine runs on with the current shift
+        /// from timeline time <paramref name="from"/>: inside the entry's window and before the next forcejump
+        /// (which would take the engine away first), and for a forcejump entry before its own time (a later event
+        /// no longer acts as the jump). Kept clear of the edges by twice the jitter plus <see cref="SyncMargin"/>.
+        /// </summary>
+        private (double Lo, double Hi) SyncableRange(TimelineEntry e, double from)
+        {
+            var end = e.SyncEnd;
+            if (e.ForceJump)
+                end = Math.Min(end, e.Time);
+            foreach (var f in this.forceJumps)
+            {
+                if (!ReferenceEquals(f, e) && f.Time > from)
+                {
+                    end = Math.Min(end, f.Time);
+                    break;
+                }
+            }
+
+            var margin = (2 * Math.Max(0, this.options.Jitter)) + SyncMargin;
+            return (e.SyncStart + this.shift + margin, end + this.shift - margin);
+        }
 
         private bool HasSyncedEntries(double from, double to)
         {

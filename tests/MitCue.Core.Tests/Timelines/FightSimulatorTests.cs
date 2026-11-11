@@ -126,20 +126,46 @@ public class FightSimulatorTests
     [Fact]
     public void Preview_style_options_skip_to_a_phase()
     {
-        // PreviewDriver: earlier phases keep only the pull, the chosen phase starts 2 s after it.
+        // PreviewDriver: earlier phases keep only the pull, the chosen phase starts 2 s after it and the
+        // later phases follow it (not listed).
         var fight = TopFight();
         var sims = FightSimulator.Simulate(Load(Top), fight, Exact(o =>
         {
             o.PhaseCutoff["p1"] = 0.5;
             o.PhaseCutoff["p2"] = 199.999;
             o.PhaseRealStart["p3"] = 2;
-            o.PhaseRealStart["p4"] = 2 + 200;
-            o.PhaseRealStart["p5"] = 2 + 300;
-            o.PhaseRealStart["p6"] = 2 + 700;
         }));
         Assert.Equal(400.0, sims[1].Entry!.Time);
         Assert.Equal(1002, sims[1].Event.Time, 1e-9);
         Assert.Equal(1002 + 700 + 0, sims.Single(s => s.Entry?.Time == 1100.0).Event.Time, 1e-9);
+    }
+
+    [Theory]
+    [InlineData("p3")]
+    [InlineData("p4")]
+    [InlineData("p5")]
+    public void Phases_skipped_by_a_cutoff_produce_no_events(string from)
+    {
+        // A preview from a later DMU phase cuts every earlier phase at its start: none of their events may
+        // happen, not even the jump out of the phase (it used to land in the middle of the chosen phase).
+        var dmu = Load(Dmu);
+        var fight = DmuFight();
+        var sims = FightSimulator.Simulate(dmu, fight, PreviewFrom(fight, from, new SimulationOptions { Seed = 5 }));
+        var start = fight.GetPhase(from)!.Start;
+        Assert.DoesNotContain(sims, s => s.Entry != null && s.Entry.Time > 0.5 && s.Entry.Time < start);
+        var first = sims.First(s => s.Entry?.Time >= start);
+        Assert.Equal(1002 + (first.Entry!.Time - start), first.Event.Time, 0.2);
+    }
+
+    /// <summary>The options <c>PreviewDriver.ConfigurePhaseStart</c> builds for a preview from <paramref name="phaseId"/>.</summary>
+    internal static SimulationOptions PreviewFrom(MitCue.Core.Fights.FightDefinition fight, string phaseId, SimulationOptions o)
+    {
+        var ordered = fight.Phases.OrderBy(p => p.Start).ToList();
+        var index = ordered.FindIndex(p => p.Id == phaseId);
+        for (var i = 0; i < index; i++)
+            o.PhaseCutoff[ordered[i].Id] = i == 0 ? ordered[i].Start + 0.5 : ordered[i].Start - 0.001;
+        o.PhaseRealStart[phaseId] = 2;
+        return o;
     }
 
     [Fact]
@@ -202,23 +228,100 @@ public class FightSimulatorTests
     }
 
     [Fact]
-    public void A_cut_phase_still_leaves_through_its_success_jump()
+    public void A_cut_phase_drops_its_exit_jump_unless_asked_to_leave_through_it()
     {
         var dmu = Load(Dmu);
-        var sims = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
+
+        // Documented behaviour: everything after the cutoff is dropped, the success jump included; P5 follows
+        // P4 with the timeline's spacing (the engine runs on through P4's tail into P5).
+        var dropped = FightSimulator.Simulate(dmu, DmuFight(), Exact(o => o.PhaseCutoff["p4"] = 1180));
+        var shift = dropped.Single(s => s.Entry?.Time == 1087.7).Event.Time - 1000 - 1087.7; // -113.8 after the P2 -> P3 jump
+        Assert.Equal(483.2 - 597, shift, 1e-9);
+        Assert.DoesNotContain(dropped, s => s.Entry != null && s.Entry.Time > 1180 && s.Entry.Time < 1355.6);
+        Assert.Equal(1000 + 1366.1 + shift, dropped.Single(s => s.Entry?.Time == 1366.1).Event.Time, 1e-9);
+
+        // CutPhasesLeaveByJump: the jump's event (C3FD, "Kefka <20% HP") happens right at the cutoff ...
+        var atCut = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
         {
             o.PhaseCutoff["p4"] = 1180;
-            o.PhaseRealStart["p5"] = 1050;
+            o.CutPhasesLeaveByJump = true;
         }));
-        var exit = sims.Single(s => s.Entry?.Time == 1215.3);
+        var exit = atCut.Single(s => s.Entry?.Time == 1215.3);
         Assert.Equal(1355.6, exit.SyncTime);
-        Assert.Equal(1000 + 1050, exit.Event.Time, 1e-9);
-        Assert.DoesNotContain(sims, s => s.Entry != null && s.Entry.Time > 1180 && s.Entry.Time < 1355.6 && s.Entry.Time != 1215.3);
+        Assert.Equal(1000 + 1180 + shift, exit.Event.Time, 1e-9);
+        Assert.DoesNotContain(atCut, s => s.Entry != null && s.Entry.Time > 1180 && s.Entry.Time < 1355.6 && s.Entry.Time != 1215.3);
+        Assert.Equal(1000 + 1180 + shift + 10.5, atCut.Single(s => s.Entry?.Time == 1366.1).Event.Time, 1e-9);
 
-        // Without a real start for P5 the exit happens right at the cutoff.
-        var atCut = FightSimulator.Simulate(dmu, DmuFight(), Exact(o => o.PhaseCutoff["p4"] = 1180));
-        var shift = atCut.Single(s => s.Entry?.Time == 1087.7).Event.Time - 1087.7; // P4's real offset
-        Assert.Equal(1180 + shift, atCut.Single(s => s.Entry?.Time == 1215.3).Event.Time, 1e-9);
+        // ... or when the next phase's real start asks for it, while the engine can still sync it (at 1185) ...
+        var listed = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
+        {
+            o.PhaseCutoff["p4"] = 1180;
+            o.PhaseRealStart["p5"] = 1185 + shift;
+            o.CutPhasesLeaveByJump = true;
+        }));
+        Assert.Equal(1000 + 1185 + shift, listed.Single(s => s.Entry?.Time == 1215.3).Event.Time, 1e-9);
+
+        // ... but not once its window [1125.3, 1220.3) has closed (at 1300): P5 then starts from the jump at the cutoff.
+        var late = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
+        {
+            o.PhaseCutoff["p4"] = 1180;
+            o.PhaseRealStart["p5"] = 1300 + shift;
+            o.CutPhasesLeaveByJump = true;
+        }));
+        Assert.Equal(1000 + 1180 + shift, late.Single(s => s.Entry?.Time == 1215.3).Event.Time, 1e-9);
+        Assert.Equal(1000 + 1180 + shift + 10.5, late.Single(s => s.Entry?.Time == 1366.1).Event.Time, 1e-9);
+
+        // A cutoff before the window opens: the jump waits for the window (plus a margin).
+        var early = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
+        {
+            o.PhaseCutoff["p4"] = 1100;
+            o.CutPhasesLeaveByJump = true;
+        }));
+        Assert.InRange(early.Single(s => s.Entry?.Time == 1215.3).Event.Time - 1000 - shift, 1125.3, 1126);
+    }
+
+    [Fact]
+    public void Dmu_listed_p3_start_does_not_outrun_the_486_2_forcejump()
+    {
+        // Review regression: P3 listed at its own timeline start (600) in an un-pushed pull used to move the
+        // 483.2 success cast to 597, after the engine had force-jumped at 486.2: P3 could not be followed.
+        var timeline = Load(Dmu);
+        var o = new SimulationOptions { Seed = 1, Jitter = 0 };
+        o.PhaseRealStart["p3"] = 600;
+        var sims = FightSimulator.Simulate(timeline, DmuFight(), o);
+
+        var cast = sims.Single(s => s.Entry?.Line == 155); // 483.2 StartsUsing C3F7 ... jump "p2-success"
+        var forcejumpClock = 1000 + 486.2;                 // un-pushed P2: the engine reaches 486.2 "Aero III Assault?" forcejump here
+        Assert.True(cast.Event.Time <= forcejumpClock, $"the jump's cast is emitted at clock {cast.Event.Time:0.0}, after the engine force-jumps at {forcejumpClock:0.0}");
+        Assert.Equal(1483.2, cast.Event.Time, 1e-9); // the listed start cannot be kept: P3 starts from the jump
+
+        var (_, steps) = Play(timeline, sims);
+        Assert.All(
+            steps.Where(s => s.Sim.SyncTime is { } t && t >= 597 && t < 1087.7),
+            s => Assert.InRange(s.After - s.Sim.SyncTime!.Value, -0.6, 0.6));
+    }
+
+    [Fact]
+    public void A_listed_start_moves_the_jump_only_within_the_range_the_engine_can_sync()
+    {
+        var dmu = Load(Dmu);
+
+        // P2 cut at 400 and P3 listed 5 s later: the success cast moves to 3 s before P3 (it lands at 597).
+        var near = FightSimulator.Simulate(dmu, DmuFight(), Exact(o =>
+        {
+            o.PhaseCutoff["p2"] = 400;
+            o.PhaseRealStart["p3"] = 405;
+            o.CutPhasesLeaveByJump = true;
+        }));
+        Assert.Equal(1000 + 402, near.Single(s => s.Entry?.Line == 155).Event.Time, 1e-9);
+        Assert.Equal(1000 + 405, near.Single(s => s.Entry?.Time == 600.0).Event.Time, 1e-9);
+
+        // Not past the 486.2 forcejump, margin included (twice the jitter + 0.1 s): with jitter 0.2 the latest
+        // is 486.2 - 0.5 = 485.7, so a P3 listed at 488.8 (cast at 485.8) starts from the jump at 483.2 instead.
+        var edge = FightSimulator.Simulate(dmu, DmuFight(), new SimulationOptions { Seed = 2, Jitter = 0.2, PhaseRealStart = { ["p3"] = 488.8 } });
+        Assert.InRange(edge.Single(s => s.Entry?.Line == 155).Event.Time - 1000, 483.0, 483.4);
+        var inside = FightSimulator.Simulate(dmu, DmuFight(), new SimulationOptions { Seed = 2, Jitter = 0.2, PhaseRealStart = { ["p3"] = 488.6 } });
+        Assert.InRange(inside.Single(s => s.Entry?.Line == 155).Event.Time - 1000, 485.4, 485.8);
     }
 
     [Fact]

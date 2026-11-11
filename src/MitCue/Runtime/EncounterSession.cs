@@ -58,13 +58,17 @@ internal sealed class SessionSetup
 /// <summary>
 /// Runtime state for one fight + plan + player: a <see cref="TimelinePlayer"/> fed with game events and a
 /// <see cref="ReminderScheduler"/> (plus an optional one for other columns) advanced from timeline time,
-/// own action uses and cooldowns. Handles pre-pull countdowns, pull end (wipe, reset, combat end,
-/// prolonged out-of-combat) and the pull summary. Core calls may throw; the owner catches.
+/// own action uses and cooldowns. Handles pre-pull countdowns, pull end (wipe, duty or timeline reset,
+/// prolonged out-of-combat, combat end once the timeline has stopped) and the pull summary. Core calls may
+/// throw; the owner catches.
 /// </summary>
 internal sealed class EncounterSession
 {
     /// <summary>Seconds out of combat (while the timeline runs) after which the pull is considered over.</summary>
     public const double OutOfCombatResetSeconds = 10;
+
+    /// <summary>Pull-end reason when a timeline sync stopped the timeline (a jump to 0).</summary>
+    private const string TimelineResetReason = "timeline reset";
 
     /// <summary>A countdown that stops with more than this many seconds left was cancelled.</summary>
     private const float CountdownCancelledAbove = 1f;
@@ -75,6 +79,7 @@ internal sealed class EncounterSession
     private static readonly IReadOnlyList<Reminder> NoReminders = [];
 
     private bool syncedDuringTick;
+    private bool timelineReset;
     private double lastInCombatClock;
     private double lastNpcActivityClock;
     private float lastCountdown;
@@ -93,7 +98,9 @@ internal sealed class EncounterSession
         this.OwnEntryCount = setup.OwnEntries.Count;
         this.OtherEntryCount = setup.OtherEntries?.Count ?? 0;
 
-        this.Player = new TimelinePlayer(setup.Timeline, setup.SyncOptions);
+        // The session ends the pull after a prolonged out-of-combat (Update), so the player must not stop
+        // the moment the combat flag drops: the grace would never run and re-engaging would restart at 0.
+        this.Player = new TimelinePlayer(setup.Timeline, setup.SyncOptions) { StopOnCombatEnd = false };
         this.Player.Synced += this.OnSynced;
 
         this.Scheduler = new ReminderScheduler(setup.Fight, setup.OwnEntries, setup.Actions, setup.Options);
@@ -193,6 +200,8 @@ internal sealed class EncounterSession
         this.Player.Process(e);
         if (e is DutyReset reset)
             this.EndPull(Describe(reset.Kind));
+        else if (this.TakeTimelineReset())
+            this.EndPull(TimelineResetReason);
     }
 
     /// <summary>The local player used an action at <paramref name="clock"/>.</summary>
@@ -223,6 +232,12 @@ internal sealed class EncounterSession
         var wasRunning = this.Player.IsRunning;
         this.syncedDuringTick = false;
         this.Player.Tick(now);
+        if (this.TakeTimelineReset())
+        {
+            this.EndPull(TimelineResetReason); // a forcejump to 0
+            return;
+        }
+
         var running = this.Player.IsRunning;
         if (wasRunning && running && !this.syncedDuringTick)
         {
@@ -409,10 +424,27 @@ internal sealed class EncounterSession
         this.Jumps++;
     }
 
+    /// <summary>True once after a sync stopped the timeline (a jump to 0) during the pull.</summary>
+    private bool TakeTimelineReset()
+    {
+        var reset = this.timelineReset && this.PullActive;
+        this.timelineReset = false;
+        return reset;
+    }
+
     private void OnSynced(SyncResult result)
     {
         this.syncedDuringTick = true;
         this.Syncs.Add(result);
+        if (result.Stopped)
+        {
+            // A jump to 0 (cactbot's --Reset--, the wipe's fade-in) ends the pull; the caller ends it once the
+            // player is done. It is not a jump back to 0: that would put every missed and skipped reminder back
+            // to Pending before the summary.
+            this.timelineReset = true;
+            return;
+        }
+
         if (result.IsJump)
             this.Jump(result.FromTime, result.ToTime);
     }

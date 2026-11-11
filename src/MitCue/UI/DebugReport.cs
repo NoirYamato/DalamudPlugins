@@ -129,7 +129,7 @@ internal static class DebugReport
         for (var i = 0; i < session.Syncs.Count; i++)
         {
             var s = session.Syncs[i];
-            sb.Append(ci, $"  [{s.Clock,10:0.000}] {s.FromTime,8:0.0} -> {s.ToTime,8:0.0}  line {s.Entry.Line} \"{s.Entry.Name}\" {s.Entry.Sync}{(s.Started ? " (start)" : string.Empty)}{(s.IsJump ? " (jump)" : string.Empty)}").AppendLine();
+            sb.Append(ci, $"  [{s.Clock,10:0.000}] {s.FromTime,8:0.0} -> {s.ToTime,8:0.0}  line {s.Entry.Line} \"{s.Entry.Name}\" {s.Entry.Sync}{(s.Started ? " (start)" : string.Empty)}{(s.IsJump ? " (jump)" : string.Empty)}{(s.Stopped ? " (stop)" : string.Empty)}").AppendLine();
         }
 
         sb.AppendLine("reminders:");

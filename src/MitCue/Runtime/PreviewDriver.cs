@@ -276,8 +276,10 @@ internal sealed class PreviewDriver
     }
 
     /// <summary>
-    /// Skips to <paramref name="phase"/>: earlier phases keep only their very first events (combat start), the
-    /// chosen phase starts <see cref="PhaseLeadIn"/> s after the pull, and later phases keep their spacing.
+    /// Skips to <paramref name="phase"/>: earlier phases keep only their very first events (combat start) and the
+    /// chosen phase starts <see cref="PhaseLeadIn"/> s after the pull. Later phases are not listed, so they follow
+    /// the chosen one as the timeline plays, through its jumps: a start computed from the phases' timeline
+    /// spacing would come long after a jump (DMU's P2 → P3 skips 113.8 s) and the pull could not be followed.
     /// </summary>
     private static void ConfigurePhaseStart(SimulationOptions options, FightDefinition fight, Phase phase)
     {
@@ -292,8 +294,7 @@ internal sealed class PreviewDriver
             options.PhaseCutoff[p.Id] = i == 0 ? p.Start + 0.5 : p.Start - 0.001;
         }
 
-        for (var i = index; i < ordered.Count; i++)
-            options.PhaseRealStart[ordered[i].Id] = PhaseLeadIn + (ordered[i].Start - phase.Start);
+        options.PhaseRealStart[phase.Id] = PhaseLeadIn;
     }
 
     private (StoredPlan? Plan, Job Job) ChoosePlan(FightDefinition fight, Job currentJob)

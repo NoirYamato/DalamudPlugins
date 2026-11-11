@@ -259,6 +259,71 @@ public class TimelineGrammarTests
     }
 
     [Fact]
+    public void A_dropped_entry_keeps_the_root_cause_warning()
+    {
+        // Review regression: the sync's own warning was thrown away when leftover text dropped the entry.
+        // cactbot reports both here ("Invalid NetRegex JSON" / "Invalid NetRegex arguments", then "Extra text").
+        var t = Parse(
+            "0.0 \"--sync--\" InCombat { inGameCombat: \"1\" } window 0,1",
+            "10.0 \"Bad\" Ability { id: 7B03 } window 5,5",
+            "11.0 \"Number\" Ability { id: 1 } window 5,5");
+        Assert.Single(t.Entries); // both are dropped: their window arguments are left over
+        AssertWarning(t, 2, "invalid sync parameters { id: 7B03 } (invalid number");
+        AssertWarning(t, 2, "unexpected text \"window 5,5\"");
+        AssertWarning(t, 3, "the value of \"id\" must be a string or an array of strings");
+        AssertWarning(t, 3, "unexpected text \"window 5,5\"");
+
+        // The root cause comes first.
+        var warnings = t.Warnings.ToList();
+        Assert.True(warnings.FindIndex(w => w.Contains("7B03 } (invalid")) < warnings.FindIndex(w => w.StartsWith("line 2: unexpected text")));
+    }
+
+    [Fact]
+    public void Json5_rejects_leading_zero_numbers()
+    {
+        // json5 (cactbot's parser) takes 0 or [1-9][0-9]* as the integer part: "01" is invalid, so cactbot keeps
+        // this entry without a sync instead of letting the repeated key win.
+        var t = Parse(
+            "0.0 \"--sync--\" InCombat { inGameCombat: \"1\" } window 0,1",
+            "10.0 \"Dup\" Ability { id: 01, id: \"7B03\" }");
+        Assert.Null(t.AtLine(2).Sync);
+        AssertWarning(t, 2, "invalid number (leading zero)");
+    }
+
+    [Theory]
+    [InlineData("0", 0.0)]
+    [InlineData("-0", 0.0)]
+    [InlineData("+1", 1.0)]
+    [InlineData("10", 10.0)]
+    [InlineData("100", 100.0)]
+    [InlineData("0.5", 0.5)]
+    [InlineData("0.", 0.0)]
+    [InlineData(".5", 0.5)]
+    [InlineData("5.", 5.0)]
+    [InlineData("0e1", 0.0)]
+    [InlineData("0E+2", 0.0)]
+    [InlineData("0x1F", 31.0)]
+    [InlineData("1.25e2", 125.0)]
+    public void Json5_numbers_are_read_like_json5_does(string number, double expected)
+    {
+        var parsed = Assert.IsType<Json5Object>(Json5.Parse("{ n: " + number + " }"));
+        Assert.True(parsed.TryGet("n", out var value));
+        Assert.Equal(expected, Assert.IsType<double>(value));
+    }
+
+    [Theory]
+    [InlineData("01")]
+    [InlineData("00")]
+    [InlineData("-01")]
+    [InlineData("+01")]
+    [InlineData("00.5")]
+    [InlineData("012e1")]
+    [InlineData("0_1")]
+    [InlineData("[01]")]
+    public void Json5_numbers_json5_rejects_are_rejected(string number) =>
+        Assert.Throws<FormatException>(() => Json5.Parse("{ n: " + number + " }"));
+
+    [Fact]
     public void Types_are_case_sensitive_known_names_and_one_sync_per_entry()
     {
         var t = Parse(

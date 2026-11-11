@@ -306,6 +306,12 @@ internal sealed class Json5
         while (char.IsAsciiDigit(this.Peek()))
             this.pos++;
         var intDigits = this.pos - digitsStart;
+        if (intDigits > 1 && this.text[digitsStart] == '0')
+        {
+            // JSON5 integer parts are 0 or [1-9][0-9]*: json5 ends the number at the 0 and rejects the next digit.
+            this.pos = digitsStart + 1;
+            throw this.Error("invalid number (leading zero)");
+        }
         var fracDigits = 0;
         if (this.Peek() == '.')
         {
