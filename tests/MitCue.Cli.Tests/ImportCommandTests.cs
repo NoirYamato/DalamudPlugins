@@ -27,6 +27,7 @@ public class ImportCommandTests : IDisposable
     [InlineData("https://docs.google.com/spreadsheets/d/" + CtcId + "/", CtcId, null, false)]
     [InlineData("http://docs.google.com/spreadsheets/u/0/d/" + CtcId + "/htmlview", CtcId, null, false)]
     [InlineData("  https://docs.google.com/spreadsheets/d/" + CtcId + "/edit?usp=sharing  ", CtcId, null, false)]
+    [InlineData("https://docs.google.com/a/example.org/spreadsheets/d/" + CtcId + "/edit#gid=12", CtcId, 12L, false)]
     [InlineData("https://docs.google.com/spreadsheets/d/e/2PACX-1vQabc_DEF-123/pubhtml?gid=5", "2PACX-1vQabc_DEF-123", 5L, true)]
     public void GoogleSheetLinks_AreParsed(string url, string id, long? gid, bool published)
     {

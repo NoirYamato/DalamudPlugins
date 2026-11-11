@@ -23,8 +23,9 @@ internal sealed partial record GoogleSheetLink(string Id, long? Gid, bool Publis
         : $"https://docs.google.com/spreadsheets/d/{this.Id}/export?format=xlsx";
 
     /// <summary>
-    /// Reads <c>https://docs.google.com/spreadsheets/d/&lt;id&gt;/…</c> (also <c>/u/0/d/…</c>), with an optional
-    /// <c>gid=</c> in the query or the fragment, and published links <c>…/d/e/&lt;id&gt;/pubhtml</c>.
+    /// Reads <c>https://docs.google.com/spreadsheets/d/&lt;id&gt;/…</c> (also <c>/u/0/d/…</c> and Workspace links
+    /// <c>/a/&lt;domain&gt;/spreadsheets/…</c>), with an optional <c>gid=</c> in the query or the fragment, and published links
+    /// <c>…/d/e/&lt;id&gt;/pubhtml</c>.
     /// </summary>
     public static bool TryParse(string text, out GoogleSheetLink link)
     {
@@ -52,7 +53,7 @@ internal sealed partial record GoogleSheetLink(string Id, long? Gid, bool Publis
         return true;
     }
 
-    [GeneratedRegex(@"^/spreadsheets/(?:u/\d+/)?d/(?:e/(?<pub>[A-Za-z0-9_-]+)|(?<id>[A-Za-z0-9_-]{10,}))(?:/|$)")]
+    [GeneratedRegex(@"^/(?:a/[^/]+/)?spreadsheets/(?:u/\d+/)?d/(?:e/(?<pub>[A-Za-z0-9_-]+)|(?<id>[A-Za-z0-9_-]{10,}))(?:/|$)")]
     private static partial Regex SheetPath();
 
     [GeneratedRegex(@"(?:^|[?#&])gid=(?<gid>\d+)")]
