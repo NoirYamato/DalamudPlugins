@@ -853,8 +853,13 @@ public static class PlanChecker
                 return;
             }
 
+            // An option whose button is another action is still tracked when the choice names that action too
+            // ({any: [Concitation, Succor]} at 90: the game reports Succor, one of the choice's ids).
             foreach (var action in usable)
-                this.CheckVariant(entry, action, at, time);
+            {
+                if (!ids.Contains(this.actions.ResolveAt(action, this.level).Id))
+                    this.CheckVariant(entry, action, at, time);
+            }
         }
 
         private void CheckLevel(PlanEntry entry, ActionInfo action, string at, double? time)

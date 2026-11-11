@@ -25,6 +25,8 @@ internal static class SimulateCommand
     /// <summary>A pushed phase starts this long after the previous phase's last event (the transition).</summary>
     private const double PushGap = 3;
 
+    private const double Epsilon = 1e-6;
+
     /// <summary>Event types the plugin produces in game (GameEventSource): everything else exists only in simulations.</summary>
     private static readonly HashSet<Type> GameEventTypes = [typeof(CombatStateChanged), typeof(CastStarted), typeof(AbilityResolved), typeof(DutyReset)];
 
@@ -37,17 +39,22 @@ internal static class SimulateCommand
             Generates a pull with the fight simulator and plays it in 0.1 s frames through a timeline player and a reminder
             scheduler set up like the plugin's encounter session: the timeline does not stop when combat ends, timeline
             jumps (phase pushes) are forwarded to the scheduler, and a countdown runs pre-pull reminders. The player presses
-            every action at its press time, except the --miss actions. By default only the events the plugin sees in game
-            are played (combat start/end, cast starts, resolved boss abilities, wipes); --all-events plays every generated
-            event, like /mitcue preview.
+            every action at its press time, except the --miss actions, with the button the job has at the sync level: the
+            session gets the action the game reports (an upgrade for a replaced action, the base action for one not learned
+            yet), so a plan naming the other one is not marked done, as in game ("press" lines in the log say so). By default
+            only the events the plugin sees in game are played (combat start/end, cast starts, resolved boss abilities,
+            wipes); --all-events plays every generated event, like /mitcue preview.
 
             The log lists each state change (Upcoming, Due, Done, Missed, Skipped; Passed for notes) with the real time
             from the pull and the timeline time, plus timeline starts, jumps and the pull end; then the pull summary and
             how many boss events the timeline was in sync with, per phase where it was not.
 
             --push p2=110 makes phase p2 start 110 s (real time) after the pull; the previous phase's events stop 3 s
-            before. Times may be written as seconds or m:ss. --from p3 starts at that phase like /mitcue preview (earlier
-            phases are cut and their reminders skipped; the phase starts 2 s after the pull).
+            before. Times may be written as seconds or m:ss. Phase times are those of the pull as it plays: a phase entered
+            through a timeline jump starts at the jump (DMU's P3 and later phases come 113.8 s before the timeline's spacing
+            puts them) and is pushed by moving the jump, which works only within the jump's sync window; a push that cannot
+            be simulated is an error. --from p3 starts at that phase like /mitcue preview (earlier phases are cut and their
+            reminders skipped; the phase starts 2 s after the pull).
             """,
         Options =
         [
@@ -100,13 +107,13 @@ internal static class SimulateCommand
         };
         if (sim.Jitter < 0)
             throw new UsageException("simulate: --jitter cannot be negative.");
-        var pushNotes = ConfigurePhases(sim, fight, ParsePushes(args, fight), from);
+        var pushNotes = ConfigurePhases(sim, timeline, fight, ParsePushes(args, fight), from);
 
         var generated = FightSimulator.Simulate(timeline, fight, sim);
         var allEvents = args.Has("all-events");
         var events = generated.Where(e => allEvents || GameEventTypes.Contains(e.Event.GetType())).OrderBy(e => e.Event.Time).ToList();
 
-        var run = new PullRun(fight, timeline, player.Entries, actions, miss, args.Has("syncs"), (2 * sim.Jitter) + 0.5);
+        var run = new PullRun(fight, timeline, player.Entries, actions, player.Me.Job, miss, args.Has("syncs"), (2 * sim.Jitter) + 0.5);
         run.Play(events, countdown, from);
 
         WriteHeader(ctx, player, run, sim, countdown, from, pushNotes, miss, events.Count, generated.Count, allEvents);
@@ -158,21 +165,24 @@ internal static class SimulateCommand
     /// Sets the simulator's phase starts and cutoffs: --from cuts the earlier phases (like the plugin's preview); a push
     /// starts its phase at the given real time and cuts the previous phase <see cref="PushGap"/> seconds before.
     /// </summary>
-    private static List<string> ConfigurePhases(SimulationOptions o, FightDefinition fight, Dictionary<string, double> pushes, Phase? from)
+    /// <remarks>
+    /// Phase times are read from the pull as it plays with the pushes so far, not from the timeline's spacing: a phase
+    /// entered through a timeline jump starts at the jump (DMU's P2 success jump brings P3 and every later phase 113.8 s
+    /// sooner). A phase cut by a push leaves through its exit jump, if it has one, moved to the pushed start: the
+    /// simulator moves a jump only within the range in which the engine can still sync it, so a push it cannot apply is a
+    /// usage error rather than a header that announces a push that does not happen.
+    /// </remarks>
+    private static List<string> ConfigurePhases(SimulationOptions o, Timeline timeline, FightDefinition fight, Dictionary<string, double> pushes, Phase? from)
     {
         var notes = new List<string>();
         var phases = fight.Phases.OrderBy(p => p.Start).ToList();
         var first = 0;
-        var shift = 0.0;        // real − timeline time of the current phase
-        var realStart = phases.Count > 0 ? phases[0].Start : 0;
         if (from != null)
         {
             first = phases.FindIndex(p => ReferenceEquals(p, from));
             for (var i = 0; i < first; i++)
                 o.PhaseCutoff[phases[i].Id] = i == 0 ? phases[i].Start + 0.5 : phases[i].Start - 0.001;
             o.PhaseRealStart[from.Id] = PhaseLeadIn;
-            shift = PhaseLeadIn - from.Start;
-            realStart = PhaseLeadIn;
         }
 
         foreach (var id in pushes.Keys)
@@ -186,36 +196,135 @@ internal static class SimulateCommand
             }
         }
 
+        if (pushes.Count == 0)
+            return notes;
+
+        // A phase a push cuts short ends as in game when its boss reaches the HP threshold: through the jump the pull takes
+        // out of it (DMU's success casts), moved to the pushed start. The phases --from skips are not left that way: their
+        // jumps are refused, so that they still produce no events (as in the plugin's preview).
+        o.CutPhasesLeaveByJump = true;
+        if (from != null)
+        {
+            foreach (var e in timeline.Entries.Where(e => e.JumpTime != null && e.Time < from.Start))
+                o.Jumps["L" + e.Line.ToString(System.Globalization.CultureInfo.InvariantCulture)] = false;
+        }
+
         for (var i = first + 1; i < phases.Count; i++)
         {
             var phase = phases[i];
-            var previous = phases[i - 1];
             if (!pushes.TryGetValue(phase.Id, out var real))
-            {
-                realStart = phase.Start + shift;
                 continue;
-            }
 
-            if (real <= realStart)
-                throw new UsageException($"simulate: --push {phase.Id}={Text.Clock(real, 1)} is not after {previous.Id} starts ({Text.Clock(realStart, 1)}).");
+            var pull = PhaseTimes.Simulate(timeline, fight, o, jitter: 0);
+            var previous = phases[i - 1];
+            if (pull.Start(previous) is not { } previousStart)
+                throw new UsageException($"simulate: --push {phase.Id}: {previous.Id} is not reached in this pull.");
+            if (real <= previousStart)
+                throw new UsageException($"simulate: --push {phase.Id}={Text.Clock(real, 1)} is not after {previous.Id} starts ({Text.Clock(previousStart, 1)}).");
 
-            var cut = real - shift - PushGap;
-            if (cut < phase.Start)
+            // The previous phase's events stop PushGap seconds before, at its own offset from the timeline. Nothing to cut
+            // when they end before that anyway (they end where the phase would start).
+            var natural = pull.Start(phase);
+            var end = real - PushGap;
+            if (natural is not { } n || end < n - Epsilon)
             {
-                o.PhaseCutoff[previous.Id] = Math.Max(cut, previous.Start + 0.001);
+                o.PhaseCutoff[previous.Id] = Math.Max(end - pull.OffsetAt(previous, end), previous.Start + 0.001);
                 notes.Add($"{phase.Id} starts at {Text.Clock(real, 1)} (timeline {Text.Sec(phase.Start)}); {previous.Id} ends at timeline {Text.Sec(o.PhaseCutoff[previous.Id])}");
             }
             else
             {
-                notes.Add($"{phase.Id} starts at {Text.Clock(real, 1)}, later than the timeline brings it ({Text.Clock(phase.Start + shift, 1)}): the sync engine may not follow");
+                notes.Add($"{phase.Id} starts at {Text.Clock(real, 1)}, later than the timeline brings it ({Text.Clock(n, 1)}): the sync engine may not follow");
             }
 
             o.PhaseRealStart[phase.Id] = real;
-            shift = real - phase.Start;
-            realStart = real;
+
+            // The phase must start there in the pull itself (with its jitter): the simulator moves a jump into a phase only
+            // within the jump's sync window.
+            var check = PhaseTimes.Simulate(timeline, fight, o, jitter: null);
+            if (check.Start(phase) is not { } start || Math.Abs(start - real) > o.Jitter + 0.001)
+                throw new UsageException(CannotPush(phase, real, previousStart, pull, check.Start(phase), timeline));
         }
 
         return notes;
+    }
+
+    /// <summary>Why a push cannot be simulated: the phase's entry jump and its sync window in this pull, when it has one.</summary>
+    private static string CannotPush(Phase phase, double real, double previousStart, PhaseTimes pull, double? starts, Timeline timeline)
+    {
+        var what = $"simulate: --push {phase.Id}={Text.Clock(real, 1)} cannot be simulated";
+        if (pull.First(phase) is { } first && first.Sim.Entry is { JumpTime: { } target } jump && jump.Time < target)
+        {
+            // Real times of the phase start when the jump's event happens at the edges of its window, which ends early at
+            // a forcejump after it (DMU's 486.2 forcejump for the 483.2 success cast).
+            var end = jump.ForceJump ? Math.Min(jump.SyncEnd, jump.Time) : jump.SyncEnd;
+            if (timeline.ByTime.FirstOrDefault(e => e.ForceJump && e.JumpTime != null && e.Time > jump.Time && !ReferenceEquals(e, jump)) is { } force)
+                end = Math.Min(end, force.Time);
+            var offset = first.Real - jump.Time + (phase.Start - target);
+            var earliest = Math.Max(jump.SyncStart + offset, previousStart);
+            return $"{what}: {phase.Id} is entered through the timeline jump at {Text.Sec(jump.Time)} (line {jump.Line}), which starts it at " +
+                   $"{Text.Clock(first.Real + phase.Start - target, 1)} in this pull and can be moved only within its sync window: " +
+                   $"{phase.Id} can start from about {Text.Clock(earliest, 1)} to {Text.Clock(end + offset, 1)}.";
+        }
+
+        return starts is { } s
+            ? $"{what}: {phase.Id} starts at {Text.Clock(s, 1)} in this pull."
+            : $"{what}: {phase.Id} is not reached in this pull.";
+    }
+
+    /// <summary>
+    /// When each phase starts in a generated pull and the offset of its real times from the timeline (real − timeline),
+    /// read from the events: each event stands for a timeline time (<see cref="SimulatedEvent.SyncTime"/>, the target of a
+    /// jump), so a phase entered through a jump starts at the jump, not where the timeline's spacing puts it.
+    /// </summary>
+    private sealed class PhaseTimes
+    {
+        private readonly Dictionary<string, List<(double Real, double Offset, SimulatedEvent Sim)>> byPhase = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Generates the pull <paramref name="o"/> sets up, without its wipe and with <paramref name="jitter"/> if given.</summary>
+        /// <remarks>Without jitter the offsets are exact (the simulator adds the jitter after placing each event).</remarks>
+        public static PhaseTimes Simulate(Timeline timeline, FightDefinition fight, SimulationOptions o, double? jitter)
+        {
+            var copy = new SimulationOptions
+            {
+                PullClock = o.PullClock,
+                Seed = o.Seed,
+                Jitter = jitter ?? o.Jitter,
+                DefaultSource = o.DefaultSource,
+                CutPhasesLeaveByJump = o.CutPhasesLeaveByJump,
+                PhaseRealStart = new(o.PhaseRealStart),
+                PhaseCutoff = new(o.PhaseCutoff),
+                Jumps = new(o.Jumps, StringComparer.Ordinal),
+            };
+
+            var times = new PhaseTimes();
+            foreach (var sim in FightSimulator.Simulate(timeline, fight, copy))
+            {
+                if (sim.SyncTime is not { } t || fight.PhaseAt(t) is not { } phase)
+                    continue;
+                var real = sim.Event.Time - o.PullClock;
+                if (!times.byPhase.TryGetValue(phase.Id, out var list))
+                    times.byPhase[phase.Id] = list = [];
+                list.Add((real, Math.Round(real - t, 6), sim));
+            }
+
+            return times;
+        }
+
+        /// <summary>The phase's first event in the pull: its real time and the event (null when the phase is not reached).</summary>
+        public (double Real, SimulatedEvent Sim)? First(Phase phase) =>
+            this.byPhase.TryGetValue(phase.Id, out var list) ? (list[0].Real, list[0].Sim) : null;
+
+        /// <summary>Real seconds after the pull at which the phase starts (null when the pull does not reach it).</summary>
+        public double? Start(Phase phase) =>
+            this.byPhase.TryGetValue(phase.Id, out var list) ? Math.Round(phase.Start + list[0].Offset, 6) : null;
+
+        /// <summary>The phase's real − timeline offset at real time <paramref name="real"/>: that of its last event by then (else its first).</summary>
+        public double OffsetAt(Phase phase, double real)
+        {
+            var list = this.byPhase[phase.Id];
+            var at = list.FindLastIndex(x => x.Real <= real + Epsilon);
+            return list[Math.Max(0, at)].Offset;
+        }
     }
 
     /// <summary>The actions the simulated player does not press (--miss), by id and by normalized name.</summary>
@@ -258,6 +367,8 @@ internal static class SimulateCommand
         public bool Contains(PlanItem option) =>
             (option.Action is { } id && this.ids.Contains(id))
             || (option.Name != null && this.names.Contains(AliasDictionary.Normalize(option.Name)));
+
+        public bool Contains(ActionInfo action) => this.ids.Contains(action.Id) || this.names.Contains(AliasDictionary.Normalize(action.Name));
     }
 
     /// <summary>One simulated pull: the frame loop, the player's presses and the log.</summary>
@@ -265,6 +376,7 @@ internal static class SimulateCommand
     {
         private readonly FightDefinition fight;
         private readonly IActionCatalog actions;
+        private readonly Job job;
         private readonly MissSet miss;
         private readonly bool logSyncs;
         private readonly ReminderState[] states;
@@ -276,11 +388,12 @@ internal static class SimulateCommand
         private string? endReason;
         private double endClock;
 
-        public PullRun(FightDefinition fight, Timeline timeline, IReadOnlyList<PlanEntry> entries, IActionCatalog actions, MissSet miss, bool logSyncs, double syncTolerance)
+        public PullRun(FightDefinition fight, Timeline timeline, IReadOnlyList<PlanEntry> entries, IActionCatalog actions, Job job, MissSet miss, bool logSyncs, double syncTolerance)
         {
             this.syncTolerance = syncTolerance;
             this.fight = fight;
             this.actions = actions;
+            this.job = job;
             this.miss = miss;
             this.logSyncs = logSyncs;
             this.Session = new PullSession(fight, timeline, entries, actions, new ReminderOptions());
@@ -399,7 +512,13 @@ internal static class SimulateCommand
             table.Write(output);
         }
 
-        /// <summary>The player presses every unfinished action reminder once its press time is reached (first option not missed).</summary>
+        /// <summary>
+        /// The player presses every unfinished action reminder once its press time is reached: the first option not missed
+        /// that the job has a button for at the sync level. The session gets the id the game reports for that button, as
+        /// in game: an upgrade replaces its base action (Raw Intuition is Bloodwhetting at 90) and a base action stands in
+        /// for an upgrade not learned yet (Damnation is Vengeance), so a reminder whose item does not name that action is
+        /// not marked done; an option the job cannot use at the level (or an unknown action) is not pressed at all.
+        /// </summary>
         private void Press(double now)
         {
             if (!this.Session.TryTimelineTimeAt(now, out var t))
@@ -409,18 +528,61 @@ internal static class SimulateCommand
                 if (!r.IsAction || r.PressAt > t + 1e-9 || this.pressed.Contains(r) || IsFinished(r.State))
                     continue;
                 this.pressed.Add(r);
-                var options = r.Item.Any is { } any ? Flatten(any) : [r.Item];
-                var choice = options.FirstOrDefault(o => o.Action != null && !this.miss.Contains(o));
-                if (choice?.Action is not { } id)
-                    continue;
 
                 // Pressed exactly at the press time when the timeline ran into it during this frame.
                 var lag = t - r.PressAt;
-                var clock = lag <= Tick + 1e-6 ? now - lag : now;
-                this.Session.OnOwnUse(id, clock);
+                var (clock, at) = lag <= Tick + 1e-6 ? (now - lag, r.PressAt) : (now, t);
+
+                ActionInfo? button = null;
+                var missed = false;
+                foreach (var option in r.Item.Any is { } any ? Flatten(any) : [r.Item])
+                {
+                    if (option.Action is not { } id)
+                        continue;
+                    if (this.miss.Contains(option))
+                    {
+                        missed = true;
+                        continue;
+                    }
+
+                    if (this.Button(id) is not { } b)
+                        continue;
+                    if (this.miss.Contains(b))
+                    {
+                        missed = true;
+                        continue;
+                    }
+
+                    button = b;
+                    break;
+                }
+
+                if (button == null)
+                {
+                    if (!missed)
+                        this.Note(clock, at, r, $"not pressed: no {this.job} action for it at level {this.fight.SyncLevel}");
+                    continue;
+                }
+
+                if (!r.ActionIds.Contains(button.Id))
+                    this.Note(clock, at, r, $"pressed {button.Name} ({button.Id}), the action the game reports at level {this.fight.SyncLevel}: not the plan's, so the use is not tracked");
+                this.Session.OnOwnUse(button.Id, clock);
                 this.Diff(clock);
             }
         }
+
+        /// <summary>The action the game reports when the player presses <paramref name="id"/> at the sync level, if the job can.</summary>
+        private ActionInfo? Button(uint id)
+        {
+            if (this.actions.Get(id) is not { } action)
+                return null;
+            var level = this.fight.SyncLevel;
+            var resolved = this.actions.ResolveAt(action, level);
+            return resolved.AvailableAt(level) && (this.job == Job.None || resolved.UsableBy(this.job)) ? resolved : null;
+        }
+
+        private void Note(double clock, double timeline, Reminder r, string details) =>
+            this.log.Add((clock, [Text.Clock(clock - PullClock, 1), Text.Sec(timeline), "press", PlanCommand.ItemName(r.Item, this.actions), Text.Clip(r.Mechanic.Name, 40), details]));
 
         /// <summary>
         /// Counts, per phase, the events meant to sync the timeline and those after which the engine's time matched the

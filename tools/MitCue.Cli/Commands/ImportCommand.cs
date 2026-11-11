@@ -27,7 +27,7 @@ internal static partial class ImportCommand
         [
             new("fight", "key", "Fight key (top, tea, dmu). Required."),
             new("tabs", "a,b", "Only these tabs (comma-separated); default: every tab that looks like a plan table."),
-            new("assignees", "a,b", "Only these columns, e.g. \"White Mage\" or \"H2 SCH\"; default: all."),
+            new("assignees", "a,b", "Only these columns (key or header), e.g. \"White Mage\" or \"H2 SCH\"; default: all. A name that matches no column is an error."),
             new("calibration", "key", "Calibration preset of the fight file (e.g. carry_the_clear) used when a phase cannot be fitted."),
             new("name", "text", "Plan name (default: chosen by the importer from the sheet)."),
             new("url", "text", "Source link stored in the plan (default: the link imported, if any)."),
@@ -85,7 +85,7 @@ internal static partial class ImportCommand
 
         var document = loaded.Document;
         var tabs = SheetSource.MatchTabs(document, args.GetList("tabs"));
-        var options = new ImportOptions
+        ImportOptions Options(IReadOnlyList<string>? assignees) => new()
         {
             Fight = fight,
             Actions = actions,
@@ -94,11 +94,15 @@ internal static partial class ImportCommand
             SourceUrl = args.Get("url") ?? loaded.Url,
             CalibrationKey = calibration,
             Tabs = tabs,
-            Assignees = args.GetList("assignees"),
+            Assignees = assignees,
             ImportedDate = date,
         };
 
-        var result = new PlanImporter().Import(document, options);
+        var importer = new PlanImporter();
+        var wanted = args.GetList("assignees");
+        var result = importer.Import(document, Options(wanted));
+        if (wanted != null)
+            CheckAssignees(importer, document, wanted, result.Plan, Options);
         if (id is { } planId)
             result.Plan.Id = planId.ToString("D");
 
@@ -112,6 +116,27 @@ internal static partial class ImportCommand
             report.WriteLine($"Wrote {ctx.ResolvePath(output)}");
 
         return result.Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error) ? ExitCodes.Problems : ExitCodes.Ok;
+    }
+
+    /// <summary>
+    /// Every --assignees name must select a column, by its key or its header as the importer matches them (a name that
+    /// selects nothing would write an empty plan): a usage error listing the columns otherwise, before anything is written.
+    /// </summary>
+    private static void CheckAssignees(PlanImporter importer, SheetDocument document, IReadOnlyList<string> wanted, MitPlan plan, Func<IReadOnlyList<string>?, ImportOptions> options)
+    {
+        // A name equal to an imported column's key matched it; any other is tried alone (it may be a header, "WAR" for
+        // the "WAR/DRK WAR" column).
+        var unknown = wanted
+            .Where(w => !plan.Assignees.Any(a => string.Equals(a.Key, w, StringComparison.OrdinalIgnoreCase)))
+            .Where(w => importer.Import(document, options([w])).Plan.Assignees.Count == 0)
+            .ToList();
+        if (unknown.Count == 0)
+            return;
+
+        var columns = importer.Import(document, options(null)).Plan.Assignees.Select(a => "\"" + a.Key + "\"").ToList();
+        throw new UsageException(
+            $"import: --assignees: {(unknown.Count == 1 ? "no column is" : "no columns are")} named {string.Join(", ", unknown.Select(u => "'" + u + "'"))}. " +
+            $"Columns: {(columns.Count > 0 ? string.Join(", ", columns) : "none")}.");
     }
 
     private static void WriteReport(TextWriter report, LoadedSheet loaded, IReadOnlyList<string>? tabs, Core.Fights.FightDefinition fight, string? calibration, ImportResult result)

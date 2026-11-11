@@ -40,10 +40,17 @@ Notes:
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss
   abilities, wipes) unless `--all-events` is given; TOP's P2, for example, is then entered by the 7B40 cast at 203.4
   rather than the MapEffect at 200.0. `--push p2=110` starts P2 110 s (real time) after the pull and ends P1's events
-  3 s before; `--from p3` starts at P3 like `/mitcue preview top p3`. The player presses every action at its press
-  time except the `--miss` ones. The `Sync:` line says how many boss events the timeline was in sync with; DMU's P2 and
-  P4 starts, for example, are only seen through ActorControl lines, so pushes there are not followed without
-  `--all-events`, as in game.
+  3 s before; phase times are those of the pull as it plays, so after DMU's P2 success jump P3 and every later phase
+  come 113.8 s before the timeline's spacing puts them. A phase entered through a jump (DMU's P3 and P5) is pushed by
+  moving the jump, only within its sync window: a push the simulation cannot apply is an error that gives the window.
+  `--from p3` starts at P3 like `/mitcue preview top p3`. The player presses every action at its press time except the
+  `--miss` ones, with the button the job has at the sync level, and the session gets the action the game reports: a
+  plan naming Raw Intuition at level 90 is reported as Bloodwhetting, so that reminder ends Missed, as in game (`check`
+  warns about it). The `Sync:` line says how many boss events the timeline was in sync with; DMU's P2 and P4 starts,
+  for example, are only seen through ActorControl lines, so pushes there are not followed without `--all-events`, as in
+  game.
+- `validate` compares each file of the data copy built into MitCue.Core with the folder's; a difference (a stale
+  build) is a warning to rebuild.
 - `import` of a Google Sheets link downloads the whole workbook (`export?format=xlsx`; pick tabs with `--tabs`) and
   restores the tab names the xlsx export changes ("P1/P2" becomes "P1P2") from the sheet's htmlview page, so plan
   provenance and the importer's column names (LPDU's "WAR/DRK" pairs) match the sheet. `--tabs` matches names ignoring

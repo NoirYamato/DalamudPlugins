@@ -16,7 +16,7 @@ internal static class ValidateCommand
             and every mechanic's entry is in its timeline at its hit (±0.05 s); every timeline parses (parser warnings are
             listed); the action knowledge base is consistent (unique names, upgrades and follow-ups point both ways, the
             sync maps agree with levels and durations); every alias resolves to actions its jobs can use at levels 80, 90
-            and 100; and the copy built into MitCue.Core matches the folder. Plans in a plans/ folder next to data/ must
+            and 100; and each file of the copy built into MitCue.Core is the folder's (else: rebuild). Plans in a plans/ folder next to data/ must
             read, name a known fight, and use only known mechanics and actions their columns' jobs can use at the sync
             level; their other plan-check findings (recasts, gauges) are listed as warnings. Exit code 1 when there is a
             problem.

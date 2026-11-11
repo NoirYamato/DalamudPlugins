@@ -232,6 +232,34 @@ public class ImportCommandTests : IDisposable
     }
 
     [ImporterFact]
+    public void Import_Assignees_SelectColumnsByKeyOrHeader_AndAnUnknownNameIsAnError()
+    {
+        var lpdu = Path.Combine(CliKit.Fixtures, "lpdu");
+
+        // Review regression: a name that matches no column wrote an empty plan and exited 0.
+        foreach (var name in new[] { "H2SCH", "Scholar", "H2 Scholar" })
+        {
+            var bad = this.kit.Run("import", lpdu, "--fight", "top", "--assignees", name, "-o", "none.yaml");
+            Assert.True(bad.ExitCode == 2, bad.ToString());
+            Assert.Contains($"import: --assignees: no column is named '{name}'. Columns: ", bad.Err);
+            Assert.Contains("\"H2 SCH\"", bad.Err);
+            Assert.False(File.Exists(Path.Combine(this.kit.WorkDir, "none.yaml")));
+        }
+
+        var two = this.kit.Run("import", lpdu, "--fight", "top", "--assignees", "h2 sch,Nobody,Nothing", "-o", "none.yaml");
+        Assert.Equal(2, two.ExitCode);
+        Assert.Contains("no columns are named 'Nobody', 'Nothing'.", two.Err);
+
+        // A key (any case) and a header shared by several keyed columns ("WAR" of "WAR/DRK WAR", ...) both select.
+        var ok = this.kit.Run("import", lpdu, "--fight", "top", "--assignees", "h2 sch,WAR", "-o", "some.yaml");
+        Assert.True(ok.ExitCode is 0 or 1, ok.ToString());
+        var plan = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(this.kit.WorkDir, "some.yaml")));
+        Assert.Contains(plan.Assignees, a => a.Key == "H2 SCH");
+        Assert.Contains(plan.Assignees, a => a.Key == "WAR/DRK WAR");
+        Assert.NotEmpty(plan.Entries);
+    }
+
+    [ImporterFact]
     public void Import_Csv()
     {
         var r = this.kit.Run("import", Path.Combine(CliKit.Fixtures, "carry-the-clear", "export", "csv", "top-white-mage.csv"), "--fight", "top", "-o", "csv.yaml");

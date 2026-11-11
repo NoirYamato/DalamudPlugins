@@ -112,6 +112,27 @@ public class PlanCommandTests : IDisposable
     }
 
     [Fact]
+    public void Check_LevelVariants_AreWarnedUnlessTheChoiceNamesTheReportedAction()
+    {
+        var path = this.kit.Write("variants.yaml", """
+            format: mitcue-plan/1
+            name: Variants
+            fight: top
+            entries:
+              - { id: v1, mechanic: p1.loop_set1, who: { job: SCH }, do: [ { any: [ { action: 37013, name: Concitation }, { action: 186, name: Succor } ] } ] }
+              - { id: v2, mechanic: p1.loop_set3, who: { job: WAR }, do: [ { any: [ { action: 25751, name: Bloodwhetting }, { action: 3551, name: Raw Intuition } ] } ] }
+              - { id: v3, mechanic: p1.loop_set1, who: { job: WAR }, do: [ { action: 3551, name: Raw Intuition } ] }
+            """);
+
+        // Review regression: the choices name the action the game reports at 90 (Succor, Bloodwhetting), so their uses
+        // are tracked; only the plain Raw Intuition (reported as Bloodwhetting) is not.
+        Assert.EndsWith("No problems found.\n", this.kit.Run("check", path, "--job", "SCH").Out);
+        var war = this.kit.Run("check", path, "--job", "WAR");
+        Assert.Contains("Raw Intuition at P1 0:27 is replaced by Bloodwhetting (25751) at level 90", war.Out);
+        Assert.EndsWith("0 errors, 1 warning, 0 info.\n", war.Out);
+    }
+
+    [Fact]
     public void Check_MarksHeuristicFindings()
     {
         var plan = PlanSerializer.FromYaml(SamplePlans.Whm);

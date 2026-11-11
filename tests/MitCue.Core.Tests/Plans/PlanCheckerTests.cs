@@ -236,6 +236,19 @@ public class PlanCheckerTests
     }
 
     [Fact]
+    public void LevelVariantInAChoiceThatAlsoNamesTheReportedAction_IsNotAWarning()
+    {
+        // Review regression: {any: [Medica III, Medica II]} at 90 warned that Medica III's use is not tracked, though
+        // the game reports Medica II, one of the choice's ids (TOP SCH: {any: [Concitation, Succor]}).
+        Assert.Empty(Check(Job.WHM, At(30, PlanItem.AnyOf([Do(MedicaIII), Do(MedicaII)]))));
+        Assert.Empty(Check(Fight(syncLevel: 100), Job.WHM, At(30, PlanItem.AnyOf([Do(MedicaII), Do(MedicaIII)]))));
+
+        // A choice without the reported action is still flagged, for the option whose use is lost.
+        var f = Single(Check(Job.WHM, At(30, PlanItem.AnyOf([Do(MedicaIII), Do(Tetragrammaton)]))), "level-variant");
+        Assert.Contains("Medica III at P1 0:30 is not learned at level 90: the button is Medica II (133)", f.Message);
+    }
+
+    [Fact]
     public void ItemNameThatDoesNotMatchItsId_IsAWarning()
     {
         var f = Single(Check(Job.WHM, At(30, PlanItem.ForAction(Temperance.Id, "Asylum"))), "name-mismatch");

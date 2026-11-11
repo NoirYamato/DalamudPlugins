@@ -37,7 +37,7 @@ internal sealed class CheckedSection(string title)
 /// Loads every data file through the real loaders and runs the consistency checks of the data tests
 /// (tests/MitCue.Core.Tests/Data: FightDataTests, ActionCatalogTests, AliasDictionaryTests; Timelines/BundledTimelineTests):
 /// fight files against their timelines, the action knowledge base against itself, aliases against the actions, and
-/// the embedded copy against the folder. Plans in a plans/ folder next to data/ are read and checked as well.
+/// each file of the embedded copy against the folder's. Plans in a plans/ folder next to data/ are read and checked as well.
 /// </summary>
 internal sealed class DataValidator(IDataSource data)
 {
@@ -64,6 +64,7 @@ internal sealed class DataValidator(IDataSource data)
         this.Sections.Add(timelineSection);
         this.Sections.Add(this.CheckActions());
         this.Sections.Add(this.CheckAliases());
+        this.Sections.Add(this.CheckBuiltInCopy());
         this.Sections.Add(this.CheckPlans());
         return this;
     }
@@ -129,22 +130,6 @@ internal sealed class DataValidator(IDataSource data)
 
         foreach (var (item, fight, path) in loaded)
             this.CheckFight(item, fight, path);
-
-        // The plugin uses the copy embedded in MitCue.Core: it must match the folder (rebuild after editing data/).
-        if (data is DirectoryDataSource && loaded.Count > 0)
-        {
-            try
-            {
-                var embedded = new FightLibrary(new EmbeddedDataSource()).Fights.Select(f => f.Key).Order(StringComparer.Ordinal).ToList();
-                var here = loaded.Select(f => f.Fight.Key).Order(StringComparer.Ordinal).ToList();
-                if (!embedded.SequenceEqual(here, StringComparer.OrdinalIgnoreCase))
-                    loaded[0].Item.Warnings.Add($"the copy built into MitCue.Core has fights {string.Join(", ", embedded)}, the folder {string.Join(", ", here)}: rebuild");
-            }
-            catch (FormatException ex)
-            {
-                loaded[0].Item.Warnings.Add("the copy built into MitCue.Core does not load: " + ex.Message);
-            }
-        }
 
         return section;
     }
@@ -264,21 +249,6 @@ internal sealed class DataValidator(IDataSource data)
         }
 
         this.CheckSyncMap(item, text, catalog);
-
-        if (data is DirectoryDataSource)
-        {
-            try
-            {
-                var embedded = ActionCatalog.Load(new EmbeddedDataSource().ReadText(CliContext.ActionsPath));
-                if (!embedded.All.Select(a => (a.Id, a.Name)).SequenceEqual(all.Select(a => (a.Id, a.Name))))
-                    item.Warnings.Add("the copy built into MitCue.Core differs from the folder: rebuild");
-            }
-            catch (Exception ex) when (ex is FormatException or FileNotFoundException)
-            {
-                item.Warnings.Add("the copy built into MitCue.Core does not load: " + ex.Message);
-            }
-        }
-
         return section;
     }
 
@@ -423,22 +393,42 @@ internal sealed class DataValidator(IDataSource data)
         }
 
         item.Summary += item.Problems.Count == 0 ? "; every alias resolves for its jobs at levels 80, 90 and 100" : string.Empty;
+        return section;
+    }
 
-        if (data is DirectoryDataSource)
+    /// <summary>
+    /// The plugin reads the copy of data/ that the build embeds in MitCue.Core (every file but *.md, see
+    /// MitCue.Core.csproj): each file must be the folder's, character for character up to line endings, or the build is
+    /// stale. Recasts, durations or hit times changed since the build are differences like any other.
+    /// </summary>
+    private CheckedSection CheckBuiltInCopy()
+    {
+        var section = new CheckedSection("Built-in copy");
+        if (data is not DirectoryDataSource)
         {
-            try
-            {
-                var embedded = AliasDictionary.Load(new EmbeddedDataSource().ReadText(CliContext.AliasesPath));
-                if (!embedded.Keys.SequenceEqual(keys))
-                    item.Warnings.Add("the copy built into MitCue.Core differs from the folder: rebuild");
-            }
-            catch (Exception ex) when (ex is FormatException or FileNotFoundException)
-            {
-                item.Warnings.Add("the copy built into MitCue.Core does not load: " + ex.Message);
-            }
+            section.EmptyNote = "not checked (the built-in copy is the data checked)";
+            return section;
         }
 
+        var item = new CheckedItem("MitCue.Core");
+        section.Items.Add(item);
+        var embedded = new EmbeddedDataSource();
+        var inFolder = data.List(string.Empty).Where(p => !p.EndsWith(".md", StringComparison.OrdinalIgnoreCase)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var built = embedded.List(string.Empty).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in inFolder.Union(built, StringComparer.OrdinalIgnoreCase).Order(StringComparer.Ordinal))
+        {
+            if (!built.Contains(path))
+                item.Warnings.Add($"{path} is not in the copy built into MitCue.Core: rebuild");
+            else if (!inFolder.Contains(path))
+                item.Warnings.Add($"{path} is in the copy built into MitCue.Core but not in the folder: rebuild");
+            else if (Normalize(embedded.ReadText(path)) != Normalize(data.ReadText(path)))
+                item.Warnings.Add($"{path}: the copy built into MitCue.Core differs from the folder: rebuild");
+        }
+
+        item.Summary = Text.Count(built.Count, "data file") + (item.Warnings.Count == 0 ? ", the same as the folder" : string.Empty);
         return section;
+
+        static string Normalize(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
     }
 
     /// <summary>
