@@ -9,7 +9,7 @@ internal static class ShareCommands
     {
         Name = "share",
         Synopsis = "<plan.yaml>",
-        Summary = "Print a plan's share code (MITCUE1:...), the form the plugin imports from chat.",
+        Summary = "Print a plan's share code (MITCUE1:...), which players paste into /mitcue > Plans > Share code.",
         Details = "The plan may be YAML, JSON or a share code; \"-\" reads standard input. The code is printed on one line.",
         MinArgs = 1,
         MaxArgs = 1,
