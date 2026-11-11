@@ -53,6 +53,9 @@ internal sealed class SessionSetup
 
     /// <summary>True for <c>/mitcue preview</c> sessions.</summary>
     public bool IsPreview { get; init; }
+
+    /// <summary>Creates the sync engine; null for the core <see cref="TimelinePlayer"/> (tests pass a scripted one).</summary>
+    public Func<Timeline, SyncMatchOptions, ISyncEngine>? Engine { get; init; }
 }
 
 /// <summary>
@@ -93,7 +96,7 @@ internal sealed class EncounterSession
         this.OwnEntryCount = setup.OwnEntries.Count;
         this.OtherEntryCount = setup.OtherEntries?.Count ?? 0;
 
-        this.Player = new TimelinePlayer(setup.Timeline, setup.SyncOptions);
+        this.Player = setup.Engine?.Invoke(setup.Timeline, setup.SyncOptions) ?? new TimelineSyncEngine(setup.Timeline, setup.SyncOptions);
         this.Player.Synced += this.OnSynced;
 
         this.Scheduler = new ReminderScheduler(setup.Fight, setup.OwnEntries, setup.Actions, setup.Options);
@@ -143,7 +146,7 @@ internal sealed class EncounterSession
     public int OtherEntryCount { get; }
 
     /// <summary>The sync engine.</summary>
-    public TimelinePlayer Player { get; }
+    public ISyncEngine Player { get; }
 
     /// <summary>The player's reminders.</summary>
     public ReminderScheduler Scheduler { get; }
@@ -185,10 +188,19 @@ internal sealed class EncounterSession
     public int OwnUses { get; private set; }
 
     /// <summary>Feeds one game event (in clock order).</summary>
+    /// <remarks>
+    /// While a pull is on, InCombat edges are not passed to the timeline player: cactbot's playback stops the timeline
+    /// when combat ends, but a dead player can lose the flag while the fight goes on, and the InCombat sync would then
+    /// restart the timeline at 0 after the raise. Such a pull ends through <see cref="DutyReset"/> or the
+    /// prolonged out-of-combat rule in <see cref="Update"/> instead (DESIGN §4).
+    /// </remarks>
     public void Process(GameEvent e)
     {
         if (e is CastStarted or AbilityResolved { SourceIsPlayer: false })
             this.lastNpcActivityClock = Math.Max(this.lastNpcActivityClock, e.Time);
+
+        if (e is CombatStateChanged && this.PullActive)
+            return;
 
         this.Player.Process(e);
         if (e is DutyReset reset)
@@ -253,6 +265,7 @@ internal sealed class EncounterSession
                 return;
             }
 
+            // The timeline stopped by itself (never on a mid-pull combat edge, see Process) and combat is over.
             if (!running && !inCombat)
             {
                 this.EndPull("combat ended");
@@ -318,6 +331,17 @@ internal sealed class EncounterSession
 
     /// <summary>Ends the pull without a summary and rewinds everything (<c>/mitcue reset</c>).</summary>
     public void ManualReset() => this.ResetAll();
+
+    /// <summary>
+    /// Marks every reminder planned before timeline time <paramref name="time"/> as skipped. A phase preview starts the
+    /// fight at that phase: the earlier reminders were never shown, so they must not be judged missed at the pull.
+    /// </summary>
+    public void SkipBefore(double time)
+    {
+        var last = Math.BitDecrement(time);
+        this.Scheduler.OnTimelineJump(double.NegativeInfinity, last);
+        this.Others?.OnTimelineJump(double.NegativeInfinity, last);
+    }
 
     /// <summary>Ends the pull: raises <see cref="PullEnded"/> when anything happened, then rewinds.</summary>
     public void EndPull(string reason)

@@ -178,6 +178,7 @@ public sealed class Plugin : IDalamudPlugin
     /// <summary>Plays the reminder sound on the next framework tick (also used by the Test button).</summary>
     internal void RequestTestSound() => this.soundRequested = true;
 
+    /// <summary>Debug > Reload data: drops the fight data (the next tick loads it again) and rebuilds the live session.</summary>
     internal void ReloadData()
     {
         this.Preview.Stop();
@@ -262,9 +263,14 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    /// <summary>One framework tick: sample → events → own uses → record → sessions → preview → overlay → sound.</summary>
+    /// <summary>One framework tick: load → sample → events → own uses → record → sessions → preview → overlay → sound.</summary>
     private void Tick()
     {
+        // Fight data and plans load lazily on the framework thread (CoreData/PlanStore): on the first tick, and again
+        // after Debug > Reload data. Both return at once when loaded.
+        this.Data.EnsureLoaded();
+        this.Plans.EnsureLoaded();
+
         var ctx = this.Frame;
         var now = this.clock.Now;
         ctx.Now = now;
@@ -277,8 +283,13 @@ public sealed class Plugin : IDalamudPlugin
             this.Cooldowns.ResetTracking();
         }
 
+        // Pulls are recorded only in a supported fight's zone or a duty, never in towns or the open world (the zone's
+        // fight is only looked up while recording is on).
+        var fightZone = this.Config.RecordPulls && this.Data.FightForTerritory(ctx.Territory) != null;
+        var record = PullRecorder.ShouldRecord(this.Config.RecordPulls, ctx.BoundByDuty, fightZone);
+
         // Event capture is only needed while something consumes it.
-        var needEvents = this.Sessions.Session != null || this.Preview.IsActive || this.Config.RecordPulls;
+        var needEvents = this.Sessions.Session != null || this.Preview.IsActive || record;
         this.Events.PollCasts = needEvents;
         this.Events.Capture = needEvents;
         this.Events.Poll(now, ctx.LocalEntityId);
@@ -308,7 +319,7 @@ public sealed class Plugin : IDalamudPlugin
         foreach (var use in ctx.OwnUses)
             this.RecentOwnUses.Add(use);
 
-        this.Recorder.Update(this.Config.RecordPulls, ctx.Territory, now, ctx.ClientLanguage);
+        this.Recorder.Update(record, ctx.Territory, now, ctx.ClientLanguage);
         if (this.Recorder.Active)
             this.Recorder.Write(now, ctx.Events, ctx.OwnUses, ctx.Countdown);
 
@@ -316,7 +327,8 @@ public sealed class Plugin : IDalamudPlugin
         if (this.Preview.IsActive)
             this.Preview.Update(now, ctx.OwnUses);
 
-        this.Overlay.Build(this.Config, this.Sessions.ActiveSession, this.Preview.Session, this.Preview.Speed, this.GameData, this.Cooldowns.ResourceName);
+        var liveError = this.Sessions.Faulted ? "MitCue reminders stopped after an error. Type /mitcue reset." : null;
+        this.Overlay.Build(this.Config, this.Sessions.ActiveSession, this.Preview.Session, this.Preview.Speed, this.GameData, this.Cooldowns.ResourceName, liveError);
 
         if (this.soundRequested)
         {
