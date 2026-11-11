@@ -126,4 +126,55 @@ public class OverlayModelTests
         Assert.Equal(2, model.Rows.Count);
         Assert.All(model.Rows, r => Assert.Equal(ReminderState.Upcoming, r.State));
     }
+
+    [Fact]
+    public void FinishedRowsGiveWayToActiveRowsEvenWhileTrackingDoneMissed()
+    {
+        // Review finding: with tracking on, the first MaxRows rows by press time were taken, so a just-finished
+        // row could push the next call out of a small overlay.
+        var session = Kit.Session(
+            Kit.Fight(),
+            [
+                Kit.Entry("p1.raid", -5, Kit.Temperance, "Temperance"), // press 25, done at 25
+                Kit.Entry("p1.raid2", -20, Kit.PlenaryIndulgence, "Plenary Indulgence"), // press 40
+                Kit.Entry("p1.raid2", -22, Kit.DivineBenison, "Divine Benison"), // press 38
+            ],
+            new ScriptedSyncEngine());
+        var driver = new SessionDriver(session, 1000);
+        driver.CombatEdge(true);
+        driver.RunTo(1025);
+        session.OnOwnUse(Kit.Temperance, driver.Clock);
+        driver.RunTo(1026);
+
+        var model = Build(new Configuration { TrackDoneMissed = true, MaxRows = 2 }, session);
+
+        Assert.Equal(2, model.Rows.Count);
+        Assert.All(model.Rows, r => Assert.Equal(ReminderState.Upcoming, r.State));
+        Assert.Equal(0, model.MoreCount);
+
+        // With room to spare, the finished row is listed again, in press-time order.
+        var roomy = Build(new Configuration { TrackDoneMissed = true, MaxRows = 5 }, session);
+        Assert.Equal([ReminderState.Done, ReminderState.Upcoming, ReminderState.Upcoming], roomy.Rows.Select(r => r.State).ToList());
+    }
+
+    [Fact]
+    public void ActiveRowsThatDoNotFitAreCountedAsMore()
+    {
+        var session = Kit.Session(
+            Kit.Fight(),
+            [
+                Kit.Entry("p1.raid2", -22, Kit.DivineBenison, "Divine Benison"), // press 38
+                Kit.Entry("p1.raid2", -20, Kit.PlenaryIndulgence, "Plenary Indulgence"), // press 40
+                Kit.Entry("p1.raid2", -18, Kit.Temperance, "Temperance"), // press 42
+            ],
+            new ScriptedSyncEngine());
+        var driver = new SessionDriver(session, 1000);
+        driver.CombatEdge(true);
+        driver.RunTo(1030);
+
+        var model = Build(new Configuration { MaxRows = 2 }, session);
+
+        Assert.Equal(["Divine Benison", "Plenary Indulgence"], model.Rows.Select(r => r.Labels.Name).ToList());
+        Assert.Equal(1, model.MoreCount);
+    }
 }

@@ -264,6 +264,14 @@ internal sealed class OverlayWindow : Window
                     ImGui.TextColored(ColorWarning, labels.Resource != null ? $"no {labels.Resource}" : "no resource");
             }
         }
+
+        // Own calls that did not fit in MaxRows (finished rows are dropped first, so this is rare).
+        if (model.MoreCount > 0)
+        {
+            ImGui.TableNextRow();
+            ImGui.TableSetColumnIndex(cfg.ShowIcons ? 2 : 1);
+            ImGui.TextColored(ColorMuted, $"+{model.MoreCount} more");
+        }
     }
 
     private void DrawTimeCell(in OverlayRow row, Vector4 color, float pulse)

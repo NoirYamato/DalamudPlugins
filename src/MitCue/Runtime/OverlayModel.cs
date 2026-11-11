@@ -53,6 +53,9 @@ internal struct OverlayRow
 /// </summary>
 internal sealed class OverlayModel
 {
+    private readonly List<Reminder> ownPick = new(16);
+    private readonly List<Reminder> otherPick = new(16);
+
     private readonly ReminderLabelCache labels = new();
     private readonly List<OverlayRow> sample = [];
     private EncounterSession? headerSession;
@@ -65,6 +68,9 @@ internal sealed class OverlayModel
 
     /// <summary>Rows ordered by press time (at most MaxRows).</summary>
     public List<OverlayRow> Rows { get; } = new(16);
+
+    /// <summary>Own active reminders (Due/Upcoming) that did not fit in <c>MaxRows</c>; shown as "+N more".</summary>
+    public int MoreCount { get; private set; }
 
     /// <summary>Fight short name ("TOP").</summary>
     public string FightShort { get; private set; } = string.Empty;
@@ -108,6 +114,7 @@ internal sealed class OverlayModel
         string? liveError = null)
     {
         this.Rows.Clear();
+        this.MoreCount = 0;
         this.PreviewSpeed = previewSpeed;
         this.Message = null;
 
@@ -163,32 +170,22 @@ internal sealed class OverlayModel
         this.Countdown = session.CountdownRemaining;
         this.PhaseName = session.Mode == SessionMode.Running ? session.PhaseAt(session.TimelineTime)?.Name : null;
 
-        var own = session.Visible;
-        var others = session.VisibleOthers;
         var track = config.TrackDoneMissed;
         var max = Math.Max(1, config.MaxRows);
-        var ownLeft = Math.Min(CountShown(own, track), max);
-        var otherLeft = Math.Min(CountShown(others, track), max - ownLeft); // own rows are never pushed out by others
-        var i = NextShown(own, 0, track);
-        var j = NextShown(others, 0, track);
-        var t = session.TimelineTime;
-        while (ownLeft > 0 || otherLeft > 0)
-        {
-            var takeOwn = otherLeft == 0 || (ownLeft > 0 && own[i].PressAt <= others[j].PressAt);
-            Reminder r;
-            if (takeOwn)
-            {
-                r = own[i];
-                i = NextShown(own, i + 1, track);
-                ownLeft--;
-            }
-            else
-            {
-                r = others[j];
-                j = NextShown(others, j + 1, track);
-                otherLeft--;
-            }
 
+        // Active rows (Due/Upcoming) always win over finished ones, and own rows over other assignees' rows,
+        // so a burst of just-finished reminders can never push the next call out of a small overlay.
+        var own = Select(session.Visible, track, max, this.ownPick, out var ownHiddenActive);
+        var others = Select(session.VisibleOthers, track, max - own.Count, this.otherPick, out _);
+        this.MoreCount = ownHiddenActive;
+
+        var i = 0;
+        var j = 0;
+        var t = session.TimelineTime;
+        while (i < own.Count || j < others.Count)
+        {
+            var takeOwn = j >= others.Count || (i < own.Count && own[i].PressAt <= others[j].PressAt);
+            var r = takeOwn ? own[i++] : others[j++];
             this.Rows.Add(new OverlayRow
             {
                 Labels = this.labels.Get(session, r, !takeOwn, gameData, resourceOf),
@@ -202,30 +199,70 @@ internal sealed class OverlayModel
         }
     }
 
+    /// <summary>
+    /// Picks at most <paramref name="slots"/> rows: every active (Upcoming/Due) row first, earliest press time
+    /// first, then the most recently finished rows that are still listed; returned in press-time order.
+    /// </summary>
+    /// <param name="hiddenActive">Active rows that did not fit.</param>
+    private static List<Reminder> Select(IReadOnlyList<Reminder> list, bool trackDoneMissed, int slots, List<Reminder> pick, out int hiddenActive)
+    {
+        pick.Clear();
+        hiddenActive = 0;
+        if (slots <= 0)
+        {
+            for (var k = 0; k < list.Count; k++)
+            {
+                if (list[k].State is ReminderState.Upcoming or ReminderState.Due)
+                    hiddenActive++;
+            }
+
+            return pick;
+        }
+
+        var finished = 0;
+        for (var k = 0; k < list.Count; k++)
+        {
+            var r = list[k];
+            if (r.State is ReminderState.Upcoming or ReminderState.Due)
+            {
+                if (pick.Count < slots)
+                    pick.Add(r);
+                else
+                    hiddenActive++;
+            }
+            else if (IsShown(r, trackDoneMissed))
+            {
+                finished++;
+            }
+        }
+
+        var room = slots - pick.Count;
+        if (room > 0 && finished > 0)
+        {
+            // Most recently finished first (FinishedAt, then press time), only as many as fit.
+            var start = pick.Count;
+            for (var k = list.Count - 1; k >= 0 && pick.Count - start < room; k--)
+            {
+                var r = list[k];
+                if (r.State is not (ReminderState.Upcoming or ReminderState.Due) && IsShown(r, trackDoneMissed))
+                    pick.Add(r);
+            }
+        }
+
+        // Back to press-time order (stable on ties: item order within an entry).
+        pick.Sort(static (a, b) =>
+        {
+            var c = a.PressAt.CompareTo(b.PressAt);
+            return c != 0 ? c : a.ItemIndex.CompareTo(b.ItemIndex);
+        });
+        return pick;
+    }
+
     /// <summary>Done and missed rows are only listed while done/missed tracking is on.</summary>
     private static bool IsShown(Reminder r, bool trackDoneMissed) =>
         trackDoneMissed || r.State is not (ReminderState.Done or ReminderState.Missed);
 
-    private static int CountShown(IReadOnlyList<Reminder> list, bool trackDoneMissed)
-    {
-        if (trackDoneMissed)
-            return list.Count;
-        var count = 0;
-        for (var k = 0; k < list.Count; k++)
-        {
-            if (IsShown(list[k], trackDoneMissed))
-                count++;
-        }
 
-        return count;
-    }
-
-    private static int NextShown(IReadOnlyList<Reminder> list, int from, bool trackDoneMissed)
-    {
-        while (from < list.Count && !IsShown(list[from], trackDoneMissed))
-            from++;
-        return from;
-    }
 
     private void FillSample(Configuration config, GameData gameData)
     {
