@@ -1,0 +1,2 @@
+# Keep fixture bytes exactly as captured (CSV exports use CRLF and no final newline).
+* -text

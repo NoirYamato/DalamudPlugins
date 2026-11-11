@@ -1,0 +1,88 @@
+{
+  "tab": "GNB/PLD",
+  "gid": 968846640,
+  "index": 12,
+  "rows": [
+    [
+      {"v":"P5","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"GNB","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"PLD","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hallowed Ground","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"If Hallowed isn't up Kitchen Sink instead.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Superbolide","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Prepop Rampart and use fillers 90s 1st GCD.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Bullwark + HS + Intervention Co-Tank","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Healer Help required for Solar Ray 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 4","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Camo + HoC","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink + Intervention Co-Tank","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"and Solar Ray 4. ","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P6","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Camo + HoC","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Bullwark + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Use Rampart as Cosmo Arrow cast finishes.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Nebula + HoC","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hallowed Ground +                                                    Intervention Co-Tank","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Superbolide + Hoc Co-Tank","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sentinal + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Camo + HoC","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Bullwark + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [],
+  "hiddenRows": [],
+  "hiddenCols": []
+}

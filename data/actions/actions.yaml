@@ -1,0 +1,2662 @@
+# MitCue action knowledge base (draft).
+# Generated from FFXIV game data: xivapi/ffxiv-datamining csv/en, patch 7.58 (commit 52a72b38, 2026-11-10);
+# level-dependent tooltip values from the same repository at patch 7.4 (commit 6a2329d), whose raw macros
+# evaluated at level 100 match the 7.58 tooltips for every action below. Field reference, sources and
+# verification: docs/research/actions.md. Regenerate rather than hand-edit numbers.
+#
+# Level maps ({level: value}) are thresholds: the value applies from that level until the next key.
+# duration: main effect in seconds (0 = no lasting effect at that level). sync: the main duration at the
+# three ultimate sync levels; null = not usable at that level (not learned yet, or replaced by an upgrade).
+# recast: seconds at level 100 after traits; recast_by_level only when a trait changes it.
+# charges: only when more than 1 at some level. cost: job resource; mp: MP cost. cooldown_group /
+# additional_cooldown_group: Action sheet CooldownGroup / AdditionalCooldownGroup (58 = the GCD).
+schema: mitcue-actions/1
+game_version: "7.58"
+actions:
+
+  # ---------------- White Mage ----------------
+  - id: 124
+    name: "Medica"
+    jobs: [WHM]
+    level: 10
+    kind: heal
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 408
+  - id: 133
+    name: "Medica II"
+    jobs: [WHM]
+    level: 50
+    kind: regen
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 1000
+    duration: {50: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 37010, name: "Medica III", level: 96, trait: "Medica Mastery"}
+    icon: 409
+  - id: 37010
+    name: "Medica III"
+    jobs: [WHM]
+    level: 96
+    kind: regen
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 1000
+    duration: {96: 15}
+    sync: {80: null, 90: null, 100: 15}
+    upgrade_of: {id: 133, name: "Medica II"}
+    icon: 2127
+  - id: 131
+    name: "Cure III"
+    jobs: [WHM]
+    level: 40
+    kind: heal
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 1500
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 407
+    notes: "Heals the target and party members near the target."
+  - id: 137
+    name: "Regen"
+    jobs: [WHM]
+    level: 35
+    kind: regen
+    target: single
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    mp: 400
+    duration: {35: 18}
+    sync: {80: 18, 90: 18, 100: 18}
+    icon: 2628
+  - id: 136
+    name: "Presence of Mind"
+    jobs: [WHM]
+    level: 30
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {30: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    effects:
+      - {name: "Presence of Mind (cast/recast time -20%)", duration: {30: 15}}
+      - {name: "Sacred Sight (3 stacks, Glare IV)", duration: {30: 0, 92: 30}}
+    icon: 2626
+  - id: 37008
+    name: "Aetherial Shift"
+    jobs: [WHM]
+    level: 40
+    kind: movement
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 13
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2125
+  - id: 140
+    name: "Benediction"
+    jobs: [WHM]
+    level: 50
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 180
+    cooldown_group: 24
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2627
+  - id: 3569
+    name: "Asylum"
+    jobs: [WHM]
+    level: 52
+    kind: regen
+    target: ground
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 15
+    duration: {52: 24}
+    sync: {80: 24, 90: 24, 100: 24}
+    icon: 2632
+  - id: 16531
+    name: "Afflatus Solace"
+    jobs: [WHM]
+    level: 52
+    kind: heal
+    target: single
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    cost: {resource: "Lily", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2640
+  - id: 3571
+    name: "Assize"
+    jobs: [WHM]
+    level: 56
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 40
+    cooldown_group: 8
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2634
+    notes: "Damage + party heal; usually pressed on cooldown."
+  - id: 7430
+    name: "Thin Air"
+    jobs: [WHM]
+    level: 58
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 19
+    additional_cooldown_group: 71
+    charges: {58: 2}
+    duration: {58: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    icon: 2636
+  - id: 3570
+    name: "Tetragrammaton"
+    jobs: [WHM]
+    level: 60
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 20
+    additional_cooldown_group: 73
+    charges: {60: 1, 98: 2}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2633
+  - id: 7432
+    name: "Divine Benison"
+    jobs: [WHM]
+    level: 66
+    kind: shield
+    target: single
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 10
+    additional_cooldown_group: 72
+    charges: {66: 1, 88: 2}
+    duration: {66: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 2638
+  - id: 7433
+    name: "Plenary Indulgence"
+    jobs: [WHM]
+    level: 70
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 11
+    duration: {70: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 2639
+    notes: "Since patch 7.4 grants Confession: party damage taken -10% for 10s (Carry the Clear sheet: \"its 10% mitigation (7.4+)\"); the 7.4 and 7.58 tooltips agree."
+  - id: 16535
+    name: "Afflatus Misery"
+    jobs: [WHM]
+    level: 74
+    kind: other
+    target: enemy
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    cost: {resource: "Blood Lily", amount: 3}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2644
+    notes: "Damage only; costs the full Blood Lily."
+  - id: 16534
+    name: "Afflatus Rapture"
+    jobs: [WHM]
+    level: 76
+    kind: heal
+    target: party
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    cost: {resource: "Lily", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2643
+  - id: 16536
+    name: "Temperance"
+    jobs: [WHM]
+    level: 80
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {80: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    effects:
+      - {name: "Temperance (healing magic +20%, damage taken -10%)", duration: {80: 20}}
+      - {name: "Divine Grace (enables Divine Caress)", duration: {80: 0, 100: 30}}
+    follow_ups:
+      - {id: 37011, name: "Divine Caress", when: "Divine Caress becomes usable while Divine Grace is active (level 100)"}
+    icon: 2645
+  - id: 25861
+    name: "Aquaveil"
+    jobs: [WHM]
+    level: 86
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 12
+    duration: {86: 8}
+    sync: {80: null, 90: 8, 100: 8}
+    icon: 2648
+  - id: 25862
+    name: "Liturgy of the Bell"
+    jobs: [WHM]
+    level: 90
+    kind: heal
+    target: ground
+    gcd: false
+    cast: 0
+    recast: 180
+    cooldown_group: 23
+    duration: {90: 20}
+    sync: {80: null, 90: 20, 100: 20}
+    when: before
+    related:
+      - {id: 28509, name: "Liturgy of the Bell", what: "second press: detonates the remaining stacks (ClassJob 0 row with the same name; not a new use)"}
+    icon: 2649
+    notes: "Reactive heal: place before the damage. Heals 400 per stack consumed by damage you take (max once per second), 200 per remaining stack on expiry or re-press."
+  - id: 37011
+    name: "Divine Caress"
+    jobs: [WHM]
+    level: 100
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 2
+    requires_status: 3881
+    duration: {100: 10}
+    sync: {80: null, 90: null, 100: 10}
+    effects:
+      - {name: "Divine Caress barrier", duration: {100: 10}}
+      - {name: "Divine Aura (regen after the barrier ends)", duration: {100: 15}}
+    follow_up_of: {id: 16536, name: "Temperance"}
+    requires: "Divine Grace (granted by Temperance at level 100)"
+    icon: 2128
+
+  # ---------------- Scholar ----------------
+  - id: 185
+    name: "Adloquium"
+    jobs: [SCH]
+    level: 30
+    kind: shield
+    target: single
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    duration: {30: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    follow_ups:
+      - {id: 37015, name: "Manifestation", when: "becomes Manifestation while Seraphism is active (level 100)"}
+    icon: 2801
+  - id: 186
+    name: "Succor"
+    jobs: [SCH]
+    level: 35
+    kind: shield
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    duration: {35: 30}
+    sync: {80: 30, 90: 30, 100: null}
+    replaced_by: {id: 37013, name: "Concitation", level: 96, trait: "Succor Mastery"}
+    icon: 2802
+  - id: 37013
+    name: "Concitation"
+    jobs: [SCH]
+    level: 96
+    kind: shield
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    duration: {96: 30}
+    sync: {80: null, 90: null, 100: 30}
+    upgrade_of: {id: 186, name: "Succor"}
+    follow_ups:
+      - {id: 37016, name: "Accession", when: "becomes Accession while Seraphism is active (level 100)"}
+    icon: 2880
+  - id: 37015
+    name: "Manifestation"
+    jobs: [SCH]
+    level: 100
+    kind: shield
+    target: single
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    duration: {100: 30}
+    sync: {80: null, 90: null, 100: 30}
+    follow_up_of: {id: 37014, name: "Seraphism"}
+    requires: "Seraphism active (replaces Adloquium)"
+    icon: 2882
+  - id: 37016
+    name: "Accession"
+    jobs: [SCH]
+    level: 100
+    kind: shield
+    target: party
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    mp: 900
+    duration: {100: 30}
+    sync: {80: null, 90: null, 100: 30}
+    follow_up_of: {id: 37014, name: "Seraphism"}
+    requires: "Seraphism active (replaces Concitation)"
+    icon: 2883
+  - id: 16537
+    name: "Whispering Dawn"
+    jobs: [SCH]
+    level: 20
+    kind: regen
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 15
+    duration: {20: 21}
+    sync: {80: 21, 90: 21, 100: 21}
+    requires: "faerie or Seraph summoned"
+    related:
+      - {id: 803, name: "Whispering Dawn", what: "executed by Eos (pet action)"}
+      - {id: 16550, name: "Angel's Whisper", what: "Angel's Whisper, executed by Seraph"}
+    icon: 2852
+  - id: 16538
+    name: "Fey Illumination"
+    jobs: [SCH]
+    level: 40
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {40: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    requires: "faerie or Seraph summoned"
+    related:
+      - {id: 805, name: "Fey Illumination", what: "executed by Eos (pet action)"}
+      - {id: 16551, name: "Seraphic Illumination", what: "Seraphic Illumination, executed by Seraph"}
+    icon: 2853
+  - id: 166
+    name: "Aetherflow"
+    jobs: [SCH]
+    level: 45
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 14
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 510
+    notes: "Grants 3 Aetherflow stacks and restores 20% MP; in combat only."
+  - id: 167
+    name: "Energy Drain"
+    jobs: [SCH]
+    level: 45
+    kind: other
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 4
+    cost: {resource: "Aetherflow", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 514
+    notes: "Damage; spends Aetherflow (matters for Aetherflow planning)."
+  - id: 189
+    name: "Lustrate"
+    jobs: [SCH]
+    level: 45
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 1
+    cost: {resource: "Aetherflow", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2805
+  - id: 188
+    name: "Sacred Soil"
+    jobs: [SCH]
+    level: 50
+    kind: party_mit
+    target: ground
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 8
+    cost: {resource: "Aetherflow", amount: 1}
+    duration: {50: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 2804
+  - id: 3583
+    name: "Indomitability"
+    jobs: [SCH]
+    level: 52
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 9
+    cost: {resource: "Aetherflow", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2806
+  - id: 3585
+    name: "Deployment Tactics"
+    jobs: [SCH]
+    level: 56
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 20
+    recast_by_level: {56: 120, 88: 90}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2808
+    notes: "Spreads the target's Galvanize (Adloquium barrier) to nearby party members for the time remaining on it (tooltip: \"Duration: Time remaining on original effect\")."
+  - id: 3586
+    name: "Emergency Tactics"
+    jobs: [SCH]
+    level: 58
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 15
+    cooldown_group: 7
+    duration: {58: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    related:
+      - {id: 37037, name: "Emergency Tactics", what: "Emergency Tactics variant usable during Seraphism (1 s recast, ClassJob 0, level 100)"}
+    icon: 2809
+  - id: 3587
+    name: "Dissipation"
+    jobs: [SCH]
+    level: 60
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 180
+    cooldown_group: 25
+    duration: {60: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    icon: 2810
+    notes: "Grants full Aetherflow; the fairy is unavailable for 30 s (no Whispering Dawn, Fey Illumination, Fey Blessing, Aetherpact)."
+  - id: 7434
+    name: "Excogitation"
+    jobs: [SCH]
+    level: 62
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 45
+    cooldown_group: 10
+    cost: {resource: "Aetherflow", amount: 1}
+    duration: {62: 45}
+    sync: {80: 45, 90: 45, 100: 45}
+    when: before
+    icon: 2813
+  - id: 7437
+    name: "Aetherpact"
+    jobs: [SCH]
+    level: 70
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 3
+    cooldown_group: 6
+    cost: {resource: "Faerie Gauge", amount: 10}
+    sync: {80: 0, 90: 0, 100: 0}
+    requires: "faerie summoned"
+    related:
+      - {id: 7438, name: "Fey Union", what: "Fey Union (pet action)"}
+      - {id: 7869, name: "Dissolve Union", what: "Dissolve Union (ends the union)"}
+    icon: 2816
+    notes: "Fey Union: continuous heal while the Faerie Gauge lasts (gauge cost from tooltip; PrimaryCostType is 0)."
+  - id: 16542
+    name: "Recitation"
+    jobs: [SCH]
+    level: 74
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 16
+    recast_by_level: {74: 90, 98: 60}
+    duration: {74: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 2822
+  - id: 16543
+    name: "Fey Blessing"
+    jobs: [SCH]
+    level: 76
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 12
+    sync: {80: 0, 90: 0, 100: 0}
+    requires: "faerie summoned"
+    related:
+      - {id: 16544, name: "Fey Blessing", what: "executed by the faerie (pet action)"}
+    icon: 2854
+  - id: 16545
+    name: "Summon Seraph"
+    jobs: [SCH]
+    level: 80
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 23
+    duration: {80: 22}
+    sync: {80: 22, 90: 22, 100: 22}
+    follow_ups:
+      - {id: 16546, name: "Consolation", when: "Consolation (2 charges) is usable while Seraph is present"}
+    icon: 2850
+    notes: "Summons Seraph for 22 s (replaces the fairy); Seraph auto-casts Seraphic Veil (16548). Plans often write \"Seraph\" for Summon Seraph + Consolation x2."
+  - id: 16546
+    name: "Consolation"
+    jobs: [SCH]
+    level: 80
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 11
+    additional_cooldown_group: 71
+    charges: {80: 2}
+    duration: {80: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    follow_up_of: {id: 16545, name: "Summon Seraph"}
+    requires: "Seraph summoned"
+    related:
+      - {id: 16547, name: "Consolation", what: "executed by Seraph (pet action)"}
+    icon: 2851
+  - id: 25867
+    name: "Protraction"
+    jobs: [SCH]
+    level: 86
+    kind: buff
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 13
+    duration: {86: 10}
+    sync: {80: null, 90: 10, 100: 10}
+    icon: 2877
+  - id: 25868
+    name: "Expedient"
+    jobs: [SCH]
+    level: 90
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 19
+    duration: {90: 20}
+    sync: {80: null, 90: 20, 100: 20}
+    effects:
+      - {name: "Expedience (movement speed)", duration: {90: 10}}
+      - {name: "Desperate Measures (damage taken -10%)", duration: {90: 20}}
+    icon: 2878
+  - id: 37014
+    name: "Seraphism"
+    jobs: [SCH]
+    level: 100
+    kind: buff
+    target: party
+    gcd: false
+    cast: 0
+    recast: 180
+    cooldown_group: 24
+    duration: {100: 20}
+    sync: {80: null, 90: null, 100: 20}
+    follow_ups:
+      - {id: 37015, name: "Manifestation", when: "Manifestation replaces Adloquium"}
+      - {id: 37016, name: "Accession", when: "Accession replaces Concitation"}
+    requires: "faerie or Seraph summoned, in combat; not with Dissipation"
+    icon: 2881
+
+  # ---------------- Astrologian ----------------
+  - id: 3600
+    name: "Helios"
+    jobs: [AST]
+    level: 10
+    kind: heal
+    target: party
+    gcd: true
+    cast: 1.5
+    recast: 2.5
+    cooldown_group: 58
+    mp: 700
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3129
+  - id: 3601
+    name: "Aspected Helios"
+    jobs: [AST]
+    level: 40
+    kind: regen
+    target: party
+    gcd: true
+    cast: 1.5
+    recast: 2.5
+    cooldown_group: 58
+    mp: 800
+    duration: {40: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 37030, name: "Helios Conjunction", level: 96, trait: "Aspected Helios Mastery"}
+    icon: 3130
+  - id: 37030
+    name: "Helios Conjunction"
+    jobs: [AST]
+    level: 96
+    kind: regen
+    target: party
+    gcd: true
+    cast: 1.5
+    recast: 2.5
+    cooldown_group: 58
+    mp: 800
+    duration: {96: 15}
+    sync: {80: null, 90: null, 100: 15}
+    upgrade_of: {id: 3601, name: "Aspected Helios"}
+    icon: 3567
+  - id: 3595
+    name: "Aspected Benefic"
+    jobs: [AST]
+    level: 34
+    kind: regen
+    target: single
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    mp: 400
+    duration: {34: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3127
+  - id: 3606
+    name: "Lightspeed"
+    jobs: [AST]
+    level: 6
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 19
+    additional_cooldown_group: 72
+    recast_by_level: {6: 90, 68: 60}
+    charges: {6: 2}
+    duration: {6: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3135
+  - id: 3614
+    name: "Essential Dignity"
+    jobs: [AST]
+    level: 15
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 40
+    cooldown_group: 11
+    additional_cooldown_group: 71
+    charges: {15: 1, 78: 2, 98: 3}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3141
+  - id: 3612
+    name: "Synastry"
+    jobs: [AST]
+    level: 50
+    kind: buff
+    target: single
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 20
+    duration: {50: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 3139
+  - id: 3613
+    name: "Collective Unconscious"
+    jobs: [AST]
+    level: 58
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 12
+    duration: {58: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    effects:
+      - {name: "celestial ring (channel; ends on action or movement)", duration: {58: 18}}
+      - {name: "damage taken -10%", duration: {58: 10}}
+      - {name: "Wheel of Fortune regen (re-applied while in the ring)", duration: {58: 15}}
+    icon: 3140
+  - id: 16553
+    name: "Celestial Opposition"
+    jobs: [AST]
+    level: 60
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 14
+    duration: {60: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3142
+  - id: 7439
+    name: "Earthly Star"
+    jobs: [AST]
+    level: 62
+    kind: heal
+    target: ground
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 13
+    duration: {62: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    when: before
+    lead: 10
+    effects:
+      - {name: "Earthly Dominance", duration: {62: 10}}
+      - {name: "Giant Dominance (full potency)", duration: {62: 10}}
+    follow_ups:
+      - {id: 8324, name: "Stellar Detonation", when: "Stellar Detonation detonates the star early"}
+    icon: 3143
+    notes: "The star matures after 10 s and detonates by itself 10 s later (20 s total). Place it at least 10 s before the damage for the 720 heal."
+  - id: 8324
+    name: "Stellar Detonation"
+    jobs: [AST]
+    level: 62
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 3
+    cooldown_group: 9
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_up_of: {id: 7439, name: "Earthly Star"}
+    requires: "Earthly Star deployed"
+    icon: 3144
+  - id: 37022
+    name: "Minor Arcana"
+    jobs: [AST]
+    level: 70
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 7
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_ups:
+      - {id: 7445, name: "Lady of Crowns", when: "becomes Lady of Crowns after Umbral Draw"}
+    icon: 3119
+  - id: 7445
+    name: "Lady of Crowns"
+    jobs: [AST]
+    level: 70
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 7
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_up_of: {id: 37022, name: "Minor Arcana"}
+    requires: "Umbral Draw (via Minor Arcana)"
+    icon: 3146
+  - id: 16556
+    name: "Celestial Intersection"
+    jobs: [AST]
+    level: 74
+    kind: shield
+    target: single
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 10
+    additional_cooldown_group: 73
+    charges: {74: 1, 88: 2}
+    duration: {74: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    icon: 3556
+  - id: 16557
+    name: "Horoscope"
+    jobs: [AST]
+    level: 76
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 15
+    duration: {76: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    when: before
+    effects:
+      - {name: "Horoscope", duration: {76: 10}}
+      - {name: "Horoscope Helios (after Helios / Helios Conjunction)", duration: {76: 30}}
+    follow_ups:
+      - {id: 16558, name: "Horoscope", when: "press again to trigger the heal"}
+    icon: 3550
+  - id: 16558
+    name: "Horoscope"
+    jobs: [AST]
+    level: 76
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 6
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_up_of: {id: 16557, name: "Horoscope"}
+    requires: "Horoscope active"
+    icon: 3551
+    notes: "Same name as 16557: name lookup must return 16557."
+  - id: 16559
+    name: "Neutral Sect"
+    jobs: [AST]
+    level: 80
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {80: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    effects:
+      - {name: "Neutral Sect (healing magic +20%)", duration: {80: 20}}
+      - {name: "Aspected Benefic / Helios Conjunction barrier", duration: {80: 30}}
+      - {name: "Suntouched (enables Sun Sign)", duration: {80: 0, 100: 30}}
+    follow_ups:
+      - {id: 37031, name: "Sun Sign", when: "Sun Sign becomes usable while Suntouched is active (level 100)"}
+    icon: 3552
+  - id: 37031
+    name: "Sun Sign"
+    jobs: [AST]
+    level: 100
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 8
+    requires_status: 3895
+    duration: {100: 15}
+    sync: {80: null, 90: null, 100: 15}
+    follow_up_of: {id: 16559, name: "Neutral Sect"}
+    requires: "Suntouched (granted by Neutral Sect at level 100)"
+    icon: 3109
+  - id: 25873
+    name: "Exaltation"
+    jobs: [AST]
+    level: 86
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 16
+    duration: {86: 8}
+    sync: {80: null, 90: 8, 100: 8}
+    icon: 3561
+  - id: 25874
+    name: "Macrocosmos"
+    jobs: [AST]
+    level: 90
+    kind: heal
+    target: party
+    gcd: true
+    cast: 0
+    recast: 180
+    cooldown_group: 23
+    additional_cooldown_group: 58
+    mp: 600
+    duration: {90: 15}
+    sync: {80: null, 90: 15, 100: 15}
+    when: before
+    follow_ups:
+      - {id: 25875, name: "Microcosmos", when: "Microcosmos triggers the heal early"}
+    icon: 3562
+    notes: "GCD spell with its own 180 s recast. Press before the damage; heals on expiry or on Microcosmos."
+  - id: 25875
+    name: "Microcosmos"
+    jobs: [AST]
+    level: 90
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 1
+    sync: {80: null, 90: 0, 100: 0}
+    follow_up_of: {id: 25874, name: "Macrocosmos"}
+    requires: "Macrocosmos active"
+    icon: 3563
+  - id: 37020
+    name: "Play II"
+    jobs: [AST]
+    level: 30
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 3
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_ups:
+      - {id: 37027, name: "the Bole", when: "the Bole (after Umbral Draw)"}
+      - {id: 37024, name: "the Arrow", when: "the Arrow (after Astral Draw)"}
+    icon: 3117
+  - id: 37021
+    name: "Play III"
+    jobs: [AST]
+    level: 30
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 4
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_ups:
+      - {id: 37025, name: "the Spire", when: "the Spire (after Astral Draw)"}
+      - {id: 37028, name: "the Ewer", when: "the Ewer (after Umbral Draw)"}
+    icon: 3118
+  - id: 37027
+    name: "the Bole"
+    jobs: [AST]
+    level: 30
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 3
+    duration: {30: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    follow_up_of: {id: 37020, name: "Play II"}
+    requires: "Umbral Draw"
+    icon: 3111
+  - id: 37024
+    name: "the Arrow"
+    jobs: [AST]
+    level: 30
+    kind: buff
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 3
+    duration: {30: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    follow_up_of: {id: 37020, name: "Play II"}
+    requires: "Astral Draw"
+    icon: 3112
+  - id: 37025
+    name: "the Spire"
+    jobs: [AST]
+    level: 30
+    kind: shield
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 4
+    duration: {30: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    follow_up_of: {id: 37021, name: "Play III"}
+    requires: "Astral Draw"
+    icon: 3115
+  - id: 37028
+    name: "the Ewer"
+    jobs: [AST]
+    level: 30
+    kind: regen
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 4
+    duration: {30: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    follow_up_of: {id: 37021, name: "Play III"}
+    requires: "Umbral Draw"
+    icon: 3114
+
+  # ---------------- Sage ----------------
+  - id: 24286
+    name: "Prognosis"
+    jobs: [SGE]
+    level: 10
+    kind: heal
+    target: party
+    gcd: true
+    cast: 2
+    recast: 2.5
+    cooldown_group: 58
+    mp: 700
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_ups:
+      - {id: 24292, name: "Eukrasian Prognosis", when: "becomes Eukrasian Prognosis after Eukrasia"}
+      - {id: 37034, name: "Eukrasian Prognosis II", when: "becomes Eukrasian Prognosis II after Eukrasia (96+)"}
+    icon: 3654
+  - id: 24290
+    name: "Eukrasia"
+    jobs: [SGE]
+    level: 30
+    kind: other
+    target: self
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    sync: {80: 0, 90: 0, 100: 0}
+    follow_ups:
+      - {id: 24291, name: "Eukrasian Diagnosis", when: "Diagnosis -> Eukrasian Diagnosis"}
+      - {id: 24292, name: "Eukrasian Prognosis", when: "Prognosis -> Eukrasian Prognosis"}
+      - {id: 37034, name: "Eukrasian Prognosis II", when: "Prognosis -> Eukrasian Prognosis II (96+)"}
+    icon: 3658
+    notes: "GCD; required before every Eukrasian action. Plans omit it (\"Eprog\" = Eukrasia + Eukrasian Prognosis)."
+  - id: 24291
+    name: "Eukrasian Diagnosis"
+    jobs: [SGE]
+    level: 30
+    kind: shield
+    target: single
+    gcd: true
+    cast: 0
+    recast: 1.5
+    cooldown_group: 58
+    duration: {30: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    follow_up_of: {id: 24290, name: "Eukrasia"}
+    requires: "Eukrasia"
+    icon: 3659
+  - id: 24292
+    name: "Eukrasian Prognosis"
+    jobs: [SGE]
+    level: 30
+    kind: shield
+    target: party
+    gcd: true
+    cast: 0
+    recast: 1.5
+    cooldown_group: 58
+    duration: {30: 30}
+    sync: {80: 30, 90: 30, 100: null}
+    replaced_by: {id: 37034, name: "Eukrasian Prognosis II", level: 96, trait: "Eukrasian Prognosis Mastery"}
+    follow_up_of: {id: 24290, name: "Eukrasia"}
+    requires: "Eukrasia"
+    icon: 3660
+  - id: 37034
+    name: "Eukrasian Prognosis II"
+    jobs: [SGE]
+    level: 96
+    kind: shield
+    target: party
+    gcd: true
+    cast: 0
+    recast: 1.5
+    cooldown_group: 58
+    duration: {96: 30}
+    sync: {80: null, 90: null, 100: 30}
+    upgrade_of: {id: 24292, name: "Eukrasian Prognosis"}
+    follow_up_of: {id: 24290, name: "Eukrasia"}
+    requires: "Eukrasia"
+    icon: 3689
+  - id: 24285
+    name: "Kardia"
+    jobs: [SGE]
+    level: 4
+    kind: buff
+    target: single
+    gcd: false
+    cast: 0
+    recast: 5
+    cooldown_group: 2
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3653
+  - id: 24288
+    name: "Physis"
+    jobs: [SGE]
+    level: 20
+    kind: regen
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 11
+    duration: {20: 15}
+    sync: {80: null, 90: null, 100: null}
+    replaced_by: {id: 24302, name: "Physis II", level: 60, trait: "Physis Mastery"}
+    icon: 3656
+  - id: 24302
+    name: "Physis II"
+    jobs: [SGE]
+    level: 60
+    kind: regen
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 12
+    duration: {60: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    effects:
+      - {name: "Physis II regen", duration: {60: 15}}
+      - {name: "healing received +10%", duration: {60: 10, 98: 15}}
+    upgrade_of: {id: 24288, name: "Physis"}
+    icon: 3670
+  - id: 24294
+    name: "Soteria"
+    jobs: [SGE]
+    level: 35
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 15
+    recast_by_level: {35: 90, 94: 60}
+    duration: {35: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3662
+  - id: 24295
+    name: "Icarus"
+    jobs: [SGE]
+    level: 40
+    kind: movement
+    target: single
+    gcd: false
+    cast: 0
+    recast: 45
+    cooldown_group: 7
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3663
+  - id: 24296
+    name: "Druochole"
+    jobs: [SGE]
+    level: 45
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 1
+    cost: {resource: "Addersgall", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3664
+  - id: 24298
+    name: "Kerachole"
+    jobs: [SGE]
+    level: 50
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 4
+    cost: {resource: "Addersgall", amount: 1}
+    duration: {50: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    effects:
+      - {name: "Kerachole (damage taken -10%)", duration: {50: 15}}
+      - {name: "Kerachole regen (78+)", duration: {50: 0, 78: 15}}
+    icon: 3666
+    notes: "Does not stack with Taurochole."
+  - id: 24299
+    name: "Ixochole"
+    jobs: [SGE]
+    level: 52
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 5
+    cost: {resource: "Addersgall", amount: 1}
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3667
+  - id: 24300
+    name: "Zoe"
+    jobs: [SGE]
+    level: 56
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 20
+    recast_by_level: {56: 120, 88: 90}
+    duration: {56: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    icon: 3668
+  - id: 24301
+    name: "Pepsis"
+    jobs: [SGE]
+    level: 58
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 3
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3669
+    notes: "Converts your Eukrasian Diagnosis/Prognosis barriers into heals."
+  - id: 24303
+    name: "Taurochole"
+    jobs: [SGE]
+    level: 62
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 45
+    cooldown_group: 8
+    cost: {resource: "Addersgall", amount: 1}
+    duration: {62: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3671
+    notes: "Does not stack with Kerachole."
+  - id: 24305
+    name: "Haima"
+    jobs: [SGE]
+    level: 70
+    kind: shield
+    target: single
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {70: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3673
+  - id: 24309
+    name: "Rhizomata"
+    jobs: [SGE]
+    level: 74
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 16
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3677
+    notes: "Grants 1 Addersgall."
+  - id: 24310
+    name: "Holos"
+    jobs: [SGE]
+    level: 76
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 19
+    duration: {76: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    effects:
+      - {name: "Holos barrier", duration: {76: 30}}
+      - {name: "Holos (damage taken -10%)", duration: {76: 20}}
+    icon: 3678
+  - id: 24311
+    name: "Panhaima"
+    jobs: [SGE]
+    level: 80
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {80: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3679
+  - id: 24317
+    name: "Krasis"
+    jobs: [SGE]
+    level: 86
+    kind: buff
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 13
+    duration: {86: 10}
+    sync: {80: null, 90: 10, 100: 10}
+    icon: 3685
+  - id: 24318
+    name: "Pneuma"
+    jobs: [SGE]
+    level: 90
+    kind: heal
+    target: party
+    gcd: true
+    cast: 1.5
+    recast: 120
+    cooldown_group: 23
+    additional_cooldown_group: 58
+    mp: 700
+    sync: {80: null, 90: 0, 100: 0}
+    icon: 3686
+    notes: "GCD spell (damage + party heal) with its own 120 s recast."
+  - id: 37035
+    name: "Philosophia"
+    jobs: [SGE]
+    level: 100
+    kind: buff
+    target: party
+    gcd: false
+    cast: 0
+    recast: 180
+    cooldown_group: 25
+    duration: {100: 20}
+    sync: {80: null, 90: null, 100: 20}
+    effects:
+      - {name: "Philosophia (healing magic +20%)", duration: {100: 20}}
+      - {name: "Eudaimonia (heal on spell hit)", duration: {100: 20}}
+    icon: 3690
+
+  # ---------------- Role actions ----------------
+  - id: 7531
+    name: "Rampart"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 8
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 47
+    duration: {8: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 801
+  - id: 7535
+    name: "Reprisal"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 22
+    kind: party_mit
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 45
+    duration: {22: 10, 98: 15}
+    sync: {80: 10, 90: 10, 100: 15}
+    effects:
+      - {name: "Reprisal (enemy damage dealt -10%)", duration: {22: 10, 98: 15}}
+    icon: 806
+  - id: 7548
+    name: "Arm's Length"
+    jobs: [PLD, WAR, DRK, GNB, MNK, DRG, NIN, SAM, RPR, VPR, BRD, MCH, DNC]
+    level: 32
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 49
+    duration: {32: 6}
+    sync: {80: 6, 90: 6, 100: 6}
+    effects:
+      - {name: "Arm's Length (knockback immunity)", duration: {32: 6}}
+      - {name: "Slow on physical attackers", duration: {32: 15}}
+    icon: 822
+  - id: 7533
+    name: "Provoke"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 15
+    kind: other
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 43
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 803
+  - id: 7537
+    name: "Shirk"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 48
+    kind: other
+    target: single
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 50
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 810
+  - id: 7549
+    name: "Feint"
+    jobs: [MNK, DRG, NIN, SAM, RPR, VPR]
+    level: 22
+    kind: party_mit
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 48
+    duration: {22: 10, 98: 15}
+    sync: {80: 10, 90: 10, 100: 15}
+    effects:
+      - {name: "Feint (target physical damage -10%, magic -5%)", duration: {22: 10, 98: 15}}
+    icon: 828
+  - id: 7560
+    name: "Addle"
+    jobs: [BLM, SMN, RDM, PCT]
+    level: 8
+    kind: party_mit
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 47
+    duration: {8: 10, 98: 15}
+    sync: {80: 10, 90: 10, 100: 15}
+    effects:
+      - {name: "Addle (target physical damage -5%, magic -10%)", duration: {8: 10, 98: 15}}
+    icon: 861
+  - id: 7541
+    name: "Second Wind"
+    jobs: [MNK, DRG, NIN, SAM, RPR, VPR, BRD, MCH, DNC]
+    level: 8
+    kind: heal
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 50
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 821
+  - id: 7542
+    name: "Bloodbath"
+    jobs: [MNK, DRG, NIN, SAM, RPR, VPR]
+    level: 12
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 47
+    duration: {12: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 823
+  - id: 7559
+    name: "Surecast"
+    jobs: [WHM, SCH, AST, SGE, BLM, SMN, RDM, PCT]
+    level: 44
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 49
+    duration: {44: 6}
+    sync: {80: 6, 90: 6, 100: 6}
+    icon: 869
+  - id: 7561
+    name: "Swiftcast"
+    jobs: [WHM, SCH, AST, SGE, BLM, SMN, RDM, PCT]
+    level: 18
+    kind: buff
+    target: self
+    gcd: false
+    cast: 0
+    recast: 40
+    cooldown_group: 44
+    recast_by_level: {18: 60, 94: 40}
+    duration: {18: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 866
+  - id: 7562
+    name: "Lucid Dreaming"
+    jobs: [WHM, SCH, AST, SGE, BLM, SMN, RDM, PCT]
+    level: 14
+    kind: other
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 45
+    duration: {14: 21}
+    sync: {80: 21, 90: 21, 100: 21}
+    icon: 865
+  - id: 7568
+    name: "Esuna"
+    jobs: [WHM, SCH, AST, SGE]
+    level: 10
+    kind: other
+    target: single
+    gcd: true
+    cast: 0
+    recast: 2.5
+    cooldown_group: 58
+    mp: 400
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 884
+  - id: 7571
+    name: "Rescue"
+    jobs: [WHM, SCH, AST, SGE]
+    level: 48
+    kind: other
+    target: single
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 50
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 890
+
+  # ---------------- Paladin ----------------
+  - id: 17
+    name: "Sentinel"
+    jobs: [PLD]
+    level: 38
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 20
+    duration: {38: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 36920, name: "Guardian", level: 92, trait: "Sentinel Mastery"}
+    icon: 151
+  - id: 36920
+    name: "Guardian"
+    jobs: [PLD]
+    level: 92
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 20
+    duration: {92: 15}
+    sync: {80: null, 90: null, 100: 15}
+    effects:
+      - {name: "Guardian (damage taken -40%)", duration: {92: 15}}
+      - {name: "Guardian barrier", duration: {92: 15}}
+    upgrade_of: {id: 17, name: "Sentinel"}
+    icon: 2524
+  - id: 3542
+    name: "Sheltron"
+    jobs: [PLD]
+    level: 35
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 5
+    cooldown_group: 3
+    cost: {resource: "Oath Gauge", amount: 50}
+    duration: {35: 4, 74: 6}
+    sync: {80: 6, 90: null, 100: null}
+    effects:
+      - {name: "Sheltron (damage taken -15%)", duration: {35: 4, 74: 6}}
+    replaced_by: {id: 25746, name: "Holy Sheltron", level: 82, trait: "Sheltron Mastery"}
+    icon: 2510
+  - id: 25746
+    name: "Holy Sheltron"
+    jobs: [PLD]
+    level: 82
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 5
+    cooldown_group: 3
+    cost: {resource: "Oath Gauge", amount: 50}
+    duration: {82: 8}
+    sync: {80: null, 90: 8, 100: 8}
+    effects:
+      - {name: "Holy Sheltron (damage taken -15%)", duration: {82: 8}}
+      - {name: "Knight's Resolve (extra -15%)", duration: {82: 4}}
+      - {name: "Knight's Benediction regen", duration: {82: 12}}
+    upgrade_of: {id: 3542, name: "Sheltron"}
+    icon: 2950
+  - id: 27
+    name: "Cover"
+    jobs: [PLD]
+    level: 45
+    kind: other
+    target: single
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    cost: {resource: "Oath Gauge", amount: 50}
+    duration: {45: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    icon: 2501
+  - id: 30
+    name: "Hallowed Ground"
+    jobs: [PLD]
+    level: 50
+    kind: invuln
+    target: self
+    gcd: false
+    cast: 0
+    recast: 420
+    cooldown_group: 25
+    duration: {50: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 2502
+  - id: 22
+    name: "Bulwark"
+    jobs: [PLD]
+    level: 52
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 16
+    duration: {52: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 167
+  - id: 3540
+    name: "Divine Veil"
+    jobs: [PLD]
+    level: 56
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 15
+    duration: {56: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    icon: 2508
+  - id: 3541
+    name: "Clemency"
+    jobs: [PLD]
+    level: 58
+    kind: heal
+    target: single
+    gcd: true
+    cast: 1.5
+    recast: 2.5
+    cooldown_group: 58
+    mp: 4000
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 2509
+  - id: 7382
+    name: "Intervention"
+    jobs: [PLD]
+    level: 62
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 10
+    cooldown_group: 5
+    cost: {resource: "Oath Gauge", amount: 50}
+    duration: {62: 6, 82: 8}
+    sync: {80: 6, 90: 8, 100: 8}
+    effects:
+      - {name: "Intervention (damage taken -10%, -20% with Rampart/Guardian active)", duration: {62: 6, 82: 8}}
+      - {name: "Knight's Resolve (extra -10%)", duration: {62: 0, 82: 4}}
+      - {name: "Knight's Benediction regen", duration: {62: 0, 82: 12}}
+    icon: 2512
+  - id: 7385
+    name: "Passage of Arms"
+    jobs: [PLD]
+    level: 70
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {70: 18}
+    sync: {80: 18, 90: 18, 100: 18}
+    icon: 2515
+    notes: "Channelled: ends when the paladin acts or moves. \"PLD wings\" in plans."
+
+  # ---------------- Warrior ----------------
+  - id: 40
+    name: "Thrill of Battle"
+    jobs: [WAR]
+    level: 30
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 16
+    duration: {30: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 263
+  - id: 44
+    name: "Vengeance"
+    jobs: [WAR]
+    level: 38
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {38: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 36923, name: "Damnation", level: 92, trait: "Vengeance Mastery"}
+    icon: 267
+  - id: 36923
+    name: "Damnation"
+    jobs: [WAR]
+    level: 92
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {92: 15}
+    sync: {80: null, 90: null, 100: 15}
+    effects:
+      - {name: "Damnation (damage taken -40%)", duration: {92: 15}}
+      - {name: "Primeval Impulse regen", duration: {92: 15}}
+    upgrade_of: {id: 44, name: "Vengeance"}
+    icon: 2573
+  - id: 43
+    name: "Holmgang"
+    jobs: [WAR]
+    level: 42
+    kind: invuln
+    target: self
+    gcd: false
+    cast: 0
+    recast: 240
+    cooldown_group: 25
+    duration: {42: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 266
+  - id: 3551
+    name: "Raw Intuition"
+    jobs: [WAR]
+    level: 56
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 25
+    cooldown_group: 7
+    duration: {56: 6}
+    sync: {80: 6, 90: null, 100: null}
+    replaced_by: {id: 25751, name: "Bloodwhetting", level: 82, trait: "Raw Intuition Mastery"}
+    icon: 2559
+    notes: "Shares a recast timer with Nascent Flash."
+  - id: 25751
+    name: "Bloodwhetting"
+    jobs: [WAR]
+    level: 82
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 25
+    cooldown_group: 7
+    duration: {82: 8}
+    sync: {80: null, 90: 8, 100: 8}
+    effects:
+      - {name: "Bloodwhetting (damage taken -10%)", duration: {82: 8}}
+      - {name: "Stem the Flow (extra -10%)", duration: {82: 4}}
+      - {name: "Stem the Tide barrier", duration: {82: 20}}
+    upgrade_of: {id: 3551, name: "Raw Intuition"}
+    icon: 2569
+    notes: "Shares a recast timer with Nascent Flash."
+  - id: 3552
+    name: "Equilibrium"
+    jobs: [WAR]
+    level: 58
+    kind: heal
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 14
+    duration: {58: 0, 84: 15}
+    sync: {80: 0, 90: 15, 100: 15}
+    icon: 2560
+  - id: 7388
+    name: "Shake It Off"
+    jobs: [WAR]
+    level: 68
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 15
+    duration: {68: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    effects:
+      - {name: "Shake It Off barrier", duration: {68: 30}}
+      - {name: "Shake It Off regen", duration: {68: 15}}
+    icon: 2563
+  - id: 16464
+    name: "Nascent Flash"
+    jobs: [WAR]
+    level: 76
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 25
+    cooldown_group: 7
+    duration: {76: 6, 82: 8}
+    sync: {80: 6, 90: 8, 100: 8}
+    effects:
+      - {name: "Nascent Glint (damage taken -10%)", duration: {76: 6, 82: 8}}
+      - {name: "Stem the Flow (extra -10%)", duration: {76: 0, 82: 4}}
+      - {name: "Stem the Tide barrier", duration: {76: 0, 82: 20}}
+    icon: 2567
+    notes: "Shares a recast timer with Bloodwhetting / Raw Intuition."
+
+  # ---------------- Dark Knight ----------------
+  - id: 3636
+    name: "Shadow Wall"
+    jobs: [DRK]
+    level: 38
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {38: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 36927, name: "Shadowed Vigil", level: 92, trait: "Shadow Wall Mastery"}
+    icon: 3075
+  - id: 36927
+    name: "Shadowed Vigil"
+    jobs: [DRK]
+    level: 92
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {92: 15}
+    sync: {80: null, 90: null, 100: 15}
+    effects:
+      - {name: "Shadowed Vigil (damage taken -40%)", duration: {92: 15}}
+      - {name: "Vigilant (heal at <50% HP or on expiry)", duration: {92: 20}}
+    upgrade_of: {id: 3636, name: "Shadow Wall"}
+    icon: 3094
+  - id: 3634
+    name: "Dark Mind"
+    jobs: [DRK]
+    level: 45
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 9
+    duration: {45: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 3076
+  - id: 3638
+    name: "Living Dead"
+    jobs: [DRK]
+    level: 50
+    kind: invuln
+    target: self
+    gcd: false
+    cast: 0
+    recast: 300
+    cooldown_group: 25
+    duration: {50: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    effects:
+      - {name: "Living Dead", duration: {50: 10}}
+      - {name: "Walking Dead", duration: {50: 10}}
+    icon: 3077
+  - id: 16471
+    name: "Dark Missionary"
+    jobs: [DRK]
+    level: 66
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 15
+    duration: {66: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3087
+  - id: 7393
+    name: "The Blackest Night"
+    jobs: [DRK]
+    level: 70
+    kind: shield
+    target: single
+    gcd: false
+    cast: 0
+    recast: 15
+    cooldown_group: 3
+    mp: 3000
+    duration: {70: 7}
+    sync: {80: 7, 90: 7, 100: 7}
+    icon: 3081
+  - id: 25754
+    name: "Oblation"
+    jobs: [DRK]
+    level: 82
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 19
+    additional_cooldown_group: 72
+    charges: {82: 2}
+    duration: {82: 10}
+    sync: {80: null, 90: 10, 100: 10}
+    icon: 3089
+
+  # ---------------- Gunbreaker ----------------
+  - id: 16140
+    name: "Camouflage"
+    jobs: [GNB]
+    level: 6
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 16
+    duration: {6: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 3404
+  - id: 16148
+    name: "Nebula"
+    jobs: [GNB]
+    level: 38
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {38: 15}
+    sync: {80: 15, 90: 15, 100: null}
+    replaced_by: {id: 36935, name: "Great Nebula", level: 92, trait: "Nebula Mastery"}
+    icon: 3412
+  - id: 36935
+    name: "Great Nebula"
+    jobs: [GNB]
+    level: 92
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {92: 15}
+    sync: {80: null, 90: null, 100: 15}
+    upgrade_of: {id: 16148, name: "Nebula"}
+    icon: 3435
+  - id: 16151
+    name: "Aurora"
+    jobs: [GNB]
+    level: 45
+    kind: regen
+    target: single
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 20
+    additional_cooldown_group: 72
+    charges: {45: 1, 84: 2}
+    duration: {45: 18}
+    sync: {80: 18, 90: 18, 100: 18}
+    icon: 3415
+  - id: 16152
+    name: "Superbolide"
+    jobs: [GNB]
+    level: 50
+    kind: invuln
+    target: self
+    gcd: false
+    cast: 0
+    recast: 360
+    cooldown_group: 25
+    duration: {50: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 3416
+  - id: 16160
+    name: "Heart of Light"
+    jobs: [GNB]
+    level: 64
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 15
+    duration: {64: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3424
+  - id: 16161
+    name: "Heart of Stone"
+    jobs: [GNB]
+    level: 68
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 25
+    cooldown_group: 6
+    duration: {68: 7}
+    sync: {80: 7, 90: null, 100: null}
+    effects:
+      - {name: "Heart of Stone (damage taken -15%)", duration: {68: 7}}
+      - {name: "Brutal Shell shared with the target", duration: {68: 30}}
+    replaced_by: {id: 25758, name: "Heart of Corundum", level: 82, trait: "Heart of Stone Mastery"}
+    icon: 3425
+  - id: 25758
+    name: "Heart of Corundum"
+    jobs: [GNB]
+    level: 82
+    kind: tank_mit
+    target: single
+    gcd: false
+    cast: 0
+    recast: 25
+    cooldown_group: 6
+    duration: {82: 8}
+    sync: {80: null, 90: 8, 100: 8}
+    effects:
+      - {name: "Heart of Corundum (damage taken -15%)", duration: {82: 8}}
+      - {name: "Brutal Shell shared with the target", duration: {82: 30}}
+      - {name: "Clarity of Corundum (extra -15%)", duration: {82: 4}}
+      - {name: "Catharsis of Corundum (heal at <=50% HP or on expiry)", duration: {82: 20}}
+    upgrade_of: {id: 16161, name: "Heart of Stone"}
+    icon: 3430
+
+  # ---------------- DPS party mitigation, heals and personal mitigation ----------------
+  - id: 7405
+    name: "Troubadour"
+    jobs: [BRD]
+    level: 62
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 21
+    recast_by_level: {62: 120, 88: 90}
+    duration: {62: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 2612
+    notes: "Does not stack with Tactician or Shield Samba."
+  - id: 7408
+    name: "Nature's Minne"
+    jobs: [BRD]
+    level: 66
+    kind: buff
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {66: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 2615
+  - id: 16889
+    name: "Tactician"
+    jobs: [MCH]
+    level: 56
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 22
+    recast_by_level: {56: 120, 88: 90}
+    duration: {56: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3040
+    notes: "Does not stack with Troubadour or Shield Samba."
+  - id: 2887
+    name: "Dismantle"
+    jobs: [MCH]
+    level: 62
+    kind: party_mit
+    target: enemy
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 19
+    duration: {62: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 3011
+  - id: 16012
+    name: "Shield Samba"
+    jobs: [DNC]
+    level: 56
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 22
+    recast_by_level: {56: 120, 88: 90}
+    duration: {56: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 3469
+    notes: "Does not stack with Troubadour or Tactician."
+  - id: 16015
+    name: "Curing Waltz"
+    jobs: [DNC]
+    level: 52
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 12
+    sync: {80: 0, 90: 0, 100: 0}
+    icon: 3468
+  - id: 16014
+    name: "Improvisation"
+    jobs: [DNC]
+    level: 80
+    kind: regen
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 19
+    duration: {80: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    follow_ups:
+      - {id: 25789, name: "Improvised Finish", when: "Improvised Finish (barrier) ends the dance"}
+    icon: 3477
+    notes: "Channelled up to 4 Rising Rhythm stacks; finish with Improvised Finish for the party barrier."
+  - id: 25789
+    name: "Improvised Finish"
+    jobs: [DNC]
+    level: 80
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1.5
+    cooldown_group: 5
+    duration: {80: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    follow_up_of: {id: 16014, name: "Improvisation"}
+    requires: "Improvisation active"
+    icon: 3479
+  - id: 25857
+    name: "Magick Barrier"
+    jobs: [RDM]
+    level: 86
+    kind: party_mit
+    target: party
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 19
+    duration: {86: 10}
+    sync: {80: null, 90: 10, 100: 10}
+    icon: 3237
+  - id: 34685
+    name: "Tempera Coat"
+    jobs: [PCT]
+    level: 10
+    kind: shield
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {10: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    follow_ups:
+      - {id: 34686, name: "Tempera Grassa", when: "Tempera Grassa (88+) while Tempera Coat is active"}
+    icon: 3835
+  - id: 34686
+    name: "Tempera Grassa"
+    jobs: [PCT]
+    level: 88
+    kind: shield
+    target: party
+    gcd: false
+    cast: 0
+    recast: 1
+    cooldown_group: 2
+    duration: {88: 10}
+    sync: {80: null, 90: 10, 100: 10}
+    follow_up_of: {id: 34685, name: "Tempera Coat"}
+    requires: "Tempera Coat active"
+    icon: 3836
+  - id: 65
+    name: "Mantra"
+    jobs: [MNK]
+    level: 42
+    kind: buff
+    target: party
+    gcd: false
+    cast: 0
+    recast: 90
+    cooldown_group: 16
+    duration: {42: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    icon: 216
+  - id: 7394
+    name: "Riddle of Earth"
+    jobs: [MNK]
+    level: 64
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {64: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    effects:
+      - {name: "Riddle of Earth (damage taken -20%)", duration: {64: 10}}
+      - {name: "Earth's Resolve regen", duration: {64: 15}}
+      - {name: "Earth's Rumination (enables Earth's Reply)", duration: {64: 30}}
+    icon: 2537
+  - id: 24404
+    name: "Arcane Crest"
+    jobs: [RPR]
+    level: 40
+    kind: shield
+    target: self
+    gcd: false
+    cast: 0
+    recast: 30
+    cooldown_group: 7
+    duration: {40: 5}
+    sync: {80: 5, 90: 5, 100: 5}
+    effects:
+      - {name: "Crest of Time Borrowed (barrier)", duration: {40: 5}}
+      - {name: "Crest of Time Returned (party regen when the barrier breaks, 84+)", duration: {40: 0, 84: 15}}
+    icon: 3632
+  - id: 7498
+    name: "Third Eye"
+    jobs: [SAM]
+    level: 6
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 15
+    cooldown_group: 7
+    duration: {6: 4}
+    sync: {80: 4, 90: null, 100: null}
+    replaced_by: {id: 36962, name: "Tengentsu", level: 82, trait: "Third Eye Mastery"}
+    icon: 3153
+  - id: 36962
+    name: "Tengentsu"
+    jobs: [SAM]
+    level: 82
+    kind: tank_mit
+    target: self
+    gcd: false
+    cast: 0
+    recast: 15
+    cooldown_group: 7
+    duration: {82: 4}
+    sync: {80: null, 90: 4, 100: 4}
+    effects:
+      - {name: "Tengentsu (next hit -10%)", duration: {82: 4}}
+      - {name: "Tengentsu's Foresight (regen, damage taken -10%)", duration: {82: 9}}
+    upgrade_of: {id: 7498, name: "Third Eye"}
+    icon: 3190
+  - id: 2241
+    name: "Shade Shift"
+    jobs: [NIN]
+    level: 2
+    kind: shield
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 21
+    duration: {2: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 607
+  - id: 157
+    name: "Manaward"
+    jobs: [BLM]
+    level: 30
+    kind: shield
+    target: self
+    gcd: false
+    cast: 0
+    recast: 120
+    cooldown_group: 22
+    duration: {30: 20}
+    sync: {80: 20, 90: 20, 100: 20}
+    icon: 463
+  - id: 25799
+    name: "Radiant Aegis"
+    jobs: [SMN]
+    level: 2
+    kind: shield
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 21
+    additional_cooldown_group: 71
+    charges: {2: 1, 88: 2}
+    duration: {2: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    requires: "Carbuncle summoned"
+    icon: 2750
+  - id: 36997
+    name: "Lux Solaris"
+    jobs: [SMN]
+    level: 100
+    kind: heal
+    target: party
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 13
+    requires_status: 3874
+    sync: {80: null, 90: null, 100: 0}
+    requires: "Refulgent Lux (after Summon Solar Bahamut)"
+    icon: 2787
+  - id: 25830
+    name: "Rekindle"
+    jobs: [SMN]
+    level: 80
+    kind: heal
+    target: single
+    gcd: false
+    cast: 0
+    recast: 20
+    cooldown_group: 5
+    duration: {80: 30}
+    sync: {80: 30, 90: 30, 100: 30}
+    effects:
+      - {name: "Rekindle (window)", duration: {80: 30}}
+      - {name: "Rekindle regen (when HP < 75% or on expiry)", duration: {80: 15}}
+    requires: "Firebird Trance (Astral Flow changes to Rekindle)"
+    icon: 2764
+
+  # ---------------- Limit breaks ----------------
+  - id: 197
+    name: "Shield Wall"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    lb: 1
+    icon: 103
+  - id: 198
+    name: "Stronghold"
+    jobs: [PLD, WAR, DRK, GNB]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 15}
+    sync: {80: 15, 90: 15, 100: 15}
+    lb: 2
+    icon: 103
+  - id: 199
+    name: "Last Bastion"
+    jobs: [PLD]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    lb: 3
+    icon: 103
+  - id: 4240
+    name: "Land Waker"
+    jobs: [WAR]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    lb: 3
+    icon: 103
+    notes: "Tooltip is empty in game data; duration taken from Last Bastion (the shared tank LB3, 12 s) - UNVERIFIED for this row."
+  - id: 4241
+    name: "Dark Force"
+    jobs: [DRK]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    lb: 3
+    icon: 103
+    notes: "Tooltip is empty in game data; duration taken from Last Bastion (the shared tank LB3, 12 s) - UNVERIFIED for this row."
+  - id: 17105
+    name: "Gunmetal Soul"
+    jobs: [GNB]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 0
+    recast: 0
+    cooldown_group: 0
+    duration: {0: 12}
+    sync: {80: 12, 90: 12, 100: 12}
+    lb: 3
+    icon: 103
+    notes: "Tooltip is empty in game data; duration taken from Last Bastion (the shared tank LB3, 12 s) - UNVERIFIED for this row."
+  - id: 206
+    name: "Healing Wind"
+    jobs: [WHM, SCH, AST, SGE]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 1
+    icon: 103
+  - id: 207
+    name: "Breath of the Earth"
+    jobs: [WHM, SCH, AST, SGE]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 2
+    icon: 103
+  - id: 208
+    name: "Pulse of Life"
+    jobs: [WHM]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 3
+    icon: 103
+    notes: "Full heal and raise."
+  - id: 4247
+    name: "Angel Feathers"
+    jobs: [SCH]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 3
+    icon: 103
+    notes: "Tooltip empty in game data; same effect as Pulse of Life (healer LB3)."
+  - id: 4248
+    name: "Astral Stasis"
+    jobs: [AST]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 3
+    icon: 103
+    notes: "Tooltip empty in game data; same effect as Pulse of Life (healer LB3)."
+  - id: 24859
+    name: "Techne Makre"
+    jobs: [SGE]
+    level: 0
+    kind: lb
+    target: party
+    gcd: false
+    cast: 2
+    recast: 0
+    cooldown_group: 0
+    sync: {80: 0, 90: 0, 100: 0}
+    when: after
+    lb: 3
+    icon: 103
+    notes: "Tooltip empty in game data; same effect as Pulse of Life (healer LB3)."
+
+  # ---------------- General actions ----------------
+  - id: 3
+    name: "Sprint"
+    jobs: [PLD, WAR, DRK, GNB, WHM, SCH, AST, SGE, MNK, DRG, NIN, SAM, RPR, VPR, BRD, MCH, DNC, BLM, SMN, RDM, PCT]
+    level: 0
+    kind: movement
+    target: self
+    gcd: false
+    cast: 0
+    recast: 60
+    cooldown_group: 56
+    duration: {0: 10}
+    sync: {80: 10, 90: 10, 100: 10}
+    icon: 104
+    notes: "General action (GeneralAction row 4 -> Action 3); IsPlayerAction is False in the sheet."

@@ -1,0 +1,88 @@
+{
+  "tab": "General Tank Mit til P5",
+  "gid": 745722413,
+  "index": 6,
+  "rows": [
+    [
+      {"v":"P1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"MT","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"OT","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Pantokrator","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Invuln Diffuse Wave Cannon","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Invuln Diffuse Wave Cannon","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"MT prepull Mit for autos","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart as P1 dies","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart as P1 dies","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Filler + Short CD","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Filler + Short CD","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rep + Dark mind can be used ","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Limitless","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + 30% + Short CD","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + 30% + Short CD","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"for Autos after Party synergy","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Latent 1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart use during HW cast","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Short CDs are fed to MT on CD","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Latent 2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"30%","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Latent 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Filler","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"If you want to Tank swap ","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Latent 4","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart when ever ready","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"discuss this beforhand","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P4","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Proteans","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Short CD on R1","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Short CD on R2","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [],
+  "hiddenRows": [],
+  "hiddenCols": []
+}

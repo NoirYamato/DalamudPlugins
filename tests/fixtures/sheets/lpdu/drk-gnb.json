@@ -1,0 +1,88 @@
+{
+  "tab": "DRK/GNB",
+  "gid": 643482148,
+  "index": 10,
+  "rows": [
+    [
+      {"v":"P5","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"DRK","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"GNB","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Superbolide","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Living Dead","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 4","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P6","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Dark Mind + Oblation + TBN","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Camo + HoC","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Use Rampart as Cosmo Arrow cast finishes.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Shadow Wall + Oblation + TBN","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Nebula + HoC","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Dark Mind + Oblation + TBN","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Superbolide +                              HoC Co-Tank","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Living Dead +                                  TBN/Oblation Co-Tank","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Camo + HoC","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [],
+  "hiddenRows": [],
+  "hiddenCols": []
+}

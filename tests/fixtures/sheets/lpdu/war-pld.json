@@ -1,0 +1,88 @@
+{
+  "tab": "WAR/PLD",
+  "gid": 124315180,
+  "index": 9,
+  "rows": [
+    [
+      {"v":"P5","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"WAR","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"PLD","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hallowed Ground","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"If Hallowed isn't up Kitchen Sink instead","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"and Holmgang Solar Ray 2,","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"then play rest like GNB/PLD.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Prepop Rampart and use fillers 90s 1st GCD","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Holmgang","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"if you have to swap Solar Ray 3.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Healer Help required for Solar Ray 3","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Solar Ray 4","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Kitchen Sink","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"and Solar Ray 4. ","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"P6","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Thrill + BW","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Bullwark + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Use Rampart as Cosmo Arrow cast finishes.","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC1","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Holmgang + Nascant Co-Tank","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sentinel + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"WC2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Vengance + BW","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hallowed Ground +                              Intervention Co-Tank","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"CD2","bg":"#000000","fg":"#ffffff","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Thrill + BW","bg":"#98bfff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rampart + Bullwark + HS","bg":"#b4eaff","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#000000","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [],
+  "hiddenRows": [],
+  "hiddenCols": []
+}

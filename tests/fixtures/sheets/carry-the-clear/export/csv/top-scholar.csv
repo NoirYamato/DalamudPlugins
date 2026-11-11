@@ -1,0 +1,68 @@
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+Mitigation Key:,,,,
+Damage,Mits Suggested to Live,,,
+Super Lethal ★★★★,5+,,,
+Very Lethal ★★★,3-4,TOP — Scholar,,
+Lethal in bis ★★,2,,,
+Lethal week 1 ★,1,,,
+Non-lethal,,"Built from M-Spec: 58 Scholar kills with a White Mage co-healer (Jul 2024 – Feb 2025), 23 from the top-rDPS Scholar ranking and 35 from the top White Mage kills. Counts in the last column are out of 58.",,
+Mechanic (no damage),,"Grey = optional (under half of top SCHs).   ⏱ = depends on how long the previous phase lasted.   Scholar had no mitigation changes since these logs, so the timings apply to 7.55 as they are.",,
+,,"Level 90 kit, patch 7.55. Same rows and FFLogs phase timer as the White Mage tab. Protraction goes on the Adlo target before each Deploy, or on a tank before Solar Ray. Left out: other GCD shields, Lustrate, Indomitability.",,
+,,Scholar,Notes,Top SCHs (of 58)
+Damage Events,P1 — Omega  (timer from pull),,,
+0:28 / 0:37 / 0:46 / 0:55,Program Loop: towers (36k) + blasters (HP to 1%) ★,Excog (0:20) / Blessing (0:40),"Dissipation at the pull (52/58), so the fairy is back at 0:31. Excog goes on a #3 or #4 player once the debuffs are out (a squishy, never a tank).",Excog 41 · Blessing 43 · Dissipation 52
+1:21 / 1:27 / 1:33 / 1:39,Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit),Protraction + Recit → Adlo → Deploy (1:07) / Illumination (1:15) / Expedient (1:17) / Seraph (1:19) / Soil (1:22),"Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4.",Deploy 53 · Protraction 43 · Illum 55 · Exp 58 · Seraph 51 · Soil 37
+1:47 – 1:56,Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★,Blessing (1:45),Heals the tank cleaves.,Blessing 44
+2:08,Atomic Ray (P1 enrage — push before),,,
+,P2 — Omega-M/F  (from phase start),,,
+0:12,Solar Ray ×2 (180k on both tanks) ★★ (tankbuster),Protraction (0:07) / Soil (0:08),"Soil under the tanks, Protraction on one of them.",Protraction 30 · Soil 45
+0:46,Party Synergy: Optimized Fire III spreads (35k),Whispering Dawn (0:49),Regen for the spreads and the Spotlight stacks.,WD 35
+0:57,"Efficient Bladework + Spotlight stacks (60k, 3 players) ★",Soil (1:01),"Soil after the stacks, for its regen. Top SCHs Dissipate around 0:57 (44/58): no fairy until 1:27, so fairy actions go before or after.",Soil 36 · Dissipation 44
+1:34,Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★,Protraction + Recit → Adlo → Deploy (1:23) / Seraph (1:33),"Recit 1:15 + Protraction 1:17; cast Adlo once the Limitless Synergy cast ends (~1:21) so the shields last until ~1:52, through the flares. Consolation at 1:37 and 1:50.",Deploy 55 · Protraction 52 · Seraph 53
+1:48,Optimized Meteor flares + Pile Pitch ★★★,Expedient (1:39) / Illumination (1:40) / Soil (1:44),Same window as your White Mage's Temperance (1:39). Expedient and Soil also cover Cosmo Memory.,Exp 56 · Illum 49 · Soil 58
+1:57,Cosmo Memory ×2 (100k raidwide) ★★★,,"Expedient, Illumination and Soil from 1:39–1:44 are still up; second Consolation at 1:50.",
+2:25,Laser Shower (P2 enrage — push before),,,
+,P3 — Omega Reconfigured  (from phase start; boss targetable ≈ 0:33),,,
+0:28,Transition: spreads (74k) + stacks (78k) ★★,Soil (0:30) / Blessing (0:31),"Soil lasts through Hello, World (0:42).",Soil 57 · Blessing 33
+0:42,"Hello, World (62k raidwide) ★★",,Soil from 0:30 is still up. Your White Mage's Plenary (0:39) is on this too.,
+1:05 – 1:12,"Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★",Protraction + Recit → Adlo → Deploy (0:49),Recit 0:41 + Protraction 0:43 → Deploy 0:49: the shields last until ~1:16.,Deploy 47 · Protraction 52
+1:26 – 1:35,Round 2 ★★,Seraph (1:16) ⏱ / Expedient (1:21) ⏱ / Illumination (1:25) ⏱,"⏱ Back on time only if P2 lasted about 2:17+ (Seraph), 2:18+ (Expedient), 2:15+ (Illumination). Otherwise press each the moment it's back. Consolation at 1:18 and 1:30.",Seraph 46 · Exp 46 · Illum 42
+1:47 – 1:57,Round 3 ★★,Soil (1:45),Your White Mage's Bell (1:49) covers this round too.,Soil 42
+2:08 – 2:18,Round 4 (party shares the stacks) ★★,,,
+2:30,Critical Error (89k raidwide) ★★★,Soil (2:20),Pairs with your White Mage's Plenary (2:27).,Soil 50
+2:52,Oversampled Wave Cannon: monitors (52k) ★,,,
+3:08,Ion Efflux (P3 enrage — push before),"Protraction + Recit → Adlo → Deploy (≈3:04, just before P3 ends)",The shields carry into P4 and cover its first wave cannons (P4 0:15 and 0:20).,Deploy 47 · Protraction 41
+,P4 — Blue Screen  (from phase start; always 1:12 long),,,
+0:15 – 0:40,"Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)",Seraph (0:12) ⏱ / Soil (0:12) / Expedient (0:19) ⏱ / Illumination (0:21) ⏱ / Whispering Dawn (0:25) / Blessing (0:37),"⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.",Seraph 45 · Soil 54 · Exp 50 · Illum 30 · WD 41
+0:56,"Blue Screen (76k, phase end) ★",Soil (0:45),Top SCHs often Emergency Tactics + Succor right after it (31/58).,Soil 54
+,P5 — Run: Dynamis  (from boss targetable; always 4:46 long),,,
+0:08 / 0:11,Solar Ray ×2 (290k tankbuster) ★★★,,,
+0:25,Run: ****mi* (Delta): 140k raidwide ★★★,Soil (0:13) / Recit → Adlo → Deploy (0:17),Recit 0:12 → Deploy 0:17. 17 of 58 Deploy after the raidwide instead (0:31). Your White Mage's Plenary (0:22) is on this too.,Soil 49 · Deploy 35
+0:46 – 1:14,"Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★",Blessing (0:59) / Seraph (1:04),Consolation ×2 around 1:12 for the Hello World hits.,Blessing 34 · Seraph 41
+1:30 / 1:33,Solar Ray ×2 ★★★,,Top SCHs Dissipate around 1:30 (32/58): no fairy until 2:00.,Dissipation 32
+1:47,Run: ****mi* (Sigma): 140k raidwide ★★★,Expedient (1:30) / Soil (1:38),Expedient from 1:30 still covers it. Same window as your White Mage's Temperance (1:29).,Exp 39 · Soil 55
+2:09,Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★,Whispering Dawn (2:10) / Blessing (2:11),Heals right after; the fairy is back from Dissipation at 2:00.,Blessing 48 · WD 29
+2:22,Storage Violation towers (33k),,,
+2:46 – 2:48,Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★,,,
+3:00 / 3:03,Solar Ray ×2 ★★★,Protraction + Recit (2:44–2:46) → Adlo (2:50),"Adlo goes on you or another non-tank: Deploy waits until after the second Solar Ray (3:03) so the buster doesn't eat the shield. If your tanks share that buster, Deploy before it instead.",Recit 34 · Adlo 41 · Protraction 35
+3:17,Run: ****mi* (Omega): 140k raidwide ★★★,Illumination (3:04) / Deploy (3:07) / Seraph (3:07) / Soil (3:08),Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too.,Deploy 30 · Soil 50 · Illum 23 · Seraph 22
+3:35 – 4:12,"Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★",Excog (3:14) / Expedient (3:31),Excog on a tank before the sword/shield hits (target not in the logs). Expedient during the dodge also gives the party Sprint.,Excog 33 · Exp 27
+4:23 / 4:26,Solar Ray ×2 ★★★,Protraction (4:20),On the Solar Ray tank.,Protraction 33
+4:45,"Blind Faith (72k + knockback, phase end) ★",Soil (4:36),,Soil 42
+,P6 — Alpha Omega  (from Blind Faith; boss targetable ≈ 0:55),,,
+1:08,Cosmo Memory (405k raidwide) ★★★★,Soil (0:57) / Whispering Dawn (1:11) / Blessing (1:13),Soil at 0:57 lasts until 1:12. Tank LB3 (~1:04). Your White Mage's Plenary (1:05) is on this too.,Soil 56 · WD 37 · Blessing 33
+1:22 – 1:38,Cosmo Arrow (exaflares — dodge),,,
+1:39,Cosmo Dive (274k) ★★★,Seraph (1:31) / Soil (1:33),Consolation ×2 around 1:40. Your White Mage's Temperance (1:30) is on this too.,Seraph 36 · Soil 51
+2:17 / 2:19 / 2:25,Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★,Expedient (2:07) / Soil (2:12) / Blessing (2:19) / Whispering Dawn (2:24),Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares.,Exp 27 · Soil 57 · Blessing 37 · WD 37
+2:50 / 2:52 / 2:59,Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★,Protraction + Recit → Adlo → Deploy (2:33) / Illumination (2:44) / Soil (2:49),"Recit 2:26 + Protraction 2:29 → Deploy 2:33: the shields last until ~3:01, through Wild Charge.",Deploy 42 · Protraction 34 · Illum 30 · Soil 57
+3:20 – 3:30,Unlimited Wave Cannon 2 (exaflares + puddles — dodge),,Top SCHs Sprint (3:16) for the exaflares.,Sprint 40
+3:33,Cosmo Dive 2 (274k) ★★★,Soil (3:25) / Whispering Dawn (3:35),Your White Mage's Plenary (3:30) is on this too.,Soil 58 · WD 29
+3:56 – 4:05,Cosmo Meteor (105k raidwide) + meteor baits ★★★,Seraph (3:46) / Soil (3:59),"Consolation ×2 around 3:48 and 4:00. Soil goes down after the raidwide, for the meteor baits.",Seraph 40 · Soil 48
+4:16,Flares (78k) ★★,Protraction + Recit → Adlo → Deploy (4:09) / Expedient (4:10),Recit 4:03 + Protraction 4:05 → Deploy 4:09: the shields last into Magic Number (~4:37); Expedient runs until 4:30.,Deploy 51 · Protraction 34 · Exp 24
+4:28,Magic Number (252k) ★★★★,,"Tank LB3 (~4:24), then your White Mage's healer LB3 (~4:32).",WHM LB3 51
+4:44,Magic Number (252k) ★★★★,"Healer LB3 (≈4:48, after the hit)",Tank LB3 first (~4:40). Top SCHs take this second healer LB3; the White Mage takes the first.,SCH LB3 53
+5:09,Run: ****mi* (enrage — top groups kill at 5:08–5:22),,,

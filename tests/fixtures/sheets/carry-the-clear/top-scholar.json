@@ -1,0 +1,486 @@
+{
+  "tab": "TOP – Scholar",
+  "gid": 777200,
+  "index": 1,
+  "rows": [
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Mitigation Key:","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Damage","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Mits Suggested to Live","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Super Lethal ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"5+","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Very Lethal ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"3-4","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"TOP — Scholar","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Lethal in bis ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"2","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Lethal week 1 ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"1","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Non-lethal","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Built from M-Spec: 58 Scholar kills with a White Mage co-healer (Jul 2024 – Feb 2025), 23 from the top-rDPS Scholar ranking and 35 from the top White Mage kills. Counts in the last column are out of 58.","bg":null,"fg":null,"bold":true,"strike":false,"runs":[{"start":0,"fg":null,"bold":true},{"start":11,"fg":"#1154cc","bold":true},{"start":17,"fg":null,"bold":true}],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Mechanic (no damage)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Grey = optional (under half of top SCHs).   ⏱ = depends on how long the previous phase lasted.   Scholar had no mitigation changes since these logs, so the timings apply to 7.55 as they are.","bg":null,"fg":"#808080","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Level 90 kit, patch 7.55. Same rows and FFLogs phase timer as the White Mage tab. Protraction goes on the Adlo target before each Deploy, or on a tank before Solar Ray. Left out: other GCD shields, Lustrate, Indomitability.","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Scholar","bg":"#c3d7cd","fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#e0cfc1","fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Top SCHs (of 58)","bg":"#dadada","fg":null,"bold":true,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Damage Events","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"P1 — Omega  (timer from pull)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:28 / 0:37 / 0:46 / 0:55","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Program Loop: towers (36k) + blasters (HP to 1%) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Excog (0:20) / Blessing (0:40)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Dissipation at the pull (52/58), so the fairy is back at 0:31. Excog goes on a #3 or #4 player once the debuffs are out (a squishy, never a tank).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Excog 41 · Blessing 43 · Dissipation 52","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:21 / 1:27 / 1:33 / 1:39","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit)","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (1:07) / Illumination (1:15) / Expedient (1:17) / Seraph (1:19) / Soil (1:22)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 53 · Protraction 43 · Illum 55 · Exp 58 · Seraph 51 · Soil 37","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47 – 1:56","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blessing (1:45)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Heals the tank cleaves.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blessing 44","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Atomic Ray (P1 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P2 — Omega-M/F  (from phase start)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 (180k on both tanks) ★★ (tankbuster)","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction (0:07) / Soil (0:08)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil under the tanks, Protraction on one of them.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction 30 · Soil 45","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:46","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Party Synergy: Optimized Fire III spreads (35k)","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Whispering Dawn (0:49)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Regen for the spreads and the Spotlight stacks.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"WD 35","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Efficient Bladework + Spotlight stacks (60k, 3 players) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (1:01)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil after the stacks, for its regen. Top SCHs Dissipate around 0:57 (44/58): no fairy until 1:27, so fairy actions go before or after.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 36 · Dissipation 44","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:34","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (1:23) / Seraph (1:33)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 1:15 + Protraction 1:17; cast Adlo once the Limitless Synergy cast ends (~1:21) so the shields last until ~1:52, through the flares. Consolation at 1:37 and 1:50.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 55 · Protraction 52 · Seraph 53","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:48","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Optimized Meteor flares + Pile Pitch ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Expedient (1:39) / Illumination (1:40) / Soil (1:44)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Same window as your White Mage's Temperance (1:39). Expedient and Soil also cover Cosmo Memory.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Exp 56 · Illum 49 · Soil 58","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Memory ×2 (100k raidwide) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Expedient, Illumination and Soil from 1:39–1:44 are still up; second Consolation at 1:50.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Laser Shower (P2 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P3 — Omega Reconfigured  (from phase start; boss targetable ≈ 0:33)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:28","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Transition: spreads (74k) + stacks (78k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (0:30) / Blessing (0:31)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil lasts through Hello, World (0:42).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 57 · Blessing 33","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:42","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hello, World (62k raidwide) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil from 0:30 is still up. Your White Mage's Plenary (0:39) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:05 – 1:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (0:49)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 0:41 + Protraction 0:43 → Deploy 0:49: the shields last until ~1:16.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 47 · Protraction 52","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:26 – 1:35","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 2 ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph (1:16) ⏱ / Expedient (1:21) ⏱ / Illumination (1:25) ⏱","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"⏱ Back on time only if P2 lasted about 2:17+ (Seraph), 2:18+ (Expedient), 2:15+ (Illumination). Otherwise press each the moment it's back. Consolation at 1:18 and 1:30.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph 46 · Exp 46 · Illum 42","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47 – 1:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 3 ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (1:45)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Your White Mage's Bell (1:49) covers this round too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 42","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:08 – 2:18","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 4 (party shares the stacks) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:30","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Critical Error (89k raidwide) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (2:20)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Pairs with your White Mage's Plenary (2:27).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 50","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:52","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Oversampled Wave Cannon: monitors (52k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Ion Efflux (P3 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (≈3:04, just before P3 ends)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"The shields carry into P4 and cover its first wave cannons (P4 0:15 and 0:20).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 47 · Protraction 41","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P4 — Blue Screen  (from phase start; always 1:12 long)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:15 – 0:40","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph (0:12) ⏱ / Soil (0:12) / Expedient (0:19) ⏱ / Illumination (0:21) ⏱ / Whispering Dawn (0:25) / Blessing (0:37)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph 45 · Soil 54 · Exp 50 · Illum 30 · WD 41","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:56","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blue Screen (76k, phase end) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (0:45)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Top SCHs often Emergency Tactics + Succor right after it (31/58).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 54","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P5 — Run: Dynamis  (from boss targetable; always 4:46 long)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:08 / 0:11","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 (290k tankbuster) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Delta): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (0:13) / Recit → Adlo → Deploy (0:17)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 0:12 → Deploy 0:17. 17 of 58 Deploy after the raidwide instead (0:31). Your White Mage's Plenary (0:22) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 49 · Deploy 35","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:46 – 1:14","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blessing (0:59) / Seraph (1:04)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Consolation ×2 around 1:12 for the Hello World hits.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blessing 34 · Seraph 41","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:30 / 1:33","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Top SCHs Dissipate around 1:30 (32/58): no fairy until 2:00.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Dissipation 32","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Sigma): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Expedient (1:30) / Soil (1:38)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Expedient from 1:30 still covers it. Same window as your White Mage's Temperance (1:29).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Exp 39 · Soil 55","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:09","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Whispering Dawn (2:10) / Blessing (2:11)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Heals right after; the fairy is back from Dissipation at 2:00.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blessing 48 · WD 29","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:22","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Storage Violation towers (33k)","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:46 – 2:48","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:00 / 3:03","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit (2:44–2:46) → Adlo (2:50)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Adlo goes on you or another non-tank: Deploy waits until after the second Solar Ray (3:03) so the buster doesn't eat the shield. If your tanks share that buster, Deploy before it instead.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 34 · Adlo 41 · Protraction 35","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:17","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Omega): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Illumination (3:04) / Deploy (3:07) / Seraph (3:07) / Soil (3:08)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":"#808080","bold":false},{"start":19,"fg":null,"bold":false},{"start":38,"fg":"#808080","bold":false},{"start":51,"fg":null,"bold":false}],"note":null},
+      {"v":"Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 30 · Soil 50 · Illum 23 · Seraph 22","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:35 – 4:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Excog (3:14) / Expedient (3:31)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Excog on a tank before the sword/shield hits (target not in the logs). Expedient during the dodge also gives the party Sprint.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Excog 33 · Exp 27","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:23 / 4:26","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction (4:20)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"On the Solar Ray tank.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction 33","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:45","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blind Faith (72k + knockback, phase end) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (4:36)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 42","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P6 — Alpha Omega  (from Blind Faith; boss targetable ≈ 0:55)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Memory (405k raidwide) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (0:57) / Whispering Dawn (1:11) / Blessing (1:13)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil at 0:57 lasts until 1:12. Tank LB3 (~1:04). Your White Mage's Plenary (1:05) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 56 · WD 37 · Blessing 33","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:22 – 1:38","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Arrow (exaflares — dodge)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:39","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Dive (274k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph (1:31) / Soil (1:33)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Consolation ×2 around 1:40. Your White Mage's Temperance (1:30) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph 36 · Soil 51","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:17 / 2:19 / 2:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Expedient (2:07) / Soil (2:12) / Blessing (2:19) / Whispering Dawn (2:24)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Exp 27 · Soil 57 · Blessing 37 · WD 37","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:50 / 2:52 / 2:59","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (2:33) / Illumination (2:44) / Soil (2:49)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 2:26 + Protraction 2:29 → Deploy 2:33: the shields last until ~3:01, through Wild Charge.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 42 · Protraction 34 · Illum 30 · Soil 57","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:20 – 3:30","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Unlimited Wave Cannon 2 (exaflares + puddles — dodge)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Top SCHs Sprint (3:16) for the exaflares.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sprint 40","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:33","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Dive 2 (274k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil (3:25) / Whispering Dawn (3:35)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Your White Mage's Plenary (3:30) is on this too.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Soil 58 · WD 29","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:56 – 4:05","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Meteor (105k raidwide) + meteor baits ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph (3:46) / Soil (3:59)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Consolation ×2 around 3:48 and 4:00. Soil goes down after the raidwide, for the meteor baits.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Seraph 40 · Soil 48","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:16","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Flares (78k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Protraction + Recit → Adlo → Deploy (4:09) / Expedient (4:10)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Recit 4:03 + Protraction 4:05 → Deploy 4:09: the shields last into Magic Number (~4:37); Expedient runs until 4:30.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Deploy 51 · Protraction 34 · Exp 24","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:28","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Magic Number (252k) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 (~4:24), then your White Mage's healer LB3 (~4:32).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"WHM LB3 51","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:44","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Magic Number (252k) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Healer LB3 (≈4:48, after the hit)","bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 first (~4:40). Top SCHs take this second healer LB3; the White Mage takes the first.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"SCH LB3 53","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"5:09","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (enrage — top groups kill at 5:08–5:22)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#c3d7cd","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [{"r0":5,"c0":0,"r1":5,"c1":1},{"r0":8,"c0":2,"r1":10,"c1":4},{"r0":11,"c0":2,"r1":11,"c1":4},{"r0":12,"c0":2,"r1":12,"c1":4},{"r0":13,"c0":2,"r1":13,"c1":4},{"r0":14,"c0":2,"r1":15,"c1":2},{"r0":14,"c0":3,"r1":15,"c1":3},{"r0":14,"c0":4,"r1":15,"c1":4}],
+  "hiddenRows": [0,1,2,3,4],
+  "hiddenCols": []
+}

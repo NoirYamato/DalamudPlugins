@@ -1,0 +1,68 @@
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+Mitigation Key:,,,,
+Damage,Mits Suggested to Live,,,
+Super Lethal ★★★★,5+,,,
+Very Lethal ★★★,3-4,TOP — White Mage + Scholar,,
+Lethal in bis ★★,2,,,
+Lethal week 1 ★,1,,,
+Non-lethal,,"Each column comes from that job's own tab: top-player data from M-Spec, with the counts and full notes there. Same rows and FFLogs phase timer.",,
+Mechanic (no damage),,Plenary* (blue) = my placement for its 10% mitigation (7.4+).   Grey = optional.   ⏱ = depends on how long the previous phase lasted.,,
+,,"Level 90 kit, patch 7.55. GCD heals and shields are mostly left out; each job's tab lists what's excluded.",,
+,,Scholar,White Mage,Notes
+Damage Events,P1 — Omega  (timer from pull),,,
+0:28 / 0:37 / 0:46 / 0:55,Program Loop: towers (36k) + blasters (HP to 1%) ★,Excog (0:20) / Blessing (0:40),Asylum (~0:40) / Benison (0:41) / Tetragrammaton (0:49),"Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31)."
+1:21 / 1:27 / 1:33 / 1:39,Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit),Protraction + Recit → Adlo → Deploy (1:07) / Illumination (1:15) / Expedient (1:17) / Seraph (1:19) / Soil (1:22),"Temperance (1:18) / Bell (after the 1st stack, ~1:22) / Plenary* (1:31)","Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+1:47 – 1:56,Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★,Blessing (1:45),Benediction (1:57),WHM Bene on the low tank after the cleaves; keep Aquaveil for P2 Solar Ray.
+2:08,Atomic Ray (P1 enrage — push before),,,
+,P2 — Omega-M/F  (from phase start),,,
+0:12,Solar Ray ×2 (180k on both tanks) ★★ (tankbuster),Protraction (0:07) / Soil (0:08),Benison (0:07) / Aquaveil (0:09),"Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil."
+0:46,Party Synergy: Optimized Fire III spreads (35k),Whispering Dawn (0:49),,Regen from Whispering Dawn; Medica II / Rapture as needed.
+0:57,"Efficient Bladework + Spotlight stacks (60k, 3 players) ★",Soil (1:01),Plenary* (0:55) / Asylum (0:59),SCH Dissipates around 0:57 (no fairy until 1:27). WHM Asylum heals the stacks back up.
+1:34,Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★,Protraction + Recit → Adlo → Deploy (1:23) / Seraph (1:33),Benison (1:29) / Aquaveil (1:30),SCH Deploy shields (1:23) last through the flares.
+1:48,Optimized Meteor flares + Pile Pitch ★★★,Expedient (1:39) / Illumination (1:40) / Soil (1:44),Temperance (1:39),Both 20s mits go at 1:39 (Expedient + Temperance) and also cover Cosmo Memory.
+1:57,Cosmo Memory ×2 (100k raidwide) ★★★,,Plenary* (1:55),"Covered by the 1:39 mits, Soil and Plenary (1:55). Medica II + Rapture after."
+2:25,Laser Shower (P2 enrage — push before),,,
+,P3 — Omega Reconfigured  (from phase start; boss targetable ≈ 0:33),,,
+0:28,Transition: spreads (74k) + stacks (78k) ★★,Soil (0:30) / Blessing (0:31),Asylum (0:31),"SCH Soil + WHM Asylum keep healing through Hello, World."
+0:42,"Hello, World (62k raidwide) ★★",,Plenary* (0:39) ⏱,⏱ Plenary is only back if P2 lasted 2:16+.
+1:05 – 1:12,"Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★",Protraction + Recit → Adlo → Deploy (0:49),,SCH Deploy shields (0:49) cover it.
+1:26 – 1:35,Round 2 ★★,Seraph (1:16) ⏱ / Expedient (1:21) ⏱ / Illumination (1:25) ⏱,Temperance (1:25) ⏱,"⏱ Seraph, Expedient, Illumination and Temperance need P2 to have lasted about 2:18+. Otherwise press each the moment it's back."
+1:47 – 1:57,Round 3 ★★,Soil (1:45),Bell (1:49),SCH Soil + WHM Bell.
+2:08 – 2:18,Round 4 (party shares the stacks) ★★,,Asylum (2:04),WHM Asylum (2:04).
+2:30,Critical Error (89k raidwide) ★★★,Soil (2:20),Plenary* (2:27),SCH Soil (2:20) + WHM Plenary (2:27).
+2:52,Oversampled Wave Cannon: monitors (52k) ★,,,Benison / Aquaveil the monitor players if they're low.
+3:08,Ion Efflux (P3 enrage — push before),"Protraction + Recit → Adlo → Deploy (≈3:04, just before P3 ends)",,SCH Deploy at the end of P3 pre-shields P4's first wave cannons.
+,P4 — Blue Screen  (from phase start; always 1:12 long),,,
+0:15 – 0:40,"Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)",Seraph (0:12) ⏱ / Soil (0:12) / Expedient (0:19) ⏱ / Illumination (0:21) ⏱ / Whispering Dawn (0:25) / Blessing (0:37),Temperance (0:19) ⏱ / Asylum (0:26) ⏱ / Plenary* (0:28),"⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+."
+0:56,"Blue Screen (76k, phase end) ★",Soil (0:45),,SCH Soil (0:45); Medica II before it. SCH often Emergency Tactics + Succor after.
+,P5 — Run: Dynamis  (from boss targetable; always 4:46 long),,,
+0:08 / 0:11,Solar Ray ×2 (290k tankbuster) ★★★,,Benison (0:07) / Aquaveil (0:07),WHM Benison (+ Aquaveil) on the tank; skip if they invuln.
+0:25,Run: ****mi* (Delta): 140k raidwide ★★★,Soil (0:13) / Recit → Adlo → Deploy (0:17),Plenary* (0:22),SCH Soil + Deploy (0:17) and WHM Plenary (0:22). Bell comes right after.
+0:46 – 1:14,"Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★",Blessing (0:59) / Seraph (1:04),Bell (0:44) / Asylum (1:12),"WHM Bell + Asylum, SCH Seraph (Consolation ×2 around 1:12)."
+1:30 / 1:33,Solar Ray ×2 ★★★,,Benison (1:27) / Aquaveil (1:28),SCH Dissipates around 1:30 (no fairy until 2:00).
+1:47,Run: ****mi* (Sigma): 140k raidwide ★★★,Expedient (1:30) / Soil (1:38),Temperance (1:29) / Plenary* (1:44),"Both 20s mits again: Expedient (1:30) + Temperance (1:29), plus Soil and Plenary."
+2:09,Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★,Whispering Dawn (2:10) / Blessing (2:11),,Fairy heals right after (back from Dissipation at 2:00).
+2:22,Storage Violation towers (33k),,,
+2:46 – 2:48,Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★,,Asylum (2:48),WHM Asylum (2:48).
+3:00 / 3:03,Solar Ray ×2 ★★★,Protraction + Recit (2:44–2:46) → Adlo (2:50),Benediction (3:04),SCH Protraction + Recit → Adlo (2:50) on a non-tank; WHM Bene after the second hit.
+3:17,Run: ****mi* (Omega): 140k raidwide ★★★,Illumination (3:04) / Deploy (3:07) / Seraph (3:07) / Soil (3:08),Plenary* (3:14),"SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it."
+3:35 – 4:12,"Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★",Excog (3:14) / Expedient (3:31),Temperance (4:09),SCH Expedient (3:31) also gives Sprint for the dodge; optional WHM Temperance (4:09).
+4:23 / 4:26,Solar Ray ×2 ★★★,Protraction (4:20),Benison (4:20) / Aquaveil (4:22),"Tank: SCH Protraction, WHM Benison + Aquaveil."
+4:45,"Blind Faith (72k + knockback, phase end) ★",Soil (4:36),Asylum (4:30) / Bell (4:39) / Plenary* (4:42),"Free cooldowns before P6: SCH Soil, WHM Asylum + Bell + Plenary."
+,P6 — Alpha Omega  (from Blind Faith; boss targetable ≈ 0:55),,,
+1:08,Cosmo Memory (405k raidwide) ★★★★,Soil (0:57) / Whispering Dawn (1:11) / Blessing (1:13),Plenary* (1:05),"Tank LB3 (~1:04) + SCH Soil + WHM Plenary. Medica II, Rapture and fairy heals right after."
+1:22 – 1:38,Cosmo Arrow (exaflares — dodge),,,
+1:39,Cosmo Dive (274k) ★★★,Seraph (1:31) / Soil (1:33),Temperance (1:30) / Benison (1:37),WHM Temperance (1:30) + SCH Seraph and Soil.
+2:17 / 2:19 / 2:25,Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★,Expedient (2:07) / Soil (2:12) / Blessing (2:19) / Whispering Dawn (2:24),Plenary* (2:17) / Asylum (2:20) / Benison (2:24),"SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00."
+2:50 / 2:52 / 2:59,Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★,Protraction + Recit → Adlo → Deploy (2:33) / Illumination (2:44) / Soil (2:49),Benison (2:57) / Benediction (3:02),SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+3:20 – 3:30,Unlimited Wave Cannon 2 (exaflares + puddles — dodge),,,Both Sprint (3:16–3:18) for the exaflares.
+3:33,Cosmo Dive 2 (274k) ★★★,Soil (3:25) / Whispering Dawn (3:35),Aquaveil (3:29) / Benison (3:30) / Plenary* (3:30),SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.
+3:56 – 4:05,Cosmo Meteor (105k raidwide) + meteor baits ★★★,Seraph (3:46) / Soil (3:59),Bell (3:52) / Asylum (3:53) / Temperance (3:54),"WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after."
+4:16,Flares (78k) ★★,Protraction + Recit → Adlo → Deploy (4:09) / Expedient (4:10),,SCH Deploy (4:09) + Expedient (4:10) carry into Magic Number.
+4:28,Magic Number (252k) ★★★★,,"Healer LB3 (≈4:32, after the hit)","Tank LB3 (~4:24), then WHM healer LB3 (~4:32)."
+4:44,Magic Number (252k) ★★★★,"Healer LB3 (≈4:48, after the hit)",Plenary* (4:38),"Tank LB3 (~4:40) + WHM Plenary (4:38), then SCH healer LB3 (~4:48)."
+5:09,Run: ****mi* (enrage — top groups kill at 5:08–5:22),,,

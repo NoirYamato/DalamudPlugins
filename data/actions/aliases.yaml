@@ -1,0 +1,461 @@
+# MitCue shorthand dictionary (draft). Field reference and token coverage: docs/research/actions.md
+#
+# Keys are normalized shorthand: lowercase, apostrophes removed, every other character that is not a
+# letter, digit or '%' replaced by a space, runs of spaces collapsed, trimmed ("Nature's Minne" ->
+# "natures minne", "Co-Tank" -> "co tank", "30%" -> "30%").
+#
+# A value is one of:
+#   "Action Name"                                  one action, any job that has it
+#   {actions: [...], job: XXX, sequence: true, note_only: true, note: "...", targeted: [...]}
+#   [ {...}, {...} ]                               several expansions, usually one per job
+# Action names must match data/actions/actions.yaml exactly. Names are resolved at the plan's sync level:
+# an action replaced by an upgrade below that level resolves to the upgrade (Succor -> Concitation at 96),
+# and an upgrade named in a plan below its level resolves back to the base action (Heart of Corundum ->
+# Heart of Stone at 80).
+# sequence: the actions are pressed in this order. note_only: show the text as a note, resolve nothing.
+# targeted: actions to use instead when the cell names another player ("Short CD to R1", "... Co-Tank").
+schema: mitcue-aliases/1
+aliases:
+
+  # ======================= White Mage =======================
+  temp: Temperance                       # CtC WHM "Temp (1:18)", counts "Temp 36"
+  temperance: Temperance
+  wings:                                 # LPDU P3-P6: "Wings" in the H1 WHM column; "PLD Wings" for paladins
+    - {job: WHM, actions: [Temperance]}
+    - {job: PLD, actions: [Passage of Arms]}
+  pld wings: {job: PLD, actions: [Passage of Arms]}   # LPDU P5 Delta / P6 WC2 (tank columns)
+  divine caress: Divine Caress
+  caress: Divine Caress
+  bell: Liturgy of the Bell              # CtC WHM "Bell (1:49)"
+  lilybell: Liturgy of the Bell          # LPDU P3/P5/P6 "Lilybell"
+  lily bell: Liturgy of the Bell
+  liturgy: Liturgy of the Bell
+  liturgy of the bell: Liturgy of the Bell
+  lotb: Liturgy of the Bell
+  plenary: Plenary Indulgence            # CtC WHM "Plenary* (1:31)"
+  plenary indulgence: Plenary Indulgence
+  bene: Benediction                      # CtC WHM: "Benediction (1:57)" / note "Bene right after the last cleave" / counts "Bene 25"
+  benediction: Benediction
+  benison: Divine Benison                # CtC WHM "Benison (0:07)"
+  divine benison: Divine Benison
+  tetra: Tetragrammaton                  # CtC WHM note "Bene / Tetra for emergencies", counts "Tetra 25"
+  tetragrammaton: Tetragrammaton
+  aquaveil: Aquaveil
+  aqua: Aquaveil
+  veil:
+    - {job: WHM, actions: [Aquaveil]}
+    - {job: PLD, actions: [Divine Veil]}
+  asylum: Asylum
+  solace: Afflatus Solace                # CtC WHM "Solace + Benison"
+  afflatus solace: Afflatus Solace
+  rapture: Afflatus Rapture              # CtC WHM notes "Rapture between stacks"
+  afflatus rapture: Afflatus Rapture
+  misery: Afflatus Misery
+  afflatus misery: Afflatus Misery
+  blood lily: Afflatus Misery
+  medica: Medica
+  medica 2: Medica II                    # CtC WHM notes "Medica II"
+  medica ii: Medica II
+  medica 3: Medica III
+  medica iii: Medica III
+  cure 3: Cure III                       # CtC WHM notes "Rapture / Cure III right after"
+  cure iii: Cure III
+  regen: Regen
+  pom: Presence of Mind
+  presence of mind: Presence of Mind     # CtC WHM header "Left out: ... Presence of Mind"
+  assize: Assize                         # CtC WHM header "and Assize"
+  thin air: Thin Air
+  aetherial shift: Aetherial Shift
+
+  # ======================= Scholar =======================
+  soil: Sacred Soil                      # CtC SCH / LPDU P1-P6
+  sacred soil: Sacred Soil
+  excog: Excogitation                    # CtC SCH "Excog (0:20)"
+  excogitation: Excogitation
+  adlo: Adloquium                        # CtC SCH "Recit -> Adlo -> Deploy"
+  adloquium: Adloquium
+  spreadlo:                              # LPDU P3-P6 "Spreadlo": a (critical) Adloquium spread with Deployment Tactics
+    {actions: [Adloquium, Deployment Tactics], sequence: true,
+     note: "Spread Adloquium. Often preceded by Recitation for a critical Adloquium (Catalyze) - CtC writes it as Recit -> Adlo -> Deploy."}
+  spread lo: {actions: [Adloquium, Deployment Tactics], sequence: true}
+  deploy: Deployment Tactics             # CtC SCH "Deploy (1:07)"
+  deployment: Deployment Tactics
+  deployment tactics: Deployment Tactics
+  dt: {job: SCH, actions: [Deployment Tactics]}
+  recit: Recitation                      # CtC SCH "Protraction + Recit"
+  recitation: Recitation
+  protraction: Protraction               # CtC SCH
+  succor: Succor                         # LPDU P3/P6 "Soil + Succor"; resolves to Concitation at 96+
+  concitation: Concitation
+  manifestation: Manifestation
+  accession: Accession
+  seraphism: Seraphism
+  seraph:                                # CtC SCH "Seraph (1:19)" + notes "Consolation x2 around 1:30"
+    {actions: [Summon Seraph], note: "Summon Seraph; Consolation (2 charges) follows while Seraph is out."}
+  summon seraph: Summon Seraph
+  consolation: Consolation               # CtC SCH notes "Consolation x2"
+  consolations: Consolation
+  consol: Consolation
+  seraph charge: Consolation
+  2nd seraph charge: {actions: [Consolation], note: "second Consolation charge"}   # LPDU P3 Latent 3
+  fey illum: Fey Illumination
+  feyillum: Fey Illumination             # LPDU P3-P6 "FeyIllum"
+  fey illumination: Fey Illumination
+  illumination: Fey Illumination         # CtC SCH "Illumination (1:15)"
+  illum: Fey Illumination                # CtC SCH counts "Illum 55"
+  seraphic illumination: Fey Illumination
+  blessing: Fey Blessing                 # CtC SCH "Blessing (0:40)"
+  fey blessing: Fey Blessing
+  wd: Whispering Dawn                    # CtC SCH counts "WD 35"
+  whispering dawn: Whispering Dawn       # CtC SCH "Whispering Dawn (0:49)"
+  angels whisper: Whispering Dawn
+  dissipate: Dissipation                 # LPDU P6 "Soil + Dissipate"; CtC SCH notes "Dissipates around 0:57"
+  dissipates: Dissipation
+  dissipation: Dissipation
+  dissi: Dissipation
+  expedient: Expedient                   # CtC SCH / LPDU
+  exp: Expedient                         # CtC SCH counts "Exp 58"
+  expedience: Expedient
+  et: Emergency Tactics
+  emergency tactics: Emergency Tactics   # CtC SCH notes "Emergency Tactics + Succor"
+  lustrate: Lustrate                     # CtC SCH header "Left out: ... Lustrate"
+  indom: Indomitability
+  indomitability: Indomitability         # CtC SCH header
+  aetherflow: Aetherflow
+  energy drain: Energy Drain
+  aetherpact: Aetherpact
+  fey union: Aetherpact
+  ed:
+    - {job: SCH, actions: [Energy Drain]}
+    - {job: AST, actions: [Essential Dignity]}
+
+  # ======================= Astrologian =======================
+  cu: Collective Unconscious             # LPDU P3-P6 "CU"
+  collective unconscious: Collective Unconscious
+  collective: Collective Unconscious
+  neutral sect: Neutral Sect
+  neutralsect: Neutral Sect              # LPDU P3-P6 "Neutralsect"
+  ns: Neutral Sect
+  sun sign: Sun Sign
+  macro: Macrocosmos
+  macrocosmos: Macrocosmos               # LPDU P3/P5/P6
+  micro: Microcosmos
+  microcosmos: Microcosmos
+  star: Earthly Star
+  earthly star: Earthly Star
+  es: {job: AST, actions: [Earthly Star]}
+  stellar detonation: Stellar Detonation
+  co: {job: AST, actions: [Celestial Opposition]}
+  celestial opposition: Celestial Opposition
+  opposition: Celestial Opposition
+  ci: {job: AST, actions: [Celestial Intersection]}
+  intersection: Celestial Intersection
+  celestial intersection: Celestial Intersection
+  dignity: Essential Dignity
+  essential dignity: Essential Dignity
+  exalt: Exaltation
+  exaltation: Exaltation
+  horo: Horoscope
+  horoscope: Horoscope
+  synastry: Synastry
+  lightspeed: Lightspeed
+  lady: Lady of Crowns
+  lady of crowns: Lady of Crowns
+  minor arcana: Minor Arcana
+  bole: the Bole
+  the bole: the Bole
+  arrow: the Arrow
+  the arrow: the Arrow
+  spire: the Spire
+  the spire: the Spire
+  ewer: the Ewer
+  the ewer: the Ewer
+  helios: Helios
+  aspected helios: Aspected Helios
+  helios conjunction: Helios Conjunction
+  conjunction: Helios Conjunction
+  conj: Helios Conjunction
+  aspected benefic: Aspected Benefic
+
+  # ======================= Sage =======================
+  kera: Kerachole                        # LPDU P1-P6 "Kera"
+  kerachole: Kerachole
+  holos: Holos                           # LPDU P3-P6
+  panhaima: Panhaima                     # LPDU P3-P6
+  haima: Haima
+  tauro: Taurochole
+  taurochole: Taurochole
+  ixo: Ixochole
+  ixochole: Ixochole
+  druo: Druochole
+  druochole: Druochole
+  physis: Physis                         # LPDU P4 "Physis + Panhaima"; resolves to Physis II at 60+
+  physis 2: Physis II
+  physis ii: Physis II
+  eprog:                                 # LPDU P6 "Kera + Eprog"; resolves to Eukrasian Prognosis II at 96+
+    {actions: [Eukrasian Prognosis], note: "Eukrasia is pressed first (implied)."}
+  e prog: Eukrasian Prognosis
+  eukrasian prognosis: Eukrasian Prognosis
+  eprog 2: Eukrasian Prognosis II
+  eprog ii: Eukrasian Prognosis II
+  eukrasian prognosis ii: Eukrasian Prognosis II
+  zoe eprog:                             # LPDU P3/P5 "Kera + Zoe Eprog"
+    {actions: [Zoe, Eukrasian Prognosis], sequence: true, note: "Zoe, then Eukrasia + Eukrasian Prognosis."}
+  ediag: Eukrasian Diagnosis
+  e diag: Eukrasian Diagnosis
+  eukrasian diagnosis: Eukrasian Diagnosis
+  eukrasia: Eukrasia
+  zoe: Zoe
+  pepsis: Pepsis
+  krasis: Krasis
+  pneuma: Pneuma
+  soteria: Soteria
+  rhizo: Rhizomata
+  rhizomata: Rhizomata
+  philo: Philosophia
+  philosophia: Philosophia
+  icarus: Icarus
+  kardia: Kardia
+  prognosis: Prognosis
+
+  # ======================= Healer role and healer LB =======================
+  lucid: Lucid Dreaming                  # CtC WHM header "Left out: ... Lucid"
+  lucid dreaming: Lucid Dreaming
+  swift: Swiftcast
+  swiftcast: Swiftcast                   # CtC WHM notes "Top WHMs Swiftcast around 0:29"
+  surecast: Surecast
+  esuna: Esuna
+  rescue: Rescue
+  healer lb3:                            # CtC / LPDU P6 "Healer LB3"
+    - {job: WHM, actions: [Pulse of Life]}
+    - {job: SCH, actions: [Angel Feathers]}
+    - {job: AST, actions: [Astral Stasis]}
+    - {job: SGE, actions: [Techne Makre]}
+  healer lb:
+    - {job: WHM, actions: [Pulse of Life]}
+    - {job: SCH, actions: [Angel Feathers]}
+    - {job: AST, actions: [Astral Stasis]}
+    - {job: SGE, actions: [Techne Makre]}
+  whm lb3: {job: WHM, actions: [Pulse of Life]}   # CtC counts "WHM LB3 31"
+  sch lb3: {job: SCH, actions: [Angel Feathers]}  # CtC counts "SCH LB3 35"
+  ast lb3: {job: AST, actions: [Astral Stasis]}
+  sge lb3: {job: SGE, actions: [Techne Makre]}
+  pulse of life: Pulse of Life
+  angel feathers: Angel Feathers
+  astral stasis: Astral Stasis
+  techne makre: Techne Makre
+  healer lb2: Breath of the Earth
+  healer lb1: Healing Wind
+
+  # ======================= Tanks: role actions and role phrases =======================
+  rep: Reprisal                          # LPDU P1-P6 "Rep"
+  reprisal: Reprisal
+  rampart: Rampart                       # LPDU tank tabs
+  ramp: Rampart
+  arms length: Arm's Length
+  provoke: Provoke
+  shirk: Shirk
+  party mit:                             # LPDU tank and R1/R2 columns; healers write their own actions
+    - {job: PLD, actions: [Divine Veil]}
+    - {job: WAR, actions: [Shake It Off]}
+    - {job: DRK, actions: [Dark Missionary]}
+    - {job: GNB, actions: [Heart of Light]}
+    - {job: BRD, actions: [Troubadour]}
+    - {job: MCH, actions: [Tactician]}
+    - {job: DNC, actions: [Shield Samba]}
+    - {job: RDM, actions: [Magick Barrier]}
+    - {job: PCT, actions: [Tempera Coat, Tempera Grassa], sequence: true}
+  short cd:                              # LPDU "Short CD", "Short CD to R1/2", "Short CD on R1", "Short CD to 4"
+    - {job: PLD, actions: [Holy Sheltron], targeted: [Intervention]}
+    - {job: WAR, actions: [Bloodwhetting], targeted: [Nascent Flash]}
+    - {job: DRK, actions: [The Blackest Night], targeted: [The Blackest Night]}
+    - {job: GNB, actions: [Heart of Corundum], targeted: [Heart of Corundum]}
+  short cds:
+    - {job: PLD, actions: [Holy Sheltron], targeted: [Intervention]}
+    - {job: WAR, actions: [Bloodwhetting], targeted: [Nascent Flash]}
+    - {job: DRK, actions: [The Blackest Night], targeted: [The Blackest Night]}
+    - {job: GNB, actions: [Heart of Corundum], targeted: [Heart of Corundum]}
+  invuln:                                # LPDU General Tank Mit "Invuln Diffuse Wave Cannon"
+    - {job: PLD, actions: [Hallowed Ground]}
+    - {job: WAR, actions: [Holmgang]}
+    - {job: DRK, actions: [Living Dead]}
+    - {job: GNB, actions: [Superbolide]}
+  invul:
+    - {job: PLD, actions: [Hallowed Ground]}
+    - {job: WAR, actions: [Holmgang]}
+    - {job: DRK, actions: [Living Dead]}
+    - {job: GNB, actions: [Superbolide]}
+  30%:                                   # LPDU General Tank Mit "Rampart + 30% + Short CD"; 40% upgrades at 92
+    - {job: PLD, actions: [Sentinel]}
+    - {job: WAR, actions: [Vengeance]}
+    - {job: DRK, actions: [Shadow Wall]}
+    - {job: GNB, actions: [Nebula]}
+  40%:
+    - {job: PLD, actions: [Guardian]}
+    - {job: WAR, actions: [Damnation]}
+    - {job: DRK, actions: [Shadowed Vigil]}
+    - {job: GNB, actions: [Great Nebula]}
+  big cd:
+    - {job: PLD, actions: [Sentinel]}
+    - {job: WAR, actions: [Vengeance]}
+    - {job: DRK, actions: [Shadow Wall]}
+    - {job: GNB, actions: [Nebula]}
+  filler:                                # LPDU General Tank Mit "Filler + Short CD" (inferred, see actions.md)
+    - {job: PLD, actions: [Bulwark]}
+    - {job: WAR, actions: [Thrill of Battle]}
+    - {job: DRK, actions: [Dark Mind]}
+    - {job: GNB, actions: [Camouflage]}
+  tank lb3:                              # LPDU P6 / CtC "Tank LB3"
+    - {job: PLD, actions: [Last Bastion]}
+    - {job: WAR, actions: [Land Waker]}
+    - {job: DRK, actions: [Dark Force]}
+    - {job: GNB, actions: [Gunmetal Soul]}
+  tank lb:
+    - {job: PLD, actions: [Last Bastion]}
+    - {job: WAR, actions: [Land Waker]}
+    - {job: DRK, actions: [Dark Force]}
+    - {job: GNB, actions: [Gunmetal Soul]}
+  lb3:
+    - {job: PLD, actions: [Last Bastion]}
+    - {job: WAR, actions: [Land Waker]}
+    - {job: DRK, actions: [Dark Force]}
+    - {job: GNB, actions: [Gunmetal Soul]}
+    - {job: WHM, actions: [Pulse of Life]}
+    - {job: SCH, actions: [Angel Feathers]}
+    - {job: AST, actions: [Astral Stasis]}
+    - {job: SGE, actions: [Techne Makre]}
+  pld lb3: {job: PLD, actions: [Last Bastion]}
+  war lb3: {job: WAR, actions: [Land Waker]}
+  drk lb3: {job: DRK, actions: [Dark Force]}
+  gnb lb3: {job: GNB, actions: [Gunmetal Soul]}
+  last bastion: Last Bastion
+  land waker: Land Waker
+  dark force: Dark Force
+  gunmetal soul: Gunmetal Soul
+  tank lb2: Stronghold
+  tank lb1: Shield Wall
+  everything:                            # LPDU P1/P2 "Everything" (H1/H2 at Pantokrator and Limitless)
+    {note_only: true, note: "Use every party mitigation and shield available."}
+  kitchen sink:                          # LPDU WAR/DRK, WAR/GNB, ... "Kitchen Sink"
+    {note_only: true, note: "Use every personal mitigation available (Rampart, 30%/40% cooldown, short cooldowns, filler)."}
+  personals: {note_only: true, note: "Personal mitigation and self-healing."}   # LPDU P6 "Use personals and self healing"
+
+  # ======================= Paladin =======================
+  sentinel: Sentinel                     # LPDU WAR/PLD, DRK/PLD "Sentinel"; resolves to Guardian at 92+
+  sentinal: Sentinel                     # typo in LPDU GNB/PLD WC2
+  guardian: Guardian
+  hs: Holy Sheltron                      # LPDU "Rampart + Bullwark + HS"; Sheltron below 82
+  holy sheltron: Holy Sheltron
+  sheltron: Sheltron
+  bulwark: Bulwark
+  bullwark: Bulwark                      # typo in LPDU WAR/PLD, DRK/PLD, GNB/PLD
+  hallowed: Hallowed Ground
+  hallowed ground: Hallowed Ground       # LPDU WAR/PLD "Hallowed Ground"
+  hg: Hallowed Ground
+  cover: Cover
+  divine veil: Divine Veil
+  dv: Divine Veil
+  intervention: Intervention             # LPDU "Intervention Co-Tank"
+  passage: Passage of Arms
+  passage of arms: Passage of Arms
+  poa: Passage of Arms
+  clemency: Clemency
+
+  # ======================= Warrior =======================
+  thrill: Thrill of Battle               # LPDU "Rampart + Thrill + BW"
+  thrill of battle: Thrill of Battle
+  vengeance: Vengeance                   # resolves to Damnation at 92+
+  vengance: Vengeance                    # typo in LPDU WAR tabs "Vengance + BW"
+  venge: Vengeance
+  damnation: Damnation
+  holmgang: Holmgang                     # LPDU WAR tabs
+  holm: Holmgang
+  bw: Bloodwhetting                      # LPDU WAR tabs; Raw Intuition below 82
+  bloodwhetting: Bloodwhetting
+  raw intuition: Raw Intuition
+  raw: Raw Intuition
+  nascent: Nascent Flash
+  nascant: Nascent Flash                 # typo in LPDU WAR tabs "Holmgang + Nascant Co-Tank"
+  nascent flash: Nascent Flash
+  nf: {job: WAR, actions: [Nascent Flash]}
+  shake: Shake It Off                    # LPDU P3 note "WAR can use Shake as P3 dies"
+  shake it off: Shake It Off
+  sio: Shake It Off
+  equilibrium: Equilibrium
+
+  # ======================= Dark Knight =======================
+  shadow wall: Shadow Wall               # LPDU DRK tabs; resolves to Shadowed Vigil at 92+
+  shadowed vigil: Shadowed Vigil
+  vigil: Shadowed Vigil
+  dark mind: Dark Mind                   # LPDU DRK tabs
+  living dead: Living Dead               # LPDU DRK tabs
+  ld: Living Dead
+  tbn: The Blackest Night                # LPDU DRK tabs
+  blackest night: The Blackest Night
+  the blackest night: The Blackest Night
+  oblation: Oblation                     # LPDU DRK tabs
+  dark missionary: Dark Missionary
+  missionary: Dark Missionary
+  dmiss: Dark Missionary
+
+  # ======================= Gunbreaker =======================
+  camo: Camouflage                       # LPDU GNB tabs "Rampart + Camo + HoC"
+  camouflage: Camouflage
+  nebula: Nebula                         # LPDU GNB tabs; resolves to Great Nebula at 92+
+  great nebula: Great Nebula
+  neb: Nebula
+  superbolide: Superbolide               # LPDU GNB tabs
+  super bolide: Superbolide              # LPDU WAR/GNB "Super Bolide"
+  bolide: Superbolide
+  hoc: Heart of Corundum                 # LPDU GNB tabs "HoC" / "Hoc"; Heart of Stone below 82
+  heart of corundum: Heart of Corundum
+  corundum: Heart of Corundum
+  hos: Heart of Stone
+  heart of stone: Heart of Stone
+  hol: Heart of Light
+  heart of light: Heart of Light
+  aurora: Aurora
+
+  # ======================= DPS =======================
+  feint: Feint                           # LPDU M1/M2 columns
+  addle: Addle                           # LPDU R2 column
+  dismantle: Dismantle                   # LPDU R1 column
+  magick barrier: Magick Barrier         # LPDU R2 column
+  mb: {job: RDM, actions: [Magick Barrier]}
+  troubadour: Troubadour
+  troub: Troubadour
+  tactician: Tactician
+  tact: Tactician
+  shield samba: Shield Samba
+  samba: Shield Samba
+  natures minne: Nature's Minne
+  minne: Nature's Minne
+  improv: Improvisation
+  improvisation: Improvisation
+  improvised finish: Improvised Finish
+  curing waltz: Curing Waltz
+  waltz: Curing Waltz
+  tempera: {actions: [Tempera Coat, Tempera Grassa], sequence: true}
+  tempera coat: Tempera Coat
+  tempera grassa: Tempera Grassa
+  grassa: Tempera Grassa
+  mantra: Mantra
+  riddle of earth: Riddle of Earth
+  roe: {job: MNK, actions: [Riddle of Earth]}
+  arcane crest: Arcane Crest
+  crest: Arcane Crest
+  third eye: Third Eye
+  tengentsu: Tengentsu
+  shade shift: Shade Shift
+  shade: {job: NIN, actions: [Shade Shift]}
+  manaward: Manaward
+  radiant aegis: Radiant Aegis
+  aegis: Radiant Aegis
+  lux solaris: Lux Solaris
+  rekindle: Rekindle
+  second wind: Second Wind
+  bloodbath: Bloodbath
+  melee lb3: {note_only: true, note: "Melee LB3 (not in the action knowledge base)."}   # LPDU P6 note ">>Holy Melee LB3 Bible<<"
+
+  # ======================= General =======================
+  sprint: Sprint                         # CtC notes "Top WHMs Sprint at 0:24"

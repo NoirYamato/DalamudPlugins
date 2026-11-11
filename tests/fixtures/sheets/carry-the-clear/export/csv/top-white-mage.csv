@@ -1,0 +1,68 @@
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+,,,,
+Damage,Mits Suggested to Live,,,
+Super Lethal ★★★★,5+,,,
+Very Lethal ★★★,3-4,TOP — White Mage,,
+Lethal in bis ★★,2,,,
+Lethal week 1 ★,1,,,
+Non-lethal,,"Built from M-Spec's top-rDPS White Mage kills (62 with cast data, Jul 2024 – Feb 2025). Counts in the last column are from the 36 with a Scholar co-healer.",,
+Mechanic (no damage),,"Plenary* (blue) = my placement for its 10% mitigation (7.4+). Every M-Spec log is older, so top players only used it to heal.   Grey = optional.   ⏱ = depends on how long the previous phase lasted.",,
+,,"Level 90 kit, patch 7.55. Times use the FFLogs phase timer, checked against the #1 log. Left out: GCD heals, Lucid, Presence of Mind, and Assize, which top WHMs press on cooldown (every 40s).",,
+,,White Mage,Notes,Top WHMs (of 36)
+Damage Events,P1 — Omega  (timer from pull),,,
+0:28 / 0:37 / 0:46 / 0:55,Program Loop: towers (36k) + blasters (HP to 1%) ★,Asylum (~0:40) / Solace + Benison (your 3rd/4th-in-line player),"Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).",Benison 28 · Tetra 25
+1:21 / 1:27 / 1:33 / 1:39,Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit),"Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)","Shields cover the 1st stack, so Bell in the centre right after it covers stacks 2–4. Plenary at ~1:31, before the 3rd stack, covers stacks 3 and 4. Rapture between stacks.",Asylum 29 · Temp 36 · Bell 36
+1:47 – 1:56,Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★,Benediction (1:57),"Bene right after the last cleave, usually on a tank. Keep Aquaveil for P2 Solar Ray.",Bene 25
+2:08,Atomic Ray (P1 enrage — push before),,,
+,P2 — Omega-M/F  (from phase start),,,
+0:12,Solar Ray ×2 (180k on both tanks) ★★ (tankbuster),Benison (0:07) / Aquaveil (0:09),On the tanks.,Benison 34 · Aquaveil 31
+0:46,Party Synergy: Optimized Fire III spreads (35k),,Medica II / Rapture as needed. Top WHMs Swiftcast around 0:29.,Swiftcast 26
+0:57,"Efficient Bladework + Spotlight stacks (60k, 3 players) ★",Plenary* (0:55) / Asylum (0:59),Asylum right after the stacks to heal everyone back up.,Asylum 28
+1:34,Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★,Benison (1:29) / Aquaveil (1:30),"Optional, on the Bladedance tank.",Benison 16 · Aquaveil 17
+1:48,Optimized Meteor flares + Pile Pitch ★★★,Temperance (1:39),One Temperance covers both the flares and Cosmo Memory (it runs until 1:59).,Temp 36
+1:57,Cosmo Memory ×2 (100k raidwide) ★★★,Plenary* (1:55),Temperance from 1:39 is still up. Medica II + Rapture straight after.,
+2:25,Laser Shower (P2 enrage — push before),,,
+,P3 — Omega Reconfigured  (from phase start; boss targetable ≈ 0:33),,,
+0:28,Transition: spreads (74k) + stacks (78k) ★★,Asylum (0:31),"Asylum after the hits; it keeps healing through Hello, World. Top WHMs Sprint at 0:24 for the rings.",Asylum 26 · Sprint 19
+0:42,"Hello, World (62k raidwide) ★★",Plenary* (0:39) ⏱,"⏱ Only back if P2 lasted 2:16 or longer (60s after your Cosmo Memory Plenary). If it isn't, use it on round 1.",
+1:05 – 1:12,"Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★",,Rapture / Medica II. Lilies refill every 20s.,
+1:26 – 1:35,Round 2 ★★,Temperance (1:25) ⏱,⏱ Only back at 1:25 if P2 lasted 2:14 or longer. Otherwise press it the moment it's up.,Temp 35
+1:47 – 1:57,Round 3 ★★,Bell (1:49),"Bell lasts until 2:09, so it also catches round 4's first hit.",Bell 32
+2:08 – 2:18,Round 4 (party shares the stacks) ★★,Asylum (2:04),,Asylum 26
+2:30,Critical Error (89k raidwide) ★★★,Plenary* (2:27),Your only free party cooldown here. Top WHMs had nothing for it (pre-7.4) and healed after.,
+2:52,Oversampled Wave Cannon: monitors (52k) ★,,Benison / Aquaveil on monitor players who are low.,
+3:08,Ion Efflux (P3 enrage — push before),,,
+,P4 — Blue Screen  (from phase start; always 1:12 long),,,
+0:15 – 0:40,"Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)",Temperance (0:19) ⏱ / Asylum (0:26) ⏱ / Plenary* (0:28),"⏱ Temp is back by 0:19 only if P3 lasted 3:06+, Asylum by 0:26 only if P3 lasted 3:08+. Otherwise press each the moment it's up. Plenary at 0:28 covers the 0:30 stack and 0:35 lasers.",Temp 35 · Asylum 30
+0:56,"Blue Screen (76k, phase end) ★",,Medica II before it.,
+,P5 — Run: Dynamis  (from boss targetable; always 4:46 long),,,
+0:08 / 0:11,Solar Ray ×2 (290k tankbuster) ★★★,Benison (0:07) / Aquaveil (0:07),Skip if the tank is using an invuln.,Benison 24 · Aquaveil 16
+0:25,Run: ****mi* (Delta): 140k raidwide ★★★,Plenary* (0:22),Top WHMs press nothing here and drop Bell right after.,
+0:46 – 1:14,"Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★",Bell (0:44) / Asylum (1:12),Bell right after the raidwide covers the tethers and monitors; Asylum for the Hello World hits.,Bell 35 · Asylum 30
+1:30 / 1:33,Solar Ray ×2 ★★★,Benison (1:27) / Aquaveil (1:28),,Benison 22 · Aquaveil 14
+1:47,Run: ****mi* (Sigma): 140k raidwide ★★★,Temperance (1:29) / Plenary* (1:44),Temperance from 1:29 still covers this.,Temp 33
+2:09,Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★,,Rapture / Cure III right after.,
+2:22,Storage Violation towers (33k),,,
+2:46 – 2:48,Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★,Asylum (2:48),,Asylum 26
+3:00 / 3:03,Solar Ray ×2 ★★★,Benediction (3:04),Bene the tank after the second hit.,Bene 24
+3:17,Run: ****mi* (Omega): 140k raidwide ★★★,Plenary* (3:14),,
+3:35 – 4:12,"Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★",Temperance (4:09),Optional free Temperance: it's back for P6 at 1:30 either way.,Temp 16
+4:23 / 4:26,Solar Ray ×2 ★★★,Benison (4:20) / Aquaveil (4:22),,Benison 33 · Aquaveil 24
+4:45,"Blind Faith (72k + knockback, phase end) ★",Asylum (4:30) / Bell (4:39) / Plenary* (4:42),"Free cooldowns before the long P6 transition. Bell is back for Cosmo Meteor, Plenary for Cosmo Memory.",Asylum 21 · Bell 25
+,P6 — Alpha Omega  (from Blind Faith; boss targetable ≈ 0:55),,,
+1:08,Cosmo Memory (405k raidwide) ★★★★,Plenary* (1:05),"Tank LB3 (~1:04). Medica II + Rapture straight after; tank autos at 1:13 and 1:16. 15 of 36 top WHMs skip P5's 4:30 Asylum and put one here instead (0:58, then 2:29 and 4:04).",Tank LB3 36
+1:22 – 1:38,Cosmo Arrow (exaflares — dodge),,,
+1:39,Cosmo Dive (274k) ★★★,Temperance (1:30) / Benison (1:37),,Temp 28 · Benison 24
+2:17 / 2:19 / 2:25,Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★,Plenary* (2:17) / Asylum (2:20) / Benison (2:24),Plenary right after the first proteans lasts through Wild Charge. Top WHMs Sprint (2:02) and Swiftcast (2:03) for the exaflares.,Asylum 30 · Benison 22 · Sprint 31
+2:50 / 2:52 / 2:59,Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★,Benison (2:57) / Benediction (3:02),"Bene right after Wild Charge, usually on the front tank.",Benison 19 · Bene 24
+3:20 – 3:30,Unlimited Wave Cannon 2 (exaflares + puddles — dodge),,Top WHMs Sprint (3:18) and Swiftcast (3:19).,Sprint 26
+3:33,Cosmo Dive 2 (274k) ★★★,Aquaveil (3:29) / Benison (3:30) / Plenary* (3:30),,Aquaveil 21 · Benison 28
+3:56 – 4:05,Cosmo Meteor (105k raidwide) + meteor baits ★★★,Bell (3:52) / Asylum (3:53) / Temperance (3:54),All three right before the raidwide.,Bell 36 · Asylum 28 · Temp 29
+4:16,Flares (78k) ★★,,Rapture / Medica II; Asylum from 3:53 is still up.,
+4:28,Magic Number (252k) ★★★★,"Healer LB3 (≈4:32, after the hit)",Tank LB3 first (~4:24). Top WHMs take this healer LB3 and the Scholar takes the second one. Agree on it with your group.,WHM LB3 31
+4:44,Magic Number (252k) ★★★★,Plenary* (4:38),"Tank LB3 (~4:40), then your Scholar's healer LB3 (~4:48).",SCH LB3 35
+5:09,Run: ****mi* (enrage — top groups kill at 5:08–5:22),,,

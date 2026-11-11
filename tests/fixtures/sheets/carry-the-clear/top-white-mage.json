@@ -1,0 +1,486 @@
+{
+  "tab": "TOP – White Mage",
+  "gid": 777100,
+  "index": 0,
+  "rows": [
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Damage","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Mits Suggested to Live","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Super Lethal ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"5+","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Very Lethal ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"3-4","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"TOP — White Mage","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Lethal in bis ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"2","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Lethal week 1 ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"1","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Non-lethal","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Built from M-Spec's top-rDPS White Mage kills (62 with cast data, Jul 2024 – Feb 2025). Counts in the last column are from the 36 with a Scholar co-healer.","bg":null,"fg":null,"bold":true,"strike":false,"runs":[{"start":0,"fg":null,"bold":true},{"start":11,"fg":"#1154cc","bold":true},{"start":17,"fg":null,"bold":true}],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Mechanic (no damage)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (blue) = my placement for its 10% mitigation (7.4+). Every M-Spec log is older, so top players only used it to heal.   Grey = optional.   ⏱ = depends on how long the previous phase lasted.","bg":null,"fg":"#808080","bold":true,"strike":false,"runs":[{"start":0,"fg":"#1154cc","bold":true},{"start":15,"fg":"#808080","bold":true}],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Level 90 kit, patch 7.55. Times use the FFLogs phase timer, checked against the #1 log. Left out: GCD heals, Lucid, Presence of Mind, and Assize, which top WHMs press on cooldown (every 40s).","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"White Mage","bg":"#ebd2d3","fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Notes","bg":"#e0cfc1","fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Top WHMs (of 36)","bg":"#dadada","fg":null,"bold":true,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"Damage Events","bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"P1 — Omega  (timer from pull)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:28 / 0:37 / 0:46 / 0:55","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Program Loop: towers (36k) + blasters (HP to 1%) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum (~0:40) / Solace + Benison (your 3rd/4th-in-line player)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 28 · Tetra 25","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:21 / 1:27 / 1:33 / 1:39","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Pantokrator: line stacks + missiles (65k) ★★★ (multi-hit)","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":56,"fg":"#1154cc","bold":true}],"note":null},
+      {"v":"Shields cover the 1st stack, so Bell in the centre right after it covers stacks 2–4. Plenary at ~1:31, before the 3rd stack, covers stacks 3 and 4. Rapture between stacks.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 29 · Temp 36 · Bell 36","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47 – 1:56","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Wave Cannon Kyrios (35k) + Diffuse Wave Cannon Kyrios tank cleaves (60k ×5) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benediction (1:57)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bene right after the last cleave, usually on a tank. Keep Aquaveil for P2 Solar Ray.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bene 25","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Atomic Ray (P1 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P2 — Omega-M/F  (from phase start)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 (180k on both tanks) ★★ (tankbuster)","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (0:07) / Aquaveil (0:09)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"On the tanks.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 34 · Aquaveil 31","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:46","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Party Synergy: Optimized Fire III spreads (35k)","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Medica II / Rapture as needed. Top WHMs Swiftcast around 0:29.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Swiftcast 26","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Efficient Bladework + Spotlight stacks (60k, 3 players) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (0:55) / Asylum (0:59)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":"#1154cc","bold":true},{"start":15,"fg":null,"bold":false}],"note":null},
+      {"v":"Asylum right after the stacks to heal everyone back up.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 28","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:34","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (1:29) / Aquaveil (1:30)","bg":"#ebd2d3","fg":"#808080","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Optional, on the Bladedance tank.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 16 · Aquaveil 17","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:48","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Optimized Meteor flares + Pile Pitch ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (1:39)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"One Temperance covers both the flares and Cosmo Memory (it runs until 1:59).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 36","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Memory ×2 (100k raidwide) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (1:55)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance from 1:39 is still up. Medica II + Rapture straight after.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Laser Shower (P2 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P3 — Omega Reconfigured  (from phase start; boss targetable ≈ 0:33)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:28","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Transition: spreads (74k) + stacks (78k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum (0:31)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum after the hits; it keeps healing through Hello, World. Top WHMs Sprint at 0:24 for the rings.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 26 · Sprint 19","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:42","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hello, World (62k raidwide) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (0:39) ⏱","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"⏱ Only back if P2 lasted 2:16 or longer (60s after your Cosmo Memory Plenary). If it isn't, use it on round 1.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:05 – 1:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 1: towers, defamations (40k), stacks (41k), tethers (21k ×2) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rapture / Medica II. Lilies refill every 20s.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:26 – 1:35","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 2 ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (1:25) ⏱","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"⏱ Only back at 1:25 if P2 lasted 2:14 or longer. Otherwise press it the moment it's up.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 35","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47 – 1:57","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 3 ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell (1:49)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell lasts until 2:09, so it also catches round 4's first hit.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell 32","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:08 – 2:18","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Round 4 (party shares the stacks) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum (2:04)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 26","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:30","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Critical Error (89k raidwide) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (2:27)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Your only free party cooldown here. Top WHMs had nothing for it (pre-7.4) and healed after.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:52","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Oversampled Wave Cannon: monitors (52k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison / Aquaveil on monitor players who are low.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Ion Efflux (P3 enrage — push before)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P4 — Blue Screen  (from phase start; always 1:12 long)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:15 – 0:40","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Wave Cannon ×6: lasers on everyone (36k) at 0:15 / 0:25 / 0:35, stacks (56k) at 0:20 / 0:30 / 0:40 ★★ (multi-hit)","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (0:19) ⏱ / Asylum (0:26) ⏱ / Plenary* (0:28)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":40,"fg":"#1154cc","bold":true}],"note":null},
+      {"v":"⏱ Temp is back by 0:19 only if P3 lasted 3:06+, Asylum by 0:26 only if P3 lasted 3:08+. Otherwise press each the moment it's up. Plenary at 0:28 covers the 0:30 stack and 0:35 lasers.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 35 · Asylum 30","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:56","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blue Screen (76k, phase end) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Medica II before it.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P5 — Run: Dynamis  (from boss targetable; always 4:46 long)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:08 / 0:11","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 (290k tankbuster) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (0:07) / Aquaveil (0:07)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":14,"fg":"#808080","bold":false}],"note":null},
+      {"v":"Skip if the tank is using an invuln.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 24 · Aquaveil 16","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Delta): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (0:22)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Top WHMs press nothing here and drop Bell right after.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"0:46 – 1:14","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Delta: tethers (26k), monitors + Hyper Pulse + Pile Pitch (50k), Hello Near/Distant World (50k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell (0:44) / Asylum (1:12)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell right after the raidwide covers the tethers and monitors; Asylum for the Hello World hits.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell 35 · Asylum 30","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:30 / 1:33","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (1:27) / Aquaveil (1:28)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":14,"fg":"#808080","bold":false}],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 22 · Aquaveil 14","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:47","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Sigma): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (1:29) / Plenary* (1:44)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":20,"fg":"#1154cc","bold":true}],"note":null},
+      {"v":"Temperance from 1:29 still covers this.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 33","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:09","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sigma: Hyper Pulse (68k) + Wave Cannon (73k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rapture / Cure III right after.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:22","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Storage Violation towers (33k)","bg":null,"fg":"#178038","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:46 – 2:48","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Hello Near/Distant World (50k) + Hyper Pulse (68k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum (2:48)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 26","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:00 / 3:03","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benediction (3:04)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bene the tank after the second hit.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bene 24","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:17","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (Omega): 140k raidwide ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (3:14)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:35 – 4:12","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Omega: Diffuse Wave Cannon, monitors + Hello World (50k), blasters (50k) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (4:09)","bg":"#ebd2d3","fg":"#808080","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Optional free Temperance: it's back for P6 at 1:30 either way.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 16","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:23 / 4:26","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Solar Ray ×2 ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (4:20) / Aquaveil (4:22)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 33 · Aquaveil 24","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:45","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Blind Faith (72k + knockback, phase end) ★","bg":null,"fg":"#926c02","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum (4:30) / Bell (4:39) / Plenary* (4:42)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":30,"fg":"#1154cc","bold":true}],"note":null},
+      {"v":"Free cooldowns before the long P6 transition. Bell is back for Cosmo Meteor, Plenary for Cosmo Memory.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 21 · Bell 25","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":null,"bg":null,"fg":"#545454","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"P6 — Alpha Omega  (from Blind Faith; boss targetable ≈ 0:55)","bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":true,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":null,"fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:08","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Memory (405k raidwide) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (1:05)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 (~1:04). Medica II + Rapture straight after; tank autos at 1:13 and 1:16. 15 of 36 top WHMs skip P5's 4:30 Asylum and put one here instead (0:58, then 2:29 and 4:04).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 36","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:22 – 1:38","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Arrow (exaflares — dodge)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"1:39","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Dive (274k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temperance (1:30) / Benison (1:37)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Temp 28 · Benison 24","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:17 / 2:19 / 2:25","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Unlimited Wave Cannon: proteans (90k ×2) + Wild Charge (100–220k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (2:17) / Asylum (2:20) / Benison (2:24)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":"#1154cc","bold":true},{"start":15,"fg":null,"bold":false}],"note":null},
+      {"v":"Plenary right after the first proteans lasts through Wild Charge. Top WHMs Sprint (2:02) and Swiftcast (2:03) for the exaflares.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Asylum 30 · Benison 22 · Sprint 31","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"2:50 / 2:52 / 2:59","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Arrow 2: proteans (90k ×2) + Wild Charge ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison (2:57) / Benediction (3:02)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bene right after Wild Charge, usually on the front tank.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Benison 19 · Bene 24","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:20 – 3:30","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Unlimited Wave Cannon 2 (exaflares + puddles — dodge)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Top WHMs Sprint (3:18) and Swiftcast (3:19).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Sprint 26","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:33","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Dive 2 (274k) ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Aquaveil (3:29) / Benison (3:30) / Plenary* (3:30)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[{"start":0,"fg":null,"bold":false},{"start":35,"fg":"#1154cc","bold":true}],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Aquaveil 21 · Benison 28","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"3:56 – 4:05","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Cosmo Meteor (105k raidwide) + meteor baits ★★★","bg":null,"fg":"#d92f24","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell (3:52) / Asylum (3:53) / Temperance (3:54)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"All three right before the raidwide.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Bell 36 · Asylum 28 · Temp 29","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:16","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Flares (78k) ★★","bg":null,"fg":"#c25200","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Rapture / Medica II; Asylum from 3:53 is still up.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:28","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Magic Number (252k) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Healer LB3 (≈4:32, after the hit)","bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 first (~4:24). Top WHMs take this healer LB3 and the Scholar takes the second one. Agree on it with your group.","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"WHM LB3 31","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"4:44","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Magic Number (252k) ★★★★","bg":null,"fg":"#d100d1","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Plenary* (4:38)","bg":"#ebd2d3","fg":"#1154cc","bold":true,"strike":false,"runs":[],"note":null},
+      {"v":"Tank LB3 (~4:40), then your Scholar's healer LB3 (~4:48).","bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"SCH LB3 35","bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ],
+    [
+      {"v":"5:09","bg":null,"fg":"#545454","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":"Run: ****mi* (enrage — top groups kill at 5:08–5:22)","bg":null,"fg":"#4974b9","bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#ebd2d3","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#e0cfc1","fg":null,"bold":false,"strike":false,"runs":[],"note":null},
+      {"v":null,"bg":"#dadada","fg":null,"bold":false,"strike":false,"runs":[],"note":null}
+    ]
+  ],
+  "merges": [{"r0":5,"c0":0,"r1":5,"c1":1},{"r0":8,"c0":2,"r1":10,"c1":4},{"r0":11,"c0":2,"r1":11,"c1":4},{"r0":12,"c0":2,"r1":12,"c1":4},{"r0":13,"c0":2,"r1":13,"c1":4},{"r0":14,"c0":2,"r1":15,"c1":2},{"r0":14,"c0":3,"r1":15,"c1":3},{"r0":14,"c0":4,"r1":15,"c1":4}],
+  "hiddenRows": [0,1,2,3,4],
+  "hiddenCols": []
+}
