@@ -76,6 +76,9 @@ public sealed partial class PlanImporter
         /// <summary>The mechanic could not be resolved; <see cref="Mechanic"/> is a stand-in.</summary>
         public bool Unknown { get; set; }
 
+        /// <summary>How the mechanic was found (<see cref="ImportedRow.Match"/>).</summary>
+        public string Match { get; set; } = "unknown";
+
         public IReadOnlyList<RowRef> Refs { get; set; } = [];
 
         public List<string> Detail { get; } = [];
@@ -183,6 +186,7 @@ public sealed partial class PlanImporter
                 Diagnostics = this.diagnostics.ToList(),
                 PhaseZeros = new Dictionary<string, double>(this.zeros, StringComparer.OrdinalIgnoreCase),
                 PhaseSpread = new Dictionary<string, double>(this.spreads, StringComparer.OrdinalIgnoreCase),
+                Rows = rows.Select(r => new ImportedRow(r.Tab.Layout.Name, r.Row.Index + 1, r.Row.Label, r.PhaseId, r.Mechanic?.Id, r.Match, r.Row.Src)).ToList(),
             };
         }
 
@@ -352,6 +356,7 @@ public sealed partial class PlanImporter
                         row.Row.Src);
                     row.Mechanic = fallback;
                     row.Unknown = true;
+                    row.Match = "unknown";
                     continue;
                 }
 
@@ -359,6 +364,7 @@ public sealed partial class PlanImporter
                 if (candidates.Count == 1)
                 {
                     chosen = candidates[0];
+                    row.Match = row.Candidates.Match == MechanicMatch.OtherPhase ? "other-phase" : row.Candidates.Match.ToString().ToLowerInvariant();
                 }
                 else
                 {
@@ -369,6 +375,7 @@ public sealed partial class PlanImporter
                         var at = known + time.Seconds;
                         chosen = candidates.OrderBy(m => Math.Abs(m.Hit + this.RowOffset(m) - at)).First();
                         rule = $"its time {ParsedTime.Format(time.Seconds)} (timeline {ImportText.Seconds(at)})";
+                        row.Match = "time";
                     }
                     else
                     {
@@ -376,6 +383,7 @@ public sealed partial class PlanImporter
                             ?? candidates.FirstOrDefault(m => !used.Contains(m.Id))
                             ?? candidates[0];
                         rule = "row order";
+                        row.Match = "order";
                     }
 
                     var severity = used.Contains(chosen.Id) ? DiagnosticSeverity.Warning : DiagnosticSeverity.Info;
@@ -413,11 +421,13 @@ public sealed partial class PlanImporter
                 if (nearest is not null && Math.Abs(nearest.Hit - at) <= 3)
                 {
                     row.Mechanic = nearest;
+                    row.Match = "time";
                     return;
                 }
             }
 
             row.Mechanic = last?.Mechanic ?? (phase is not null ? this.mechanics.PhaseStart(phase) : null);
+            row.Match = last?.Mechanic is null ? "unknown" : "previous";
 
             // A borrowed mechanic: the row's own time (if any) does not mark its hits, so its items are timed through the
             // phase zero point instead of row-relative.
