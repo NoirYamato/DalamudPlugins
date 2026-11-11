@@ -251,9 +251,14 @@ public class ReminderUpdateTests
         var s = Kit.Scheduler(Temperance());
         var first = s.Update(90);
         var second = s.Update(200);
+        var third = s.Update(200 + s.Options.KeepFinishedFor + 1);
 
+        // Each call returns its own list: later updates must not mutate an earlier result.
         Assert.Same(s.All[0], Assert.Single(first));
-        Assert.Empty(second);
+        Assert.Same(s.All[0], Assert.Single(second));
+        Assert.Equal(ReminderState.Missed, s.All[0].State);
+        Assert.Empty(third);
+        Assert.Single(first);
     }
 
     [Fact]
