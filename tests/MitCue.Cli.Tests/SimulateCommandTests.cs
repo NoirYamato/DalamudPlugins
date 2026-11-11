@@ -171,6 +171,29 @@ public partial class SimulateCommandTests : IDisposable
         Assert.Equal(203.4, Log(game).First(l => l.Event == "jump").Timeline);
     }
 
+    [Fact]
+    public void SyncLine_ShowsWhereTheEngineDidNotFollow()
+    {
+        Assert.Contains("Sync: the timeline was within 0.8 s of ", this.kit.Run("simulate", this.whm, "--job", "WHM").Out);
+        Assert.Matches(@"Sync: the timeline was within 0\.8 s of (\d+) of \1 boss events\.\n", this.kit.Run("simulate", this.whm, "--job", "WHM", "--push", "p2=1:30").Out);
+
+        // DMU enters P2 through an ActorControl line, which the plugin does not see in game: a push is not followed.
+        var dmu = this.kit.Write("dmu.yaml", """
+            format: mitcue-plan/1
+            name: DMU probe
+            fight: dmu
+            entries:
+              - { id: d1, mechanic: p1.pull, offset: 10, who: { job: WHM }, do: [ { action: 7433, name: Plenary Indulgence } ] }
+            """);
+        var game = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200");
+        Assert.Matches(@"; off: p2 \d+ of \d+ \(the sync engine did not follow there", game.Out);
+        Assert.DoesNotContain(Log(game), l => l.Event == "jump" && l.Timeline == 297.4);
+
+        var all = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200", "--all-events");
+        Assert.Matches(@"Sync: the timeline was within 0\.8 s of (\d+) of \1 boss events\.\n", all.Out);
+        Assert.Contains(Log(all), l => l.Event == "jump" && l.Timeline == 297.4);
+    }
+
     [Theory]
     [InlineData(new[] { "--push", "p1=20" }, "the first phase starts at the pull")]
     [InlineData(new[] { "--push", "p2" }, "needs phase=time pairs")]

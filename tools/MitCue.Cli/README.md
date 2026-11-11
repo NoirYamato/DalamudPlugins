@@ -41,7 +41,9 @@ Notes:
   abilities, wipes) unless `--all-events` is given; TOP's P2, for example, is then entered by the 7B40 cast at 203.4
   rather than the MapEffect at 200.0. `--push p2=110` starts P2 110 s (real time) after the pull and ends P1's events
   3 s before; `--from p3` starts at P3 like `/mitcue preview top p3`. The player presses every action at its press
-  time except the `--miss` ones.
+  time except the `--miss` ones. The `Sync:` line says how many boss events the timeline was in sync with; DMU's P2 and
+  P4 starts, for example, are only seen through ActorControl lines, so pushes there are not followed without
+  `--all-events`, as in game.
 - `check` compares planned uses on the timeline's nominal times. Within a phase these are exact, so a conflict is an
   error; across a phase transition the real gap depends on when the earlier phase ends, so it is a warning. Gauge and
   follow-up findings are marked `(h)`: they rest on stated assumptions (e.g. Lilies full at the pull, +1 every 20 s).

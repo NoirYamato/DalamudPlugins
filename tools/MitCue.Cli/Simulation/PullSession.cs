@@ -62,7 +62,8 @@ internal sealed class PullSession
     /// <summary>Clock of the current step, for event handlers.</summary>
     public double StepClock { get; private set; }
 
-    public void Process(GameEvent e)
+    /// <summary>Feeds one game event (in clock order); returns the sync it caused, if any.</summary>
+    public SyncResult? Process(GameEvent e)
     {
         this.StepClock = e.Time;
         if (e is CastStarted or AbilityResolved { SourceIsPlayer: false })
@@ -71,13 +72,14 @@ internal sealed class PullSession
         // A dead player can lose the InCombat flag while the fight goes on: during a pull the edges do not reach the
         // timeline (its InCombat sync would restart it at 0); the pull ends by a duty reset or a prolonged out-of-combat.
         if (e is CombatStateChanged && this.PullActive)
-            return;
+            return null;
 
-        this.Player.Process(e);
+        var result = this.Player.Process(e);
         if (e is DutyReset reset)
             this.EndPull(reset.Kind == DutyResetKind.Wipe ? "wipe" : reset.Kind.ToString(), e.Time);
         else if (this.TakeTimelineReset())
             this.EndPull("timeline reset", e.Time);
+        return result;
     }
 
     /// <summary>The player used an action at <paramref name="clock"/>.</summary>

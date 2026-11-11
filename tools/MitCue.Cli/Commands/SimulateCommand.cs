@@ -42,7 +42,8 @@ internal static class SimulateCommand
             event, like /mitcue preview.
 
             The log lists each state change (Upcoming, Due, Done, Missed, Skipped; Passed for notes) with the real time
-            from the pull and the timeline time, plus timeline starts, jumps and the pull end; then the pull summary.
+            from the pull and the timeline time, plus timeline starts, jumps and the pull end; then the pull summary and
+            how many boss events the timeline was in sync with, per phase where it was not.
 
             --push p2=110 makes phase p2 start 110 s (real time) after the pull; the previous phase's events stop 3 s
             before. Times may be written as seconds or m:ss. --from p3 starts at that phase like /mitcue preview (earlier
@@ -101,11 +102,11 @@ internal static class SimulateCommand
             throw new UsageException("simulate: --jitter cannot be negative.");
         var pushNotes = ConfigurePhases(sim, fight, ParsePushes(args, fight), from);
 
-        var generated = FightSimulator.Generate(timeline, fight, sim);
+        var generated = FightSimulator.Simulate(timeline, fight, sim);
         var allEvents = args.Has("all-events");
-        var events = generated.Where(e => allEvents || GameEventTypes.Contains(e.GetType())).OrderBy(e => e.Time).ToList();
+        var events = generated.Where(e => allEvents || GameEventTypes.Contains(e.Event.GetType())).OrderBy(e => e.Event.Time).ToList();
 
-        var run = new PullRun(fight, timeline, player.Entries, actions, miss, args.Has("syncs"));
+        var run = new PullRun(fight, timeline, player.Entries, actions, miss, args.Has("syncs"), (2 * sim.Jitter) + 0.5);
         run.Play(events, countdown, from);
 
         WriteHeader(ctx, player, run, sim, countdown, from, pushNotes, miss, events.Count, generated.Count, allEvents);
@@ -269,12 +270,15 @@ internal static class SimulateCommand
         private readonly ReminderState[] states;
         private readonly HashSet<Reminder> pressed = new(ReferenceEqualityComparer.Instance);
         private readonly List<(double Clock, string[] Cells)> log = [];
+        private readonly Dictionary<string, (int Expected, int InSync)> syncsByPhase = new(StringComparer.Ordinal);
+        private readonly double syncTolerance;
         private PullSummary? summary;
         private string? endReason;
         private double endClock;
 
-        public PullRun(FightDefinition fight, Timeline timeline, IReadOnlyList<PlanEntry> entries, IActionCatalog actions, MissSet miss, bool logSyncs)
+        public PullRun(FightDefinition fight, Timeline timeline, IReadOnlyList<PlanEntry> entries, IActionCatalog actions, MissSet miss, bool logSyncs, double syncTolerance)
         {
+            this.syncTolerance = syncTolerance;
             this.fight = fight;
             this.actions = actions;
             this.miss = miss;
@@ -294,10 +298,10 @@ internal static class SimulateCommand
 
         public PullSession Session { get; }
 
-        public void Play(IReadOnlyList<GameEvent> events, double countdown, Phase? from)
+        public void Play(IReadOnlyList<SimulatedEvent> events, double countdown, Phase? from)
         {
             var simStart = PullClock - (countdown > 0 ? countdown : PhaseLeadIn);
-            var lastEventTime = events.Count > 0 ? events[^1].Time : PullClock;
+            var lastEventTime = events.Count > 0 ? events[^1].Event.Time : PullClock;
             var next = 0;
             var inCombat = false;
             if (countdown > 0)
@@ -313,12 +317,15 @@ internal static class SimulateCommand
             for (long frame = 0; this.endReason == null; frame++)
             {
                 var now = simStart + (frame * Tick);
-                while (next < events.Count && events[next].Time <= now && this.endReason == null)
+                while (next < events.Count && events[next].Event.Time <= now && this.endReason == null)
                 {
-                    var e = events[next++];
+                    var sim = events[next++];
+                    var e = sim.Event;
                     if (e is CombatStateChanged combat)
                         inCombat = combat.InCombat;
                     this.Session.Process(e);
+                    if (this.endReason == null)
+                        this.CountSync(sim);
                     this.Diff(e.Time);
                 }
 
@@ -368,6 +375,15 @@ internal static class SimulateCommand
                 (open > 0 ? $", {open} not reached" : string.Empty) +
                 $"; counted: actions of non-optional entries ({all.Count(r => r.IsAction && !r.Entry.Optional)}).");
 
+            var expected = this.syncsByPhase.Values.Sum(v => v.Expected);
+            var inSync = this.syncsByPhase.Values.Sum(v => v.InSync);
+            var lost = this.syncsByPhase.Where(kv => kv.Value.InSync < kv.Value.Expected).Select(kv => $"{kv.Key} {kv.Value.Expected - kv.Value.InSync} of {kv.Value.Expected}").ToList();
+            output.WriteLine(
+                $"Sync: the timeline was within {Text.Num(this.syncTolerance)} s of {inSync} of {expected} boss events" +
+                (lost.Count > 0
+                    ? $"; off: {string.Join(", ", lost)} (the sync engine did not follow there; a phase start may need event types the plugin does not see, see --all-events)."
+                    : "."));
+
             this.WriteList(output, "Missed", s.MissedReminders);
             this.WriteList(output, "Skipped", all.Where(r => r.IsAction && !r.Entry.Optional && r.State == ReminderState.Skipped).ToList());
         }
@@ -404,6 +420,21 @@ internal static class SimulateCommand
                 this.Session.OnOwnUse(id, clock);
                 this.Diff(clock);
             }
+        }
+
+        /// <summary>
+        /// Counts, per phase, the events meant to sync the timeline and those after which the engine's time matched the
+        /// entry (or jump target) they stand for, as the end-to-end sync tests do. An event need not fire its own sync to be
+        /// in sync: a phase sync at the exclusive end of its window does not fire in an unpushed pull, and that is fine.
+        /// </summary>
+        private void CountSync(SimulatedEvent sim)
+        {
+            if (sim.SyncTime is not { } expected || sim.Entry == null)
+                return;
+            var phase = this.fight.PhaseAt(sim.Entry.Time)?.Id ?? "-";
+            var ok = this.Session.Player.IsRunning && Math.Abs(this.Session.Player.TimeAt(sim.Event.Time) - expected) <= this.syncTolerance;
+            var (count, inSync) = this.syncsByPhase.GetValueOrDefault(phase);
+            this.syncsByPhase[phase] = (count + 1, inSync + (ok ? 1 : 0));
         }
 
         private static List<PlanItem> Flatten(List<PlanItem> options) =>
