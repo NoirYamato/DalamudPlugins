@@ -1,12 +1,13 @@
 # Builds MitCue against the current Dalamud release, runs the tests and uploads the plugin zip.
-# The same steps run in release.yml when a v* tag is pushed.
+# MitCue's source is the 'mitcue' branch of NoirYamato/DalamudPlugins, whose main branch holds the published
+# plugin repository; publish-mitcue.ps1 on main publishes a build (see docs/PUBLISHING.md).
 name: CI
 
 on:
   push:
-    # 'repo' only holds the published repo.json (see release.yml).
-    branches-ignore: [repo]
+    branches: [mitcue]
   pull_request:
+    branches: [mitcue]
   workflow_dispatch:
 
 permissions:
@@ -60,8 +61,8 @@ jobs:
           path: ${{ env.DALAMUD_HOME }}
           key: dalamud-${{ runner.os }}-${{ steps.dalamud.outputs.version }}
 
-      # Same script in release.yml (tools/tests/test_workflows.py runs it). The cache is saved only when the
-      # job succeeds, so failing on a mismatch keeps another Dalamud out of the cache entry for this version.
+      # tools/tests/test_workflows.py runs this script. The cache is saved only when the job succeeds, so
+      # failing on a mismatch keeps another Dalamud out of the cache entry for this version.
       - name: Download Dalamud ${{ steps.dalamud.outputs.version }} (or use the cached copy)
         id: dalamud-files
         env:
@@ -120,10 +121,11 @@ jobs:
           API_LEVEL: ${{ steps.dalamud.outputs.api }}
         run: |
           set -euo pipefail
+          # The download link publish-mitcue.ps1 writes: plugins/MitCue/MitCue-<version>.zip on main.
+          version="$(jq -r '.AssemblyVersion' "$PACKAGE_DIR/$PLUGIN.json")"
           python3 tools/make-repo-json.py \
             --manifest "$PACKAGE_DIR/$PLUGIN.json" \
-            --download-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/ci/latest.zip" \
-            --repo-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --download-url "https://raw.githubusercontent.com/$GITHUB_REPOSITORY/main/plugins/$PLUGIN/$PLUGIN-$version.zip" \
             --require-api-level "$API_LEVEL" \
             --output "$RUNNER_TEMP/repo.json"
           dotnet run --project tools/RepoJsonCheck -c Release -- "$RUNNER_TEMP/repo.json" \

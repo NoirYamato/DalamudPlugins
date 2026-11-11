@@ -1,12 +1,15 @@
 <Project Sdk="Dalamud.NET.Sdk/15.0.0">
 
   <PropertyGroup>
-    <Version>0.1.0.0</Version>
-    <Author>MitCue contributors</Author>
+    <!-- MAJOR.MINOR.PATCH only: publish-mitcue.ps1 in the DalamudPlugins repository adds the fourth part. -->
+    <Version>0.1.0</Version>
+    <Author>Noir Yamato</Author>
     <Name>MitCue</Name>
     <Punchline>Mitigation plan reminders, synced to the fight.</Punchline>
     <Description>Imports your raid's mitigation plan (Google Sheets or pasted text) and shows a small window telling you which of your actions to press next, synced to the boss. Reminder-only: it never presses anything for you.</Description>
     <Tags>mitigation;healer;raid;ultimate;timeline;reminder</Tags>
+    <RepoUrl>https://github.com/NoirYamato/DalamudPlugins/tree/mitcue</RepoUrl>
+    <IconUrl>https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/mitcue.png</IconUrl>
     <RootNamespace>MitCue</RootNamespace>
   </PropertyGroup>
 
