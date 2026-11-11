@@ -174,6 +174,25 @@ function Test-Identity([string[]]$zips, [string[]]$terms) {
     $problems
 }
 
+# repo.json's entries, one per pipeline object: Windows PowerShell's ConvertFrom-Json emits a top-level array as
+# one object, which ForEach-Object unrolls; PowerShell 7 already emits each entry.
+function Get-RepoEntries([string]$path) {
+    if (Test-Path $path) { Get-Content -Raw $path | ConvertFrom-Json | ForEach-Object { $_ } }
+}
+
+# repo.json lists every plugin of this repository: replace this plugin's entry where it stands, keep the others
+# and their order, and add it at the end if it isn't listed yet.
+function Set-RepoEntry([string]$path, [object]$entry) {
+    $entries = @()
+    $placed = $false
+    foreach ($listed in @(Get-RepoEntries $path)) {
+        if ($listed.InternalName -ne $entry.InternalName) { $entries += $listed }
+        elseif (-not $placed) { $entries += $entry; $placed = $true }
+    }
+    if (-not $placed) { $entries += $entry }
+    Write-Utf8 $path ((ConvertTo-Json -InputObject $entries -Depth 5) + "`n")
+}
+
 $mask = if ($Affinity -is [string]) { [Convert]::ToInt64(($Affinity -replace '^0[xX]', ''), 16) } else { [int64]$Affinity }
 if ($mask -le 0 -or $mask -ge ([int64]1 -shl [Math]::Min(62, [Environment]::ProcessorCount))) {
     throw "-Affinity $Affinity isn't a mask of this PC's $([Environment]::ProcessorCount) CPUs."
@@ -232,7 +251,7 @@ try {
 
     $revision = 1
     if (Test-Path $RepoJson) {
-        $previous = @(Get-Content -Raw $RepoJson | ConvertFrom-Json) | Where-Object { $_.InternalName -eq $InternalName }
+        $previous = @(Get-RepoEntries $RepoJson) | Where-Object { $_.InternalName -eq $InternalName } | Select-Object -First 1
         if ($previous -and $previous.AssemblyVersion.StartsWith("$base.")) {
             $revision = [int]$previous.AssemblyVersion.Split('.')[3] + 1
         }
@@ -310,7 +329,7 @@ try {
         LastUpdate          = [string][DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
         Changelog           = $Changelog
     }
-    Write-Utf8 $RepoJson ((ConvertTo-Json -InputObject @([pscustomobject]$entry) -Depth 5) + "`n")
+    Set-RepoEntry $RepoJson ([pscustomobject]$entry)
 
     # Only what the publish wrote, whatever else turns up in this folder while it builds.
     $written = @("plugins/$InternalName", 'repo.json')

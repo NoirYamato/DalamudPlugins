@@ -1,9 +1,15 @@
 # DalamudPlugins
 
-Custom Dalamud plugin repository for **NoirMech**, a modified version of
-[AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4, P5
-Delta, P5 Omega and P6, and practice tools: a pause, Retry and Drill.
-Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
+Custom Dalamud plugin repository for two plugins:
+
+- **NoirMech**, a modified version of
+  [AnoMech](https://github.com/anomek/AnoMech) by Anomek that adds EU **LPDU** strats for TOP P2, P3, P4, P5
+  Delta, P5 Omega and P6, and practice tools: a pause, Retry and Drill.
+  Like AnoMech, it simulates FFXIV ultimate-raid mechanics client-side so you can practice them in an inn.
+- **[MitCue](#mitcue)**, reminder-only mitigation cues: it tells you which of your actions to press next, synced
+  to the boss from your raid's mitigation plan.
+
+Both install from the same repository URL.
 
 ## Install
 
@@ -91,6 +97,35 @@ GNU Affero General Public License v3.0 or later, as AnoMech is. See [LICENSE.md]
 Every build in [`plugins/NoirMech`](plugins/NoirMech) ships with a `-source.zip` holding the exact source
 it was built from.
 
+## MitCue
+
+MitCue shows reminder-only mitigation cues: during the fight, a small window tells you which of **your** actions
+to press next, synced to the boss from your raid's mitigation plan. It never presses, queues or targets anything,
+and only reads what your game already shows you. It covers The Omega Protocol (Ultimate) for now.
+
+### Install
+
+1. Add the repository URL above, as in step 1 of [Install](#install), if you haven't already.
+2. Type `/xlplugins`, search for **MitCue** and click **Install**.
+
+### Quick start
+
+1. Type `/mitcue` to open its settings, and in **General** set **My usual party slot** (H1, H2, ...).
+2. In the **Plans** tab, click **Import from sheet...** to bring in your raid's plan from its Google Sheets link,
+   or paste a share code you were sent. Then check **My column** in the row for your fight and job.
+3. Type `/mitcue preview top` to watch a simulated TOP pull, and drag the overlay where you want it.
+   `/mitcue preview` stops the preview.
+
+### Source and licence
+
+MitCue's source is the [`mitcue`](https://github.com/NoirYamato/DalamudPlugins/tree/mitcue) branch of this
+repository. MitCue is Noir Yamato's own code, not a modified AnoMech, so the AGPL in [LICENSE.md](LICENSE.md),
+which is NoirMech's licence, doesn't cover it. MitCue bundles fight timelines from
+[cactbot](https://github.com/OverlayPlugin/cactbot), which are licensed under the Apache License 2.0 (see
+`data/timelines/NOTICE` on the `mitcue` branch), and its zip carries the MIT-licensed libraries it uses, such as
+YamlDotNet. Every build in [`plugins/MitCue`](plugins/MitCue) ships with a `-source.zip` holding the exact
+source it was built from.
+
 ## Publishing (maintainer)
 
 From this folder, with the AnoMech checkout next to it on the `noirmech-stable` branch (the official
@@ -111,3 +146,37 @@ stops before copying, committing or pushing; `-NoPush` stops before the push.
 
 It runs at Idle priority on 4 CPUs, the Release build included, so the PC stays usable; `-Affinity` takes another
 CPU mask (`0xF0` by default). Run it as above: started through `cmd /c start /wait`, its exit code is lost.
+
+## Publishing MitCue (maintainer)
+
+MitCue's source lives on the `mitcue` branch, with its own history. Once, make its checkout next to this folder as
+a worktree of this clone on that branch:
+
+```powershell
+git -C <DalamudPlugins clone> fetch origin
+git -C <DalamudPlugins clone> worktree add ..\MitCue mitcue
+```
+
+`<DalamudPlugins clone>` is this folder, so from here that's `git fetch origin` and
+`git worktree add ..\MitCue mitcue`. Change MitCue in `..\MitCue`, commit there and `git push origin mitcue`;
+pushes and pull requests to `mitcue` run its CI. Then, from this folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\publish-mitcue.ps1 -Changelog "What changed" -DryRun
+powershell -ExecutionPolicy Bypass -File .\publish-mitcue.ps1 -Changelog "What changed"
+```
+
+It publishes only with a changelog, when this folder is on `main` with nothing uncommitted or untracked, when
+`..\MitCue` (or `-Source`) is on `mitcue` with a clean tree and its commit is in the pushed `mitcue` of the
+remote that points at NoirYamato/DalamudPlugins (`origin` here; `-Remote` names another, `-Fetch` fetches it
+first), when the new version is higher than the listed one, when `dotnet test MitCue.slnx -c Release` passes on
+that commit, and when an identity scan of the built plugin zip and the source zip, the files inside their zips
+(such as the source's `.xlsx` test fixtures) included, finds every one of its control strings and none of the
+terms in NoirMech's `%APPDATA%\NoirMech\identity-terms.txt` (or the file `-TermsFile` names). The version is the
+`<Version>` in `src\MitCue\MitCue.csproj` with a fourth part that goes up by one on every publish. Its commit
+takes only `plugins/MitCue` and `repo.json`, and in `repo.json` it replaces only MitCue's entry, as `publish.ps1`
+replaces only NoirMech's. `-DryRun` runs every gate, the tests, the build and the scan, then stops before copying,
+committing or pushing; `-NoPush` stops before the push.
+
+Like `publish.ps1`, it runs at Idle priority on the `-Affinity` CPUs (`0xF0` by default), the tests and the
+Release build included. Run it as above, so its exit code isn't lost.
