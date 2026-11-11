@@ -124,11 +124,16 @@ internal sealed partial class ImportWindow
         this.DrawGlobalIssues(model);
         this.DrawCalibration(model);
         this.DrawReviewFilters(model);
+        this.RefreshVisible(model);
+        if (model.Rows.Count > 0 && this.visible.Count < model.Rows.Count)
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled($"Showing {this.visible.Count.ToString(CultureInfo.InvariantCulture)} of {model.Rows.Count.ToString(CultureInfo.InvariantCulture)}");
+        }
 
         var detailsHeight = (ImGui.GetTextLineHeightWithSpacing() * 8) + (ImGui.GetStyle().WindowPadding.Y * 2);
         var navHeight = ImGui.GetFrameHeightWithSpacing() + Scale(6);
         var tableHeight = Math.Max(Scale(120), ImGui.GetContentRegionAvail().Y - detailsHeight - navHeight);
-        this.RefreshVisible(model);
         this.DrawReviewTable(model, tableHeight);
 
         var selected = model.Rows.FirstOrDefault(r => r.Uid == this.selectedUid);
@@ -280,9 +285,6 @@ internal sealed partial class ImportWindow
 
     private void DrawReviewTable(ReviewModel model, float height)
     {
-        if (model.Rows.Count > 0 && this.visible.Count < model.Rows.Count)
-            ImGui.TextDisabled($"Showing {this.visible.Count.ToString(CultureInfo.InvariantCulture)} of {model.Rows.Count.ToString(CultureInfo.InvariantCulture)} entries.");
-
         const ImGuiTableFlags flags = ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.SizingStretchProp | ImGuiTableFlags.Resizable;
         using var table = ImRaii.Table("##review", 9, flags, new Vector2(-1, height));
         if (!table)
@@ -300,8 +302,6 @@ internal sealed partial class ImportWindow
         ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthFixed, Scale(84));
         ImGui.TableSetupColumn("##delete", ImGuiTableColumnFlags.WidthFixed, frame + Scale(4));
         ImGui.TableHeadersRow();
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Opt = optional (never counted as missed). Rdy = press as soon as it is ready (\"on CD\").");
 
         ReviewRow? deleted = null;
         var clipper = ImGui.ImGuiListClipper();

@@ -365,6 +365,14 @@ internal sealed partial class ImportWindow : Window, IDisposable
         ImGui.SameLine();
         if (ImGui.Button("Paste link"))
             this.linkText = (ImGui.GetClipboardText() ?? string.Empty).Trim();
+        if (parsed && link != null)
+        {
+            ImGui.SameLine();
+            if (ImGui.Button("Open in browser"))
+                Dalamud.Utility.Util.OpenLink(link.BrowserUrl);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Check the sharing settings or which tabs hold the plan.");
+        }
 
         if (this.linkText.Trim().Length > 0)
         {
@@ -571,7 +579,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         }
 
         ImGui.SameLine();
-        ImGui.TextDisabled("Text around the ```yaml block of the answer is ignored.");
+        ImGui.TextDisabled("Text around the ```yaml block of the answer is ignored. MitCue plan files (YAML or JSON) can be pasted here too.");
     }
 
     private void DrawJobPicker()
