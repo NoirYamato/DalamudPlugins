@@ -8,12 +8,12 @@ the boss in real time, using the fight's cactbot timeline and the boss casts the
 It reads what your client already shows you (enemy cast bars, resolved actions, your cooldowns, the
 countdown) and draws a window.
 
-It is built for one raid static: a White Mage (H1) on the *Carry the Clear* TOP plan and a Scholar (H2) on
-the *LPDU* TOP plan. Both plans come with the plugin.
+It is built for one raid static: a White Mage (H1) on *NoirMit - WHM* (made from the *Carry the Clear* TOP
+sheet) and a Scholar (H2) on the *LPDU* TOP plan. Both plans come with the plugin.
 
 | Fight | Zone id | Sync level | Plans that come with MitCue |
 |-------|---------|------------|-----------------------------|
-| The Omega Protocol (Ultimate), TOP | 1122 | 90 | *Carry the Clear – WHM*, *Carry the Clear – WHM + SCH*, *LPDU TOP Mitigation* |
+| The Omega Protocol (Ultimate), TOP | 1122 | 90 | *NoirMit - WHM*, *Carry the Clear - SCH*, *LPDU TOP Mitigation* |
 | The Epic of Alexander (Ultimate), TEA | 887 | 80 | none: [import](#importing-a-plan) your own |
 | Dancing Mad (Ultimate), DMU | 1363 | 100 | none: [import](#importing-a-plan) your own |
 
@@ -64,24 +64,23 @@ removed, disabled or changed. Updates, uninstalling, test builds and where MitCu
 2. **General** tab: set **My usual party slot**, H1 for the White Mage and H2 for the Scholar.
 3. **Plans** tab: in **Active plan per fight and job**, find the row *The Omega Protocol (Ultimate)* with your
    job. Without a choice of yours, MitCue uses:
-   - White Mage: *(automatic) Carry the Clear – WHM*, column *(suggested) White Mage (WHM)*;
-   - Scholar: *(automatic) LPDU TOP Mitigation*, column *(suggested) (any column for my job in slot H2)*.
-     LPDU writes the Scholar's P1/P2 calls in its "H2" column and the later ones in "H2 SCH"; this choice
-     takes both.
+   - White Mage: *(automatic) NoirMit - WHM*, column *(suggested) White Mage (WHM)*;
+   - Scholar: *(automatic) LPDU TOP Mitigation*, column *(suggested) H2 SCH (H2, SCH)*. LPDU writes the
+     Scholar's P1/P2 calls in its "H2" column and the later ones in "H2 SCH"; this column shows both.
 
-   To follow Carry the Clear's combined healer tab instead, choose *Carry the Clear – WHM + SCH* under
-   **Active plan** (the Scholar's column is then *Scholar*).
+   To follow Carry the Clear's Scholar tab instead, the Scholar chooses *Carry the Clear - SCH* under
+   **Active plan** (its column is *Scholar*).
 4. Type `/mitcue preview top` to watch a simulated pull: a 10-second countdown, then the fight at real speed.
    Drag the overlay to where you want it. `/mitcue preview top p3` starts at phase 3, and `/mitcue preview`
    stops the preview.
 5. **Overlay** tab: tick **Lock position**, and **Click-through** if you like. Adjust **Scale**, **Background
    opacity** and **Maximum rows**.
-6. In TOP, the Status line says *Ready: Carry the Clear – WHM (57 of 57 entries are yours).* (or the
-   Scholar's plan) and the overlay shows *TOP - waiting for pull (Carry the Clear – WHM)*. Start a
-   `/countdown`: the header counts down to the pull. The bundled plans have no pre-pull calls, so no reminder
-   is listed during the countdown; the first ones appear about 25 seconds after the pull (15 seconds before
-   their press time). From the pull on, the reminders follow the boss. After a wipe you get a one-line summary
-   in chat.
+6. In TOP, the Status line says *Ready: NoirMit - WHM (57 of 57 entries are yours).* (or the Scholar's
+   plan) and the overlay shows *TOP - waiting for pull (NoirMit - WHM)*. Start a `/countdown`: the header
+   counts down to the pull. The bundled plans have no pre-pull calls, so no reminder is listed during the
+   countdown; on their automatic plans, the White Mage's and the Scholar's first ones appear about 25 seconds
+   after the pull (15 seconds before their press time). From the pull on, the reminders follow the boss.
+   After a wipe you get a one-line summary in chat.
 
 ## Commands
 
@@ -141,10 +140,10 @@ TOP - P1: Omega - 1:15
   Addersgall, Addersting).
 - **Your co-healer's calls:** with **Also show my co-healer's calls** ticked, they are listed dimmed with
   their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs. This needs
-  a plan with your co-healer's column. *Carry the Clear – WHM*, the White Mage's automatic plan, has only the
-  White Mage's column, so it shows none. To see the Scholar's calls, the White Mage chooses *Carry the Clear –
-  WHM + SCH* under **Active plan** (its `[Scholar]` column). Choosing LPDU for this would also replace their
-  own calls with LPDU's (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
+  a plan with your co-healer's column: on LPDU the Scholar sees the White Mage's H1 calls. *NoirMit - WHM*
+  and *Carry the Clear - SCH* have only their own job's column, so they show none. A White Mage who chooses
+  LPDU under **Active plan** to see the Scholar's calls also gets LPDU's calls instead of their own (see
+  [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
 
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
 press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. It stays NOW until just before the hit for
@@ -178,9 +177,9 @@ during a countdown waits through the pull that follows (it applies at once if yo
 | *Reminders* | | |
 | Track done/missed (keep used and missed calls listed with a check or a cross) | on | Off: a call disappears once used or once its time has passed, and no summary is printed |
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
-| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns. In a party, only columns of jobs someone in the party plays. Shows nothing on a plan without your co-healer's column, such as *Carry the Clear – WHM* (see [What the overlay shows](#what-the-overlay-shows)) |
+| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns. In a party, only columns of jobs someone in the party plays. Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
-| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column |
+| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU gets only its tank pair's calls) |
 | Run /mitcue preview at 4x speed | off | Preview speed |
 | *Recording* | | |
 | Record pulls (event log for tuning the sync; no player names) | off | Writes a log of each duty or fight-zone visit (see [Recording pulls](#recording-pulls)). The folder is shown under the checkbox |
@@ -225,11 +224,12 @@ changed or deleted.
 
 | Plan | From |
 |------|------|
-| *Carry the Clear – WHM* | *Carry the Clear: TOP Healing Plan*, White Mage tab |
-| *Carry the Clear – WHM + SCH* | the same sheet's combined White Mage and Scholar tab |
+| *NoirMit - WHM* | *Carry the Clear: TOP Healing Plan*, White Mage tab. The White Mage's automatic plan; called *Carry the Clear – WHM* in 0.1.0.1 |
+| *Carry the Clear - SCH* | the same sheet's Scholar tab. Used only when chosen under **Active plan**: the Scholar's automatic plan is LPDU |
 | *LPDU TOP Mitigation* | the *LPDU TOP Mitigation Sheet*: its plan tabs, with all eight seats and the tank pairs |
 
-Plans you import are listed as *user* plans.
+*Carry the Clear – WHM + SCH*, the sheet's combined tab, came with 0.1.0.1 only: a choice of it now falls back
+to the automatic plan. Plans you import are listed as *user* plans.
 
 ### Which plan and column MitCue uses
 
@@ -237,27 +237,30 @@ The table **Active plan per fight and job** has a row for every job the fight's 
 job (in green).
 
 - **Active plan:** the plan you choose. On *(automatic: the bundled plan for this job, else my own plan for
-  it)*, MitCue takes the bundled plan meant for the job (TOP: White Mage → *Carry the Clear – WHM*, Scholar →
-  *LPDU TOP Mitigation*), else the first bundled plan by name that names the job in a column or entry, else
-  the first of your own plans by name that names it. A plan whose calls for your seat are only in slot
-  columns without a job (LPDU's M1 and M2 for melee jobs) is not chosen automatically: choose it here.
-  *(no plan: no reminders for this job)* switches MitCue off for that job.
+  it)*, MitCue takes the bundled plan meant for the job (TOP: White Mage → *NoirMit - WHM*, Scholar →
+  *LPDU TOP Mitigation*, never *Carry the Clear - SCH*), else the first bundled plan by name that names the
+  job in a column or entry, else the first of your own plans by name that names it. A plan whose calls for
+  your seat are only in slot columns without a job (LPDU's M1 and M2 for melee jobs) is not chosen
+  automatically: choose it here. *(no plan: no reminders for this job)* switches MitCue off for that job.
 
   A plan you import or receive as a share code replaces the bundled one only when you choose it: here, with
   **Make it my active plan for … as …** in the import window, or with **Make an imported share code my active
   plan as …** when you import a code (see [Share codes and plan files](#share-codes-and-plan-files)). So a
-  White Mage who imports the Scholar's LPDU code with that box unticked, to look at it, keeps *Carry the
-  Clear – WHM*. TEA and DMU have no bundled plans, so there your own plan is the automatic one. The share
+  White Mage who imports the Scholar's LPDU code with that box unticked (the default), to look at it, keeps
+  *NoirMit - WHM*. TEA and DMU have no bundled plans, so there your own plan is the automatic one. The share
   code of a bundled plan takes that plan's place until it is deleted, and so stays the automatic plan of the
   job the bundled plan is meant for.
-- **My column:** the column you choose, or *(any column for my job)*. Without a choice (*suggested*), MitCue
-  takes your job's column (the one in your slot if there are several, else the first), else your slot's
-  column. When that column leaves out the calls of your slot's column without a job, it takes the narrowest
-  choice that has those too and no other column's calls: on LPDU, the Scholar's *any column for my job in
-  slot H2*, which includes the job-less "H2" column of P1 and P2. Several columns of one job are
-  alternatives (LPDU's tank pairs): a Warrior gets the first, *WAR/DRK WAR*, plus the MT or OT calls written
-  for Warriors (with **My usual party slot** set), but not the calls for any tank in that slot (Reprisal,
-  Rampart) or the *CM LB Tank* and *CM Rep Tank* columns. Tanks pick their column here.
+- **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
+  calls for your slot: those for your job, and those for no job when the slot suits your role. So on LPDU,
+  *H2 SCH* includes the Scholar's P1/P2 calls of the job-less "H2" column. Without a choice (*suggested*),
+  MitCue takes your job's column (the one in your slot if there are several, else the first), else your
+  slot's column. When your job's calls are in several of its columns (one per phase or tab), it takes the
+  narrowest choice that has them all and no other column's calls, such as *any column for my job in slot
+  H2*. Columns for team compositions (LPDU's tank pairs) are alternatives: a tank gets the pair with the
+  party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*; without a party and in the preview, the
+  first: *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank (Reprisal, Rampart),
+  when **My usual party slot** is set. The *CM LB Tank* and *CM Rep Tank* columns are left out: pick one
+  here to follow it instead.
 
 ### Importing a plan
 
@@ -289,10 +292,10 @@ steps.
    `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
    calls for your job. Unticked, the plan is only saved: your job keeps the plan it has where a bundled plan
    or your choice covers it (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)),
-   and the chat line after saving says which plan is active for your job. When your job's column leaves out
-   the calls of your slot's column without a job, the plan is saved with the column choice that has those
-   too. When no choice has all of your calls without another column's (a tank on LPDU), this step names the
-   columns of the calls left out: check **My column** after saving.
+   and the chat line after saving says which plan is active for your job. When your calls are in several
+   columns of your job (one per phase or tab), the plan is saved with the column choice that has them all.
+   When no choice has all of your calls without another column's (a general tank column next to several
+   tank-pair columns), this step names the columns of the calls left out: check **My column** after saving.
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
@@ -300,28 +303,32 @@ it, and closing the window cancels it too.
 ### Share codes and plan files
 
 - **Share codes.** **Copy share code** in the plan list copies a plan as one line of text that starts with
-  `MITCUE1:`. It is several thousand characters long (about 3,600 for *Carry the Clear – WHM*, 11,000 for
-  LPDU): too long for the game's chat or a normal Discord message, and it only works whole. Send it as a text
-  file or attachment (Discord turns a long paste into `message.txt`) or as a paste link. The static member
-  copies all of it, clicks **Paste from clipboard** next to the **Share code** box (or pastes it into the box)
-  and clicks **Import share code**. The plan is saved as a *user* plan; a share code of a bundled plan
-  replaces the bundled one until it is deleted. With **Make an imported share code my active plan as …**
-  ticked (the default; shown while you are on a combat job), the plan also becomes your active plan for its
-  fight as your current job, if it has calls for that job. Untick it to only save the plan, for example to
+  `MITCUE1:`. It is several thousand characters long (about 3,600 for *NoirMit - WHM*, 11,000 for LPDU): too
+  long for the game's chat or a normal Discord message, and it only works whole. Send it as a text file or
+  attachment (Discord turns a long paste into `message.txt`) or as a paste link. The static member copies all
+  of it, clicks **Paste from clipboard** next to the **Share code** box (or pastes it into the box) and clicks
+  **Import share code**. The plan is saved as a *user* plan; a share code of a bundled plan replaces the
+  bundled one until it is deleted. Tick **Make an imported share code my active plan as …** (above **Import
+  share code**, shown while you are on a combat job; unticked each time MitCue loads) to also make the plan
+  your active plan for its fight as your current job, if it has calls for that job: calls the overlay would
+  show you, with your column and **My usual party slot**. Unticked, the plan is only saved, for example to
   look at your co-healer's (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
   The message under the box then says which plan your job has: *It is your active plan for TOP as WHM.*,
-  *Your active plan for TOP as WHM stays "Carry the Clear – WHM": choose this one in the table above to use
-  it.*, or *It has no calls for WHM: choose it in the table above for the job it is for.*
+  *Your active plan for TOP as WHM stays "NoirMit - WHM": choose this one in the table above to use it.*, or
+  *It has no calls for WHM: choose it in the table above for the job it is for.* When no slot is set and the
+  plan has calls for a slot but no job (a sheet with a column per slot), the last one reads *It has no calls
+  for WHM without a slot: set "My usual party slot" in the General tab, or choose it in the table above for
+  the job it is for.*
 - **Plan files.** MitCue keeps each user plan as a `<plan id>.json` file in
   `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder and the bundled
   plans, for example after you copy a plan `.json` file into it. Only `.json` files are read there.
 - **Checks.** Share codes and plan files skip the review, so MitCue checks them with the review's rules when
-  they load and reports only calls that can never work: a mechanic the fight doesn't have (the call is never
-  shown), an unknown action (never tracked), and an action the entry's job or slot can't use, or not at the
-  fight's level. Up to five problems per plan are listed under **Problems** (then *and N more*), each with
-  what it does to the call, for example *Entry 'e1': Expedient is learned at level 90, above this fight's
-  level 80, so the call can never be done.* The share-code message names the first one and ends *See
-  Problems in /mitcue.*
+  they load and reports only calls that can never work: a mechanic the fight doesn't have, an offset that is
+  not a number or a call for no job whose slot is not a party slot (each never shown), an unknown action
+  (never tracked), and an action the entry's job or slot can't use, or not at the fight's level. Up to five
+  problems per plan are listed under **Problems** (then *and N more*), each with what it does to the call,
+  for example *Entry 'e1': Expedient is learned at level 90, above this fight's level 80, so the call can
+  never be done.* The share-code message names the first one and ends *See Problems in /mitcue.*
 - **Delete.** User plans have a **Delete** button: click it, then **Click again to delete**.
 
 ## Troubleshooting

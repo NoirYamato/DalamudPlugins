@@ -22,7 +22,7 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 | # | Topic | Decision |
 |---|-------|----------|
 | D1 | Audience | Private: the author and their static. Distributed through a **custom plugin repository** (not the official Dalamud repo), so the official repo's combat-plugin pre-approval and AI-usage policy do not apply. We still follow the official rules' spirit: informational only, no automation, no FFLogs integration inside the plugin. **Changed (2026-11-11):** the custom repository is the one of the author's other plugin, NoirMech: `https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/repo.json` serves both. MitCue's source is the `mitcue` branch of NoirYamato/DalamudPlugins, and `publish-mitcue.ps1` on its `main` branch publishes builds ([PUBLISHING.md](PUBLISHING.md)). The earlier plan (tag releases, a `repo` branch in MitCue's own repository) is retired. |
-| D2 | First users | **WHM (H1)** following the *Carry the Clear* TOP sheet; **SCH (H2)** following the *LPDU TOP Mitigation Sheet*. Different players in one party may load different plans. **As built:** both plans ship with the plugin and are the automatic choice for those jobs (§7). |
+| D2 | First users | **WHM (H1)** following the *Carry the Clear* TOP sheet; **SCH (H2)** following the *LPDU TOP Mitigation Sheet*. Different players in one party may load different plans. **As built:** both plans ship with the plugin and are the automatic choice for those jobs (§7). **Changed (2026-11-11, MitCue 0.1.0.2 and 0.1.0.3):** the White Mage's plan, still made from Carry the Clear's White Mage tab, is named *NoirMit - WHM* (*Carry the Clear – WHM* in 0.1.0.1; same id). Carry the Clear's combined tab (*Carry the Clear – WHM + SCH*) no longer ships. Its Scholar tab ships as *Carry the Clear - SCH*, used only when a Scholar chooses it: the Scholar's automatic plan stays LPDU. |
 | D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** runtime first, then the importer front half and the in-game import window, then the CLI, the importer back half and the converted plans; no plugin dependencies. |
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
@@ -72,8 +72,9 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
   built:** the import review checks every entry (`ReviewValidator`); share codes and plan
   files are checked with the review's rules when they load, reporting only calls that can
   never work (a mechanic the fight lacks, an unknown action, an action the entry's job or
-  slot cannot use, or not at the sync level); the bundled plans are checked in the tests
-  (the core's `PlanValidator`); the CLI's `check` and `validate` check plans too
+  slot cannot use, or not at the sync level; also an offset that is not a number and a
+  job-less call for a slot that is no party slot); the bundled plans are checked in the
+  tests (the core's `PlanValidator`); the CLI's `check` and `validate` check plans too
   (`PlanChecker`).
 
 ---
@@ -127,7 +128,7 @@ tools/tests/               Python tests of make-repo-json.py and of the CI workf
 data/timelines/            cactbot timelines (Apache-2.0, see data/timelines/NOTICE; DSR and FRU only for parser tests)
 data/fights/               fight catalogs (top.yaml, tea.yaml, dmu.yaml)
 data/actions/              action knowledge base + shorthand aliases
-plans/                     converted plans shipped with the plugin (top-ctc-whm, top-ctc-whm-sch, top-lpdu)
+plans/                     converted plans shipped with the plugin (top-noirmit-whm, top-ctc-sch, top-lpdu)
 assets/                    the icon (SVG source, PNG renders)
 docs/                      this design, PLUGIN.md, INSTALL.md, PUBLISHING.md, research notes
 .github/workflows/ci.yml   CI: build, every test project, the tools' tests, plugin zip and repo.json checks
@@ -187,7 +188,7 @@ timeline_additions: |
 ```yaml
 format: mitcue-plan/1                      # missing = this format; any other format is refused
 id: 6f1c…                                  # GUID
-name: Carry the Clear – WHM
+name: NoirMit - WHM
 fight: top
 source: { kind: google-sheet, url: "https://docs.google.com/…#gid=777100", tabs: ["TOP – White Mage"], imported: 2026-11-11 }
 assignees:                                 # one per source column; a player picks theirs
@@ -213,7 +214,7 @@ entries:
     src: "'TOP – White Mage'!C18"          # provenance for review
 ```
 
-The bundled plans use both, e.g. Carry the Clear's Asylum before Program Loop's third set
+The bundled plans use both, e.g. NoirMit - WHM's Asylum before Program Loop's third set
 (`hit_index: 2`) and LPDU's "Rampart as P1 dies" (`at_phase_end: true`).
 
 Forms (`PlanSerializer`): YAML with snake_case keys, written without nulls, `false` and
@@ -227,12 +228,16 @@ Selection rule for the local player (`PlanSelection`): an entry applies when
 - its `who.job` is empty or equals the current job;
 - its `who.slot` is empty or equals the player's slot; while the player's slot is
   unknown, an entry with a slot applies only if it also names the job;
-- when the player picked a column, its assignee is empty or that column. An entry of
-  another column still applies when it names both the player's job and slot.
+- when the player picked a column (or it was suggested), its assignee is empty or that
+  column. An entry of another column still applies when it names the player's slot and
+  either their job, or no job when the slot is one of the job's role (MT/OT for tanks,
+  H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged): a Warrior in MT who follows
+  "WAR/DRK WAR" gets LPDU's job-less "MT" Reprisals.
 
-Slots compare by name, so the plugin stores the synonyms `T1`, `T2`/`ST` and `D1`–`D4` as
-`MT`, `OT`, `M1`, `M2`, `R1` and `R2` when a plan loads, comes in as a share code or is
-saved.
+Slots compare by name, so every plan reader (`PlanSerializer`: plan files, share codes,
+the AI's YAML, the CLI) writes the synonyms `T1`, `T2`/`ST` and `D1`–`D4`, in any letter
+case and with spaces around them, as `MT`, `OT`, `M1`, `M2`, `R1` and `R2`, and the plugin
+does the same when it saves a plan.
 
 ### 3.3 Actions (`data/actions/actions.yaml`) and aliases (`data/actions/aliases.yaml`)
 
@@ -434,26 +439,30 @@ files and links; the plugin's import window adds downloading, the review and the
   `<se.6>`, click-through off, preview at 1×, pull recording off.
 - **Plans tab:** list/import/export/share code, active plan per fight and job, "which
   column is me". **As built:** without a choice, the active plan for a fight and job is the
-  bundled plan meant for the job (TOP: WHM → *Carry the Clear – WHM*, SCH → *LPDU TOP
-  Mitigation*), else the first bundled plan by name that names the job in a column or
-  entry, else the player's first own plan by name that names it (TEA and DMU ship no
-  plans). A plan whose calls for the player's seat are only in job-less slot columns
-  (LPDU's M1/M2 for melee jobs) is not chosen automatically: the player chooses it in the
-  table. An imported plan or a share code replaces a bundled plan only when the player
-  chooses it: in the table, or by leaving the "make it my active plan" checkbox of the
-  import window or the share-code box ticked (both start ticked, the import window's when
-  entries apply to the player). The exception is the share code of a bundled plan: it has
-  that plan's id and takes its place until it is deleted. "My column" without a choice is
-  the job's column, or, when that leaves out the job-less calls of the player's slot, the
-  narrowest choice that has them too and no call of another column (`ColumnSuggestion`:
-  LPDU's H2 Scholar gets every column for SCH in slot H2, including the job-less "H2"
-  column of P1/P2). Several columns of one job are alternatives, never combined: a
-  Warrior on LPDU gets the first tank pair's "WAR/DRK WAR". Plans are exported as share
-  codes, not as files.
+  bundled plan meant for the job (TOP: WHM → *NoirMit - WHM*, SCH → *LPDU TOP
+  Mitigation*; *Carry the Clear - SCH* only when chosen), else the first bundled plan by
+  name that names the job in a column or entry, else the player's first own plan by name
+  that names it (TEA and DMU ship no plans). A plan whose calls for the player's seat are
+  only in job-less slot columns (LPDU's M1/M2 for melee jobs) is not chosen automatically:
+  the player chooses it in the table. An imported plan or a share code replaces a bundled
+  plan only when the player chooses it: in the table, or with the "make it my active plan"
+  checkbox of the import window (ticked when entries apply to the player) or of the
+  share-code box (unticked each time the plugin loads). The exception is the share code
+  of a bundled plan: it has that plan's id and takes its place until it is deleted.
+  "My column" without a choice is the job's column, which also shows the job-less calls
+  of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
+  P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),
+  the narrowest choice that has them all and no call of another column
+  (`ColumnSuggestion`). Columns for team compositions (keys naming two or more jobs) are
+  alternatives, never combined: a Warrior on LPDU gets the tank pair with the party's
+  co-tank ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR". Plans are
+  exported as share codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
-  party only columns of jobs someone in it plays.
+  party only columns of jobs someone in it plays. The partner's columns that are not a
+  composition are kept (a general "DRK" next to "WAR/DRK DRK"); a combined-tab column that
+  repeats the partner's other column is shown once.
 - **Preview/simulation:** run the fight timeline with simulated events at 1×/4× from any
   phase to check the overlay and the plan. **As built:** only the event kinds the plugin
   sees in game are played, so a preview syncs like a pull.
@@ -499,9 +508,10 @@ files and links; the plugin's import window adds downloading, the review and the
 
 1. Core: data, timeline parser, sync engine, plan model, scheduler, tests. **Done.**
 2. Importer (core) + CLI; convert both TOP plans; acceptance tests on both sheets.
-   **Done** (three plans: Carry the Clear's White Mage and combined tabs, LPDU).
+   **Done** (three plans: Carry the Clear's White Mage tab as *NoirMit - WHM* and its
+   Scholar tab, LPDU; see D2).
 3. Plugin: events, overlay, config, plan store, preview; packaging; custom repo.
-   **Done**; MitCue 0.1.0.1 is published through the shared repository (D1,
+   **Done**; MitCue is published through the shared repository since 0.1.0.1 (D1,
    [PUBLISHING.md](PUBLISHING.md)).
 4. In-game importer/review UI and link download; LLM prompt fallback. **Done.**
 5. TEA and DMU data; plan checks (cooldown conflicts); polish. **Partly done:** TEA and
