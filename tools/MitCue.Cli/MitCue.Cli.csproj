@@ -10,4 +10,13 @@
     <ProjectReference Include="..\..\src\MitCue.Core\MitCue.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Already a dependency of MitCue.Core; referenced directly because `validate` reads the raw data files too. -->
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="MitCue.Cli.Tests" />
+  </ItemGroup>
+
 </Project>
