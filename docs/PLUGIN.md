@@ -69,8 +69,8 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `SoundPlayer` | `Game/SoundPlayer.cs` | Plays chat sound effect `<se.N>` through `UIGlobals.PlaySoundEffect` |
 | `CoreData` | `Data/CoreData.cs` | Loads the fight library (`data/fights`, cactbot timelines), action catalog and alias dictionary embedded in `MitCue.Core.dll`, and adds the personal aliases. Loads on the first tick, and again on the tick after **Reload data**. Every call is guarded |
 | `GameData` | `Data/GameData.cs` | Lumina lookups: action names in the client language, icons, the GCD flag, job abbreviations, zone names (cached) |
-| `PlanStore` | `Plans/PlanStore.cs` | The bundled plans (embedded, read-only) plus user plans (`pluginConfigs/MitCue/plans/*.json`); a user plan with a bundled plan's id takes its place. Stores slot synonyms (`T1`, `T2`, `ST`, `D1`–`D4`) as the standard slots. Works out the active plan per fight and job and "my column" (§1.5, with the core's `ColumnSuggestion`). Imports and exports share codes. Loads on the first tick, after `CoreData`, and again with **Reload plans** |
-| `PlanChecks` | `Plans/PlanChecks.cs` | Checks plans that skip the import review (share codes and plan files in the plans folder) with the review's `ReviewValidator`, and keeps only what makes a call impossible: a mechanic the fight lacks, an unknown action, an action (or every option of an either/or) the entry's job or slot cannot use, or not at the sync level. It also reports two kinds of call that are never shown: an offset that is NaN or infinite, and a call for no job whose slot is not a party slot |
+| `PlanStore` | `Plans/PlanStore.cs` | The bundled plans (embedded, read-only) plus user plans (`pluginConfigs/MitCue/plans/*.json`); a user plan with a bundled plan's id takes its place. Stores slot synonyms (`T1`, `T2`, `ST`, `D1`–`D4`) as the standard slots, and gives an entry with no job the job of its column when the column has one (`PlanNormalizer.Normalize`, as every plan reader of the core does). Works out the active plan per fight and job and "my column" (§1.5, with the core's `ColumnSuggestion`). Imports and exports share codes. Loads on the first tick, after `CoreData`, and again with **Reload plans** |
+| `PlanChecks` | `Plans/PlanChecks.cs` | Checks plans that skip the import review (share codes and plan files in the plans folder) with the review's `ReviewValidator`, and keeps only what makes a call impossible: a mechanic the fight lacks, an unknown action, an action (or every option of an either/or) the entry's job or slot cannot use, or not at the sync level. It also reports calls the runtime never shows, or not at their mechanic: an offset that is NaN or +∞ (never shown) or −∞ (shown at the start of the countdown or pull instead), and a call for no job whose slot is not a party slot (never shown) |
 | `SessionManager` | `Runtime/SessionManager.cs` | Owns the live `EncounterSession`: builds it, rebuilds it when something changes, feeds it every frame, prints the pull summary and asks for the sound |
 | `EncounterSession` | `Runtime/EncounterSession.cs` | One fight, plan and player: a core `TimelinePlayer` plus a `ReminderScheduler` for your entries and an optional one for the co-healer's. Handles the countdown, pull start and pull end |
 | `TimelineSyncEngine` | `Runtime/SyncEngine.cs` | The core `TimelinePlayer` behind an interface, so tests can drive a session with a scripted engine |
@@ -86,7 +86,7 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `DocHtmlReader`, `DocTextReader` | `Import/` | Google Docs: the web page export (each table becomes a tab, the other paragraphs a "Text" tab), or the plain-text export when the page is too large or too slow |
 | `ImportAnalysis`, `TrialImportTracker` | `Import/` | The Options step's trial import: tabs, columns and entry counts, and the tabs and columns ticked by default |
 | `ReviewModel`, `ReviewValidator` | `Import/` | The review's rows, edits and undo; the checks of each entry (unknown mechanics or actions, actions the job can't use at the sync level, missing who, odd offsets) |
-| `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, how many entries the overlay will show, and which of the player's calls the choice leaves out, by column |
+| `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, how many entries the overlay will show (in the player's party and slot, as the overlay chooses), and which of the player's calls the choice leaves out, by column |
 | `LlmPrompt`, `SheetText` | `Import/` | The AI prompt: the plan format and rules, the fight's mechanics, the chosen jobs' actions and aliases, and the loaded sheet as text. Reads the YAML out of the AI's answer |
 | `PersonalAliases` | `Import/PersonalAliases.cs` | Review fixes remembered as personal aliases |
 | `ErrorReporter` | `Util/ErrorReporter.cs` | Collects problems. Each distinct problem is logged once to Dalamud's log and listed under **Problems** and in the debug report |
@@ -166,29 +166,47 @@ ship no plans). A choice of a plan that is gone (*Carry the Clear – WHM + SCH*
 counts as automatic. An imported plan replaces a bundled plan only when chosen: the import window's **Make
 it my active plan …**, the Plans tab's **Make an imported share code my active plan as …**
 (`PlanStore.ImportShareCode` with the current job; it sets the plan only when it has calls for that job,
-counted by `PlanStore.CallsFor` as the overlay would select them, with the configured slot), or the
-**Active plan** combo. A share code of a bundled plan has that plan's id and takes its place, so it stays
-the automatic plan of the job the bundled plan is meant for.
+counted by `PlanStore.CallsFor` as the overlay would select them; for a sheet whose calls for the job are
+only in other slots' job-less columns, its message names those slots and says to choose the plan and then
+the slot's column, or, only while **My usual party slot** is not set at all, to set it first: the message
+reads the setting itself, so a usual slot of another role, which the column below does not use, also gets
+the column hint and the player's main job keeps its slot), or the **Active plan** combo. A
+share code of a bundled plan has that plan's id and takes its place, so it stays the automatic plan of the
+job the bundled plan is meant for.
 
 **The column.** `PlanStore.MappingFor` takes the column chosen for that plan and job. Without a choice it
 uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
-column, the one in the configured slot when there are several, else the first; else the slot's column). Any
-column, chosen or suggested, also shows other columns' calls for the player's slot that are for their job,
-or for no job when the slot is one of the job's role (`PlanSelection.Applies`). When the job's calls are in
-several of its columns (one per phase or per tab), it suggests the narrowest choice that has them all and
-no call of another column (`Complete`: "any column for my job in my slot", or one of the player's columns).
-Columns for team compositions (keys naming two or more jobs, also the xlsx form "WARDRK WAR":
-`IsComposition`) are alternatives, never combined. One of them counts with the job's other columns when it
-adds calls at other mechanics (a general tab and one pair tab), not when it repeats them (Carry the Clear's
-combined tab next to its White Mage tab: an import of every tab stays at 57 and 69 entries). Without a
-saved choice, the live session and the Plans tab's row for the current job take the alternative with the
+column, the one in the configured slot when there are several, else the first; else the slot's column). The
+configured slot (**My usual party slot**) counts only on a job of its role (`Slots.ForJob`: MT/OT for tanks,
+H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged): on another job the column and the calls are chosen as
+if it were not set, while a column chosen in the Plans tab keeps its own slot. Without a column for the job
+and a slot (LPDU's ranged jobs, whose calls are per job in "R1" and "R2"), the slot is the first one of the
+job's role that its calls name (`SeatOfCalls`), passing over a slot the party gives another job
+(`PartySeats`: the one party job whose calls are all in it): a Red Mage gets "any column for my job in slot
+R1", 9 entries, or R2 next to a Bard, 13; *(any column for my job)* still shows both (22). Calls that name
+no job give no slot: LPDU's melee jobs, whose calls are in the job-less "M1" and "M2", get none of them
+without the usual slot (M1 or M2) or a chosen column. Any column, chosen or suggested, also shows other
+columns' calls for the player's slot that are for their job, or for no job when the slot is one of the
+job's role (`PlanSelection.Applies`); an entry with no job in a column with a job is that job's (every plan
+reader gives it the column's job: `PlanNormalizer.JobsFromColumns`). When the job's calls are in several of
+its columns (one per phase or per tab), it suggests the narrowest choice that has them all and no call of
+another column (`Complete`: "any column for my job in my slot", or one of the player's columns). Columns for
+team compositions (keys naming two or more jobs, also the xlsx form "WARDRK WAR": `IsComposition`) are
+alternatives, never combined; one composition split over per-phase tabs ("WHM/SCH P1 WHM" and "WHM/SCH P3
+WHM") is one seat (`SameComposition`). One of them counts with the job's other columns when it adds calls at
+other mechanics (a general tab and one pair tab), not when it repeats them, whichever tab comes first
+(Carry the Clear's combined tab next to its White Mage tab: an import of every tab stays at 57 and 69
+entries; with the combined tab first, the White Mage and the Scholar get its columns, 58 and 69 entries,
+and the job tabs' copies of those calls are not added). Without a saved choice, the live session, the
+preview, the import's Save step and the Plans tab's row for the current job take the alternative with the
 party's co-tank (a Warrior next to a Paladin: "WAR/PLD WAR", a Paladin next to a Dark Knight: "DRK/PLD
-PLD"); without a party, in the preview, the CLI and the import's Save step, the first. On the bundled LPDU
-plan the H2 Scholar gets "H2 SCH": 31 entries, including the job-less "H2" calls of P1 and P2 (the H1 White
-Mage gets "H1 WHM", 11). A Warrior gets "WAR/DRK WAR" outside a party, with the "MT" or "OT" calls for WAR
-and for any tank (Reprisal, Rampart): 35 entries in MT, 28 in OT, 9 without a slot (Dark Knight, Gunbreaker,
-Paladin: 34, 27, 8). The "CM LB Tank" and "CM Rep Tank" columns are left out: tanks pick them in the Plans
-tab.
+PLD"), or, when the party plays none of them, the job's first column that is no composition (with Carry the
+Clear's combined tab first, "White Mage" for a White Mage next to a Sage); outside a party, and in the CLI,
+which knows none, the first. On the bundled LPDU plan the H2 Scholar gets "H2 SCH": 31 entries, including
+the job-less "H2" calls of P1 and P2 (the H1 White Mage gets "H1 WHM", 11). A Warrior gets "WAR/DRK WAR"
+outside a party, with the "MT" or "OT" calls for WAR and for any tank (Reprisal, Rampart): 35 entries in
+MT, 28 in OT, 9 without a slot (Dark Knight, Gunbreaker, Paladin: 34, 27, 8). The "CM LB Tank" and
+"CM Rep Tank" columns are left out: tanks pick them in the Plans tab.
 
 **The co-healer's calls.** With **Also show my co-healer's calls** on, `PartnerSelection` adds the entries
 that are not the player's, from the player's role group (tank, healer or DPS), but not those for the player's
@@ -197,19 +215,27 @@ partner job's columns for team compositions without the player's job (a Warrior 
 "DRK/GNB DRK" or "DRK/PLD DRK"). The partner's columns that are not a team composition are kept (a general
 "DRK" column next to "WAR/DRK DRK"); a composition column that repeats the partner's other column (Carry the
 Clear's combined tab next to its Scholar tab) is shown once, from the copy that goes with the player's own
-column. When the party is known, columns of jobs nobody in the party plays are left out too (LPDU's "H1 AST"
-next to a White Mage). While the option is on, a change in the party's jobs rebuilds the session.
+column. Columns for a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank": no job, no slot) are left
+out, as they are for the player, unless the player follows one of them in **My column**: then the other one
+is the co-tank's. When the party is known, columns of jobs nobody in the party plays are left out too
+(LPDU's "H1 AST" next to a White Mage), and so is a job's call in a slot the party gives another job
+(`ColumnSuggestion.PartySeats`: LPDU's Red Mage R1 calls next to a Bard, whose calls are all in R1). While
+the option is on, a change in the party's jobs rebuilds the session.
 
 **Rebuilds.** The session is rebuilt when what it was built from changes: the zone, job, synced level or
 client language; the active plan, or the column and slot used for the player (**My column**, **My usual
-party slot**, and the party's co-tank when it changes the suggested tank pair); the plans themselves (a
-save, a delete, **Reload plans**); **Also show my co-healer's calls**; and, while that option is on, the
-party's jobs.
+party slot**, and the party when it changes the suggested column or slot: a tank's pair, a Red Mage's
+ranged seat); the plans themselves (a save, a delete, **Reload plans**); **Also show my co-healer's calls**;
+and, while that option is on, the party's jobs.
 
 - A change of zone, job or login rebuilds it straight away.
-- The other changes wait until the current countdown or pull is over. After a countdown that reaches zero
-  they also wait through the hold before the pull and through the pull (or until 20 s after "0" when no pull
-  starts), so a pre-pull call already pressed stays done.
+- The other changes wait while the session is busy (`EncounterSession.IsBusy`): during a pull, from the frame
+  combat starts; after a countdown that reaches zero, through the hold before the pull and through the pull
+  (or until 20 s after "0" when no pull starts); and during a countdown once a reminder, the player's or the
+  co-healer's, has been shown or done, so a pre-pull call already shown or pressed stays as it is. Before
+  that, a change during a countdown rebuilds at once (the new session takes the countdown up), so a co-tank
+  who joins the party after `/countdown` still gives the pull their pair's column. A cancelled countdown
+  ends the wait.
 - The timing sliders (*Show reminders this early*, *Turn "NOW" this early*) and *Show skipped* apply
   immediately, even in the middle of a pull. The other settings don't need a rebuild.
 - **Reload data** (Debug tab) does not rebuild it: the session keeps the fight data it was built with, and a
@@ -260,12 +286,13 @@ and does not break the frame. If the live session itself throws, it stops ("Stop
 starts, resolved abilities, duty resets), so the preview syncs and follows phases the way a live pull does:
 TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. Then:
 
-- **Plan.** The plan and column the live session would use for the current job outside a party (of a job's
-  tank pairs, the first). Without one (a crafter; in TOP, a melee job without a chosen plan), the first plan
-  for the fight (user plans first, then bundled, each by name), as the job of the column saved for it, else
-  as its first job: in TOP without user plans, *Carry the Clear - SCH* as SCH. The co-healer's calls are
-  chosen as in §1.5, except that the preview does not know the party: no column is left out for a job nobody
-  in the party plays (LPDU's "H1 AST" shows for the Scholar).
+- **Plan.** The plan and column the live session would use for the current job in the current party (of a
+  job's tank pairs, the one with the party's co-tank; outside a party, the first). Without one (a crafter;
+  in TOP, a melee job without a chosen plan), the first plan for the fight (user plans first, then bundled,
+  each by name), as the job of the column saved for it, else as its first job: in TOP without user plans,
+  *Carry the Clear - SCH* as SCH. The co-healer's calls are chosen as in §1.5; the party is used only when
+  the preview plays the current job, so outside a party, or as another job, no column is left out for a job
+  nobody in the party plays (LPDU's "H1 AST" shows for the Scholar).
 - **Clock.** The pull happens at simulated clock 1000. A whole-fight preview starts 10 s earlier, with a
   simulated countdown. A phase preview starts 2 s before the pull, without a countdown. It drops the earlier
   phases' events, so P1 starts at the pull and the chosen phase begins 2 s after it, where the phase's own
@@ -310,15 +337,17 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
 4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
    and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
    compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced
-   plan's column choices follow a renamed column (`PlanStore.CarryOver`). When the job's calls are in several
-   of its columns (one per phase or per tab), `ImportColumns` saves the suggestion that has them all
-   (`PlanStore.SetMapping`); LPDU needs none, since a column shows the job-less calls of its slot. When a
-   column choice leaves out some of the player's calls (the replaced plan's, or the job's general column next
-   to several tank-pair columns: no choice has the general column's calls and one pair's without the other
-   pairs'), the step warns and names the columns of the calls left out. With **Make it my active plan …**
-   ticked, `PlanStore.SetActive` makes it the active plan. Chat says *Saved plan "…" (N entries, active for
-   TOP as WHM)*, or *…; your active plan for TOP as WHM stays "…", choose this one in /mitcue > Plans to use
-   it)*, and the window closes.
+   plan's column choices follow a renamed column (`PlanStore.CarryOver`). The step's count (*N entries apply
+   to you as <JOB>*) and the review's *My calls* filter take the column the overlay will use in the player's
+   current party (§1.5), and count the player's calls in that column's slot (LPDU's "H2 SCH" in H2, also for
+   a Scholar whose usual slot is H1). When the job's calls are in several of its columns (one per phase or
+   per tab), `ImportColumns` saves the suggestion that has them all (`PlanStore.SetMapping`); LPDU needs
+   none, since a column shows the job-less calls of its slot. When a column choice leaves out some of the
+   player's calls (the replaced plan's, or the job's general column next to several tank-pair columns: no
+   choice has the general column's calls and one pair's without the other pairs'), the step warns and names
+   the columns of the calls left out. With **Make it my active plan …** ticked, `PlanStore.SetActive` makes
+   it the active plan. Chat says *Saved plan "…" (N entries, active for TOP as WHM)*, or *…; your active plan
+   for TOP as WHM stays "…", choose this one in /mitcue > Plans to use it)*, and the window closes.
 
 **Threading.** The slow steps (download, reading a workbook or a document, reading pasted cells, the trial
 import, the import, reading YAML) run through `BackgroundJobs`:
@@ -441,13 +470,13 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
   - [ ] **Always show** shows `SAMPLE - drag to position - 0:00` when nothing runs. Untick it again: while
         it is on, the overlay shows these sample rows in §2.4 and instead of *waiting for pull* in §2.5.
 - [ ] **General** > tick **Also show my co-healer's calls**, then restart the preview. As Scholar on LPDU,
-      the H1 columns' calls appear dimmed with tags like `[H1 WHM]` (the preview doesn't know your party, so
-      `[H1 AST]` too), never `[H2 SGE]`. As White Mage, *NoirMit - WHM* has no Scholar column, so first
-      choose *LPDU TOP Mitigation* under **Active plan** (your own calls are then LPDU's *H1 WHM*, 11
-      entries): the H2 columns' calls appear dimmed with tags like `[H2 SCH]` (`[H2 SGE]` too), never
-      `[H1 AST]`. All rows are in press-time order, and your own rows are never pushed out. White Mage:
-      afterwards, set **Active plan** back to *(automatic: the bundled plan for this job, else my own plan for
-      it)*.
+      the H1 columns' calls appear dimmed with tags like `[H1 WHM]` (outside a party `[H1 AST]` too; in a
+      party, `[H1]` and only the columns of the party's jobs), never `[H2 SGE]`. As White Mage,
+      *NoirMit - WHM* has no Scholar column, so first choose *LPDU TOP Mitigation* under **Active plan** (your
+      own calls are then LPDU's *H1 WHM*, 11 entries): the H2 columns' calls appear dimmed with tags like
+      `[H2 SCH]` (outside a party `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order, and
+      your own rows are never pushed out. White Mage: afterwards, set **Active plan** back to *(automatic: the
+      bundled plan for this job, else my own plan for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
@@ -567,9 +596,10 @@ During pulls:
 - [ ] If you die, the reminders keep running until the wipe.
 - [ ] After a wipe: chat shows `TOP pull ended (wipe): N done, M missed. Missed: …`, the overlay goes back to
       *waiting for pull*, and the next pull starts cleanly.
-- [ ] Switch plan or column between pulls: the Status line updates. Switching during a pull, or during a
-      countdown that runs into the pull, only takes effect after the pull. Switch back to the automatic plan
-      and the suggested column afterwards.
+- [ ] Switch plan or column between pulls: the Status line updates. Switching during a countdown takes
+      effect at once while no reminder is listed (the bundled plans have no pre-pull calls); switching during
+      a pull, or after the countdown's "0", only takes effect after the pull. Switch back to the automatic
+      plan and the suggested column afterwards.
 - [ ] `/mitcue reset` during a pull clears the reminders without a summary. Note whether MitCue picks the
       fight up again before the pull ends. The next pull must work normally.
 - [ ] Optional: `/xlstats` opens Dalamud's plugin statistics. It lists no plugins until you switch tracking

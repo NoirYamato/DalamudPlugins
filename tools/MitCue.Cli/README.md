@@ -43,17 +43,30 @@ Notes:
 
 - `plan`, `simulate` and `check` take the player's entries the way the plugin does without a saved column choice
   (the core's `ColumnSuggestion`): the job's column, or, when the job's calls are in several columns (one per phase
-  or tab), the narrowest choice that has them all (any column for the job in the slot, or one column). The slot is
-  the job's column's slot when it has one, even when `--slot` names another (`--job SCH --slot H1` on
-  `plans/top-lpdu.yaml` reads "H2 SCH" in slot H2), else `--slot`, else the slot of another column of the job. A
-  column also gets other columns' calls for the slot that are for the job, or for no job when the slot is one of
-  the job's role. Of a job's team-composition columns (LPDU's tank pairs) the CLI takes the first: it knows no
-  party. On `plans/top-lpdu.yaml`, `--job SCH` gets the column "H2 SCH" (31 entries, with the job-less "H2" calls
-  of P1/P2) and `--job WAR` the column "WAR/DRK WAR" (35 entries with `--slot MT`, 28 with `OT`, 9 without). The
-  header names the slot and column used, and a note on stderr names the choice when it differs from every column
-  for the job and slot. `--assignee <key>` picks a column (other columns' calls for your slot apply too);
-  `--assignee "*"` takes every column for the job and slot (the note then lists the columns whose entries apply).
-- Plans are read as the plugin reads them: slot synonyms (`T1`/`T2`, `ST`, `D1`-`D4`) become the standard slots.
+  or tab), the narrowest choice that has them all (any column for the job in the slot, or one column). A `--slot`
+  that is not a slot of the job's role is not used, as the plugin reads "My usual party slot"; a note says so
+  (`--job WAR --slot M1` reads like `--job WAR`). The slot is the job's column's slot when it has one, even when
+  `--slot` names another (`--job SCH --slot H1` on `plans/top-lpdu.yaml` reads "H2 SCH" in slot H2), else
+  `--slot`, else the slot of another column of the job, else, only when the plan has no column for the job, the
+  first slot of the job's role that the job's calls name. LPDU has no column for its ranged jobs, so `--job RDM`
+  reads slot R1, 9 entries (R2 with `--slot R2`, 13); its tanks have columns without a slot, so `--job WAR`
+  reads none (9 entries, below). Calls that name no job give no slot: `--job MNK` gets LPDU's melee calls (the
+  job-less "M1" and "M2" columns) only with `--slot M1` or `M2` (or `--assignee "M1"` or `"M2"`). A column also
+  gets other columns' calls for the slot that are for the job, or for no job when the slot is one of the job's
+  role, and the job's calls in the same team composition's other tabs ("WHM/SCH P3 WHM" with "WHM/SCH P1 WHM":
+  one composition split over per-phase tabs is one seat). Of a job's team-composition columns (LPDU's tank pairs)
+  the CLI takes the first, and of a ranged job's seats the first: it knows no party. On `plans/top-lpdu.yaml`,
+  `--job SCH` gets the column "H2 SCH" (31 entries, with the job-less "H2" calls of P1/P2) and `--job WAR` the
+  column "WAR/DRK WAR" (35 entries with `--slot MT`, 28 with `OT`, 9 without). The header names the slot and
+  column used, and a note on stderr names the choice when it differs from every column for the job and slot
+  (`--job RDM`: "any column for RDM in slot R1 (the slot the plan gives RDM; --slot sets yours)").
+  `--assignee <key>` picks a column with its slot, as /mitcue > Plans saves a picked column
+  (`--job SCH --assignee "H2 SCH"`: slot H2, 31 entries; a `--slot` naming another slot is not used, with a
+  note), and other columns' calls apply as above (for that slot, or for the job in the column's composition's
+  other tabs); `--assignee "*"` takes every column for the job and slot (the note then lists the columns whose
+  entries apply).
+- Plans are read as the plugin reads them: slot synonyms (`T1`/`T2`, `ST`, `D1`-`D4`) become the standard slots,
+  and an entry with no job in a column with a job gets that job (a job-less call in "H1 AST" is the Astrologian's).
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss
   abilities, wipes) unless `--all-events` is given; TOP's P2, for example, is then entered by the 7B40 cast at 203.4
   rather than the MapEffect at 200.0. `--push p2=110` starts P2 110 s (real time) after the pull and ends P1's events

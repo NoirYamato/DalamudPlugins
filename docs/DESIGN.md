@@ -71,8 +71,9 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 - Respect level sync: validate plans against the fight's sync level (80/90/100). **As
   built:** the import review checks every entry (`ReviewValidator`); share codes and plan
   files are checked with the review's rules when they load, reporting only calls that can
-  never work (a mechanic the fight lacks, an unknown action, an action the entry's job or
-  slot cannot use, or not at the sync level; also an offset that is not a number and a
+  never work as planned (a mechanic the fight lacks, an unknown action, an action the
+  entry's job or slot cannot use, or not at the sync level; also an offset that is not a
+  number, never shown, or for −∞ shown at the start of the countdown or pull, and a
   job-less call for a slot that is no party slot); the bundled plans are checked in the
   tests (the core's `PlanValidator`); the CLI's `check` and `validate` check plans too
   (`PlanChecker`).
@@ -119,7 +120,8 @@ Repository layout:
 src/MitCue.Core/           core library
 src/MitCue/                Dalamud plugin
 tests/MitCue.Core.Tests/   core tests (+ tests/fixtures/sheets/*: snapshots of the example sheets)
-tests/MitCue.Plugin.Tests/ plugin tests (built against Dalamud's assemblies; no game needed)
+tests/MitCue.Plugin.Tests/ plugin tests (built against Dalamud's assemblies; no game needed; references
+                           tools/MitCue.Cli for the invariant sweep)
 tests/MitCue.Cli.Tests/    CLI tests
 tools/MitCue.Cli/          developer CLI
 tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's own manifest types
@@ -232,12 +234,24 @@ Selection rule for the local player (`PlanSelection`): an entry applies when
   column. An entry of another column still applies when it names the player's slot and
   either their job, or no job when the slot is one of the job's role (MT/OT for tanks,
   H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged): a Warrior in MT who follows
-  "WAR/DRK WAR" gets LPDU's job-less "MT" Reprisals.
+  "WAR/DRK WAR" gets LPDU's job-less "MT" Reprisals. So does an entry for their job in a
+  column of the same team composition in another tab ("WHM/SCH P3 WHM" for the player who
+  follows "WHM/SCH P1 WHM": one composition split over per-phase tabs is one seat).
+
+The player's slot is the column's slot, else the configured slot (the plugin's "My usual
+party slot", the CLI's `--slot`) when it is a slot of the job's role (`Slots.ForJob`: one
+usual slot serves every job, and a melee player's M1 is not their slot on a tank), else,
+without a saved choice and for a plan without a column for the job, the slot of the job's
+calls (§7). A saved "any column for my job" (the CLI's `--assignee "*"`) has no slot then
+and shows every seat's calls (LPDU's Red Mage: R1 and R2).
 
 Slots compare by name, so every plan reader (`PlanSerializer`: plan files, share codes,
 the AI's YAML, the CLI) writes the synonyms `T1`, `T2`/`ST` and `D1`–`D4`, in any letter
 case and with spaces around them, as `MT`, `OT`, `M1`, `M2`, `R1` and `R2`, and the plugin
-does the same when it saves a plan.
+does the same when it saves a plan. They also give an entry that names no job the job of
+its column when the column has one (`PlanNormalizer.JobsFromColumns`): a job-less call in
+"H1 AST" is the Astrologian's, never shown to the White Mage who follows "H1 WHM" in H1,
+while the job-less calls of a job-less column ("MT", "H2") stay for whoever plays the slot.
 
 ### 3.3 Actions (`data/actions/actions.yaml`) and aliases (`data/actions/aliases.yaml`)
 
@@ -408,9 +422,10 @@ previews, which have no cooldown provider.
    the mechanic, hit, offset, flags, target, note and items, and delete entries; replacing
    a note with an action offers to save the shorthand as a personal alias; the plan is
    saved as a user plan, made the active plan when *Make it my active plan …* is ticked
-   (it is by default when entries apply to the player), with the column choice that has
-   all of the player's calls when one has them without another column's (otherwise the
-   Save step names the columns of the calls left out).
+   (it is by default when entries apply to the player, counted as the overlay will select
+   them in the player's party), with the column choice that has all of the player's calls
+   when one has them without another column's (otherwise the Save step names the columns
+   of the calls left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
@@ -448,28 +463,48 @@ files and links; the plugin's import window adds downloading, the review and the
   plan only when the player chooses it: in the table, or with the "make it my active plan"
   checkbox of the import window (ticked when entries apply to the player) or of the
   share-code box (unticked each time the plugin loads). The exception is the share code
-  of a bundled plan: it has that plan's id and takes its place until it is deleted.
+  of a bundled plan: it has that plan's id and takes its place until it is deleted. The
+  share-code box sets a plan only when it has calls for the job as the overlay selects
+  them; for a role sheet whose calls for the job are only in other slots' job-less
+  columns, the message names those slots and says to choose the plan and then the slot's
+  column under "My column" (or, only while no usual slot is set at all, to set it first; a
+  usual slot of another role gets the column hint too): one usual slot serves every job of
+  its role, so changing it would take the slot calls of the player's main job away.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),
   the narrowest choice that has them all and no call of another column
-  (`ColumnSuggestion`). Columns for team compositions (keys naming two or more jobs) are
-  alternatives, never combined: a Warrior on LPDU gets the tank pair with the party's
-  co-tank ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR". Plans are
+  (`ColumnSuggestion`). For the column and the calls, the usual party slot counts only on a
+  job of its role. Without a column for the job and a slot (LPDU's ranged jobs, with calls
+  per job in "R1" and "R2"), the job's calls give the seat: the first slot of its role they
+  name, passing over a slot the party gives another job, one whose calls are all in it (a
+  Red Mage gets R1, or R2 next to a Bard). Columns for team compositions (keys naming two
+  or more jobs) are alternatives, never combined, and one composition split over per-phase
+  tabs is one seat: a Warrior on LPDU gets the tank pair with the party's co-tank
+  ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none
+  of the job's compositions gets the job's column that is no composition, if there is one
+  (Carry the Clear's White Mage tab for a White Mage next to a Sage). A job's column that
+  repeats the calls of its composition column is the same seat written twice, whichever
+  tab comes first (Carry the Clear's White Mage tab and its combined tab). Plans are
   exported as share codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
-  party only columns of jobs someone in it plays. The partner's columns that are not a
-  composition are kept (a general "DRK" next to "WAR/DRK DRK"); a combined-tab column that
-  repeats the partner's other column is shown once.
+  party the columns of jobs nobody in it plays and a job's calls in a slot the party
+  gives another job (LPDU's Red Mage R1 calls next to a Bard). The partner's columns
+  that are not a composition are kept (a general "DRK" next to "WAR/DRK DRK"); a
+  combined-tab column that repeats the partner's other column is shown once. Columns for
+  a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank") are no one's: not shown,
+  unless the player follows one of them, and then the other one is the co-tank's.
 - **Preview/simulation:** run the fight timeline with simulated events at 1×/4× from any
   phase to check the overlay and the plan. **As built:** only the event kinds the plugin
-  sees in game are played, so a preview syncs like a pull.
+  sees in game are played, so a preview syncs like a pull, and it shows the calls the
+  live session would show in the player's party.
 - **Data loading** (as built): fight data and plans load on the first framework tick;
   **Reload data** (Debug tab) reloads the fight data on the next tick. The live session
   keeps the data it was built with until it is rebuilt (`/mitcue reset`, or a change of
-  zone, job, plan or column).
+  zone, job, plan or column; a change of plan or column waits while a pull, the hold after
+  a countdown, or a countdown with a call already shown is on: PLUGIN.md §1.5).
 
 ---
 
@@ -491,8 +526,11 @@ files and links; the plugin's import window adds downloading, the review and the
 - `tests/MitCue.Plugin.Tests`: sessions and pulls, the plan store with the automatic plan
   and column choices on the bundled plans, the co-healer's calls, the import pipeline
   (link parsing, downloads through a fake HTTP handler, pasted cells, the AI prompt and
-  YAML), the review model, background jobs. Built against Dalamud's assemblies; no game
-  needed.
+  YAML), the review model, background jobs, and an invariant sweep (`Invariants/`): for
+  each job, usual slot and party, the overlay's calls are the player's seat's, once each,
+  the co-healer rows are the partners' only, and the Plans tab, the import window, the
+  preview and the CLI show the overlay's calls (the project references `tools/MitCue.Cli`
+  for it). Built against Dalamud's assemblies; no game needed.
 - `tests/MitCue.Cli.Tests`: every CLI command.
 - `tools/tests` (Python): `make-repo-json.py` and the CI workflow's Dalamud download step.
 - CI (`.github/workflows/ci.yml`) runs all of these on every push to the `mitcue` branch
