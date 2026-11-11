@@ -44,7 +44,8 @@ public class LpduImportTests
         { "p5.blind_faith", "Sacred Soil" },
         { "p6.cosmo_memory", "Sacred Soil+Dissipation" },
         { "p6.cosmo_dive_1", "Sacred Soil+Succor+Expedient" },                 // CD1
-        { "p6.wave_cannon_1", "Succor+Sacred Soil+Adloquium+Deployment Tactics+seq" }, // Succor Proteans + Soil + Spreadlo Stack
+        { "p6.wave_cannon_1", "Succor+Sacred Soil" },                         // Succor Proteans + Soil + Spreadlo Stack: the proteans…
+        { "p6.wave_cannon_1", "Adloquium+Deployment Tactics+seq" },            // …and the Wild Charge stack (hit 3)
         { "p6.wave_cannon_2", "Summon Seraph+Fey Illumination+Sacred Soil+Succor" },
         { "p6.cosmo_dive_2", "Sacred Soil+Succor" },
         { "p6.cosmo_meteor", "Expedient+Sacred Soil+Succor" },
@@ -69,7 +70,32 @@ public class LpduImportTests
     {
         var mine = For(Job.SCH, "H2");
         Assert.Equal("Debuffs at 13 secs/when rots explode", Assert.Single(mine, e => e.Mechanic == "p3.latent_4").Note);
-        Assert.Equal("Succor Proteans; Spreadlo Stack", Assert.Single(mine, e => e.Mechanic == "p6.wave_cannon_1").Note);
+
+        // 'P6'!F4 "Succor Proteans + Soil + Spreadlo Stack": Wave Cannon 1 is two protean sets, then the Wild Charge stack.
+        // "Proteans" and "Stack" name those parts, so Spreadlo is its own entry for the stack (hit 3), after the proteans.
+        var wc1 = mine.Where(e => e.Mechanic == "p6.wave_cannon_1").ToList();
+        Assert.Equal(("Succor Proteans", (int?)null), (wc1[0].Note, wc1[0].HitIndex));
+        Assert.Equal(("Stack", (int?)2), (wc1[1].Note, wc1[1].HitIndex));
+        Assert.Null(wc1[1].Offset); // automatic: Adloquium's shield lead before the stack, after the second protean set
+    }
+
+    [Fact]
+    public void NoteRowsInAPlayersColumn_ReachThePlayer()
+    {
+        // 'P4'!F9 "Shields bevor the boss is targetable", written under the H2 SCH column: the detail of the Scholar's P4 entries.
+        var mine = For(Job.SCH, "H2");
+        var p4 = mine.Where(e => PlanImports.Top.GetMechanic(e.Mechanic)!.Phase == "p4").ToList();
+        Assert.NotEmpty(p4);
+        Assert.All(p4, e => Assert.Contains("Shields bevor the boss is targetable", e.Detail, StringComparison.Ordinal));
+        Assert.DoesNotContain(For(Job.SGE, "H2"), e => (e.Detail ?? string.Empty).Contains("Shields bevor", StringComparison.Ordinal));
+
+        // 'P3'!B8 "WAR can use Shake as P3 dies for 1st P4 Proteans.": an optional phase-end entry for any Warrior.
+        var shake = Assert.Single(Plan.At("'P3'!B8"));
+        Assert.Equal(("p3.ion_efflux", true, true), (shake.Mechanic, shake.AtPhaseEnd, shake.Optional));
+        Assert.Equal(["Shake It Off"], shake.Names());
+        Assert.Equal((Job.WAR, (string?)null, (string?)null), (shake.Who.Job!.Value, shake.Who.Slot, shake.Who.Assignee));
+        Assert.Equal("as P3 dies for 1st P4 Proteans", shake.Note);
+        Assert.Contains(shake, For(Job.WAR, "OT"));
     }
 
     [Fact]
@@ -123,9 +149,15 @@ public class LpduImportTests
     public void AstrologianInH1()
     {
         var mine = For(Job.AST, "H1");
-        var patch = Assert.Single(mine, e => e.Mechanic == "p5.delta_patch");
-        Assert.Equal(["Macrocosmos", "Neutral Sect"], patch.Names());
-        Assert.Equal("Neutralsect if P4 skip", patch.Note);
+        // "Macrocosmos + Neutralsect if P4 skip" (Patch) and "Neutralsect no skip" (Hello World) are alternatives: each Neutral
+        // Sect is optional (120 s recast, 26 s apart), and only Neutral Sect carries the condition.
+        var patch = mine.Where(e => e.Mechanic == "p5.delta_patch").ToList();
+        Assert.Equal(["Macrocosmos"], Assert.Single(patch, e => !e.Optional).Names());
+        var ifSkip = Assert.Single(patch, e => e.Optional);
+        Assert.Equal(["Neutral Sect"], ifSkip.Names());
+        Assert.Equal("if P4 skip", ifSkip.Note);
+        var noSkip = Assert.Single(mine, e => e.Mechanic == "p5.delta_hello_world" && e.Names().Contains("Neutral Sect"));
+        Assert.Equal((true, "no skip"), (noSkip.Optional, noSkip.Note));
         Assert.Equal(["Collective Unconscious", "Neutral Sect"], Assert.Single(mine, e => e.Mechanic == "p6.wave_cannon_2").Names());
         Assert.Equal(["Astral Stasis"], Assert.Single(mine, e => e.Mechanic == "p6.magic_number_1").Names());
     }
@@ -146,10 +178,10 @@ public class LpduImportTests
         var rampart = Assert.Single(mine, e => e.Src == "'General Tank Mit til P5'!B3");
         Assert.Equal(("p1.atomic_ray", true), (rampart.Mechanic, rampart.AtPhaseEnd));
 
-        // "Rep + Short CD to R1": the targeted short cooldown.
-        var protean = Assert.Single(mine, e => e.Src == "'P4'!B2");
-        Assert.Equal(["Reprisal", "Nascent Flash"], protean.Names());
-        Assert.Equal("R1", protean.Target);
+        // "Rep + Short CD to R1": the targeted short cooldown, with the target on it alone (Reprisal hits the boss).
+        var protean = mine.Where(e => e.Src == "'P4'!B2").ToList();
+        Assert.Equal([("Nascent Flash", "R1"), ("Reprisal", null)], protean.Select(e => (e.Names()[0], e.Target)).Order());
+        Assert.Equal(["Reprisal"], Assert.Single(protean, e => e.Who.Job is null).Names()); // every tank's: the slot's entry
 
         // "Rep + Party Mit after Solar Ray": Reprisal before the buster, the party mitigation just after its last hit.
         var solarRay = mine.Where(e => e.Src == "'P5'!B2").ToList();
@@ -175,15 +207,13 @@ public class LpduImportTests
         // A Dark Knight paired with a Warrior picks "WAR/DRK DRK".
         var drk = Plan.Entries.Where(e => e.Who.Assignee == "WAR/DRK DRK").ToList();
         Assert.All(drk, e => Assert.Equal(Job.DRK, e.Who.Job));
-        var wc2 = Assert.Single(drk, e => e.Mechanic == "p6.wave_cannon_2"); // Living Dead + TBN/Oblation Co-Tank
-        Assert.Equal(["Living Dead", "The Blackest Night|Oblation"], wc2.Names());
-        Assert.Equal("Co-Tank", wc2.Target);
+        var wc2 = drk.Where(e => e.Mechanic == "p6.wave_cannon_2").ToList(); // Living Dead + TBN/Oblation Co-Tank
+        Assert.Equal([("Living Dead", null), ("The Blackest Night|Oblation", "Co-Tank")], wc2.Select(e => (string.Join("+", e.Names()), e.Target)).Order());
         Assert.Equal(["note:Kitchen Sink"], Assert.Single(drk, e => e.Mechanic == "p5.solar_ray_1").Names());
 
         var war = Plan.Entries.Where(e => e.Who.Assignee == "WAR/GNB WAR").ToList();
-        var wc1 = Assert.Single(war, e => e.Mechanic == "p6.wave_cannon_1"); // Holmgang + Nascant Co-Tank
-        Assert.Equal(["Holmgang", "Nascent Flash"], wc1.Names());
-        Assert.Equal("Co-Tank", wc1.Target);
+        var wc1 = war.Where(e => e.Mechanic == "p6.wave_cannon_1").ToList(); // Holmgang + Nascant Co-Tank: Holmgang is not on the co-tank
+        Assert.Equal([("Holmgang", null), ("Nascent Flash", "Co-Tank")], wc1.Select(e => (string.Join("+", e.Names()), e.Target)).Order());
         Assert.DoesNotContain(PlanImports.Lpdu.Diagnostics, d => d.Code == "tab-skipped");
     }
 
@@ -206,10 +236,15 @@ public class LpduImportTests
         var mch = Assert.Single(stack2);
         Assert.Equal((Job.MCH, "Tactician"), (mch.Who.Job!.Value, mch.Names()[0]));
 
-        // "Magick Barrier" (R2) is a Red Mage action; "Addle" is every caster's, so it stays with the slot.
+        // "Magick Barrier" (R2) is a Red Mage action; "Addle" is every caster's but no physical ranged job's, so the casters
+        // of the slot get one entry each and a Bard in R2 gets none. Feint is every melee job's: one entry for the slot.
         Assert.Equal(Job.RDM, Assert.Single(Plan.At("'P1/P2'!I4")).Who.Job);
-        var addle = Assert.Single(Plan.At("'P1/P2'!I7"));
-        Assert.Equal(("R2", (Job?)null), (addle.Who.Slot, addle.Who.Job));
+        var addle = Plan.At("'P1/P2'!I7");
+        Assert.Equal([Job.BLM, Job.SMN, Job.RDM, Job.PCT], addle.Select(e => e.Who.Job!.Value).OrderBy(j => j));
+        Assert.All(addle, e => Assert.Equal("R2", e.Who.Slot));
+        Assert.DoesNotContain(For(Job.BRD, "R2"), e => e.Names().Contains("Addle"));
+        var feint = Assert.Single(Plan.At("'P1/P2'!F5"));
+        Assert.Equal(("M1", (Job?)null, "Feint"), (feint.Who.Slot, feint.Who.Job, feint.Names()[0]));
         Assert.Equal(["Feint"], Assert.Single(For(Job.SAM, "M1"), e => e.Mechanic == "p1.panto_stack1").Names());
     }
 

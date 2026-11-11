@@ -93,9 +93,19 @@ internal sealed class MechanicResolver
 
             if (found.Count > 0)
                 return new MechanicCandidates(Order(found), MechanicMatch.Prefix);
+        }
 
-            // Typos: the closest alias of the phase within the edit budget, when it is unique.
+        // The exact label of a mechanic of another phase (a misplaced row or a missing section): an exact name elsewhere
+        // beats a near miss in the phase ("P5 End", an alias of p6.start, is not a typo of p5.start's "P4 End").
+        if (phaseId is not null && this.Lookup(this.exact, normalized, null) is { Count: > 0 } elsewhere)
+            return new MechanicCandidates(elsewhere, MechanicMatch.OtherPhase);
+
+        if (simple.Length > 0)
+        {
+            // Typos: the closest alias of the phase within the edit budget, when it is unique. A different number is a
+            // different mechanic ("Solar Ray 2" vs "Solar Ray 3"), not a typo.
             var budget = ImportText.FuzzyBudget(simple.Length);
+            var digits = Digits(simple);
             if (budget > 0)
             {
                 var bestDistance = budget + 1;
@@ -103,7 +113,7 @@ internal sealed class MechanicResolver
                 foreach (var (alias, mechanics) in this.simplified)
                 {
                     var inPhase = mechanics.Where(m => InPhase(m, phaseId)).ToList();
-                    if (inPhase.Count == 0)
+                    if (inPhase.Count == 0 || Digits(alias) != digits)
                         continue;
                     var d = ImportText.Distance(simple, alias, budget);
                     if (d > budget || d > bestDistance)
@@ -122,12 +132,40 @@ internal sealed class MechanicResolver
             }
         }
 
-        // The exact label of a mechanic of another phase (a misplaced row or a missing section).
-        if (phaseId is not null && this.Lookup(this.exact, normalized, null) is { Count: > 0 } elsewhere)
-            return new MechanicCandidates(elsewhere, MechanicMatch.OtherPhase);
-
         return MechanicCandidates.None;
     }
+
+    /// <summary>
+    /// Every mechanic of the phase the label may mean under any match tier (exact, simplified, prefix and spelling, each
+    /// taken on its own), in hit order. For a timed row whose best-tier candidates contradict its time: "Solar Ray ×2" is
+    /// exactly an alias of the second to fourth P5 Solar Rays, but simplified ("Solar Ray") also of the first.
+    /// </summary>
+    public IReadOnlyList<Mechanic> AllCandidates(string? label, string? phaseId)
+    {
+        var normalized = ImportText.NormalizeLabel(label);
+        if (normalized.Length == 0)
+            return [];
+        var simple = ImportText.SimplifyLabel(label);
+        var all = new List<Mechanic>(this.Lookup(this.exact, normalized, phaseId));
+        if (simple.Length > 0)
+        {
+            all.AddRange(this.Lookup(this.simplified, simple, phaseId));
+            var digits = Digits(simple);
+            var budget = ImportText.FuzzyBudget(simple.Length);
+            foreach (var (alias, mechanics) in this.simplified)
+            {
+                var prefix = alias.Length >= 3 && simple.StartsWith(alias, StringComparison.Ordinal) && (simple.Length == alias.Length || simple[alias.Length] == ' ');
+                var close = budget > 0 && Digits(alias) == digits && ImportText.Distance(simple, alias, budget) <= budget;
+                if (prefix || close)
+                    all.AddRange(mechanics.Where(m => InPhase(m, phaseId)));
+            }
+        }
+
+        return Order(all);
+    }
+
+    /// <summary>The digits of a label in order ("p5 end" → "5"), to tell numbered mechanics apart.</summary>
+    private static string Digits(string s) => string.Concat(s.Where(char.IsAsciiDigit));
 
     /// <summary>
     /// A mechanic named in free text ("Solar Ray", "Diffuse Wave Cannon", "the Blind Faith cast"): the longest run of leading

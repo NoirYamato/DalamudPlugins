@@ -235,7 +235,8 @@ public sealed class ImportResult
 /// <param name="Mechanic">The mechanic id the row's entries anchor to, or null when there is none.</param>
 /// <param name="Match">
 /// How: "exact", "simplified", "prefix" or "fuzzy" (by alias), "time" or "order" (among several mechanics with the label),
-/// "other-phase" (the label belongs to another phase), "previous" (no label: the row above's mechanic) or "unknown".
+/// "other-phase" (the label belongs to another phase), "previous" (no label: the row above's mechanic), "next" (no label and
+/// no row above in its phase: the next row's mechanic) or "unknown". A timed row re-anchored by its time is "time".
 /// </param>
 /// <param name="Src">The label cell (or the row's first cell).</param>
 public sealed record ImportedRow(string Tab, int Row, string? Label, string? Phase, string? Mechanic, string Match, string Src);

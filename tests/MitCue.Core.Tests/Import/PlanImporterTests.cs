@@ -38,7 +38,7 @@ public class PlanImporterTests
         var r = Import(Sheet("P5", "PLD", "Solar Ray 1\tHS + Divine Veil + Bulwerk"));
         Assert.Equal(["Holy Sheltron", "Divine Veil", "Bulwark"], Only(r).Names());
         var fuzzy = Assert.Single(r.Diagnostics, d => d.Code == "fuzzy-match");
-        Assert.Equal(DiagnosticSeverity.Info, fuzzy.Severity);
+        Assert.Equal(DiagnosticSeverity.Warning, fuzzy.Severity); // a guess from the spelling: shown in review
         Assert.Contains("'bulwerk'", fuzzy.Message, StringComparison.Ordinal);
     }
 

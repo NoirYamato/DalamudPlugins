@@ -229,67 +229,85 @@ entries:
     src: "'P1/P2'!H7"
   - id: e032
     mechanic: p1.panto_stack3
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P1/P2'!I7"
   - id: e033
+    mechanic: p1.panto_stack3
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P1/P2'!I7"
+  - id: e034
+    mechanic: p1.panto_stack3
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P1/P2'!I7"
+  - id: e035
+    mechanic: p1.panto_stack3
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P1/P2'!I7"
+  - id: e036
     mechanic: p1.wave_cannon_kyrios
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 30, name: Hallowed Ground}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!B2"
-  - id: e034
+  - id: e037
     mechanic: p1.wave_cannon_kyrios
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 43, name: Holmgang}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!B2"
-  - id: e035
+  - id: e038
     mechanic: p1.wave_cannon_kyrios
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 3638, name: Living Dead}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!B2"
-  - id: e036
+  - id: e039
     mechanic: p1.wave_cannon_kyrios
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16152, name: Superbolide}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!B2"
-  - id: e037
+  - id: e040
     mechanic: p1.wave_cannon_kyrios
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 30, name: Hallowed Ground}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!C2"
-  - id: e038
+  - id: e041
     mechanic: p1.wave_cannon_kyrios
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 43, name: Holmgang}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!C2"
-  - id: e039
+  - id: e042
     mechanic: p1.wave_cannon_kyrios
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 3638, name: Living Dead}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!C2"
-  - id: e040
+  - id: e043
     mechanic: p1.wave_cannon_kyrios
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 16152, name: Superbolide}
     detail: MT prepull Mit for autos
     src: "'General Tank Mit til P5'!C2"
-  - id: e041
+  - id: e044
     mechanic: p1.atomic_ray
     who: {slot: MT, assignee: MT}
     do:
@@ -297,7 +315,7 @@ entries:
     note: as P1 dies
     at_phase_end: true
     src: "'General Tank Mit til P5'!B3"
-  - id: e042
+  - id: e045
     mechanic: p1.atomic_ray
     who: {slot: OT, assignee: OT}
     do:
@@ -305,7 +323,7 @@ entries:
     note: as P1 dies
     at_phase_end: true
     src: "'General Tank Mit til P5'!C3"
-  - id: e043
+  - id: e046
     mechanic: p2.solar_ray
     who: {slot: MT, job: GNB, assignee: MT}
     do:
@@ -313,7 +331,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: Rep + Dark mind can be used
     src: "'General Tank Mit til P5'!B5"
-  - id: e044
+  - id: e047
     mechanic: p2.solar_ray
     who: {slot: OT, job: GNB, assignee: OT}
     do:
@@ -321,51 +339,51 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: Rep + Dark mind can be used
     src: "'General Tank Mit til P5'!C5"
-  - id: e045
+  - id: e048
     mechanic: p2.solar_ray
     who: {slot: H2, job: SCH, assignee: H2}
     do:
       - {action: 188, name: Sacred Soil}
     src: "'P1/P2'!E10"
-  - id: e046
+  - id: e049
     mechanic: p2.solar_ray
     who: {slot: H2, job: SGE, assignee: H2}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P1/P2'!E10"
-  - id: e047
-    mechanic: p2.solar_ray
-    who: {slot: MT, job: PLD, assignee: MT}
-    do:
-      - {action: 22, name: Bulwark}
-      - {action: 25746, name: Holy Sheltron}
-    detail: Rep + Dark mind can be used
-    src: "'General Tank Mit til P5'!B5"
-  - id: e048
-    mechanic: p2.solar_ray
-    who: {slot: MT, job: WAR, assignee: MT}
-    do:
-      - {action: 40, name: Thrill of Battle}
-      - {action: 25751, name: Bloodwhetting}
-    detail: Rep + Dark mind can be used
-    src: "'General Tank Mit til P5'!B5"
-  - id: e049
-    mechanic: p2.solar_ray
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 3634, name: Dark Mind}
-      - {action: 7393, name: The Blackest Night}
-    detail: Rep + Dark mind can be used
-    src: "'General Tank Mit til P5'!B5"
   - id: e050
     mechanic: p2.solar_ray
+    who: {slot: MT, job: PLD, assignee: MT}
+    do:
+      - {action: 22, name: Bulwark}
+      - {action: 25746, name: Holy Sheltron}
+    detail: Rep + Dark mind can be used
+    src: "'General Tank Mit til P5'!B5"
+  - id: e051
+    mechanic: p2.solar_ray
+    who: {slot: MT, job: WAR, assignee: MT}
+    do:
+      - {action: 40, name: Thrill of Battle}
+      - {action: 25751, name: Bloodwhetting}
+    detail: Rep + Dark mind can be used
+    src: "'General Tank Mit til P5'!B5"
+  - id: e052
+    mechanic: p2.solar_ray
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 3634, name: Dark Mind}
+      - {action: 7393, name: The Blackest Night}
+    detail: Rep + Dark mind can be used
+    src: "'General Tank Mit til P5'!B5"
+  - id: e053
+    mechanic: p2.solar_ray
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 22, name: Bulwark}
       - {action: 25746, name: Holy Sheltron}
     detail: Rep + Dark mind can be used
     src: "'General Tank Mit til P5'!C5"
-  - id: e051
+  - id: e054
     mechanic: p2.solar_ray
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -373,7 +391,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: Rep + Dark mind can be used
     src: "'General Tank Mit til P5'!C5"
-  - id: e052
+  - id: e055
     mechanic: p2.solar_ray
     who: {slot: OT, job: DRK, assignee: OT}
     do:
@@ -381,7 +399,14 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: Rep + Dark mind can be used
     src: "'General Tank Mit til P5'!C5"
-  - id: e053
+  - id: e056
+    mechanic: p2.party_synergy_spreads
+    offset: 0.5
+    who: {slot: M2, assignee: M2}
+    do:
+      - {note: Addle and Feint may be used on Female to cover Autos after Party Synergy}
+    src: "'P1/P2'!G12"
+  - id: e057
     mechanic: p2.limitless
     who: {slot: MT, job: PLD, assignee: MT}
     do:
@@ -390,7 +415,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e054
+  - id: e058
     mechanic: p2.limitless
     who: {slot: MT, job: WAR, assignee: MT}
     do:
@@ -399,7 +424,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e055
+  - id: e059
     mechanic: p2.limitless
     who: {slot: MT, job: DRK, assignee: MT}
     do:
@@ -408,7 +433,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e056
+  - id: e060
     mechanic: p2.limitless
     who: {slot: MT, job: GNB, assignee: MT}
     do:
@@ -417,7 +442,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e057
+  - id: e061
     mechanic: p2.limitless
     who: {slot: OT, job: PLD, assignee: OT}
     do:
@@ -426,7 +451,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e058
+  - id: e062
     mechanic: p2.limitless
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -435,91 +460,95 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e059
-    mechanic: p2.limitless
-    who: {slot: OT, job: DRK, assignee: OT}
-    do:
-      - {action: 7531, name: Rampart}
-      - {action: 3636, name: Shadow Wall}
-      - {action: 7393, name: The Blackest Night}
-    detail: for Autos after Party synergy
-    src: "'General Tank Mit til P5'!C6"
-  - id: e060
-    mechanic: p2.limitless
-    who: {slot: OT, job: GNB, assignee: OT}
-    do:
-      - {action: 7531, name: Rampart}
-      - {action: 16148, name: Nebula}
-      - {action: 25758, name: Heart of Corundum}
-    detail: for Autos after Party synergy
-    src: "'General Tank Mit til P5'!C6"
-  - id: e061
-    mechanic: p2.limitless
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 16471, name: Dark Missionary}
-    src: "'P1/P2'!B11"
-  - id: e062
-    mechanic: p2.limitless
-    who: {slot: MT, job: GNB, assignee: MT}
-    do:
-      - {action: 16160, name: Heart of Light}
-    src: "'P1/P2'!B11"
   - id: e063
     mechanic: p2.limitless
     who: {slot: OT, job: DRK, assignee: OT}
     do:
+      - {action: 7531, name: Rampart}
+      - {action: 3636, name: Shadow Wall}
+      - {action: 7393, name: The Blackest Night}
+    detail: for Autos after Party synergy
+    src: "'General Tank Mit til P5'!C6"
+  - id: e064
+    mechanic: p2.limitless
+    who: {slot: OT, job: GNB, assignee: OT}
+    do:
+      - {action: 7531, name: Rampart}
+      - {action: 16148, name: Nebula}
+      - {action: 25758, name: Heart of Corundum}
+    detail: for Autos after Party synergy
+    src: "'General Tank Mit til P5'!C6"
+  - id: e065
+    mechanic: p2.limitless
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    detail: 15 sec Mit is used as the clone jumps
+    src: "'P1/P2'!B11"
+  - id: e066
+    mechanic: p2.limitless
+    who: {slot: MT, job: GNB, assignee: MT}
+    do:
+      - {action: 16160, name: Heart of Light}
+    detail: 15 sec Mit is used as the clone jumps
+    src: "'P1/P2'!B11"
+  - id: e067
+    mechanic: p2.limitless
+    who: {slot: OT, job: DRK, assignee: OT}
+    do:
       - {action: 16471, name: Dark Missionary}
     src: "'P1/P2'!C11"
-  - id: e064
+  - id: e068
     mechanic: p2.limitless
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 16160, name: Heart of Light}
     src: "'P1/P2'!C11"
-  - id: e065
+  - id: e069
     mechanic: p2.limitless
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     src: "'P1/P2'!H11"
-  - id: e066
+  - id: e070
     mechanic: p2.limitless
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     src: "'P1/P2'!H11"
-  - id: e067
+  - id: e071
     mechanic: p2.limitless
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'P1/P2'!H11"
-  - id: e068
+  - id: e072
     mechanic: p2.limitless
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
+    detail: 15 sec Mit is used as the clone jumps
     src: "'P1/P2'!B11"
-  - id: e069
+  - id: e073
     mechanic: p2.limitless
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
+    detail: 15 sec Mit is used as the clone jumps
     src: "'P1/P2'!B11"
-  - id: e070
+  - id: e074
     mechanic: p2.limitless
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 3540, name: Divine Veil}
     src: "'P1/P2'!C11"
-  - id: e071
+  - id: e075
     mechanic: p2.limitless
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 7388, name: Shake It Off}
     src: "'P1/P2'!C11"
-  - id: e072
+  - id: e076
     mechanic: p2.limitless
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -527,61 +556,79 @@ entries:
       - {action: 34686, name: Tempera Grassa}
     seq: true
     src: "'P1/P2'!H11"
-  - id: e073
+  - id: e077
     mechanic: p2.limitless
     who: {slot: H1, assignee: H1}
     do:
       - {note: Everything}
     src: "'P1/P2'!D11"
-  - id: e074
+  - id: e078
     mechanic: p2.limitless
     who: {slot: H2, assignee: H2}
     do:
       - {note: Everything}
     src: "'P1/P2'!E11"
-  - id: e075
+  - id: e079
     mechanic: p2.limitless
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P1/P2'!H11"
-  - id: e076
+  - id: e080
     mechanic: p2.limitless
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P1/P2'!I11"
-  - id: e077
+  - id: e081
     mechanic: p3.hello_world
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
     src: "'P3'!F2"
-  - id: e078
+  - id: e082
     mechanic: p3.hello_world
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P3'!G2"
-  - id: e079
+  - id: e083
     mechanic: p3.hello_world
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P3'!B2"
-  - id: e080
+  - id: e084
     mechanic: p3.hello_world
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P3'!H2"
-  - id: e081
+  - id: e085
     mechanic: p3.hello_world
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P3'!K2"
-  - id: e082
+  - id: e086
+    mechanic: p3.hello_world
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K2"
+  - id: e087
+    mechanic: p3.hello_world
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K2"
+  - id: e088
+    mechanic: p3.hello_world
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K2"
+  - id: e089
     mechanic: p3.latent_1
     who: {slot: MT, assignee: MT}
     do:
@@ -589,7 +636,7 @@ entries:
     note: use during HW cast
     detail: Short CDs are fed to MT on CD
     src: "'General Tank Mit til P5'!B8"
-  - id: e083
+  - id: e090
     mechanic: p3.latent_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -597,7 +644,7 @@ entries:
       - {action: 3585, name: Deployment Tactics}
     seq: true
     src: "'P3'!F3"
-  - id: e084
+  - id: e091
     mechanic: p3.latent_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -606,131 +653,131 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'P3'!G3"
-  - id: e085
+  - id: e092
     mechanic: p3.latent_1
     who: {slot: OT, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P3'!C3"
-  - id: e086
+  - id: e093
     mechanic: p3.latent_1
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
     src: "'P3'!I3"
-  - id: e087
+  - id: e094
     mechanic: p3.latent_2
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 16536, name: Temperance}
     src: "'P3'!D4"
-  - id: e088
+  - id: e095
     mechanic: p3.latent_2
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 25868, name: Expedient}
       - {action: 16545, name: Summon Seraph}
     src: "'P3'!F4"
-  - id: e089
+  - id: e096
     mechanic: p3.latent_2
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 16471, name: Dark Missionary}
     src: "'P3'!B4"
-  - id: e090
+  - id: e097
     mechanic: p3.latent_2
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16160, name: Heart of Light}
     src: "'P3'!B4"
-  - id: e091
+  - id: e098
     mechanic: p3.latent_2
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 17, name: Sentinel}
     src: "'General Tank Mit til P5'!B9"
-  - id: e092
+  - id: e099
     mechanic: p3.latent_2
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 44, name: Vengeance}
     src: "'General Tank Mit til P5'!B9"
-  - id: e093
+  - id: e100
     mechanic: p3.latent_2
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 3636, name: Shadow Wall}
     src: "'General Tank Mit til P5'!B9"
-  - id: e094
+  - id: e101
     mechanic: p3.latent_2
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16148, name: Nebula}
     src: "'General Tank Mit til P5'!B9"
-  - id: e095
+  - id: e102
     mechanic: p3.latent_2
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
     src: "'P3'!B4"
-  - id: e096
+  - id: e103
     mechanic: p3.latent_2
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
     src: "'P3'!B4"
-  - id: e097
+  - id: e104
     mechanic: p3.latent_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24311, name: Panhaima}
     src: "'P3'!G4"
-  - id: e098
+  - id: e105
     mechanic: p3.latent_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
       - {action: 16559, name: Neutral Sect}
     src: "'P3'!E4"
-  - id: e099
+  - id: e106
     mechanic: p3.latent_3
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 16538, name: Fey Illumination}
       - {action: 16546, name: Consolation}
     src: "'P3'!F5"
-  - id: e100
+  - id: e107
     mechanic: p3.latent_3
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24310, name: Holos}
     src: "'P3'!G5"
-  - id: e101
+  - id: e108
     mechanic: p3.latent_3
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16140, name: Camouflage}
     detail: If you want to Tank swap
     src: "'General Tank Mit til P5'!B10"
-  - id: e102
+  - id: e109
     mechanic: p3.latent_3
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     src: "'P3'!J5"
-  - id: e103
+  - id: e110
     mechanic: p3.latent_3
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     src: "'P3'!J5"
-  - id: e104
+  - id: e111
     mechanic: p3.latent_3
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'P3'!J5"
-  - id: e105
+  - id: e112
     mechanic: p3.latent_3
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -738,58 +785,58 @@ entries:
       - {action: 34686, name: Tempera Grassa}
     seq: true
     src: "'P3'!J5"
-  - id: e106
+  - id: e113
     mechanic: p3.latent_3
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P3'!B5"
-  - id: e107
+  - id: e114
     mechanic: p3.latent_3
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P3'!J5"
-  - id: e108
+  - id: e115
     mechanic: p3.latent_3
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P3'!K5"
-  - id: e109
+  - id: e116
     mechanic: p3.latent_3
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 22, name: Bulwark}
     detail: If you want to Tank swap
     src: "'General Tank Mit til P5'!B10"
-  - id: e110
+  - id: e117
     mechanic: p3.latent_3
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 40, name: Thrill of Battle}
     detail: If you want to Tank swap
     src: "'General Tank Mit til P5'!B10"
-  - id: e111
+  - id: e118
     mechanic: p3.latent_3
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 3634, name: Dark Mind}
     detail: If you want to Tank swap
     src: "'General Tank Mit til P5'!B10"
-  - id: e112
+  - id: e119
     mechanic: p3.latent_3
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 25862, name: Liturgy of the Bell}
     src: "'P3'!D5"
-  - id: e113
+  - id: e120
     mechanic: p3.latent_3
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 25874, name: Macrocosmos}
     src: "'P3'!E5"
-  - id: e114
+  - id: e121
     mechanic: p3.latent_4
     who: {slot: MT, assignee: MT}
     do:
@@ -797,58 +844,58 @@ entries:
     detail: discuss this beforhand
     when_ready: true
     src: "'General Tank Mit til P5'!B11"
-  - id: e115
+  - id: e122
     mechanic: p3.latent_4
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 16471, name: Dark Missionary}
     src: "'P3'!C6"
-  - id: e116
+  - id: e123
     mechanic: p3.latent_4
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 16160, name: Heart of Light}
     src: "'P3'!C6"
-  - id: e117
+  - id: e124
     mechanic: p3.latent_4
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
     note: Debuffs at 13 secs/when rots explode
     src: "'P3'!F6"
-  - id: e118
+  - id: e125
     mechanic: p3.latent_4
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     note: Debuffs at 13 secs/when rots explode
     src: "'P3'!G6"
-  - id: e119
+  - id: e126
     mechanic: p3.latent_4
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 3540, name: Divine Veil}
     src: "'P3'!C6"
-  - id: e120
+  - id: e127
     mechanic: p3.latent_4
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 7388, name: Shake It Off}
     src: "'P3'!C6"
-  - id: e121
+  - id: e128
     mechanic: p3.latent_4
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 2887, name: Dismantle}
     src: "'P3'!J6"
-  - id: e122
+  - id: e129
     mechanic: p3.critical_error
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
       - {action: 186, name: Succor}
     src: "'P3'!F7"
-  - id: e123
+  - id: e130
     mechanic: p3.critical_error
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -857,312 +904,346 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'P3'!G7"
-  - id: e124
+  - id: e131
     mechanic: p3.critical_error
     who: {slot: OT, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P3'!C7"
-  - id: e125
+  - id: e132
     mechanic: p3.critical_error
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P3'!E7"
-  - id: e126
+  - id: e133
     mechanic: p3.critical_error
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P3'!H7"
-  - id: e127
+  - id: e134
     mechanic: p3.critical_error
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P3'!K7"
-  - id: e128
+  - id: e135
+    mechanic: p3.critical_error
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K7"
+  - id: e136
+    mechanic: p3.critical_error
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K7"
+  - id: e137
+    mechanic: p3.critical_error
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P3'!K7"
+  - id: e138
+    mechanic: p3.ion_efflux
+    who: {job: WAR}
+    do:
+      - {action: 7388, name: Shake It Off}
+    note: as P3 dies for 1st P4 Proteans
+    optional: true
+    at_phase_end: true
+    src: "'P3'!B8"
+  - id: e139
     mechanic: p4.protean_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 185, name: Adloquium}
       - {action: 3585, name: Deployment Tactics}
     seq: true
+    detail: Shields bevor the boss is targetable
     src: "'P4'!F2"
-  - id: e129
+  - id: e140
     mechanic: p4.protean_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P4'!G2"
-  - id: e130
+  - id: e141
+    mechanic: p4.protean_1
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 7393, name: The Blackest Night}
+    target: R1
+    src: "'P4'!B2"
+  - id: e142
     mechanic: p4.protean_1
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R2
     src: "'P4'!C2"
-  - id: e131
+  - id: e143
     mechanic: p4.wave_cannon
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R1
     src: "'General Tank Mit til P5'!B13"
-  - id: e132
+  - id: e144
     mechanic: p4.wave_cannon
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R2
     src: "'General Tank Mit til P5'!C13"
-  - id: e133
+  - id: e145
     mechanic: p4.protean_1
-    who: {slot: MT, job: PLD, assignee: MT}
+    who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
-      - {action: 7382, name: Intervention}
-    target: R1
     src: "'P4'!B2"
-  - id: e134
-    mechanic: p4.protean_1
-    who: {slot: MT, job: WAR, assignee: MT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 16464, name: Nascent Flash}
-    target: R1
-    src: "'P4'!B2"
-  - id: e135
-    mechanic: p4.protean_1
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 7393, name: The Blackest Night}
-    target: R1
-    src: "'P4'!B2"
-  - id: e136
-    mechanic: p4.protean_1
-    who: {slot: MT, job: GNB, assignee: MT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 25758, name: Heart of Corundum}
-    target: R1
-    src: "'P4'!B2"
-  - id: e137
+  - id: e146
     mechanic: p4.protean_1
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 16559, name: Neutral Sect}
     src: "'P4'!E2"
-  - id: e138
+  - id: e147
+    mechanic: p4.protean_1
+    who: {slot: MT, job: PLD, assignee: MT}
+    do:
+      - {action: 7382, name: Intervention}
+    target: R1
+    src: "'P4'!B2"
+  - id: e148
+    mechanic: p4.protean_1
+    who: {slot: MT, job: WAR, assignee: MT}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: R1
+    src: "'P4'!B2"
+  - id: e149
+    mechanic: p4.protean_1
+    who: {slot: MT, job: GNB, assignee: MT}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: R1
+    src: "'P4'!B2"
+  - id: e150
     mechanic: p4.protean_1
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 7382, name: Intervention}
     target: R2
     src: "'P4'!C2"
-  - id: e139
+  - id: e151
     mechanic: p4.protean_1
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 16464, name: Nascent Flash}
     target: R2
     src: "'P4'!C2"
-  - id: e140
+  - id: e152
     mechanic: p4.protean_1
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: R2
     src: "'P4'!C2"
-  - id: e141
+  - id: e153
     mechanic: p4.wave_cannon
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 7382, name: Intervention}
     target: R1
     src: "'General Tank Mit til P5'!B13"
-  - id: e142
+  - id: e154
     mechanic: p4.wave_cannon
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 16464, name: Nascent Flash}
     target: R1
     src: "'General Tank Mit til P5'!B13"
-  - id: e143
+  - id: e155
     mechanic: p4.wave_cannon
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: R1
     src: "'General Tank Mit til P5'!B13"
-  - id: e144
+  - id: e156
     mechanic: p4.wave_cannon
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 7382, name: Intervention}
     target: R2
     src: "'General Tank Mit til P5'!C13"
-  - id: e145
+  - id: e157
     mechanic: p4.wave_cannon
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 16464, name: Nascent Flash}
     target: R2
     src: "'General Tank Mit til P5'!C13"
-  - id: e146
+  - id: e158
     mechanic: p4.wave_cannon
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: R2
     src: "'General Tank Mit til P5'!C13"
-  - id: e147
+  - id: e159
     mechanic: p4.stack_1
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 16536, name: Temperance}
     src: "'P4'!D3"
-  - id: e148
+  - id: e160
     mechanic: p4.stack_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 25868, name: Expedient}
       - {action: 188, name: Sacred Soil}
+    detail: Shields bevor the boss is targetable
     src: "'P4'!F3"
-  - id: e149
+  - id: e161
     mechanic: p4.stack_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24302, name: Physis II}
       - {action: 24311, name: Panhaima}
     src: "'P4'!G3"
-  - id: e150
+  - id: e162
     mechanic: p4.protean_2
     who: {slot: OT, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P4'!C4"
-  - id: e151
+  - id: e163
     mechanic: p4.protean_2
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 16545, name: Summon Seraph}
+    detail: Shields bevor the boss is targetable
     src: "'P4'!F4"
-  - id: e152
+  - id: e164
     mechanic: p4.stack_2
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     note: if MCH
     src: "'P4'!J5"
-  - id: e153
+  - id: e165
     mechanic: p4.stack_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P4'!E5"
-  - id: e154
+  - id: e166
     mechanic: p4.stack_2
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P4'!K5"
-  - id: e155
+  - id: e167
     mechanic: p4.stack_3
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 16538, name: Fey Illumination}
+    detail: Shields bevor the boss is targetable
     src: "'P4'!F7"
-  - id: e156
+  - id: e168
     mechanic: p4.stack_3
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24310, name: Holos}
     note: befor stack Hits
     src: "'P4'!G7"
-  - id: e157
+  - id: e169
     mechanic: p4.blue_screen
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
+    detail: Shields bevor the boss is targetable
     src: "'P4'!F8"
-  - id: e158
+  - id: e170
     mechanic: p4.blue_screen
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P4'!G8"
-  - id: e159
+  - id: e171
     mechanic: p4.blue_screen
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
     src: "'P4'!I8"
-  - id: e160
+  - id: e172
     mechanic: p5.solar_ray_1
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!B2"
-  - id: e161
+  - id: e173
     mechanic: p5.solar_ray_1
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/DRK'!B2"
-  - id: e162
+  - id: e174
     mechanic: p5.solar_ray_1
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/DRK'!C2"
-  - id: e163
+  - id: e175
     mechanic: p5.solar_ray_1
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/GNB'!B2"
-  - id: e164
+  - id: e176
     mechanic: p5.solar_ray_1
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/GNB'!C2"
-  - id: e165
+  - id: e177
     mechanic: p5.solar_ray_1
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
       - {note: Kitchen Sink}
     src: "'DRK/GNB'!B2"
-  - id: e166
+  - id: e178
     mechanic: p5.solar_ray_1
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {note: Kitchen Sink}
     src: "'DRK/GNB'!C2"
-  - id: e167
+  - id: e179
     mechanic: p5.solar_ray_1
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
     detail: "If Hallowed isn't up Kitchen Sink instead\nand Holmgang Solar Ray 2,"
     src: "'WAR/PLD'!C2"
-  - id: e168
+  - id: e180
     mechanic: p5.solar_ray_1
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
     detail: "If Hallowed isn't up Kitchen Sink instead\nand Living Dead Solar Ray 2,"
     src: "'DRK/PLD'!C2"
-  - id: e169
+  - id: e181
     mechanic: p5.solar_ray_1
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
     detail: If Hallowed isn't up Kitchen Sink instead.
     src: "'GNB/PLD'!C2"
-  - id: e170
+  - id: e182
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1171,7 +1252,7 @@ entries:
       - {action: 3540, name: Divine Veil}
     note: after Solar Ray
     src: "'P5'!B2"
-  - id: e171
+  - id: e183
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1180,7 +1261,7 @@ entries:
       - {action: 7388, name: Shake It Off}
     note: after Solar Ray
     src: "'P5'!B2"
-  - id: e172
+  - id: e184
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1189,7 +1270,7 @@ entries:
       - {action: 16471, name: Dark Missionary}
     note: after Solar Ray
     src: "'P5'!B2"
-  - id: e173
+  - id: e185
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1198,7 +1279,7 @@ entries:
       - {action: 16160, name: Heart of Light}
     note: after Solar Ray
     src: "'P5'!B2"
-  - id: e174
+  - id: e186
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1207,7 +1288,7 @@ entries:
       - {action: 3540, name: Divine Veil}
     note: after Solar Ray
     src: "'P5'!C2"
-  - id: e175
+  - id: e187
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1216,7 +1297,7 @@ entries:
       - {action: 7388, name: Shake It Off}
     note: after Solar Ray
     src: "'P5'!C2"
-  - id: e176
+  - id: e188
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1225,7 +1306,7 @@ entries:
       - {action: 16471, name: Dark Missionary}
     note: after Solar Ray
     src: "'P5'!C2"
-  - id: e177
+  - id: e189
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1234,7 +1315,7 @@ entries:
       - {action: 16160, name: Heart of Light}
     note: after Solar Ray
     src: "'P5'!C2"
-  - id: e178
+  - id: e190
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1243,7 +1324,7 @@ entries:
       - {action: 7405, name: Troubadour}
     note: after Solar Ray
     src: "'P5'!J2"
-  - id: e179
+  - id: e191
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1252,7 +1333,7 @@ entries:
       - {action: 16889, name: Tactician}
     note: after Solar Ray
     src: "'P5'!J2"
-  - id: e180
+  - id: e192
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1261,7 +1342,7 @@ entries:
       - {action: 16012, name: Shield Samba}
     note: after Solar Ray
     src: "'P5'!J2"
-  - id: e181
+  - id: e193
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1270,7 +1351,7 @@ entries:
       - {action: 25857, name: Magick Barrier}
     note: after Solar Ray
     src: "'P5'!J2"
-  - id: e182
+  - id: e194
     mechanic: p5.solar_ray_1
     hit_index: 1
     offset: 0.5
@@ -1281,7 +1362,7 @@ entries:
     seq: true
     note: after Solar Ray
     src: "'P5'!J2"
-  - id: e183
+  - id: e195
     mechanic: p5.delta
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -1290,7 +1371,7 @@ entries:
       - {action: 3585, name: Deployment Tactics}
     seq: true
     src: "'P5'!F3"
-  - id: e184
+  - id: e196
     mechanic: p5.delta
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -1299,181 +1380,208 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'P5'!G3"
-  - id: e185
+  - id: e197
     mechanic: p5.delta
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 7385, name: Passage of Arms}
     src: "'P5'!C3"
-  - id: e186
+  - id: e198
     mechanic: p5.delta
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!C3"
-  - id: e187
+  - id: e199
     mechanic: p5.delta
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!C3"
-  - id: e188
+  - id: e200
     mechanic: p5.delta
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!C3"
-  - id: e189
+  - id: e201
     mechanic: p5.delta
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E3"
-  - id: e190
+  - id: e202
     mechanic: p5.delta
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P5'!H3"
-  - id: e191
+  - id: e203
     mechanic: p5.delta
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 2887, name: Dismantle}
     src: "'P5'!J3"
-  - id: e192
+  - id: e204
     mechanic: p5.delta
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K3"
-  - id: e193
+  - id: e205
+    mechanic: p5.delta
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K3"
+  - id: e206
+    mechanic: p5.delta
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K3"
+  - id: e207
+    mechanic: p5.delta
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K3"
+  - id: e208
     mechanic: p5.delta_patch
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P5'!G4"
-  - id: e194
+  - id: e209
+    mechanic: p5.delta_patch
+    who: {slot: H1, job: AST, assignee: H1 AST}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    note: if P4 skip
+    optional: true
+    src: "'P5'!E4"
+  - id: e210
     mechanic: p5.delta_patch
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 25862, name: Liturgy of the Bell}
       - {note: Debuff at ~3 secs}
+    detail: Every damage instance has a GCD shield (Sigma Raidwide can usually be skipped)
     src: "'P5'!D4"
-  - id: e195
+  - id: e211
     mechanic: p5.delta_patch
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 25874, name: Macrocosmos}
-      - {action: 16559, name: Neutral Sect}
-    note: Neutralsect if P4 skip
     src: "'P5'!E4"
-  - id: e196
+  - id: e212
     mechanic: p5.delta_hello_world
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24311, name: Panhaima}
     src: "'P5'!G5"
-  - id: e197
+  - id: e213
     mechanic: p5.delta_hello_world
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 16559, name: Neutral Sect}
     note: no skip
+    optional: true
     src: "'P5'!E5"
-  - id: e198
+  - id: e214
     mechanic: p5.delta_hello_world
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 16545, name: Summon Seraph}
     src: "'P5'!F5"
-  - id: e199
+  - id: e215
     mechanic: p5.solar_ray_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24310, name: Holos}
     src: "'P5'!G6"
-  - id: e200
+  - id: e216
     mechanic: p5.solar_ray_2
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!B6"
-  - id: e201
+  - id: e217
     mechanic: p5.solar_ray_2
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {note: Kitchen Sink}
     detail: "then play rest like GNB/PLD.\nPrepop Rampart and use fillers 90s 1st GCD"
     src: "'WAR/PLD'!B4"
-  - id: e202
+  - id: e218
     mechanic: p5.solar_ray_2
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {note: Kitchen Sink}
     detail: "then play rest like GNB/PLD.\nPrepop Rampart and use fillers 90s 1st GCD"
     src: "'WAR/PLD'!C4"
-  - id: e203
+  - id: e219
     mechanic: p5.solar_ray_2
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
       - {note: Kitchen Sink}
     detail: "then play rest like GNB/PLD.\nPrepop Rampart and use fillers 90s 1st GCD"
     src: "'DRK/PLD'!B4"
-  - id: e204
+  - id: e220
     mechanic: p5.solar_ray_2
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {note: Kitchen Sink}
     detail: "then play rest like GNB/PLD.\nPrepop Rampart and use fillers 90s 1st GCD"
     src: "'DRK/PLD'!C4"
-  - id: e205
+  - id: e221
     mechanic: p5.solar_ray_2
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
       - {action: 3638, name: Living Dead}
     src: "'WAR/DRK'!C4"
-  - id: e206
+  - id: e222
     mechanic: p5.solar_ray_2
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {action: 16152, name: Superbolide}
     src: "'WAR/GNB'!C4"
-  - id: e207
+  - id: e223
     mechanic: p5.solar_ray_2
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {action: 16152, name: Superbolide}
     src: "'DRK/GNB'!C4"
-  - id: e208
+  - id: e224
     mechanic: p5.solar_ray_2
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {action: 16152, name: Superbolide}
     detail: Prepop Rampart and use fillers 90s 1st GCD.
     src: "'GNB/PLD'!B4"
-  - id: e209
+  - id: e225
     mechanic: p5.sigma
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 16536, name: Temperance}
+    detail: Every damage instance has a GCD shield (Sigma Raidwide can usually be skipped)
     src: "'P5'!D7"
-  - id: e210
+  - id: e226
     mechanic: p5.sigma
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!B7"
-  - id: e211
+  - id: e227
     mechanic: p5.sigma
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!B7"
-  - id: e212
+  - id: e228
     mechanic: p5.sigma
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -1482,48 +1590,48 @@ entries:
       - {action: 16538, name: Fey Illumination}
       - {action: 16545, name: Summon Seraph}
     src: "'P5'!F7"
-  - id: e213
+  - id: e229
     mechanic: p5.sigma
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P5'!G7"
-  - id: e214
+  - id: e230
     mechanic: p5.sigma
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     when_ready: true
     src: "'P5'!J7"
-  - id: e215
+  - id: e231
     mechanic: p5.sigma
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     when_ready: true
     src: "'P5'!J7"
-  - id: e216
+  - id: e232
     mechanic: p5.sigma
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     when_ready: true
     src: "'P5'!J7"
-  - id: e217
+  - id: e233
     mechanic: p5.sigma
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!B7"
-  - id: e218
+  - id: e234
     mechanic: p5.sigma
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!B7"
-  - id: e219
+  - id: e235
     mechanic: p5.sigma
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -1532,7 +1640,7 @@ entries:
     seq: true
     when_ready: true
     src: "'P5'!J7"
-  - id: e220
+  - id: e236
     mechanic: p5.sigma
     who: {slot: OT, job: PLD, assignee: OT}
     do:
@@ -1540,7 +1648,7 @@ entries:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!C7"
-  - id: e221
+  - id: e237
     mechanic: p5.sigma
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -1548,7 +1656,7 @@ entries:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!C7"
-  - id: e222
+  - id: e238
     mechanic: p5.sigma
     who: {slot: OT, job: DRK, assignee: OT}
     do:
@@ -1556,7 +1664,7 @@ entries:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!C7"
-  - id: e223
+  - id: e239
     mechanic: p5.sigma
     who: {slot: OT, job: GNB, assignee: OT}
     do:
@@ -1564,102 +1672,108 @@ entries:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!C7"
-  - id: e224
+  - id: e240
     mechanic: p5.sigma
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E7"
-  - id: e225
+  - id: e241
     mechanic: p5.sigma
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
     src: "'P5'!I7"
-  - id: e226
+  - id: e242
     mechanic: p5.sigma
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J7"
-  - id: e227
+  - id: e243
     mechanic: p5.sigma
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P5'!K7"
-  - id: e228
+  - id: e244
     mechanic: p5.solar_ray_3
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {action: 7531, name: Rampart}
       - {action: 22, name: Bulwark}
       - {action: 25746, name: Holy Sheltron}
-      - {action: 7382, name: Intervention}
-    target: Co-Tank
     detail: Healer Help required for Solar Ray 3
     src: "'GNB/PLD'!C6"
-  - id: e229
+  - id: e245
     mechanic: p5.solar_ray_3
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!B8"
-  - id: e230
+  - id: e246
     mechanic: p5.solar_ray_3
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {note: Kitchen Sink}
     detail: Healer Help required for Solar Ray 3
     src: "'GNB/PLD'!B6"
-  - id: e231
+  - id: e247
+    mechanic: p5.solar_ray_3
+    who: {job: PLD, assignee: GNB/PLD PLD}
+    do:
+      - {action: 7382, name: Intervention}
+    target: Co-Tank
+    detail: Healer Help required for Solar Ray 3
+    src: "'GNB/PLD'!C6"
+  - id: e248
     mechanic: p5.solar_ray_3
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {action: 43, name: Holmgang}
     src: "'WAR/DRK'!B6"
-  - id: e232
+  - id: e249
     mechanic: p5.solar_ray_3
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {action: 43, name: Holmgang}
     src: "'WAR/GNB'!B6"
-  - id: e233
+  - id: e250
     mechanic: p5.solar_ray_3
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {action: 43, name: Holmgang}
     detail: "if you have to swap Solar Ray 3.\nHealer Help required for Solar Ray 3"
     src: "'WAR/PLD'!B6"
-  - id: e234
+  - id: e251
     mechanic: p5.solar_ray_3
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
       - {action: 3638, name: Living Dead}
     src: "'DRK/GNB'!B6"
-  - id: e235
+  - id: e252
     mechanic: p5.solar_ray_3
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
       - {action: 3638, name: Living Dead}
     detail: "if you have to swap Solar Ray 3.\nHealer help required for Solar Ray 3"
     src: "'DRK/PLD'!B6"
-  - id: e236
+  - id: e253
     mechanic: p5.omega
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!B9"
-  - id: e237
+  - id: e254
     mechanic: p5.omega
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!B9"
-  - id: e238
+  - id: e255
     mechanic: p5.omega
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -1669,7 +1783,7 @@ entries:
       - {action: 3585, name: Deployment Tactics}
     seq: true
     src: "'P5'!F9"
-  - id: e239
+  - id: e256
     mechanic: p5.omega
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -1679,14 +1793,14 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'P5'!G9"
-  - id: e240
+  - id: e257
     mechanic: p5.omega
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     when_ready: true
     src: "'P5'!J9"
-  - id: e241
+  - id: e258
     mechanic: p5.omega
     who: {slot: R1, job: MCH, assignee: R1}
     do:
@@ -1694,28 +1808,28 @@ entries:
       - {action: 2887, name: Dismantle}
     when_ready: true
     src: "'P5'!J9"
-  - id: e242
+  - id: e259
     mechanic: p5.omega
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     when_ready: true
     src: "'P5'!J9"
-  - id: e243
+  - id: e260
     mechanic: p5.omega
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!B9"
-  - id: e244
+  - id: e261
     mechanic: p5.omega
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!B9"
-  - id: e245
+  - id: e262
     mechanic: p5.omega
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -1724,7 +1838,7 @@ entries:
     seq: true
     when_ready: true
     src: "'P5'!J9"
-  - id: e246
+  - id: e263
     mechanic: p5.omega
     who: {slot: OT, job: PLD, assignee: OT}
     do:
@@ -1732,7 +1846,7 @@ entries:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!C9"
-  - id: e247
+  - id: e264
     mechanic: p5.omega
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -1740,7 +1854,7 @@ entries:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!C9"
-  - id: e248
+  - id: e265
     mechanic: p5.omega
     who: {slot: OT, job: DRK, assignee: OT}
     do:
@@ -1748,7 +1862,7 @@ entries:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!C9"
-  - id: e249
+  - id: e266
     mechanic: p5.omega
     who: {slot: OT, job: GNB, assignee: OT}
     do:
@@ -1756,58 +1870,77 @@ entries:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!C9"
-  - id: e250
+  - id: e267
     mechanic: p5.omega
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E9"
-  - id: e251
+  - id: e268
     mechanic: p5.omega
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P5'!H9"
-  - id: e252
+  - id: e269
     mechanic: p5.omega
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
     note: Autos Omega uptime
     src: "'P5'!I9"
-  - id: e253
+  - id: e270
     mechanic: p5.omega
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J9"
-  - id: e254
+  - id: e271
     mechanic: p5.omega
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e255
+  - id: e272
+    mechanic: p5.omega
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K9"
+  - id: e273
+    mechanic: p5.omega
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K9"
+  - id: e274
+    mechanic: p5.omega
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P5'!K9"
+  - id: e275
     mechanic: p5.omega_hello_world_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 25868, name: Expedient}
     src: "'P5'!F10"
-  - id: e256
+  - id: e276
     mechanic: p5.omega_hello_world_1
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 25862, name: Liturgy of the Bell}
       - {action: 16536, name: Temperance}
+    detail: Every damage instance has a GCD shield (Sigma Raidwide can usually be skipped)
     src: "'P5'!D10"
-  - id: e257
+  - id: e277
     mechanic: p5.solar_ray_4
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24310, name: Holos}
     src: "'P5'!G11"
-  - id: e258
+  - id: e278
     mechanic: p5.solar_ray_4
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
@@ -1816,175 +1949,181 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: and Solar Ray 4.
     src: "'GNB/PLD'!B8"
-  - id: e259
+  - id: e279
     mechanic: p5.solar_ray_4
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P5'!B11"
-  - id: e260
+  - id: e280
     mechanic: p5.solar_ray_4
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/DRK'!B8"
-  - id: e261
+  - id: e281
     mechanic: p5.solar_ray_4
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/DRK'!C8"
-  - id: e262
+  - id: e282
     mechanic: p5.solar_ray_4
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/GNB'!B8"
-  - id: e263
+  - id: e283
     mechanic: p5.solar_ray_4
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {note: Kitchen Sink}
     src: "'WAR/GNB'!C8"
-  - id: e264
+  - id: e284
     mechanic: p5.solar_ray_4
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {note: Kitchen Sink}
     detail: and Solar Ray 4.
     src: "'WAR/PLD'!B8"
-  - id: e265
+  - id: e285
     mechanic: p5.solar_ray_4
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {note: Kitchen Sink}
     detail: and Solar Ray 4.
     src: "'WAR/PLD'!C8"
-  - id: e266
+  - id: e286
     mechanic: p5.solar_ray_4
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
       - {note: Kitchen Sink}
     src: "'DRK/GNB'!B8"
-  - id: e267
+  - id: e287
     mechanic: p5.solar_ray_4
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {note: Kitchen Sink}
     src: "'DRK/GNB'!C8"
-  - id: e268
+  - id: e288
     mechanic: p5.solar_ray_4
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
       - {note: Kitchen Sink}
     detail: and Solar Ray 4.
     src: "'DRK/PLD'!B8"
-  - id: e269
+  - id: e289
     mechanic: p5.solar_ray_4
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {note: Kitchen Sink}
     detail: and Solar Ray 4.
     src: "'DRK/PLD'!C8"
-  - id: e270
+  - id: e290
     mechanic: p5.solar_ray_4
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {note: Kitchen Sink}
+    detail: and Solar Ray 4.
+    src: "'GNB/PLD'!C8"
+  - id: e291
+    mechanic: p5.solar_ray_4
+    who: {job: PLD, assignee: GNB/PLD PLD}
+    do:
       - {action: 7382, name: Intervention}
     target: Co-Tank
     detail: and Solar Ray 4.
     src: "'GNB/PLD'!C8"
-  - id: e271
+  - id: e292
     mechanic: p5.blind_faith
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!B12"
-  - id: e272
+  - id: e293
     mechanic: p5.blind_faith
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!B12"
-  - id: e273
+  - id: e294
     mechanic: p5.blind_faith
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!C12"
-  - id: e274
+  - id: e295
     mechanic: p5.blind_faith
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!C12"
-  - id: e275
+  - id: e296
     mechanic: p5.blind_faith
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
     src: "'P5'!F12"
-  - id: e276
+  - id: e297
     mechanic: p5.blind_faith
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P5'!G12"
-  - id: e277
+  - id: e298
     mechanic: p5.blind_faith
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     when_ready: true
     src: "'P5'!J12"
-  - id: e278
+  - id: e299
     mechanic: p5.blind_faith
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     when_ready: true
     src: "'P5'!J12"
-  - id: e279
+  - id: e300
     mechanic: p5.blind_faith
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     when_ready: true
     src: "'P5'!J12"
-  - id: e280
+  - id: e301
     mechanic: p5.blind_faith
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!B12"
-  - id: e281
+  - id: e302
     mechanic: p5.blind_faith
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!B12"
-  - id: e282
+  - id: e303
     mechanic: p5.blind_faith
     who: {slot: OT, job: PLD, assignee: OT}
     do:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!C12"
-  - id: e283
+  - id: e304
     mechanic: p5.blind_faith
     who: {slot: OT, job: WAR, assignee: OT}
     do:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!C12"
-  - id: e284
+  - id: e305
     mechanic: p5.blind_faith
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -1993,81 +2132,85 @@ entries:
     seq: true
     when_ready: true
     src: "'P5'!J12"
-  - id: e285
+  - id: e306
     mechanic: p5.blind_faith
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E12"
-  - id: e286
+  - id: e307
     mechanic: p5.blind_faith
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J12"
-  - id: e287
+  - id: e308
     mechanic: p6.cosmo_memory
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
       - {action: 3587, name: Dissipation}
     src: "'P6'!F2"
-  - id: e288
+  - id: e309
     mechanic: p6.cosmo_memory
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P6'!G2"
-  - id: e289
+  - id: e310
     mechanic: p6.cosmo_memory
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 199, name: Last Bastion}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B2"
-  - id: e290
+  - id: e311
     mechanic: p6.cosmo_memory
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 4240, name: Land Waker}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B2"
-  - id: e291
+  - id: e312
     mechanic: p6.cosmo_memory
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 4241, name: Dark Force}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B2"
-  - id: e292
+  - id: e313
     mechanic: p6.cosmo_memory
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 17105, name: Gunmetal Soul}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B2"
-  - id: e293
+  - id: e314
     mechanic: p6.cosmo_memory
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C2"
-  - id: e294
+  - id: e315
     mechanic: p6.cosmo_memory
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C2"
-  - id: e295
+  - id: e316
     mechanic: p6.cosmo_memory
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C2"
-  - id: e296
+  - id: e317
     mechanic: p6.cosmo_memory
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C2"
-  - id: e297
+  - id: e318
     mechanic: p6.cosmo_dive_1
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
@@ -2076,7 +2219,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/DRK'!B10"
-  - id: e298
+  - id: e319
     mechanic: p6.cosmo_dive_1
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
@@ -2086,7 +2229,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/DRK'!C10"
-  - id: e299
+  - id: e320
     mechanic: p6.cosmo_dive_1
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
@@ -2095,7 +2238,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/GNB'!B10"
-  - id: e300
+  - id: e321
     mechanic: p6.cosmo_dive_1
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
@@ -2104,7 +2247,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/GNB'!C10"
-  - id: e301
+  - id: e322
     mechanic: p6.cosmo_dive_1
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
@@ -2113,7 +2256,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/PLD'!B10"
-  - id: e302
+  - id: e323
     mechanic: p6.cosmo_dive_1
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
@@ -2122,7 +2265,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'WAR/PLD'!C10"
-  - id: e303
+  - id: e324
     mechanic: p6.cosmo_dive_1
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
@@ -2132,7 +2275,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'DRK/GNB'!B10"
-  - id: e304
+  - id: e325
     mechanic: p6.cosmo_dive_1
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
@@ -2141,7 +2284,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'DRK/GNB'!C10"
-  - id: e305
+  - id: e326
     mechanic: p6.cosmo_dive_1
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
@@ -2151,7 +2294,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'DRK/PLD'!B10"
-  - id: e306
+  - id: e327
     mechanic: p6.cosmo_dive_1
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
@@ -2160,7 +2303,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'DRK/PLD'!C10"
-  - id: e307
+  - id: e328
     mechanic: p6.cosmo_dive_1
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
@@ -2169,7 +2312,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'GNB/PLD'!B10"
-  - id: e308
+  - id: e329
     mechanic: p6.cosmo_dive_1
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
@@ -2178,7 +2321,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: Use Rampart as Cosmo Arrow cast finishes.
     src: "'GNB/PLD'!C10"
-  - id: e309
+  - id: e330
     mechanic: p6.cosmo_dive_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -2186,7 +2329,7 @@ entries:
       - {action: 186, name: Succor}
       - {action: 25868, name: Expedient}
     src: "'P6'!F3"
-  - id: e310
+  - id: e331
     mechanic: p6.cosmo_dive_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -2194,118 +2337,140 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
       - {action: 24311, name: Panhaima}
     src: "'P6'!G3"
-  - id: e311
+  - id: e332
     mechanic: p6.cosmo_dive_1
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B3"
-  - id: e312
+  - id: e333
     mechanic: p6.cosmo_dive_1
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B3"
-  - id: e313
+  - id: e334
     mechanic: p6.cosmo_dive_1
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B3"
-  - id: e314
+  - id: e335
     mechanic: p6.cosmo_dive_1
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B3"
-  - id: e315
+  - id: e336
     mechanic: p6.cosmo_dive_1
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E3"
-  - id: e316
+  - id: e337
     mechanic: p6.cosmo_dive_1
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P6'!H3"
-  - id: e317
+  - id: e338
     mechanic: p6.cosmo_dive_1
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P6'!K3"
-  - id: e318
+  - id: e339
+    mechanic: p6.cosmo_dive_1
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K3"
+  - id: e340
+    mechanic: p6.cosmo_dive_1
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K3"
+  - id: e341
+    mechanic: p6.cosmo_dive_1
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K3"
+  - id: e342
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 16471, name: Dark Missionary}
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e319
+  - id: e343
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 16160, name: Heart of Light}
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e320
+  - id: e344
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 16471, name: Dark Missionary}
       - {action: 7535, name: Reprisal}
-    note: Party Mit after 6th puddle
+    note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e321
+  - id: e345
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 16160, name: Heart of Light}
       - {action: 7535, name: Reprisal}
-    note: Party Mit after 6th puddle
+    note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e322
+  - id: e346
     mechanic: p6.wave_cannon_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 186, name: Succor}
       - {action: 188, name: Sacred Soil}
-      - {action: 185, name: Adloquium}
-      - {action: 3585, name: Deployment Tactics}
-    seq: true
-    note: Succor Proteans; Spreadlo Stack
+    note: Succor Proteans
     src: "'P6'!F4"
-  - id: e323
+  - id: e347
     mechanic: p6.wave_cannon_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
       - {action: 24292, name: Eukrasian Prognosis}
     src: "'P6'!G4"
-  - id: e324
+  - id: e348
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e325
+  - id: e349
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e326
+  - id: e350
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e327
+  - id: e351
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
@@ -2313,21 +2478,21 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'WAR/DRK'!C11"
-  - id: e328
+  - id: e352
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'WAR/GNB'!C11"
-  - id: e329
+  - id: e353
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'WAR/PLD'!C11"
-  - id: e330
+  - id: e354
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
@@ -2335,14 +2500,14 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/GNB'!B11"
-  - id: e331
+  - id: e355
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'DRK/GNB'!C11"
-  - id: e332
+  - id: e356
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
@@ -2350,51 +2515,53 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/PLD'!B11"
-  - id: e333
+  - id: e357
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'DRK/PLD'!C11"
-  - id: e334
+  - id: e358
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'GNB/PLD'!B11"
-  - id: e335
+  - id: e359
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 3540, name: Divine Veil}
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e336
+  - id: e360
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 7388, name: Shake It Off}
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e337
+  - id: e361
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 3540, name: Divine Veil}
       - {action: 7535, name: Reprisal}
-    note: Party Mit after 6th puddle
+    note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e338
+  - id: e362
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 7388, name: Shake It Off}
       - {action: 7535, name: Reprisal}
-    note: Party Mit after 6th puddle
+    note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e339
+  - id: e363
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -2403,58 +2570,89 @@ entries:
     seq: true
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e340
+  - id: e364
     mechanic: p6.wave_cannon_1
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 16559, name: Neutral Sect}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E4"
-  - id: e341
+  - id: e365
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e342
+  - id: e366
+    mechanic: p6.wave_cannon_1
+    who: {job: WAR, assignee: WAR/DRK WAR}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: Co-Tank
+    src: "'WAR/DRK'!B11"
+  - id: e367
+    mechanic: p6.wave_cannon_1
+    who: {job: WAR, assignee: WAR/GNB WAR}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: Co-Tank
+    src: "'WAR/GNB'!B11"
+  - id: e368
+    mechanic: p6.wave_cannon_1
+    who: {job: WAR, assignee: WAR/PLD WAR}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: Co-Tank
+    src: "'WAR/PLD'!B11"
+  - id: e369
+    mechanic: p6.wave_cannon_1
+    who: {job: PLD, assignee: GNB/PLD PLD}
+    do:
+      - {action: 7382, name: Intervention}
+    target: Co-Tank
+    src: "'GNB/PLD'!C11"
+  - id: e370
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {action: 43, name: Holmgang}
-      - {action: 16464, name: Nascent Flash}
-    target: Co-Tank
     src: "'WAR/DRK'!B11"
-  - id: e343
+  - id: e371
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {action: 43, name: Holmgang}
-      - {action: 16464, name: Nascent Flash}
-    target: Co-Tank
     src: "'WAR/GNB'!B11"
-  - id: e344
+  - id: e372
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {action: 43, name: Holmgang}
-      - {action: 16464, name: Nascent Flash}
-    target: Co-Tank
     src: "'WAR/PLD'!B11"
-  - id: e345
+  - id: e373
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
-      - {action: 7382, name: Intervention}
-    target: Co-Tank
     src: "'GNB/PLD'!C11"
-  - id: e346
+  - id: e374
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    who: {slot: H2, job: SCH, assignee: H2 SCH}
+    do:
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    note: Stack
+    src: "'P6'!F4"
+  - id: e375
     mechanic: p6.wave_cannon_2
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 16536, name: Temperance}
     src: "'P6'!D5"
-  - id: e347
+  - id: e376
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
@@ -2463,7 +2661,7 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/GNB'!B12"
-  - id: e348
+  - id: e377
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
@@ -2472,13 +2670,13 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/PLD'!B12"
-  - id: e349
+  - id: e378
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 7385, name: Passage of Arms}
     src: "'P6'!C5"
-  - id: e350
+  - id: e379
     mechanic: p6.wave_cannon_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -2486,71 +2684,83 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
       - {action: 24310, name: Holos}
     src: "'P6'!G5"
-  - id: e351
+  - id: e380
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/DRK'!B12"
-  - id: e352
+  - id: e381
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/GNB'!B12"
-  - id: e353
+  - id: e382
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/PLD'!B12"
-  - id: e354
+  - id: e383
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'GNB/PLD'!C12"
-  - id: e355
+  - id: e384
+    mechanic: p6.wave_cannon_2
+    who: {job: DRK, assignee: WAR/DRK DRK}
+    do:
+      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
+    target: Co-Tank
+    src: "'WAR/DRK'!C12"
+  - id: e385
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
-    note: '*WAR/PLD use Mit after Protean befor Stack'
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e356
+  - id: e386
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
-    note: '*WAR/PLD use Mit after Protean befor Stack'
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e357
+  - id: e387
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
-    note: '*WAR/PLD use Mit after Protean befor Stack'
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e358
+  - id: e388
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 7535, name: Reprisal}
-    note: '*WAR/PLD use Mit after Protean befor Stack'
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e359
+  - id: e389
     mechanic: p6.wave_cannon_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
       - {action: 16559, name: Neutral Sect}
     note: Neutralsect shields for proteans
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E5"
-  - id: e360
+  - id: e390
     mechanic: p6.wave_cannon_2
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -2559,67 +2769,92 @@ entries:
       - {action: 188, name: Sacred Soil}
       - {action: 186, name: Succor}
     src: "'P6'!F5"
-  - id: e361
+  - id: e391
     mechanic: p6.wave_cannon_2
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: ">>Holy Melee LB3 Bible<<\nDiscuss Feints and LB3s during the cutscene!!\nUse personals and self healing all during Meteors!"
     src: "'P6'!I5"
-  - id: e362
+  - id: e392
     mechanic: p6.wave_cannon_2
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P6'!K5"
-  - id: e363
+  - id: e393
+    mechanic: p6.wave_cannon_2
+    who: {job: GNB, assignee: WAR/GNB GNB}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: Co-Tank
+    src: "'WAR/GNB'!C12"
+  - id: e394
+    mechanic: p6.wave_cannon_2
+    who: {job: PLD, assignee: WAR/PLD PLD}
+    do:
+      - {action: 7382, name: Intervention}
+    target: Co-Tank
+    src: "'WAR/PLD'!C12"
+  - id: e395
+    mechanic: p6.wave_cannon_2
+    who: {job: GNB, assignee: DRK/GNB GNB}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: Co-Tank
+    src: "'DRK/GNB'!C12"
+  - id: e396
+    mechanic: p6.wave_cannon_2
+    who: {job: PLD, assignee: DRK/PLD PLD}
+    do:
+      - {action: 7382, name: Intervention}
+    target: Co-Tank
+    src: "'DRK/PLD'!C12"
+  - id: e397
+    mechanic: p6.wave_cannon_2
+    who: {job: GNB, assignee: GNB/PLD GNB}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: Co-Tank
+    src: "'GNB/PLD'!B12"
+  - id: e398
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
       - {action: 3638, name: Living Dead}
-      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
-    target: Co-Tank
     src: "'WAR/DRK'!C12"
-  - id: e364
+  - id: e399
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {action: 16152, name: Superbolide}
-      - {action: 25758, name: Heart of Corundum}
-    target: Co-Tank
     src: "'WAR/GNB'!C12"
-  - id: e365
+  - id: e400
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
-      - {action: 7382, name: Intervention}
-    target: Co-Tank
     src: "'WAR/PLD'!C12"
-  - id: e366
+  - id: e401
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {action: 16152, name: Superbolide}
-      - {action: 25758, name: Heart of Corundum}
-    target: Co-Tank
     src: "'DRK/GNB'!C12"
-  - id: e367
+  - id: e402
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {action: 30, name: Hallowed Ground}
-      - {action: 7382, name: Intervention}
-    target: Co-Tank
     src: "'DRK/PLD'!C12"
-  - id: e368
+  - id: e403
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {action: 16152, name: Superbolide}
-      - {action: 25758, name: Heart of Corundum}
-    target: Co-Tank
     src: "'GNB/PLD'!B12"
-  - id: e369
+  - id: e404
     mechanic: p6.cosmo_dive_2
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
@@ -2627,7 +2862,7 @@ entries:
       - {action: 40, name: Thrill of Battle}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/DRK'!B13"
-  - id: e370
+  - id: e405
     mechanic: p6.cosmo_dive_2
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
@@ -2636,7 +2871,7 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'WAR/DRK'!C13"
-  - id: e371
+  - id: e406
     mechanic: p6.cosmo_dive_2
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
@@ -2644,7 +2879,7 @@ entries:
       - {action: 40, name: Thrill of Battle}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/GNB'!B13"
-  - id: e372
+  - id: e407
     mechanic: p6.cosmo_dive_2
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
@@ -2652,7 +2887,7 @@ entries:
       - {action: 16140, name: Camouflage}
       - {action: 25758, name: Heart of Corundum}
     src: "'WAR/GNB'!C13"
-  - id: e373
+  - id: e408
     mechanic: p6.cosmo_dive_2
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
@@ -2660,7 +2895,7 @@ entries:
       - {action: 40, name: Thrill of Battle}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/PLD'!B13"
-  - id: e374
+  - id: e409
     mechanic: p6.cosmo_dive_2
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
@@ -2668,7 +2903,7 @@ entries:
       - {action: 22, name: Bulwark}
       - {action: 25746, name: Holy Sheltron}
     src: "'WAR/PLD'!C13"
-  - id: e375
+  - id: e410
     mechanic: p6.cosmo_dive_2
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
@@ -2676,7 +2911,7 @@ entries:
       - {action: 16140, name: Camouflage}
       - {action: 25758, name: Heart of Corundum}
     src: "'DRK/GNB'!C13"
-  - id: e376
+  - id: e411
     mechanic: p6.cosmo_dive_2
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
@@ -2684,7 +2919,7 @@ entries:
       - {action: 22, name: Bulwark}
       - {action: 25746, name: Holy Sheltron}
     src: "'DRK/PLD'!C13"
-  - id: e377
+  - id: e412
     mechanic: p6.cosmo_dive_2
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
@@ -2692,7 +2927,7 @@ entries:
       - {action: 16140, name: Camouflage}
       - {action: 25758, name: Heart of Corundum}
     src: "'GNB/PLD'!B13"
-  - id: e378
+  - id: e413
     mechanic: p6.cosmo_dive_2
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
@@ -2700,73 +2935,101 @@ entries:
       - {action: 22, name: Bulwark}
       - {action: 25746, name: Holy Sheltron}
     src: "'GNB/PLD'!C13"
-  - id: e379
+  - id: e414
     mechanic: p6.cosmo_dive_2
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
       - {action: 186, name: Succor}
     src: "'P6'!F6"
-  - id: e380
+  - id: e415
     mechanic: p6.cosmo_dive_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
       - {action: 24292, name: Eukrasian Prognosis}
     src: "'P6'!G6"
-  - id: e381
+  - id: e416
+    mechanic: p6.cosmo_dive_2
+    who: {job: DRK, assignee: DRK/GNB DRK}
+    do:
+      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
+    target: Co-Tank
+    src: "'DRK/GNB'!B13"
+  - id: e417
+    mechanic: p6.cosmo_dive_2
+    who: {job: DRK, assignee: DRK/PLD DRK}
+    do:
+      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
+    target: Co-Tank
+    src: "'DRK/PLD'!B13"
+  - id: e418
     mechanic: p6.cosmo_dive_2
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C6"
-  - id: e382
+  - id: e419
     mechanic: p6.cosmo_dive_2
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C6"
-  - id: e383
+  - id: e420
     mechanic: p6.cosmo_dive_2
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C6"
-  - id: e384
+  - id: e421
     mechanic: p6.cosmo_dive_2
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C6"
-  - id: e385
+  - id: e422
     mechanic: p6.cosmo_dive_2
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P6'!H6"
-  - id: e386
+  - id: e423
     mechanic: p6.cosmo_dive_2
-    who: {slot: R2, assignee: R2}
+    who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P6'!K6"
-  - id: e387
+  - id: e424
+    mechanic: p6.cosmo_dive_2
+    who: {slot: R2, job: SMN, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K6"
+  - id: e425
+    mechanic: p6.cosmo_dive_2
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K6"
+  - id: e426
+    mechanic: p6.cosmo_dive_2
+    who: {slot: R2, job: PCT, assignee: R2}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'P6'!K6"
+  - id: e427
     mechanic: p6.cosmo_dive_2
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
       - {action: 3638, name: Living Dead}
-      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
-    target: Co-Tank
     src: "'DRK/GNB'!B13"
-  - id: e388
+  - id: e428
     mechanic: p6.cosmo_dive_2
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
       - {action: 3638, name: Living Dead}
-      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
-    target: Co-Tank
     src: "'DRK/PLD'!B13"
-  - id: e389
+  - id: e429
     mechanic: p6.cosmo_meteor
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -2774,101 +3037,104 @@ entries:
       - {action: 188, name: Sacred Soil}
       - {action: 186, name: Succor}
     src: "'P6'!F7"
-  - id: e390
+  - id: e430
     mechanic: p6.cosmo_meteor
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 16471, name: Dark Missionary}
       - {action: 7535, name: Reprisal}
-      - {action: 7393, name: The Blackest Night}
-    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B7"
-  - id: e391
+  - id: e431
     mechanic: p6.cosmo_meteor
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 16160, name: Heart of Light}
       - {action: 7535, name: Reprisal}
-      - {action: 25758, name: Heart of Corundum}
-    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B7"
-  - id: e392
+  - id: e432
     mechanic: p6.cosmo_meteor
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 16471, name: Dark Missionary}
-      - {action: 7393, name: The Blackest Night}
-    target: R1/2
     src: "'P6'!C7"
-  - id: e393
+  - id: e433
     mechanic: p6.cosmo_meteor
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 16160, name: Heart of Light}
-      - {action: 25758, name: Heart of Corundum}
-    target: R1/2
     src: "'P6'!C7"
-  - id: e394
+  - id: e434
     mechanic: p6.cosmo_meteor
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     src: "'P6'!J7"
-  - id: e395
+  - id: e435
     mechanic: p6.cosmo_meteor
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
       - {action: 2887, name: Dismantle}
     src: "'P6'!J7"
-  - id: e396
+  - id: e436
     mechanic: p6.cosmo_meteor
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'P6'!J7"
-  - id: e397
+  - id: e437
     mechanic: p6.cosmo_meteor
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 3540, name: Divine Veil}
       - {action: 7535, name: Reprisal}
-      - {action: 7382, name: Intervention}
-    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B7"
-  - id: e398
+  - id: e438
     mechanic: p6.cosmo_meteor
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 7388, name: Shake It Off}
       - {action: 7535, name: Reprisal}
-      - {action: 16464, name: Nascent Flash}
-    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B7"
-  - id: e399
+  - id: e439
+    mechanic: p6.cosmo_meteor
+    who: {job: DRK, assignee: CM LB Tank}
+    do:
+      - {action: 7393, name: The Blackest Night}
+    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B7"
+  - id: e440
     mechanic: p6.cosmo_meteor
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 3540, name: Divine Veil}
-      - {action: 7382, name: Intervention}
-    target: R1/2
     src: "'P6'!C7"
-  - id: e400
+  - id: e441
     mechanic: p6.cosmo_meteor
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 7388, name: Shake It Off}
-      - {action: 16464, name: Nascent Flash}
+    src: "'P6'!C7"
+  - id: e442
+    mechanic: p6.cosmo_meteor
+    who: {job: DRK, assignee: CM Rep Tank}
+    do:
+      - {action: 7393, name: The Blackest Night}
     target: R1/2
     src: "'P6'!C7"
-  - id: e401
+  - id: e443
     mechanic: p6.cosmo_meteor
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24292, name: Eukrasian Prognosis}
       - {action: 24311, name: Panhaima}
     src: "'P6'!G7"
-  - id: e402
+  - id: e444
     mechanic: p6.cosmo_meteor
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -2876,13 +3142,58 @@ entries:
       - {action: 34686, name: Tempera Grassa}
     seq: true
     src: "'P6'!J7"
-  - id: e403
+  - id: e445
     mechanic: p6.cosmo_meteor
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P6'!J7"
-  - id: e404
+  - id: e446
+    mechanic: p6.cosmo_meteor
+    who: {job: PLD, assignee: CM LB Tank}
+    do:
+      - {action: 7382, name: Intervention}
+    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B7"
+  - id: e447
+    mechanic: p6.cosmo_meteor
+    who: {job: WAR, assignee: CM LB Tank}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B7"
+  - id: e448
+    mechanic: p6.cosmo_meteor
+    who: {job: GNB, assignee: CM LB Tank}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: R1/2
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B7"
+  - id: e449
+    mechanic: p6.cosmo_meteor
+    who: {job: PLD, assignee: CM Rep Tank}
+    do:
+      - {action: 7382, name: Intervention}
+    target: R1/2
+    src: "'P6'!C7"
+  - id: e450
+    mechanic: p6.cosmo_meteor
+    who: {job: WAR, assignee: CM Rep Tank}
+    do:
+      - {action: 16464, name: Nascent Flash}
+    target: R1/2
+    src: "'P6'!C7"
+  - id: e451
+    mechanic: p6.cosmo_meteor
+    who: {job: GNB, assignee: CM Rep Tank}
+    do:
+      - {action: 25758, name: Heart of Corundum}
+    target: R1/2
+    src: "'P6'!C7"
+  - id: e452
     mechanic: p6.cosmo_meteor
     offset: 0.5
     who: {slot: H1, job: WHM, assignee: H1 WHM}
@@ -2890,7 +3201,7 @@ entries:
       - {action: 25862, name: Liturgy of the Bell}
     note: pop after 1st Hit
     src: "'P6'!D7"
-  - id: e405
+  - id: e453
     mechanic: p6.cosmo_meteor
     offset: 0.5
     who: {slot: H2, job: SGE, assignee: H2 SGE}
@@ -2898,13 +3209,14 @@ entries:
       - {action: 24298, name: Kerachole}
     note: after 1st Hit
     src: "'P6'!G7"
-  - id: e406
+  - id: e454
     mechanic: p6.cosmo_meteor
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 25874, name: Macrocosmos}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E7"
-  - id: e407
+  - id: e455
     mechanic: p6.flares
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
@@ -2912,121 +3224,128 @@ entries:
       - {action: 3585, name: Deployment Tactics}
     seq: true
     src: "'P6'!F8"
-  - id: e408
+  - id: e456
     mechanic: p6.flares
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24292, name: Eukrasian Prognosis}
     src: "'P6'!G8"
-  - id: e409
+  - id: e457
     mechanic: p6.flares
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E8"
-  - id: e410
+  - id: e458
     mechanic: p6.magic_number_1
     who: {job: PLD, assignee: CM LB Tank}
     do:
       - {action: 199, name: Last Bastion}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B9"
-  - id: e411
+  - id: e459
     mechanic: p6.magic_number_1
     who: {job: WAR, assignee: CM LB Tank}
     do:
       - {action: 4240, name: Land Waker}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B9"
-  - id: e412
+  - id: e460
     mechanic: p6.magic_number_1
     who: {job: DRK, assignee: CM LB Tank}
     do:
       - {action: 4241, name: Dark Force}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B9"
-  - id: e413
+  - id: e461
     mechanic: p6.magic_number_1
     who: {job: GNB, assignee: CM LB Tank}
     do:
       - {action: 17105, name: Gunmetal Soul}
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B9"
-  - id: e414
+  - id: e462
     mechanic: p6.magic_number_1
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C9"
-  - id: e415
+  - id: e463
     mechanic: p6.magic_number_1
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C9"
-  - id: e416
+  - id: e464
     mechanic: p6.magic_number_1
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C9"
-  - id: e417
+  - id: e465
     mechanic: p6.magic_number_1
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P6'!C9"
-  - id: e418
+  - id: e466
     mechanic: p6.magic_number_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 3587, name: Dissipation}
     src: "'P6'!F9"
-  - id: e419
+  - id: e467
     mechanic: p6.magic_number_1
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
+    detail: ">>Holy Melee LB3 Bible<<\nDiscuss Feints and LB3s during the cutscene!!\nUse personals and self healing all during Meteors!"
     src: "'P6'!I9"
-  - id: e420
+  - id: e468
     mechanic: p6.magic_number_1
     who: {slot: H1, job: WHM, assignee: H1 WHM}
     do:
       - {action: 208, name: Pulse of Life}
     src: "'P6'!D9"
-  - id: e421
+  - id: e469
     mechanic: p6.magic_number_1
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 4248, name: Astral Stasis}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E9"
-  - id: e422
+  - id: e470
     mechanic: p6.magic_number_2
     who: {job: PLD, assignee: CM Rep Tank}
     do:
       - {action: 199, name: Last Bastion}
     src: "'P6'!C10"
-  - id: e423
+  - id: e471
     mechanic: p6.magic_number_2
     who: {job: WAR, assignee: CM Rep Tank}
     do:
       - {action: 4240, name: Land Waker}
     src: "'P6'!C10"
-  - id: e424
+  - id: e472
     mechanic: p6.magic_number_2
     who: {job: DRK, assignee: CM Rep Tank}
     do:
       - {action: 4241, name: Dark Force}
     src: "'P6'!C10"
-  - id: e425
+  - id: e473
     mechanic: p6.magic_number_2
     who: {job: GNB, assignee: CM Rep Tank}
     do:
       - {action: 17105, name: Gunmetal Soul}
     src: "'P6'!C10"
-  - id: e426
+  - id: e474
     mechanic: p6.magic_number_2
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 4247, name: Angel Feathers}
     src: "'P6'!F10"
-  - id: e427
+  - id: e475
     mechanic: p6.magic_number_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:

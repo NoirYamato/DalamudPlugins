@@ -128,13 +128,22 @@ internal sealed class ActionResolver
         return pick with { Kind = kind, NotAvailable = notAvailable };
     }
 
+    /// <summary>
+    /// Resolves the text that follows a resolved action ("Temp Bell" → "Bell") for a job: aliases and exact action names
+    /// of the job only (no close spellings, no other job's actions), so that a second action written without a separator
+    /// can be told from hint text.
+    /// </summary>
+    public TokenResolution ResolveFollowing(string text, Job job) =>
+        this.ResolvePhrase(text, job, targeted: false, allowJobPrefix: false, headWords: int.MaxValue, allowFuzzy: false);
+
     /// <param name="phrase">The alternative followed by the token's trailing text.</param>
     /// <param name="job">The job to resolve for.</param>
     /// <param name="targeted">The token names another player (use an alias's targeted form).</param>
     /// <param name="allowJobPrefix">Try a leading job abbreviation ("WHM Bell").</param>
     /// <param name="headWords">Normalized words of the alternative itself: another job's alias or action only counts as
     /// such when it covers them all ("Kera" is a Sage action; "Co-Tank" is not Celestial Opposition's "co" + "tank").</param>
-    private TokenResolution ResolvePhrase(string phrase, Job job, bool targeted, bool allowJobPrefix, int headWords)
+    /// <param name="allowFuzzy">Try close spellings when nothing else matches.</param>
+    private TokenResolution ResolvePhrase(string phrase, Job job, bool targeted, bool allowJobPrefix, int headWords, bool allowFuzzy = true)
     {
         var words = ImportText.NormalizedWords(phrase);
         if (words.Length == 0)
@@ -190,7 +199,7 @@ internal sealed class ActionResolver
             return new TokenResolution { Kind = TokenKind.OtherJob, OtherJob = otherJobAction.Jobs.FirstOrDefault(), Matched = otherJobAction.Name };
 
         // 4. Typos ("Nascant", "Vengance"): the closest alias or action name of the job within a small edit distance.
-        if (this.Fuzzy(words, job) is { } close)
+        if (allowFuzzy && this.Fuzzy(words, job) is { } close)
         {
             var rest = ImportText.SkipNormalizedWords(phrase, close.Words);
             if (close.IsAlias)
@@ -282,8 +291,15 @@ internal sealed class ActionResolver
     }
 
     /// <summary>
+    /// Words and keys shorter than this are never matched by spelling distance: one edit turns too many short English words
+    /// into short aliases ("Hold" → "hol", "Zone" → "zoe", "Well" → "bell", "Over" → "cover").
+    /// </summary>
+    public const int MinFuzzyLength = 5;
+
+    /// <summary>
     /// The closest alias key or action name of the job to the first one to three words, when it is within
-    /// <see cref="ImportText.FuzzyBudget"/> edits and unique (two different meanings at the same distance match nothing).
+    /// <see cref="ImportText.FuzzyBudget"/> edits of the shorter of the two and unique (two different meanings at the same
+    /// distance match nothing). Neither may be shorter than <see cref="MinFuzzyLength"/>.
     /// </summary>
     private (string Key, bool IsAlias, int Words, string Text)? Fuzzy(string[] words, Job job)
     {
@@ -291,14 +307,16 @@ internal sealed class ActionResolver
         for (var n = Math.Min(3, words.Length); n >= 1; n--)
         {
             var text = string.Join(' ', words, 0, n);
-            var budget = ImportText.FuzzyBudget(text.Length);
-            if (budget == 0)
+            if (text.Length < MinFuzzyLength)
                 continue;
-            var best = budget + 1;
+            var best = int.MaxValue;
             var hits = new List<(string Key, bool IsAlias)>();
             foreach (var (candidate, key, isAlias) in candidates)
             {
-                if (candidate.Split(' ').Length != n)
+                if (candidate.Length < MinFuzzyLength || candidate.Split(' ').Length != n)
+                    continue;
+                var budget = ImportText.FuzzyBudget(Math.Min(text.Length, candidate.Length));
+                if (budget == 0)
                     continue;
                 var d = ImportText.Distance(text, candidate, budget);
                 if (d > budget || d > best)

@@ -70,6 +70,50 @@ internal static partial class HintParser
     [GeneratedRegex(@"\bif\s+(?<job>[A-Za-z]{3})\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex JobCondition();
 
+    [GeneratedRegex(@"\b(?:if|unless|in\s+case|otherwise)\b(?:\s+(?<next>[\p{L}\p{N}]+))?|\bno\s+skip\b|\bskip(?:ped|s)?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ConditionWords();
+
+    [GeneratedRegex(@"^\d{1,2}(?:st|nd|rd|th)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex OrdinalNumber();
+
+    /// <summary>A hit noun ("Proteans", "stack", "towers") or an ordinal ("1st", "second", "last").</summary>
+    internal static bool IsHintWord(string word) =>
+        HitNouns.Contains(word) || OrdinalWords.ContainsKey(word) || word.Equals("last", StringComparison.OrdinalIgnoreCase) || OrdinalNumber().IsMatch(word);
+
+    /// <summary>
+    /// The noun of a hint that only names a part of a mechanic ("Proteans", "Stack", "stack hits"), singular and lower-case
+    /// ("protean", "stack"), or null.
+    /// </summary>
+    internal static string? PartNoun(string? text)
+    {
+        var words = (text ?? string.Empty).Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(w => w.Trim('.', ',', ':', ';', '!', '?')).Where(w => w.Length > 0).ToList();
+        if (words.Count is 0 or > 2 || !HitNouns.Contains(words[0]) || words[0].StartsWith("hit", StringComparison.OrdinalIgnoreCase))
+            return null;
+        if (words.Count == 2 && !words[1].Equals("hit", StringComparison.OrdinalIgnoreCase) && !words[1].Equals("hits", StringComparison.OrdinalIgnoreCase))
+            return null;
+        var noun = words[0].ToLowerInvariant();
+        return noun.EndsWith('s') && HitNouns.Contains(noun[..^1]) ? noun[..^1] : noun;
+    }
+
+    /// <summary>
+    /// A condition that makes an action optional: "if P4 skip", "no skip", "unless …", "if needed" (an "if" followed by a
+    /// job abbreviation is a job filter, see <see cref="HintTiming.JobCondition"/>), or null.
+    /// </summary>
+    internal static string? Condition(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+        foreach (Match m in ConditionWords().Matches(text))
+        {
+            if (m.Value.StartsWith("if", StringComparison.OrdinalIgnoreCase) && m.Groups["next"].Value is { Length: 3 } job && job.All(char.IsAsciiLetter) && Jobs.TryParse(job, out _))
+                continue;
+            return text.Trim();
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Reads the hints of one token. <paramref name="rest"/> is the source text after the action words ("after 1st Hit",
     /// "Diffuse Wave Cannon"); <paramref name="hints"/> are its parentheticals ("just before P3 ends").

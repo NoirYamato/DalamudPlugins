@@ -12,9 +12,6 @@ internal static partial class ImportText
     [GeneratedRegex(@"\s+")]
     private static partial Regex Whitespace();
 
-    [GeneratedRegex(@"\([^()]*\)|\[[^\[\]]*\]")]
-    private static partial Regex Parenthetical();
-
     // Damage numbers and counts in labels: "65k", "100–220k", "×2", "x5", "(multi-hit)" is removed with the parentheses.
     [GeneratedRegex(@"\b\d+(?:[.,]\d+)?\s*(?:[–—-]\s*\d+(?:[.,]\d+)?\s*)?k\b|(?:×|\bx)\s*\d+\b|\b\d+\s*[×x]\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex DamageNumber();
@@ -47,16 +44,66 @@ internal static partial class ImportText
         var s = NormalizeLabel(text);
         if (s.Length == 0)
             return s;
-        string previous;
-        do
-        {
-            previous = s;
-            s = Parenthetical().Replace(s, " ");
-        }
-        while (s != previous);
+        s = WithoutParentheticals(s);
         s = DamageNumber().Replace(s, " ");
         s = NonWord().Replace(s, " ");
         return Whitespace().Replace(s, " ").Trim();
+    }
+
+    /// <summary>
+    /// Replaces every balanced "(…)" and "[…]" span, nested ones included, by a space in one pass over the text (labels
+    /// come from untrusted sheets: deep nesting must not cost more than the text's length). An unclosed opener and a stray
+    /// closer stay as they are.
+    /// </summary>
+    internal static string WithoutParentheticals(string s)
+    {
+        // Matched spans as +1/−1 marks; a running sum > 0 means "inside some span".
+        var marks = new int[s.Length + 1];
+        var round = new Stack<int>();
+        var square = new Stack<int>();
+        var any = false;
+        for (var i = 0; i < s.Length; i++)
+        {
+            switch (s[i])
+            {
+                case '(':
+                    round.Push(i);
+                    break;
+                case '[':
+                    square.Push(i);
+                    break;
+                case ')' or ']':
+                    var open = s[i] == ')' ? round : square;
+                    if (open.Count == 0)
+                        break;
+                    marks[open.Pop()]++;
+                    marks[i + 1]--;
+                    any = true;
+                    break;
+            }
+        }
+
+        if (!any)
+            return s;
+        var sb = new StringBuilder(s.Length);
+        var depth = 0;
+        var inside = false;
+        for (var i = 0; i < s.Length; i++)
+        {
+            depth += marks[i];
+            if (depth == 0)
+            {
+                sb.Append(s[i]);
+                inside = false;
+            }
+            else if (!inside)
+            {
+                sb.Append(' ');
+                inside = true;
+            }
+        }
+
+        return sb.ToString();
     }
 
     /// <summary>Words of an action phrase normalized like alias keys (<see cref="AliasDictionary.Normalize"/>).</summary>

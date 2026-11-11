@@ -161,7 +161,7 @@ entries:
     who: {job: SCH, assignee: Scholar}
     do:
       - {action: 25867, name: Protraction}
-    target: tank
+    target: tanks
     detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
     severity: 2
     src: "'TOP – WHM + SCH'!C22"
@@ -171,7 +171,7 @@ entries:
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7432, name: Divine Benison}
-    target: tank
+    target: tanks
     detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
     severity: 2
     src: "'TOP – WHM + SCH'!D22"
@@ -190,7 +190,7 @@ entries:
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 25861, name: Aquaveil}
-    target: tank
+    target: tanks
     detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
     severity: 2
     src: "'TOP – WHM + SCH'!D22"
@@ -748,6 +748,7 @@ entries:
       - {action: 185, name: Adloquium}
     seq: true
     target: a non-tank
+    note: Adlo 2:50
     detail: SCH Protraction + Recit → Adlo (2:50) on a non-tank; WHM Bene after the second hit.
     severity: 3
     src: "'TOP – WHM + SCH'!C51"
@@ -1120,6 +1121,7 @@ entries:
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 25861, name: Aquaveil}
+    target: tank
     detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
     severity: 3
     src: "'TOP – WHM + SCH'!D63"
@@ -1129,6 +1131,7 @@ entries:
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7432, name: Divine Benison}
+    target: tank
     detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
     severity: 3
     src: "'TOP – WHM + SCH'!D63"

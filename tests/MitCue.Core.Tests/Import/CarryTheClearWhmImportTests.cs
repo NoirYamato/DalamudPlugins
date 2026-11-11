@@ -27,7 +27,9 @@ public class CarryTheClearWhmImportTests
     {
         // P1 (timer from pull; zero 0.9). Program Loop row: 0:28/0:37/0:46/0:55 = the four sets (29.1 … 56.1).
         { "C17", "p1.program_loop", "Asylum", 2, "-6", "" },                                    // ~0:40 → 41.1, before set 3 (47.1)
-        { "C17", "p1.program_loop", "Afflatus Solace+Divine Benison", 0, "auto", "T=your 3rd/4th-in-line player" },
+        // "your 3rd/4th-in-line player": the players of sets 3 and 4, healed "before their towers" (D17, "e.g. you take #4"):
+        // the entry is for the 4th set (56.1), pressed with Benison's shield lead, so the use window covers both towers.
+        { "C17", "p1.program_loop", "Afflatus Solace+Divine Benison", 3, "-4", "T=your 3rd/4th-in-line player" },
         { "C18", "p1.pantokrator", "Temperance", 0, "-3", "" },                                 // Temperance (1:18) on Pantokrator (1:21)
         { "C18", "p1.pantokrator", "Liturgy of the Bell", 0, "1", "N=right after the 1st stack" },
         { "C18", "p1.pantokrator", "Plenary Indulgence", 2, "-2", "" },                         // 1:31, before the 3rd stack (1:33)

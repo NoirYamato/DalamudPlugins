@@ -8,21 +8,23 @@ assignees:
 entries:
   - id: e001
     mechanic: p1.program_loop
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 16531, name: Afflatus Solace}
-      - {action: 7432, name: Divine Benison}
-    target: your 3rd/4th-in-line player
-    detail: 'Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).'
-    severity: 1
-    src: "'TOP – White Mage'!C17"
-  - id: e002
-    mechanic: p1.program_loop
     hit_index: 2
     offset: -6
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 3569, name: Asylum}
+    detail: 'Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).'
+    severity: 1
+    src: "'TOP – White Mage'!C17"
+  - id: e002
+    mechanic: p1.program_loop
+    hit_index: 3
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16531, name: Afflatus Solace}
+      - {action: 7432, name: Divine Benison}
+    target: your 3rd/4th-in-line player
     detail: 'Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).'
     severity: 1
     src: "'TOP – White Mage'!C17"
