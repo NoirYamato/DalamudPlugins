@@ -28,8 +28,9 @@ namespace MitCue.Core.Reminders;
 /// <see cref="BecameDue"/> handlers run synchronously inside <see cref="Update"/>.
 /// <see cref="ReminderOptions.Lookahead"/>, <see cref="ReminderOptions.DueLead"/>,
 /// <see cref="ReminderOptions.KeepFinishedFor"/> and <see cref="ReminderOptions.ShowSkipped"/> are read
-/// live; the use windows (<see cref="Reminder.Earliest"/>, <see cref="Reminder.Latest"/>) are fixed
-/// when the scheduler is built.
+/// live (lookahead and due lead also widen the start of a use's matching window, see
+/// <see cref="OnOwnAction"/>); <see cref="Reminder.Earliest"/> and <see cref="Reminder.Latest"/> are
+/// fixed when the scheduler is built.
 /// </para>
 /// </remarks>
 public sealed class ReminderScheduler
@@ -83,7 +84,9 @@ public sealed class ReminderScheduler
     /// <summary>Raised once when a reminder becomes Due (the plugin plays a sound).</summary>
     /// <remarks>
     /// Not raised for reminders that finish (Missed/Passed) in the same update. Raised again only
-    /// after the reminder went back to Pending (<see cref="Reset"/> or a backward jump).
+    /// after the reminder went back to Pending: <see cref="Reset"/>, or a backward jump that reopened
+    /// it (see <see cref="OnTimelineJump"/>; a reminder still due at the jump target stays Due and is
+    /// not raised twice).
     /// </remarks>
     public event Action<Reminder>? BecameDue;
 
@@ -102,13 +105,29 @@ public sealed class ReminderScheduler
         this.visibleBuffer.Clear();
     }
 
-    /// <summary>The timeline jumped from <paramref name="fromTime"/> to <paramref name="toTime"/>; reminders in between that never became due are Skipped.</summary>
+    /// <summary>
+    /// The timeline jumped from <paramref name="fromTime"/> to <paramref name="toTime"/> (phase push,
+    /// resync or loop): reminders the jump made pointless are Skipped, rewound ones are reopened.
+    /// </summary>
     /// <remarks>
-    /// Forward jump: Pending/Upcoming reminders with a press time in (from, to] become Skipped
-    /// (finished at <paramref name="toTime"/>); Due and finished reminders are left alone.
-    /// Backward jump of more than 5 s: every reminder with a press time after <paramref name="toTime"/>
-    /// that is not Done goes back to Pending (the next <see cref="Update"/> re-derives Upcoming/Due).
+    /// <para>
+    /// Forward jump: a Pending/Upcoming reminder whose press time lies in (from, to] becomes Skipped
+    /// (finished at <paramref name="toTime"/>) when the jump also passed its hit (hit in (from, to])
+    /// or its use window (latest &lt; to). The others can still be done in time, typically for the
+    /// mechanic right after a phase-start sync, so they are left as they are: the next
+    /// <see cref="Update"/> makes them Due and raises <see cref="BecameDue"/>. Due and finished
+    /// reminders are left alone.
+    /// </para>
+    /// <para>
+    /// Backward jump of more than 5 s: every reminder that is not Done and whose use window is still
+    /// open at <paramref name="toTime"/> (latest ≥ to) goes back to Pending, and the next
+    /// <see cref="Update"/> re-derives Upcoming/Due from the new time. The exception is a Due reminder
+    /// that is still due at <paramref name="toTime"/>: it stays Due (no flicker, no second
+    /// <see cref="BecameDue"/>). Reminders that stay finished (Done, or with their window over at the
+    /// target) keep their outcome but are no longer listed by <see cref="Update"/>, because their
+    /// finished row belongs to the timeline before the rewind.
     /// Smaller backward corrections change nothing.
+    /// </para>
     /// </remarks>
     public void OnTimelineJump(double fromTime, double toTime)
     {
@@ -117,8 +136,12 @@ public sealed class ReminderScheduler
             foreach (var track in this.tracks)
             {
                 var r = track.Reminder;
-                if ((r.State is ReminderState.Pending or ReminderState.Upcoming) && r.PressAt > fromTime && r.PressAt <= toTime)
+                if ((r.State is ReminderState.Pending or ReminderState.Upcoming)
+                    && r.PressAt > fromTime && r.PressAt <= toTime
+                    && ((r.Hit > fromTime && r.Hit <= toTime) || r.Latest < toTime))
+                {
                     Finish(r, ReminderState.Skipped, toTime);
+                }
             }
         }
         else if (toTime < fromTime - SmallBackwardCorrection)
@@ -126,7 +149,17 @@ public sealed class ReminderScheduler
             foreach (var track in this.tracks)
             {
                 var r = track.Reminder;
-                if (r.PressAt > toTime && r.State is not (ReminderState.Done or ReminderState.Pending))
+                if (r.State == ReminderState.Done || r.Latest < toTime)
+                {
+                    // The outcome stands, but its finished row is from before the rewind.
+                    if (IsFinished(r.State))
+                        track.HideFinished = true;
+                    continue;
+                }
+
+                if (r.State == ReminderState.Due && toTime >= r.PressAt - this.Options.DueLead)
+                    track.RestartReadiness(); // still due: keep it (and its sound) as is
+                else if (r.State != ReminderState.Pending)
                     track.Rearm();
             }
         }
@@ -135,10 +168,13 @@ public sealed class ReminderScheduler
     /// <summary>The local player used an action at the given timeline time.</summary>
     /// <remarks>
     /// The use satisfies at most one reminder: the not-finished action reminder with the smallest
-    /// press time whose item contains the action and whose window [press − lookahead, latest]
-    /// contains the time (for when-ready entries, latest as extended by <see cref="Update"/> while
-    /// waiting for the cooldown). It becomes Done; a use before <see cref="Reminder.Earliest"/> is
-    /// flagged <see cref="Reminder.UsedEarly"/>. Every use is recorded in <see cref="RecentUses"/>.
+    /// press time whose item contains the action and whose use window contains the time. The window
+    /// starts at the earlier of <see cref="Reminder.Earliest"/> and the moment the reminder is shown
+    /// (press − max(lookahead, due lead)), so a display setting never turns a use that covers the hit,
+    /// or a press on "NOW", into a miss. It ends at <see cref="Reminder.Latest"/> (for when-ready
+    /// entries, as extended by <see cref="Update"/> while waiting for the cooldown); both ends are
+    /// inclusive. The reminder becomes Done; a use before <see cref="Reminder.Earliest"/> is flagged
+    /// <see cref="Reminder.UsedEarly"/>. Every use is recorded in <see cref="RecentUses"/>.
     /// </remarks>
     public void OnOwnAction(uint actionId, double timelineTime)
     {
@@ -148,7 +184,7 @@ public sealed class ReminderScheduler
         {
             var r = track.Reminder;
             if (IsFinished(r.State)
-                || t < r.PressAt - this.Options.Lookahead
+                || t < this.UseWindowStart(r)
                 || t > track.Deadline
                 || !Contains(track.ActionIds, actionId))
             {
@@ -176,7 +212,10 @@ public sealed class ReminderScheduler
     /// <para>
     /// Visible: Upcoming and Due reminders, plus Done and Missed ones (and Skipped ones when
     /// <see cref="ReminderOptions.ShowSkipped"/>) for <see cref="ReminderOptions.KeepFinishedFor"/>
-    /// seconds after they finished. The result is a new snapshot; it is not changed by later calls.
+    /// seconds after they finished. A finished row also stays listed when time is corrected back by
+    /// up to 5 s (sync jitter, so rows do not flicker), but a backward jump of more than 5 s hides
+    /// the rows of reminders it leaves finished (see <see cref="OnTimelineJump"/>). The result is a
+    /// new snapshot; it is not changed by later calls.
     /// </para>
     /// <para>
     /// Cooldown awareness (Upcoming/Due action reminders, first option of the item):
@@ -341,6 +380,13 @@ public sealed class ReminderScheduler
         return late > ReadyInThreshold ? late : null;
     }
 
+    /// <summary>
+    /// Where the use window starts: the earlier of <see cref="Reminder.Earliest"/> and the moment the
+    /// reminder is shown, Upcoming or Due (press − max(lookahead, due lead)).
+    /// </summary>
+    private double UseWindowStart(Reminder r) =>
+        Math.Min(r.Earliest, r.PressAt - Math.Max(this.Options.Lookahead, this.Options.DueLead));
+
     private void Advance(Track track, double t, ICooldownProvider? cooldowns)
     {
         var r = track.Reminder;
@@ -400,23 +446,29 @@ public sealed class ReminderScheduler
         buffer.Clear();
         foreach (var track in this.tracks)
         {
-            if (this.IsVisible(track.Reminder, t))
+            if (this.IsVisible(track, t))
                 buffer.Add(track.Reminder);
         }
         return buffer.Count == 0 ? Array.Empty<Reminder>() : buffer.ToArray();
     }
 
-    private bool IsVisible(Reminder r, double t) => r.State switch
+    private bool IsVisible(Track track, double t) => track.Reminder.State switch
     {
         ReminderState.Upcoming or ReminderState.Due => true,
-        ReminderState.Done or ReminderState.Missed => this.RecentlyFinished(r, t),
-        ReminderState.Skipped => this.Options.ShowSkipped && this.RecentlyFinished(r, t),
+        ReminderState.Done or ReminderState.Missed => this.RecentlyFinished(track, t),
+        ReminderState.Skipped => this.Options.ShowSkipped && this.RecentlyFinished(track, t),
         _ => false,
     };
 
-    /// <summary>Finished at most KeepFinishedFor ago (tolerating small backward time corrections).</summary>
-    private bool RecentlyFinished(Reminder r, double t) =>
-        r.FinishedAt is { } at && t - at <= this.Options.KeepFinishedFor && at - t <= SmallBackwardCorrection;
+    /// <summary>
+    /// Finished at most KeepFinishedFor ago (tolerating small backward time corrections), and not
+    /// before a backward jump that left it finished.
+    /// </summary>
+    private bool RecentlyFinished(Track track, double t) =>
+        !track.HideFinished
+        && track.Reminder.FinishedAt is { } at
+        && t - at <= this.Options.KeepFinishedFor
+        && at - t <= SmallBackwardCorrection;
 
     private void RaiseBecameDue(Reminder r) => this.BecameDue?.Invoke(r);
 
@@ -455,6 +507,12 @@ public sealed class ReminderScheduler
         /// <summary><see cref="ReminderScheduler.BecameDue"/> was raised since the reminder last left Pending.</summary>
         public bool DueRaised { get; set; }
 
+        /// <summary>
+        /// A backward jump of more than 5 s left the reminder finished: its finished row is from the
+        /// timeline before the rewind and is not listed again (until <see cref="Rearm"/>).
+        /// </summary>
+        public bool HideFinished { get; set; }
+
         /// <summary>When-ready entries: stay due while the action is on cooldown; once ready, allow max(latest − now, grace).</summary>
         public void ObserveReadiness(double secondsUntilReady, double t, double grace)
         {
@@ -470,6 +528,13 @@ public sealed class ReminderScheduler
             }
         }
 
+        /// <summary>When-ready entries: forget the cooldown observations (the next update observes again).</summary>
+        public void RestartReadiness()
+        {
+            this.ReadySince = null;
+            this.Deadline = this.Reminder.Latest;
+        }
+
         /// <summary>Back to Pending with no outcome (the usage of Done reminders is cleared separately).</summary>
         public void Rearm()
         {
@@ -479,8 +544,8 @@ public sealed class ReminderScheduler
             r.ReadyIn = null;
             r.MissingResources = false;
             this.DueRaised = false;
-            this.ReadySince = null;
-            this.Deadline = r.Latest;
+            this.HideFinished = false;
+            this.RestartReadiness();
         }
     }
 }

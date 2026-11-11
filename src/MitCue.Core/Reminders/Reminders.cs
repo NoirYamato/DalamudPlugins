@@ -18,7 +18,10 @@ public enum ReminderState
 
     Missed,
 
-    /// <summary>The timeline jumped past it (phase push) before it was due.</summary>
+    /// <summary>
+    /// The timeline jumped past it (phase push) before it was due: past its press time and also past
+    /// its hit (the mechanic was skipped) or past its use window.
+    /// </summary>
     Skipped,
 
     /// <summary>A note whose time has passed (notes are never missed).</summary>
