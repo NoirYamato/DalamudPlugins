@@ -45,7 +45,11 @@ public sealed class Plugin : IDalamudPlugin
         this.Errors = new ErrorReporter(Log);
         this.GameData = new GameData(DataManager);
         this.Data = new CoreData(this.Errors, () => this.Config.UserAliases);
-        this.Plans = new PlanStore(PluginInterface.ConfigDirectory, this.Config, this.SaveConfig, this.Errors);
+        this.Plans = new PlanStore(PluginInterface.ConfigDirectory, this.Config, this.SaveConfig, this.Errors)
+        {
+            // Plans load after the fight data (Tick, Draw and the preview call Data.EnsureLoaded first).
+            Check = plan => PlanChecks.Find(plan, this.Data),
+        };
         this.Cooldowns = new CooldownProvider(this.Data, this.GameData, JobGauges, this.Errors);
         this.Events = new GameEventSource(Interop, ObjectTable, Condition, DutyState, ClientState, this.clock, this.Errors);
         this.Recorder = new PullRecorder(PluginInterface.ConfigDirectory, this.Errors, this.Version);
@@ -109,6 +113,9 @@ public sealed class Plugin : IDalamudPlugin
 
     [PluginService]
     internal static IJobGauges JobGauges { get; private set; } = null!;
+
+    [PluginService]
+    internal static IPartyList PartyList { get; private set; } = null!;
 
     [PluginService]
     internal static IPluginLog Log { get; private set; } = null!;
@@ -371,6 +378,20 @@ public sealed class Plugin : IDalamudPlugin
         ctx.Level = level;
         ctx.InCombat = Condition[ConditionFlag.InCombat];
         ctx.BoundByDuty = Condition.Any(ConditionFlag.BoundByDuty, ConditionFlag.BoundByDuty56, ConditionFlag.BoundByDuty95);
+
+        // The party's jobs choose the co-healer's column; only read while those calls are shown. IPartyList is empty
+        // when not in a party (then every co-healer column is shown).
+        ulong party = 0;
+        if (this.Config.ShowOtherAssignees && ctx.LoggedIn)
+        {
+            foreach (var member in PartyList)
+            {
+                if (member != null)
+                    party = PartyJobs.Add(party, member.ClassJob.RowId);
+            }
+        }
+
+        ctx.PartyJobMask = party;
     }
 
     private void RebuildTrackedActions()

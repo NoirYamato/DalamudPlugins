@@ -1,6 +1,7 @@
 using MitCue.Core;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
+using MitCue.Plans;
 
 namespace MitCue.Import;
 
@@ -103,52 +104,16 @@ internal sealed class ImportAnalysis
     /// <summary>Statistics without a trial import (the importer is not available).</summary>
     public static ImportAnalysis Unavailable(SheetDocument document, string reason) => new(BaseStats(document), [], false, reason);
 
-    /// <summary>The column key of an entry: its assignee, else "slot job".</summary>
-    public static string ColumnKey(PlanEntry entry)
-    {
-        var who = entry.Who;
-        if (who == null)
-            return string.Empty;
-        if (!string.IsNullOrWhiteSpace(who.Assignee))
-            return who.Assignee.Trim();
-        return string.Join(' ', new[] { who.Slot, who.Job?.ToString() }.Where(s => !string.IsNullOrWhiteSpace(s)));
-    }
+    /// <summary>The column key of an entry: its assignee, else "slot job" (<see cref="ColumnSuggestion.ColumnKey"/>).</summary>
+    public static string ColumnKey(PlanEntry entry) => ColumnSuggestion.ColumnKey(entry);
 
     /// <summary>
     /// The player's columns: those of their job, plus job-less columns of their slot. Without a configured slot the slot
-    /// is taken from a column of their job ("H2 SCH" → H2), so LPDU's "H2" (P1/P2) and "H2 SCH" (P3–P6) both match a Scholar.
+    /// is taken from a column of their job ("H2 SCH" → H2), so LPDU's "H2" (P1/P2) and "H2 SCH" (P3–P6) both match a
+    /// Scholar (<see cref="ColumnSuggestion.PlayerColumns"/>).
     /// </summary>
-    public static List<Assignee> PlayerColumns(IEnumerable<Assignee> assignees, Job job, string? slot)
-    {
-        var all = assignees.Where(a => a != null).ToList();
-        var mine = new List<Assignee>();
-        if (job != Job.None)
-            mine.AddRange(all.Where(a => a.Job == job));
-
-        var mySlot = Slots.TryNormalize(slot, out var s) ? s : null;
-        if (mySlot == null)
-        {
-            foreach (var a in mine)
-            {
-                if (Slots.TryNormalize(a.Slot, out var inferred))
-                {
-                    mySlot = inferred;
-                    break;
-                }
-            }
-        }
-
-        if (mySlot != null)
-        {
-            foreach (var a in all)
-            {
-                if ((a.Job == null || a.Job == Job.None) && Slots.TryNormalize(a.Slot, out var aSlot) && aSlot == mySlot && !mine.Contains(a))
-                    mine.Add(a);
-            }
-        }
-
-        return all.Where(mine.Contains).ToList();
-    }
+    public static List<Assignee> PlayerColumns(IEnumerable<Assignee> assignees, Job job, string? slot) =>
+        ColumnSuggestion.PlayerColumns(assignees, job, slot);
 
     /// <summary>Columns found in the given tabs (all columns when the analysis has no per-tab data).</summary>
     public List<Assignee> ColumnsIn(IReadOnlyCollection<string> tabNames)

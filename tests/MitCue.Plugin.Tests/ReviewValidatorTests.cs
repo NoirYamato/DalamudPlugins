@@ -61,6 +61,92 @@ public class ReviewValidatorTests
         Assert.Contains(Check(entry, plan), i => i.Code == "not-usable-by-job");
     }
 
+    private const uint Rampart = 7531;
+    private const uint Reprisal = 7535;
+
+    /// <summary>The test catalog with two tank actions.</summary>
+    private static List<ReviewIssue> CheckWithTankActions(PlanEntry entry, MitPlan? plan = null)
+    {
+        var catalog = new FakeCatalog(Catalog().All.Concat(
+        [
+            new MitCue.Core.Actions.ActionInfo { Id = Rampart, Name = "Rampart", Jobs = [Job.PLD, Job.WAR, Job.DRK, Job.GNB], Level = 8, Kind = MitCue.Core.Actions.ActionKind.TankMit },
+            new MitCue.Core.Actions.ActionInfo { Id = Reprisal, Name = "Reprisal", Jobs = [Job.PLD, Job.WAR, Job.DRK, Job.GNB], Level = 22, Kind = MitCue.Core.Actions.ActionKind.PartyMit },
+        ]));
+        plan ??= new MitPlan { Fight = "top", Entries = [entry] };
+        return ReviewValidator.CheckEntry(entry, plan, Top(), catalog, actionsLoaded: true);
+    }
+
+    [Fact]
+    public void ChecksASlotOnlyEntryAgainstTheJobsOfItsSlot()
+    {
+        // Final review finding: an entry with a slot but no job (LPDU's "MT", "H2" columns, often on the AI route) was not
+        // checked at all, while the core PlanValidator checks it against the slot's role: an H2 Scholar got a Rampart call.
+        var rampart = Entry("e1", "p1.pantokrator", null, Action(Rampart, "Rampart"));
+        rampart.Who = new WhoSpec { Slot = "H2", Assignee = "H2" };
+        var plan = new MitPlan { Fight = "top", Assignees = [new Assignee { Key = "H2", Slot = "H2" }], Entries = [rampart] };
+
+        var issue = Assert.Single(CheckWithTankActions(rampart, plan));
+        Assert.Equal("not-usable-by-job", issue.Code);
+        Assert.Equal(DiagnosticSeverity.Error, issue.Severity);
+        Assert.Equal("Rampart is not an action of the jobs of slot H2 (WHM/SCH/AST/SGE).", issue.Message);
+
+        // A healer action in the same column is fine.
+        var soil = Entry("e2", "p1.pantokrator", null, Action(SacredSoil, "Sacred Soil"));
+        soil.Who = new WhoSpec { Slot = "H2", Assignee = "H2" };
+        Assert.Empty(CheckWithTankActions(soil, plan));
+    }
+
+    [Fact]
+    public void UsesTheColumnsSlotWhenTheEntryHasNeitherJobNorSlot()
+    {
+        var entry = Entry("e1", "p1.pantokrator", null, Action(SacredSoil, "Sacred Soil"));
+        entry.Who = new WhoSpec { Assignee = "MT" };
+        var plan = new MitPlan { Fight = "top", Assignees = [new Assignee { Key = "MT", Slot = "MT" }], Entries = [entry] };
+
+        var issue = Assert.Single(CheckWithTankActions(entry, plan));
+        Assert.Equal("not-usable-by-job", issue.Code);
+        Assert.Equal("Sacred Soil is not an action of the jobs of slot MT (PLD/WAR/DRK/GNB).", issue.Message);
+    }
+
+    [Fact]
+    public void AnEitherOrGroupOfASlotOnlyEntryNeedsOneOptionOfTheSlotsJobs()
+    {
+        var group = Entry("e1", "p1.pantokrator", null, PlanItem.AnyOf([Action(SacredSoil, "Sacred Soil"), Action(Rampart, "Rampart")]));
+        group.Who = new WhoSpec { Slot = "H2" };
+        Assert.DoesNotContain(CheckWithTankActions(group), i => i.Code == "not-usable-by-job");
+
+        var tanks = Entry("e2", "p1.pantokrator", null, PlanItem.AnyOf([Action(Rampart, "Rampart"), Action(Reprisal, "Reprisal")]));
+        tanks.Who = new WhoSpec { Slot = "H2" };
+        var issue = Assert.Single(CheckWithTankActions(tanks), i => i.Code == "not-usable-by-job");
+        Assert.Equal("None of Rampart / Reprisal is an action of the jobs of slot H2 (WHM/SCH/AST/SGE).", issue.Message);
+    }
+
+    [Fact]
+    public void TheReviewOfAnAiPlanAgreesWithTheCoreValidatorOnSlotColumns()
+    {
+        // The finding's case on the AI route: YAML with a slot-only column, checked by the review and by PlanValidator.
+        var plan = ImportPipeline.ParseYaml("""
+            format: mitcue-plan/1
+            name: AI plan
+            fight: top
+            assignees:
+              - {key: H2, slot: H2}
+            entries:
+              - id: e001
+                mechanic: p1.pantokrator
+                who: {slot: H2, assignee: H2}
+                do:
+                  - {action: 7531, name: Rampart}
+            """);
+        var catalog = new FakeCatalog(Catalog().All.Append(
+            new MitCue.Core.Actions.ActionInfo { Id = Rampart, Name = "Rampart", Jobs = [Job.PLD, Job.WAR, Job.DRK, Job.GNB], Level = 8, Kind = MitCue.Core.Actions.ActionKind.TankMit }));
+        var review = new ReviewModel(plan, Top(), catalog, true, ReviewOrigin.Yaml);
+
+        Assert.Contains(PlanValidator.Validate(plan, Top(), catalog), d => d.Code == "wrong-job" && d.Severity == DiagnosticSeverity.Error);
+        Assert.Equal(DiagnosticSeverity.Error, review.Rows[0].Worst);
+        Assert.Contains(review.Rows[0].Issues, i => i.Code == "not-usable-by-job");
+    }
+
     [Fact]
     public void FlagsActionsAboveTheSyncLevelOrReplaced()
     {

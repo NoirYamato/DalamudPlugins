@@ -27,9 +27,6 @@ internal static class SimulateCommand
 
     private const double Epsilon = 1e-6;
 
-    /// <summary>Event types the plugin produces in game (GameEventSource): everything else exists only in simulations.</summary>
-    private static readonly HashSet<Type> GameEventTypes = [typeof(CombatStateChanged), typeof(CastStarted), typeof(AbilityResolved), typeof(DutyReset)];
-
     public static CommandSpec Spec { get; } = new()
     {
         Name = "simulate",
@@ -43,7 +40,7 @@ internal static class SimulateCommand
             session gets the action the game reports (an upgrade for a replaced action, the base action for one not learned
             yet), so a plan naming the other one is not marked done, as in game ("press" lines in the log say so). By default
             only the events the plugin sees in game are played (combat start/end, cast starts, resolved boss abilities,
-            wipes); --all-events plays every generated event, like /mitcue preview.
+            wipes), as in /mitcue preview; --all-events plays every generated event.
 
             The log lists each state change (Upcoming, Due, Done, Missed, Skipped; Passed for notes) with the real time
             from the pull and the timeline time, plus timeline starts, jumps and the pull end; then the pull summary and
@@ -111,7 +108,7 @@ internal static class SimulateCommand
 
         var generated = FightSimulator.Simulate(timeline, fight, sim);
         var allEvents = args.Has("all-events");
-        var events = generated.Where(e => allEvents || GameEventTypes.Contains(e.Event.GetType())).OrderBy(e => e.Event.Time).ToList();
+        var events = generated.Where(e => allEvents || GameVisibleEvents.Contains(e.Event)).OrderBy(e => e.Event.Time).ToList();
 
         var run = new PullRun(fight, timeline, player.Entries, actions, player.Me.Job, miss, args.Has("syncs"), (2 * sim.Jitter) + 0.5);
         run.Play(events, countdown, from);

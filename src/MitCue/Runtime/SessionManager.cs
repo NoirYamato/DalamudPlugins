@@ -144,7 +144,8 @@ internal sealed class SessionManager
             this.plans.Revision,
             this.config.Revision,
             this.data.Revision,
-            ctx.ClientIsEnglish);
+            ctx.ClientIsEnglish,
+            this.config.ShowOtherAssignees ? ctx.PartyJobMask : 0);
         if (this.invalidated || key != this.lastContext)
         {
             var hardChange = this.invalidated
@@ -241,6 +242,9 @@ internal sealed class SessionManager
         var mapping = this.plans.MappingFor(plan.Plan, ctx.Job);
         var slot = mapping.Slot ?? this.config.DefaultSlot;
         var level = ctx.Level > 0 ? Math.Min(ctx.Level, fight.SyncLevel) : fight.SyncLevel;
+
+        // The party's jobs choose the co-healer's column, so a party change rebuilds (after the pull) only while they are shown.
+        var party = this.config.ShowOtherAssignees ? ctx.PartyJobMask : 0;
         var key = string.Join(
             '|',
             fight.Key,
@@ -251,6 +255,7 @@ internal sealed class SessionManager
             mapping.AssigneeKey ?? "*",
             slot ?? "*",
             this.config.ShowOtherAssignees,
+            party,
             ctx.ClientIsEnglish);
         return new Shape(key, null)
         {
@@ -260,6 +265,7 @@ internal sealed class SessionManager
             Mapping = mapping,
             Slot = slot,
             Level = level,
+            PartyJobMask = party,
         };
     }
 
@@ -292,7 +298,7 @@ internal sealed class SessionManager
             var plan = stored.Plan;
             var me = new PlayerContext(ctx.Job, shape.Level, shape.Slot, mapping.AssigneeKey);
             var own = PlanSelection.For(plan, me).ToList();
-            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me) : null;
+            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me, PartyJobs.Of(shape.PartyJobMask)) : null;
 
             var session = new EncounterSession(new SessionSetup
             {
@@ -367,7 +373,8 @@ internal sealed class SessionManager
         int PlanRevision,
         int ConfigRevision,
         int DataRevision,
-        bool English);
+        bool English,
+        ulong PartyJobs);
 
     private sealed class Shape(string key, string? status)
     {
@@ -386,5 +393,7 @@ internal sealed class SessionManager
         public string? Slot { get; init; }
 
         public int Level { get; init; }
+
+        public ulong PartyJobMask { get; init; }
     }
 }

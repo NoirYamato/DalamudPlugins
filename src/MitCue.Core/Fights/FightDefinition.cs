@@ -78,6 +78,14 @@ public sealed class FightDefinition
     /// <summary>Timeline file name under data/timelines.</summary>
     public required string TimelineFile { get; init; }
 
+    /// <summary>
+    /// Timeline lines MitCue adds to the cactbot file (fight file <c>timeline_additions</c>), or null: sync lines in the
+    /// cactbot grammar, appended when the timeline is loaded (<see cref="FightLibrary.LoadTimeline"/>), so the bundled
+    /// file stays cactbot's. They are fallback syncs for phase starts that cactbot syncs only on event types the plugin
+    /// does not see in game (DMU's P2 and P4 start on director updates; docs/research/cactbot-timelines.md §6).
+    /// </summary>
+    public string? TimelineAdditions { get; init; }
+
     public IReadOnlyList<Phase> Phases { get; init; } = [];
 
     /// <summary>Mechanics ordered by hit time.</summary>
@@ -195,13 +203,16 @@ public sealed class FightLibrary
 
     public FightDefinition? ForTerritory(ushort territory) => this.Fights.FirstOrDefault(f => f.Territory == territory);
 
-    /// <summary>Parses (and caches) the fight's timeline.</summary>
+    /// <summary>Parses (and caches) the fight's timeline, with the fight's <see cref="FightDefinition.TimelineAdditions"/> appended.</summary>
     public Timeline LoadTimeline(FightDefinition fight)
     {
         ArgumentNullException.ThrowIfNull(fight);
         if (!this.timelines.TryGetValue(fight.Key, out var t))
         {
-            t = TimelineParser.Parse(this.data.ReadText("timelines/" + fight.TimelineFile), fight.TimelineFile);
+            var text = this.data.ReadText("timelines/" + fight.TimelineFile);
+            if (!string.IsNullOrWhiteSpace(fight.TimelineAdditions))
+                text = text.TrimEnd() + "\n\n# MitCue: timeline_additions from the fight file\n" + fight.TimelineAdditions;
+            t = TimelineParser.Parse(text, fight.TimelineFile);
             this.timelines[fight.Key] = t;
         }
         return t;

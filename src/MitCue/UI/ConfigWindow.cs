@@ -97,6 +97,16 @@ internal sealed class ConfigWindow : Window
             : a.Key;
     }
 
+    /// <summary>A column choice for the combo: the column's label, or "any column for my job" (in slot H2, when set).</summary>
+    private static string ColumnLabel(MitPlan plan, PlayerMapping mapping)
+    {
+        if (mapping.AssigneeKey == null)
+            return mapping.Slot != null ? $"any column for my job in slot {mapping.Slot}" : "any column for my job";
+        return plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, mapping.AssigneeKey, StringComparison.OrdinalIgnoreCase)) is { } a
+            ? AssigneeLabel(a)
+            : mapping.AssigneeKey;
+    }
+
     private void Changed()
     {
         this.plugin.Config.Touch();
@@ -465,7 +475,7 @@ internal sealed class ConfigWindow : Window
         if (!combo)
             return active;
 
-        if (ImGui.Selectable("(automatic: first plan with a column for this job)", automatic && !explicitNone))
+        if (ImGui.Selectable("(automatic: my own plan for this job, else the bundled plan meant for it)", automatic && !explicitNone))
             store.SetActive(fight.Key, job, null);
         if (ImGui.Selectable("(no plan: no reminders for this job)", explicitNone))
             store.SetActive(fight.Key, job, string.Empty);
@@ -482,11 +492,7 @@ internal sealed class ConfigWindow : Window
     {
         var plan = stored.Plan;
         var mapping = store.MappingFor(plan, job);
-        var current = mapping.AssigneeKey == null
-            ? "(any column for my job)"
-            : plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, mapping.AssigneeKey, StringComparison.OrdinalIgnoreCase)) is { } a
-                ? AssigneeLabel(a)
-                : mapping.AssigneeKey;
+        var current = mapping.AssigneeKey == null ? $"({ColumnLabel(plan, mapping)})" : ColumnLabel(plan, mapping);
         var preview = mapping.IsSuggestion ? $"(suggested) {current}" : current;
 
         ImGui.SetNextItemWidth(-1);
@@ -494,9 +500,11 @@ internal sealed class ConfigWindow : Window
         if (!combo)
             return;
 
-        // Saved for this job only: the other jobs' rows keep their own column.
-        var suggestion = PlanStore.SuggestAssignee(plan, job, this.plugin.Config.DefaultSlot);
-        if (ImGui.Selectable($"(suggested: {(suggestion != null ? AssigneeLabel(suggestion) : "any column for my job")})", mapping.IsSuggestion))
+        // Saved for this job only: the other jobs' rows keep their own column. The suggestion is the one the overlay
+        // uses without a choice (the job's column, or every column of the player's slot when the job's column alone
+        // would leave out some of their calls).
+        var suggestion = PlanStore.SuggestedMapping(plan, job, this.plugin.Config.DefaultSlot);
+        if (ImGui.Selectable($"(suggested: {ColumnLabel(plan, suggestion)})", mapping.IsSuggestion))
             store.SetMapping(plan, job, null);
         if (ImGui.Selectable("(any column for my job)", !mapping.IsSuggestion && mapping.AssigneeKey == null))
             store.SetMapping(plan, job, new PlayerMapping { AssigneeKey = null, Slot = null });

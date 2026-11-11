@@ -51,4 +51,10 @@ internal sealed class FrameContext
 
     /// <summary>This frame's action uses by other players.</summary>
     public IReadOnlyList<OwnUse> PartyUses { get; set; } = [];
+
+    /// <summary>
+    /// The jobs in the player's party as a <see cref="PartyJobs"/> mask (0 when not in a party, or when nothing needs
+    /// it: it is only read while the co-healer's calls are shown).
+    /// </summary>
+    public ulong PartyJobMask { get; set; }
 }

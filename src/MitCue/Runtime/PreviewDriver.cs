@@ -17,8 +17,10 @@ namespace MitCue.Runtime;
 /// <c>/mitcue preview [fight] [phase]</c>: simulates a pull with <see cref="FightSimulator"/> and plays it
 /// through a separate <see cref="EncounterSession"/> (own timeline player and scheduler) at 1× or 4×.
 /// Starting at a phase drops the earlier phases' events and lets the phase's start sync jump the timeline,
-/// so earlier phases are skipped quickly. Simulated events never reach the live session; the player's real
-/// action uses are forwarded so usage tracking can be tried on a striking dummy. Framework thread only.
+/// so earlier phases are skipped quickly. Only the event kinds the plugin sees in game are played
+/// (<see cref="GameVisibleEvents"/>), so the preview follows the fight exactly as a live pull would. Simulated events
+/// never reach the live session; the player's real action uses are forwarded so usage tracking can be tried on a
+/// striking dummy. Framework thread only.
 /// </summary>
 internal sealed class PreviewDriver
 {
@@ -164,8 +166,9 @@ internal sealed class PreviewDriver
             if (phase != null)
                 ConfigurePhaseStart(options, fight, phase);
 
+            // Only the event kinds the live session gets in game, so the preview syncs (and follows phases) the way a pull does.
             var generated = FightSimulator.Generate(timeline, fight, options);
-            var sorted = generated.OrderBy(e => e.Time).ToList(); // stable
+            var sorted = generated.Where(GameVisibleEvents.Contains).OrderBy(e => e.Time).ToList(); // stable
 
             var session = new EncounterSession(new SessionSetup
             {

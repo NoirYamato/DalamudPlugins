@@ -92,4 +92,77 @@ public class PartnerSelectionTests
     {
         Assert.Empty(PartnerSelection.For(EightSlotPlan(), new PlayerContext(Job.None, 90)));
     }
+
+    /// <summary>LPDU's healer columns: job-less slot columns (P1/P2) and one column per job for each slot (P3–P6).</summary>
+    private static MitPlan LpduHealers() => Kit.Plan(
+        [
+            Kit.Entry("p1.raid", -5, Kit.Temperance, "H1 note", job: null, slot: "H1", assignee: "H1"),
+            Kit.Entry("p1.raid", -5, Kit.SacredSoil, "H2 note", job: null, slot: "H2", assignee: "H2"),
+            Kit.Entry("p1.raid2", -5, Kit.SacredSoil, "Soil", job: Job.SCH, slot: "H2", assignee: "H2"),
+            Kit.Entry("p1.raid2", -5, Kit.Reprisal, "Kerachole", job: Job.SGE, slot: "H2", assignee: "H2"),
+            Kit.Entry("p2.raid", -5, Kit.Temperance, "Temperance", job: Job.WHM, slot: "H1", assignee: "H1 WHM"),
+            Kit.Entry("p2.raid", -5, Kit.Reprisal, "Neutral Sect", job: Job.AST, slot: "H1", assignee: "H1 AST"),
+            Kit.Entry("p2.raid", -5, Kit.SacredSoil, "Expedient", job: Job.SCH, slot: "H2", assignee: "H2 SCH"),
+            Kit.Entry("p2.raid", -5, Kit.Reprisal, "Holos", job: Job.SGE, slot: "H2", assignee: "H2 SGE"),
+        ],
+        new Assignee { Key = "H1", Slot = "H1" },
+        new Assignee { Key = "H2", Slot = "H2" },
+        new Assignee { Key = "H1 WHM", Slot = "H1", Job = Job.WHM },
+        new Assignee { Key = "H1 AST", Slot = "H1", Job = Job.AST },
+        new Assignee { Key = "H2 SCH", Slot = "H2", Job = Job.SCH },
+        new Assignee { Key = "H2 SGE", Slot = "H2", Job = Job.SGE });
+
+    private static List<string> Names(IEnumerable<PlanEntry> entries) => entries.Select(e => e.Do[0].Name!).ToList();
+
+    [Fact]
+    public void TheirOwnSeatInAnotherCompositionIsNotACoHealer()
+    {
+        // Final review finding: for the H2 Scholar on LPDU the "co-healer" calls were every other healer column: the H2
+        // Sage column (the same seat with another job), the player's own job-less H2 notes, and both H1 columns.
+        var plan = LpduHealers();
+        var me = new PlayerContext(Job.SCH, 90, "H2", "H2 SCH"); // the job's column: the job-less H2 calls are not theirs
+
+        Assert.Equal(["H1 note", "Temperance", "Neutral Sect"], Names(PartnerSelection.For(plan, me)));
+    }
+
+    [Fact]
+    public void InAPartyTheCoHealerIsTheOneWhoseJobIsThere()
+    {
+        var plan = LpduHealers();
+        var me = new PlayerContext(Job.SCH, 90, "H2");
+        Job[] party = [Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT];
+
+        Assert.Equal(["H1 note", "Temperance"], Names(PartnerSelection.For(plan, me, party)));
+        Assert.Equal(["H1 note", "Temperance", "Neutral Sect"], Names(PartnerSelection.For(plan, me, [])));
+    }
+
+    [Fact]
+    public void ATankDoesNotSeeTheirJobInTheOtherTankPairs()
+    {
+        // LPDU's tank tabs: one column per job and tank pair ("WAR/DRK WAR", "WAR/GNB WAR", ...), without slots.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "WAR in WAR/DRK", job: Job.WAR, assignee: "WAR/DRK WAR"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "DRK in WAR/DRK", job: Job.DRK, assignee: "WAR/DRK DRK"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "WAR in WAR/GNB", job: Job.WAR, assignee: "WAR/GNB WAR"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "GNB in WAR/GNB", job: Job.GNB, assignee: "WAR/GNB GNB"),
+            ],
+            new Assignee { Key = "WAR/DRK WAR", Job = Job.WAR },
+            new Assignee { Key = "WAR/DRK DRK", Job = Job.DRK },
+            new Assignee { Key = "WAR/GNB WAR", Job = Job.WAR },
+            new Assignee { Key = "WAR/GNB GNB", Job = Job.GNB });
+        var me = new PlayerContext(Job.WAR, 90, "MT", "WAR/DRK WAR");
+
+        Assert.Equal(["DRK in WAR/DRK", "GNB in WAR/GNB"], Names(PartnerSelection.For(plan, me)));
+        Assert.Equal(["DRK in WAR/DRK"], Names(PartnerSelection.For(plan, me, [Job.WAR, Job.DRK, Job.WHM, Job.SCH])));
+    }
+
+    [Fact]
+    public void PartyJobMasksRoundTrip()
+    {
+        var mask = PartyJobs.Mask([Job.WHM, Job.SCH, Job.WAR]);
+        Assert.Equal([Job.WAR, Job.WHM, Job.SCH], PartyJobs.Of(mask));
+        Assert.Equal(mask, PartyJobs.Add(PartyJobs.Add(mask, 0), 7)); // no job (0) and a base class (7) are ignored
+        Assert.Empty(PartyJobs.Of(0));
+    }
 }
