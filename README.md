@@ -143,8 +143,8 @@ TOP - P1: Omega - 1:15
   their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs. This needs
   a plan with your co-healer's column. *Carry the Clear – WHM*, the White Mage's automatic plan, has only the
   White Mage's column, so it shows none. To see the Scholar's calls, the White Mage chooses *Carry the Clear –
-  WHM + SCH* under **Active plan** (its `[Scholar]` column). Importing LPDU for this would also replace the
-  White Mage's own calls (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
+  WHM + SCH* under **Active plan** (its `[Scholar]` column). Choosing LPDU for this would also replace their
+  own calls with LPDU's (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
 
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
 press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. It stays NOW until just before the hit for
@@ -161,7 +161,9 @@ with no enemy activity. The chat summary then reads, for example:
 ## Settings
 
 Changes apply immediately and are saved automatically. The exception is changes that need a new reminder
-session, such as switching plan or column: those wait until the current countdown or pull is over.
+session, such as switching plan or column: those wait until the current pull is over, and a change made
+during a countdown waits through the pull that follows (it applies at once if you cancel the countdown, or
+20 s after "0" if no pull starts).
 
 **General**
 
@@ -234,24 +236,28 @@ Plans you import are listed as *user* plans.
 The table **Active plan per fight and job** has a row for every job the fight's plans name, plus your current
 job (in green).
 
-- **Active plan:** the plan you choose. On *(automatic: my own plan for this job, else the bundled plan meant
-  for it)*, MitCue takes your own imported plan with calls for that job, else the bundled plan meant for the
-  job (TOP: White Mage → *Carry the Clear – WHM*, Scholar → *LPDU TOP Mitigation*), else the first bundled
-  plan by name with calls for the job. *(no plan: no reminders for this job)* switches MitCue off for that
-  job.
+- **Active plan:** the plan you choose. On *(automatic: the bundled plan for this job, else my own plan for
+  it)*, MitCue takes the bundled plan meant for the job (TOP: White Mage → *Carry the Clear – WHM*, Scholar →
+  *LPDU TOP Mitigation*), else the first bundled plan by name that names the job in a column or entry, else
+  the first of your own plans by name that names it. A plan whose calls for your seat are only in slot
+  columns without a job (LPDU's M1 and M2 for melee jobs) is not chosen automatically: choose it here.
+  *(no plan: no reminders for this job)* switches MitCue off for that job.
 
-  Your own plans come first: a plan you import or receive as a share code becomes your automatic plan for
-  every job it has calls for, in place of the bundled one, as soon as it is saved. That holds even with
-  **Make it my active plan** unticked, and even for the share code of a bundled plan. LPDU, for example, has
-  White Mage columns, so a White Mage who imports it gets LPDU's 11 White Mage calls instead of *Carry the
-  Clear – WHM*. With several of your own plans, the first by name is used. A plan you chose here stays
-  chosen when you import a share code, or save an import with **Make it my active plan** unticked. So
-  **choose your plan here before you import someone else's** (White Mage: *Carry the Clear – WHM*; Scholar:
-  *LPDU TOP Mitigation*), and check the Status line afterwards.
+  A plan you import or receive as a share code replaces the bundled one only when you choose it: here, with
+  **Make it my active plan for … as …** in the import window, or with **Make an imported share code my active
+  plan as …** when you import a code (see [Share codes and plan files](#share-codes-and-plan-files)). So a
+  White Mage who imports the Scholar's LPDU code with that box unticked, to look at it, keeps *Carry the
+  Clear – WHM*. TEA and DMU have no bundled plans, so there your own plan is the automatic one. The share
+  code of a bundled plan takes that plan's place until it is deleted, and so stays the automatic plan of the
+  job the bundled plan is meant for.
 - **My column:** the column you choose, or *(any column for my job)*. Without a choice (*suggested*), MitCue
-  takes your job's column (the one in your slot if there are several), else your slot's column. When that
-  column would leave out some of your calls, it takes the narrowest choice that has them all: on LPDU, the
-  Scholar's *any column for my job in slot H2*, which includes the job-less "H2" column of P1 and P2.
+  takes your job's column (the one in your slot if there are several, else the first), else your slot's
+  column. When that column leaves out the calls of your slot's column without a job, it takes the narrowest
+  choice that has those too and no other column's calls: on LPDU, the Scholar's *any column for my job in
+  slot H2*, which includes the job-less "H2" column of P1 and P2. Several columns of one job are
+  alternatives (LPDU's tank pairs): a Warrior gets the first, *WAR/DRK WAR*, plus the MT or OT calls written
+  for Warriors (with **My usual party slot** set), but not the calls for any tank in that slot (Reprisal,
+  Rampart) or the *CM LB Tank* and *CM Rep Tank* columns. Tanks pick their column here.
 
 ### Importing a plan
 
@@ -261,7 +267,8 @@ steps.
 1. **Source.** Choose one:
    - **Google Sheets / Docs link:** paste the link of a sheet or doc shared as "Anyone with the link"
      (Viewer) and click **Fetch**. A sheet keeps its colours, so grey *optional* calls stay optional, and its
-     tab names as Google shows them. A doc's tables become tabs.
+     tab names as Google shows them when Google's tab list arrives within 3 seconds of the sheet (otherwise
+     the export's names, such as `P1P2` for `P1/P2`). A doc's tables become tabs.
    - **Paste cells:** select the plan's cells in Google Sheets, including the header row, copy them and click
      **Paste from clipboard**, then **Read the cells**. A plan over several tabs is pasted one tab at a time:
      **Add as another tab** for each further tab. Pasted cells carry no colours.
@@ -278,11 +285,14 @@ steps.
    replace a note with the action it stands for, **Remember ...** saves that shorthand as a personal alias,
    so later imports read it.
 4. **Save:** the plan name; **Save as** a new plan or in place of an earlier import of the same sheet (which
-   keeps that plan's active-plan and column settings); and **Make it my active plan for … as …**, ticked when
-   the plan has calls for your job. Unticked, the plan still becomes your automatic plan for every job it has
-   calls for, unless you chose a plan for that job under **Active plan** (see [Which plan and column MitCue
-   uses](#which-plan-and-column-mitcue-uses)). When your job's own column would miss some of your calls, the
-   plan is saved with the column choice that has them all.
+   keeps that plan's active-plan and column settings; an import that kept the export's tab names, such as
+   `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
+   calls for your job. Unticked, the plan is only saved: your job keeps the plan it has where a bundled plan
+   or your choice covers it (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)),
+   and the chat line after saving says which plan is active for your job. When your job's column leaves out
+   the calls of your slot's column without a job, the plan is saved with the column choice that has those
+   too. When no choice has all of your calls without another column's (a tank on LPDU), this step names the
+   columns of the calls left out: check **My column** after saving.
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
@@ -295,16 +305,23 @@ it, and closing the window cancels it too.
   file or attachment (Discord turns a long paste into `message.txt`) or as a paste link. The static member
   copies all of it, clicks **Paste from clipboard** next to the **Share code** box (or pastes it into the box)
   and clicks **Import share code**. The plan is saved as a *user* plan; a share code of a bundled plan
-  replaces the bundled one until it is deleted. Like the recipient's other own plans, it then becomes their
-  automatic plan for every job it has calls for, so before you import a code, choose your plan under
-  **Active plan** (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
+  replaces the bundled one until it is deleted. With **Make an imported share code my active plan as …**
+  ticked (the default; shown while you are on a combat job), the plan also becomes your active plan for its
+  fight as your current job, if it has calls for that job. Untick it to only save the plan, for example to
+  look at your co-healer's (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
+  The message under the box then says which plan your job has: *It is your active plan for TOP as WHM.*,
+  *Your active plan for TOP as WHM stays "Carry the Clear – WHM": choose this one in the table above to use
+  it.*, or *It has no calls for WHM: choose it in the table above for the job it is for.*
 - **Plan files.** MitCue keeps each user plan as a `<plan id>.json` file in
   `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder and the bundled
   plans, for example after you copy a plan `.json` file into it. Only `.json` files are read there.
-- **Checks.** Share codes and plan files skip the review, so MitCue checks them against the fight and the
-  action data when they load: unknown mechanics and actions, actions the entry's job can't use at the
-  fight's level, and the like. Problems are listed under **Problems** and named in the share-code message;
-  calls with such a problem can never be done.
+- **Checks.** Share codes and plan files skip the review, so MitCue checks them with the review's rules when
+  they load and reports only calls that can never work: a mechanic the fight doesn't have (the call is never
+  shown), an unknown action (never tracked), and an action the entry's job or slot can't use, or not at the
+  fight's level. Up to five problems per plan are listed under **Problems** (then *and N more*), each with
+  what it does to the call, for example *Entry 'e1': Expedient is learned at level 90, above this fight's
+  level 80, so the call can never be done.* The share-code message names the first one and ends *See
+  Problems in /mitcue.*
 - **Delete.** User plans have a **Delete** button: click it, then **Click again to delete**.
 
 ## Troubleshooting
@@ -331,10 +348,13 @@ Read the **Status** line at the top of `/mitcue`:
 **Reminders come from the wrong plan**
 
 The Status line names the plan in use: `Ready: <plan> (N of M entries are yours).` Without a choice under
-**Active plan** (Plans tab), a plan of your own with calls for your job wins over the bundled one, including
-one you just imported or received as a share code (see [Which plan and column MitCue
-uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**, or delete the plan you
-don't want.
+**Active plan** (Plans tab), MitCue uses the bundled plan for your job. A plan you imported or received
+as a share code is used when you made it your active plan (in the import window, with the share-code
+checkbox, or under **Active plan**), when no bundled plan names your job, or when it is the share code of
+the bundled plan for your job: it takes that plan's place until you delete it (see [Which plan and column
+MitCue uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**; *(automatic: …)*
+goes back to the bundled plan for your job. If you imported a share code of that plan, delete the copy to
+get the bundled one back.
 
 **Reminders come too early or too late, or the clock jumps**
 

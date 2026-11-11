@@ -70,8 +70,11 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
   dependency and is unit-tested in CI/the container; Dalamud-specific code is a thin layer.
 - Respect level sync: validate plans against the fight's sync level (80/90/100). **As
   built:** the import review checks every entry (`ReviewValidator`); share codes and plan
-  files are checked when they load, and the bundled plans in the tests (the core's
-  `PlanValidator`); the CLI's `check` and `validate` check plans too (`PlanChecker`).
+  files are checked with the review's rules when they load, reporting only calls that can
+  never work (a mechanic the fight lacks, an unknown action, an action the entry's job or
+  slot cannot use, or not at the sync level); the bundled plans are checked in the tests
+  (the core's `PlanValidator`); the CLI's `check` and `validate` check plans too
+  (`PlanChecker`).
 
 ---
 
@@ -88,7 +91,8 @@ MitCue.Core (net10.0, no Dalamud)
   Data        FightLibrary, FightLoader (data/fights/*.yaml) · TimelineParser (data/timelines/*.txt)
               · ActionCatalog (data/actions/actions.yaml) · AliasDictionary (data/actions/aliases.yaml)
               · EmbeddedDataSource (data/** and plans/** are built into the DLL), DirectoryDataSource
-  Plans       MitPlan · PlanSelection · PlanSerializer (YAML, JSON, share codes) · PlanChecker (recasts, gauges)
+  Plans       MitPlan · PlanSelection · ColumnSuggestion (the automatic column, for the plugin and the CLI)
+              · PlanSerializer (YAML, JSON, share codes) · PlanChecker (recasts, gauges)
   Runtime     GameEvent ─► TimelinePlayer (sync) ─► timeline time ─► ReminderScheduler (TimingRules) ─► Reminder[]
               own action uses ─► ReminderScheduler.OnOwnAction;  ICooldownProvider ─► "ready in 6s", "no Lily"
   Simulation  FightSimulator (a generated pull from a timeline) · GameVisibleEvents (the kinds seen in game)
@@ -98,7 +102,7 @@ MitCue (Dalamud plugin, Dalamud.NET.Sdk 15)
               · CooldownProvider (ActionManager, job gauges) · OwnUseDeduper, PetActions · PullRecorder · SoundPlayer
   Data/       CoreData (the core's embedded data + personal aliases) · GameData (Lumina: names, icons, zones)
   Plans/      PlanStore (bundled and user plans, active plan, column choice, share codes)
-              · ColumnSuggestion · PlanChecks (PlanValidator for share codes and plan files)
+              · PlanChecks (the review's checks for share codes and plan files)
   Runtime/    SessionManager ─► EncounterSession (TimelinePlayer + ReminderScheduler) · PreviewDriver
               · PartnerSelection (the co-healer's calls) · OverlayModel · ReminderText (labels, pull summary)
   Import/     ImportPipeline · BackgroundJobs (thread pool) · SheetFetcher, GoogleLinks · DocHtmlReader, DocTextReader
@@ -167,9 +171,10 @@ mechanic's hit (Carry the Clear times Blind Faith at the cast end, 1.2 s before 
 the importer adds the value to row-relative offsets (§6 step 7).
 
 Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
-cactbot's). Each line must have a sync and may not jump to a label. They are fallbacks for phase starts that
-cactbot syncs only on event types the plugin does not see (§4). `dmu.yaml` syncs DMU's P2 and P4 starts on cast
-starts, since cactbot uses director updates there:
+cactbot's). Each line must have a sync and may not jump to a label. Label and hideall statements are refused (they
+would change the cactbot file's): the fight file then does not load. The additions are fallbacks for phase starts
+that cactbot syncs only on event types the plugin does not see (§4). `dmu.yaml` syncs DMU's P2 and P4 starts on
+cast starts, since cactbot uses director updates there:
 
 ```yaml
 timeline_additions: |
@@ -224,6 +229,10 @@ Selection rule for the local player (`PlanSelection`): an entry applies when
   unknown, an entry with a slot applies only if it also names the job;
 - when the player picked a column, its assignee is empty or that column. An entry of
   another column still applies when it names both the player's job and slot.
+
+Slots compare by name, so the plugin stores the synonyms `T1`, `T2`/`ST` and `D1`–`D4` as
+`MT`, `OT`, `M1`, `M2`, `R1` and `R2` when a plan loads, comes in as a share code or is
+saved.
 
 ### 3.3 Actions (`data/actions/actions.yaml`) and aliases (`data/actions/aliases.yaml`)
 
@@ -349,7 +358,8 @@ previews, which have no cooldown provider.
    Readers: xlsx (downloaded from a public link, keeps colours and rich-text runs),
    TSV/CSV paste (text only), JSON fixtures (tests). **As built:** the xlsx export renames
    tabs Excel does not allow (`P1/P2` → `P1P2`); the CLI and the plugin restore Google's
-   names from the sheet's `htmlview` page. Google Docs are read from their web page export
+   names from the sheet's `htmlview` page (the plugin asks for it with the workbook and
+   waits at most 3 s more for it). Google Docs are read from their web page export
    (each table becomes a tab, the other paragraphs a "Text" tab) or, when that is too
    large, their plain-text export; colours are not kept.
 2. **Layout detection.** Find the header row; classify columns: time, mechanic label,
@@ -392,8 +402,10 @@ previews, which have no cooldown provider.
    each entry with the importer's diagnostics and the plugin's checks; the user can change
    the mechanic, hit, offset, flags, target, note and items, and delete entries; replacing
    a note with an action offers to save the shorthand as a personal alias; the plan is
-   saved as a user plan, optionally made the active plan, with the column choice that has
-   all of the player's calls.
+   saved as a user plan, made the active plan when *Make it my active plan …* is ticked
+   (it is by default when entries apply to the player), with the column choice that has
+   all of the player's calls when one has them without another column's (otherwise the
+   Save step names the columns of the calls left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
@@ -422,15 +434,26 @@ files and links; the plugin's import window adds downloading, the review and the
   `<se.6>`, click-through off, preview at 1×, pull recording off.
 - **Plans tab:** list/import/export/share code, active plan per fight and job, "which
   column is me". **As built:** without a choice, the active plan for a fight and job is the
-  player's own plan with calls for the job, else the bundled plan meant for the job (TOP:
-  WHM → *Carry the Clear – WHM*, SCH → *LPDU TOP Mitigation*), else the first bundled plan
-  by name with calls for the job. "My column" without a choice is the job's column, or,
-  when that leaves out some of the player's calls, the narrowest choice that has them all
-  (`ColumnSuggestion`: LPDU's H2 Scholar gets every column for SCH in slot H2, including
-  the job-less "H2" column of P1/P2). Plans are exported as share codes, not as files.
+  bundled plan meant for the job (TOP: WHM → *Carry the Clear – WHM*, SCH → *LPDU TOP
+  Mitigation*), else the first bundled plan by name that names the job in a column or
+  entry, else the player's first own plan by name that names it (TEA and DMU ship no
+  plans). A plan whose calls for the player's seat are only in job-less slot columns
+  (LPDU's M1/M2 for melee jobs) is not chosen automatically: the player chooses it in the
+  table. An imported plan or a share code replaces a bundled plan only when the player
+  chooses it: in the table, or by leaving the "make it my active plan" checkbox of the
+  import window or the share-code box ticked (both start ticked, the import window's when
+  entries apply to the player). The exception is the share code of a bundled plan: it has
+  that plan's id and takes its place until it is deleted. "My column" without a choice is
+  the job's column, or, when that leaves out the job-less calls of the player's slot, the
+  narrowest choice that has them too and no call of another column (`ColumnSuggestion`:
+  LPDU's H2 Scholar gets every column for SCH in slot H2, including the job-less "H2"
+  column of P1/P2). Several columns of one job are alternatives, never combined: a
+  Warrior on LPDU gets the first tank pair's "WAR/DRK WAR". Plans are exported as share
+  codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
-  the player's own seat in another composition, and in a party only columns of jobs
-  someone in it plays.
+  the player's own seat in another composition and the partner's columns for compositions
+  without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
+  party only columns of jobs someone in it plays.
 - **Preview/simulation:** run the fight timeline with simulated events at 1×/4× from any
   phase to check the overlay and the plan. **As built:** only the event kinds the plugin
   sees in game are played, so a preview syncs like a pull.
@@ -478,7 +501,7 @@ files and links; the plugin's import window adds downloading, the review and the
 2. Importer (core) + CLI; convert both TOP plans; acceptance tests on both sheets.
    **Done** (three plans: Carry the Clear's White Mage and combined tabs, LPDU).
 3. Plugin: events, overlay, config, plan store, preview; packaging; custom repo.
-   **Done**; distribution through the shared repository is set up (D1,
+   **Done**; MitCue 0.1.0.1 is published through the shared repository (D1,
    [PUBLISHING.md](PUBLISHING.md)).
 4. In-game importer/review UI and link download; LLM prompt fallback. **Done.**
 5. TEA and DMU data; plan checks (cooldown conflicts); polish. **Partly done:** TEA and

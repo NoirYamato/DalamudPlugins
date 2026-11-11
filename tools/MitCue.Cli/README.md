@@ -21,7 +21,7 @@ without either, the copy built into MitCue.Core is used. Plans can be YAML, JSON
 | `simulate <plan> --job <job> [--push p2=110,...] [--seed n] [--miss a,b] [--from p3] [--wipe t]` | A generated pull through the timeline player and the reminder scheduler, set up like the plugin's encounter session; logs every reminder state change and prints the pull summary. |
 | `check <plan> --job <job> [--slot] [--assignee]` | Plan checks (`PlanChecker`): unknown mechanics/actions, actions the job cannot use at the sync level, recast conflicts and tight margins, gauges and follow-ups (heuristic). |
 | `validate` | Every data file through the real loaders, with the consistency checks of the data tests; plans in `plans/` too. |
-| `share <plan>` / `unshare <code> [-o file]` | Share codes (`MITCUE1:...`). |
+| `share <plan>` / `unshare <code> [-o file]` | Share codes (`MITCUE1:...`), which players paste into `/mitcue` > Plans > Share code. |
 
 Exit codes: 0 ok; 1 problems found (`check` errors, `validate` problems, `import` error diagnostics); 2 wrong command
 line; 3 failure (missing or unreadable input, download error, a core part not implemented yet).
@@ -41,6 +41,13 @@ imports elsewhere.
 
 Notes:
 
+- `plan`, `simulate` and `check` take the player's entries the way the plugin does without a saved column choice
+  (the core's `ColumnSuggestion`): the job's column, with the job-less calls of the player's slot when that column
+  leaves them out, the slot taken from the job's column when `--slot` is left out. On `plans/top-lpdu.yaml`,
+  `--job SCH` gets any column for SCH in slot H2 (31 entries) and `--job WAR` the column "WAR/DRK WAR". The header
+  names the slot and column used, and a note on stderr names the choice when it differs from every column for the
+  job and slot. `--assignee <key>` picks a column; `--assignee "*"` takes every column for the job and slot (the
+  note then lists the columns whose entries apply).
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss
   abilities, wipes) unless `--all-events` is given; TOP's P2, for example, is then entered by the 7B40 cast at 203.4
   rather than the MapEffect at 200.0. `--push p2=110` starts P2 110 s (real time) after the pull and ends P1's events

@@ -116,7 +116,7 @@ assignee cells ─► CellParser ─► ActionResolver (per candidate job) + Hin
 | `MechanicResolver.cs` | Row label → mechanic candidates (mechanics.md §2 normalization; simplified, prefix and fuzzy fallbacks); phase ends. |
 | `HintParser.cs` | "after 1st Hit", "after &lt;mechanic&gt;", "just before P3 ends" / "as P1 dies", "if MCH", a bare mechanic name. |
 | `RowTiming.cs` | Row times matched to hits (lists, ranges, times listed in a range row's label), sheet time → timeline, hit of a press. |
-| `PlanValidator.cs` | Mechanics exist, hit indexes valid, actions exist and are usable by the entry's job(s) at the sync level, ids unique. The plugin runs it on share codes and plan files (`PlanChecks`). |
+| `PlanValidator.cs` | Mechanics exist, hit indexes valid, actions exist and are usable by the entry's job(s) at the sync level, ids unique. The tests run it on the bundled plans; the plugin checks share codes and plan files with its import review's rules instead (`PlanChecks`). |
 
 Rules worth knowing:
 

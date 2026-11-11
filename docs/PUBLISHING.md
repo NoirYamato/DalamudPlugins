@@ -48,6 +48,8 @@ as NoirMech's, `%APPDATA%\NoirMech\identity-terms.txt`, one term per line.
 
 ### The first push
 
+Done: `mitcue` is on GitHub and MitCue 0.1.0.1 is published. The steps stay here for reference.
+
 The first push of `mitcue` makes its whole history public at once, while the publish script only starts from a
 pushed commit. So the history is scanned before that push, with the commits only on the maintainer's PC:
 
@@ -134,8 +136,10 @@ The plugin installer shows the changelog. In order, the script:
 
 On Windows it runs at Idle priority on the `-Affinity` CPUs (`0xF0` by default), the tests and the build
 included, like `publish.ps1`. Run it as shown above: started through `cmd /c start /wait`, its exit code is
-lost. With PowerShell 7 on Linux or macOS it works too, for testing, with two differences: there is no
-`%APPDATA%`, so pass `-TermsFile`, and it runs at normal priority on every CPU.
+lost. With PowerShell 7 on Linux or macOS it works too, for testing, with three differences: there is no
+`%APPDATA%`, so pass `-TermsFile`; it runs at normal priority on every CPU; and its `ConvertTo-Json` lays
+`repo.json` out its own way, while the published file keeps Windows PowerShell 5.1's layout (two spaces after
+each colon).
 
 | Option | Meaning |
 |--------|---------|
