@@ -231,9 +231,13 @@ otherwise its kind does (code: `TimingRules`).
   become Due at the jump, because the transition is exactly when they should be pressed.
   They stay Due until `jump target + max(heal late window, 8 s)` (8 s with the defaults), then
   Missed as usual; one already Due when the push comes is extended the same way, without a
-  second sound. The jump that ends their phase starts in the phase their press time belongs
-  to and lands in the next one; any other jump (a timeline started mid-fight, a preview that
-  cuts whole phases, an enrage branch) skips them like any other reminder.
+  second sound. The jump that ends their phase passes their hit (or planned window), starts in
+  the phase their press time belongs to and lands in that phase or the next one: a phase push,
+  or a push inside a phase that ends a stage of it before its enrage (TEA P3: killing the DPS
+  check adds jumps over the Eternal Darkness enrage to 771.9, still in P3). Other jumps skip
+  them like any other reminder: one that starts in another phase, one that lands two or more
+  phases on (a preview that cuts whole phases), and a timeline started mid-fight (a pull
+  joined in combat: the plugin passes the start as a jump from −∞, never from 0).
 - `when_ready` entries stay Due past `press` until the action comes off cooldown, then
   until used or `latest`.
 

@@ -12,7 +12,8 @@ namespace MitCue.Core.Tests.Reminders;
 /// <summary>
 /// Simulated TOP pulls with a phase push, played through the sync engine and the scheduler the way the plugin's
 /// <c>EncounterSession</c> drives them: the frame's events first, then a tick and a scheduler update every 50 ms, and
-/// every sync with <see cref="SyncResult.IsJump"/> forwarded to <see cref="ReminderScheduler.OnTimelineJump"/>.
+/// every sync with <see cref="SyncResult.IsJump"/> forwarded to <see cref="ReminderScheduler.OnTimelineJump"/> (a sync
+/// that started the stopped timeline from −∞).
 /// The fight, its timeline and the action catalog are the bundled data files.
 /// </summary>
 public class ReminderTopPhasePushTests
@@ -203,7 +204,7 @@ public class ReminderTopPhasePushTests
             {
                 if (r.Stopped || !r.IsJump)
                     return;
-                this.Scheduler.OnTimelineJump(r.FromTime, r.ToTime);
+                this.Scheduler.OnTimelineJump(r.Started ? double.NegativeInfinity : r.FromTime, r.ToTime); // a start comes from −∞
                 this.Jumps.Add(new Jump(r, this.Scheduler.All.ToDictionary(x => x, x => x.State)));
             };
             this.Scheduler.BecameDue += r => this.Due.Add((r, this.now));

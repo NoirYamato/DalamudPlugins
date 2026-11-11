@@ -224,10 +224,9 @@ public class ReminderPhaseEndTests
     }
 
     [Theory]
-    [InlineData(199.99)]   // still in P1: the phase did not end
-    [InlineData(400.0)]    // past P2 as well (an enrage branch, or a pull joined later): not this reminder's phase end
+    [InlineData(400.0)]    // past P2 as well (a preview that cuts whole phases): not this reminder's phase end
     [InlineData(450.0)]
-    public void JumpThatDoesNotEndTheReminderPhase_SkipsItLikeAnyOther(double to)
+    public void JumpThatLandsTwoPhasesOn_SkipsItLikeAnyOther(double to)
     {
         var s = Scheduler(RampartAsP1Dies());
 
@@ -236,6 +235,99 @@ public class ReminderPhaseEndTests
         Assert.Equal(ReminderState.Skipped, s.All[0].State);
         Assert.Null(s.All[0].PhaseEndDueAt);
         Assert.Equal(139.7, s.All[0].Latest, Kit.Tolerance);
+    }
+
+    // ---- pushes inside a phase (a stage of it ends before its enrage, e.g. TEA P3's DPS check) ----------------
+
+    [Theory]
+    [InlineData("p1.late", 199.99)]     // flagged, hit 140: the push stays in P1
+    [InlineData("p1.late", 145.0)]
+    [InlineData("p1.enrage", 160.0)]    // enrage anchor, hit 150 (press 144)
+    [InlineData("p1.enrage", 150.0)]    // lands on the hit: passed
+    public void PushInsideThePhase_PastThePhaseEndHit_MakesItDueAtTheJump(string mechanic, double to)
+    {
+        var phaseEnd = mechanic == "p1.late" ? RampartAsP1Dies() : Kit.Entry(mechanic, null, Kit.Do(Kit.Rampart));
+        var normal = Kit.Entry("p1.late", null, Kit.Do(Kit.Temperance));          // press 134, hit 140: jumped over
+        var s = Scheduler(phaseEnd, normal);
+        var due = Kit.RecordDue(s);
+        var byEntry = s.All.ToDictionary(r => r.Entry);
+        var r = byEntry[phaseEnd];
+
+        s.Update(118);
+        s.OnTimelineJump(120, to);
+
+        Assert.True(r.IsPhaseEnd);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal(to, r.PhaseEndDueAt);
+        Assert.Equal(to + Grace, r.Latest, Kit.Tolerance);
+        Assert.Equal(ReminderState.Skipped, byEntry[normal].State);
+        Assert.Empty(due);
+
+        s.Update(to);
+        s.Update(to + Grace);
+        Assert.Equal([r], due);                             // announced once, by the first update after the push
+        Assert.Equal(ReminderState.Due, r.State);
+        s.Update(to + Grace + 0.01);
+        Assert.Equal(ReminderState.Missed, r.State);
+    }
+
+    [Fact]
+    public void PushInsideThePhase_AfterTheCallTurnedNow_ExtendsIt_InsteadOfMissingIt()
+    {
+        var s = Scheduler(Kit.Entry("p1.enrage", null, Kit.Do(Kit.Rampart)));     // press 144, due from 142.5, latest 149.7
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.Update(145);
+        Assert.Equal([r], due);
+        s.OnTimelineJump(145, 180);                         // the stage ends after the call turned NOW: still P1
+
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal(180, r.PhaseEndDueAt);
+        Assert.Equal(188, r.Latest, Kit.Tolerance);
+        s.Update(180);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal(0, s.Summarize().Missed);
+        s.OnOwnAction(Kit.Rampart.Id, 183);
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.Equal([r], due);                             // no second sound
+        Assert.Equal((1, 1, 0), (s.Summarize().Total, s.Summarize().Done, s.Summarize().Missed));
+    }
+
+    [Theory]
+    [InlineData(144.0)]    // reaches the press time only
+    [InlineData(149.0)]    // the hit (150) and the window (149.7) are still ahead
+    public void ResyncInsideThePhase_ThatDoesNotPassTheHitOrTheWindow_LeavesItAsPlanned(double to)
+    {
+        // Like TOP's resync on the Atomic Ray cast (122.7, window 20,20) before the P1 enrage hit (127.7).
+        var s = Scheduler(Kit.Entry("p1.enrage", null, Kit.Do(Kit.Rampart)));     // press 144, latest 149.7
+        var due = Kit.RecordDue(s);
+        var r = s.All[0];
+
+        s.OnTimelineJump(125, to);
+        Assert.Null(r.PhaseEndDueAt);
+        Assert.Equal(ReminderState.Pending, r.State);
+
+        s.Update(to);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal(149.7, r.Latest, Kit.Tolerance);       // its own window, not the grace
+        Assert.Equal([r], due);
+    }
+
+    [Fact]
+    public void PushInsideALaterPhase_DoesNotCatchADueReminderOfAnEarlierPhase()
+    {
+        var s = Scheduler(RampartAsP1Dies().AsWhenReady());
+        var r = s.All[0];
+        var cooldowns = new FakeCooldowns().Set(Kit.Rampart, 120);
+
+        s.Update(133, cooldowns);
+        s.Update(210, cooldowns);                           // P1 ended without a jump; still waiting for the cooldown
+        s.OnTimelineJump(215, 260);                         // a push inside P2
+
+        Assert.Null(r.PhaseEndDueAt);
+        Assert.Equal(139.7, r.Latest, Kit.Tolerance);
+        Assert.Equal(ReminderState.Due, r.State);
     }
 
     [Fact]
@@ -255,9 +347,10 @@ public class ReminderPhaseEndTests
     }
 
     [Theory]
-    [InlineData(0.0)]      // a timeline started from stopped (a pull joined in P2): SyncResult.FromTime is 0
+    [InlineData(0.0)]
     [InlineData(150.0)]
     [InlineData(199.99)]
+    [InlineData(double.NegativeInfinity)]  // a timeline started from stopped (a pull joined in P3), as the plugin passes it
     public void JumpThatStartsBeforeTheReminderPhase_SkipsIt(double from)
     {
         var s = Scheduler(Kit.Entry("p2.enrage", null, Kit.Do(Kit.Rampart)));   // press 344
@@ -265,6 +358,27 @@ public class ReminderPhaseEndTests
         s.OnTimelineJump(from, 400);
 
         Assert.Equal(ReminderState.Skipped, s.All[0].State);
+    }
+
+    [Theory]
+    [InlineData(152.0)]    // started inside P1, past both hits (140, 150)
+    [InlineData(200.0)]    // started in P2 (a pull joined during P1, synced by the P2 start)
+    [InlineData(203.4)]
+    public void TimelineStartedFromStopped_PassedAsAJumpFromMinusInfinity_EndsNoPhase(double to)
+    {
+        // A start comes from no earlier time (SyncResult.FromTime 0 only means "stopped"): it is passed from −∞, so even
+        // the P1 calls, whose phase contains 0, are skipped like any other reminder instead of turning NOW at the start.
+        var flagged = RampartAsP1Dies();                                            // press 134
+        var enrage = Kit.Entry("p1.enrage", null, Kit.Do(Kit.DivineBenison));       // press 146
+        var s = Scheduler(flagged, enrage);
+        var due = Kit.RecordDue(s);
+
+        s.OnTimelineJump(double.NegativeInfinity, to);
+        s.Update(to);
+
+        Assert.All(s.All, r => Assert.Equal(ReminderState.Skipped, r.State));
+        Assert.All(s.All, r => Assert.Null(r.PhaseEndDueAt));
+        Assert.Empty(due);
     }
 
     [Fact]

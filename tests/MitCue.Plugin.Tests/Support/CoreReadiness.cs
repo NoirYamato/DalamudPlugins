@@ -8,24 +8,35 @@ namespace MitCue.PluginTests.Support;
 
 /// <summary>
 /// Whether this build of MitCue.Core has what the integration tests drive: the TOP fight catalog, the timeline parser
-/// and player, the fight simulator and the plan serializer. Until every piece is in, those tests are skipped (with
-/// the reason); any other failure is left to the tests themselves.
+/// and player, the fight simulator and the plan serializer. While a piece is still a stub (it throws
+/// <see cref="NotImplementedException"/>), those tests are skipped with the reason. Anything else is a failure, never a
+/// skip: a bundled fight file that does not load (<see cref="FightLibrary.Problems"/>; the library leaves such a file
+/// out instead of throwing) or a missing TOP fight makes the check throw, so every integration test fails with the
+/// message.
 /// </summary>
 internal static class CoreReadiness
 {
-    private static readonly Lazy<string?> Missing = new(Check);
+    private static readonly Lazy<string?> Missing = new(() => Check(new EmbeddedDataSource()));
 
     /// <summary>Why the integration tests cannot run, or null when they can.</summary>
+    /// <exception cref="InvalidOperationException">The bundled fight data is broken (cached: thrown on every read).</exception>
     public static string? MissingReason => Missing.Value;
 
-    private static string? Check()
+    /// <summary>The check behind <see cref="MissingReason"/>, on the given data.</summary>
+    /// <exception cref="InvalidOperationException">A fight file did not load, or there is no TOP fight.</exception>
+    internal static string? Check(IDataSource data)
     {
         try
         {
-            var library = new FightLibrary(new EmbeddedDataSource());
-            if (library.Get("top") is not { } top)
-                return "the TOP fight catalog (data/fights/top.yaml) is not in this build";
+            var library = new FightLibrary(data);
+            if (library.Problems.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "The bundled fight data did not load cleanly: " + string.Join(" | ", library.Problems.Select(p => p.Message)));
+            }
 
+            var top = library.Get("top")
+                ?? throw new InvalidOperationException("The bundled fight data has no TOP fight (data/fights/top.yaml).");
             var timeline = library.LoadTimeline(top);
             _ = new TimelinePlayer(timeline).TimeAt(0);
             _ = FightSimulator.Generate(timeline, top, new SimulationOptions());
@@ -40,7 +51,10 @@ internal static class CoreReadiness
     }
 }
 
-/// <summary>A test that needs the full MitCue.Core (see <see cref="CoreReadiness"/>); skipped until it is in.</summary>
+/// <summary>
+/// A test that needs the full MitCue.Core (see <see cref="CoreReadiness"/>): skipped while a piece of it is a stub, and
+/// failed (an error while the attribute is read) when the bundled fight data is broken.
+/// </summary>
 public sealed class CoreFactAttribute : FactAttribute
 {
     public CoreFactAttribute()

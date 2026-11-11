@@ -122,6 +122,13 @@ public sealed class ReminderScheduler
     /// resync or loop): reminders the jump made pointless are Skipped, phase-end reminders of the phase
     /// it ends become Due, rewound ones are reopened.
     /// </summary>
+    /// <param name="fromTime">
+    /// Timeline time before the jump, or −∞ for a jump from nowhere: a bulk skip of everything before
+    /// <paramref name="toTime"/>, or a timeline that started from stopped (e.g. a pull joined mid-fight). Pass such
+    /// a start as a jump from −∞, not from 0: it skips what it passed and never ends a phase (the plugin's session
+    /// does so).
+    /// </param>
+    /// <param name="toTime">Timeline time after the jump.</param>
     /// <remarks>
     /// <para>
     /// Forward jump: a Pending/Upcoming reminder whose press time lies in (from, to] becomes Skipped
@@ -140,12 +147,13 @@ public sealed class ReminderScheduler
     /// <list type="bullet">
     /// <item>reached its press time (press ≤ to; it may already be Upcoming or Due),</item>
     /// <item>passed its hit or its planned use window (hit in (from, to], or latest &lt; to), and</item>
-    /// <item>starts in the phase its press time belongs to and lands in the phase right after it (a press exactly at
-    /// a phase start belongs to the phase ending there). In a fight without phases every such jump counts. Any other
-    /// jump does not end the reminder's phase and skips it by the rule above: one that starts in another phase (a
-    /// timeline started from stopped, which jumps from 0, e.g. a pull joined mid-fight), one that lands further on
-    /// (a preview that cuts whole phases, an enrage branch), and one from −∞ (a bulk skip of everything before a
-    /// time).</item>
+    /// <item>starts in the phase its press time belongs to (a press exactly at a phase start belongs to the phase
+    /// ending there) and lands in that phase or the next one: a phase push, or a push inside the phase that ends a
+    /// stage of it before its enrage (TEA P3: killing the adds of the DPS check jumps over the Eternal Darkness enrage
+    /// to 771.9, still in P3). In a fight without phases every such jump counts. The other jumps skip it by the rule
+    /// above: one that starts in another phase, one that lands two or more phases on (a preview that cuts whole
+    /// phases), and one from −∞ (a bulk skip, or a timeline that started from stopped, see
+    /// <paramref name="fromTime"/>).</item>
     /// </list>
     /// <para>
     /// It becomes Due at once, <see cref="Reminder.Latest"/> moves to max(latest, to + grace), where grace =
@@ -441,8 +449,8 @@ public sealed class ReminderScheduler
         Math.Min(r.Earliest, r.PressAt - Math.Max(this.Options.Lookahead, this.Options.DueLead));
 
     /// <summary>
-    /// True when the forward jump from <paramref name="from"/> to <paramref name="to"/> ends the phase of a
-    /// phase-end reminder that is still waiting to be pressed (the conditions are listed on
+    /// True when the forward jump from <paramref name="from"/> to <paramref name="to"/> ends the phase (or the stage
+    /// of it) of a phase-end reminder that is still waiting to be pressed (the conditions are listed on
     /// <see cref="OnTimelineJump"/>).
     /// </summary>
     private bool EndsPhaseOf(Track track, double from, double to)
@@ -454,16 +462,15 @@ public sealed class ReminderScheduler
             && double.IsFinite(from)
             && r.PressAt <= to
             && ((r.Hit > from && r.Hit <= to) || track.PlannedLatest < to)
-            && this.LeavesPhaseForTheNext(r.PressAt, from, to);
+            && this.StartsInPhaseAndLandsInItOrTheNext(r.PressAt, from, to);
     }
 
     /// <summary>
-    /// True when a jump from <paramref name="from"/> to <paramref name="to"/> leaves the phase <paramref name="pressAt"/>
-    /// belongs to for the phase right after it: <paramref name="from"/> lies in the press time's phase (a press exactly at
-    /// a phase start belongs to the phase ending there) and <paramref name="to"/> in the next one. Always true for a fight
-    /// without phases; never for a press time before the first phase.
+    /// True when a jump from <paramref name="from"/> to <paramref name="to"/> starts in the phase <paramref name="pressAt"/>
+    /// belongs to (a press exactly at a phase start belongs to the phase ending there) and lands in that phase or the
+    /// one right after it. Always true for a fight without phases; never for a press time before the first phase.
     /// </summary>
-    private bool LeavesPhaseForTheNext(double pressAt, double from, double to)
+    private bool StartsInPhaseAndLandsInItOrTheNext(double pressAt, double from, double to)
     {
         if (this.phaseStarts.Length == 0)
             return true;
@@ -478,7 +485,9 @@ public sealed class ReminderScheduler
             if (start <= to)
                 startedAtTo++;
         }
-        return beforePress > 0 && startedAtFrom == beforePress && startedAtTo == beforePress + 1;
+        return beforePress > 0
+            && startedAtFrom == beforePress
+            && (startedAtTo == beforePress || startedAtTo == beforePress + 1);
     }
 
     private void Advance(Track track, double t, ICooldownProvider? cooldowns)

@@ -15,7 +15,8 @@ namespace MitCue.PluginTests.Integration;
 /// <summary>
 /// Phase-end reminders (DESIGN §5.2) through the plugin's <see cref="EncounterSession"/> on the real TOP timeline: the
 /// session forwards the sync of a phase push (<see cref="SyncResult.IsJump"/>) to the scheduler, which makes the
-/// phase-end calls of the phase it ends due at the jump, and the sound request (BecameDue) comes in that frame.
+/// phase-end calls of the phase it ends due at the jump, and the sound request (BecameDue) comes in that frame. A sync
+/// that starts the stopped timeline is forwarded from −∞, so it never ends a phase.
 /// </summary>
 public class PhaseEndJumpTests
 {
@@ -95,6 +96,45 @@ public class PhaseEndJumpTests
         Assert.Equal(ReminderState.Skipped, Reminder(session, p2End).State);
         Assert.All(session.Scheduler.All, r => Assert.Null(r.PhaseEndDueAt));
         Assert.Equal([Reminder(session, p3)], due);         // only the P3 call is announced
+    }
+
+    [CoreFact]
+    public void APullJoinedDuringP1_TheP2SyncStartsTheTimeline_AndNoP1CallIsAnnouncedOrMissed()
+    {
+        // Loaded in combat during P1 (a reconnect or a plugin reload: no InCombat edge), the stopped timeline is started by
+        // the first sync whose window contains 0: the P2 Firewall cast (7B40 at 203.4, window 210,5). Its SyncResult says
+        // FromTime 0, but the session forwards a start as a jump from −∞: P1 did not end there, so the P1 enrage call is
+        // skipped instead of turning NOW with a sound, and the pre-pull call is skipped instead of counted missed.
+        var (top, timeline) = Top();
+        var p1End = Kit.Entry("p1.atomic_ray", -6, Rampart, "Rampart", Job.SCH);          // enrage anchor: press 121.7
+        var prePull = Kit.Entry("p1.pull", -5, Kit.SacredSoil, "Sacred Soil", Job.SCH);    // press −5
+        var p2 = Kit.Entry("p2.solar_ray", -4.5, Kit.SacredSoil, "Sacred Soil", Job.SCH);  // press 210: after the start
+        var session = Session(top, timeline, p1End, prePull, p2);
+        var due = new List<(double TimelineTime, Reminder Reminder)>();
+        session.BecameDue += (s, r) => due.Add((s.TimelineTime, r));
+
+        for (var clock = Pull; clock < Pull + 1; clock += Frame)
+            session.Update(clock, null, inCombat: true, null);     // in combat, timeline stopped
+        session.Process(new CastStarted(Pull + 1, 0x7B40, 0x40000001, "Omega", 3f, 0x40000001));
+        for (var clock = Pull + 1; clock <= Pull + 10; clock += Frame)
+            session.Update(clock, null, inCombat: true, null);
+
+        var start = Enumerable.Range(0, session.Syncs.Count).Select(i => session.Syncs[i]).Single();
+        Assert.True(start.Started);
+        Assert.Equal((0.0, 203.4), (start.FromTime, start.ToTime));
+        Assert.Equal(1, session.Jumps);
+        Assert.True(session.PullActive);
+        Assert.InRange(session.TimelineTime, 212, 213);
+
+        var rP1End = Reminder(session, p1End);
+        Assert.Equal(ReminderState.Skipped, rP1End.State);
+        Assert.Null(rP1End.PhaseEndDueAt);
+        Assert.Equal(ReminderState.Skipped, Reminder(session, prePull).State);
+        var sound = Assert.Single(due);                            // only the P2 call, at its own time
+        Assert.Equal(Reminder(session, p2), sound.Reminder);
+        Assert.InRange(sound.TimelineTime, 208.5, 208.5 + Frame);
+        var summary = session.Scheduler.Summarize();
+        Assert.Equal((2, 0), (summary.Skipped, summary.Missed));
     }
 
     private static (FightDefinition Top, Timeline Timeline) Top()
