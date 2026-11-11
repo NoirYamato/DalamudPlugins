@@ -16,9 +16,10 @@ public sealed record ColumnPick(string? AssigneeKey, string? Slot);
 /// LPDU's "H2 SCH" has the Scholar's P1/P2 calls of the job-less "H2" column, and a tank-pair column such as
 /// "WAR/DRK WAR" the job-less "MT" calls. Columns of one team composition each ("WAR/DRK WAR", "WAR/GNB WAR" and
 /// "WAR/PLD WAR": <see cref="IsComposition"/>) are alternatives: the player plays one of them, the one with the
-/// party's co-tank when the party is known. The job's other columns (a column per phase or per tab) are all the
-/// player's: a sheet whose P1/P2 tab is headed "SCH" and whose P3 tab is headed "H2 SCH" gets "any column for SCH in
-/// slot H2".
+/// party's co-tank when the party is known (a composition split over per-phase tabs is one: <see cref="SameComposition"/>).
+/// The job's other columns (a column per phase or per tab) are all the player's: a sheet whose P1/P2 tab is headed "SCH"
+/// and whose P3 tab is headed "H2 SCH" gets "any column for SCH in slot H2". Without a column for the job and a slot,
+/// the job's calls give the slot (<see cref="ForJob"/>).
 /// </summary>
 public static class ColumnSuggestion
 {
@@ -26,7 +27,9 @@ public static class ColumnSuggestion
     /// The job's column: the column whose job is <paramref name="job"/> (preferring the one in <paramref name="slot"/>
     /// when several match), else the column of <paramref name="slot"/>; null when there is none. When that column is
     /// one team composition (<see cref="IsComposition"/>) and the party is known, the job's column for a composition the
-    /// party plays is taken instead: LPDU's "WAR/PLD WAR" for a Warrior whose co-tank is a Paladin.
+    /// party plays is taken instead: LPDU's "WAR/PLD WAR" for a Warrior whose co-tank is a Paladin. When the party plays
+    /// none of them, the job's first column that is no composition is taken if there is one: Carry the Clear's "White
+    /// Mage" tab (for any co-healer) for a White Mage next to a Sage, whichever tab comes first in the sheet.
     /// </summary>
     /// <param name="plan">The plan.</param>
     /// <param name="job">The player's job.</param>
@@ -57,20 +60,81 @@ public static class ColumnSuggestion
             }
         }
 
-        if (byJob != null && party is { Count: > 0 } && IsComposition(byJob) && !PlayedBy(byJob, job, party)
-            && plan.Assignees.FirstOrDefault(a => a != null && a.Job == job && IsComposition(a) && PlayedBy(a, job, party)) is { } played)
+        if (byJob != null && party is { Count: > 0 } && IsComposition(byJob) && !PlayedBy(byJob, job, party))
         {
-            return played;
+            return plan.Assignees.FirstOrDefault(a => a != null && a.Job == job && IsComposition(a) && PlayedBy(a, job, party))
+                   ?? plan.Assignees.FirstOrDefault(a => a != null && a.Job == job && !IsComposition(a))
+                   ?? byJob;
         }
 
         return byJob ?? bySlot;
     }
 
-    /// <summary>The job's column as a choice: its key and slot (else <paramref name="defaultSlot"/> when it is a slot of the job's role).</summary>
+    /// <summary>
+    /// The job's column as a choice: its key and slot, else <paramref name="defaultSlot"/> when it is a slot of the job's
+    /// role. Without either, a plan with no column for the job (a role sheet such as LPDU's ranged columns "R1" and
+    /// "R2") gives the slot of the job's calls (<see cref="SeatOfCalls"/>), so the player gets one seat's calls, not those
+    /// of every seat the job has calls in.
+    /// </summary>
     public static ColumnPick ForJob(MitPlan plan, Job job, string? defaultSlot, IReadOnlyCollection<Job>? party = null)
     {
         var column = JobColumn(plan, job, defaultSlot, party);
-        return new ColumnPick(column?.Key, column?.Slot ?? Slots.ForJob(defaultSlot, job));
+        var slot = column?.Slot ?? Slots.ForJob(defaultSlot, job);
+        if (column == null && slot == null)
+            slot = SeatOfCalls(plan, job, party);
+        return new ColumnPick(column?.Key, slot);
+    }
+
+    /// <summary>
+    /// The seats the party settles: each slot in which one party job, and only one, has all of its calls that name a
+    /// slot (LPDU's Bard, whose calls are all in R1). A party job with calls in several slots (LPDU's Red Mage: R1 and
+    /// R2) does not play a slot that is another party job's seat. Empty when the party is unknown.
+    /// </summary>
+    /// <param name="plan">The plan.</param>
+    /// <param name="party">The jobs in the player's party, or null/empty when unknown.</param>
+    public static IReadOnlyDictionary<string, Job> PartySeats(MitPlan plan, IReadOnlyCollection<Job>? party)
+    {
+        var seats = new Dictionary<string, Job>(StringComparer.Ordinal);
+        if (party is not { Count: > 0 })
+            return seats;
+
+        var slotsOf = new Dictionary<Job, HashSet<string>>();
+        foreach (var e in plan.Entries)
+        {
+            if (e?.Who is { Job: { } job } who && job != Job.None && party.Contains(job) && Slots.TryNormalize(who.Slot, out var slot))
+            {
+                if (!slotsOf.TryGetValue(job, out var slots))
+                    slotsOf[job] = slots = [];
+                slots.Add(slot);
+            }
+        }
+
+        foreach (var holders in slotsOf.Where(kv => kv.Value.Count == 1).GroupBy(kv => kv.Value.First()))
+        {
+            if (holders.Count() == 1)
+                seats[holders.Key] = holders.First().Key;
+        }
+
+        return seats;
+    }
+
+    /// <summary>
+    /// The player's seat when the plan has no column for their job and their slot is unknown: the first slot of the job's
+    /// role (<see cref="Slots.Standard"/> order) that the job's calls name, as the first tank pair is taken outside a
+    /// party, passing over a slot that is another party job's seat (<see cref="PartySeats"/>). LPDU's Red Mage has calls
+    /// in R1 and R2: R1, or R2 next to a Bard. Null when the job's calls name no slot of its role.
+    /// </summary>
+    private static string? SeatOfCalls(MitPlan plan, Job job, IReadOnlyCollection<Job>? party)
+    {
+        if (job == Job.None)
+            return null;
+        var slots = Slots.Standard
+            .Where(s => Slots.Fits(s, job) && plan.Entries.Exists(e => e?.Who is { } who && who.Job == job && Slots.TryNormalize(who.Slot, out var es) && es == s))
+            .ToList();
+        if (slots.Count < 2)
+            return slots.FirstOrDefault();
+        var seats = PartySeats(plan, party);
+        return slots.FirstOrDefault(s => !seats.TryGetValue(s, out var holder) || holder == job) ?? slots[0];
     }
 
     /// <summary>The automatic choice: <see cref="Complete"/> when the job's column leaves out some of the player's calls, else the job's column.</summary>
@@ -159,6 +223,22 @@ public static class ColumnSuggestion
     /// <see cref="LayoutDetector.JobsFromTabName"/>). Such columns of one job are alternatives of each other.
     /// </summary>
     public static bool IsComposition(Assignee column) => LayoutDetector.JobsFromTabName(column.Key).Count >= 2;
+
+    /// <summary>
+    /// True when both column keys name the same team composition (<see cref="IsComposition"/>): "WHM/SCH P1 WHM" and
+    /// "WHM/SCH P3 WHM", one composition split over per-phase tabs whose headers the importer told apart by the tab
+    /// name. A job's columns for one composition are one seat; "WAR/DRK WAR" and "WAR/GNB WAR" are not the same.
+    /// </summary>
+    public static bool SameComposition(string? a, string? b)
+    {
+        if (a == null || b == null)
+            return false;
+        var x = LayoutDetector.JobsFromTabName(a);
+        if (x.Count < 2)
+            return false;
+        var y = LayoutDetector.JobsFromTabName(b);
+        return x.Count == y.Count && x.All(y.Contains);
+    }
 
     /// <summary>
     /// True when at least half of the mechanics with calls in <paramref name="column"/> have calls in
@@ -257,7 +337,8 @@ public static class ColumnSuggestion
     /// its combined tab are two). The job's other composition columns are alternatives (another tank pair). The same
     /// holds the other way round: when <paramref name="columnKey"/> is a composition column, a column of the job that
     /// repeats its calls is the same seat written twice and not counted (Carry the Clear's White Mage tab when the
-    /// combined tab comes first in the sheet, or was chosen), whichever comes first.
+    /// combined tab comes first in the sheet, or was chosen), whichever comes first. The job's other columns for the
+    /// same composition (<see cref="SameComposition"/>: the composition split over per-phase tabs) are the player's too.
     /// </summary>
     /// <param name="plan">The plan (for <see cref="Repeats"/>).</param>
     /// <param name="playerColumns">The player's columns (<see cref="PlayerColumns"/>).</param>
@@ -276,6 +357,9 @@ public static class ColumnSuggestion
         {
             intended.RemoveAll(a => !ReferenceEquals(a, chosen) && HasJob(a) && Repeats(plan, a, [chosen]));
         }
+
+        if (intended.FirstOrDefault(a => HasJob(a) && IsComposition(a)) is { } seat)
+            intended.AddRange(playerColumns.Where(a => !intended.Contains(a) && a.Job == seat.Job && SameComposition(a.Key, seat.Key)));
 
         return playerColumns.Where(intended.Contains).Select(a => a.Key).ToList();
 

@@ -184,10 +184,13 @@ internal sealed class EncounterSession
     /// countdown once a call (the player's or a partner's) is shown or done: settings and party changes wait until it is
     /// over, so a rebuild never drops a pre-pull call already shown or done. Before that a countdown loses nothing to a
     /// rebuild (the new session takes the countdown up on its first update), so a co-tank who shows up in the party list
-    /// after /countdown still gets the player their tank pair's column for the pull.
+    /// after /countdown still gets the player their tank pair's column for the pull. A timeline this frame's events
+    /// started (the pull's InCombat edge, fed before the session's update sets <see cref="PullActive"/>) counts as the
+    /// pull: a session rebuilt then would never see that edge and would not follow the pull.
     /// </summary>
     public bool IsBusy =>
         this.PullActive
+        || this.Player.IsRunning
         || this.countdownEndedClock != null
         || (this.Mode == SessionMode.Countdown && (this.AnyReminderTouched() || (this.Others != null && AnyTouched(this.Others))));
 

@@ -357,6 +357,113 @@ public class ColumnSuggestionTests
     }
 
     [Theory]
+    [InlineData(Job.RDM, null, null, "R1", 9)]                                     // calls in R1 and R2: the first
+    [InlineData(Job.RDM, "M1", null, "R1", 9)]                                     // a usual slot of another role is none
+    [InlineData(Job.RDM, null, new[] { Job.BRD, Job.RDM, Job.SAM }, "R2", 13)]     // the Bard's calls are all in R1
+    [InlineData(Job.RDM, null, new[] { Job.PCT, Job.RDM, Job.SAM }, "R1", 9)]      // the Pictomancer's are in both
+    [InlineData(Job.PCT, null, new[] { Job.MCH, Job.PCT, Job.SAM }, "R2", 7)]      // the Machinist's are all in R1
+    [InlineData(Job.PCT, null, new[] { Job.BLM, Job.PCT, Job.SAM }, "R1", 9)]      // the Black Mage's are all in R2
+    [InlineData(Job.RDM, "R2", new[] { Job.BRD, Job.RDM, Job.SAM }, "R2", 13)]
+    [InlineData(Job.RDM, "R1", new[] { Job.BRD, Job.RDM, Job.SAM }, "R1", 9)]      // the usual slot wins
+    [InlineData(Job.BRD, null, null, "R1", 9)]
+    [InlineData(Job.SMN, null, null, "R2", 7)]
+    public void WithoutAColumnOrASlotTheJobsCallsGiveTheSlot(Job job, string? slot, Job[]? party, string expectedSlot, int entries)
+    {
+        // Review round 5: LPDU has no column for the ranged jobs, only "R1" and "R2" with calls per job, and a Red Mage
+        // without a ranged usual slot got the calls of both seats (22 entries, Magick Barrier twice at four mechanics).
+        var pick = ColumnSuggestion.Suggest(Lpdu, job, slot, party);
+        var selection = Selection(Lpdu, job, slot, party);
+
+        Assert.Equal(expectedSlot, pick.Slot);
+        Assert.Equal(entries, selection.Count);
+        Assert.All(selection, e => Assert.Equal(expectedSlot, e.Who.Slot));
+    }
+
+    [Fact]
+    public void AColumnOfTheJobKeepsTheSlotUnknown()
+    {
+        // A Warrior without a tank slot follows their pair's column without the slot calls: whether they tank MT or OT is not
+        // guessed (their calls are in both), and a job without calls in a slot gets none.
+        Assert.Equal(new ColumnPick("WAR/DRK WAR", null), ColumnSuggestion.Suggest(Lpdu, Job.WAR, null));
+        Assert.Equal(new ColumnPick(null, null), ColumnSuggestion.Suggest(Lpdu, Job.SAM, null));
+        Assert.Equal(new ColumnPick(null, null), ColumnSuggestion.Suggest(Lpdu, Job.None, null));
+    }
+
+    [Fact]
+    public void ThePartySettlesTheSeatsOfJobsWithCallsInOneSlot()
+    {
+        IReadOnlyDictionary<string, Job> Seats(params Job[] party) => ColumnSuggestion.PartySeats(Lpdu, party);
+
+        Assert.Equal(new Dictionary<string, Job> { ["R1"] = Job.BRD, ["H1"] = Job.WHM, ["H2"] = Job.SCH }, Seats(Job.WHM, Job.SCH, Job.BRD, Job.RDM));
+        Assert.Equal(new Dictionary<string, Job> { ["R1"] = Job.BRD, ["R2"] = Job.BLM }, Seats(Job.BRD, Job.BLM, Job.RDM));
+        Assert.Empty(Seats(Job.PCT, Job.RDM)); // both have calls in R1 and R2
+        Assert.Empty(Seats(Job.BRD, Job.MCH)); // both in R1: whose seat it is cannot be told
+        Assert.Empty(Seats(Job.WAR, Job.DRK)); // tank calls in MT and OT
+        Assert.Empty(Seats());
+    }
+
+    /// <summary>One healer composition split over per-phase tabs, as the importer keys tabs whose headers collide.</summary>
+    private static MitPlan PhaseTabs() => new()
+    {
+        Assignees =
+        [
+            new Assignee { Key = "WHM/SCH P1 WHM", Job = Job.WHM },
+            new Assignee { Key = "WHM/SCH P1 SCH", Job = Job.SCH },
+            new Assignee { Key = "WHM/SGE P1 WHM", Job = Job.WHM },
+            new Assignee { Key = "WHM/SCH P3 WHM", Job = Job.WHM },
+            new Assignee { Key = "WHM/SCH P3 SCH", Job = Job.SCH },
+            new Assignee { Key = "WHM/SGE P3 WHM", Job = Job.WHM },
+        ],
+        Entries =
+        [
+            Make("p1-whm", "WHM/SCH P1 WHM", Job.WHM, null, "p1.pantokrator"),
+            Make("p1-sch", "WHM/SCH P1 SCH", Job.SCH, null, "p1.pantokrator"),
+            Make("p1-whm-sge", "WHM/SGE P1 WHM", Job.WHM, null, "p1.pantokrator"),
+            Make("p3-whm", "WHM/SCH P3 WHM", Job.WHM, null, "p3.hello_world"),
+            Make("p3-sch", "WHM/SCH P3 SCH", Job.SCH, null, "p3.hello_world"),
+            Make("p3-whm-sge", "WHM/SGE P3 WHM", Job.WHM, null, "p3.hello_world"),
+        ],
+    };
+
+    [Theory]
+    [InlineData(new Job[0], "WHM/SCH P1 WHM", new[] { "p1-whm", "p3-whm" })]
+    [InlineData(new[] { Job.WHM, Job.SGE }, "WHM/SGE P1 WHM", new[] { "p1-whm-sge", "p3-whm-sge" })]
+    public void OneCompositionSplitOverPhaseTabsIsOneSeat(Job[] party, string column, string[] expected)
+    {
+        // Review round 5: the P3 tab's column was taken for another composition, so its calls were never shown.
+        var plan = PhaseTabs();
+        Assert.Equal(column, ColumnSuggestion.Suggest(plan, Job.WHM, "H1", party).AssigneeKey);
+        Assert.Equal(expected, Selection(plan, Job.WHM, "H1", party).Select(e => e.Id));
+
+        var columns = ColumnSuggestion.PlayerColumns(plan.Assignees, Job.WHM, "H1");
+        Assert.Equal([column, column.Replace("P1", "P3", StringComparison.Ordinal)], ColumnSuggestion.IntendedColumns(plan, columns, column));
+    }
+
+    [Theory]
+    [InlineData("WHM/SCH P1 WHM", "WHM/SCH P3 WHM", true)]
+    [InlineData("WHM/SCH P1 WHM", "SCH/WHM P3 WHM", true)]
+    [InlineData("WAR/DRK WAR", "WARDRK P6 WAR", true)]
+    [InlineData("WAR/DRK WAR", "WAR/GNB WAR", false)]
+    [InlineData("White Mage", "White Mage P3", false)] // one job: no composition
+    [InlineData("WHM/SCH P1 WHM", null, false)]
+    public void TheSameCompositionIsTheSameJobsInAnyOrder(string? a, string? b, bool same) =>
+        Assert.Equal(same, ColumnSuggestion.SameComposition(a, b));
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACompositionThePartyDoesNotPlayGivesWayToTheJobsOwnColumn(bool combinedFirst)
+    {
+        // Review round 5: with the combined tab first, a White Mage next to a Sage followed "TOP – WHM + SCH White Mage"
+        // (calls written for a Scholar co-healer); the White Mage tab is the seat for any co-healer.
+        var plan = combinedFirst ? LazyCombinedTabFirst.Value : LazyCarryTheClear.Value;
+        Assert.Equal("White Mage", ColumnSuggestion.Suggest(plan, Job.WHM, "H1", [Job.GNB, Job.PLD, Job.WHM, Job.SGE]).AssigneeKey);
+        Assert.Equal(
+            combinedFirst ? "TOP – WHM + SCH White Mage" : "White Mage",
+            ColumnSuggestion.Suggest(plan, Job.WHM, "H1", [Job.GNB, Job.PLD, Job.WHM, Job.SCH]).AssigneeKey);
+    }
+
+    [Theory]
     [InlineData("WAR/DRK WAR", true)]
     [InlineData("WARDRK WAR", true)] // the xlsx export's tab name
     [InlineData("TOP – WHM + SCH White Mage", true)]

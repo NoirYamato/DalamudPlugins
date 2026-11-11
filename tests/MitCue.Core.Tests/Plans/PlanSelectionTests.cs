@@ -22,6 +22,10 @@ public class PlanSelectionTests
     [InlineData("WAR/GNB WAR", Job.WAR, null, false)] // another column of the player's job: another tank pair
     [InlineData("CM LB Tank", Job.WAR, null, false)]
     [InlineData(null, null, "MT", true)]            // no column
+    [InlineData("WAR/DRK P6 WAR", Job.WAR, null, true)]  // the player's composition in another tab (review round 5)
+    [InlineData("WARDRK P6 WAR", Job.WAR, null, true)]   // the same, as the xlsx export names the tab
+    [InlineData("WAR/DRK P6 DRK", Job.DRK, null, false)] // the co-tank's column of that tab
+    [InlineData("DRK/GNB P6 WAR", Job.WAR, null, false)] // another composition's tab
     public void WithAColumnChosenTheCallsOfTheSlotStillApply(string? column, Job? job, string? slot, bool applies)
     {
         var me = new PlayerContext(Job.WAR, 90, "MT", "WAR/DRK WAR");

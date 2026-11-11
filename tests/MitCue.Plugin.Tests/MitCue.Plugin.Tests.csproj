@@ -32,6 +32,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\MitCue.Core\MitCue.Core.csproj" />
     <ProjectReference Include="..\..\src\MitCue\MitCue.csproj" />
+    <ProjectReference Include="..\..\tools\MitCue.Cli\MitCue.Cli.csproj" />
   </ItemGroup>
 
   <ItemGroup>

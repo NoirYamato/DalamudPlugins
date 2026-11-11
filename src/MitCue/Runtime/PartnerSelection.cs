@@ -12,8 +12,11 @@ namespace MitCue.Runtime;
 /// partner's, nor are the partner's columns for compositions without the player's job (LPDU's "DRK/GNB DRK" and
 /// "DRK/PLD DRK" for a Warrior: their Dark Knight co-tank plays "WAR/DRK DRK") or for a composition that repeats the
 /// partner's own column (Carry the Clear's combined tab next to its Scholar tab), and when the party is known, neither are
-/// columns of jobs nobody in the party plays (LPDU's "H1 AST" when the co-healer is a White Mage). The partner's columns
-/// that are not a team composition (a general "DRK" column next to "WAR/DRK DRK", a column per phase) are all kept.
+/// columns of jobs nobody in the party plays (LPDU's "H1 AST" when the co-healer is a White Mage) nor a partner job's
+/// calls in a slot the party gives another job (<see cref="ColumnSuggestion.PartySeats"/>: LPDU's R1 Red Mage calls next
+/// to a Bard). The partner's columns that are not a team composition (a general "DRK" column next to "WAR/DRK DRK", a
+/// column per phase) are all kept; columns for a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank") are not,
+/// unless the player follows one of them.
 /// </summary>
 internal static class PartnerSelection
 {
@@ -47,6 +50,9 @@ internal static class PartnerSelection
         var mySlot = Slots.TryNormalize(me.Slot, out var s) ? s : null;
         var party = partyJobs is { Count: > 0 } ? partyJobs : null;
         var alternatives = AlternativeColumns(plan, me);
+        var myColumn = me.AssigneeKey is { } key ? plan.Assignees.FirstOrDefault(a => a != null && string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)) : null;
+        var followsRole = myColumn != null && IsRoleColumn(myColumn);
+        var seats = ColumnSuggestion.PartySeats(plan, party);
         foreach (var entry in plan.Entries)
         {
             if (PlanSelection.Applies(entry, me) || GroupOf(RoleOf(plan, entry)) != mine)
@@ -54,20 +60,36 @@ internal static class PartnerSelection
 
             var column = ColumnOf(plan, entry);
             var job = JobOf(entry, column);
+            var slot = SlotOf(entry, column);
             if (job == me.Job)
                 continue; // the player's job in another column: their own seat in another composition
-            if (mySlot != null && SlotOf(entry, column) == mySlot)
+            if (mySlot != null && slot == mySlot)
                 continue; // the player's slot in another column (another job for it, or its job-less column)
             if (column != null && alternatives.Contains(column))
                 continue; // the partner's job in a team composition without the player's job, or the same seat twice
             if (party != null && job != null && !party.Contains(job.Value))
                 continue; // a job nobody in the party plays
+            if (slot == null && column != null && IsRoleColumn(column) && (!followsRole || ReferenceEquals(column, myColumn)))
+                continue; // a role without a seat (LPDU's "CM LB Tank"): which one the partner plays is not known, as for the player
+            if (job != null && slot != null && seats.TryGetValue(slot, out var holder) && holder != job)
+                continue; // a slot the party gives another job (LPDU's R1 next to a Bard): not the Red Mage's seat
 
             result.Add(entry);
         }
 
         return result;
     }
+
+    /// <summary>
+    /// A column for a role without a seat, such as LPDU's "CM LB Tank" and "CM Rep Tank" (Cosmo Memory's limit break and
+    /// Reprisal tank): no job and no slot, and a key that names neither. Its calls are no player's automatically: a tank
+    /// picks one in /mitcue > Plans, and then the other role columns are the partner's.
+    /// </summary>
+    private static bool IsRoleColumn(Assignee column) =>
+        column.Job is null or Job.None
+        && !Slots.TryNormalize(column.Slot, out _)
+        && !Slots.TryNormalize(column.Key, out _)
+        && !Jobs.TryParse(column.Key, out _);
 
     /// <summary>The role an entry is meant for, or <see cref="Role.None"/> when unknown.</summary>
     public static Role RoleOf(MitPlan plan, PlanEntry entry)

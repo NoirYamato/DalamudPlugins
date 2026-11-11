@@ -44,14 +44,12 @@ public class ShareCodeImportTests
         Assert.Equal("role-sheet", parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
     }
 
-    [Theory]
-    [InlineData(null)]
-    [InlineData("MT")] // a slot of another role is not the White Mage's slot
-    public void WithoutASlotARoleSheetSaysWhichSlotToSetAndToChooseIt(string? defaultSlot)
+    [Fact]
+    public void WithoutASlotARoleSheetSaysWhichSlotToSetAndToChooseIt()
     {
         // Review round 4: the message said to set "My usual party slot" or choose the plan, but setting the slot never made
         // the plan active (only plans with a column for the job are chosen automatically): both steps are needed.
-        var config = new Configuration { DefaultSlot = defaultSlot };
+        var config = new Configuration();
         var parts = SessionManagerTests.NewManager(config);
         parts.Plans.EnsureLoaded();
 
@@ -63,12 +61,40 @@ public class ShareCodeImportTests
         // Both steps: the role sheet's H1 call is the White Mage's.
         config.DefaultSlot = "H1";
         parts.Plans.SetActive("top", Job.WHM, "role-sheet");
+        Assert.Equal(["e1"], OwnCalls(parts, Job.WHM));
+    }
+
+    [Fact]
+    public void WithAUsualSlotOfAnotherRoleARoleSheetSaysToChooseTheSlotsColumnForTheJob()
+    {
+        // Review round 5: a tank main (usual slot MT) was told to set "My usual party slot" for a healer role sheet on their
+        // White Mage, which took the Warrior's slot calls on LPDU away (35 entries to 9). The slot's column under "My
+        // column" is the White Mage's seat without changing the usual slot.
+        var config = new Configuration { DefaultSlot = "MT" };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Plans.EnsureLoaded();
+        Assert.Equal(35, parts.Plans.CallsFor(parts.Plans.Get(Lpdu)!.Plan, Job.WAR));
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(RoleSheet()), Job.WHM, makeActive: true, out var copy, out var message), message);
+
+        Assert.Contains("It has calls for WHM only in slot H1 or H2: choose it in the table above for WHM, then its column \"H1\" or \"H2\" under \"My column\".", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("My usual party slot", message, StringComparison.Ordinal);
+
+        // That way: the role sheet's H1 call is the White Mage's, and the Warrior keeps its MT calls.
+        parts.Plans.SetActive("top", Job.WHM, "role-sheet");
+        parts.Plans.SetMapping(copy!, Job.WHM, new PlayerMapping { AssigneeKey = "H1", Slot = "H1" }); // as /mitcue > Plans saves it
+        Assert.Equal(["e1"], OwnCalls(parts, Job.WHM));
+        Assert.Equal("MT", config.DefaultSlot);
+        Assert.Equal(35, parts.Plans.CallsFor(parts.Plans.Get(Lpdu)!.Plan, Job.WAR));
+    }
+
+    private static List<string> OwnCalls(SessionManagerTests.Parts parts, Job job)
+    {
         var frame = SessionManagerTests.InTop(1);
-        frame.Job = Job.WHM;
-        frame.ClassJobId = (uint)Job.WHM;
+        frame.Job = job;
+        frame.ClassJobId = (uint)job;
         parts.Manager.Update(frame);
-        Assert.Equal("role-sheet", parts.Manager.Plan?.Id);
-        Assert.Equal(["e1"], parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id));
+        return parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).ToList();
     }
 
     [Fact]

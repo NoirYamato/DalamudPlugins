@@ -271,10 +271,16 @@ internal sealed class PlanStore
             {
                 // A role sheet (columns by slot only) has calls for a job only in a slot of its role. Setting the slot does
                 // not choose the plan (only plans with a column for the job are chosen automatically), so say both steps.
+                // A usual slot that is set is the player's slot on every job of its role (their main's, often of another
+                // role): changing it would take that job's slot calls away, so the slot's column is chosen for this job.
                 var slots = this.SlotsWithCallsFor(plan, job);
-                message += slots.Count > 0
-                    ? $" It has calls for {job} only in slot {string.Join(" or ", slots)}: set \"My usual party slot\" in the General tab, then choose it in the table above to use it."
-                    : $" It has no calls for {job}: choose it in the table above for the job it is for.";
+                var assignees = plan.Assignees;
+                var columns = slots.Select(slot => assignees.FirstOrDefault(a => (a.Job is null or Job.None) && Slots.TryNormalize(a.Slot, out var s) && s == slot)?.Key).ToList();
+                message += slots.Count == 0
+                    ? $" It has no calls for {job}: choose it in the table above for the job it is for."
+                    : this.config.DefaultSlot != null && columns.TrueForAll(c => c != null)
+                        ? $" It has calls for {job} only in slot {string.Join(" or ", slots)}: choose it in the table above for {job}, then its column {string.Join(" or ", columns.Select(c => $"\"{c}\""))} under \"My column\"."
+                        : $" It has calls for {job} only in slot {string.Join(" or ", slots)}: set \"My usual party slot\" in the General tab, then choose it in the table above to use it.";
             }
             else
             {
@@ -525,8 +531,8 @@ internal sealed class PlanStore
     /// The job's own column as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true), from
     /// <see cref="SuggestAssignee"/>; <see cref="SuggestedMapping"/> starts from it.
     /// </summary>
-    public static PlayerMapping ColumnMapping(MitPlan plan, Job job, string? defaultSlot) =>
-        Suggestion(ColumnSuggestion.ForJob(plan, job, defaultSlot));
+    public static PlayerMapping ColumnMapping(MitPlan plan, Job job, string? defaultSlot, IReadOnlyCollection<Job>? party = null) =>
+        Suggestion(ColumnSuggestion.ForJob(plan, job, defaultSlot, party));
 
     /// <summary>A column choice of the core as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true).</summary>
     public static PlayerMapping Suggestion(ColumnPick pick) => new() { AssigneeKey = pick.AssigneeKey, Slot = pick.Slot, IsSuggestion = true };
