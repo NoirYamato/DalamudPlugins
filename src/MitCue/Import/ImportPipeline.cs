@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using MitCue.Core.Fights;
 using MitCue.Core.Import;
@@ -36,17 +37,18 @@ internal sealed class LoadedSource
     /// <summary>Something the player should know about this source (e.g. pasted cells have no colours).</summary>
     public string? Note { get; init; }
 
-    /// <summary>Human description: "Google Sheet "Title" (3 tabs)".</summary>
+    /// <summary>A problem the player should act on (e.g. two tabs pasted into one box), shown when the source loads.</summary>
+    public string? Warning { get; init; }
+
+    /// <summary>Human description: "Google Sheet "Title" (3 tabs)", "pasted cells (2 tabs: Pasted, P3)".</summary>
     public string Describe()
     {
-        var kind = this.Kind switch
-        {
-            "google-sheet" => "Google Sheet",
-            "google-doc" => "Google Doc",
-            _ => "Pasted cells",
-        };
         var tabs = this.Document.Tabs.Count;
-        return $"{kind} \"{this.Document.Title}\" ({tabs} tab{(tabs == 1 ? string.Empty : "s")})";
+        var count = $"{tabs} tab{(tabs == 1 ? string.Empty : "s")}";
+        if (this.Kind is not ("google-sheet" or "google-doc"))
+            return tabs > 1 ? $"pasted cells ({count}: {string.Join(", ", this.Document.Tabs.Select(t => t.Name))})" : "pasted cells";
+        var kind = this.Kind == "google-sheet" ? "Google Sheet" : "Google Doc";
+        return $"{kind} \"{this.Document.Title}\" ({count})";
     }
 }
 
@@ -58,28 +60,19 @@ internal sealed class LoadedSource
 /// </summary>
 internal static class ImportPipeline
 {
-    /// <summary>Downloads a link and reads it into a document.</summary>
+    /// <summary>
+    /// Downloads a link and reads it into a document. A cancelled download ends with an
+    /// <see cref="OperationCanceledException"/> (a cancelled task, not a failed one).
+    /// </summary>
     public static async Task<LoadedSource> LoadLinkAsync(SheetFetcher fetcher, GoogleLink link, CancellationToken cancel)
     {
         var result = await fetcher.FetchAsync(link, cancel).ConfigureAwait(false);
+        ThrowIfCancelled(result, cancel);
+        if (!link.IsSheet)
+            return await LoadDocAsync(fetcher, link, result, cancel).ConfigureAwait(false);
+
         if (!result.Ok || result.Bytes == null)
             throw new ImportStepException(result.Message);
-        cancel.ThrowIfCancellationRequested();
-
-        if (!link.IsSheet)
-        {
-            var html = Encoding.UTF8.GetString(result.Bytes);
-            var doc = Guard("Reading Google Docs", () => DocHtmlReader.Read(html, result.Title));
-            if (doc.Tabs.Count == 0)
-                throw new ImportStepException("The document has no text.");
-            return new LoadedSource
-            {
-                Document = doc,
-                Kind = "google-doc",
-                Url = link.BrowserUrl,
-                Note = "Google Docs are read as text: tables become tabs (\"Table 1\", ...) and the other paragraphs a \"Text\" tab. Colours are not kept.",
-            };
-        }
 
         var title = result.Title ?? "Google Sheet";
         var workbook = Guard("Reading .xlsx workbooks", () => SheetReaders.FromXlsx(new MemoryStream(result.Bytes, writable: false), title));
@@ -91,26 +84,80 @@ internal static class ImportPipeline
             linkedTab = await FindLinkedTabAsync(fetcher, link, workbook, result.Title, cancel).ConfigureAwait(false);
         else if (workbook.Tabs.Count == 1)
             linkedTab = workbook.Tabs[0].Name;
+        cancel.ThrowIfCancellationRequested();
 
         return new LoadedSource { Document = workbook, Kind = "google-sheet", Url = link.BrowserUrl, LinkedTab = linkedTab };
     }
 
-    /// <summary>Reads cells pasted from Google Sheets (TSV) or CSV.</summary>
-    public static LoadedSource LoadPasted(string text, char separator)
+    /// <summary>Name of the first pasted tab when the player gives none.</summary>
+    public const string PastedTabName = "Pasted";
+
+    /// <summary>
+    /// Reads cells pasted from Google Sheets (TSV) or CSV: as a new one-tab document, or as one more tab of
+    /// <paramref name="addTo"/> (a plan spread over several tabs is pasted one tab at a time).
+    /// </summary>
+    /// <param name="text">The pasted text.</param>
+    /// <param name="separator">Tab or comma.</param>
+    /// <param name="addTo">Earlier pasted cells to add this tab to, or null for a new document.</param>
+    /// <param name="tabName">The tab's name (e.g. "P3"), or null/empty for "Pasted", "Pasted 2", ...</param>
+    public static LoadedSource LoadPasted(string text, char separator, LoadedSource? addTo = null, string? tabName = null)
     {
         if (string.IsNullOrWhiteSpace(text))
             throw new ImportStepException("Nothing to read: paste the cells first.");
-        var tab = Guard("Reading pasted cells", () => SheetReaders.FromDelimited(text, separator, "Pasted"));
+        var name = UniqueTabName(PastedTabs(addTo), tabName);
+        var tab = Guard("Reading pasted cells", () => SheetReaders.FromDelimited(text, separator, name));
+        return PastedSource(tab, addTo);
+    }
+
+    /// <summary>The source made of a pasted tab, alone or after the tabs of <paramref name="addTo"/>.</summary>
+    internal static LoadedSource PastedSource(SheetTab tab, LoadedSource? addTo)
+    {
         if (tab.Rows.Count == 0 || tab.Rows.All(r => r.All(c => c.IsEmpty)))
             throw new ImportStepException("The pasted text has no cells.");
-        var doc = new SheetDocument { Title = "Pasted cells", Tabs = [tab] };
+        var doc = new SheetDocument { Title = "Pasted cells", Tabs = [.. PastedTabs(addTo), tab] };
         return new LoadedSource
         {
             Document = doc,
             Kind = "paste",
-            LinkedTab = tab.Name,
+            LinkedTab = doc.Tabs.Count == 1 ? tab.Name : null,
             Note = "Pasted cells carry no colours, so grey (optional) calls are not recognised: mark them in the review, or import from the link instead.",
+            Warning = SeveralTabsWarning(tab),
         };
+    }
+
+    /// <summary>
+    /// A warning when one paste holds the header rows of several tabs (the next tab pasted below the first): the rows
+    /// above the last header row would not be read against their own columns.
+    /// </summary>
+    internal static string? SeveralTabsWarning(SheetTab tab)
+    {
+        var headers = ImportAnalysis.PlanHeaderRows(tab);
+        if (headers.Count < 2)
+            return null;
+        var rows = string.Join(", ", headers.Select(r => (r + 1).ToString(CultureInfo.InvariantCulture)));
+        return $"The pasted cells have {headers.Count.ToString(CultureInfo.InvariantCulture)} header rows (rows {rows}): it looks like more than one tab was pasted at once. " +
+               "Paste one tab at a time: \"Read the cells\" for the first tab, then \"Add as another tab\" for each of the others.";
+    }
+
+    private static IReadOnlyList<SheetTab> PastedTabs(LoadedSource? source) => source is { Kind: "paste" } ? source.Document.Tabs : [];
+
+    /// <summary>The name for a new pasted tab: the given one (made unique), else "Pasted", "Pasted 2", ...</summary>
+    internal static string UniqueTabName(IReadOnlyList<SheetTab> earlier, string? wanted)
+    {
+        var taken = earlier.Select(t => t.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var name = wanted?.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            name = PastedTabName;
+            for (var n = 2; taken.Contains(name); n++)
+                name = PastedTabName + " " + n.ToString(CultureInfo.InvariantCulture);
+            return name;
+        }
+
+        var unique = name;
+        for (var n = 2; taken.Contains(unique); n++)
+            unique = $"{name} ({n.ToString(CultureInfo.InvariantCulture)})";
+        return unique;
     }
 
     /// <summary>Guesses the separator of pasted text: tab when any line has a tab, else comma when lines have commas.</summary>
@@ -221,6 +268,61 @@ internal static class ImportPipeline
             var cleaned = Clean(s);
             return cleaned.Length > 31 ? cleaned[..31] : cleaned;
         }
+    }
+
+    /// <summary>
+    /// Reads a Google Doc from its web page export, or, when that is too large or too slow to download (the export
+    /// inlines every image, so a document with screenshots can be tens of MB although its text is small), from its
+    /// plain-text export.
+    /// </summary>
+    private static async Task<LoadedSource> LoadDocAsync(SheetFetcher fetcher, GoogleLink link, FetchResult html, CancellationToken cancel)
+    {
+        if (html.Ok && html.Bytes != null)
+        {
+            var text = Encoding.UTF8.GetString(html.Bytes);
+            var doc = Guard("Reading Google Docs", () => DocHtmlReader.Read(text, html.Title));
+            if (doc.Tabs.Count == 0)
+                throw new ImportStepException("The document has no text.");
+            return new LoadedSource
+            {
+                Document = doc,
+                Kind = "google-doc",
+                Url = link.BrowserUrl,
+                Note = "Google Docs are read as text: tables become tabs (\"Table 1\", ...) and the other paragraphs a \"Text\" tab. Colours are not kept.",
+            };
+        }
+
+        // Published-to-web documents have no plain-text export.
+        if (html.Status is not (FetchStatus.TooLarge or FetchStatus.Timeout) || link.Published)
+            throw new ImportStepException(html.Message);
+
+        var plain = await fetcher.FetchUrlAsync(GoogleLinks.DocTextUrl(link), ExpectedContent.Text, "document", cancel).ConfigureAwait(false);
+        ThrowIfCancelled(plain, cancel);
+        if (!plain.Ok || plain.Bytes == null)
+            throw new ImportStepException($"{html.Message} (Its plain text could not be downloaded either: {plain.Message})");
+
+        var body = Encoding.UTF8.GetString(plain.Bytes);
+        var textDoc = Guard("Reading Google Docs", () => DocTextReader.Read(body, plain.Title ?? html.Title));
+        if (textDoc.Tabs.Count == 0)
+            throw new ImportStepException("The document has no text.");
+        var why = html.Status == FetchStatus.TooLarge ? "too large to download as a web page" : "too slow to download as a web page";
+        return new LoadedSource
+        {
+            Document = textDoc,
+            Kind = "google-doc",
+            Url = link.BrowserUrl,
+            Note = "Read from the document's plain text: one row per line (cells of a table row are split at its tabs); " +
+                   "tables lose their layout and colours are not kept.",
+            Warning = $"The document is {why} (its images count too), so MitCue read its plain text instead, where tables lose their layout. " +
+                      "If the calls are not read right, use the AI route (\"Not reading it right?\" in the next step).",
+        };
+    }
+
+    /// <summary>A cancelled download ends the step as cancelled (not failed), so a dropped job leaves no exception behind.</summary>
+    private static void ThrowIfCancelled(FetchResult result, CancellationToken cancel)
+    {
+        if (result.Status == FetchStatus.Cancelled || cancel.IsCancellationRequested)
+            throw new OperationCanceledException(result.Message, cancel);
     }
 
     private static async Task<string?> FindLinkedTabAsync(SheetFetcher fetcher, GoogleLink link, SheetDocument workbook, string? workbookTitle, CancellationToken cancel)

@@ -4,7 +4,8 @@ namespace MitCue.Import;
 /// Runs one piece of slow work at a time (download, workbook parsing, import) on a background task and hands its
 /// result back to the game's main thread through <c>post</c> (the plugin passes <c>IFramework.RunOnFrameworkThread</c>),
 /// so callers never block the framework thread and never touch their state from another thread.
-/// Starting a new job cancels the previous one; results of cancelled or superseded jobs are dropped.
+/// Starting a new job cancels the previous one; results of cancelled or superseded jobs are dropped (their exceptions
+/// are still observed, so nothing is logged as an unobserved task exception).
 /// </summary>
 /// <remarks>
 /// <see cref="Run{T}"/>, <see cref="Cancel"/> and <see cref="Dispose"/> are called on the main thread; the callbacks
@@ -69,11 +70,14 @@ internal sealed class BackgroundJobs : IDisposable
         task.ContinueWith(
             t =>
             {
+                // Always read the exception, also of a job whose result is dropped: an unread task exception is
+                // reported by the finalizer as "Unobserved exception in Task" (an error in dalamud.log).
+                var error = t.Exception;
                 Action deliver;
                 if (t.IsCanceled || token.IsCancellationRequested)
                     deliver = () => { };
-                else if (t.Exception is { } aggregate)
-                    deliver = () => failed(aggregate.InnerExceptions.Count == 1 ? aggregate.InnerExceptions[0] : aggregate);
+                else if (error != null)
+                    deliver = () => failed(error.InnerExceptions.Count == 1 ? error.InnerExceptions[0] : error);
                 else
                     deliver = () => done(t.Result);
 

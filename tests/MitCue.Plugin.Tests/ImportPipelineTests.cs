@@ -1,5 +1,6 @@
 using MitCue.Core.Import;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
 
 namespace MitCue.PluginTests;
 
@@ -122,5 +123,61 @@ public class ImportPipelineTests
     {
         var source = new LoadedSource { Document = new SheetDocument { Title = "LPDU", Tabs = [TestData.Tab("P3")] }, Kind = "google-sheet" };
         Assert.Equal("Google Sheet \"LPDU\" (1 tab)", source.Describe());
+
+        var pasted = ImportPipeline.PastedSource(TestData.Tab("P3", ["P3", "MT"]), ImportPipeline.PastedSource(TestData.Tab("Pasted", ["P1", "MT"]), null));
+        Assert.Equal("pasted cells (2 tabs: Pasted, P3)", pasted.Describe());
+    }
+
+    [Fact]
+    public void AddsPastedTabsToEarlierOnes()
+    {
+        // Review finding: each paste replaced the source, so a plan over several tabs (LPDU's P1/P2 ... P6) could not be
+        // pasted completely.
+        var first = ImportPipeline.PastedSource(TestData.Tab("Pasted", ["P1", "MT", "H2"], ["Pantokrator", "Party Mit", "Everything"]), null);
+        Assert.Equal("Pasted", first.LinkedTab);
+
+        var name = ImportPipeline.UniqueTabName(first.Document.Tabs, "  P3 ");
+        var second = ImportPipeline.PastedSource(TestData.Tab(name, ["P3", "MT", "H2 SCH"], ["Hello World", "Rep", "Soil"]), first);
+
+        Assert.Equal("paste", second.Kind);
+        Assert.Equal(new[] { "Pasted", "P3" }, second.Document.Tabs.Select(t => t.Name));
+        Assert.Null(second.LinkedTab);
+        Assert.Equal("Everything", second.Document.Tabs[0].Cell(1, 2).Text);
+        Assert.Equal("Soil", second.Document.Tabs[1].Cell(1, 2).Text);
+        Assert.Null(second.Warning);
+    }
+
+    [Fact]
+    public void NamesPastedTabsUniquely()
+    {
+        var tabs = new[] { TestData.Tab("Pasted"), TestData.Tab("P3"), TestData.Tab("Pasted 2") };
+        Assert.Equal("Pasted", ImportPipeline.UniqueTabName([], null));
+        Assert.Equal("Pasted 3", ImportPipeline.UniqueTabName(tabs, " "));
+        Assert.Equal("p3 (2)", ImportPipeline.UniqueTabName(tabs, "p3"));
+        Assert.Equal("P4", ImportPipeline.UniqueTabName(tabs, "P4"));
+    }
+
+    [Fact]
+    public void WarnsWhenOnePasteHoldsTwoTabs()
+    {
+        // The reviewer's probe: LPDU's P1/P2 tab, then its P3 tab pasted below it in the same box. The P1/P2 rows were then
+        // read against the P3 columns, without a word.
+        var rows = FixtureSheets.Rows("lpdu", "p1-p2.csv").Concat(FixtureSheets.Rows("lpdu", "p3.csv"));
+        var tab = FixtureSheets.Tab("Pasted", rows);
+
+        var source = ImportPipeline.PastedSource(tab, null);
+
+        Assert.NotNull(source.Warning);
+        Assert.Contains("2 header rows (rows 1, 13)", source.Warning);
+        Assert.Contains("Add as another tab", source.Warning);
+    }
+
+    [Fact]
+    public void OneTabPastedAloneGetsNoWarning()
+    {
+        foreach (var file in new[] { "p1-p2.csv", "p3.csv", "p6.csv", "war-drk.csv" })
+            Assert.Null(ImportPipeline.PastedSource(FixtureSheets.Tab("Pasted", FixtureSheets.Rows("lpdu", file)), null).Warning);
+        foreach (var (file, _) in FixtureSheets.CarryTheClearTabs)
+            Assert.Null(ImportPipeline.PastedSource(FixtureSheets.Tab("Pasted", FixtureSheets.Rows("carry-the-clear", file)), null).Warning);
     }
 }

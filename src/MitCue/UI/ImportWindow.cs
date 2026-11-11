@@ -21,16 +21,23 @@ namespace MitCue.UI;
 /// 1. Source: a Google Sheets/Docs link (downloaded on "Fetch"), cells pasted from Google Sheets, or plan YAML pasted back
 ///    from an AI chat (with a "Copy AI prompt" button for that route);
 /// 2. Options: fight, tabs, columns, plan name, calibration preset (defaults from a trial import);
-/// 3. Review: every entry with its mechanic, timing, actions, who, flags, problems and source cell; mechanic, offset and
-///    flags can be edited and entries deleted;
-/// 4. Save: stored with <see cref="PlanStore.Save"/>, optionally made the active plan for the current job.
+/// 3. Review: every entry with its mechanic, timing, actions, who, flags, problems and source cell; mechanic, offset,
+///    flags and what to press can be edited (a fixed note can be remembered as a personal alias) and entries deleted;
+/// 4. Save: stored with <see cref="PlanStore.Save"/>, optionally made the active plan for the current job, with the
+///    column choice that shows every call of the player's columns (<see cref="ImportColumns"/>).
 /// Downloads, workbook parsing and imports run on background tasks (<see cref="BackgroundJobs"/>); results come back on
-/// the framework thread. Nothing here throws out of <see cref="Draw"/>.
+/// the framework thread, and the options cannot change while a job runs. Nothing here throws out of <see cref="Draw"/>.
 /// </summary>
 internal sealed partial class ImportWindow : Window, IDisposable
 {
     /// <summary>Byte capacity of the paste boxes (the ImGui default of 512 bytes is far too small for a sheet).</summary>
     private const int PasteBoxBytes = 1024 * 1024;
+
+    /// <summary>Label of the trial import job (the Options step's tab check).</summary>
+    private const string AnalysisLabel = "Looking at the tabs...";
+
+    /// <summary>ID of the "replace the review?" confirmation.</summary>
+    private const string ReplacePopupId = "Replace the review?###mitcueReplaceReview";
 
     private static readonly Vector4 ColorError = new(1f, 0.45f, 0.40f, 1f);
     private static readonly Vector4 ColorWarning = new(1f, 0.75f, 0.30f, 1f);
@@ -49,10 +56,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
     private string? drawError;
     private string status = string.Empty;
     private bool statusIsError;
+    private bool statusIsWarning;
+
+    // "Replace the review?" confirmation.
+    private Action? pendingReplace;
+    private string pendingReplaceWhat = string.Empty;
+    private bool openReplacePopup;
 
     // Source step.
     private string linkText = string.Empty;
     private char separator = '\t';
+    private string pasteTabName = string.Empty;
     private LoadedSource? source;
     private int sourceVersion;
 
@@ -65,7 +79,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
     // Options step.
     private string fightKey = string.Empty;
     private ImportAnalysis? analysis;
-    private string? analysisKey;
+    private readonly TrialImportTracker trial = new();
     private readonly HashSet<string> selectedTabs = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> selectedColumns = new(StringComparer.OrdinalIgnoreCase);
     private bool tabsTouched;
@@ -73,11 +87,14 @@ internal sealed partial class ImportWindow : Window, IDisposable
     private string planName = string.Empty;
     private bool planNameTouched;
     private string calibrationKey = string.Empty;
+    private string? defaultTabsBasis;
 
     // Save step.
     private bool setActive = true;
     private string? replaceId;
     private string saveMessage = string.Empty;
+    private ColumnChoice? columnChoice;
+    private (ReviewModel? Model, int Revision, Job Job, string? ReplaceId, int StoreRevision, string? Slot) columnChoiceKey;
 
     /// <summary>Creates the (closed) window.</summary>
     public ImportWindow(Plugin plugin)
@@ -135,10 +152,11 @@ internal sealed partial class ImportWindow : Window, IDisposable
     /// <inheritdoc/>
     public override void OnClose()
     {
-        // No background work while the window is closed; what was loaded stays for the next time.
-        if (this.jobs.Busy)
+        // No background work while the window is closed; what was loaded stays for the next time (a cancelled tab check
+        // runs again when the window opens).
+        if (this.jobs.Busy && !this.trial.Running)
             this.SetStatus($"\"{this.jobs.Current?.TrimEnd('.')}\" was cancelled when the window closed.", true);
-        this.jobs.Cancel();
+        this.CancelJob(byPlayer: false);
     }
 
     /// <inheritdoc/>
@@ -146,6 +164,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
     {
         try
         {
+            // Returns at once when loaded; reloads after Debug > Reload data while the window is open.
+            this.plugin.Data.EnsureLoaded();
+            this.plugin.Plans.EnsureLoaded();
             this.DrawContent();
             this.drawError = null;
         }
@@ -184,8 +205,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
         ImGuiComponents.HelpMarker(text);
     }
 
-    private void PostToFramework(Action action) =>
-        _ = Plugin.Framework.RunOnFrameworkThread(() =>
+    private void PostToFramework(Action action)
+    {
+        var queued = Plugin.Framework.RunOnFrameworkThread(() =>
         {
             try
             {
@@ -197,10 +219,86 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         });
 
+        // The action never throws; a queue that fails (the plugin unloading) must not leave an unobserved task exception.
+        queued.ContinueWith(t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+    }
+
     private void SetStatus(string message, bool isError)
     {
         this.status = message;
         this.statusIsError = isError;
+        this.statusIsWarning = false;
+    }
+
+    private void SetWarning(string message)
+    {
+        this.status = message;
+        this.statusIsError = false;
+        this.statusIsWarning = true;
+    }
+
+    /// <summary>Cancels the running job; a cancelled tab check runs again (see <see cref="TrialImportTracker"/>).</summary>
+    private void CancelJob(bool byPlayer)
+    {
+        this.jobs.Cancel();
+        this.trial.JobCancelled(byPlayer);
+    }
+
+    /// <summary>
+    /// Runs <paramref name="action"/>, which replaces the review, after asking when the review has changes the player
+    /// would lose (going back to Options and importing again starts a new review).
+    /// </summary>
+    private void ConfirmReplaceReview(string what, Action action)
+    {
+        if (this.review is not { EditCount: > 0 })
+        {
+            action();
+            return;
+        }
+
+        this.pendingReplace = action;
+        this.pendingReplaceWhat = what;
+        this.openReplacePopup = true;
+    }
+
+    private void DrawReplacePopup()
+    {
+        // Opened here, at the window's top level, so OpenPopup and BeginPopupModal share one ID stack.
+        if (this.openReplacePopup)
+        {
+            this.openReplacePopup = false;
+            ImGui.OpenPopup(ReplacePopupId);
+        }
+
+        if (!ImGui.BeginPopupModal(ReplacePopupId, ImGuiWindowFlags.AlwaysAutoResize))
+            return;
+        try
+        {
+            var edits = this.review?.EditCount ?? 0;
+            ImGui.TextUnformatted($"{this.pendingReplaceWhat} starts a new review.");
+            ImGui.TextUnformatted($"Your changes to {Plural(edits, "entry", "entries")} in the current review would be lost.");
+            ImGui.Spacing();
+            if (ImGui.Button("Continue and lose the changes"))
+            {
+                var action = this.pendingReplace;
+                this.pendingReplace = null;
+                ImGui.CloseCurrentPopup();
+                action?.Invoke();
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("Keep my review"))
+            {
+                this.pendingReplace = null;
+                ImGui.CloseCurrentPopup();
+                if (this.review != null)
+                    this.step = Step.Review;
+            }
+        }
+        finally
+        {
+            ImGui.EndPopup();
+        }
     }
 
     private void DrawContent()
@@ -227,6 +325,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
                 this.step = Step.Source;
                 break;
         }
+
+        this.DrawReplacePopup();
     }
 
     // ---- Step bar and status ---------------------------------------------------------------
@@ -286,13 +386,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ImGui.SameLine();
             if (ImGui.SmallButton("Cancel##job"))
             {
-                this.jobs.Cancel();
-                this.SetStatus("Cancelled.", false);
+                var wasTabCheck = this.trial.Running;
+                this.CancelJob(byPlayer: true);
+                if (wasTabCheck)
+                    this.SetWarning("The tab check was cancelled, so your tabs and columns were not chosen for you. Press \"Check the tabs\" below to run it.");
+                else
+                    this.SetStatus("Cancelled.", false);
             }
         }
         else if (this.status.Length > 0)
         {
-            ImGui.TextColoredWrapped(this.statusIsError ? ColorError : ColorOk, this.status);
+            ImGui.TextColoredWrapped(this.statusIsError ? ColorError : this.statusIsWarning ? ColorWarning : ColorOk, this.status);
         }
     }
 
@@ -359,7 +463,10 @@ internal sealed partial class ImportWindow : Window, IDisposable
         using (ImRaii.Disabled(!parsed || this.jobs.Busy))
         {
             if ((ImGui.Button("Fetch") || enter) && parsed && !this.jobs.Busy)
-                this.StartFetch(link!);
+            {
+                var target = link!;
+                this.ConfirmReplaceReview("Loading the link", () => this.StartFetch(target));
+            }
         }
 
         ImGui.SameLine();
@@ -374,13 +481,13 @@ internal sealed partial class ImportWindow : Window, IDisposable
                 ImGui.SetTooltip("Check the sharing settings or which tabs hold the plan.");
         }
 
-        if (this.linkText.Trim().Length > 0)
+        if (!string.IsNullOrWhiteSpace(this.linkText))
         {
             if (parsed && link != null)
             {
                 var what = link.IsSheet
                     ? "The whole workbook is downloaded as .xlsx, with its colours (grey = optional is kept)."
-                    : "The document is downloaded as a web page: its tables become tabs, the rest a \"Text\" tab.";
+                    : "The document is downloaded as a web page: its tables become tabs, the rest a \"Text\" tab (its plain text when the page is too large).";
                 ImGui.TextDisabled(GoogleLinks.Describe(link) + ". " + what);
             }
             else
@@ -397,7 +504,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
     {
         ImGui.TextWrapped(
             "In Google Sheets, select the plan's cells including the header row (the row with the column names, e.g. MT, OT, H1 WHM) " +
-            "and copy them (Ctrl+C). Then press \"Paste from clipboard\", or click into the box and press Ctrl+V.");
+            "and copy them (Ctrl+C). Then press \"Paste from clipboard\", or click into the box and press Ctrl+V. " +
+            "A plan over several tabs: paste one tab at a time, \"Read the cells\" for the first and \"Add as another tab\" for the others.");
         ImGui.Spacing();
 
         if (ImGui.Button("Paste from clipboard"))
@@ -431,11 +539,24 @@ internal sealed partial class ImportWindow : Window, IDisposable
         ImGui.SameLine();
         if (ImGui.RadioButton("Comma (CSV)", this.separator == ','))
             this.separator = ',';
+
+        ImGui.SetNextItemWidth(Scale(140));
+        ImGui.InputTextWithHint("Tab name##pasteTab", "optional, e.g. P3", ref this.pasteTabName, 64);
+        HelpMarker("The name of the tab these cells come from. It shows in the review's Source column; a phase name such as P3 also helps to find the phase.");
         ImGui.SameLine();
-        using (ImRaii.Disabled(this.pasteBox.Text.Trim().Length == 0 || this.jobs.Busy))
+        var pasted = this.source is { Kind: "paste" } ? this.source : null;
+        using (ImRaii.Disabled(this.pasteBox.IsBlank || this.jobs.Busy))
         {
             if (ImGui.Button("Read the cells"))
-                this.StartReadPaste();
+                this.ConfirmReplaceReview("Reading the cells", () => this.StartReadPaste(null));
+            if (pasted != null)
+            {
+                ImGui.SameLine();
+                if (ImGui.Button("Add as another tab"))
+                    this.ConfirmReplaceReview("Adding a tab", () => this.StartReadPaste(pasted));
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip($"Adds these cells to the {Plural(pasted.Document.Tabs.Count, "tab")} read before ({string.Join(", ", pasted.Document.Tabs.Select(t => t.Name))}).");
+            }
         }
     }
 
@@ -450,15 +571,20 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ex => this.SetStatus(ImportPipeline.Explain(ex, "Downloading"), true));
     }
 
-    private void StartReadPaste()
+    private void StartReadPaste(LoadedSource? addTo)
     {
         this.SetStatus(string.Empty, false);
         var text = this.pasteBox.Text;
         var sep = this.separator;
+        var name = this.pasteTabName;
         this.jobs.RunSync(
-            "Reading the pasted cells...",
-            _ => ImportPipeline.LoadPasted(text, sep),
-            this.OnSourceLoaded,
+            addTo != null ? "Adding the pasted tab..." : "Reading the pasted cells...",
+            _ => ImportPipeline.LoadPasted(text, sep, addTo, name),
+            loaded =>
+            {
+                this.pasteTabName = string.Empty;
+                this.OnSourceLoaded(loaded);
+            },
             ex => this.SetStatus(ImportPipeline.Explain(ex, "Reading pasted cells"), true));
     }
 
@@ -467,7 +593,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         this.source = loaded;
         this.sourceVersion++;
         this.analysis = null;
-        this.analysisKey = null;
+        this.trial.Retry();
         this.selectedTabs.Clear();
         this.selectedColumns.Clear();
         this.tabsTouched = false;
@@ -488,7 +614,10 @@ internal sealed partial class ImportWindow : Window, IDisposable
         var message = $"Loaded {loaded.Describe()}.";
         if (loaded.LinkedTab != null && loaded.Document.Tabs.Count > 1)
             message += $" Your link points at the tab \"{loaded.LinkedTab}\".";
-        this.SetStatus(message, false);
+        if (loaded.Warning != null)
+            this.SetWarning(message + " " + loaded.Warning);
+        else
+            this.SetStatus(message, false);
         this.step = Step.Options;
     }
 
@@ -572,10 +701,10 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
         var boxHeight = Math.Max(Scale(100), ImGui.GetContentRegionAvail().Y - ImGui.GetFrameHeightWithSpacing() - Scale(6));
         this.yamlBox.Draw("##yamlBox", new Vector2(-1, boxHeight), ImGuiInputTextFlags.AllowTabInput);
-        using (ImRaii.Disabled(this.yamlBox.Text.Trim().Length == 0 || this.jobs.Busy))
+        using (ImRaii.Disabled(this.yamlBox.IsBlank || this.jobs.Busy))
         {
             if (ImGui.Button("Check the YAML and review"))
-                this.StartParseYaml();
+                this.ConfirmReplaceReview("Reading the YAML", this.StartParseYaml);
         }
 
         ImGui.SameLine();
@@ -730,11 +859,18 @@ internal sealed partial class ImportWindow : Window, IDisposable
         var data = this.plugin.Data;
         var doc = src.Document;
 
+        // While a job runs (the tab check or the import), the options stay as they are: an import uses the options it
+        // started with, and its result would not match changed ones.
+        var busy = this.jobs.Busy;
         ImGui.AlignTextToFramePadding();
         ImGui.TextUnformatted("Source: " + src.Describe());
         ImGui.SameLine();
-        if (ImGui.SmallButton("Change source"))
-            this.step = Step.Source;
+        using (ImRaii.Disabled(busy))
+        {
+            if (ImGui.SmallButton("Change source"))
+                this.step = Step.Source;
+        }
+
         if (src.Note != null)
             ImGui.TextDisabled(src.Note);
 
@@ -749,11 +885,14 @@ internal sealed partial class ImportWindow : Window, IDisposable
             this.fightKey = (data.GetFight("top") ?? data.FightList[0]).Key;
         var fight = data.GetFight(this.fightKey)!;
 
-        ImGui.SetNextItemWidth(Scale(280));
-        if (this.DrawFightCombo("Fight", ref this.fightKey))
+        using (ImRaii.Disabled(busy))
         {
-            fight = data.GetFight(this.fightKey)!;
-            this.calibrationKey = ImportPipeline.GuessCalibration(fight, doc.Title) ?? string.Empty;
+            ImGui.SetNextItemWidth(Scale(280));
+            if (this.DrawFightCombo("Fight", ref this.fightKey))
+            {
+                fight = data.GetFight(this.fightKey)!;
+                this.calibrationKey = ImportPipeline.GuessCalibration(fight, doc.Title) ?? string.Empty;
+            }
         }
 
         ImGui.SameLine();
@@ -761,7 +900,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
         // Trial import of everything, for the tab and column lists (again when the fight changes).
         var key = fight.Key + "|" + this.sourceVersion.ToString(CultureInfo.InvariantCulture);
-        if (this.analysisKey != key && !this.jobs.Busy)
+        if (this.trial.ShouldStart(key, busy))
             this.StartAnalysis(src, fight, key);
 
         ImGui.Spacing();
@@ -770,21 +909,25 @@ internal sealed partial class ImportWindow : Window, IDisposable
         {
             if (lists)
             {
-                this.DrawTabChoices(doc);
-                ImGui.Spacing();
-                this.DrawColumnChoices();
+                using (ImRaii.Disabled(this.jobs.Busy))
+                {
+                    this.DrawTabChoices(doc, key);
+                    ImGui.Spacing();
+                    this.DrawColumnChoices();
+                }
             }
         }
 
         ImGui.Separator();
-        ImGui.SetNextItemWidth(Scale(420));
-        if (ImGui.InputText("Plan name", ref this.planName, 200))
-            this.planNameTouched = true;
-
-        ImGui.SetNextItemWidth(Scale(260));
-        var calibrationLabel = this.calibrationKey.Length == 0 ? "(automatic)" : this.calibrationKey;
-        using (var combo = ImRaii.Combo("Calibration preset", calibrationLabel))
+        using (ImRaii.Disabled(this.jobs.Busy))
         {
+            ImGui.SetNextItemWidth(Scale(420));
+            if (ImGui.InputText("Plan name", ref this.planName, 200))
+                this.planNameTouched = true;
+
+            ImGui.SetNextItemWidth(Scale(260));
+            var calibrationLabel = this.calibrationKey.Length == 0 ? "(automatic)" : this.calibrationKey;
+            using var combo = ImRaii.Combo("Calibration preset", calibrationLabel);
             if (combo)
             {
                 if (ImGui.Selectable("(automatic)", this.calibrationKey.Length == 0))
@@ -805,7 +948,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         using (ImRaii.Disabled(!canImport || this.jobs.Busy))
         {
             if (ImGui.Button("Import and review >") && canImport)
-                this.StartImport(src, fight);
+                this.ConfirmReplaceReview("Importing again", () => this.StartImport(src, fight));
         }
 
         ImGui.SameLine();
@@ -815,12 +958,22 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ImGui.SameLine();
         }
 
-        if (ImGui.Button("Not reading it right? Use the AI route"))
+        using (ImRaii.Disabled(this.jobs.Busy))
         {
-            this.mode = SourceMode.Yaml;
-            this.promptFightKey = fight.Key;
-            this.promptIncludeSource = true;
-            this.step = Step.Source;
+            if (this.review is { Origin: ReviewOrigin.Importer })
+            {
+                if (ImGui.Button("Back to the review"))
+                    this.step = Step.Review;
+                ImGui.SameLine();
+            }
+
+            if (ImGui.Button("Not reading it right? Use the AI route"))
+            {
+                this.mode = SourceMode.Yaml;
+                this.promptFightKey = fight.Key;
+                this.promptIncludeSource = true;
+                this.step = Step.Source;
+            }
         }
     }
 
@@ -828,6 +981,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
     {
         if (data.Aliases == null)
             return (false, "The alias dictionary did not load (see Problems in /mitcue).");
+        if (this.analysis == null)
+            return (false, this.trial.Running ? "Looking at the tabs first..." : "Check the tabs first (\"Check the tabs\" above).");
         if (this.selectedTabs.Count == 0)
             return (false, "Choose at least one tab.");
         if (this.analysis is { Available: true } a && a.ColumnsIn(this.selectedTabs).Count > 0 && this.ChosenColumns().Count == 0)
@@ -842,23 +997,34 @@ internal sealed partial class ImportWindow : Window, IDisposable
         return a.ColumnsIn(this.selectedTabs).Where(c => this.selectedColumns.Contains(c.Key)).Select(c => c.Key).ToList();
     }
 
-    private void DrawTabChoices(SheetDocument doc)
+    private void DrawTabChoices(SheetDocument doc, string key)
     {
         ImGui.TextColored(ColorAccent, "Tabs to import");
         var a = this.analysis;
-        if (a == null && this.jobs.Busy)
+        if (a == null && this.trial.Running)
         {
-            ImGui.TextDisabled("Looking at the tabs...");
+            ImGui.TextDisabled(AnalysisLabel);
         }
         else if (a == null)
         {
-            ImGui.TextDisabled("The tabs have not been checked yet.");
+            if (this.trial.CancelledByPlayer(key))
+                ImGui.TextColored(ColorWarning, "The tab check was cancelled: your tabs and columns were not chosen for you.");
+            else
+                ImGui.TextDisabled("The tabs have not been checked yet.");
             ImGui.SameLine();
             if (ImGui.SmallButton("Check the tabs"))
-                this.analysisKey = null;
+                this.trial.Retry();
         }
         else if (!a.Available)
+        {
             ImGui.TextColoredWrapped(ColorWarning, a.Reason ?? "The tabs could not be analysed.");
+            if (!this.tabsTouched)
+            {
+                ImGui.TextDisabled(this.defaultTabsBasis != null
+                    ? $"Chosen from the tabs' header rows: {this.defaultTabsBasis}. Tick other tabs if your plan continues there."
+                    : "Every tab with content is ticked: untick the tabs that are not part of your plan, so the AI prompt holds each call once.");
+            }
+        }
 
         var repeated = a is { Available: true } ? a.RepeatedTabs(this.selectedTabs) : new Dictionary<string, string>();
         using var table = ImRaii.Table("##tabs", 4, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp);
@@ -968,12 +1134,12 @@ internal sealed partial class ImportWindow : Window, IDisposable
 
     private void StartAnalysis(LoadedSource src, FightDefinition fight, string key)
     {
-        this.analysisKey = key;
+        this.trial.Start(key);
         this.analysis = null;
         var data = this.plugin.Data;
         if (data.Aliases == null)
         {
-            this.analysis = ImportAnalysis.Unavailable(src.Document, "The alias dictionary did not load, so the importer cannot run (see Problems in /mitcue).");
+            this.OnAnalysis(src, key, ImportAnalysis.Unavailable(src.Document, "The alias dictionary did not load, so the importer cannot run (see Problems in /mitcue)."));
             return;
         }
 
@@ -987,16 +1153,19 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ImportedDate = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         };
         this.jobs.RunSync(
-            "Looking at the tabs...",
+            AnalysisLabel,
             _ => ImportPipeline.Analyze(src.Document, options),
-            result =>
-            {
-                if (!ReferenceEquals(this.source, src) || this.analysisKey != key)
-                    return;
-                this.analysis = result;
-                this.ApplyDefaults(result);
-            },
-            ex => this.analysis = ImportAnalysis.Unavailable(src.Document, ImportPipeline.Explain(ex, "The sheet importer")));
+            result => this.OnAnalysis(src, key, result),
+            ex => this.OnAnalysis(src, key, ImportAnalysis.Unavailable(src.Document, ImportPipeline.Explain(ex, "The sheet importer"))));
+    }
+
+    private void OnAnalysis(LoadedSource src, string key, ImportAnalysis result)
+    {
+        if (!ReferenceEquals(this.source, src) || !this.trial.IsCurrent(key))
+            return;
+        this.trial.Finished(key);
+        this.analysis = result;
+        this.ApplyDefaults(result);
     }
 
     private void ApplyDefaults(ImportAnalysis result)
@@ -1006,7 +1175,12 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (!this.tabsTouched)
         {
             this.selectedTabs.Clear();
-            foreach (var name in result.DefaultTabs(job, slot, this.source?.LinkedTab))
+            string? basis = null;
+            var tabs = result.Available
+                ? result.DefaultTabs(job, slot, this.source?.LinkedTab)
+                : result.HeaderDefaultTabs(job, slot, this.source?.LinkedTab, out basis);
+            this.defaultTabsBasis = basis;
+            foreach (var name in tabs)
                 this.selectedTabs.Add(name);
         }
 
@@ -1053,6 +1227,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ImportedDate = date,
         };
 
+        var choices = this.OptionsKey();
         this.SetStatus(string.Empty, false);
         this.jobs.RunSync(
             "Importing...",
@@ -1061,6 +1236,14 @@ internal sealed partial class ImportWindow : Window, IDisposable
             {
                 if (!ReferenceEquals(this.source, src))
                     return;
+                if (this.OptionsKey() != choices)
+                {
+                    // Cannot happen through the window (the options are locked while importing): never show a review
+                    // for other options than the ones on screen.
+                    this.SetStatus("The options changed while importing, so that import was dropped: press \"Import and review\" again.", true);
+                    return;
+                }
+
                 var plan = result.Plan;
                 plan.Fight = fight.Key;
                 if (string.IsNullOrWhiteSpace(plan.Name))
@@ -1084,6 +1267,15 @@ internal sealed partial class ImportWindow : Window, IDisposable
             },
             ex => this.SetStatus(ImportPipeline.Explain(ex, "The sheet importer"), true));
     }
+
+    /// <summary>The Options step's choices as one string, to tell whether they changed while an import ran.</summary>
+    private string OptionsKey() => string.Join(
+        '\u0001',
+        this.fightKey,
+        this.calibrationKey,
+        this.planName,
+        string.Join('\u0002', this.selectedTabs.Order(StringComparer.OrdinalIgnoreCase)),
+        string.Join('\u0002', this.ChosenColumns().Order(StringComparer.OrdinalIgnoreCase)));
 
     private bool DrawFightCombo(string label, ref string key)
     {
@@ -1127,8 +1319,22 @@ internal sealed partial class ImportWindow : Window, IDisposable
         ImGui.TextWrapped($"{Plural(plan.Entries.Count, "entry", "entries")} for {fight.Name}. Columns: {columns}.");
         if (job != Job.None)
         {
-            var mine = model.CountFor(job, this.plugin.Config.DefaultSlot);
-            ImGui.TextColored(mine > 0 ? ColorOk : ColorWarning, $"{Plural(mine, "entry applies", "entries apply")} to you as {job}" + (mine == 0 ? ": check the columns you imported." : "."));
+            // Counted the way the overlay selects them, with the column choice the plan is saved with.
+            var choice = this.ColumnChoiceFor(model);
+            ImGui.TextColored(choice.Mine > 0 ? ColorOk : ColorWarning, $"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}" + (choice.Mine == 0 ? ": check the columns you imported." : "."));
+            if (choice.Save)
+            {
+                ImGui.TextDisabled(
+                    $"Your calls are in the columns {string.Join(", ", choice.Columns)}, so the plan is saved with \"{ImportColumns.Describe(choice.Mapping, job)}\" as your column " +
+                    "(change it in /mitcue > Plans).");
+            }
+            else if (choice.Missed > 0)
+            {
+                ImGui.TextColoredWrapped(
+                    ColorWarning,
+                    $"Your column choice for the plan this replaces ({ImportColumns.Describe(choice.Mapping, job)}) leaves out {Plural(choice.Missed, "of your calls", "of your calls")} " +
+                    $"(in {string.Join(", ", choice.Columns)}): after saving, check \"My column\" in /mitcue > Plans.");
+            }
         }
 
         var errors = model.CountWorst(DiagnosticSeverity.Error);
@@ -1188,6 +1394,25 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ImGui.TextColoredWrapped(ColorError, this.saveMessage);
     }
 
+    /// <summary>
+    /// The column choice the plan gets for the player's job and the entries the overlay will then show (cached until the
+    /// review, the replaced plan, the job or the store changes).
+    /// </summary>
+    private ColumnChoice ColumnChoiceFor(ReviewModel model)
+    {
+        var job = this.plugin.Frame.Job;
+        var store = this.plugin.Plans;
+        var slot = this.plugin.Config.DefaultSlot;
+        var key = (model, model.Revision, job, this.replaceId, store.Revision, slot);
+        if (this.columnChoice != null && this.columnChoiceKey.Equals(key))
+            return this.columnChoice;
+
+        var kept = this.replaceId != null && store.Get(this.replaceId) is { } replaced ? store.SavedMapping(replaced.Plan, job) : null;
+        this.columnChoice = ImportColumns.Choose(model.Plan, job, model.Fight.SyncLevel, slot, kept);
+        this.columnChoiceKey = key;
+        return this.columnChoice;
+    }
+
     /// <summary>The earlier import of the same sheet, tabs and columns, if there is exactly one: replaced by default.</summary>
     private static string? DefaultReplacement(PlanStore store, MitPlan plan)
     {
@@ -1218,6 +1443,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
     {
         var plan = model.Plan;
         var store = this.plugin.Plans;
+        var choice = job != Job.None ? this.ColumnChoiceFor(model) : null;
         if (string.IsNullOrWhiteSpace(plan.Name))
             plan.Name = "Imported plan";
         plan.Fight = model.Fight.Key;
@@ -1234,10 +1460,16 @@ internal sealed partial class ImportWindow : Window, IDisposable
             return;
         }
 
+        // The automatic column suggestion would leave out some of the player's calls: save the choice that has them all.
+        if (choice is { Save: true } && store.SavedMapping(plan, job) == null)
+            store.SetMapping(plan, job, choice.Mapping);
+
         if (this.setActive && job != Job.None)
             store.SetActive(model.Fight.Key, job, plan.Id);
 
         var where = this.setActive && job != Job.None ? $", active for {model.Fight.Key.ToUpperInvariant()} as {job}" : string.Empty;
+        if (choice is { Save: true })
+            where += $", your column: {ImportColumns.Describe(choice.Mapping, job)}";
         Plugin.Chat.Print($"[MitCue] Saved plan \"{plan.Name}\" ({Plural(plan.Entries.Count, "entry", "entries")}{where}).");
         this.ResetAfterSave();
         this.IsOpen = false;
@@ -1249,75 +1481,16 @@ internal sealed partial class ImportWindow : Window, IDisposable
         this.review = null;
         this.source = null;
         this.analysis = null;
-        this.analysisKey = null;
+        this.trial.Retry();
         this.selectedTabs.Clear();
         this.selectedColumns.Clear();
         this.replaceId = null;
         this.saveMessage = string.Empty;
         this.promptMessage = string.Empty;
+        this.columnChoice = null;
+        this.defaultTabsBasis = null;
         this.yamlBox.Set(string.Empty);
         this.SetStatus(string.Empty, false);
         this.step = Step.Source;
-    }
-
-    /// <summary>A multi-line text box over a persistent UTF-8 buffer (no re-encoding of a whole sheet every frame).</summary>
-    private sealed class TextBox
-    {
-        private readonly int capacity;
-        private byte[]? buffer;
-
-        public TextBox(int capacity)
-        {
-            this.capacity = capacity;
-        }
-
-        public string Text { get; private set; } = string.Empty;
-
-        public bool Truncated { get; private set; }
-
-        /// <summary>Lines of <see cref="Text"/> (counted when it changes, not every frame).</summary>
-        public int Lines { get; private set; }
-
-        /// <summary>UTF-8 size of <see cref="Text"/>.</summary>
-        public int Bytes { get; private set; }
-
-        public void Set(string value)
-        {
-            var buf = this.Buffer();
-            var bytes = Encoding.UTF8.GetBytes(value);
-            var length = bytes.Length;
-            this.Truncated = length >= this.capacity;
-            if (this.Truncated)
-            {
-                length = this.capacity - 1;
-                while (length > 0 && (bytes[length] & 0xC0) == 0x80)
-                    length--; // do not cut a UTF-8 sequence
-            }
-
-            Array.Copy(bytes, buf, length);
-            Array.Clear(buf, length, buf.Length - length);
-            this.SetText(Encoding.UTF8.GetString(buf, 0, length), length);
-        }
-
-        public bool Draw(string id, Vector2 size, ImGuiInputTextFlags flags)
-        {
-            var buf = this.Buffer();
-            if (!ImGui.InputTextMultiline(id, buf, size, flags))
-                return false;
-            var end = Array.IndexOf(buf, (byte)0);
-            var length = end < 0 ? buf.Length : end;
-            this.SetText(Encoding.UTF8.GetString(buf, 0, length), length);
-            this.Truncated = false;
-            return true;
-        }
-
-        private void SetText(string text, int bytes)
-        {
-            this.Text = text;
-            this.Bytes = bytes;
-            this.Lines = text.Length == 0 ? 0 : text.Count(c => c == '\n') + 1;
-        }
-
-        private byte[] Buffer() => this.buffer ??= new byte[this.capacity];
     }
 }

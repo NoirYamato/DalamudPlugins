@@ -113,6 +113,11 @@ internal sealed class SheetFetcher : IDisposable
     private const string ShareHelp =
         "In Google Sheets/Docs use Share > General access > \"Anyone with the link\" (Viewer), or copy the cells and use \"Paste cells\" instead.";
 
+    private const string SheetSizeHelp = "Large images in the file count too: remove them, or copy the cells and use \"Paste cells\".";
+
+    private const string DocSizeHelp =
+        "Images in the document count too: copy the document's text into the AI route (\"Paste plan YAML\": copy the prompt, then paste the text after it) instead.";
+
     private static readonly string[] LoginMarkers =
     [
         "accounts.google.com/ServiceLogin",
@@ -161,10 +166,12 @@ internal sealed class SheetFetcher : IDisposable
     {
         using var timeoutSource = new CancellationTokenSource(this.timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancel, timeoutSource.Token);
+        var progress = new DownloadProgress();
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             using var response = await this.http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linked.Token).ConfigureAwait(false);
+            progress.Answered = true;
 
             var status = (int)response.StatusCode;
             var mediaType = response.Content.Headers.ContentType?.MediaType;
@@ -176,11 +183,11 @@ internal sealed class SheetFetcher : IDisposable
                 return FromHttpStatus(status, url, mediaType, what);
 
             if (response.Content.Headers.ContentLength is { } length && length > this.maxBytes)
-                return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(what, length, this.maxBytes));
+                return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(expected, what, length, this.maxBytes));
 
-            var bytes = await ReadCappedAsync(response.Content, this.maxBytes, linked.Token).ConfigureAwait(false);
+            var bytes = await ReadCappedAsync(response.Content, this.maxBytes, progress, linked.Token).ConfigureAwait(false);
             if (bytes == null)
-                return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(what, null, this.maxBytes));
+                return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(expected, what, null, this.maxBytes));
 
             return Classify(expected, url, status, mediaType, FileNameOf(response.Content.Headers.ContentDisposition), bytes, what, this.maxBytes);
         }
@@ -190,12 +197,7 @@ internal sealed class SheetFetcher : IDisposable
         }
         catch (OperationCanceledException)
         {
-            return Fail(
-                FetchStatus.Timeout,
-                url,
-                null,
-                null,
-                $"Google did not answer within {this.timeout.TotalSeconds.ToString("0", CultureInfo.InvariantCulture)} seconds. Check your connection and try again.");
+            return Fail(FetchStatus.Timeout, url, null, null, this.TimeoutMessage(expected, what, progress));
         }
         catch (HttpRequestException ex)
         {
@@ -214,7 +216,7 @@ internal sealed class SheetFetcher : IDisposable
     internal static FetchResult Classify(ExpectedContent expected, string url, int status, string? mediaType, string? fileName, byte[] bytes, string what, long maxBytes)
     {
         if (bytes.Length > maxBytes)
-            return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(what, bytes.Length, maxBytes));
+            return Fail(FetchStatus.TooLarge, url, status, mediaType, TooLargeMessage(expected, what, bytes.Length, maxBytes));
 
         var looksHtml = LooksLikeHtml(bytes, mediaType);
         switch (expected)
@@ -318,7 +320,7 @@ internal sealed class SheetFetcher : IDisposable
         return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
     }
 
-    private static async Task<byte[]?> ReadCappedAsync(HttpContent content, long maxBytes, CancellationToken cancel)
+    private static async Task<byte[]?> ReadCappedAsync(HttpContent content, long maxBytes, DownloadProgress progress, CancellationToken cancel)
     {
         await using var stream = await content.ReadAsStreamAsync(cancel).ConfigureAwait(false);
         var initial = (int)Math.Min(content.Headers.ContentLength ?? 256 * 1024, Math.Min(maxBytes, 64L * 1024 * 1024));
@@ -332,15 +334,28 @@ internal sealed class SheetFetcher : IDisposable
             if (buffer.Length + read > maxBytes)
                 return null;
             buffer.Write(chunk, 0, read);
+            progress.Received = buffer.Length;
         }
 
         return buffer.ToArray();
     }
 
-    private static string TooLargeMessage(string what, long? length, long maxBytes)
+    private static string TooLargeMessage(ExpectedContent expected, string what, long? length, long maxBytes)
     {
         var size = length is { } l ? " (" + FormatSize(l) + ")" : string.Empty;
-        return $"The {what} is too large to import{size}; the limit is {FormatSize(maxBytes)}. Large images in the file count too: remove them, or copy the cells and use \"Paste cells\".";
+        return $"The {what} is too large to import{size}; the limit is {FormatSize(maxBytes)}. {SizeHelp(expected)}";
+    }
+
+    private static string SizeHelp(ExpectedContent expected) => expected == ExpectedContent.Xlsx ? SheetSizeHelp : DocSizeHelp;
+
+    /// <summary>"No answer" (no response within the limit) differs from a transfer that is still running when it ends.</summary>
+    private string TimeoutMessage(ExpectedContent expected, string what, DownloadProgress progress)
+    {
+        var seconds = this.timeout.TotalSeconds.ToString("0", CultureInfo.InvariantCulture);
+        if (!progress.Answered)
+            return $"Google did not answer within {seconds} seconds. Check your connection and try again.";
+        return $"The {what} did not finish downloading within {seconds} seconds ({FormatSize(progress.Received)} received): " +
+               $"it is very large or the connection is slow. {SizeHelp(expected)}";
     }
 
     private static string Inner(Exception ex)
@@ -375,4 +390,14 @@ internal sealed class SheetFetcher : IDisposable
         bytes >= 1024 * 1024
             ? (bytes / (1024.0 * 1024.0)).ToString("0.0", CultureInfo.InvariantCulture) + " MB"
             : Math.Max(1, bytes / 1024).ToString(CultureInfo.InvariantCulture) + " KB";
+
+    /// <summary>How far one download got (written by the download, read when it ends).</summary>
+    private sealed class DownloadProgress
+    {
+        /// <summary>The response headers arrived.</summary>
+        public bool Answered { get; set; }
+
+        /// <summary>Body bytes received so far.</summary>
+        public long Received { get; set; }
+    }
 }

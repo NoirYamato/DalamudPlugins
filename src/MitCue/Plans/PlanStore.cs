@@ -343,12 +343,20 @@ internal sealed class PlanStore
     {
         if (this.SavedMapping(plan, job) is { } saved)
             return saved;
+        return SuggestedMapping(plan, job, this.config.DefaultSlot);
+    }
 
-        var suggested = SuggestAssignee(plan, job, this.config.DefaultSlot);
+    /// <summary>
+    /// The automatic column choice for a plan and job (<see cref="PlayerMapping.IsSuggestion"/> = true): what
+    /// <see cref="MappingFor"/> returns when nothing is saved, from <see cref="SuggestAssignee"/>.
+    /// </summary>
+    public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot)
+    {
+        var suggested = SuggestAssignee(plan, job, defaultSlot);
         return new PlayerMapping
         {
             AssigneeKey = suggested?.Key,
-            Slot = suggested?.Slot ?? this.config.DefaultSlot,
+            Slot = suggested?.Slot ?? defaultSlot,
             IsSuggestion = true,
         };
     }

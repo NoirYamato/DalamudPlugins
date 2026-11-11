@@ -69,6 +69,7 @@ internal sealed class ReviewModel
     private readonly bool actionsLoaded;
     private readonly List<ReviewIssue> importGlobal = [];
     private readonly Stack<(int Index, ReviewRow Row)> deleted = new();
+    private readonly Dictionary<Job, IReadOnlyList<ActionInfo>> jobActions = [];
     private int nextUid;
 
     /// <summary>Builds the review of a plan.</summary>
@@ -137,6 +138,9 @@ internal sealed class ReviewModel
     /// <summary>Number of deletions that can be undone.</summary>
     public int UndoCount => this.deleted.Count;
 
+    /// <summary>Entries the user changed or deleted (lost when the review is replaced by a new import).</summary>
+    public int EditCount => this.Rows.Count(r => r.Edited) + this.deleted.Count;
+
     /// <summary>Rows whose worst issue has this severity.</summary>
     public int CountWorst(DiagnosticSeverity severity) => this.Rows.Count(r => r.Worst == severity);
 
@@ -191,6 +195,76 @@ internal sealed class ReviewModel
             return;
         row.Entry.WhenReady = value;
         this.Changed(row);
+    }
+
+    /// <summary>
+    /// Marks the entry as a phase-end call ("as P3 dies"): when a phase push jumps past it, it becomes due at the jump
+    /// instead of being skipped (DESIGN §5.2).
+    /// </summary>
+    public void SetAtPhaseEnd(ReviewRow row, bool value)
+    {
+        if (row.Entry.AtPhaseEnd == value)
+            return;
+        row.Entry.AtPhaseEnd = value;
+        this.Changed(row);
+    }
+
+    /// <summary>Replaces item <paramref name="index"/> of the entry, e.g. a note with the action it stands for.</summary>
+    public void SetItem(ReviewRow row, int index, PlanItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        var items = row.Entry.Do;
+        if (index < 0 || index >= items.Count)
+            return;
+        items[index] = item;
+        this.ItemsChanged(row);
+    }
+
+    /// <summary>Adds an item (something more to press) to the entry.</summary>
+    public void AddItem(ReviewRow row, PlanItem item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        row.Entry.Do.Add(item);
+        this.ItemsChanged(row);
+    }
+
+    /// <summary>Removes item <paramref name="index"/> of the entry.</summary>
+    public void RemoveItem(ReviewRow row, int index)
+    {
+        var items = row.Entry.Do;
+        if (index < 0 || index >= items.Count)
+            return;
+        items.RemoveAt(index);
+        this.ItemsChanged(row);
+    }
+
+    /// <summary>
+    /// The job whose actions the entry's items can be: its own job, else its column's job, else <paramref name="fallback"/>
+    /// (the player's job, for job-less columns such as LPDU's "H2").
+    /// </summary>
+    public Job JobOf(ReviewRow row, Job fallback)
+    {
+        var who = row.Entry.Who;
+        if (who.Job is { } job && job != Job.None)
+            return job;
+        var column = who.Assignee == null
+            ? null
+            : this.Plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, who.Assignee, StringComparison.OrdinalIgnoreCase));
+        return column?.Job is { } columnJob && columnJob != Job.None ? columnJob : fallback;
+    }
+
+    /// <summary>Actions <paramref name="job"/> can press in this fight (at its level), by name; empty without a catalog.</summary>
+    public IReadOnlyList<ActionInfo> ActionsFor(Job job)
+    {
+        if (!this.actionsLoaded || job == Job.None)
+            return [];
+        if (!this.jobActions.TryGetValue(job, out var list))
+        {
+            list = this.actions.ForJob(job, this.Fight.SyncLevel).OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase).ToList();
+            this.jobActions[job] = list;
+        }
+
+        return list;
     }
 
     /// <summary>Sets the target text (empty = none).</summary>
@@ -323,6 +397,15 @@ internal sealed class ReviewModel
         row.Edited = true;
         this.Recheck(row);
         this.Revision++;
+    }
+
+    private void ItemsChanged(ReviewRow row)
+    {
+        // The importer's notes about the items it could not resolve no longer apply.
+        row.ImportIssues.RemoveAll(i =>
+            i.Code.Contains("token", StringComparison.OrdinalIgnoreCase) || i.Code.Contains("action", StringComparison.OrdinalIgnoreCase) ||
+            i.Code.Contains("alias", StringComparison.OrdinalIgnoreCase) || i.Code.Contains("item", StringComparison.OrdinalIgnoreCase));
+        this.Changed(row);
     }
 
     private void AttachImportDiagnostics(IReadOnlyList<ImportDiagnostic> diagnostics)

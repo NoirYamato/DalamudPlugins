@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
 
 namespace MitCue.PluginTests;
 
@@ -83,6 +84,40 @@ public class BackgroundJobsTests
         while (this.mainThread.TryTake(out var action))
             action();
         Assert.Equal(new[] { "second" }, results);
+    }
+
+    [Fact]
+    public void ObservesTheErrorOfAJobThatFailsAfterItWasCancelled()
+    {
+        // Review finding: a job that threw after it was cancelled (closing the window during a download) left its
+        // exception unread, and Dalamud logged "Unobserved exception in Task" as an error each time.
+        var marker = "failed after cancel " + Guid.NewGuid().ToString("N");
+
+        var unobserved = UnobservedTasks.After(
+            () =>
+            {
+                using var jobs = this.Jobs();
+                using var started = new ManualResetEventSlim();
+                using var gate = new ManualResetEventSlim();
+                jobs.RunSync<int>("Throws late", _ =>
+                {
+                    started.Set();
+                    gate.Wait(TimeSpan.FromSeconds(10));
+                    throw new InvalidOperationException(marker);
+                }, _ => Assert.Fail("a cancelled job delivered a result"), _ => Assert.Fail("a cancelled job delivered its failure"));
+
+                // Cancel while the work runs (a job cancelled before it starts never runs and has no exception).
+                Assert.True(started.Wait(TimeSpan.FromSeconds(10)), "the job never started");
+                jobs.Cancel();
+                gate.Set();
+
+                // The continuation still posts (and the post is dropped): run it.
+                Assert.True(this.mainThread.TryTake(out var post, TimeSpan.FromSeconds(10)), "the job never finished");
+                post();
+            },
+            ex => ex.Message == marker);
+
+        Assert.Empty(unobserved);
     }
 
     [Fact]

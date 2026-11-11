@@ -7,6 +7,7 @@ using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using MitCue.Core;
+using MitCue.Core.Actions;
 using MitCue.Core.Fights;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
@@ -15,7 +16,11 @@ using MitCue.Runtime;
 
 namespace MitCue.UI;
 
-/// <summary>Step 3 of the import window: the review table and the details of the selected entry.</summary>
+/// <summary>
+/// Step 3 of the import window: the review table and the details of the selected entry, where what to press can be
+/// changed (a note the importer could not resolve replaced by the action it stands for, which can be remembered as a
+/// personal alias for later imports).
+/// </summary>
 internal sealed partial class ImportWindow
 {
     private const string MineFilter = "\u0001mine";
@@ -32,6 +37,10 @@ internal sealed partial class ImportWindow
     private bool sortByTime;
     private int selectedUid = -1;
     private string mechanicFilter = string.Empty;
+    private string actionFilter = string.Empty;
+
+    // A note replaced by an action in the details panel, offered as a personal alias (row uid, alias, saved yet).
+    private (int Uid, UserAliasEntry Alias, bool Saved)? aliasOffer;
 
     private static string FormatClock(double seconds)
     {
@@ -82,10 +91,11 @@ internal sealed partial class ImportWindow
         this.sortByTime = false;
         this.selectedUid = model.Rows.Count > 0 ? model.Rows[0].Uid : -1;
         this.saveMessage = string.Empty;
+        this.aliasOffer = null;
         model.Plan.Name = string.IsNullOrWhiteSpace(model.Plan.Name) ? name : model.Plan.Name;
         this.replaceId = DefaultReplacement(this.plugin.Plans, model.Plan);
         var job = this.plugin.Frame.Job;
-        this.setActive = job != Job.None && model.CountFor(job, this.plugin.Config.DefaultSlot) > 0;
+        this.setActive = job != Job.None && this.ColumnChoiceFor(model).Mine > 0;
         this.step = Step.Review;
     }
 
@@ -131,7 +141,7 @@ internal sealed partial class ImportWindow
             ImGui.TextDisabled($"Showing {this.visible.Count.ToString(CultureInfo.InvariantCulture)} of {model.Rows.Count.ToString(CultureInfo.InvariantCulture)}");
         }
 
-        var detailsHeight = (ImGui.GetTextLineHeightWithSpacing() * 8) + (ImGui.GetStyle().WindowPadding.Y * 2);
+        var detailsHeight = (ImGui.GetTextLineHeightWithSpacing() * 4) + (ImGui.GetFrameHeightWithSpacing() * 5) + (ImGui.GetStyle().WindowPadding.Y * 2);
         var navHeight = ImGui.GetFrameHeightWithSpacing() + Scale(6);
         var tableHeight = Math.Max(Scale(120), ImGui.GetContentRegionAvail().Y - detailsHeight - navHeight);
         this.DrawReviewTable(model, tableHeight);
@@ -236,7 +246,18 @@ internal sealed partial class ImportWindow
 
     private void RefreshVisible(ReviewModel model)
     {
-        var filterKey = string.Join('\u0002', this.filterText, this.problemsOnly, this.columnFilter, this.sortByTime);
+        // "My calls" are the entries the overlay will show: with the column choice the plan is saved with.
+        var job = this.plugin.Frame.Job;
+        var mineMapping = this.columnFilter == MineFilter && job != Job.None ? this.ColumnChoiceFor(model).Mapping : null;
+        var filterKey = string.Join(
+            '\u0002',
+            this.filterText,
+            this.problemsOnly,
+            this.columnFilter,
+            this.sortByTime,
+            mineMapping?.AssigneeKey ?? "*",
+            mineMapping?.Slot ?? "*",
+            job);
 
         // Do not reorder rows under the mouse while a value is being dragged; structural changes always refresh.
         var stale = model.Revision != this.visibleRevision && !ImGui.IsAnyItemActive();
@@ -249,8 +270,7 @@ internal sealed partial class ImportWindow
         this.visible.Clear();
 
         var text = this.filterText.Trim().ToLowerInvariant();
-        var job = this.plugin.Frame.Job;
-        var me = job != Job.None ? new PlayerContext(job, model.Fight.SyncLevel, this.plugin.Config.DefaultSlot) : null;
+        var me = mineMapping != null ? ImportColumns.Context(mineMapping, job, model.Fight.SyncLevel, this.plugin.Config.DefaultSlot) : null;
         foreach (var row in model.Rows)
         {
             if (this.problemsOnly && row.Worst is not (DiagnosticSeverity.Warning or DiagnosticSeverity.Error))
@@ -297,7 +317,7 @@ internal sealed partial class ImportWindow
         ImGui.TableSetupColumn("Offset", ImGuiTableColumnFlags.WidthFixed, Scale(92));
         ImGui.TableSetupColumn("Press", ImGuiTableColumnFlags.WidthStretch, 2.4f);
         ImGui.TableSetupColumn("Who", ImGuiTableColumnFlags.WidthStretch, 0.9f);
-        ImGui.TableSetupColumn("Opt / Rdy", ImGuiTableColumnFlags.WidthFixed, (frame * 2) + Scale(14));
+        ImGui.TableSetupColumn("Opt / Rdy / End", ImGuiTableColumnFlags.WidthFixed, (frame * 3) + Scale(22));
         ImGui.TableSetupColumn("Problems", ImGuiTableColumnFlags.WidthStretch, 1.6f);
         ImGui.TableSetupColumn("Source", ImGuiTableColumnFlags.WidthFixed, Scale(84));
         ImGui.TableSetupColumn("##delete", ImGuiTableColumnFlags.WidthFixed, frame + Scale(4));
@@ -441,6 +461,12 @@ internal sealed partial class ImportWindow
             model.SetWhenReady(row, whenReady);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("When ready: press at the planned time, or as soon as it comes off cooldown.");
+        ImGui.SameLine(0, Scale(4));
+        var atPhaseEnd = entry.AtPhaseEnd;
+        if (ImGui.Checkbox("##atPhaseEnd", ref atPhaseEnd))
+            model.SetAtPhaseEnd(row, atPhaseEnd);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Phase end: a call for the end of its phase (\"as P3 dies\"). When the phase is pushed early, it is shown at the transition instead of being skipped.");
 
         // Problems.
         ImGui.TableNextColumn();
@@ -563,8 +589,8 @@ internal sealed partial class ImportWindow
             ImGui.TextColored(ColorError, string.IsNullOrWhiteSpace(entry.Mechanic) ? "No mechanic: choose one in the table." : $"Unknown mechanic \"{entry.Mechanic}\": choose one in the table.");
         }
 
-        ImGui.TextWrapped("Press: " + l.ItemsLong + (entry.Seq && entry.Do.Count > 1 ? " (in this order)" : string.Empty));
-        ImGui.TextUnformatted("Who: " + l.Who);
+        ImGui.TextUnformatted("Who: " + l.Who + (entry.AtPhaseEnd ? "; at the end of its phase" : string.Empty));
+        this.DrawItemEditor(model, row);
 
         var target = entry.Target ?? string.Empty;
         ImGui.SetNextItemWidth(Scale(180));
@@ -587,6 +613,134 @@ internal sealed partial class ImportWindow
 
         foreach (var issue in row.Issues)
             ImGui.TextColoredWrapped(SeverityColor(issue.Severity), (issue.FromImporter ? "Import: " : "Check: ") + issue.Message);
+    }
+
+    /// <summary>
+    /// What to press, item by item: an action can be changed, a note replaced by the action it stands for (and then
+    /// remembered as a personal alias), items removed and actions added, from the actions of the entry's job.
+    /// </summary>
+    private void DrawItemEditor(ReviewModel model, ReviewRow row)
+    {
+        var entry = row.Entry;
+        var job = model.JobOf(row, this.plugin.Frame.Job);
+        var actions = model.ActionsFor(job);
+        var gameData = this.plugin.GameData;
+        ImGui.TextUnformatted(entry.Do.Count == 0 ? "Press: nothing yet" : entry.Seq && entry.Do.Count > 1 ? "Press, in this order:" : "Press:");
+        for (var i = 0; i < entry.Do.Count; i++)
+        {
+            var item = entry.Do[i];
+            using var id = ImRaii.PushId(i);
+            ImGui.Indent(Scale(12));
+            ImGui.AlignTextToFramePadding();
+            if (item.IsNote)
+                ImGui.TextColored(ColorWarning, $"\"{item.Note}\" (note: not tracked)");
+            else
+                ImGui.TextUnformatted(ReminderText.ItemName(item, gameData) + (item.Action is { } a ? $" [{a.ToString(CultureInfo.InvariantCulture)}]" : string.Empty));
+            ImGui.SameLine();
+            if (this.DrawActionPicker(item.IsNote ? "Replace with an action" : "Change", actions, out var chosen))
+            {
+                model.SetItem(row, i, PlanItem.ForAction(chosen.Id, chosen.Name));
+                this.aliasOffer = item.IsNote && PersonalAliases.From(item.Note, chosen.Name, job) is { } alias ? (row.Uid, alias, false) : null;
+            }
+
+            ImGui.SameLine();
+            var remove = ImGui.SmallButton("Remove");
+            ImGui.Unindent(Scale(12));
+            if (remove)
+            {
+                model.RemoveItem(row, i);
+                break;
+            }
+        }
+
+        ImGui.Indent(Scale(12));
+        if (this.DrawActionPicker("+ Add an action", actions, out var added))
+            model.AddItem(row, PlanItem.ForAction(added.Id, added.Name));
+        if (actions.Count == 0)
+        {
+            ImGui.SameLine();
+            ImGui.TextDisabled(job == Job.None
+                ? "(unknown job: switch to the job whose calls these are to pick its actions)"
+                : "(the action list did not load: see Problems in /mitcue)");
+        }
+
+        ImGui.Unindent(Scale(12));
+        this.DrawAliasOffer(row);
+    }
+
+    /// <summary>A combo listing <paramref name="actions"/> with a search box; true when one was picked.</summary>
+    private bool DrawActionPicker(string label, IReadOnlyList<ActionInfo> actions, out ActionInfo chosen)
+    {
+        chosen = null!;
+        if (actions.Count == 0)
+            return false;
+        ImGui.SetNextItemWidth(Scale(190));
+        using var combo = ImRaii.Combo("##pick" + label, label, ImGuiComboFlags.HeightLarge);
+        if (!combo)
+            return false;
+
+        if (ImGui.IsWindowAppearing())
+        {
+            this.actionFilter = string.Empty;
+            ImGui.SetKeyboardFocusHere();
+        }
+
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputTextWithHint("##actionFilter", "Search actions...", ref this.actionFilter, 64);
+        var filter = this.actionFilter.Trim();
+        var picked = false;
+        foreach (var action in actions)
+        {
+            if (filter.Length > 0 && !action.Name.Contains(filter, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (ImGui.Selectable($"{action.Name}  ({LlmPrompt.KindName(action.Kind)})##{action.Id.ToString(CultureInfo.InvariantCulture)}"))
+            {
+                chosen = action;
+                picked = true;
+            }
+        }
+
+        return picked;
+    }
+
+    /// <summary>After a note was replaced: offer to remember the shorthand, then say it was saved (with an undo).</summary>
+    private void DrawAliasOffer(ReviewRow row)
+    {
+        if (this.aliasOffer is not { } offer || offer.Uid != row.Uid)
+            return;
+
+        var alias = offer.Alias;
+        var meaning = $"\"{alias.Token}\" = {string.Join(" + ", alias.Actions)}{(alias.Job != null ? $" for {alias.Job}" : string.Empty)}";
+        var aliases = this.plugin.Config.UserAliases;
+        if (!offer.Saved)
+        {
+            if (ImGui.SmallButton($"Remember {meaning}"))
+            {
+                PersonalAliases.Upsert(aliases, alias);
+                this.ApplyPersonalAliases();
+                this.aliasOffer = (offer.Uid, alias, true);
+            }
+
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Saves this shorthand as a personal alias: later imports read it as this action.");
+            return;
+        }
+
+        ImGui.TextColored(ColorOk, $"Remembered {meaning}: later imports read it.");
+        ImGui.SameLine();
+        if (ImGui.SmallButton("Forget"))
+        {
+            PersonalAliases.Remove(aliases, alias);
+            this.plugin.Data.Aliases?.RemoveUser(alias.Token);
+            this.ApplyPersonalAliases();
+            this.aliasOffer = (offer.Uid, alias, false);
+        }
+    }
+
+    private void ApplyPersonalAliases()
+    {
+        this.plugin.SaveConfig();
+        this.plugin.Data.ApplyUserAliases();
     }
 
     private RowLabels Labels(ReviewModel model, ReviewRow row)

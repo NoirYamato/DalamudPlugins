@@ -2,6 +2,7 @@ using MitCue.Core;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
 using static MitCue.PluginTests.TestData;
 
 namespace MitCue.PluginTests;
@@ -175,17 +176,100 @@ public class ImportAnalysisTests
     }
 
     [Fact]
-    public void WithoutATrialImportEveryTabWithContentIsChosen()
+    public void WithoutATrialImportTheHeaderRowsChooseThePlayersTabs()
     {
         var (doc, _) = Lpdu();
         var analysis = ImportAnalysis.Unavailable(doc, "not available");
 
         Assert.False(analysis.Available);
         Assert.Equal("not available", analysis.Reason);
-        Assert.Equal(new[] { "P1P2", "P3" }, analysis.DefaultTabs(Job.SCH, null, null).Where(t => t.StartsWith('P')));
-        Assert.Contains("WARDRK", analysis.DefaultTabs(Job.SCH, null, null));
+        Assert.Equal(new[] { "MT", "H1", "H2" }, analysis.Tabs[1].HeaderColumns.Select(a => a.Key));
+        Assert.Equal(new[] { "P1P2", "P3" }, analysis.DefaultTabs(Job.SCH, null, null));
+        Assert.Equal(new[] { "P1P2", "P3" }, analysis.HeaderDefaultTabs(Job.SCH, null, "ALOO", out var basis));
+        Assert.Equal("the tabs with your columns (H2, H2 SCH)", basis);
+        Assert.Equal(new[] { "WARDRK" }, analysis.DefaultTabs(Job.WAR, null, null));
         Assert.Empty(analysis.DefaultColumns(["P3"], Job.SCH, null));
     }
+
+    [Fact]
+    public void WithoutATrialImportOrAPlayerEveryTabWithContentIsChosen()
+    {
+        var (doc, _) = Lpdu();
+        var analysis = ImportAnalysis.Unavailable(doc, "not available");
+
+        // The link points at the title tab (no header row): it says nothing about the plan.
+        Assert.Equal(new[] { "P1P2", "P3", "WARDRK" }, analysis.HeaderDefaultTabs(Job.None, null, "ALOO", out var basis));
+        Assert.Null(basis);
+    }
+
+    [Fact]
+    public void WithoutATrialImportAPlayersOwnTabWinsOverACombinedTab()
+    {
+        // Review finding: with the importer not available, every tab was chosen, so the AI prompt for Carry the Clear held
+        // the White Mage's calls twice (the White Mage tab and the combined tab, worded differently).
+        var (doc, _) = CarryTheClear();
+        var analysis = ImportAnalysis.Unavailable(doc, "not available");
+
+        Assert.Equal(new[] { "TOP – White Mage" }, analysis.DefaultTabs(Job.WHM, null, "TOP – White Mage"));
+        Assert.Equal(new[] { "TOP – Scholar" }, analysis.DefaultTabs(Job.SCH, null, "TOP – White Mage"));
+        Assert.Equal(new[] { "TOP – White Mage" }, analysis.HeaderDefaultTabs(Job.None, null, "TOP – White Mage", out var basis));
+        Assert.Equal("the tab your link points at", basis);
+    }
+
+    [Fact]
+    public void ThePromptForTheRealCarryTheClearHoldsTheWhiteMagesCallsOnce()
+    {
+        // The reviewer's probe on the real sheet (its CSV export): the trial import is not available in this build.
+        var doc = FixtureSheets.CarryTheClear();
+        var analysis = ImportAnalysis.Unavailable(doc, "The sheet importer is not available in this build of MitCue yet.");
+
+        var tabs = analysis.DefaultTabs(Job.WHM, null, "TOP – White Mage");
+        var text = SheetText.ForPrompt(doc, tabs);
+
+        Assert.Equal(new[] { "TOP – White Mage" }, tabs);
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(text, @"Pantokrator: line stack"));
+        Assert.Contains("Temp (1:18)", text);
+        Assert.DoesNotContain("TOP – WHM + SCH", text);
+    }
+
+    [Fact]
+    public void TheRealLpduHeadersChooseAScholarsPhaseTabs()
+    {
+        var doc = FixtureSheets.Lpdu();
+        var analysis = ImportAnalysis.Unavailable(doc, "not available");
+
+        Assert.Equal(new[] { "P1P2", "P3", "P4", "P5", "P6" }, analysis.DefaultTabs(Job.SCH, null, "ALOO"));
+        Assert.Equal(new[] { "WARDRK", "WARGNB", "WARPLD" }, analysis.DefaultTabs(Job.WAR, null, "ALOO"));
+    }
+
+    [Theory]
+    [InlineData("H2 SCH", "H2", Job.SCH)]
+    [InlineData("White Mage", null, Job.WHM)]
+    [InlineData("WAR", null, Job.WAR)]
+    [InlineData("MT", "MT", null)]
+    [InlineData("D3", "R1", null)]
+    [InlineData("SGE H2", "H2", Job.SGE)]
+    public void ReadsColumnHeaders(string text, string? slot, Job? job)
+    {
+        var column = ImportAnalysis.HeaderColumn(text);
+        Assert.NotNull(column);
+        Assert.Equal(text, column.Key);
+        Assert.Equal(slot, column.Slot);
+        Assert.Equal(job, column.Job);
+    }
+
+    [Theory]
+    [InlineData("Notes")]
+    [InlineData("P3")]
+    [InlineData("CM LB Tank")]
+    [InlineData("Top WHMs (of 36)")]
+    [InlineData("TOP — White Mage")]
+    [InlineData("24")]
+    [InlineData("0:28")]
+    [InlineData("3-4")]
+    [InlineData("H2 28")]
+    [InlineData("")]
+    public void OtherTextIsNotAColumnHeader(string text) => Assert.Null(ImportAnalysis.HeaderColumn(text));
 
     [Fact]
     public void ColumnKeysFallBackToSlotAndJob()

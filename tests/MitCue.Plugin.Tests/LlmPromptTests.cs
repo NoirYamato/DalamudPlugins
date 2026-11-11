@@ -213,6 +213,59 @@ public class LlmPromptTests
     }
 
     [Fact]
+    public void AsksForPhaseEndCalls()
+    {
+        // Review finding: the prompt had no at_phase_end, so AI-converted plans never marked "as P3 dies" calls.
+        var prompt = LlmPrompt.Build(Input());
+
+        Assert.Contains("`at_phase_end: true` for calls made at the end of a phase (\"as P3 dies\"", prompt);
+        Assert.Contains("    at_phase_end: false", prompt);
+    }
+
+    [Fact]
+    public void AsksToConvertRepeatedCallsOnce()
+    {
+        // Review finding: tabs that repeat each other (Carry the Clear's combined tab) made the AI convert calls twice.
+        var prompt = LlmPrompt.Build(Input());
+
+        Assert.Contains("Several tabs can repeat the same calls", prompt);
+        Assert.Contains("convert each call once", prompt);
+        Assert.Contains("(a call repeated in another tab counts once)", prompt);
+    }
+
+    [Fact]
+    public void TheExampleIsAValidPlan()
+    {
+        var prompt = LlmPrompt.Build(Input());
+        var plan = ImportPipeline.ParseYaml(prompt[prompt.IndexOf("```yaml\n", StringComparison.Ordinal)..]);
+
+        Assert.Equal("top", plan.Fight);
+        Assert.Equal(2, plan.Entries.Count);
+        Assert.All(plan.Entries, e => Assert.False(e.AtPhaseEnd));
+    }
+
+    [Fact]
+    public void ReadsPhaseEndCallsFromTheAnswer()
+    {
+        const string answer = """
+            ```yaml
+            format: mitcue-plan/1
+            fight: top
+            entries:
+              - id: e001
+                mechanic: p1.pantokrator
+                who: { job: WAR, slot: MT }
+                do:
+                  - { note: "Rampart as P1 dies" }
+                at_phase_end: true
+            ```
+            """;
+
+        var entry = Assert.Single(ImportPipeline.ParseYaml(answer).Entries);
+        Assert.True(entry.AtPhaseEnd);
+    }
+
+    [Fact]
     public void PrefersTheBlockThatLooksLikeAPlan()
     {
         const string answer = "Notes:\n```\nsome text\n```\nPlan:\n```yml\nname: x\nentries: []\n```\n";

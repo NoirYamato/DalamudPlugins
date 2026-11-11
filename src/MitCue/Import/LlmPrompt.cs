@@ -109,9 +109,11 @@ internal static class LlmPrompt
             "`who`: the column's job and/or party slot (MT, OT, H1, H2, M1, M2, R1, R2) and `assignee` = the column header text exactly. List every converted column once under `assignees`.",
             "`optional: true` for calls the source marks optional (grey text, written as [#808080: ...] or similar in the source below, \"(optional)\", \"if needed\").",
             "`when_ready: true` for \"on CD\", \"on cooldown\", \"asap\", \"when available\" or a ⏱ mark.",
+            "`at_phase_end: true` for calls made at the end of a phase (\"as P3 dies\", \"just before P1 ends\", \"at the transition\"): anchor them to the last mechanic of that phase (its enrage when it has one), so they are still shown when the phase is pushed early.",
             "`target`: who the action goes on (\"MT\", \"OT\", \"your 3rd/4th-in-line player\"). `note`: a short hint from the cell (\"after the 1st stack\"). `detail`: a long explanation from a notes column (optional).",
             "`src`: the source cell, e.g. \"'P3'!F4\" (tab name in quotes, then the cell address shown in the source as R<row> and the column letter), when you know it.",
-            "Do not add entries the source does not have; do not leave out calls of the requested jobs.",
+            "Several tabs can repeat the same calls (one tab per job plus a combined tab, or a summary tab), often worded differently: convert each call once. When two tabs give the same job's call for the same mechanic, keep the one from the tab that belongs to that job.",
+            "Do not add entries the source does not have; do not leave out calls of the requested jobs (a call repeated in another tab counts once).",
         };
         for (var i = 0; i < rules.Length; i++)
             sb.Append(ci, $"{i + 1}. {rules[i]}\n");
@@ -307,6 +309,7 @@ internal static class LlmPrompt
         sb.Append("    detail: null                  # optional: longer notes from a notes column\n");
         sb.Append("    optional: false               # true when the source marks it optional\n");
         sb.Append("    when_ready: false             # true for \"on CD\" / \"as soon as ready\"\n");
+        sb.Append("    at_phase_end: false           # true for calls at the end of a phase (\"as P1 dies\")\n");
         sb.Append("```\n\n");
     }
 

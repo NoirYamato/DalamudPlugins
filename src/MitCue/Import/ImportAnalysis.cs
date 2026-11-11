@@ -30,12 +30,19 @@ internal sealed class TabStats
 
     /// <summary>Entries per column key.</summary>
     public Dictionary<string, int> EntriesByColumn { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The columns named in the tab's header row ("MT", "H2 SCH", "White Mage"), read from the cells without the
+    /// importer: they choose the default tabs when the trial import is not available.
+    /// </summary>
+    public List<Assignee> HeaderColumns { get; } = [];
 }
 
 /// <summary>
 /// The result of a trial import of every tab and column (before the user chooses): entries per tab and per column, and
 /// the default choices — the tabs with the player's column, without tabs that repeat an already chosen tab (Carry the
-/// Clear has a WHM tab, a SCH tab and a combined tab), and the player's own columns.
+/// Clear has a WHM tab, a SCH tab and a combined tab), and the player's own columns. Without a trial import (the
+/// importer is not available) the columns named in each tab's header row choose the tabs.
 /// </summary>
 internal sealed class ImportAnalysis
 {
@@ -159,22 +166,19 @@ internal sealed class ImportAnalysis
     /// <summary>
     /// Default tab choice: tabs with entries for the player's columns (or with any entries when the player has no
     /// column), the linked tab first, skipping a tab when at least half of its calls repeat calls of tabs already chosen.
-    /// Without a trial import: every tab with content.
+    /// Without a trial import the tabs' header rows decide (<see cref="HeaderDefaultTabs"/>).
     /// </summary>
     /// <param name="job">The player's job.</param>
     /// <param name="slot">The player's slot, if configured.</param>
     /// <param name="linkedTab">The tab the link pointed at, if known.</param>
     public List<string> DefaultTabs(Job job, string? slot, string? linkedTab)
     {
-        var withContent = this.Tabs.Where(t => t.NonEmptyRows >= 2).ToList();
-        if (withContent.Count == 0)
-            withContent = this.Tabs.ToList();
         if (!this.Available)
-            return withContent.Select(t => t.Name).ToList();
+            return this.HeaderDefaultTabs(job, slot, linkedTab, out _);
 
         var candidates = this.Tabs.Where(t => t.Entries > 0).ToList();
         if (candidates.Count == 0)
-            return withContent.Select(t => t.Name).ToList();
+            return this.WithContent().Select(t => t.Name).ToList();
 
         var mine = PlayerColumns(this.Assignees, job, slot).Select(a => a.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
         int MineIn(TabStats t) => t.EntriesByColumn.Where(kv => mine.Contains(kv.Key)).Sum(kv => kv.Value);
@@ -203,6 +207,142 @@ internal sealed class ImportAnalysis
         }
 
         return chosen.OrderBy(t => t.Index).Select(t => t.Name).ToList();
+    }
+
+    /// <summary>
+    /// The default tabs without a trial import, from the columns named in each tab's header row: the tabs with the
+    /// player's columns, without a tab whose player columns a tab of only the player's columns already has (Carry the
+    /// Clear's combined "WHM + SCH" tab repeats the "White Mage" and "Scholar" tabs); for an unknown player, the tab
+    /// the link points at when it has a header row; else every tab with content.
+    /// </summary>
+    /// <param name="job">The player's job.</param>
+    /// <param name="slot">The player's slot, if configured.</param>
+    /// <param name="linkedTab">The tab the link pointed at, if known.</param>
+    /// <param name="basis">Why these tabs (user-facing, e.g. "the tabs with your columns (H2, H2 SCH)"), or null for "every tab".</param>
+    public List<string> HeaderDefaultTabs(Job job, string? slot, string? linkedTab, out string? basis)
+    {
+        basis = null;
+        var withContent = this.WithContent();
+        var all = withContent.Select(t => t.Name).ToList();
+        var headed = withContent.Where(t => t.HeaderColumns.Count > 0).ToList();
+        if (headed.Count == 0)
+            return all;
+
+        // The player's columns across the tabs (a slot is inferred from a column of their job, as in PlayerColumns).
+        var columns = headed.SelectMany(t => t.HeaderColumns)
+            .GroupBy(a => a.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First())
+            .ToList();
+        var mine = PlayerColumns(columns, job, slot).Select(a => a.Key).ToList();
+        if (mine.Count > 0)
+        {
+            var keys = mine.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var candidates = headed.Where(t => t.HeaderColumns.Exists(a => keys.Contains(a.Key))).ToList();
+            var dedicated = candidates.Where(t => t.HeaderColumns.TrueForAll(a => keys.Contains(a.Key))).ToList();
+            if (dedicated.Count > 0)
+            {
+                var covered = dedicated.SelectMany(t => t.HeaderColumns).Select(a => a.Key).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                candidates = candidates.Where(t => dedicated.Contains(t) || t.HeaderColumns.Exists(a => keys.Contains(a.Key) && !covered.Contains(a.Key))).ToList();
+            }
+
+            basis = $"the tabs with your column{(mine.Count == 1 ? string.Empty : "s")} ({string.Join(", ", mine)})";
+            return candidates.OrderBy(t => t.Index).Select(t => t.Name).ToList();
+        }
+
+        var linked = linkedTab == null ? null : headed.Find(t => string.Equals(t.Name, linkedTab, StringComparison.OrdinalIgnoreCase));
+        if (linked != null && this.Tabs.Count > 1)
+        {
+            basis = "the tab your link points at";
+            return [linked.Name];
+        }
+
+        return all;
+    }
+
+    /// <summary>
+    /// A column header as a column: "H2 SCH" (slot and job), "White Mage" or "WAR" (job), "MT" or "D3" (slot); null for
+    /// any other text ("Notes", "P3", "Mechanic").
+    /// </summary>
+    public static Assignee? HeaderColumn(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        // Words without letters are never columns: Jobs.TryParse also reads ClassJob ids, so "0:28" would be SCH (28).
+        var key = text.Trim();
+        if (key.Length > 24 || !key.Any(char.IsLetter))
+            return null;
+        if (Slots.TryNormalize(key, out var slot))
+            return new Assignee { Key = key, Slot = slot };
+        if (Jobs.TryParse(key, out var job) && job != Job.None)
+            return new Assignee { Key = key, Job = job };
+
+        var words = key.Split([' ', '/', '-', '_'], StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length != 2)
+            return null;
+        string? wordSlot = null;
+        Job? wordJob = null;
+        foreach (var word in words)
+        {
+            if (wordSlot == null && Slots.TryNormalize(word, out var s))
+                wordSlot = s;
+            else if (wordJob == null && word.Any(char.IsLetter) && Jobs.TryParse(word, out var j) && j != Job.None)
+                wordJob = j;
+            else
+                return null;
+        }
+
+        return new Assignee { Key = key, Slot = wordSlot, Job = wordJob };
+    }
+
+    /// <summary>The columns of a row that are column headers (<see cref="HeaderColumn"/>).</summary>
+    public static List<Assignee> HeaderColumnsOf(IReadOnlyList<SheetCell> row)
+    {
+        var result = new List<Assignee>();
+        foreach (var cell in row)
+        {
+            if (HeaderColumn(cell.Text) is { } column && !result.Exists(a => string.Equals(a.Key, column.Key, StringComparison.OrdinalIgnoreCase)))
+                result.Add(column);
+        }
+
+        return result;
+    }
+
+    /// <summary>The tab's header row: the first row with the most column headers, or -1 when no row has one.</summary>
+    public static int HeaderRow(SheetTab tab)
+    {
+        var best = -1;
+        var bestCount = 0;
+        for (var r = 0; r < tab.Rows.Count; r++)
+        {
+            var count = HeaderColumnsOf(tab.Rows[r]).Count;
+            if (count > bestCount)
+            {
+                best = r;
+                bestCount = count;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// Rows (0-based) that look like the header row of a plan with several columns (at least two column headers), the
+    /// first row of each run of such rows. Two or more mean that more than one tab was pasted into one box.
+    /// </summary>
+    public static List<int> PlanHeaderRows(SheetTab tab)
+    {
+        var rows = new List<int>();
+        var previous = false;
+        for (var r = 0; r < tab.Rows.Count; r++)
+        {
+            var header = HeaderColumnsOf(tab.Rows[r]).Count >= 2;
+            if (header && !previous)
+                rows.Add(r);
+            previous = header;
+        }
+
+        return rows;
     }
 
     /// <summary>Default column choice within the chosen tabs: the player's columns, else every column.</summary>
@@ -234,14 +374,27 @@ internal sealed class ImportAnalysis
         return result;
     }
 
-    private static List<TabStats> BaseStats(SheetDocument document) =>
-        document.Tabs.Select((t, i) => new TabStats
+    private static List<TabStats> BaseStats(SheetDocument document)
+    {
+        var stats = new List<TabStats>(document.Tabs.Count);
+        for (var i = 0; i < document.Tabs.Count; i++)
         {
-            Name = t.Name,
-            Index = i,
-            Rows = t.Rows.Count,
-            NonEmptyRows = SheetText.NonEmptyRows(t),
-        }).ToList();
+            var tab = document.Tabs[i];
+            var stat = new TabStats { Name = tab.Name, Index = i, Rows = tab.Rows.Count, NonEmptyRows = SheetText.NonEmptyRows(tab) };
+            var header = HeaderRow(tab);
+            if (header >= 0)
+                stat.HeaderColumns.AddRange(HeaderColumnsOf(tab.Rows[header]));
+            stats.Add(stat);
+        }
+
+        return stats;
+    }
+
+    private List<TabStats> WithContent()
+    {
+        var withContent = this.Tabs.Where(t => t.NonEmptyRows >= 2).ToList();
+        return withContent.Count > 0 ? withContent : this.Tabs.ToList();
+    }
 
     private static string CallOwner(PlanEntry entry)
     {

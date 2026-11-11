@@ -156,6 +156,91 @@ public class ReviewModelTests
     }
 
     [Fact]
+    public void MarksPhaseEndCalls()
+    {
+        // Review finding: the review could not set the phase-end flag (DESIGN §5.2: "as P3 dies").
+        var model = Model(Plan());
+        var row = model.Rows[1];
+
+        model.SetAtPhaseEnd(row, true);
+
+        Assert.True(row.Entry.AtPhaseEnd);
+        Assert.True(row.Edited);
+        model.SetAtPhaseEnd(row, false);
+        Assert.False(row.Entry.AtPhaseEnd);
+    }
+
+    [Fact]
+    public void CountsTheChangesAnotherImportWouldLose()
+    {
+        // Review finding: going back to Options and importing again silently threw the review's edits away.
+        var model = Model(Plan());
+        Assert.Equal(0, model.EditCount);
+
+        model.SetOffset(model.Rows[0], -2);
+        model.SetOptional(model.Rows[0], true);
+        Assert.Equal(1, model.EditCount);
+
+        model.Delete(model.Rows[2]);
+        Assert.Equal(2, model.EditCount);
+        model.UndoDelete();
+        Assert.Equal(1, model.EditCount);
+    }
+
+    [Fact]
+    public void ReplacesANoteWithTheActionItStandsFor()
+    {
+        // Review finding: the review could not change what to press, so an unresolved shorthand stayed an untracked note.
+        var plan = Plan();
+        plan.Entries[0].Do = [PlanItem.ForNote("Tempy")];
+        var diagnostics = new List<ImportDiagnostic> { new(DiagnosticSeverity.Info, "unresolved-token", "\"Tempy\" became a note", "'TOP – White Mage'!C17") };
+        var model = Model(plan, diagnostics);
+        var row = model.Rows[0];
+        Assert.Contains(row.ImportIssues, i => i.Code == "unresolved-token");
+
+        model.SetItem(row, 0, Action(Temperance, "Temperance"));
+
+        Assert.Equal(Temperance, Assert.Single(row.Entry.Do).Action);
+        Assert.Empty(row.ImportIssues);
+        Assert.True(row.Edited);
+        Assert.Equal(TimingRules.DefaultOffset(Catalog().Get(Temperance), 90), model.AutoOffset(row));
+    }
+
+    [Fact]
+    public void AddsAndRemovesItemsAndRechecksThem()
+    {
+        var model = Model(Plan());
+        var row = model.Rows[0];
+
+        model.AddItem(row, Action(SacredSoil, "Sacred Soil"));
+        Assert.Equal(2, row.Entry.Do.Count);
+        Assert.Contains(row.CheckIssues, i => i.Code == "not-usable-by-job");
+
+        model.RemoveItem(row, 1);
+        Assert.Single(row.Entry.Do);
+        Assert.DoesNotContain(row.CheckIssues, i => i.Code == "not-usable-by-job");
+
+        model.RemoveItem(row, 0);
+        Assert.Empty(row.Entry.Do);
+        Assert.Contains(row.CheckIssues, i => i.Code == "no-items");
+        model.RemoveItem(row, 5); // out of range: ignored
+    }
+
+    [Fact]
+    public void OffersTheActionsOfTheEntrysJob()
+    {
+        var plan = Plan();
+        plan.Entries[0].Who = new WhoSpec { Slot = "H2", Assignee = "H2" }; // a job-less column
+        var model = Model(plan);
+
+        Assert.Equal(Job.WHM, model.JobOf(model.Rows[1], Job.SCH));
+        Assert.Equal(Job.SCH, model.JobOf(model.Rows[0], Job.SCH));
+        var actions = model.ActionsFor(Job.SCH).Select(a => a.Name).ToList();
+        Assert.Equal(new[] { "Adloquium", "Sacred Soil", "Succor", "Swiftcast" }, actions);
+        Assert.Empty(model.ActionsFor(Job.None));
+    }
+
+    [Fact]
     public void CountsTheEntriesOfAPlayer()
     {
         var model = Model(Plan());

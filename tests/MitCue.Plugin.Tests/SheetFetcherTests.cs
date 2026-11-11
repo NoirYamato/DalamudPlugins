@@ -129,6 +129,42 @@ public class SheetFetcherTests
     }
 
     [Fact]
+    public async Task TellsASlowTransferFromNoAnswer()
+    {
+        // Review finding: a large document that was still arriving when the time ran out was reported as
+        // "Google did not answer ... check your connection".
+        using var fetcher = new SheetFetcher(
+            new FakeHandler((request, _) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new StreamContent(new StallingStream(new byte[2048])) };
+                response.Content.Headers.ContentType = new MediaTypeHeaderValue("text/html");
+                return response;
+            }),
+            timeout: TimeSpan.FromMilliseconds(300));
+
+        var result = await fetcher.FetchAsync(Doc, CancellationToken.None);
+
+        Assert.Equal(FetchStatus.Timeout, result.Status);
+        Assert.Contains("did not finish downloading", result.Message);
+        Assert.Contains("2 KB received", result.Message);
+        Assert.DoesNotContain("did not answer", result.Message);
+        Assert.Contains("AI route", result.Message);
+    }
+
+    [Fact]
+    public void GivesSizeAdviceForTheKindOfFile()
+    {
+        var doc = SheetFetcher.Classify(ExpectedContent.Html, "u", 200, "text/html", null, new byte[2000], "document", 1000);
+        Assert.Equal(FetchStatus.TooLarge, doc.Status);
+        Assert.Contains("AI route", doc.Message);
+        Assert.DoesNotContain("Paste cells", doc.Message);
+
+        var sheet = SheetFetcher.Classify(ExpectedContent.Xlsx, "u", 200, SheetFetcher.XlsxMediaType, null, new byte[2000], "sheet", 1000);
+        Assert.Equal(FetchStatus.TooLarge, sheet.Status);
+        Assert.Contains("Paste cells", sheet.Message);
+    }
+
+    [Fact]
     public async Task CanBeCancelled()
     {
         using var cancel = new CancellationTokenSource();
@@ -223,6 +259,55 @@ public class SheetFetcherTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
             this.respond(request, cancellationToken);
+    }
+
+    /// <summary>A body that sends its first bytes and then stalls until the read is cancelled (a slow transfer).</summary>
+    private sealed class StallingStream(byte[] first) : Stream
+    {
+        private bool sent;
+
+        public override bool CanRead => true;
+
+        public override bool CanSeek => false;
+
+        public override bool CanWrite => false;
+
+        public override long Length => throw new NotSupportedException();
+
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!this.sent)
+            {
+                this.sent = true;
+                var n = Math.Min(first.Length, buffer.Length);
+                first.AsMemory(0, n).CopyTo(buffer);
+                return n;
+            }
+
+            await Task.Delay(Timeout.Infinite, cancellationToken);
+            return 0;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+            this.ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException("async only");
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     /// <summary>A stream that does not report its length (chunked responses).</summary>
