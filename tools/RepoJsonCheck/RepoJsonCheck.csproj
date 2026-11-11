@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Validates a Dalamud custom repository file (repo.json) with Dalamud's own manifest types.
+    Not part of MitCue.slnx: it loads Dalamud.dll and Newtonsoft.Json.dll from a Dalamud
+    installation at run time, so it builds without Dalamud. See Program.cs for usage.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>MitCue.Tools.RepoJsonCheck</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+</Project>

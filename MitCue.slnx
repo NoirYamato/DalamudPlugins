@@ -6,6 +6,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/MitCue.Cli.Tests/MitCue.Cli.Tests.csproj" />
     <Project Path="tests/MitCue.Core.Tests/MitCue.Core.Tests.csproj" />
+    <Project Path="tests/MitCue.Plugin.Tests/MitCue.Plugin.Tests.csproj" />
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/MitCue.Cli/MitCue.Cli.csproj" />
