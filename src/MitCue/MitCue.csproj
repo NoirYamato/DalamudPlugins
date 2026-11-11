@@ -1,0 +1,17 @@
+<Project Sdk="Dalamud.NET.Sdk/15.0.0">
+
+  <PropertyGroup>
+    <Version>0.1.0.0</Version>
+    <Author>MitCue contributors</Author>
+    <Name>MitCue</Name>
+    <Punchline>Mitigation plan reminders, synced to the fight.</Punchline>
+    <Description>Imports your raid's mitigation plan (Google Sheets or pasted text) and shows a small window telling you which of your actions to press next, synced to the boss. Reminder-only: it never presses anything for you.</Description>
+    <Tags>mitigation;healer;raid;ultimate;timeline;reminder</Tags>
+    <RootNamespace>MitCue</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\MitCue.Core\MitCue.Core.csproj" />
+  </ItemGroup>
+
+</Project>

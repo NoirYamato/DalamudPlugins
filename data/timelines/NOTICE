@@ -1,0 +1,6 @@
+The *.txt timeline files in this directory are copied unmodified from cactbot
+(https://github.com/OverlayPlugin/cactbot), ui/raidboss/data/, at commit
+e79ea7f16093be5b80cda0e2d5bc8eb899d6fb4b.
+
+cactbot is licensed under the Apache License, Version 2.0 (see LICENSE.cactbot).
+Copyright (c) cactbot contributors.
