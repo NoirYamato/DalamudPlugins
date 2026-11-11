@@ -30,10 +30,14 @@ public static class ColumnSuggestion
     /// </summary>
     /// <param name="plan">The plan.</param>
     /// <param name="job">The player's job.</param>
-    /// <param name="slot">The player's configured slot (normalized, e.g. "H2"), if any.</param>
+    /// <param name="slot">
+    /// The player's configured slot (e.g. "H2"), if any. A slot of another role than the job's is not the player's slot
+    /// on this job (<see cref="Slots.ForJob"/>): a Warrior whose usual slot is M1 does not follow the "M1" column.
+    /// </param>
     /// <param name="party">The jobs in the player's party, or null/empty when unknown.</param>
     public static Assignee? JobColumn(MitPlan plan, Job job, string? slot, IReadOnlyCollection<Job>? party = null)
     {
+        slot = Slots.ForJob(slot, job);
         Assignee? byJob = null;
         Assignee? bySlot = null;
         foreach (var a in plan.Assignees)
@@ -62,11 +66,11 @@ public static class ColumnSuggestion
         return byJob ?? bySlot;
     }
 
-    /// <summary>The job's column as a choice: its key and slot (else <paramref name="defaultSlot"/>).</summary>
+    /// <summary>The job's column as a choice: its key and slot (else <paramref name="defaultSlot"/> when it is a slot of the job's role).</summary>
     public static ColumnPick ForJob(MitPlan plan, Job job, string? defaultSlot, IReadOnlyCollection<Job>? party = null)
     {
         var column = JobColumn(plan, job, defaultSlot, party);
-        return new ColumnPick(column?.Key, column?.Slot ?? defaultSlot);
+        return new ColumnPick(column?.Key, column?.Slot ?? Slots.ForJob(defaultSlot, job));
     }
 
     /// <summary>The automatic choice: <see cref="Complete"/> when the job's column leaves out some of the player's calls, else the job's column.</summary>
@@ -131,9 +135,12 @@ public static class ColumnSuggestion
         return best;
     }
 
-    /// <summary>The player context a column choice gives (the plugin's SessionManager and preview, the CLI).</summary>
+    /// <summary>
+    /// The player context a column choice gives (the plugin's SessionManager and preview, the CLI): the choice's slot, else
+    /// <paramref name="defaultSlot"/> when it is a slot of the job's role (<see cref="Slots.ForJob"/>).
+    /// </summary>
     public static PlayerContext Context(ColumnPick pick, Job job, string? defaultSlot, int level = 0) =>
-        new(job, level, pick.Slot ?? defaultSlot, pick.AssigneeKey);
+        new(job, level, pick.Slot ?? Slots.ForJob(defaultSlot, job), pick.AssigneeKey);
 
     /// <summary>The column key of an entry: its assignee, else "slot job".</summary>
     public static string ColumnKey(PlanEntry entry)
@@ -178,10 +185,12 @@ public static class ColumnSuggestion
     }
 
     /// <summary>
-    /// The player's columns: those of their job, plus job-less columns of their slot. Without a configured slot the slot
-    /// is taken from a column of their job ("H2 SCH" → H2), so LPDU's "H2" (P1/P2) and "H2 SCH" (P3–P6) both match a
-    /// Scholar. Every column of the job is listed, also those that are alternatives of each other (LPDU's tank pairs): an
-    /// import keeps them all, and <see cref="IntendedColumns"/> tells which are the player's calls.
+    /// The player's columns: those of their job, plus job-less columns of their slot. Without a configured slot (or with
+    /// one of another role than the job's, <see cref="Slots.ForJob"/>) the slot is taken from a column of their job
+    /// ("H2 SCH" → H2), so LPDU's "H2" (P1/P2) and "H2 SCH" (P3–P6) both match a Scholar, and a White Mage whose usual
+    /// slot is MT does not get the "MT" column. Every column of the job is listed, also those that are alternatives of
+    /// each other (LPDU's tank pairs): an import keeps them all, and <see cref="IntendedColumns"/> tells which are the
+    /// player's calls.
     /// </summary>
     public static List<Assignee> PlayerColumns(IEnumerable<Assignee> assignees, Job job, string? slot)
     {
@@ -190,7 +199,7 @@ public static class ColumnSuggestion
         if (job != Job.None)
             mine.AddRange(all.Where(a => a.Job == job));
 
-        var mySlot = Slots.TryNormalize(slot, out var s) ? s : null;
+        var mySlot = Slots.ForJob(slot, job);
         if (mySlot == null)
         {
             foreach (var a in mine)
@@ -216,12 +225,13 @@ public static class ColumnSuggestion
     }
 
     /// <summary>
-    /// The player's slot as <see cref="PlayerColumns"/> infers it: the configured one, else the slot of a column of
-    /// their job. Not consistent when their columns name different slots (then no choice is guessed).
+    /// The player's slot as <see cref="PlayerColumns"/> infers it: the configured one (when it is a slot of the job's
+    /// role), else the slot of a column of their job. Not consistent when their columns name different slots (then no
+    /// choice is guessed).
     /// </summary>
     public static string? PlayerSlot(List<Assignee> columns, Job job, string? defaultSlot, out bool consistent)
     {
-        string? slot = Slots.TryNormalize(defaultSlot, out var configured) ? configured : null;
+        var slot = Slots.ForJob(defaultSlot, job);
         if (slot == null)
         {
             foreach (var column in columns.Where(a => a.Job == job))
@@ -244,7 +254,10 @@ public static class ColumnSuggestion
     /// column (<see cref="IsComposition"/>): <paramref name="columnKey"/> (the job's column, or the column the player
     /// chose) when it is one, else the job's first composition column that does not repeat the calls of those other
     /// columns (<see cref="Repeats"/>: a general tab and one pair tab are one seat, Carry the Clear's White Mage tab and
-    /// its combined tab are two). The job's other composition columns are alternatives (another tank pair).
+    /// its combined tab are two). The job's other composition columns are alternatives (another tank pair). The same
+    /// holds the other way round: when <paramref name="columnKey"/> is a composition column, a column of the job that
+    /// repeats its calls is the same seat written twice and not counted (Carry the Clear's White Mage tab when the
+    /// combined tab comes first in the sheet, or was chosen), whichever comes first.
     /// </summary>
     /// <param name="plan">The plan (for <see cref="Repeats"/>).</param>
     /// <param name="playerColumns">The player's columns (<see cref="PlayerColumns"/>).</param>
@@ -258,6 +271,10 @@ public static class ColumnSuggestion
             var plain = intended.Where(HasJob).ToList();
             if (playerColumns.FirstOrDefault(a => HasJob(a) && IsComposition(a) && !Repeats(plan, a, plain)) is { } composition)
                 intended.Add(composition);
+        }
+        else
+        {
+            intended.RemoveAll(a => !ReferenceEquals(a, chosen) && HasJob(a) && Repeats(plan, a, [chosen]));
         }
 
         return playerColumns.Where(intended.Contains).Select(a => a.Key).ToList();

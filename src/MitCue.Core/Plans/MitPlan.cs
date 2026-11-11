@@ -168,8 +168,10 @@ public static class PlanSelection
     /// another column is the player's only when it names their slot, for their job, or for whoever plays the slot (no
     /// job) when the slot is one of their role (<see cref="Slots.Fits"/>): the slot is the player's seat whichever column
     /// they follow. LPDU's job-less "MT" calls (Reprisal, Rampart) belong to a Warrior in MT who follows the tank-pair
-    /// column "WAR/DRK WAR", like the "MT" column's Warrior calls; a Warrior whose configured slot is M1 does not get
-    /// the "M1" column's melee calls.
+    /// column "WAR/DRK WAR", like the "MT" column's Warrior calls; a Warrior in slot M1 does not get the "M1" column's
+    /// melee calls. The plan readers give a job-less entry of a column with a job that job
+    /// (<see cref="PlanNormalizer.JobsFromColumns"/>), so the "H1 AST" column's calls are never the White Mage's, and a
+    /// usual party slot of another role is not the player's slot (<see cref="Slots.ForJob"/>).
     /// </summary>
     public static bool Applies(PlanEntry e, PlayerContext me)
     {
@@ -192,6 +194,40 @@ public static class PlanSelection
 /// <summary>Clean-up of plans read from any source (plan files, share codes, AI YAML, plans built in code).</summary>
 public static class PlanNormalizer
 {
+    /// <summary>
+    /// Both clean-ups every plan reader applies (<see cref="PlanSerializer"/>, the plugin's plan store):
+    /// <see cref="NormalizeSlots"/> and <see cref="JobsFromColumns"/>.
+    /// </summary>
+    public static void Normalize(MitPlan plan)
+    {
+        NormalizeSlots(plan);
+        JobsFromColumns(plan);
+    }
+
+    /// <summary>
+    /// Gives an entry that names no job the job of its column (<see cref="WhoSpec.Assignee"/>, the plan's first column of
+    /// that key) when the column has one: a column's calls are its player's, as the plan checks and the review read them
+    /// (the entry's job, else its column's). An AI-written <c>{slot: H1, assignee: "H1 AST"}</c> is then an Astrologian's
+    /// call, which <see cref="PlanSelection"/> does not show the White Mage who follows "H1 WHM" in H1; job-less calls of
+    /// a job-less column ("MT", "H2") stay for whoever plays their slot. The importer writes the job itself.
+    /// </summary>
+    public static void JobsFromColumns(MitPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        var columns = new Dictionary<string, Assignee>(StringComparer.OrdinalIgnoreCase);
+        foreach (var a in plan.Assignees ?? [])
+        {
+            if (a?.Key != null)
+                columns.TryAdd(a.Key, a);
+        }
+
+        foreach (var e in plan.Entries ?? [])
+        {
+            if (e?.Who is { Job: null, Assignee: { } key } who && columns.TryGetValue(key, out var column) && column.Job is { } job && job != Job.None)
+                who.Job = job;
+        }
+    }
+
     /// <summary>
     /// Writes the slots of a plan's columns and entries that are slot synonyms ("D3", "T1", "st", " H2 ") as the standard
     /// slots ("R1", "MT", "OT", "H2"). <see cref="PlanSelection"/> compares slots by name, and the player's slot (the

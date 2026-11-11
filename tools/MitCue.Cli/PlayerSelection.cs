@@ -24,7 +24,7 @@ internal static class PlayerSelection
     public const string AnyColumn = "*";
 
     public static readonly OptionSpec Job = new("job", "job", "Your job: an abbreviation (WHM, SCH) or a name (\"White Mage\"). Required.");
-    public static readonly OptionSpec Slot = new("slot", "slot", "Your party slot: MT, OT, H1, H2, M1, M2, R1, R2 (also T1/T2, D1-D4).");
+    public static readonly OptionSpec Slot = new("slot", "slot", "Your party slot: MT, OT, H1, H2, M1, M2, R1, R2 (also T1/T2, D1-D4); a slot of another role than your job's is not used.");
 
     public static readonly OptionSpec Assignee = new(
         "assignee",
@@ -54,6 +54,13 @@ internal static class PlayerSelection
             if (!Slots.TryNormalize(slotText, out var s))
                 throw new UsageException($"{args.Command.Name}: unknown slot '{slotText}'. Slots: {string.Join(", ", Slots.Standard)}.");
             slot = s;
+
+            // As the plugin reads "My usual party slot": a slot of another role is not the player's slot on this job.
+            if (Slots.ForJob(slot, job) == null)
+            {
+                ctx.Err.WriteLine($"note: {slot} is not a slot of {job}'s role, so it is not used (the plugin does not use a usual party slot of another role either).");
+                slot = null;
+            }
         }
 
         string? assignee = null;

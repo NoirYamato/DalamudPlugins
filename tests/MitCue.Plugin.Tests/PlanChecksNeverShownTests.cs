@@ -57,6 +57,30 @@ public class PlanChecksNeverShownTests
     }
 
     [Fact]
+    public void AMinusInfiniteOffsetIsReportedAsComingAtTheStart()
+    {
+        // Review round 4: the check said "never shown" for -Infinity too, but that call is due from the first moment of the
+        // countdown (and then missed), long before its mechanic.
+        var parts = SessionManagerTests.NewManager();
+        parts.Data.EnsureLoaded();
+        var plan = new MitPlan
+        {
+            Id = "early",
+            Fight = "top",
+            Entries = [new PlanEntry { Id = "e1", Mechanic = "p1.pantokrator", Offset = double.NegativeInfinity, Who = new WhoSpec { Job = Job.WAR }, Do = [PlanItem.ForAction(7531, "Rampart")] }],
+        };
+        plan = PlanSerializer.FromShareCode(PlanSerializer.ToShareCode(plan));
+
+        var scheduler = new ReminderScheduler(parts.Data.GetFight("top")!, [plan.Entries[0]], parts.Data.Actions, new ReminderOptions());
+        var shown = Assert.Single(scheduler.Update(-20));
+        Assert.Equal(ReminderState.Due, shown.State);
+
+        Assert.Equal(
+            ["Entry 'e1': the offset -Infinity is not a number of seconds, so the call comes at the start of the countdown or pull instead of at its mechanic."],
+            PlanChecks.Find(plan, parts.Data));
+    }
+
+    [Fact]
     public void TheShareCodesMessageNamesThem()
     {
         var parts = SessionManagerTests.NewManager();

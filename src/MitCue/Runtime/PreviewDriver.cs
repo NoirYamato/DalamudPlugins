@@ -97,10 +97,14 @@ internal sealed class PreviewDriver
     /// <param name="phaseId">Phase to start at, or null for the whole fight.</param>
     /// <param name="territory">Current territory.</param>
     /// <param name="currentJob">Current job.</param>
+    /// <param name="party">
+    /// The jobs in the player's party, or null/empty when unknown: as in the live session, they choose the tank pair's
+    /// column without a saved choice and the co-healer's columns (only for <paramref name="currentJob"/>).
+    /// </param>
     /// <param name="realNow">Current monotonic clock.</param>
     /// <param name="message">Result for the chat.</param>
     /// <returns>True when the preview started.</returns>
-    public bool Start(string? fightKey, string? phaseId, uint territory, Job currentJob, double realNow, out string message)
+    public bool Start(string? fightKey, string? phaseId, uint territory, Job currentJob, IReadOnlyCollection<Job>? party, double realNow, out string message)
     {
         this.Stop();
         this.data.EnsureLoaded();
@@ -152,11 +156,14 @@ internal sealed class PreviewDriver
 
         try
         {
+            // The same calls as the live session (SessionManager): the party's tank pair and co-healer. The party says nothing
+            // about a job the player is not playing (a preview of another job's plan).
             var plan = stored.Plan;
-            var mapping = this.plans.MappingFor(plan, job);
-            var me = new PlayerContext(job, fight.SyncLevel, mapping.Slot ?? this.config.DefaultSlot, mapping.AssigneeKey);
+            var partyJobs = job == currentJob ? party : null;
+            var mapping = this.plans.MappingFor(plan, job, partyJobs);
+            var me = new PlayerContext(job, fight.SyncLevel, mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, job), mapping.AssigneeKey);
             var own = PlanSelection.For(plan, me).ToList();
-            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me) : null;
+            var others = this.config.ShowOtherAssignees ? PartnerSelection.For(plan, me, partyJobs) : null;
 
             var options = new SimulationOptions
             {

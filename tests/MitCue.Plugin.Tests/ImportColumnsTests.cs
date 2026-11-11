@@ -81,7 +81,7 @@ public class ImportColumnsTests
     private static List<string> Runtime(PlanStore store, MitPlan plan, Job job, string? defaultSlot)
     {
         var mapping = store.MappingFor(plan, job);
-        var me = new PlayerContext(job, 90, mapping.Slot ?? defaultSlot, mapping.AssigneeKey);
+        var me = new PlayerContext(job, 90, mapping.Slot ?? Slots.ForJob(defaultSlot, job), mapping.AssigneeKey);
         return PlanSelection.For(plan, me).Select(e => e.Id).ToList();
     }
 
@@ -322,6 +322,83 @@ public class ImportColumnsTests
         Assert.Equal(1, choice.Mine);
         Assert.Equal(1, choice.Missed);
         Assert.Equal(new[] { "WAR/DRK WAR" }, choice.MissedIn);
+    }
+
+    /// <summary>
+    /// Carry the Clear's White Mage and Scholar tabs and its combined tab (the importer keys the combined tab's columns
+    /// with the tab's name), the combined tab first or last: the same calls, at the same mechanics, twice.
+    /// </summary>
+    private static MitPlan WithCombinedTab(bool combinedFirst)
+    {
+        Assignee[] perJob = [new() { Key = "White Mage", Job = Job.WHM }, new() { Key = "Scholar", Job = Job.SCH }];
+        Assignee[] combined = [new() { Key = "TOP – WHM + SCH White Mage", Job = Job.WHM }, new() { Key = "TOP – WHM + SCH Scholar", Job = Job.SCH }];
+        var plan = new MitPlan { Id = Guid.NewGuid().ToString("D"), Fight = "top", Assignees = combinedFirst ? [.. combined, .. perJob] : [.. perJob, .. combined] };
+        foreach (var column in plan.Assignees)
+        {
+            plan.Entries.Add(Make(column.Key + " 1", "p1.pantokrator", column.Key, column.Job, null));
+            plan.Entries.Add(Make(column.Key + " 2", "p2.solar_ray", column.Key, column.Job, null));
+        }
+
+        return plan;
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("H1")]
+    public void ACombinedTabFirstIsTheSeatOnceAndNothingIsSaved(string? defaultSlot)
+    {
+        // Review round 4: with the combined tab first, the job's column was the combined tab's and the White Mage tab's
+        // column counted as more of the player's calls, so the import saved "any column for WHM": every call twice.
+        var plan = WithCombinedTab(combinedFirst: true);
+        var store = Store(defaultSlot);
+
+        var choice = ImportColumns.Choose(plan, Job.WHM, 90, defaultSlot);
+        if (choice.Save)
+            store.SetMapping(plan, Job.WHM, choice.Mapping);
+
+        Assert.False(choice.Save);
+        Assert.Equal("TOP – WHM + SCH White Mage", choice.Mapping.AssigneeKey);
+        Assert.Equal(new[] { "TOP – WHM + SCH White Mage" }, choice.Columns);
+        Assert.Equal(2, choice.Mine);
+        Assert.Equal(0, choice.Missed);
+        Assert.Equal(new[] { "TOP – WHM + SCH White Mage 1", "TOP – WHM + SCH White Mage 2" }, Runtime(store, plan, Job.WHM, defaultSlot));
+    }
+
+    [Fact]
+    public void AKeptChoiceOfTheCombinedTabLeavesOutNothing()
+    {
+        // Review round 4: a re-import that kept the combined tab's column warned that it "leaves out 57 of your calls (in
+        // White Mage)": the White Mage tab's calls, which are the combined tab's calls written a second time.
+        var kept = new PlayerMapping { AssigneeKey = "TOP – WHM + SCH White Mage" };
+
+        var choice = ImportColumns.Choose(WithCombinedTab(combinedFirst: false), Job.WHM, 90, null, kept);
+
+        Assert.True(choice.Kept);
+        Assert.Equal(new[] { "TOP – WHM + SCH White Mage" }, choice.Columns);
+        Assert.Equal(2, choice.Mine);
+        Assert.Equal(0, choice.Missed);
+        Assert.Equal("White Mage", ImportColumns.Choose(WithCombinedTab(combinedFirst: false), Job.WHM, 90, null).Mapping.AssigneeKey);
+    }
+
+    [Theory]
+    [InlineData(Job.WHM, "MT", "H1 WHM", 11)]
+    [InlineData(Job.WAR, "M1", "WAR/DRK WAR", 9)]
+    public void AUsualSlotOfAnotherRoleIsNotCountedAsLeftOut(Job job, string defaultSlot, string column, int mine)
+    {
+        // Review round 4: on LPDU the Save step told a White Mage whose usual slot is MT that their column leaves out 11 of
+        // their calls (the "MT" column's Reprisals and Ramparts), and a Warrior whose usual slot is M1 that it leaves out 7
+        // (the "M1" column's melee calls): calls they cannot press, in a slot that is not theirs on that job.
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        var lpdu = parts.Plans.Get("1f75e1e8-7321-566c-ae86-8568019fe914")!.Plan;
+
+        var choice = ImportColumns.Choose(lpdu, job, 90, defaultSlot);
+
+        Assert.False(choice.Save);
+        Assert.Equal(column, choice.Mapping.AssigneeKey);
+        Assert.Equal(mine, choice.Mine);
+        Assert.Equal(0, choice.Missed);
+        Assert.DoesNotContain(defaultSlot, choice.Columns);
     }
 
     [Fact]

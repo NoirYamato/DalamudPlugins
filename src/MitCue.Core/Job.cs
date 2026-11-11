@@ -153,4 +153,17 @@ public static class Slots
         var role = Jobs.RoleOf(job);
         return RoleOf(s) == role || (RoleOf(s) == Role.Caster && role == Role.PhysicalRanged);
     }
+
+    /// <summary>
+    /// The player's configured slot (the plugin's "My usual party slot", the CLI's <c>--slot</c>) as their slot while
+    /// playing <paramref name="job"/>: the standard slot when it is one of the job's role (<see cref="Fits"/>), else null.
+    /// One usual slot serves every job: a melee player whose usual slot is M1 is not in M1 on their tank, so the M1
+    /// column's calls (Feint, Bloodbath) are not theirs there. Without a job (<see cref="Job.None"/>) the slot is kept.
+    /// </summary>
+    public static string? ForJob(string? slot, Job job)
+    {
+        if (!TryNormalize(slot, out var s))
+            return null;
+        return job == Job.None || Fits(s, job) ? s : null;
+    }
 }

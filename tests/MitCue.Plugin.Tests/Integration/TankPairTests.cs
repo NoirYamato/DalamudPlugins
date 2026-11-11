@@ -1,5 +1,7 @@
+using Dalamud.Plugin.Services;
 using MitCue.Core;
 using MitCue.Plans;
+using MitCue.PluginTests.Support;
 using MitCue.Runtime;
 
 namespace MitCue.PluginTests.Integration;
@@ -84,6 +86,31 @@ public class TankPairTests
     }
 
     [Fact]
+    public void ACoTankWhoShowsUpDuringTheCountdownGivesThePullTheirPair()
+    {
+        // Review round 4: the co-tank (zoning back in, a late job swap) was missing from the party list when /countdown
+        // started and showed up a second later; the change waited for the pull to end, so the whole pull ran on the first
+        // pair's column. Nothing is shown before the pull for the tank, so nothing is lost by rebuilding then.
+        const double pull = 1000;
+        var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "MT" });
+        Job[] full = [Job.WAR, Job.PLD, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT];
+        Job[] noCoTank = [Job.WAR, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT];
+        for (var clock = pull - 30; clock <= pull - 3; clock += 0.1)
+        {
+            var frame = Frame(Job.WAR, clock, clock < pull - 21 ? noCoTank : full);
+            frame.Countdown = clock >= pull - 22 ? (float)(pull - 1.5 - clock) : null;
+            parts.Manager.Update(frame);
+            if (clock >= pull - 22 && clock < pull - 21)
+                Assert.Equal("WAR/DRK WAR", parts.Manager.Mapping?.AssigneeKey);
+        }
+
+        Assert.Equal("WAR/PLD WAR", parts.Manager.Mapping?.AssigneeKey);
+        Assert.False(parts.Manager.RebuildPending);
+        Assert.Equal(SessionMode.Countdown, parts.Manager.Session!.Mode);
+        Assert.InRange(parts.Manager.Session.CountdownRemaining, 1, 2);
+    }
+
+    [Fact]
     public void AColumnChosenInThePlansTabIsKeptWhateverTheParty()
     {
         var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "MT" });
@@ -96,6 +123,35 @@ public class TankPairTests
         Assert.False(parts.Manager.Mapping!.IsSuggestion);
         Assert.Equal(["WAR/GNB WAR"], PairColumns(parts, partner: false));
         Assert.Subset(parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).ToHashSet(), MtCalls.ToHashSet());
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, "MT", Job.PLD, "WAR/PLD WAR", "WAR/PLD PLD")]
+    [InlineData(Job.GNB, "OT", Job.PLD, "GNB/PLD GNB", "GNB/PLD PLD")]
+    [InlineData(Job.PLD, "MT", Job.GNB, "GNB/PLD PLD", "GNB/PLD GNB")]
+    public void ThePreviewRehearsesThePairTheLiveSessionShows(Job job, string slot, Job coTank, string own, string partner)
+    {
+        // Review round 4: /mitcue preview took the first pair ("WAR/DRK WAR") while the pull showed the party's pair; a
+        // Gunbreaker next to a Paladin rehearsed without the P5 Rampart, Camouflage and Heart of Corundum the pull asks for.
+        var config = new Configuration { DefaultSlot = slot, ShowOtherAssignees = true };
+        var parts = SessionManagerTests.NewManager(config);
+        Job[] party = [job, coTank, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT];
+        parts.Manager.Update(Frame(job, 1, party));
+        Assert.Equal(own, parts.Manager.Mapping?.AssigneeKey);
+        var live = parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).Distinct().Order().ToList();
+        var livePartner = parts.Manager.Session.Others!.All.Select(r => r.Entry.Id).Distinct().Order().ToList();
+
+        var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
+        Assert.True(preview.Start("top", null, 1122, job, PartyJobs.Of(PartyJobs.Mask(party)), 0, out var message), message);
+
+        Assert.Contains($"column \"{own}\"", message, StringComparison.Ordinal);
+        Assert.Equal(live, preview.Session!.Scheduler.All.Select(r => r.Entry.Id).Distinct().Order().ToList());
+        Assert.Equal(livePartner, preview.Session.Others!.All.Select(r => r.Entry.Id).Distinct().Order().ToList());
+        Assert.Equal([partner], preview.Session.Others.All.Select(r => r.Entry.Who.Assignee).OfType<string>().Where(k => k.Contains('/', StringComparison.Ordinal)).Distinct());
+
+        // Outside a party the preview keeps the first pair, as the live session does.
+        Assert.True(preview.Start("top", null, 1122, job, null, 0, out message), message);
+        Assert.DoesNotContain($"column \"{own}\"", message, StringComparison.Ordinal);
     }
 
     [Fact]

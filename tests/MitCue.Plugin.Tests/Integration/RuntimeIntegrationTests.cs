@@ -137,7 +137,7 @@ public class RuntimeIntegrationTests
         var (chat, chatLog) = ServiceFake.Create<IChatGui>();
         var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, chat, () => { });
 
-        Assert.True(preview.Start("top", "p3", TopTerritory, Job.WHM, 0, out var message), message);
+        Assert.True(preview.Start("top", "p3", TopTerritory, Job.WHM, null, 0, out var message), message);
         var session = preview.Session!;
         var earlyMissed = false;
         for (var real = 0.0; real < 15; real += 0.05)
@@ -240,7 +240,7 @@ public class RuntimeIntegrationTests
         var config = new Configuration();
         var parts = ManagerWithPlan(TopWhmPlan(), config);
         var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
-        Assert.True(preview.Start("top", null, TopTerritory, Job.WHM, 0, out var message), message);
+        Assert.True(preview.Start("top", null, TopTerritory, Job.WHM, null, 0, out var message), message);
 
         config.Lookahead = 25;
         config.DueLead = 3;

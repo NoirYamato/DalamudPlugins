@@ -160,6 +160,7 @@ internal sealed class SessionManager
             if (this.Session != null)
                 this.config.ApplyTo(this.Session.Options);
 
+            // A pull (or a countdown once a call is shown) keeps its session until it is over (EncounterSession.IsBusy).
             var shape = this.ComputeShape(ctx);
             if (shape.Key != this.shapeKey)
             {
@@ -240,9 +241,10 @@ internal sealed class SessionManager
             { Fight = fight };
         }
 
-        // Without a saved choice, the column of the team composition the party plays (LPDU's tank pairs).
+        // Without a saved choice, the column of the team composition the party plays (LPDU's tank pairs). The usual party
+        // slot is the player's slot only on a job of its role (a melee player's M1 is not their slot on a tank).
         var mapping = this.plans.MappingFor(plan.Plan, ctx.Job, PartyJobs.Of(ctx.PartyJobMask));
-        var slot = mapping.Slot ?? this.config.DefaultSlot;
+        var slot = mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, ctx.Job);
         var level = ctx.Level > 0 ? Math.Min(ctx.Level, fight.SyncLevel) : fight.SyncLevel;
 
         // The party's jobs choose the co-healer's column, so a party change rebuilds (after the pull) only while they are shown.

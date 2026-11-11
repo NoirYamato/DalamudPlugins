@@ -244,7 +244,7 @@ public sealed class Plugin : IDalamudPlugin
 
                 var fight = args.Length > 1 ? args[1] : null;
                 var phase = args.Length > 2 ? args[2] : null;
-                this.Preview.Start(fight, phase, this.Frame.Territory, this.Frame.Job, this.clock.Now, out var message);
+                this.Preview.Start(fight, phase, this.Frame.Territory, this.Frame.Job, PartyJobs.Of(this.Frame.PartyJobMask), this.clock.Now, out var message);
                 Chat.Print("[MitCue] " + message);
                 break;
             case "reset":

@@ -300,7 +300,9 @@ internal sealed class ConfigWindow : Window
         ImGui.SameLine();
         ImGui.TextDisabled("(?)");
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Used to suggest which column of a plan is yours when your job alone is not enough.");
+            ImGui.SetTooltip(
+                "Used to suggest which column of a plan is yours when your job alone is not enough.\n" +
+                "Only on a job of the slot's role: MT/OT for tanks, H1/H2 for healers, M1/M2 for melee, R1/R2 for ranged.");
 
         var fast = cfg.PreviewFast;
         if (ImGui.Checkbox("Run /mitcue preview at 4x speed", ref fast))

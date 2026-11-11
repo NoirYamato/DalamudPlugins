@@ -20,6 +20,15 @@ public class ColumnSuggestionTests
     private static readonly Lazy<MitPlan> LazyCarryTheClear = new(() =>
         new PlanImporter().Import(Fixtures.CarryTheClear, PlanImports.Options("Carry the Clear", null, PlanImports.CtcUrl, "carry_the_clear")).Plan);
 
+    /// <summary>The same sheet with its combined tab moved first, so the combined tab's columns are the plan's first ones.</summary>
+    private static readonly Lazy<MitPlan> LazyCombinedTabFirst = new(() =>
+    {
+        var doc = Fixtures.CarryTheClear;
+        var combined = doc.Tabs.Single(t => t.Name == "TOP – WHM + SCH");
+        var reordered = new SheetDocument { Title = doc.Title, Tabs = [combined, .. doc.Tabs.Where(t => t != combined)] };
+        return new PlanImporter().Import(reordered, PlanImports.Options("Carry the Clear", null, PlanImports.CtcUrl, "carry_the_clear")).Plan;
+    });
+
     private static MitPlan Lpdu => LazyLpdu.Value;
 
     private static List<PlanEntry> Selection(MitPlan plan, Job job, string? slot, IReadOnlyCollection<Job>? party = null)
@@ -194,7 +203,69 @@ public class ColumnSuggestionTests
         var selection = Selection(plan, job, null);
         Assert.Equal(entries, selection.Count);
         Assert.All(selection, e => Assert.Equal(column, e.Who.Assignee));
+
+        // A choice of the combined tab's column (kept from an earlier import): the job's own tab repeats it, so it is not
+        // counted as calls the choice leaves out (review round 4: 57 White Mage calls were).
+        var columns = ColumnSuggestion.PlayerColumns(plan.Assignees, job, null);
+        Assert.Equal(["TOP – WHM + SCH " + column], ColumnSuggestion.IntendedColumns(plan, columns, "TOP – WHM + SCH " + column));
+        Assert.Equal([column], ColumnSuggestion.IntendedColumns(plan, columns, column));
     }
+
+    [Theory]
+    [InlineData(Job.WHM, "White Mage", "H1", 58)]
+    [InlineData(Job.WHM, "White Mage", null, 58)]
+    [InlineData(Job.SCH, "Scholar", "H2", 69)]
+    [InlineData(Job.SCH, "Scholar", null, 69)]
+    public void ACombinedTabFirstInTheSheetIsStillOneSeat(Job job, string column, string? slot, int entries)
+    {
+        // Review round 4: with the combined tab first, the job's column was the combined tab's and the job's own tab counted
+        // as more of the player's calls, so the suggestion became "any column for my job": every call twice (WHM 115 entries,
+        // two Asylums at Program Loop; SCH 138), and the import saved that choice.
+        var plan = LazyCombinedTabFirst.Value;
+        var combined = "TOP – WHM + SCH " + column;
+        Assert.Equal(combined, plan.Assignees.First(a => a.Job == job).Key);
+        Assert.Contains(plan.Assignees, a => a.Key == column && a.Job == job);
+
+        Assert.Equal(new ColumnPick(combined, slot), ColumnSuggestion.Suggest(plan, job, slot));
+        Assert.Equal([combined], ColumnSuggestion.IntendedColumns(plan, ColumnSuggestion.PlayerColumns(plan.Assignees, job, slot), combined));
+        var selection = Selection(plan, job, slot);
+        Assert.Equal(entries, selection.Count);
+        Assert.All(selection, e => Assert.Equal(combined, e.Who.Assignee));
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, "M1", new[] { "war" })] // a melee player's usual slot is not theirs on a tank
+    [InlineData(Job.WAR, "MT", new[] { "mt", "war" })]
+    [InlineData(Job.WHM, "MT", new string[0])] // no White Mage column: not the "MT" column either
+    [InlineData(Job.SAM, "M1", new[] { "feint" })]
+    public void AUsualSlotOfAnotherRoleIsNotThePlayersSlot(Job job, string slot, string[] expected)
+    {
+        // Review round 4: a Warrior whose usual slot is M1 got "any column for WAR in slot M1" with the M1 column's Feint,
+        // and a White Mage whose usual slot is MT followed the "MT" column (Reprisal).
+        var plan = new MitPlan
+        {
+            Assignees = [new Assignee { Key = "MT", Slot = "MT" }, new Assignee { Key = "M1", Slot = "M1" }, new Assignee { Key = "WAR", Job = Job.WAR }],
+            Entries = [Make("mt", "MT", null, "MT"), Make("feint", "M1", null, "M1"), Make("war", "WAR", Job.WAR, null)],
+        };
+
+        Assert.Equal(expected, Selection(plan, job, slot).Select(e => e.Id).Order());
+        Assert.DoesNotContain(ColumnSuggestion.PlayerColumns(plan.Assignees, job, slot), a => a.Slot is { } s && !Slots.Fits(s, job));
+        Assert.Equal(Slots.Fits(slot, job) ? slot : null, ColumnSuggestion.Context(new ColumnPick(null, null), job, slot).Slot);
+    }
+
+    [Theory]
+    [InlineData("MT", Job.WAR, "MT")]
+    [InlineData("t1", Job.PLD, "MT")]
+    [InlineData("D3", Job.DNC, "R1")] // physical ranged in a ranged slot
+    [InlineData("R2", Job.PCT, "R2")]
+    [InlineData("M1", Job.WAR, null)]
+    [InlineData("MT", Job.WHM, null)]
+    [InlineData("H1", Job.SAM, null)]
+    [InlineData("M2", Job.None, "M2")] // no job: kept
+    [InlineData("X9", Job.WAR, null)]
+    [InlineData(null, Job.WAR, null)]
+    public void AConfiguredSlotIsTheSlotOfJobsOfItsRole(string? slot, Job job, string? expected) =>
+        Assert.Equal(expected, Slots.ForJob(slot, job));
 
     [Fact]
     public void AnotherColumnWithEveryCallIsStillChosenWhenItShowsNoOtherColumn()

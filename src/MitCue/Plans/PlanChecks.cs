@@ -11,11 +11,11 @@ namespace MitCue.Plans;
 /// Checks plans that reach the store without the import window's review (share codes and plan files in the plans
 /// folder) with the review's own rules (<see cref="ReviewValidator"/>), and reports only what makes a call impossible
 /// in game: a mechanic the fight does not have, an offset that is not a number (NaN or infinity, which plan files and
-/// share codes can carry) and a job-less call for a slot that is not a party slot (all three are never shown), an
-/// unknown action, and an action (or every option of an either/or) that the entry's job (or slot) cannot use, or not at
-/// the fight's sync level (DESIGN §1.3). What the runtime does not mind is not a problem: an action name spelled
-/// another way, a hit index past the last hit (the nearest hit is used), an unusual offset. <see cref="PlanStore.Check"/>
-/// uses it.
+/// share codes can carry: never shown, or for −∞ shown at the start of the countdown), a job-less call for a slot that
+/// is not a party slot (never shown), an unknown action, and an action (or every option of an either/or) that the
+/// entry's job (or slot) cannot use, or not at the fight's sync level (DESIGN §1.3). What the runtime does not mind is
+/// not a problem: an action name spelled another way, a hit index past the last hit (the nearest hit is used), an
+/// unusual offset. <see cref="PlanStore.Check"/> uses it.
 /// </summary>
 internal static class PlanChecks
 {
@@ -76,15 +76,22 @@ internal static class PlanChecks
     }
 
     /// <summary>
-    /// Calls the runtime never shows although the review's rules let them pass: a press time that is not a number, and
-    /// a call for no job whose slot is not a party slot (or a synonym of one): no player's slot ever matches it
-    /// (<see cref="PlanSelection.Applies"/>).
+    /// Calls the runtime never shows (or not at their mechanic) although the review's rules let them pass: a press time
+    /// that is not a number (NaN and +∞ are never reached; −∞ is already past when the countdown or pull starts, so the
+    /// call comes then), and a call for no job whose slot is not a party slot (or a synonym of one): no player's slot
+    /// ever matches it (<see cref="PlanSelection.Applies"/>).
     /// </summary>
     private static IEnumerable<string> NeverShown(PlanEntry entry)
     {
         var where = $"Entry '{entry.Id}'";
         if (entry.Offset is { } offset && !double.IsFinite(offset))
-            yield return $"{where}: the offset {offset.ToString(CultureInfo.InvariantCulture)} is not a number of seconds, so the call is never shown.";
+        {
+            var text = offset.ToString(CultureInfo.InvariantCulture);
+            yield return double.IsNegativeInfinity(offset)
+                ? $"{where}: the offset {text} is not a number of seconds, so the call comes at the start of the countdown or pull instead of at its mechanic."
+                : $"{where}: the offset {text} is not a number of seconds, so the call is never shown.";
+        }
+
         if (entry.Who is { Job: null, Slot: { } slot } && !Slots.TryNormalize(slot, out _))
             yield return $"{where}: \"{slot}\" is not a party slot ({string.Join(", ", Slots.Standard)}) and the call is for no job, so it is never shown.";
     }
