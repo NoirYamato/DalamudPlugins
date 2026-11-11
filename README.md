@@ -78,8 +78,10 @@ removed, disabled or changed. Updates, uninstalling, test builds and where MitCu
    opacity** and **Maximum rows**.
 6. In TOP, the Status line says *Ready: Carry the Clear – WHM (57 of 57 entries are yours).* (or the
    Scholar's plan) and the overlay shows *TOP - waiting for pull (Carry the Clear – WHM)*. Start a
-   `/countdown` and the pre-pull reminders appear. From the pull on, the reminders follow the boss. After a
-   wipe you get a one-line summary in chat.
+   `/countdown`: the header counts down to the pull. The bundled plans have no pre-pull calls, so no reminder
+   is listed during the countdown; the first ones appear about 25 seconds after the pull (15 seconds before
+   their press time). From the pull on, the reminders follow the boss. After a wipe you get a one-line summary
+   in chat.
 
 ## Commands
 
@@ -138,14 +140,19 @@ TOP - P1: Omega - 1:15
   *no Lily*, *no Aetherflow* and so on when a job resource is missing (Lily, Blood Lily, Aetherflow,
   Addersgall, Addersting).
 - **Your co-healer's calls:** with **Also show my co-healer's calls** ticked, they are listed dimmed with
-  their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs.
+  their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs. This needs
+  a plan with your co-healer's column. *Carry the Clear – WHM*, the White Mage's automatic plan, has only the
+  White Mage's column, so it shows none. To see the Scholar's calls, the White Mage chooses *Carry the Clear –
+  WHM + SCH* under **Active plan** (its `[Scholar]` column). Importing LPDU for this would also replace the
+  White Mage's own calls (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
 
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
 press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. It stays NOW until just before the hit for
-mitigation and shields, or until 5 s after the planned time for heals, and then counts as missed. An entry
-marked *on cooldown* in the plan stays NOW until the action is ready. A call for the end of a phase (*as P1
-dies*) turns NOW when a push ends that phase early. Plan entries without a time get a sensible press time
-from the action's kind and duration (details in [docs/DESIGN.md](docs/DESIGN.md) §5).
+mitigation, shields and heals placed ahead of the damage (Liturgy of the Bell, Excogitation, Earthly Star,
+Horoscope, Macrocosmos), or until 5 s after the planned time for heals used after the damage, and then counts
+as missed. An entry marked *on cooldown* in the plan stays NOW until the action is ready. A call for the end
+of a phase (*as P1 dies*) turns NOW when a push ends that phase early. Plan entries without a time get a
+sensible press time from the action's kind and duration (details in [docs/DESIGN.md](docs/DESIGN.md) §5).
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:
@@ -169,7 +176,7 @@ session, such as switching plan or column: those wait until the current countdow
 | *Reminders* | | |
 | Track done/missed (keep used and missed calls listed with a check or a cross) | on | Off: a call disappears once used or once its time has passed, and no summary is printed |
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
-| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns. In a party, only columns of jobs someone in the party plays |
+| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns. In a party, only columns of jobs someone in the party plays. Shows nothing on a plan without your co-healer's column, such as *Carry the Clear – WHM* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
 | My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column |
 | Run /mitcue preview at 4x speed | off | Preview speed |
@@ -183,11 +190,11 @@ session, such as switching plan or column: those wait until the current countdow
 | Show the overlay (/mitcue overlay) | on | Same as `/mitcue overlay` |
 | Lock position | off | The overlay can't be dragged |
 | Click-through (mouse clicks pass through; implies locked) | off | Mouse clicks go through the overlay to the game |
-| Always show (sample rows when idle, to position it) | off | Keeps the overlay visible with sample rows when nothing is happening, so you can place it |
+| Always show (sample rows when idle, to position it) | off | Keeps the overlay visible with sample rows when nothing is happening, so you can place it. While it is on, the overlay also shows the sample rows instead of *waiting for pull* in the fight's zone, until a countdown or pull starts, so untick it once the overlay is placed |
 | Scale | 1.00x | Text and icon size (0.5–3) |
 | Background opacity | 0.85 | 0 = transparent |
 | Maximum rows | 5 | 1–15 |
-| Columns | all on | Action icons, Mechanic name, Target and notes, Cooldown / resource warnings, Header line |
+| Columns | all on | Action icons, Mechanic name, Target and notes, Cooldown / resource warnings, Header line. With **Header line** off, the overlay is hidden in the fight whenever it has no reminder to list: while you wait for the pull, during a countdown without pre-pull calls, and between calls |
 | Reset position | | Moves the overlay back to the default position |
 
 **Plans:** the active plan and your column for each fight and job, the list of plans, and the import controls
@@ -232,6 +239,15 @@ job (in green).
   job (TOP: White Mage → *Carry the Clear – WHM*, Scholar → *LPDU TOP Mitigation*), else the first bundled
   plan by name with calls for the job. *(no plan: no reminders for this job)* switches MitCue off for that
   job.
+
+  Your own plans come first: a plan you import or receive as a share code becomes your automatic plan for
+  every job it has calls for, in place of the bundled one, as soon as it is saved. That holds even with
+  **Make it my active plan** unticked, and even for the share code of a bundled plan. LPDU, for example, has
+  White Mage columns, so a White Mage who imports it gets LPDU's 11 White Mage calls instead of *Carry the
+  Clear – WHM*. With several of your own plans, the first by name is used. A plan you chose here stays
+  chosen when you import a share code, or save an import with **Make it my active plan** unticked. So
+  **choose your plan here before you import someone else's** (White Mage: *Carry the Clear – WHM*; Scholar:
+  *LPDU TOP Mitigation*), and check the Status line afterwards.
 - **My column:** the column you choose, or *(any column for my job)*. Without a choice (*suggested*), MitCue
   takes your job's column (the one in your slot if there are several), else your slot's column. When that
   column would leave out some of your calls, it takes the narrowest choice that has them all: on LPDU, the
@@ -262,19 +278,26 @@ steps.
    replace a note with the action it stands for, **Remember ...** saves that shorthand as a personal alias,
    so later imports read it.
 4. **Save:** the plan name; **Save as** a new plan or in place of an earlier import of the same sheet (which
-   keeps that plan's active-plan and column settings); and **Make it my active plan for … as …**, ticked by
-   default. When your job's own column would miss some of your calls, the plan is saved with the column
-   choice that has them all.
+   keeps that plan's active-plan and column settings); and **Make it my active plan for … as …**, ticked when
+   the plan has calls for your job. Unticked, the plan still becomes your automatic plan for every job it has
+   calls for, unless you chose a plan for that job under **Active plan** (see [Which plan and column MitCue
+   uses](#which-plan-and-column-mitcue-uses)). When your job's own column would miss some of your calls, the
+   plan is saved with the column choice that has them all.
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
 
 ### Share codes and plan files
 
-- **Share codes.** **Copy share code** in the plan list copies a plan as one long line of text that starts
-  with `MITCUE1:`. Send it to a static member. They paste it into the **Share code** box (or click **Paste from
-  clipboard**) and click **Import share code**. The plan is saved as a *user* plan; a share code of a bundled
-  plan replaces the bundled one until it is deleted.
+- **Share codes.** **Copy share code** in the plan list copies a plan as one line of text that starts with
+  `MITCUE1:`. It is several thousand characters long (about 3,600 for *Carry the Clear – WHM*, 11,000 for
+  LPDU): too long for the game's chat or a normal Discord message, and it only works whole. Send it as a text
+  file or attachment (Discord turns a long paste into `message.txt`) or as a paste link. The static member
+  copies all of it, clicks **Paste from clipboard** next to the **Share code** box (or pastes it into the box)
+  and clicks **Import share code**. The plan is saved as a *user* plan; a share code of a bundled plan
+  replaces the bundled one until it is deleted. Like the recipient's other own plans, it then becomes their
+  automatic plan for every job it has calls for, so before you import a code, choose your plan under
+  **Active plan** (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
 - **Plan files.** MitCue keeps each user plan as a `<plan id>.json` file in
   `%AppData%\XIVLauncher\pluginConfigs\MitCue\plans\`. **Reload plans** re-reads that folder and the bundled
   plans, for example after you copy a plan `.json` file into it. Only `.json` files are read there.
@@ -301,6 +324,17 @@ Read the **Status** line at the top of `/mitcue`:
 - *Fight data did not load (see Problems in /mitcue).*: the data built into MitCue failed to load. Look at
   the **Problems** list, then try **Reload data** in the Debug tab.
 - Also check that the overlay is switched on (`/mitcue overlay`, or **Show the overlay** in the Overlay tab).
+- With **Header line** off (Overlay tab, **Columns**), the overlay is hidden until it has a reminder to list,
+  so it doesn't appear while you wait for the pull. With **Always show** on, it shows sample rows (`SAMPLE -
+  drag to position`) instead of *waiting for pull* until a countdown or pull starts.
+
+**Reminders come from the wrong plan**
+
+The Status line names the plan in use: `Ready: <plan> (N of M entries are yours).` Without a choice under
+**Active plan** (Plans tab), a plan of your own with calls for your job wins over the bundled one, including
+one you just imported or received as a share code (see [Which plan and column MitCue
+uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**, or delete the plan you
+don't want.
 
 **Reminders come too early or too late, or the clock jumps**
 
@@ -320,9 +354,10 @@ send the debug report.
 **An error appeared, or reminders stopped**
 
 The **Problems** list (top of the settings window, and at the end of the debug report) names what failed.
-`/mitcue reset` restarts the live session. **Reload data** in the Debug tab reloads the fight data on the
-next frame; it ends the current pull and any running preview, so don't press it during a pull. Plans are
-re-read with **Reload plans** in the Plans tab. Dalamud's own log (`/xllog`) has the full error.
+`/mitcue reset` restarts the live session. **Reload data** in the Debug tab stops a running preview and
+loads the fight data again on the next frame; the live session and a running pull carry on with the data
+they started with. Plans are re-read with **Reload plans** in the Plans tab. Dalamud's own log (`/xllog`)
+has the full error.
 
 ### Sending a bug report
 
@@ -390,7 +425,7 @@ You need the .NET 10 SDK and Dalamud's developer files:
 ```sh
 dotnet build MitCue.slnx -c Release
 dotnet test MitCue.slnx                               # core, plugin and CLI tests
-python3 -m unittest discover -s tools/tests           # repo.json tools and the CI workflow's Dalamud step
+python3 -m unittest discover -s tools/tests           # make-repo-json.py and the CI workflow's Dalamud step
 dotnet run --project tools/MitCue.Cli -- --help       # developer CLI, see tools/MitCue.Cli/README.md
 ```
 
@@ -409,7 +444,7 @@ tests/MitCue.Cli.Tests/    CLI tests
 tools/MitCue.Cli/          developer CLI: import sheets, print checklists, simulate pulls, check plans and data
 tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's own manifest types
 tools/make-repo-json.py    writes a repo.json from the plugin manifest (CI uses it for a sample)
-tools/tests/               tests of the two tools above and of the CI workflow's Dalamud step
+tools/tests/               tests of make-repo-json.py and of the CI workflow's Dalamud step
 data/                      fight catalogs, cactbot timelines, action data, aliases (built into MitCue.Core.dll)
 plans/                     the bundled TOP plans (built into MitCue.Core.dll)
 assets/                    the icon

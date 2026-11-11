@@ -102,8 +102,10 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 3. **Events.** `GameEventSource.Poll` collects this frame's events in time order. Cast polling and ActionEffect
    capture only run while something needs them: a live session, a preview, or a recording.
 4. **Own uses.** It takes the ActionEffect uses first, then the cooldown fallback for the actions the live
-   session and the preview track. A use counts once: the same action within 1 s, or within 5 s for pet
-   actions, is a duplicate.
+   session and the preview track. A use counts once: reports of one use by different paths (your
+   ActionEffect, your pet's ActionEffect, the recast change) within 1 s, or 5 s for the pet's, are merged
+   (`OwnUseDeduper`). Two uses seen by the same path always count, such as both charges of Divine Benison
+   0.6 s apart.
 5. **Recorder.** With **Record pulls** on, in a duty or a fight zone, the frame's events, own uses and
    countdown changes are written.
 6. **Live session.** `SessionManager.Update` feeds the events and uses to the session, rebuilds it if needed,
@@ -174,13 +176,17 @@ own seat (their job or their slot in another column, such as LPDU's "H2 SGE" for
 party is known, columns of jobs nobody in the party plays are left out too (LPDU's "H1 AST" next to a White
 Mage). A change in the party's jobs rebuilds the session only while the option is on.
 
-**Rebuilds.** The session is rebuilt when the zone, job, level, plan, settings, data or client language
-changes, and when the party's jobs change while the co-healer's calls are shown:
+**Rebuilds.** The session is rebuilt when what it was built from changes: the zone, job, synced level or
+client language; the active plan, or the column and slot used for the player (**My column**, **My usual
+party slot**); the plans themselves (a save, a delete, **Reload plans**); **Also show my co-healer's
+calls**; and, while that option is on, the party's jobs.
 
-- a change of zone, job or login, and **Reload data**, rebuild it straight away;
-- other changes wait until the current countdown or pull is over;
-- the timing sliders (*Show reminders this early*, *Turn "NOW" this early*) and *Show skipped* apply
-  immediately, even in the middle of a pull.
+- A change of zone, job or login rebuilds it straight away.
+- The other changes wait until the current countdown or pull is over.
+- The timing sliders (*Show reminders this early*, *Turn "NOW" this early*) and *Show skipped* apply
+  immediately, even in the middle of a pull. The other settings don't need a rebuild.
+- **Reload data** (Debug tab) does not rebuild it: the session keeps the fight data it was built with, and a
+  running pull carries on. The next rebuild, or `/mitcue reset`, uses the reloaded data.
 
 **Countdown.** While `/countdown` runs, the session uses a timeline time of minus the time left, so pre-pull
 entries such as shields count down too. A restarted countdown starts again from a clean state. A countdown
@@ -303,9 +309,9 @@ import, the import, reading YAML) run through `BackgroundJobs`:
 
 - **Embedded data.** `MitCue.Core.dll` contains `data/**` (fight catalogs, cactbot timelines, action data,
   aliases) as `MitCue.data/...`, and `plans/**/*.yaml`, the three bundled TOP plans, as `MitCue.plans/...`.
-  **Reload data** in the Debug tab stops a running preview, drops the fight data, actions and aliases (the
-  next tick loads them again) and rebuilds the live session, which ends the current pull. It does not touch
-  plans: **Plans** > **Reload plans** re-reads them.
+  **Reload data** in the Debug tab stops a running preview and drops the fight data, actions and aliases;
+  the next tick loads them again. It does not rebuild the live session (§1.5), so a running pull carries on.
+  It does not touch plans: **Plans** > **Reload plans** re-reads them.
 - **Files.** Settings are in `pluginConfigs/MitCue.json`. User plans are in `pluginConfigs/MitCue/plans/`.
   Recordings are in `pluginConfigs/MitCue/recordings/`. See [INSTALL.md](INSTALL.md#where-mitcue-keeps-its-files).
 - **Package.** `src/MitCue/MitCue.csproj` uses `Dalamud.NET.Sdk/15.0.0`. DalamudPackager turns the csproj
@@ -344,11 +350,13 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       887, level 80, 4 phases, 61 mechanics), top (territory 1122, level 90, 6 phases, 79 mechanics)`,
       `action catalog: loaded; aliases: loaded` and `plans: 3 (0 user) in …` (before any import).
 - [ ] **Plans** lists the three bundled plans, marked *bundled, google-sheet*. In *Active plan per fight and
-      job*, with **My usual party slot** set (H1 or H2):
+      job*, with **My usual party slot** set to your seat (H1 as White Mage, H2 as Scholar; for the Scholar,
+      no slot gives the same result):
   - [ ] as White Mage, the TOP / WHM row: *(automatic) Carry the Clear – WHM*, column *(suggested) White
         Mage (WHM)*;
   - [ ] as Scholar, the TOP / SCH row: *(automatic) LPDU TOP Mitigation*, column *(suggested) (any column for
-        my job in slot H2)*;
+        my job in slot H2)*. With H1 set instead, the suggestion is *H2 SCH (H2, SCH)*, which leaves out
+        LPDU's job-less "H2" calls of P1 and P2;
   - [ ] the TEA and DMU rows for your current job: *(automatic: none)*.
 - [ ] **General** > **Test** plays the sound. Try two different *Sound effect* numbers.
 - [ ] Untick **Track done/missed**: **Print a done/missed summary after each pull** is greyed out. Tick it
@@ -361,8 +369,8 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
 
 - [ ] `/mitcue preview top` prints *Preview started: TOP, "<plan>" as <JOB>, column "<column>", 1x; N entries
       are yours.* As White Mage: `"Carry the Clear – WHM" as WHM, column "White Mage"`, 57 entries. As
-      Scholar: `"LPDU TOP Mitigation" as SCH` (no column: any column for the job), 31 entries. N must not be
-      0. If chat says *No entries match*, fix **My column** first.
+      Scholar with slot H2 (or none): `"LPDU TOP Mitigation" as SCH` (no column: any column for the job), 31
+      entries. N must not be 0. If chat says *No entries match*, fix **My column** first.
 - [ ] The overlay shows `PREVIEW 1x TOP - pull in 10.0s` and counts down. Any pre-pull entries appear during
       the countdown.
 - [ ] At zero the header changes to `TOP - P1: … - 0:00` and the clock runs in real time.
@@ -371,7 +379,9 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
 - [ ] Icons, action names in your client language, mechanic names, and targets/notes (*on MT*) look right
       for your plan.
 - [ ] At the striking dummy, use an action while it shows **NOW**: it turns into a green check mark. Let
-      another one pass: it turns into a red cross after its hit. Both disappear after about 3 s.
+      another one pass: it turns into a red cross when its window ends: just before the hit for mitigation,
+      shields and heals placed before the damage (Liturgy of the Bell, Excogitation), 5 s after the press for
+      heals used after the hit. Both disappear after about 3 s.
 - [ ] Use an action long before its reminder. Note whether the reminder later shows *(early)* or stays open.
 - [ ] `/mitcue preview top p3` (also try `p5` and `p6`): the preview restarts, and about 2 s after the
       simulated pull the clock jumps to the phase (P3 starts at 6:40). Earlier phases' reminders are skipped.
@@ -388,11 +398,14 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
   - [ ] **Click-through** lets clicks reach the game;
   - [ ] **Scale**, **Background opacity**, **Maximum rows** and each **Columns** checkbox change the overlay;
   - [ ] **Reset position** moves it back;
-  - [ ] **Always show** shows `SAMPLE - drag to position - 0:00` when nothing runs.
+  - [ ] **Always show** shows `SAMPLE - drag to position - 0:00` when nothing runs. Untick it again: while
+        it is on, the overlay shows these sample rows in §2.4 and instead of *waiting for pull* in §2.5.
 - [ ] **General** > tick **Also show my co-healer's calls**, then restart the preview. As Scholar on LPDU,
       the H1 columns' calls appear dimmed with tags like `[H1 WHM]` (the preview doesn't know your party, so
-      `[H1 AST]` too), never `[H2 SGE]`. As White Mage, first choose *Carry the Clear – WHM + SCH*: the
-      `[Scholar]` calls appear. All rows are in press-time order, and your own rows are never pushed out.
+      `[H1 AST]` too), never `[H2 SGE]`. As White Mage, *Carry the Clear – WHM* has no Scholar column, so
+      first choose *Carry the Clear – WHM + SCH* under **Active plan**: the `[Scholar]` calls appear. All rows
+      are in press-time order, and your own rows are never pushed out. White Mage: afterwards, set **Active
+      plan** back to *(automatic: my own plan for this job, else the bundled plan meant for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
@@ -430,6 +443,11 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       code**: it is listed as *user* instead of *bundled*. **Delete** it: the bundled plan is back. A damaged
       code gives a message instead of a plan.
 - [ ] **Problems** stays empty, apart from plan-check warnings you caused on purpose.
+- [ ] Clean up before §2.5: **Delete** every plan you saved in this section (**Delete**, then **Click again
+      to delete**). The TOP row for your job must then read *(automatic) Carry the Clear – WHM* (White Mage)
+      or *(automatic) LPDU TOP Mitigation* (Scholar); if it doesn't, choose *(automatic: my own plan for this
+      job, else the bundled plan meant for it)*. An imported plan left in the list stays your plan for TOP:
+      the LPDU import gives a White Mage LPDU's calls instead of Carry the Clear's.
 
 ### 2.4 A simple fight (10 minutes: a dungeon boss or a trial)
 
@@ -439,7 +457,8 @@ the open world records nothing.
 
 - [ ] Before you pull, tick **General** > **Record pulls**. Inside the duty this also switches event capture
       on.
-- [ ] Status: *No supported fight in this zone (…)*. The overlay stays hidden unless a preview runs.
+- [ ] Status: *No supported fight in this zone (…)*. The overlay stays hidden unless a preview runs (with
+      **Always show** off).
 - [ ] **Debug** > *Game*:
   - [ ] `ActionEffect hook: enabled at 0x…`. Anything else (*unavailable*, *failed*) is a bug to report;
   - [ ] `observed` goes up as people use actions;
@@ -465,11 +484,15 @@ the open world records nothing.
 
 Before the first pull (tick **Record pulls** before you zone in):
 
-- [ ] Status: *Ready: <plan> (N of M entries are yours).* The overlay shows `TOP - waiting for pull (<plan>)`.
-- [ ] **Debug** > *Live session*: `player: <JOB> level 90, slot <slot>, column <column>; entries N own`, and
-      `plan automatic True` unless you chose the plan.
-- [ ] Type `/countdown 20`: the header shows `TOP - pull in 19.x s`, and pre-pull reminders (such as shields)
-      count down. Cancel the countdown: the reminders clear. Start it again: they start over.
+- [ ] Status: *Ready: Carry the Clear – WHM (57 of 57 entries are yours).* as White Mage, *Ready: LPDU TOP
+      Mitigation (31 of 475 entries are yours).* as Scholar. Other values mean another plan or column is in
+      use (see the clean-up at the end of §2.3). The overlay shows `TOP - waiting for pull (<plan>)`.
+- [ ] **Debug** > *Live session*: `player: WHM level 90, slot H1, column White Mage; entries 57 own` (as
+      Scholar: `player: SCH level 90, slot H2, column (any); entries 31 own`), and `plan automatic True`.
+- [ ] Type `/countdown 20`: the header shows `TOP - pull in 19.x s` and counts down. The bundled plans have no
+      pre-pull calls, so no reminder is listed yet; the first ones appear about 25 s after the pull. Cancel
+      the countdown: the header goes back to *waiting for pull*. On a plan with pre-pull calls (such as
+      shields), they count down with the countdown, clear when it is cancelled and start over with a new one.
 
 During pulls:
 
@@ -484,14 +507,15 @@ During pulls:
       WHM + SCH*, the Scholar's *Deploy just before P3 ends*.
 - [ ] Holding a long cooldown so that it is not back in time shows orange *ready in N s*. Running out of
       Lilies or Aetherflow shows *no Lily* / *no Aetherflow*.
-- [ ] Your presses turn rows into check marks. With **Also show my co-healer's calls** on, only your
-      co-healer's job's column shows (as Scholar on LPDU next to a White Mage: `[H1]` and `[H1 WHM]`, no
-      `[H1 AST]`), and those rows are ticked off when they press.
+- [ ] Your presses turn rows into check marks. With **Also show my co-healer's calls** on: as Scholar on LPDU
+      next to a White Mage, only the White Mage's columns show (`[H1]` and `[H1 WHM]`, no `[H1 AST]`), and
+      those rows are ticked off when the White Mage presses. As White Mage on *Carry the Clear – WHM*, no
+      co-healer rows show: that plan has no Scholar column.
 - [ ] If you die, the reminders keep running until the wipe.
 - [ ] After a wipe: chat shows `TOP pull ended (wipe): N done, M missed. Missed: …`, the overlay goes back to
       *waiting for pull*, and the next pull starts cleanly.
 - [ ] Switch plan or column between pulls: the Status line updates. Switching during a pull only takes effect
-      after it.
+      after it. Switch back to the automatic plan and the suggested column afterwards.
 - [ ] `/mitcue reset` during a pull clears the reminders without a summary. Note whether MitCue picks the
       fight up again before the pull ends. The next pull must work normally.
 - [ ] Optional: `/xlstats` opens Dalamud's plugin statistics. It lists no plugins until you switch tracking
@@ -525,8 +549,9 @@ Buttons:
 
 - **Reset live session**: the same as `/mitcue reset`.
 - **Reload data**: drops the fights, timelines, actions and aliases; they load again on the next frame. It
-  stops a running preview and rebuilds the live session, which ends the current pull, so **don't press it
-  during a pull**. Plans are not affected: **Plans** > **Reload plans** re-reads them.
+  stops a running preview. The live session keeps the data it was built with and a running pull carries on;
+  `/mitcue reset` rebuilds the session with the reloaded data. Plans are not affected: **Plans** > **Reload
+  plans** re-reads them.
 - **Clear problems**: empties the list.
 
 ### 2.7 Sending a recording

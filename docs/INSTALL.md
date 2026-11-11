@@ -96,18 +96,23 @@ Choose one of these:
 - **A CI build**: CI runs in the [NoirYamato/DalamudPlugins](https://github.com/NoirYamato/DalamudPlugins)
   repository for every push to its `mitcue` branch and every pull request into it. On GitHub, open
   **Actions** > **CI** > the run for the commit you want > **Artifacts** > **MitCue-plugin**. You need to be
-  signed in to GitHub to download artifacts. The download contains `latest.zip` and `MitCue.json`.
+  signed in to GitHub to download artifacts. The download is a zip that contains the plugin zip
+  (`latest.zip`) and `MitCue.json`.
 - **A published build**: `MitCue-<version>.zip` in
   [`plugins/MitCue/`](https://github.com/NoirYamato/DalamudPlugins/tree/main/plugins/MitCue) on that
-  repository's `main` branch. The last two builds are kept there.
+  repository's `main` branch (not `MitCue-<version>-source.zip`, which holds the source code). The last two
+  builds are kept there.
 - **Your own build**: run `dotnet build MitCue.slnx -c Release` (see
   [Building from source](../README.md#building-from-source)). The files are in `src/MitCue/bin/Release/MitCue/`.
 
 ### 2. Unpack it into a folder you keep
 
-Unzip the zip into a folder of its own that you will keep, for example `C:\FFXIV\MitCue-dev\`. Keep every
-file of the zip together (see [What the plugin zip contains](#what-the-plugin-zip-contains)): MitCue needs
-all of them. Without the Open XML and ExcelNumberFormat DLLs, for example, it cannot read a Google Sheets link.
+Unzip the plugin zip (`MitCue-<version>.zip`, or the `latest.zip` of a CI or your own build) into a folder
+of its own that you will keep, for example `C:\FFXIV\MitCue-dev\`. For a CI build, unzip the download first,
+then unzip the `latest.zip` inside it into your folder: `MitCue.dll` is only in the plugin zip. Keep every
+file of the plugin zip together (see [What the plugin zip contains](#what-the-plugin-zip-contains)): MitCue
+needs all of them. Without the Open XML and ExcelNumberFormat DLLs, for example, it cannot read a Google
+Sheets link.
 
 Don't point Dalamud at a file inside the zip or inside your Downloads folder. To update later, close the game
 (or unload MitCue), then overwrite the files in this folder.
@@ -165,8 +170,8 @@ provides them. Credits for all of these: [README > Credits and licenses](../READ
 
 ## Where MitCue keeps its files
 
-On Windows, Dalamud's folder is `%AppData%\XIVLauncher\`. MitCue's settings window shows the full paths: the
-recordings folder in **General** and every path in the **Debug** tab.
+On Windows, Dalamud's folder is `%AppData%\XIVLauncher\`. MitCue's settings window shows the full paths of
+the recordings folder (in **General**) and of the plans and recordings folders (in the **Debug** tab).
 
 | What | Where |
 |------|-------|
@@ -181,9 +186,9 @@ are inside `MitCue.Core.dll`, so there is nothing else to install.
 ## If something goes wrong
 
 - **MitCue is not in "All Plugins"**: check that the repository row is **Enabled** and that you clicked
-  **Save**. Then reopen `/xlplugins`. If it still doesn't appear, open the URL in a browser. You should see a
-  JSON list that contains `"InternalName": "MitCue"`. If the list has NoirMech but not MitCue, MitCue has not
-  been published there yet.
+  **Save**. Then reopen `/xlplugins`. If it still doesn't appear, open the URL in a browser: you should see a
+  JSON list. Search the page for `MitCue`. If the list has NoirMech but not MitCue, MitCue has not been
+  published there yet.
 - **MitCue (and NoirMech) stopped loading**: the repository row was removed, disabled or changed. Put it back
   exactly as above (see [Updates](#updates)).
 - **"outdated" or "incompatible"**: Dalamud's API level changed. MitCue needs a rebuild for the new Dalamud.

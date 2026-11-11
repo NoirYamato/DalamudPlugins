@@ -23,7 +23,7 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 |---|-------|----------|
 | D1 | Audience | Private: the author and their static. Distributed through a **custom plugin repository** (not the official Dalamud repo), so the official repo's combat-plugin pre-approval and AI-usage policy do not apply. We still follow the official rules' spirit: informational only, no automation, no FFLogs integration inside the plugin. **Changed (2026-11-11):** the custom repository is the one of the author's other plugin, NoirMech: `https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/repo.json` serves both. MitCue's source is the `mitcue` branch of NoirYamato/DalamudPlugins, and `publish-mitcue.ps1` on its `main` branch publishes builds ([PUBLISHING.md](PUBLISHING.md)). The earlier plan (tag releases, a `repo` branch in MitCue's own repository) is retired. |
 | D2 | First users | **WHM (H1)** following the *Carry the Clear* TOP sheet; **SCH (H2)** following the *LPDU TOP Mitigation Sheet*. Different players in one party may load different plans. **As built:** both plans ship with the plugin and are the automatic choice for those jobs (§7). |
-| D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** in that order (§9), without plugin dependencies. |
+| D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** runtime first, then the importer front half and the in-game import window, then the CLI, the importer back half and the converted plans; no plugin dependencies. |
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
 | D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. |
@@ -51,13 +51,13 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
   mode to see/position the overlay out of combat; simulation of a fight for testing.
   **Changed (final review, 2026-11-11):** of the timings, only the two lead times are
   settings: when a reminder appears (3–60 s) and when it turns NOW (0–10 s). Fixed are
-  the end of the due window (0.3 s before the hit for mitigation, 5 s after the press for
-  heals, at least 8 s after a phase-end transition; §5.2), how long finished rows stay
-  listed (3 s), and the pull rules (10 s out of combat ends a pull, a countdown stopped
-  with more than 1 s left is cancelled, pre-pull reminders wait 20 s after a countdown;
-  §4, PLUGIN.md §1.5). Sound, visibility (done/missed tracking, the co-healer's calls,
-  skipped calls) and every overlay option are settings, as are the preview speed and pull
-  recording.
+  the end of the due window (0.3 s before the hit for mitigation, shields and pre-placed
+  heals, 5 s after the press for heals used after the hit, at least 8 s after a phase-end
+  transition; §5.2), how long finished rows stay listed (3 s), and the pull rules (10 s
+  out of combat ends a pull, a countdown stopped with more than 1 s left is cancelled,
+  pre-pull reminders wait 20 s after a countdown; §4, PLUGIN.md §1.5). Sound, visibility
+  (done/missed tracking, the co-healer's calls, skipped calls) and every overlay option
+  are settings, as are the preview speed and pull recording.
 - **F7 Multi-fight.** Fights are data (timeline + mechanic catalog); adding one requires
   no code.
 
@@ -119,7 +119,7 @@ tests/MitCue.Cli.Tests/    CLI tests
 tools/MitCue.Cli/          developer CLI
 tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's own manifest types
 tools/make-repo-json.py    writes a repo.json from the plugin manifest (CI checks a sample)
-tools/tests/               Python tests of the two tools and of the CI workflow's Dalamud step
+tools/tests/               Python tests of make-repo-json.py and of the CI workflow's Dalamud step
 data/timelines/            cactbot timelines (Apache-2.0, see data/timelines/NOTICE; DSR and FRU only for parser tests)
 data/fights/               fight catalogs (top.yaml, tea.yaml, dmu.yaml)
 data/actions/              action knowledge base + shorthand aliases
@@ -329,8 +329,9 @@ otherwise its kind does (code: `TimingRules`).
 
 Finished reminders (Done, Missed, and Skipped when shown) stay listed for 3 s; notes
 (and optional entries) whose time has passed become *Passed* and are not listed. **As
-built:** lookahead and dueLead are settings; the 0.3 s, 5 s ("heal late window"), 8 s
-and 3 s are fixed (`ReminderOptions` defaults; see F6). With done/missed tracking off, the
+built:** lookahead and dueLead are settings; the 0.3 s, 5 s ("heal late window") and 3 s
+are fixed: `ReminderOptions` defaults that `Configuration` does not expose. The 8 s is the
+constant `ReminderScheduler.MinPhaseEndGrace` (see F6). With done/missed tracking off, the
 overlay drops Done and Missed rows at once.
 
 ### 5.3 Cooldown and resource awareness
@@ -434,7 +435,9 @@ files and links; the plugin's import window adds downloading, the review and the
   phase to check the overlay and the plan. **As built:** only the event kinds the plugin
   sees in game are played, so a preview syncs like a pull.
 - **Data loading** (as built): fight data and plans load on the first framework tick;
-  **Reload data** (Debug tab) reloads the fight data on the next tick.
+  **Reload data** (Debug tab) reloads the fight data on the next tick. The live session
+  keeps the data it was built with until it is rebuilt (`/mitcue reset`, or a change of
+  zone, job, plan or column).
 
 ---
 
@@ -475,7 +478,8 @@ files and links; the plugin's import window adds downloading, the review and the
 2. Importer (core) + CLI; convert both TOP plans; acceptance tests on both sheets.
    **Done** (three plans: Carry the Clear's White Mage and combined tabs, LPDU).
 3. Plugin: events, overlay, config, plan store, preview; packaging; custom repo.
-   **Done**; published through the shared repository (D1).
+   **Done**; distribution through the shared repository is set up (D1,
+   [PUBLISHING.md](PUBLISHING.md)).
 4. In-game importer/review UI and link download; LLM prompt fallback. **Done.**
 5. TEA and DMU data; plan checks (cooldown conflicts); polish. **Partly done:** TEA and
    DMU fight data ship as first drafts without plans; the recast and gauge checks are in
