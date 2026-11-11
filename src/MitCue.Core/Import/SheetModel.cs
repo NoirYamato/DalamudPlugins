@@ -193,6 +193,18 @@ public sealed class ImportOptions
 
     /// <summary>ISO date to stamp on the plan (tests pass a fixed value).</summary>
     public string? ImportedDate { get; init; }
+
+    /// <summary>
+    /// The plan id. Null: a name-based GUID from the fight, plan name, source (URL or document title), tabs and assignee
+    /// filter, so importing the same source again gives the same id.
+    /// </summary>
+    public string? PlanId { get; init; }
+
+    /// <summary>
+    /// <see cref="PlanSource.Kind"/>: "google-sheet", "google-doc", "file", "paste". Null: "google-doc"/"google-sheet" when
+    /// <see cref="SourceUrl"/> is set, "paste" for a single tab named "Pasted" (<see cref="SheetReaders.FromDelimited"/>), else "file".
+    /// </summary>
+    public string? SourceKind { get; init; }
 }
 
 public sealed class ImportResult
@@ -206,10 +218,4 @@ public sealed class ImportResult
 
     /// <summary>Largest absolute residual of the fit per phase (seconds).</summary>
     public IReadOnlyDictionary<string, double> PhaseSpread { get; init; } = new Dictionary<string, double>();
-}
-
-/// <summary>Converts a sheet into a <see cref="MitPlan"/> (pipeline in docs/DESIGN.md §6).</summary>
-public sealed class PlanImporter
-{
-    public ImportResult Import(SheetDocument document, ImportOptions options) => throw new NotImplementedException();
 }

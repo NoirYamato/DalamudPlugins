@@ -87,6 +87,15 @@ public sealed class FightDefinition
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> Calibration { get; init; } =
         new Dictionary<string, IReadOnlyDictionary<string, double>>();
 
+    /// <summary>
+    /// Known sheets' row offsets (fight file <c>row_offsets</c>): sheet key → mechanic id → seconds from the mechanic's
+    /// first hit to the event the sheet's row time marks, for rows that time another event than the catalog anchor
+    /// (e.g. Carry the Clear times Blind Faith at the 7B87 cast end, 1.2 s before the hit: −1.2). The importer adds it
+    /// to row-relative offsets (docs/DESIGN.md §6 step 7). Mechanics without an entry have 0.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> RowOffsets { get; init; } =
+        new Dictionary<string, IReadOnlyDictionary<string, double>>();
+
     public Mechanic? GetMechanic(string id) => this.Mechanics.FirstOrDefault(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase));
 
     public Phase? GetPhase(string id) => this.Phases.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));

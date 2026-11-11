@@ -17,6 +17,11 @@ namespace MitCue.Core.Fights;
 /// Checked: unique phase and mechanic ids (case-insensitive), mechanics only reference defined phases, <c>hits</c> are
 /// in time order and the first of them is <c>hit</c>. Mechanics are returned sorted by hit time (ties keep file order).
 /// </para>
+/// <para>
+/// Optional sheet presets: <c>calibration</c> (sheet key → phase id → timeline seconds of sheet 0:00) and
+/// <c>row_offsets</c> (sheet key → mechanic id → seconds from the mechanic's first hit to the event the sheet's row time
+/// marks, see <see cref="FightDefinition.RowOffsets"/>; the mechanic ids must exist).
+/// </para>
 /// </remarks>
 public static class FightLoader
 {
@@ -53,6 +58,7 @@ public static class FightLoader
             Phases = phases,
             Mechanics = mechanics.OrderBy(m => m.Hit).ToList(),
             Calibration = ReadCalibration(root, context),
+            RowOffsets = ReadRowOffsets(root, context, mechanics),
         };
     }
 
@@ -198,6 +204,39 @@ public static class FightLoader
                     points[phase] = YamlNodes.ToDouble(zero, $"the zero point of '{phase}'", c);
             }
             result[sheet] = points;
+        }
+        return result;
+    }
+
+    /// <summary>Optional <c>row_offsets</c>: sheet key → {mechanic id: seconds}; the mechanic ids must exist.</summary>
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> ReadRowOffsets(YamlMappingNode root, string context, List<Mechanic> mechanics)
+    {
+        var result = new Dictionary<string, IReadOnlyDictionary<string, double>>(StringComparer.OrdinalIgnoreCase);
+        var node = YamlNodes.Get(root, "row_offsets");
+        if (node == null || YamlNodes.IsNull(node))
+            return result;
+        if (node is not YamlMappingNode sheets)
+            throw new FormatException($"{context}: 'row_offsets' must be a mapping of sheet keys to {{mechanic id: seconds}} ({YamlNodes.Where(node)}).");
+
+        var ids = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var m in mechanics)
+            ids[m.Id] = m.Id;
+        foreach (var (sheet, sheetNode, value) in YamlNodes.Entries(sheets))
+        {
+            var c = $"{context}: row_offsets '{sheet}'";
+            if (YamlNodes.IsNull(value))
+                continue;
+            if (value is not YamlMappingNode offsets)
+                throw new FormatException($"{c}: must be a mapping of mechanic ids to seconds, e.g. {{p5.blind_faith: -1.2}} ({YamlNodes.Where(sheetNode)}).");
+            var map = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (id, idNode, seconds) in YamlNodes.Entries(offsets))
+            {
+                if (!ids.TryGetValue(id, out var canonical))
+                    throw new FormatException($"{c}: unknown mechanic '{id}' ({YamlNodes.Where(idNode)}).");
+                if (!YamlNodes.IsNull(seconds))
+                    map[canonical] = YamlNodes.ToDouble(seconds, $"the row offset of '{id}'", c);
+            }
+            result[sheet] = map;
         }
         return result;
     }
