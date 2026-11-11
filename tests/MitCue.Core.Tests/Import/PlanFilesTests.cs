@@ -15,7 +15,7 @@ namespace MitCue.Core.Tests.Import;
 /// </remarks>
 public class PlanFilesTests
 {
-    private static readonly string[] FileNames = ["top-ctc-whm.yaml", "top-ctc-whm-sch.yaml", "top-lpdu.yaml"];
+    private static readonly string[] FileNames = ["top-noirmit-whm.yaml", "top-lpdu.yaml"];
 
     public static TheoryData<string> Files
     {
@@ -76,9 +76,10 @@ public class PlanFilesTests
     [Fact]
     public void PlanFiles_AreBundled()
     {
+        // Exactly these: a plan file left in plans/ ships with the plugin (Carry the Clear's combined tab no longer does).
         var bundled = EmbeddedDataSource.Plans().List(string.Empty).ToList();
-        foreach (var file in FileNames)
-            Assert.Contains(file, bundled);
+        Assert.Equal(FileNames.Order(StringComparer.Ordinal), bundled.Order(StringComparer.Ordinal));
+        Assert.Equal(FileNames.Order(StringComparer.Ordinal), Directory.GetFiles(PlansDir).Select(f => Path.GetFileName(f)!).Order(StringComparer.Ordinal));
     }
 
     [Fact]
@@ -87,5 +88,8 @@ public class PlanFilesTests
         var ids = FileNames.Select(f => PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(PlansDir, f))).Id).ToList();
         Assert.Equal(ids.Count, ids.Distinct().Count());
         Assert.Equal(ids, PlanImports.Bundled.Select(b => PlanImports.Import(b).Plan.Id));
+
+        // The White Mage plan kept its 0.1.0.1 id through its rename, so saved choices and PlanStore.BundledDefaults find it.
+        Assert.Equal(PlanImports.NoirMitWhmId, ids[0]);
     }
 }

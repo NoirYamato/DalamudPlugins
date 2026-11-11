@@ -25,7 +25,7 @@ public class ImportedPlanRuntimeTests
     [MemberData(nameof(Players))]
     public void Scheduler_BuildsEveryReminder(int plan, Job job, string? slot)
     {
-        var imported = PlanImports.Import(PlanImports.Bundled[plan]).Plan;
+        var imported = PlanImports.Import(PlanImports.SheetImports[plan]).Plan;
         var mine = PlanSelection.For(imported, new PlayerContext(job, 90, slot)).ToList();
         Assert.NotEmpty(mine);
 

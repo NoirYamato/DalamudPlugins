@@ -12,7 +12,7 @@ public class ImportRoundTripTests
     [MemberData(nameof(Plans))]
     public void XlsxAndFixtureJson_GiveIdenticalPlans(int index)
     {
-        var bundled = PlanImports.Bundled[index];
+        var bundled = PlanImports.SheetImports[index];
         var json = PlanImports.Import(bundled);
 
         // Excel cannot store '/' in tab names ("P1/P2" → "P1P2"): pass the original names, as the plugin does.
@@ -29,7 +29,7 @@ public class ImportRoundTripTests
     [MemberData(nameof(Plans))]
     public void Yaml_RoundTrips(int index)
     {
-        var plan = PlanImports.Import(PlanImports.Bundled[index]).Plan;
+        var plan = PlanImports.Import(PlanImports.SheetImports[index]).Plan;
         var yaml = PlanSerializer.ToYaml(plan);
         var back = PlanSerializer.FromYaml(yaml);
         Assert.Equal(yaml, PlanSerializer.ToYaml(back));

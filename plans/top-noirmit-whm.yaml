@@ -1,6 +1,6 @@
 format: mitcue-plan/1
 id: 335b6c4f-3684-55e0-a8d0-3e78724ef200
-name: Carry the Clear – WHM
+name: NoirMit - WHM
 fight: top
 source: {kind: google-sheet, url: 'https://docs.google.com/spreadsheets/d/1chKttd7POMf-aRLMAzQjNHDIgVzOKmLk9igSt-o2X6s/edit#gid=777100', tabs: [TOP – White Mage], imported: 2026-11-11}
 assignees:

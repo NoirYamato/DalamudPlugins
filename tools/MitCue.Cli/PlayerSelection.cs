@@ -13,7 +13,7 @@ internal sealed record Player(FightDefinition Fight, MitPlan Plan, PlayerContext
         + (this.Me.Slot != null ? ", slot " + this.Me.Slot : string.Empty)
         + (this.Me.AssigneeKey != null ? ", column \"" + this.Me.AssigneeKey + "\"" : string.Empty);
 
-    /// <summary>"Carry the Clear – WHM" (or the plan id when it has no name).</summary>
+    /// <summary>"NoirMit - WHM" (or the plan id when it has no name).</summary>
     public string PlanName => string.IsNullOrWhiteSpace(this.Plan.Name) ? this.Plan.Id : this.Plan.Name;
 }
 

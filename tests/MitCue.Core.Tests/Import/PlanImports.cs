@@ -5,11 +5,11 @@ using MitCue.Core.Tests.Data;
 
 namespace MitCue.Core.Tests.Import;
 
-/// <summary>A plan shipped in plans/: the fixture it is imported from and the options.</summary>
-/// <param name="File">File name under plans/.</param>
+/// <summary>A plan the importer makes from a sheet fixture: the file it is shipped as, the fixture and the options.</summary>
+/// <param name="File">File name under plans/, or null for an import the tests use that is not shipped.</param>
 /// <param name="Sheet">Fixture key (tests/fixtures/sheets/&lt;key&gt;).</param>
 /// <param name="Options">Import options (fixed date, so the content is deterministic).</param>
-internal sealed record BundledPlan(string File, string Sheet, ImportOptions Options);
+internal sealed record BundledPlan(string? File, string Sheet, ImportOptions Options);
 
 /// <summary>The TOP fight, the knowledge base and the imports of the example sheets that the importer tests share.</summary>
 internal static class PlanImports
@@ -22,33 +22,46 @@ internal static class PlanImports
 
     private static readonly Lazy<FightDefinition> LazyTop = new(() => FightLoader.Load(RepoFiles.Data.ReadText("fights/top.yaml"), "fights/top.yaml"));
 
-    private static readonly Lazy<IReadOnlyList<BundledPlan>> LazyBundled = new(() =>
-    [
-        new("top-ctc-whm.yaml", "carry-the-clear", Options("Carry the Clear – WHM", ["TOP – White Mage"], CtcUrl + "#gid=777100", "carry_the_clear")),
-        new("top-ctc-whm-sch.yaml", "carry-the-clear", Options("Carry the Clear – WHM + SCH", ["TOP – WHM + SCH"], CtcUrl + "#gid=777300", "carry_the_clear")),
-        new("top-lpdu.yaml", "lpdu", Options("LPDU TOP Mitigation", null, LpduUrl, null)),
-    ]);
+    /// <summary>
+    /// The id of "NoirMit - WHM". The importer derives a plan's id from its name, so the plan keeps the id it was first
+    /// shipped with (as "Carry the Clear – WHM", in 0.1.0.1): players' saved plan and column choices still find it.
+    /// </summary>
+    public const string NoirMitWhmId = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
 
-    private static readonly Lazy<ImportResult> LazyWhm = new(() => Import(Bundled[0]));
-    private static readonly Lazy<ImportResult> LazyWhmSch = new(() => Import(Bundled[1]));
-    private static readonly Lazy<ImportResult> LazyLpdu = new(() => Import(Bundled[2]));
+    private static readonly Lazy<BundledPlan> WhmPlan = new(() =>
+        new("top-noirmit-whm.yaml", "carry-the-clear", Options("NoirMit - WHM", ["TOP – White Mage"], CtcUrl + "#gid=777100", "carry_the_clear", NoirMitWhmId)));
+
+    // Carry the Clear's combined tab, shipped as "Carry the Clear – WHM + SCH" in 0.1.0.1 only: still imported by the
+    // importer's tests (both columns, sequences, per-step times).
+    private static readonly Lazy<BundledPlan> WhmSchPlan = new(() =>
+        new(null, "carry-the-clear", Options("Carry the Clear – WHM + SCH", ["TOP – WHM + SCH"], CtcUrl + "#gid=777300", "carry_the_clear")));
+
+    private static readonly Lazy<BundledPlan> LpduPlan = new(() => new("top-lpdu.yaml", "lpdu", Options("LPDU TOP Mitigation", null, LpduUrl, null)));
+
+    private static readonly Lazy<ImportResult> LazyWhm = new(() => Import(WhmPlan.Value));
+    private static readonly Lazy<ImportResult> LazyWhmSch = new(() => Import(WhmSchPlan.Value));
+    private static readonly Lazy<ImportResult> LazyLpdu = new(() => Import(LpduPlan.Value));
 
     public static FightDefinition Top => LazyTop.Value;
 
     /// <summary>The plans in plans/ and how they are made (regenerate with MITCUE_UPDATE_PLANS=1, see <see cref="PlanFilesTests"/>).</summary>
-    public static IReadOnlyList<BundledPlan> Bundled => LazyBundled.Value;
+    public static IReadOnlyList<BundledPlan> Bundled => [WhmPlan.Value, LpduPlan.Value];
 
-    /// <summary>Carry the Clear, tab 'TOP – White Mage'.</summary>
+    /// <summary>Every sheet import the importer tests use: the White Mage tab, the combined tab (not shipped) and LPDU.</summary>
+    public static IReadOnlyList<BundledPlan> SheetImports => [WhmPlan.Value, WhmSchPlan.Value, LpduPlan.Value];
+
+    /// <summary>Carry the Clear, tab 'TOP – White Mage' (shipped as "NoirMit - WHM").</summary>
     public static ImportResult Whm => LazyWhm.Value;
 
-    /// <summary>Carry the Clear, tab 'TOP – WHM + SCH' (both columns).</summary>
+    /// <summary>Carry the Clear, tab 'TOP – WHM + SCH' (both columns; not shipped).</summary>
     public static ImportResult WhmSch => LazyWhmSch.Value;
 
     /// <summary>LPDU, every plan tab (the five phase tabs, 'General Tank Mit til P5' and the six tank-pair tabs).</summary>
     public static ImportResult Lpdu => LazyLpdu.Value;
 
-    public static ImportOptions Options(string? name, IReadOnlyList<string>? tabs, string? url, string? calibration) => new()
+    public static ImportOptions Options(string? name, IReadOnlyList<string>? tabs, string? url, string? calibration, string? planId = null) => new()
     {
+        PlanId = planId,
         Fight = Top,
         Actions = RepoFiles.Actions,
         Aliases = RepoFiles.Aliases,

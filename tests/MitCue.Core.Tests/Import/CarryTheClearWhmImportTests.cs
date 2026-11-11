@@ -152,7 +152,8 @@ public class CarryTheClearWhmImportTests
     [Fact]
     public void Plan_HeaderAndAssignee()
     {
-        Assert.Equal("Carry the Clear – WHM", Plan.Name);
+        Assert.Equal("NoirMit - WHM", Plan.Name);
+        Assert.Equal(PlanImports.NoirMitWhmId, Plan.Id);
         Assert.Equal("top", Plan.Fight);
         Assert.Equal("google-sheet", Plan.Source!.Kind);
         Assert.Equal(PlanImports.CtcUrl + "#gid=777100", Plan.Source.Url);

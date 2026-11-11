@@ -16,8 +16,8 @@ namespace MitCue.PluginTests.Integration;
 /// </summary>
 public class BundledPlanTests
 {
-    private const string CtcWhm = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
-    private const string CtcWhmSch = "ded79070-7479-5023-80ca-5e3ef257c99a";
+    private const string NoirMitWhm = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
+    private const string CarryTheClearWhmSch = "ded79070-7479-5023-80ca-5e3ef257c99a"; // shipped in 0.1.0.1 only
     private const string Lpdu = "1f75e1e8-7321-566c-ae86-8568019fe914";
 
     private static SessionManagerTests.Parts Live(Job job, string? slot, Configuration? config = null)
@@ -42,19 +42,19 @@ public class BundledPlanTests
         parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).Distinct().ToList();
 
     [Fact]
-    public void TheThreePlansAreBundled()
+    public void TheTwoPlansAreBundled()
     {
         var parts = SessionManagerTests.NewManager();
         parts.Plans.EnsureLoaded();
-        (string, string)[] expected = [(CtcWhm, "Carry the Clear – WHM"), (CtcWhmSch, "Carry the Clear – WHM + SCH"), (Lpdu, "LPDU TOP Mitigation")];
+        (string, string)[] expected = [(NoirMitWhm, "NoirMit - WHM"), (Lpdu, "LPDU TOP Mitigation")];
         Assert.Equal(expected.Order(), parts.Plans.All.Select(p => (p.Id, p.DisplayName)).Order());
         Assert.All(parts.Plans.All, p => Assert.Equal(PlanOrigin.Bundled, p.Origin));
         Assert.Empty(parts.Errors.Snapshot());
     }
 
     [Theory]
-    [InlineData(Job.WHM, "H1", CtcWhm, "White Mage", 57)]
-    [InlineData(Job.WHM, null, CtcWhm, "White Mage", 57)]
+    [InlineData(Job.WHM, "H1", NoirMitWhm, "White Mage", 57)]
+    [InlineData(Job.WHM, null, NoirMitWhm, "White Mage", 57)]
     [InlineData(Job.SCH, "H2", Lpdu, null, 31)]
     [InlineData(Job.SCH, null, Lpdu, null, 31)]
     public void EachHealerGetsTheirSheetWithoutChoosing(Job job, string? slot, string planId, string? column, int entries)
@@ -84,15 +84,19 @@ public class BundledPlanTests
     }
 
     [Fact]
-    public void TheCombinedCarryTheClearPlanCanStillBeChosen()
+    public void AChoiceOfTheRemovedCombinedPlanFallsBackToTheBundledDefault()
     {
+        // "Carry the Clear – WHM + SCH" shipped in 0.1.0.1 and is gone: a player who chose it gets the automatic plan.
         var config = new Configuration();
-        config.ActivePlans[PlanStore.ActiveKey("top", Job.SCH)] = CtcWhmSch;
+        config.ActivePlans[PlanStore.ActiveKey("top", Job.SCH)] = CarryTheClearWhmSch;
+        config.ActivePlans[PlanStore.ActiveKey("top", Job.WHM)] = CarryTheClearWhmSch;
         var parts = Live(Job.SCH, "H2", config);
 
-        Assert.False(parts.Manager.PlanIsAutomatic);
-        Assert.Equal(CtcWhmSch, parts.Manager.Plan?.Id);
-        Assert.Equal("Scholar", parts.Manager.Mapping?.AssigneeKey);
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.Equal(Lpdu, parts.Manager.Plan?.Id);
+        Assert.Equal(NoirMitWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
+        Assert.True(automatic);
+        Assert.Null(parts.Plans.Get(CarryTheClearWhmSch));
     }
 
     [Fact]
@@ -135,9 +139,9 @@ public class BundledPlanTests
 
         Assert.True(parts.Plans.ImportShareCode(code, Job.WHM, makeActive: false, out var copy, out var message), message);
         Assert.Equal(Lpdu, copy!.Id);
-        Assert.Equal(CtcWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
+        Assert.Equal(NoirMitWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
         Assert.True(automatic);
-        Assert.Contains("Your active plan for TOP as WHM stays \"Carry the Clear – WHM\"", message);
+        Assert.Contains("Your active plan for TOP as WHM stays \"NoirMit - WHM\"", message);
 
         Assert.True(parts.Plans.ImportShareCode(code, Job.WHM, makeActive: true, out _, out message), message);
         Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.WHM, out automatic)?.Id);
@@ -158,7 +162,7 @@ public class BundledPlanTests
 
         Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(plan), Job.WHM, makeActive: true, out _, out var message), message);
         Assert.Contains("It has no calls for WHM", message);
-        Assert.Equal(CtcWhm, parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
+        Assert.Equal(NoirMitWhm, parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
         Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.SCH)?.Id);
     }
 
@@ -309,8 +313,7 @@ public class BundledPlanTests
     }
 
     [Theory]
-    [InlineData(CtcWhm)]
-    [InlineData(CtcWhmSch)]
+    [InlineData(NoirMitWhm)]
     [InlineData(Lpdu)]
     public void TheShareCodeOfABundledPlanReplacesItInTheList(string id)
     {
@@ -365,7 +368,7 @@ public class BundledPlanTests
         Assert.True(parts.Plans.Delete("own", out _));
 
         Assert.Null(parts.Plans.Get("own"));
-        Assert.Equal(CtcWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
+        Assert.Equal(NoirMitWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
         Assert.True(automatic);
         Assert.Null(parts.Plans.SavedMapping(own, Job.WHM));
     }

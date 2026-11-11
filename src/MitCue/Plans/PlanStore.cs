@@ -64,14 +64,13 @@ internal sealed class StoredPlan
 internal sealed class PlanStore
 {
     /// <summary>
-    /// The bundled plan a job gets when the player has chosen none and has no plan of their own for the fight, keyed
-    /// like <see cref="ActiveKey"/> (plan ids of plans/*.yaml). DESIGN D2: the White Mage (H1) follows Carry the Clear's
-    /// White Mage tab and the Scholar (H2) follows LPDU. Without it the first bundled plan by name with a column for the
-    /// job would win, and that gives the Scholar "Carry the Clear – WHM + SCH".
+    /// The bundled plan a job gets when the player has chosen none, keyed like <see cref="ActiveKey"/> (plan ids of
+    /// plans/*.yaml). DESIGN D2: the White Mage (H1) follows "NoirMit - WHM" (made from Carry the Clear's White Mage
+    /// tab) and the Scholar (H2) follows LPDU. Explicit, so a bundled plan added later cannot change what they get.
     /// </summary>
     internal static readonly IReadOnlyDictionary<string, string> BundledDefaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {
-        ["top/WHM"] = "335b6c4f-3684-55e0-a8d0-3e78724ef200", // plans/top-ctc-whm.yaml: Carry the Clear – WHM
+        ["top/WHM"] = "335b6c4f-3684-55e0-a8d0-3e78724ef200", // plans/top-noirmit-whm.yaml: NoirMit - WHM (the id it had as Carry the Clear – WHM)
         ["top/SCH"] = "1f75e1e8-7321-566c-ae86-8568019fe914", // plans/top-lpdu.yaml: LPDU TOP Mitigation
     };
 
@@ -383,7 +382,7 @@ internal sealed class PlanStore
     /// <remarks>
     /// A plan the user imports (or receives as a share code) replaces a bundled plan only when they choose it: the import
     /// window's "Make it my active plan" and the share-code import's checkbox do that, and so does the Plans tab. So a
-    /// White Mage who imports the co-healer's LPDU share code to look at it keeps Carry the Clear. Where no bundled plan
+    /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. Where no bundled plan
     /// covers the job (TEA and DMU ship none), the user's own plan is the automatic one.
     /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
