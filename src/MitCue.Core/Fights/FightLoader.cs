@@ -1,5 +1,6 @@
 using System.Text;
 using MitCue.Core.Data;
+using MitCue.Core.Timelines;
 using YamlDotNet.RepresentationModel;
 
 namespace MitCue.Core.Fights;
@@ -21,6 +22,10 @@ namespace MitCue.Core.Fights;
 /// Optional sheet presets: <c>calibration</c> (sheet key → phase id → timeline seconds of sheet 0:00) and
 /// <c>row_offsets</c> (sheet key → mechanic id → seconds from the mechanic's first hit to the event the sheet's row time
 /// marks, see <see cref="FightDefinition.RowOffsets"/>; the mechanic ids must exist).
+/// </para>
+/// <para>
+/// Optional <c>timeline_additions</c>: cactbot timeline sync lines appended to the timeline when it is loaded
+/// (<see cref="FightDefinition.TimelineAdditions"/>); every line must be an entry with a sync and no label jump.
 /// </para>
 /// </remarks>
 public static class FightLoader
@@ -55,6 +60,7 @@ public static class FightLoader
             Territory = (ushort)territory,
             SyncLevel = (int)syncLevel,
             TimelineFile = YamlNodes.RequireString(root, "timeline", context),
+            TimelineAdditions = ReadTimelineAdditions(root, context),
             Phases = phases,
             Mechanics = mechanics.OrderBy(m => m.Hit).ToList(),
             Calibration = ReadCalibration(root, context),
@@ -73,6 +79,37 @@ public static class FightLoader
 
     /// <summary>The snake_case spelling used in fight files ("LbCheck" → "lb_check").</summary>
     public static string KindName(MechanicKind kind) => ToSnakeCase(kind.ToString());
+
+    /// <summary>
+    /// The optional <c>timeline_additions</c> (<see cref="FightDefinition.TimelineAdditions"/>): cactbot timeline lines,
+    /// each an entry with a sync (comments allowed), without jumps to labels (labels are the cactbot file's).
+    /// </summary>
+    private static string? ReadTimelineAdditions(YamlMappingNode root, string context)
+    {
+        var text = YamlNodes.GetString(root, "timeline_additions", context);
+        if (string.IsNullOrWhiteSpace(text))
+            return null;
+
+        var where = $"{context}: timeline_additions";
+        Timeline parsed;
+        try
+        {
+            parsed = TimelineParser.Parse(text, where);
+        }
+        catch (FormatException ex)
+        {
+            throw new FormatException(ex.Message, ex);
+        }
+
+        if (parsed.Entries.FirstOrDefault(e => e.JumpLabel != null) is { } jump)
+            throw new FormatException($"{where}: line {jump.Line} (\"{jump.Name}\") jumps to a label (use a time: the labels are the cactbot file's).");
+        if (parsed.Warnings.Count > 0)
+            throw new FormatException($"{where}: {parsed.Warnings[0]}.");
+        if (parsed.Entries.FirstOrDefault(e => !e.CanSync) is { } bad)
+            throw new FormatException($"{where}: line {bad.Line} (\"{bad.Name}\") has no sync (only sync lines can be added).");
+
+        return text;
+    }
 
     private static List<Phase> ReadPhases(YamlMappingNode root, string context)
     {

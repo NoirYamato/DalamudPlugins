@@ -124,6 +124,10 @@ calibration:                              # known sheets' phase zero points (tim
 
 Pseudo-mechanics exist for anchors that are not damage (`p1.pull`, phase starts).
 
+Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
+cactbot's). They are fallbacks for phase starts that cactbot syncs only on event types the plugin does not see (§4):
+`dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot uses director updates there.
+
 ### 3.2 Plan (`*.mitplan.yaml`, also stored as JSON and shared as a compressed share code)
 
 ```yaml

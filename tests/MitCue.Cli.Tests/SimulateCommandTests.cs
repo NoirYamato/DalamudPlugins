@@ -293,7 +293,8 @@ public partial class SimulateCommandTests : IDisposable
         Assert.Contains("Sync: the timeline was within 0.8 s of ", this.kit.Run("simulate", this.whm, "--job", "WHM").Out);
         Assert.Matches(@"Sync: the timeline was within 0\.8 s of (\d+) of \1 boss events\.\n", this.kit.Run("simulate", this.whm, "--job", "WHM", "--push", "p2=1:30").Out);
 
-        // DMU enters P2 through an ActorControl line, which the plugin does not see in game: a push is not followed.
+        // cactbot enters DMU's P2 through an ActorControl line, which the plugin does not see in game. Without the fight
+        // file's timeline_additions (a copy of the data without them) a P1 push is not followed.
         var dmu = this.kit.Write("dmu.yaml", """
             format: mitcue-plan/1
             name: DMU probe
@@ -301,13 +302,66 @@ public partial class SimulateCommandTests : IDisposable
             entries:
               - { id: d1, mechanic: p1.pull, offset: 10, who: { job: WHM }, do: [ { action: 7433, name: Plenary Indulgence } ] }
             """);
-        var game = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200");
+        var bare = this.CopyDataWithoutTimelineAdditions("dmu.yaml");
+        var game = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200", "--data", bare);
         Assert.Matches(@"; off: p2 \d+ of \d+ \(the sync engine did not follow there", game.Out);
-        Assert.DoesNotContain(Log(game), l => l.Event == "jump" && l.Timeline == 297.4);
+        Assert.DoesNotContain(Log(game), l => l.Event == "jump" && l.Timeline is 297.4 or 315.1);
 
-        var all = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200", "--all-events");
+        var all = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", "p2=200", "--all-events", "--data", bare);
         Assert.Matches(@"Sync: the timeline was within 0\.8 s of (\d+) of \1 boss events\.\n", all.Out);
         Assert.Contains(Log(all), l => l.Event == "jump" && l.Timeline == 297.4);
+    }
+
+    [Theory]
+    [InlineData("p2=200", 315.1, null)]
+    [InlineData("p2=3:20,p4=14:00", 315.1, 1095.0)]
+    [InlineData("p2=3:20,p4=13:00", 315.1, 1095.0)]
+    [InlineData("p4=15:00", null, 1095.0)]
+    public void Push_Dmu_TheFallbackSyncsFollowP2AndP4WithTheEventsSeenInGame(string push, double? p2Jump, double? p4Jump)
+    {
+        // Final review finding: DMU's P2 and P4 starts were synced only by ActorControl lines, so in game (and in this
+        // command without --all-events) a P1 push left P2 about 100 s behind and a P3 push never reached P4. The fight
+        // file's timeline_additions sync them on the Ultimate Embrace (C24C) and Kefka Says (C2DC) cast starts.
+        var dmu = this.kit.Write("dmu.yaml", """
+            format: mitcue-plan/1
+            name: DMU probe
+            fight: dmu
+            entries:
+              - { id: d1, mechanic: p2.ultimate_embrace_1, who: { job: WHM }, do: [ { action: 7433, name: Plenary Indulgence } ] }
+            """);
+        var r = this.kit.Run("simulate", dmu, "--job", "WHM", "--push", push);
+        Assert.True(r.ExitCode == 0, r.ToString());
+        AssertAllInSync(r);
+        var jumps = Log(r).Where(l => l.Event == "jump").Select(l => l.Timeline).ToList();
+        if (p2Jump is { } p2)
+            Assert.Contains(p2, jumps);
+        if (p4Jump is { } p4)
+            Assert.Contains(p4, jumps);
+        Assert.Contains("Summary: 1 done, 0 missed (of 1), 0 skipped", r.Out);
+    }
+
+    /// <summary>A copy of data/ whose fight file has no timeline_additions; returns the copy's path.</summary>
+    private string CopyDataWithoutTimelineAdditions(string fightFile)
+    {
+        var source = Path.Combine(CliKit.RepoRoot, "data");
+        var target = Path.Combine(this.kit.WorkDir, "bare-data");
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var dest = Path.Combine(target, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(dest)!);
+            File.Copy(file, dest);
+        }
+
+        var path = Path.Combine(target, "fights", fightFile);
+        var lines = File.ReadAllLines(path).ToList();
+        var start = lines.FindIndex(l => l.StartsWith("timeline_additions:", StringComparison.Ordinal));
+        Assert.True(start >= 0, $"{fightFile} has no timeline_additions");
+        var end = start + 1;
+        while (end < lines.Count && lines[end].StartsWith("  ", StringComparison.Ordinal))
+            end++;
+        lines.RemoveRange(start, end - start);
+        File.WriteAllLines(path, lines);
+        return target;
     }
 
     [Theory]

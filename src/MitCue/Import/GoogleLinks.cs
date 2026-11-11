@@ -201,6 +201,13 @@ internal static partial class GoogleLinks
         return link.Published ? PublishedSheetExportUrl(link.Id) : SheetExportUrl(link.Id);
     }
 
+    /// <summary>
+    /// The spreadsheet's htmlview page, which lists the tab names as Google shows them (<see cref="MitCue.Core.Import.GoogleHtmlView"/>), or
+    /// null for documents and published-to-web links.
+    /// </summary>
+    public static string? HtmlViewUrl(GoogleLink link) =>
+        link.IsSheet && !link.Published ? $"{Base}/spreadsheets/d/{Uri.EscapeDataString(link.Id)}/htmlview" : null;
+
     /// <summary>The one-tab xlsx export of the tab the link points at, or null when the link has no gid.</summary>
     public static string? LinkedTabXlsxUrl(GoogleLink link) =>
         link.IsSheet && link.Gid is { } gid

@@ -87,13 +87,37 @@ public class ImportColumnsTests
         Assert.Equal("any column for SCH in slot H2", ImportColumns.Describe(choice.Mapping, Job.SCH));
     }
 
-    [Fact]
-    public void WithoutTheFixTheSuggestionDropsTheH2Calls()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("H2")]
+    public void WithoutASavedChoiceTheSuggestionKeepsTheJoblessH2Calls(string? defaultSlot)
     {
-        // The state the finding describes: no column choice saved, so the suggestion decides.
+        // Final review finding: bundled plans and share codes have no saved choice, and the suggestion was the job's column
+        // "H2 SCH", which dropped the job-less "H2" calls the import saves a choice for. The suggestion now is the same.
         var plan = Lpdu();
-        var shown = Runtime(Store(null), plan, Job.SCH, null);
-        Assert.DoesNotContain("p1-h2", shown);
+        var store = Store(defaultSlot);
+
+        var mapping = store.MappingFor(plan, Job.SCH);
+
+        Assert.True(mapping.IsSuggestion);
+        Assert.Null(mapping.AssigneeKey);
+        Assert.Equal("H2", mapping.Slot);
+        Assert.Equal(new[] { "p1-h2", "p1-h2-sch", "p3-sch" }, Runtime(store, plan, Job.SCH, defaultSlot));
+        Assert.Equal(ImportColumns.Choose(plan, Job.SCH, 90, defaultSlot).Mapping.Slot, mapping.Slot);
+    }
+
+    [Fact]
+    public void TheSuggestionIsTheJobsColumnWhenThatHasEveryCall()
+    {
+        // A WHM on the plan without LPDU's job-less "H1" column: the job's column "H1 WHM" has every call, so it stays.
+        var plan = Lpdu();
+        plan.Entries.RemoveAll(e => e.Who.Assignee == "H1");
+        plan.Assignees.RemoveAll(a => a.Key == "H1");
+
+        var mapping = Store(null).MappingFor(plan, Job.WHM);
+
+        Assert.True(mapping.IsSuggestion);
+        Assert.Equal("H1 WHM", mapping.AssigneeKey);
     }
 
     [Fact]

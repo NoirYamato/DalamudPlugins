@@ -82,20 +82,43 @@ internal static class ReviewValidator
         else if (who.Assignee != null && assignee == null && plan.Assignees.Count > 0)
             issues.Add(new ReviewIssue(DiagnosticSeverity.Info, "unknown-assignee", $"Column \"{who.Assignee}\" is not in the plan's column list.", src));
 
-        var job = who.Job ?? assignee?.Job;
-        if (job == Job.None)
-            job = null;
-
+        var users = UsersOf(who, assignee);
         if (actionsLoaded && entry.Do != null)
         {
             foreach (var item in entry.Do)
             {
                 if (item != null)
-                    CheckItem(item, job, fight.SyncLevel, actions, src, issues);
+                    CheckItem(item, users, fight.SyncLevel, actions, src, issues);
             }
         }
 
         return issues;
+    }
+
+    /// <summary>
+    /// The jobs that may press an entry's actions, as the core <see cref="MitCue.Core.Import.PlanValidator"/> reads them:
+    /// the entry's job, else its column's job, else the jobs of its slot's (or its column's slot's) role, as for
+    /// LPDU's slot columns ("MT", "H2"). Null when nothing tells (the actions are then not checked against a job).
+    /// </summary>
+    private static ActionUsers? UsersOf(WhoSpec who, Assignee? assignee)
+    {
+        if ((who.Job ?? assignee?.Job) is { } job && job != Job.None)
+            return new ActionUsers([job], $"a {job} action");
+
+        var slotText = !string.IsNullOrWhiteSpace(who.Slot) ? who.Slot : assignee?.Slot;
+        if (!Slots.TryNormalize(slotText, out var slot))
+            return null;
+
+        Role[] roles = slot switch
+        {
+            "MT" or "OT" => [Role.Tank],
+            "H1" or "H2" => [Role.Healer],
+            "M1" or "M2" => [Role.Melee],
+            "R1" or "R2" => [Role.PhysicalRanged, Role.Caster],
+            _ => [],
+        };
+        var jobs = Jobs.All.Where(j => roles.Contains(Jobs.RoleOf(j))).ToList();
+        return jobs.Count == 0 ? null : new ActionUsers(jobs, $"an action of the jobs of slot {slot} ({string.Join("/", jobs)})");
     }
 
     /// <summary>Plan-level problems (no entries, actions not checked, ...).</summary>
@@ -159,7 +182,7 @@ internal static class ReviewValidator
         }
     }
 
-    private static void CheckItem(PlanItem item, Job? job, int level, IActionCatalog actions, string? src, List<ReviewIssue> issues)
+    private static void CheckItem(PlanItem item, ActionUsers? users, int level, IActionCatalog actions, string? src, List<ReviewIssue> issues)
     {
         var ci = CultureInfo.InvariantCulture;
         if (item.Action is { } id)
@@ -175,9 +198,9 @@ internal static class ReviewValidator
             if (!string.IsNullOrWhiteSpace(item.Name) && Simplify(item.Name) != Simplify(info.Name))
                 issues.Add(new ReviewIssue(DiagnosticSeverity.Info, "action-name-mismatch", $"Action id {id.ToString(ci)} is {info.Name}, but the plan calls it \"{item.Name}\".", src));
 
-            if (job is { } j && !info.UsableBy(j))
+            if (users is { } u && !u.CanUse(info))
             {
-                issues.Add(new ReviewIssue(DiagnosticSeverity.Error, "not-usable-by-job", $"{info.Name} is not a {j} action.", src));
+                issues.Add(new ReviewIssue(DiagnosticSeverity.Error, "not-usable-by-job", $"{info.Name} is not {u.Label}.", src));
                 return;
             }
 
@@ -207,10 +230,10 @@ internal static class ReviewValidator
         if (infos.Count == 0)
             return;
 
-        var usable = job is { } jj ? infos.Where(i => i.UsableBy(jj)).ToList() : infos;
+        var usable = users is { } who ? infos.Where(who.CanUse).ToList() : infos;
         if (usable.Count == 0)
         {
-            issues.Add(new ReviewIssue(DiagnosticSeverity.Error, "not-usable-by-job", $"None of {string.Join(" / ", infos.Select(i => i.Name))} is a {job} action.", src));
+            issues.Add(new ReviewIssue(DiagnosticSeverity.Error, "not-usable-by-job", $"None of {string.Join(" / ", infos.Select(i => i.Name))} is {users!.Label}.", src));
             return;
         }
 
@@ -229,4 +252,13 @@ internal static class ReviewValidator
     }
 
     private static string Simplify(string name) => new(name.Where(char.IsLetterOrDigit).Select(char.ToLowerInvariant).ToArray());
+
+    /// <summary>
+    /// The jobs that may press an entry's actions, and how messages name an action they can use ("a WHM action", "an
+    /// action of the jobs of slot H2 (WHM/SCH/AST/SGE)").
+    /// </summary>
+    private sealed record ActionUsers(IReadOnlyList<Job> Jobs, string Label)
+    {
+        public bool CanUse(ActionInfo info) => this.Jobs.Any(info.UsableBy);
+    }
 }

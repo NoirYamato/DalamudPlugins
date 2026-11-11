@@ -282,7 +282,17 @@ public static class FightSimulator
                 return;
             }
 
-            this.Emit(e, e.Time + this.shift, e.Time);
+            if (this.Emit(e, e.Time + this.shift, e.Time) is { } ev)
+            {
+                // A later entry at the same time whose sync this event also matches stands for the same game line (a fight
+                // file's timeline_additions line that widens a cactbot line's window): one event, as in game.
+                for (var i = this.pos; i < this.sorted.Length && this.sorted[i].Time == e.Time; i++)
+                {
+                    var same = this.sorted[i];
+                    if (same.JumpTime == null && same.Sync?.Matches(ev) == true)
+                        this.skip.Add(same);
+                }
+            }
         }
 
         /// <summary>

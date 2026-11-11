@@ -59,6 +59,8 @@ public class LoadLinkTests
         {
             var url = request.RequestUri!.ToString();
             requests.Add(url);
+            if (url.EndsWith("/htmlview", StringComparison.Ordinal))
+                return new HttpResponseMessage(HttpStatusCode.NotFound) { Content = new StringContent("<html></html>") };
             return url.EndsWith("&gid=777200", StringComparison.Ordinal)
                 ? Respond(workbook, SheetFetcher.XlsxMediaType, "Carry the Clear: TOP Healing Plan - TOP – Scholar.xlsx")
                 : Respond(workbook, SheetFetcher.XlsxMediaType, "Carry the Clear: TOP Healing Plan.xlsx");
@@ -83,7 +85,103 @@ public class LoadLinkTests
         Assert.Equal(3, source.Document.Tabs.Count);
         Assert.Equal("TOP – Scholar", source.LinkedTab);
         Assert.Equal($"https://docs.google.com/spreadsheets/d/{CtcId}/edit#gid=777200", source.Url);
-        Assert.Equal(2, requests.Count);
+        Assert.Equal(3, requests.Count); // the workbook, the linked tab, and the tab list (best effort: 404 here)
+    }
+
+    private const string LpduId = "1Dlnye-i7SZ0ZZ7TY7r8SKMu3nMj_PZI45zy2QqDzuCU";
+
+    private static readonly string[] LpduTabNames =
+        ["ALOO", "P1/P2", "P3", "P4", "P5", "P6", "General Tank Mit til P5", "WAR/DRK", "WAR/GNB", "WAR/PLD", "DRK/GNB", "DRK/PLD", "GNB/PLD"];
+
+    /// <summary>The htmlview page's tab list as Google writes it (names as JavaScript strings, "/" escaped).</summary>
+    private static string HtmlView(IEnumerable<string> names) =>
+        "<!DOCTYPE html><html><head><script>var items = [];" +
+        string.Concat(names.Select((n, i) => $"items.push({{name: \"{n.Replace("/", "\\/", StringComparison.Ordinal)}\", pageUrl: \"\", gid: \"{i}\"}});")) +
+        "</script></head><body></body></html>";
+
+    [Fact]
+    public async Task RestoresTheTabNamesTheXlsxExportChanged()
+    {
+        // Final review finding: the in-game import kept Google's xlsx names ("P1P2", "WARDRK"), so its columns were
+        // "WARDRK WAR" and its provenance 'P1P2'!E2, unlike the bundled LPDU plan and the CLI import of the same link.
+        var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
+        var requests = new List<string>();
+        using var fetcher = new SheetFetcher(new RoutingHandler(request =>
+        {
+            var url = request.RequestUri!.ToString();
+            requests.Add(url);
+            if (url.EndsWith("/htmlview", StringComparison.Ordinal))
+                return Respond(Encoding.UTF8.GetBytes(HtmlView(LpduTabNames)), "text/html", "htmlview");
+            return url.Contains("&gid=", StringComparison.Ordinal)
+                ? Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet - P1P2.xlsx")
+                : Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet.xlsx");
+        }));
+        var link = GoogleLinks.Parse($"https://docs.google.com/spreadsheets/d/{LpduId}/edit#gid=871196336")!;
+
+        var source = await ImportPipeline.LoadLinkAsync(fetcher, link, CancellationToken.None);
+
+        Assert.Equal(LpduTabNames, source.Document.Tabs.Select(t => t.Name));
+        Assert.Equal("P1/P2", source.LinkedTab); // found by the export's name, then renamed with the others
+        Assert.Contains($"https://docs.google.com/spreadsheets/d/{LpduId}/htmlview", requests);
+    }
+
+    [Fact]
+    public async Task AnInGameImportOfTheLpduLinkHasTheBundledPlansColumnsAndProvenance()
+    {
+        var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
+        using var fetcher = new SheetFetcher(new RoutingHandler(request =>
+            request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal)
+                ? Respond(Encoding.UTF8.GetBytes(HtmlView(LpduTabNames)), "text/html", "htmlview")
+                : Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet.xlsx")));
+        var source = await ImportPipeline.LoadLinkAsync(fetcher, GoogleLinks.Parse($"https://docs.google.com/spreadsheets/d/{LpduId}/edit")!, CancellationToken.None);
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+
+        var result = ImportPipeline.Import(source.Document, new MitCue.Core.Import.ImportOptions
+        {
+            Fight = data.GetFight("top")!,
+            Actions = data.Actions,
+            Aliases = data.Aliases!,
+            ImportedDate = "2026-11-11",
+        });
+
+        var bundled = MitCue.Core.Plans.PlanSerializer.FromYaml(EmbeddedDataSource.Plans().ReadText("top-lpdu.yaml"));
+        Assert.Equal(bundled.Assignees.Select(a => a.Key), result.Plan.Assignees.Select(a => a.Key));
+        Assert.Equal(bundled.Entries.Select(e => e.Src), result.Plan.Entries.Select(e => e.Src));
+    }
+
+    [Fact]
+    public async Task KeepsTheExportsTabNamesWhenTheTabListCannotBeRead()
+    {
+        var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
+        using var fetcher = new SheetFetcher(new RoutingHandler(request =>
+            request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal)
+                ? Respond(Encoding.UTF8.GetBytes("<html><body><form action=\"https://accounts.google.com/ServiceLogin\"></form></body></html>"), "text/html", "x")
+                : Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet.xlsx")));
+        var link = GoogleLinks.Parse($"https://docs.google.com/spreadsheets/d/{LpduId}/edit")!;
+
+        var source = await ImportPipeline.LoadLinkAsync(fetcher, link, CancellationToken.None);
+
+        Assert.Contains("P1P2", source.Document.Tabs.Select(t => t.Name));
+        Assert.Contains("WARDRK", source.Document.Tabs.Select(t => t.Name));
+    }
+
+    [Fact]
+    public void TabNamesApplyByPositionOnlyWhereTheExportChangedTheName()
+    {
+        var doc = new MitCue.Core.Import.SheetDocument
+        {
+            Title = "T",
+            Tabs = [Indexed(TestData.Tab("P1P2"), 0), Indexed(TestData.Tab("P3"), 1), Indexed(TestData.Tab("Notes"), 2)],
+        };
+
+        Assert.Equal(["P1/P2", "P3", "Notes"], ImportPipeline.WithTabNames(doc, ["P1/P2", "P3"]).Tabs.Select(t => t.Name));
+        Assert.Equal(["P1/P2", "P3", "Notes"], ImportPipeline.WithTabNames(doc, ["P1/P2", " ", "Notes", "Extra"]).Tabs.Select(t => t.Name));
+
+        // A list that does not line up with the workbook (a tab missing from it) renames nothing.
+        Assert.Equal(["P1P2", "P3", "Notes"], ImportPipeline.WithTabNames(doc, ["ALOO", "P1/P2", "P3"]).Tabs.Select(t => t.Name));
+
+        static MitCue.Core.Import.SheetTab Indexed(MitCue.Core.Import.SheetTab tab, int index) => new() { Name = tab.Name, Index = index, Rows = tab.Rows };
     }
 
     [Fact]

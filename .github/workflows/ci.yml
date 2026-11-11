@@ -107,9 +107,10 @@ jobs:
       - name: Build (Release)
         run: dotnet build MitCue.slnx -c Release --no-restore
 
+      # Every test project of the solution: core, plugin (needs DALAMUD_HOME, set above) and CLI.
       - name: Test
         run: >-
-          dotnet test tests/MitCue.Core.Tests/MitCue.Core.Tests.csproj -c Release --no-build
+          dotnet test MitCue.slnx -c Release --no-build
           --logger trx --results-directory TestResults
 
       - name: Test the repository tools

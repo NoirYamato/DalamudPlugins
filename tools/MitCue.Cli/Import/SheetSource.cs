@@ -209,48 +209,7 @@ internal static partial class SheetSource
     }
 
     /// <summary>The tab names a spreadsheet's htmlview page lists, in order, with JavaScript string escapes decoded.</summary>
-    public static List<string> TabNamesFromHtmlView(string html) =>
-        HtmlViewTabName().Matches(html).Select(m => UnescapeJs(m.Groups["name"].Value)).ToList();
-
-    /// <summary>Decodes the escapes of a JavaScript string literal (\/ \" \\ \n \uXXXX \xHH ...).</summary>
-    private static string UnescapeJs(string s)
-    {
-        if (!s.Contains('\\'))
-            return s;
-        var sb = new System.Text.StringBuilder(s.Length);
-        for (var i = 0; i < s.Length; i++)
-        {
-            var c = s[i];
-            if (c != '\\' || i + 1 >= s.Length)
-            {
-                sb.Append(c);
-                continue;
-            }
-
-            var e = s[++i];
-            if ((e is 'u' or 'x') && TryHex(s, i + 1, e == 'u' ? 4 : 2, out var code))
-            {
-                sb.Append((char)code);
-                i += e == 'u' ? 4 : 2;
-                continue;
-            }
-
-            sb.Append(e switch { 'n' => '\n', 't' => '\t', 'r' => '\r', 'b' => '\b', 'f' => '\f', _ => e });
-        }
-
-        return sb.ToString();
-    }
-
-    private static bool TryHex(string s, int start, int length, out int value)
-    {
-        value = 0;
-        return start + length <= s.Length
-               && int.TryParse(s.AsSpan(start, length), System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out value);
-    }
-
-    // The name runs to the first unescaped quote.
-    [GeneratedRegex("""items\.push\(\{name: "(?<name>(?:[^"\\]|\\.)*)""")]
-    private static partial Regex HtmlViewTabName();
+    public static List<string> TabNamesFromHtmlView(string html) => GoogleHtmlView.TabNames(html);
 
     /// <summary>The body, at most <see cref="MaxDownloadBytes"/> (also when the server sends no length).</summary>
     private static byte[] ReadBounded(HttpContent content)

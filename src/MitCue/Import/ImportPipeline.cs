@@ -86,7 +86,61 @@ internal static class ImportPipeline
             linkedTab = workbook.Tabs[0].Name;
         cancel.ThrowIfCancellationRequested();
 
+        // The xlsx export renames the tabs Excel does not allow ("P1/P2" becomes "P1P2"), and the names are the plan's
+        // provenance and its column names: restore Google's names, as the CLI does. The linked tab was found by the
+        // export's names (the one-tab export uses them too), so it is renamed with the others.
+        if (await OriginalTabNamesAsync(fetcher, link, cancel).ConfigureAwait(false) is { } names)
+        {
+            var renamed = WithTabNames(workbook, names);
+            var linkedIndex = linkedTab == null ? -1 : workbook.Tabs.ToList().FindIndex(t => t.Name == linkedTab);
+            linkedTab = linkedIndex >= 0 ? renamed.Tabs[linkedIndex].Name : linkedTab;
+            workbook = renamed;
+        }
+
         return new LoadedSource { Document = workbook, Kind = "google-sheet", Url = link.BrowserUrl, LinkedTab = linkedTab };
+    }
+
+    /// <summary>
+    /// The tab names as Google shows them, from the spreadsheet's htmlview page (<see cref="GoogleHtmlView"/>). Best
+    /// effort: null when the page cannot be read or lists no tabs (the export's names are kept); cancelling still cancels.
+    /// </summary>
+    private static async Task<IReadOnlyList<string>?> OriginalTabNamesAsync(SheetFetcher fetcher, GoogleLink link, CancellationToken cancel)
+    {
+        if (GoogleLinks.HtmlViewUrl(link) is not { } url)
+            return null;
+        try
+        {
+            var page = await fetcher.FetchUrlAsync(url, ExpectedContent.Html, "tab list", cancel).ConfigureAwait(false);
+            ThrowIfCancelled(page, cancel);
+            if (!page.Ok || page.Bytes == null)
+                return null;
+            var names = GoogleHtmlView.TabNames(Encoding.UTF8.GetString(page.Bytes));
+            return names.Count > 0 ? names : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// The document with each tab named <c>names[tab.Index]</c> (the workbook's sheet order, as
+    /// <see cref="XlsxReadOptions.TabNames"/> applies them), when that name is the one the export changed: the same once
+    /// the characters Excel does not allow are removed (and cut at 31 characters). Other, missing or blank names keep the
+    /// export's name, so a tab list that does not line up with the workbook never mislabels a tab.
+    /// </summary>
+    internal static SheetDocument WithTabNames(SheetDocument document, IReadOnlyList<string> names)
+    {
+        var tabs = document.Tabs.Select(t =>
+            t.Index >= 0 && t.Index < names.Count && !string.IsNullOrWhiteSpace(names[t.Index]) && names[t.Index] != t.Name
+            && ExcelTabName(names[t.Index]) == ExcelTabName(t.Name)
+                ? new SheetTab { Name = names[t.Index], Gid = t.Gid, Index = t.Index, Hidden = t.Hidden, Rows = t.Rows, Merges = t.Merges, HiddenRows = t.HiddenRows, HiddenCols = t.HiddenCols }
+                : t).ToList();
+
+        // Two tabs must never share a name (the tab choices and the provenance use names): then keep the export's names.
+        return tabs.Select(t => t.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == tabs.Count
+            ? new SheetDocument { Title = document.Title, Tabs = tabs }
+            : document;
     }
 
     /// <summary>Name of the first pasted tab when the player gives none.</summary>
@@ -247,28 +301,29 @@ internal static class ImportPipeline
             return exact.Name;
 
         // Excel sheet names cannot hold \ / ? * [ ] : and are cut at 31 characters ("P1/P2" is "P1P2" in the xlsx).
-        var sanitized = Sanitize(name);
-        var match = workbook.Tabs.Where(t => Sanitize(t.Name) == sanitized).ToList();
+        var sanitized = ExcelTabName(name);
+        var match = workbook.Tabs.Where(t => ExcelTabName(t.Name) == sanitized).ToList();
         if (match.Count == 1)
             return match[0].Name;
 
         // The workbook title may itself contain " - ": take the longest tab name the file name ends with.
-        var file = Clean(oneTabFileTitle);
+        var file = WithoutExcelInvalidCharacters(oneTabFileTitle);
         return workbook.Tabs
-            .Where(t => file.EndsWith(" - " + Clean(t.Name), StringComparison.Ordinal))
+            .Where(t => file.EndsWith(" - " + WithoutExcelInvalidCharacters(t.Name), StringComparison.Ordinal))
             .OrderByDescending(t => t.Name.Length)
             .Select(t => t.Name)
             .FirstOrDefault();
-
-        static string Clean(string s) =>
-            new string(s.Where(c => c is not ('\\' or '/' or '?' or '*' or '[' or ']' or ':')).ToArray()).Trim().ToUpperInvariant();
-
-        static string Sanitize(string s)
-        {
-            var cleaned = Clean(s);
-            return cleaned.Length > 31 ? cleaned[..31] : cleaned;
-        }
     }
+
+    /// <summary>A tab name as an xlsx export can have it, for comparisons: without \ / ? * [ ] :, cut at 31 characters, upper case.</summary>
+    private static string ExcelTabName(string name)
+    {
+        var cleaned = WithoutExcelInvalidCharacters(name);
+        return cleaned.Length > 31 ? cleaned[..31] : cleaned;
+    }
+
+    private static string WithoutExcelInvalidCharacters(string s) =>
+        new string(s.Where(c => c is not ('\\' or '/' or '?' or '*' or '[' or ']' or ':')).ToArray()).Trim().ToUpperInvariant();
 
     /// <summary>
     /// Reads a Google Doc from its web page export, or, when that is too large or too slow to download (the export

@@ -62,11 +62,25 @@ internal sealed class StoredPlan
 /// </summary>
 internal sealed class PlanStore
 {
+    /// <summary>
+    /// The bundled plan a job gets when the player has chosen none and has no plan of their own for the fight, keyed
+    /// like <see cref="ActiveKey"/> (plan ids of plans/*.yaml). DESIGN D2: the White Mage (H1) follows Carry the Clear's
+    /// White Mage tab and the Scholar (H2) follows LPDU. Without it the first bundled plan by name with a column for the
+    /// job would win, and that gives the Scholar "Carry the Clear – WHM + SCH".
+    /// </summary>
+    internal static readonly IReadOnlyDictionary<string, string> BundledDefaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["top/WHM"] = "335b6c4f-3684-55e0-a8d0-3e78724ef200", // plans/top-ctc-whm.yaml: Carry the Clear – WHM
+        ["top/SCH"] = "1f75e1e8-7321-566c-ae86-8568019fe914", // plans/top-lpdu.yaml: LPDU TOP Mitigation
+    };
+
     private readonly DirectoryInfo configDirectory;
     private readonly Configuration config;
     private readonly Action saveConfig;
     private readonly ErrorReporter errors;
     private readonly List<StoredPlan> plans = [];
+    private readonly Dictionary<(string PlanId, Job Job, string? Slot), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
+    private int suggestionsRevision = -1;
 
     /// <summary>Creates the store; nothing is read until <see cref="EnsureLoaded"/>.</summary>
     public PlanStore(DirectoryInfo configDirectory, Configuration config, Action saveConfig, ErrorReporter errors)
@@ -82,6 +96,13 @@ internal sealed class PlanStore
 
     /// <summary>Incremented on every change to plans, active plans or mappings.</summary>
     public int Revision { get; private set; }
+
+    /// <summary>
+    /// Checks a user plan against its fight and the action catalog (the plugin sets <see cref="PlanChecks"/>), or null
+    /// for no checks. Share codes and plan files in the plans folder reach the store without the import window's review:
+    /// their problems go to the Problems list and the share-code message.
+    /// </summary>
+    public Func<MitPlan, IReadOnlyList<string>>? Check { get; set; }
 
     /// <summary>Folder holding user plans.</summary>
     public string PlansDirectory => Path.Combine(this.configDirectory.FullName, "plans");
@@ -112,15 +133,7 @@ internal sealed class PlanStore
 
         this.LoadBundled();
         this.LoadUser();
-
-        this.plans.Sort((a, b) =>
-        {
-            var c = a.Origin.CompareTo(b.Origin) * -1; // User (1) before Bundled (0)
-            if (c != 0)
-                return c;
-            c = string.Compare(a.Plan.Fight, b.Plan.Fight, StringComparison.OrdinalIgnoreCase);
-            return c != 0 ? c : string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
-        });
+        this.SortPlans();
     }
 
     /// <summary>The plan with this id, or null.</summary>
@@ -160,7 +173,10 @@ internal sealed class PlanStore
         return jobs;
     }
 
-    /// <summary>Saves (adds or replaces) a user plan as JSON.</summary>
+    /// <summary>
+    /// Saves (adds or replaces) a user plan as JSON. A user plan with the id of a bundled plan (its share code imported)
+    /// takes the bundled plan's place, as when the plans are loaded.
+    /// </summary>
     public bool Save(MitPlan plan, out string? error)
     {
         error = null;
@@ -174,8 +190,10 @@ internal sealed class PlanStore
             File.WriteAllText(temp, json);
             File.Move(temp, path, overwrite: true);
 
-            this.plans.RemoveAll(p => p.Origin == PlanOrigin.User && string.Equals(p.Id, plan.Id, StringComparison.OrdinalIgnoreCase));
-            this.plans.Insert(0, new StoredPlan(plan, PlanOrigin.User, path));
+            this.plans.RemoveAll(p => string.Equals(p.Id, plan.Id, StringComparison.OrdinalIgnoreCase));
+            this.plans.Add(new StoredPlan(plan, PlanOrigin.User, path));
+            this.SortPlans();
+            this.errors.Clear(CheckKey(plan.Id)); // problems of the plan this one replaces (it is checked again on load)
             this.Revision++;
             return true;
         }
@@ -187,7 +205,10 @@ internal sealed class PlanStore
         }
     }
 
-    /// <summary>Deletes a user plan (bundled plans cannot be deleted) and forgets its settings.</summary>
+    /// <summary>
+    /// Deletes a user plan (bundled plans cannot be deleted) and forgets its settings, unless a bundled plan with the
+    /// same id comes back in its place (the user plan was a copy of it): the settings then stay with that plan.
+    /// </summary>
     public bool Delete(string id, out string? error)
     {
         error = null;
@@ -210,13 +231,16 @@ internal sealed class PlanStore
             return false;
         }
 
-        foreach (var key in this.config.ActivePlans.Where(kv => string.Equals(kv.Value, id, StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key).ToList())
-            this.config.ActivePlans.Remove(key);
-        this.RemoveMappings(id);
-        this.SaveConfig();
-
         // Reload so a bundled plan with the same id (if the user copy overrode it) comes back.
         this.Reload();
+        if (this.Get(id) == null)
+        {
+            foreach (var key in this.config.ActivePlans.Where(kv => string.Equals(kv.Value, id, StringComparison.OrdinalIgnoreCase)).Select(kv => kv.Key).ToList())
+                this.config.ActivePlans.Remove(key);
+            this.RemoveMappings(id);
+            this.SaveConfig();
+        }
+
         return true;
     }
 
@@ -265,7 +289,34 @@ internal sealed class PlanStore
         }
 
         message = $"Imported \"{plan.Name}\" ({plan.Entries.Count} entries, fight {plan.Fight}).";
+        var problems = this.CheckUserPlan(plan, $"share code \"{plan.Name}\"");
+        if (problems.Count > 0)
+            message += " " + PlanChecks.Summary(problems, max: 1) + " Calls with a problem can never be done; see Problems in /mitcue.";
         return true;
+    }
+
+    /// <summary>
+    /// Runs <see cref="Check"/> on a user plan and lists its problems as one warning in the Problems list (cleared on
+    /// reload and when the plan is deleted). Never throws.
+    /// </summary>
+    private IReadOnlyList<string> CheckUserPlan(MitPlan plan, string what)
+    {
+        var key = CheckKey(plan.Id);
+        this.errors.Clear(key);
+        if (this.Check is not { } check)
+            return [];
+        try
+        {
+            var problems = check(plan);
+            if (problems.Count > 0)
+                this.errors.Warn(key, $"Checking the plan \"{plan.Name}\" ({what})", PlanChecks.Summary(problems, max: 5));
+            return problems;
+        }
+        catch (Exception ex)
+        {
+            this.errors.Report(key, $"Checking the plan \"{plan.Name}\" ({what})", ex);
+            return [];
+        }
     }
 
     /// <summary>The share code of a plan, or null with an error message.</summary>
@@ -285,14 +336,16 @@ internal sealed class PlanStore
     }
 
     /// <summary>
-    /// The active plan for a fight and job: the user's choice when set, otherwise the first plan for the
-    /// fight that has a column or entries for the job (<paramref name="automatic"/> = true). Null when there is
-    /// none or the user chose "no plan".
+    /// The active plan for a fight and job: the user's choice when set, otherwise (<paramref name="automatic"/> = true)
+    /// the first of the user's own plans for the fight that has a column or entries for the job, else the bundled plan
+    /// meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan for the job. Null when there
+    /// is none or the user chose "no plan".
     /// </summary>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {
         automatic = false;
-        if (this.config.ActivePlans.TryGetValue(ActiveKey(fightKey, job), out var id))
+        var key = ActiveKey(fightKey, job);
+        if (this.config.ActivePlans.TryGetValue(key, out var id))
         {
             if (id.Length == 0)
                 return null; // explicitly "no plan"
@@ -303,13 +356,12 @@ internal sealed class PlanStore
         }
 
         automatic = true;
-        foreach (var p in this.ForFight(fightKey))
-        {
-            if (JobsOf(p.Plan).Contains(job))
-                return p;
-        }
-
-        return null;
+        var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
+        if (candidates.FirstOrDefault(p => p.Origin == PlanOrigin.User) is { } own)
+            return own;
+        if (BundledDefaults.TryGetValue(key, out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
+            return recommended;
+        return candidates.FirstOrDefault();
     }
 
     /// <summary>The active plan for a fight and job (see <see cref="ActivePlanFor(string, Job, out bool)"/>).</summary>
@@ -343,14 +395,44 @@ internal sealed class PlanStore
     {
         if (this.SavedMapping(plan, job) is { } saved)
             return saved;
-        return SuggestedMapping(plan, job, this.config.DefaultSlot);
+
+        // The suggestion reads every entry of the plan a few times and the Plans tab asks for it every frame: cache it
+        // until the plans change (stored plans are replaced, not edited in place) or the configured slot does.
+        if (this.suggestionsRevision != this.Revision)
+        {
+            this.suggestions.Clear();
+            this.suggestionsRevision = this.Revision;
+        }
+
+        var key = (plan.Id, job, this.config.DefaultSlot);
+        if (!this.suggestions.TryGetValue(key, out var suggestion) || !ReferenceEquals(suggestion.Plan, plan))
+        {
+            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot));
+            this.suggestions[key] = suggestion;
+        }
+
+        return new PlayerMapping { AssigneeKey = suggestion.Mapping.AssigneeKey, Slot = suggestion.Mapping.Slot, IsSuggestion = true };
     }
 
     /// <summary>
     /// The automatic column choice for a plan and job (<see cref="PlayerMapping.IsSuggestion"/> = true): what
-    /// <see cref="MappingFor"/> returns when nothing is saved, from <see cref="SuggestAssignee"/>.
+    /// <see cref="MappingFor"/> returns when nothing is saved. It is the job's column (<see cref="ColumnMapping"/>),
+    /// unless that leaves out calls of the player's other columns (LPDU's job-less "H2" calls for a Scholar); then the
+    /// narrowest choice that has them all (<see cref="ColumnSuggestion.Complete"/>), the same one an import saves.
     /// </summary>
     public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot)
+    {
+        var column = ColumnMapping(plan, job, defaultSlot);
+        if (ColumnSuggestion.Complete(plan, job, defaultSlot, column) is not { } complete)
+            return column;
+        return new PlayerMapping { AssigneeKey = complete.AssigneeKey, Slot = complete.Slot, IsSuggestion = true };
+    }
+
+    /// <summary>
+    /// The job's own column as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true), from
+    /// <see cref="SuggestAssignee"/>; <see cref="SuggestedMapping"/> starts from it.
+    /// </summary>
+    public static PlayerMapping ColumnMapping(MitPlan plan, Job job, string? defaultSlot)
     {
         var suggested = SuggestAssignee(plan, job, defaultSlot);
         return new PlayerMapping
@@ -420,6 +502,20 @@ internal sealed class PlanStore
     }
 
     private static PlayerMapping Copy(PlayerMapping mapping) => new() { AssigneeKey = mapping.AssigneeKey, Slot = mapping.Slot };
+
+    /// <summary>The Problems-list key of a user plan's check results (under "plans.load", so a reload clears them).</summary>
+    private static string CheckKey(string planId) => "plans.load.check." + planId;
+
+    /// <summary>User plans first, then bundled plans; each group by fight and name.</summary>
+    private void SortPlans() =>
+        this.plans.Sort((a, b) =>
+        {
+            var c = a.Origin.CompareTo(b.Origin) * -1; // User (1) before Bundled (0)
+            if (c != 0)
+                return c;
+            c = string.Compare(a.Plan.Fight, b.Plan.Fight, StringComparison.OrdinalIgnoreCase);
+            return c != 0 ? c : string.Compare(a.DisplayName, b.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+        });
 
     private static void Normalize(MitPlan plan)
     {
@@ -523,6 +619,7 @@ internal sealed class PlanStore
                 if (existing != null)
                     this.plans.Remove(existing);
                 this.plans.Add(new StoredPlan(plan, PlanOrigin.User, file));
+                this.CheckUserPlan(plan, Path.GetFileName(file));
             }
             catch (Exception ex)
             {

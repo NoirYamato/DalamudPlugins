@@ -10,11 +10,20 @@ name: Dancing Mad (Ultimate)
 territory: 1363
 sync_level: 100
 timeline: dancing_mad.txt
+# cactbot syncs the P2 and P4 starts only on ActorControl 80000027 (a director update the plugin does not see in game),
+# so after a P1 push the timeline would play P1's tail and never reach P2's syncs (their windows are 100 s away), and
+# nothing would bring it back to P4 after a P3 push or a one-boss-dead branch. These cast starts do instead
+# (docs/research/cactbot-timelines.md section 6, the casts cactbot's own DMU phase tracker uses): Ultimate Embrace
+# (C24C, a 5.0 s cast hitting at 320.1) opens P2, Kefka Says (C2DC, 1095.0 -> 1100.0) opens P4. Times and windows are
+# derived from cast data, not checked against logs. They are appended to the timeline when it loads.
+timeline_additions: |
+  315.1 "--sync--" StartsUsing { id: "C24C", source: "Kefka" } window 320,5
+  1095.0 "--sync--" StartsUsing { id: "C2DC", source: "Kefka" } window 1095,14000
 phases:
   - { id: p1, name: "P1: Kefka", start: 0.0 }   # InCombat (pull)
-  - { id: p2, name: "P2: God Kefka", start: 297.4 }   # ActorControl 80000027 data0 05/0D, window 300,5 (Kefka <15% HP); not a v1 sync type, next v1 sync is Ability C24C @320.1 (default window)
+  - { id: p2, name: "P2: God Kefka", start: 297.4 }   # ActorControl 80000027 data0 05/0D, window 300,5 (Kefka <15% HP); not a v1 sync type: timeline_additions syncs P2 on StartsUsing C24C @315.1 (window 320,5)
   - { id: p3, name: "P3: Chaos + Exdeath", start: 597.0 }   # label "p2-success": StartsUsing C3F7 @483.2 (window 485,5) jumps here; Ability C3F7 @600.0, window 600,20
-  - { id: p4, name: "P4: Kefka + Chaos + Neo Exdeath", start: 1087.7 }   # ActorControl 80000027 data0 2E, window 1088,14000; not a v1 sync type, next v1 syncs are StartsUsing/Ability C2DC @1095.0/1100.0 (default window)
+  - { id: p4, name: "P4: Kefka + Chaos + Neo Exdeath", start: 1087.7 }   # ActorControl 80000027 data0 2E, window 1088,14000; not a v1 sync type: timeline_additions syncs P4 on StartsUsing C2DC @1095.0 (window 1095,14000)
   - { id: p5, name: "P5: Kefka", start: 1355.6 }   # label "p4-success": Ability C3FD @1215.3 (window 90,5) jumps here; StartsUsing BB40 @1396.2, window 1400,0
 mechanics:
 
