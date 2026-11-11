@@ -37,7 +37,7 @@
         "Punchline":  "Mitigation plan reminders, synced to the fight.",
         "Description":  "Imports your raid\u0027s mitigation plan (Google Sheets or pasted text) and shows a small window telling you which of your actions to press next, synced to the boss. Reminder-only: it never presses anything for you.",
         "InternalName":  "MitCue",
-        "AssemblyVersion":  "0.1.0.5",
+        "AssemblyVersion":  "0.1.0.6",
         "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins/tree/mitcue",
         "ApplicableVersion":  "any",
         "Tags":  [
@@ -50,13 +50,13 @@
                  ],
         "DalamudApiLevel":  15,
         "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/mitcue.png",
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.5.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.5.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.5.zip",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
         "IsHide":  false,
         "IsTestingExclusive":  false,
         "DownloadCount":  0,
-        "LastUpdate":  "1794422833",
-        "Changelog":  "A job with calls in two seats of a sheet (LPDU\u0027s Red Mage and Pictomancer) now follows one seat: the first, or the one your party leaves free. A team composition split over per-phase tabs keeps every phase\u0027s calls. The co-healer and co-tank rows no longer show both Cosmo Memory tank roles, or a seat another party member plays. A party or settings change in the very frame of the pull no longer loses the pull. The import\u0027s Save step follows your party and your column\u0027s slot."
+        "LastUpdate":  "1794428326",
+        "Changelog":  "Copy AI prompt names your usual party slot only for the jobs of its role, and its example puts each job in a slot of its own role, so an AI that copies it no longer writes calls for a seat you never have on that job (a White Mage in MT, a Warrior in H1)."
     }
 ]
