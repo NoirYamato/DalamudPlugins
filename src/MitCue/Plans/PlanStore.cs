@@ -237,6 +237,12 @@ internal sealed class PlanStore
             message = ErrorReporter.Describe(ex);
             return false;
         }
+        catch (FormatException ex)
+        {
+            // PlanSerializer's messages are written for players ("not a share code", "made by a newer MitCue", "damaged").
+            message = ex.Message;
+            return false;
+        }
         catch (Exception ex)
         {
             message = "That is not a valid MitCue share code (" + ErrorReporter.Describe(ex) + ").";

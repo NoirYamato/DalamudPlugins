@@ -91,7 +91,8 @@ internal sealed class CoreData
 
         try
         {
-            this.Aliases = AliasDictionary.Load(new EmbeddedDataSource().ReadText(AliasesPath));
+            // With the catalog, aliases without a job only apply to jobs that can use their actions ("rep" is not a healer action).
+            this.Aliases = AliasDictionary.Load(new EmbeddedDataSource().ReadText(AliasesPath), this.ActionsLoaded ? this.Actions : null);
             this.errors.Clear("data.aliases");
             this.ApplyUserAliases();
         }
