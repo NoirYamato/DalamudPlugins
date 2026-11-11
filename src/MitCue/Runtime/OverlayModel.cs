@@ -17,6 +17,9 @@ internal enum OverlaySource
 
     /// <summary>Fake rows for positioning ("Always show overlay").</summary>
     Sample,
+
+    /// <summary>The live session stopped after an error: one line saying so (<see cref="OverlayModel.Message"/>).</summary>
+    Error,
 }
 
 /// <summary>One overlay row (value type; the list is reused every frame).</summary>
@@ -84,19 +87,34 @@ internal sealed class OverlayModel
     /// <summary>Preview speed factor (Preview source).</summary>
     public float PreviewSpeed { get; private set; }
 
+    /// <summary>What to tell the player instead of reminders (Error source), else null.</summary>
+    public string? Message { get; private set; }
+
     /// <summary>Rebuilds the snapshot. Framework thread.</summary>
+    /// <param name="config">Settings.</param>
+    /// <param name="live">The live session when it runs normally, else null.</param>
+    /// <param name="preview">The preview session, or null.</param>
+    /// <param name="previewSpeed">Preview speed factor.</param>
+    /// <param name="gameData">Names and icons.</param>
+    /// <param name="resourceOf">Resource an action needs ("Lily").</param>
+    /// <param name="liveError">Set when the live session stopped after an error: shown instead of vanishing mid-pull.</param>
     public void Build(
         Configuration config,
         EncounterSession? live,
         EncounterSession? preview,
         float previewSpeed,
         GameData gameData,
-        Func<uint, string?> resourceOf)
+        Func<uint, string?> resourceOf,
+        string? liveError = null)
     {
         this.Rows.Clear();
         this.PreviewSpeed = previewSpeed;
+        this.Message = null;
 
-        var liveActive = live != null && live.Mode != SessionMode.Idle;
+        // Idle with reminders still listed is the hold between the countdown reaching 0 and the pull: those pre-pull
+        // calls are real and must not give way to the sample rows.
+        var liveActive = live != null
+                         && (live.Mode != SessionMode.Idle || live.Visible.Count > 0 || live.VisibleOthers.Count > 0);
         if (preview != null)
         {
             this.Source = OverlaySource.Preview;
@@ -108,6 +126,14 @@ internal sealed class OverlayModel
             this.Source = OverlaySource.Live;
             this.Fill(config, live, gameData, resourceOf);
             this.Visible = this.Rows.Count > 0 || config.ShowHeader;
+        }
+        else if (liveError != null)
+        {
+            this.Source = OverlaySource.Error;
+            this.Message = liveError;
+            this.Mode = SessionMode.Idle;
+            this.headerSession = null;
+            this.Visible = true;
         }
         else if (config.AlwaysShowOverlay)
         {
@@ -139,15 +165,30 @@ internal sealed class OverlayModel
 
         var own = session.Visible;
         var others = session.VisibleOthers;
+        var track = config.TrackDoneMissed;
         var max = Math.Max(1, config.MaxRows);
-        var ownTake = Math.Min(own.Count, max);
-        var otherTake = Math.Min(others.Count, max - ownTake); // own rows are never pushed out by others
-        int i = 0, j = 0;
+        var ownLeft = Math.Min(CountShown(own, track), max);
+        var otherLeft = Math.Min(CountShown(others, track), max - ownLeft); // own rows are never pushed out by others
+        var i = NextShown(own, 0, track);
+        var j = NextShown(others, 0, track);
         var t = session.TimelineTime;
-        while (i < ownTake || j < otherTake)
+        while (ownLeft > 0 || otherLeft > 0)
         {
-            var takeOwn = j >= otherTake || (i < ownTake && own[i].PressAt <= others[j].PressAt);
-            var r = takeOwn ? own[i++] : others[j++];
+            var takeOwn = otherLeft == 0 || (ownLeft > 0 && own[i].PressAt <= others[j].PressAt);
+            Reminder r;
+            if (takeOwn)
+            {
+                r = own[i];
+                i = NextShown(own, i + 1, track);
+                ownLeft--;
+            }
+            else
+            {
+                r = others[j];
+                j = NextShown(others, j + 1, track);
+                otherLeft--;
+            }
+
             this.Rows.Add(new OverlayRow
             {
                 Labels = this.labels.Get(session, r, !takeOwn, gameData, resourceOf),
@@ -159,6 +200,31 @@ internal sealed class OverlayModel
                 UsedEarly = r.UsedEarly,
             });
         }
+    }
+
+    /// <summary>Done and missed rows are only listed while done/missed tracking is on.</summary>
+    private static bool IsShown(Reminder r, bool trackDoneMissed) =>
+        trackDoneMissed || r.State is not (ReminderState.Done or ReminderState.Missed);
+
+    private static int CountShown(IReadOnlyList<Reminder> list, bool trackDoneMissed)
+    {
+        if (trackDoneMissed)
+            return list.Count;
+        var count = 0;
+        for (var k = 0; k < list.Count; k++)
+        {
+            if (IsShown(list[k], trackDoneMissed))
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int NextShown(IReadOnlyList<Reminder> list, int from, bool trackDoneMissed)
+    {
+        while (from < list.Count && !IsShown(list[from], trackDoneMissed))
+            from++;
+        return from;
     }
 
     private void FillSample(Configuration config, GameData gameData)

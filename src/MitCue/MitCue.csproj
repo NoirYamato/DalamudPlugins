@@ -14,4 +14,8 @@
     <ProjectReference Include="..\MitCue.Core\MitCue.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="MitCue.Plugin.Tests" />
+  </ItemGroup>
+
 </Project>

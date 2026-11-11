@@ -18,6 +18,27 @@ public sealed class Configuration : IPluginConfiguration
     /// <inheritdoc cref="MinSoundEffect"/>
     public const int MaxSoundEffect = 16;
 
+    /// <summary>Range of <see cref="Lookahead"/> in seconds.</summary>
+    public const float MinLookahead = 3f;
+
+    /// <inheritdoc cref="MinLookahead"/>
+    public const float MaxLookahead = 60f;
+
+    /// <summary>Upper limit of <see cref="DueLead"/> in seconds (it is also never more than <see cref="Lookahead"/>).</summary>
+    public const float MaxDueLead = 10f;
+
+    /// <summary>Range of <see cref="OverlayScale"/>.</summary>
+    public const float MinOverlayScale = 0.5f;
+
+    /// <inheritdoc cref="MinOverlayScale"/>
+    public const float MaxOverlayScale = 3f;
+
+    /// <summary>Range of <see cref="MaxRows"/>.</summary>
+    public const int MinRows = 1;
+
+    /// <inheritdoc cref="MinRows"/>
+    public const int MaxRowsLimit = 15;
+
     /// <summary>Party slots the user can pick as "my slot".</summary>
     public static readonly IReadOnlyList<string> SlotChoices = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
 
@@ -29,7 +50,7 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Seconds before the press time a reminder appears.</summary>
     public float Lookahead { get; set; } = 15f;
 
-    /// <summary>Seconds before the press time a reminder becomes due (NOW).</summary>
+    /// <summary>Seconds before the press time a reminder becomes due (NOW); at most <see cref="Lookahead"/>.</summary>
     public float DueLead { get; set; } = 1.5f;
 
     // ---- Sound / behaviour --------------------------------------------------------------
@@ -40,13 +61,19 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Chat sound effect number &lt;se.N&gt;, 1..16.</summary>
     public int SoundEffect { get; set; } = 6;
 
-    /// <summary>Also show the calls of the plan's other columns (e.g. the co-healer), dimmed.</summary>
+    /// <summary>Also show the co-healer's calls (the plan's other columns of the player's role), dimmed.</summary>
     public bool ShowOtherAssignees { get; set; }
 
     /// <summary>Keep reminders skipped by a phase push visible for a moment.</summary>
     public bool ShowSkipped { get; set; }
 
-    /// <summary>Print a done/missed summary to chat after each pull.</summary>
+    /// <summary>
+    /// Track done/missed: done and missed reminders stay listed with a check or a cross for a moment, and the pull
+    /// summary can be printed. When off, a reminder simply disappears once it is used or its time has passed.
+    /// </summary>
+    public bool TrackDoneMissed { get; set; } = true;
+
+    /// <summary>Print a done/missed summary to chat after each pull (needs <see cref="TrackDoneMissed"/>).</summary>
     public bool PostPullSummary { get; set; } = true;
 
     /// <summary>Record the game events of each pull to ConfigDirectory/recordings (JSON lines).</summary>
@@ -114,7 +141,11 @@ public sealed class Configuration : IPluginConfiguration
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<string, string> ActivePlans { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Per-plan choice of "my column" (assignee key) and slot, keyed by plan id.</summary>
+    /// <summary>
+    /// Choice of "my column" (assignee key) and slot per plan and job, keyed "&lt;planId&gt;/&lt;JOB&gt;" (see
+    /// <c>PlanStore.MappingKey</c>). Keys without a job come from older versions and apply to every job whose column
+    /// they can be.
+    /// </summary>
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
     public Dictionary<string, PlayerMapping> PlayerMappings { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -132,12 +163,7 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Clamps values into their valid ranges and repairs null collections after loading.</summary>
     public void Sanitize()
     {
-        this.Lookahead = Math.Clamp(float.IsFinite(this.Lookahead) ? this.Lookahead : 15f, 3f, 60f);
-        this.DueLead = Math.Clamp(float.IsFinite(this.DueLead) ? this.DueLead : 1.5f, 0f, 10f);
-        this.SoundEffect = Math.Clamp(this.SoundEffect, MinSoundEffect, MaxSoundEffect);
-        this.MaxRows = Math.Clamp(this.MaxRows, 1, 15);
-        this.OverlayScale = Math.Clamp(float.IsFinite(this.OverlayScale) ? this.OverlayScale : 1f, 0.5f, 3f);
-        this.OverlayOpacity = Math.Clamp(float.IsFinite(this.OverlayOpacity) ? this.OverlayOpacity : 0.85f, 0f, 1f);
+        this.ClampValues();
         if (!float.IsFinite(this.OverlayX) || !float.IsFinite(this.OverlayY))
         {
             this.OverlayX = 100f;
@@ -161,6 +187,20 @@ public sealed class Configuration : IPluginConfiguration
         this.UserAliases = (this.UserAliases ?? []).Where(a => a != null && !string.IsNullOrWhiteSpace(a.Token)).ToList();
     }
 
+    /// <summary>
+    /// Clamps the numeric settings into their ranges (used after loading and after every edit, since ImGui accepts any
+    /// typed value). The due lead never exceeds the lookahead: a reminder must not turn NOW before uses count for it.
+    /// </summary>
+    public void ClampValues()
+    {
+        this.Lookahead = Clamp(this.Lookahead, 15f, MinLookahead, MaxLookahead);
+        this.DueLead = Clamp(this.DueLead, 1.5f, 0f, Math.Min(MaxDueLead, this.Lookahead));
+        this.SoundEffect = Math.Clamp(this.SoundEffect, MinSoundEffect, MaxSoundEffect);
+        this.MaxRows = Math.Clamp(this.MaxRows, MinRows, MaxRowsLimit);
+        this.OverlayScale = Clamp(this.OverlayScale, 1f, MinOverlayScale, MaxOverlayScale);
+        this.OverlayOpacity = Clamp(this.OverlayOpacity, 0.85f, 0f, 1f);
+    }
+
     /// <summary>Builds the core scheduler options from these settings.</summary>
     public ReminderOptions BuildReminderOptions()
     {
@@ -169,13 +209,20 @@ public sealed class Configuration : IPluginConfiguration
         return options;
     }
 
-    /// <summary>Copies the timing settings into an existing <see cref="ReminderOptions"/> (used for live edits).</summary>
+    /// <summary>
+    /// Copies the timing settings into an existing <see cref="ReminderOptions"/> (used for live edits), clamped the
+    /// same way as <see cref="ClampValues"/> so the scheduler never gets a due lead longer than the lookahead.
+    /// </summary>
     public void ApplyTo(ReminderOptions options)
     {
-        options.Lookahead = this.Lookahead;
-        options.DueLead = this.DueLead;
+        var lookahead = Clamp(this.Lookahead, 15f, MinLookahead, MaxLookahead);
+        options.Lookahead = lookahead;
+        options.DueLead = Clamp(this.DueLead, 1.5f, 0f, Math.Min(MaxDueLead, lookahead));
         options.ShowSkipped = this.ShowSkipped;
     }
+
+    private static float Clamp(float value, float fallback, float min, float max) =>
+        Math.Clamp(float.IsFinite(value) ? value : fallback, min, max);
 }
 
 /// <summary>Which column of a plan is "me": the assignee key and the party slot.</summary>

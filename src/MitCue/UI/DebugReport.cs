@@ -156,6 +156,24 @@ internal static class DebugReport
                 sb.Append(" no-resource");
             sb.AppendLine();
         }
+
+        // Plan entries the scheduler dropped (e.g. a misspelt or stale mechanic id): their calls never show.
+        var problems = session.Scheduler.Problems;
+        sb.Append(ci, $"entries not scheduled: {problems.Count}").AppendLine();
+        foreach (var problem in problems)
+            sb.Append("  ").AppendLine(problem);
+
+        // Which reminder each own action use counted for ("why didn't my press count?").
+        var uses = session.Scheduler.RecentUses;
+        sb.Append(ci, $"own uses seen by the scheduler (last {uses.Count}):").AppendLine();
+        foreach (var use in uses)
+        {
+            var action = plugin.GameData.ActionName(use.ActionId) ?? "?";
+            var matched = use.Matched is { } m
+                ? string.Create(ci, $"done: {ReminderText.ItemName(m.Item, plugin.GameData)} @ {m.Mechanic.Id} (press {m.PressAt:0.0})")
+                : "no reminder in its window";
+            sb.Append(ci, $"  t {use.Time,8:0.0}  {GameEvent.Hex(use.ActionId)} {action} -> {matched}").AppendLine();
+        }
     }
 
     private static string FormatEvent(GameEvent e, Plugin plugin)
