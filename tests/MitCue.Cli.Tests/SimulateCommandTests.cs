@@ -44,7 +44,7 @@ public partial class SimulateCommandTests : IDisposable
     {
         var r = this.kit.Run("simulate", this.whm, "--job", "WHM", "--slot", "H1");
         Assert.True(r.ExitCode == 0, r.ToString());
-        Assert.Equal("Simulating \"Test WHM\" (top, level 90) as WHM, slot H1: 9 entries, 10 reminders (9 actions, 1 note)", r.OutLines[0]);
+        Assert.Equal("Simulating \"Test WHM\" (top, level 90) as WHM, slot H1, column \"White Mage\": 9 entries, 10 reminders (9 actions, 1 note)", r.OutLines[0]);
         Assert.Matches(@"^Pull: seed 1, jitter ±0\.15 s, countdown 10 s; \d+ of \d+ generated events \(the types the plugin sees in game\)$", r.OutLines[1]);
 
         var log = Log(r);

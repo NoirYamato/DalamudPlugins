@@ -20,9 +20,17 @@ internal sealed record Player(FightDefinition Fight, MitPlan Plan, PlayerContext
 /// <summary>The --job/--slot/--assignee/--fight options shared by plan, simulate and check.</summary>
 internal static class PlayerSelection
 {
+    /// <summary>The <c>--assignee</c> value for every column of the player's job and slot.</summary>
+    public const string AnyColumn = "*";
+
     public static readonly OptionSpec Job = new("job", "job", "Your job: an abbreviation (WHM, SCH) or a name (\"White Mage\"). Required.");
     public static readonly OptionSpec Slot = new("slot", "slot", "Your party slot: MT, OT, H1, H2, M1, M2, R1, R2 (also T1/T2, D1-D4).");
-    public static readonly OptionSpec Assignee = new("assignee", "key", "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (default: every column for your job and slot).");
+
+    public static readonly OptionSpec Assignee = new(
+        "assignee",
+        "key",
+        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\", or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
+
     public static readonly OptionSpec FightOption = new("fight", "key", "Fight key (default: the plan's fight).");
 
     public static IReadOnlyList<OptionSpec> Options { get; } = [Job, Slot, Assignee, FightOption];
@@ -49,21 +57,44 @@ internal static class PlayerSelection
         }
 
         string? assignee = null;
+        var anyColumn = false;
         if (args.Get("assignee") is { } key)
         {
-            var keys = plan.Assignees.Select(a => a.Key)
-                .Concat(plan.Entries.Select(e => e.Who?.Assignee).OfType<string>())
-                .Where(k => !string.IsNullOrWhiteSpace(k))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-            assignee = keys.FirstOrDefault(k => string.Equals(k, key.Trim(), StringComparison.OrdinalIgnoreCase))
-                       ?? throw new UsageException($"{args.Command.Name}: the plan has no column '{key}'. Columns: {(keys.Count > 0 ? string.Join(", ", keys.Select(k => "\"" + k + "\"")) : "none")}.");
+            if (key.Trim() == AnyColumn)
+            {
+                anyColumn = true;
+            }
+            else
+            {
+                var keys = plan.Assignees.Select(a => a.Key)
+                    .Concat(plan.Entries.Select(e => e.Who?.Assignee).OfType<string>())
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                assignee = keys.FirstOrDefault(k => string.Equals(k, key.Trim(), StringComparison.OrdinalIgnoreCase))
+                           ?? throw new UsageException($"{args.Command.Name}: the plan has no column '{key}'. Columns: {(keys.Count > 0 ? string.Join(", ", keys.Select(k => "\"" + k + "\"")) : "none")}.");
+            }
         }
 
-        var me = new PlayerContext(job, fight.SyncLevel, slot, assignee);
-        var entries = PlanSelection.For(plan, me).ToList();
+        PlayerContext me;
+        if (assignee != null || anyColumn)
+        {
+            me = new PlayerContext(job, fight.SyncLevel, slot, assignee);
+        }
+        else
+        {
+            // The plugin's choice without a saved one (bundled plans, share codes): the job's column, or with the job-less
+            // calls of the player's slot when that column leaves them out (LPDU's "H2" for a Scholar), so the checklist and
+            // the simulated pull have the calls the overlay shows.
+            var pick = ColumnSuggestion.Suggest(plan, job, slot);
+            me = ColumnSuggestion.Context(pick, job, slot, fight.SyncLevel);
+            var every = PlanSelection.For(plan, new PlayerContext(job, fight.SyncLevel, slot)).ToHashSet();
+            if (!every.SetEquals(PlanSelection.For(plan, me)))
+                ctx.Err.WriteLine($"note: {Describe(pick, job, slot)}, as the plugin chooses without a saved choice; --assignee picks a column, --assignee \"{AnyColumn}\" takes every column for your job and slot.");
+        }
 
-        if (assignee == null)
+        var entries = PlanSelection.For(plan, me).ToList();
+        if (anyColumn)
         {
             var columns = entries.Select(e => e.Who?.Assignee).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             if (columns.Count > 1)
@@ -71,7 +102,16 @@ internal static class PlayerSelection
         }
 
         if (entries.Count == 0)
-            ctx.Err.WriteLine($"note: no entry of the plan applies to {job}{(slot != null ? " " + slot : string.Empty)}{(assignee != null ? " in column \"" + assignee + "\"" : string.Empty)}.");
+            ctx.Err.WriteLine($"note: no entry of the plan applies to {job}{(me.Slot != null ? " " + me.Slot : string.Empty)}{(assignee != null ? " in column \"" + assignee + "\"" : string.Empty)}.");
         return new Player(fight, plan, me, entries);
+    }
+
+    /// <summary>"column "WAR/DRK WAR"", "any column for SCH in slot H2 (the slot of your job's column)".</summary>
+    private static string Describe(ColumnPick pick, Job job, string? slot)
+    {
+        var what = pick.AssigneeKey != null
+            ? $"column \"{pick.AssigneeKey}\""
+            : pick.Slot != null ? $"any column for {job} in slot {pick.Slot}" : $"any column for {job}";
+        return slot == null && pick.Slot != null && pick.AssigneeKey == null ? what + " (the slot of your job's column)" : what;
     }
 }

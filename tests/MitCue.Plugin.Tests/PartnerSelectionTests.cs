@@ -157,6 +157,58 @@ public class PartnerSelectionTests
         Assert.Equal(["DRK in WAR/DRK"], Names(PartnerSelection.For(plan, me, [Job.WAR, Job.DRK, Job.WHM, Job.SCH])));
     }
 
+    [Theory]
+    [InlineData("WAR/DRK", "WAR/GNB", "DRK/GNB")]
+    [InlineData("WARDRK", "WARGNB", "DRKGNB")] // the tab names of an xlsx export
+    public void ATanksCoTankIsTheirJobsColumnForTheTanksPair(string warDrk, string warGnb, string drkGnb)
+    {
+        // Review finding (41d2893): the co-tank rows of a Warrior were the Dark Knight's (and Gunbreaker's) columns of every
+        // tank pair, e.g. three Living Deads at one mechanic. A Warrior's co-tank plays the pair with the Warrior in it.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "WAR in WAR/DRK", job: Job.WAR, assignee: warDrk + " WAR"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "DRK in WAR/DRK", job: Job.DRK, assignee: warDrk + " DRK"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "WAR in WAR/GNB", job: Job.WAR, assignee: warGnb + " WAR"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "GNB in WAR/GNB", job: Job.GNB, assignee: warGnb + " GNB"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "DRK in DRK/GNB", job: Job.DRK, assignee: drkGnb + " DRK"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "GNB in DRK/GNB", job: Job.GNB, assignee: drkGnb + " GNB"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "OT call", job: Job.DRK, slot: "OT", assignee: "OT"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "LB tank", job: Job.DRK, assignee: "CM LB Tank"),
+            ],
+            new Assignee { Key = warDrk + " WAR", Job = Job.WAR },
+            new Assignee { Key = warDrk + " DRK", Job = Job.DRK },
+            new Assignee { Key = warGnb + " WAR", Job = Job.WAR },
+            new Assignee { Key = warGnb + " GNB", Job = Job.GNB },
+            new Assignee { Key = drkGnb + " DRK", Job = Job.DRK },
+            new Assignee { Key = drkGnb + " GNB", Job = Job.GNB },
+            new Assignee { Key = "OT", Slot = "OT" },
+            new Assignee { Key = "CM LB Tank" });
+
+        var war = new PlayerContext(Job.WAR, 90, "MT", warDrk + " WAR");
+        Assert.Equal(["DRK in WAR/DRK", "GNB in WAR/GNB", "OT call", "LB tank"], Names(PartnerSelection.For(plan, war)));
+        Assert.Equal(["DRK in WAR/DRK", "OT call", "LB tank"], Names(PartnerSelection.For(plan, war, [Job.WAR, Job.DRK, Job.WHM, Job.SCH])));
+
+        // A Gunbreaker with a Dark Knight co-tank: the DRK/GNB pair.
+        var gnb = new PlayerContext(Job.GNB, 90, "MT", drkGnb + " GNB");
+        Assert.Equal(["WAR in WAR/GNB", "DRK in DRK/GNB", "OT call", "LB tank"], Names(PartnerSelection.For(plan, gnb)));
+    }
+
+    [Fact]
+    public void ColumnsOfAJobThatNameNoOtherJobAreAllKept()
+    {
+        // Two columns of the co-healer's job that are not team compositions (e.g. one per phase): both are theirs.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.raid", -5, Kit.Temperance, "P1 White Mage", job: Job.WHM, assignee: "White Mage"),
+                Kit.Entry("p2.raid", -5, Kit.Temperance, "P2 WHM", job: Job.WHM, assignee: "WHM"),
+            ],
+            new Assignee { Key = "White Mage", Job = Job.WHM },
+            new Assignee { Key = "WHM", Job = Job.WHM },
+            new Assignee { Key = "Scholar", Job = Job.SCH });
+
+        Assert.Equal(["P1 White Mage", "P2 WHM"], Names(PartnerSelection.For(plan, new PlayerContext(Job.SCH, 90, "H2", "Scholar"))));
+    }
+
     [Fact]
     public void PartyJobMasksRoundTrip()
     {

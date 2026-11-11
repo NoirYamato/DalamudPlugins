@@ -76,7 +76,7 @@ public class LoadLinkTests
         {
             // The xlsx reader is not part of this build yet: the download worked and the failure is explained.
             Assert.Contains("not available in this build", ex.Message);
-            Assert.Equal($"https://docs.google.com/spreadsheets/d/{CtcId}/export?format=xlsx", Assert.Single(requests));
+            Assert.Contains($"https://docs.google.com/spreadsheets/d/{CtcId}/export?format=xlsx", requests);
             return;
         }
 
@@ -151,6 +151,64 @@ public class LoadLinkTests
     }
 
     [Fact]
+    public async Task AReimportReplacesTheEarlierImportWhetherOrNotGooglesTabNamesWereRestored()
+    {
+        // Review finding (41d2893): the tab names are restored only when the best-effort tab list can be read, and the
+        // replace flow compared tab names and column keys exactly ("P1P2" against "P1/P2", "WARDRK WAR" against
+        // "WAR/DRK WAR"): an import made before, or while the tab list failed, was never replaced, and its active-plan and
+        // column settings were not carried over.
+        var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var link = GoogleLinks.Parse($"https://docs.google.com/spreadsheets/d/{LpduId}/edit")!;
+
+        async Task<MitCue.Core.Plans.MitPlan> ImportOnce(bool tabList)
+        {
+            using var fetcher = new SheetFetcher(new RoutingHandler(request =>
+                !request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal)
+                    ? Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet.xlsx")
+                    : tabList
+                        ? Respond(Encoding.UTF8.GetBytes(HtmlView(LpduTabNames)), "text/html", "htmlview")
+                        : new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("<html></html>") }));
+            var source = await ImportPipeline.LoadLinkAsync(fetcher, link, CancellationToken.None);
+            var tabs = source.Document.Tabs.Where(t => t.Name.StartsWith('P') || t.Name.StartsWith("WAR", StringComparison.Ordinal)).Select(t => t.Name).ToList();
+            var plan = ImportPipeline.Import(source.Document, new MitCue.Core.Import.ImportOptions
+            {
+                Fight = data.GetFight("top")!,
+                Actions = data.Actions,
+                Aliases = data.Aliases!,
+                Tabs = tabs,
+                SourceUrl = source.Url,
+                ImportedDate = "2026-11-11",
+            }).Plan;
+            plan.Fight = "top";
+            return plan;
+        }
+
+        var before = await ImportOnce(tabList: false);
+        var after = await ImportOnce(tabList: true);
+        Assert.Contains("P1P2", before.Source!.Tabs);
+        Assert.Contains("P1/P2", after.Source!.Tabs);
+        Assert.Contains(before.Assignees, a => a.Key == "WARDRK WAR");
+        Assert.Contains(after.Assignees, a => a.Key == "WAR/DRK WAR");
+
+        Assert.True(MitCue.UI.ImportWindow.SameSource(before.Source, after.Source));
+        var store = new MitCue.Plans.PlanStore(Kit.TempDirectory(), new Configuration(), () => { }, Kit.Errors());
+        store.EnsureLoaded();
+        Assert.True(store.Save(before, out var error), error);
+        Assert.Equal(before.Id, MitCue.UI.ImportWindow.DefaultReplacement(store, after));
+
+        // Replacing it (the Save step gives the new plan the earlier one's id) keeps the column choices, under the new keys.
+        store.SetMapping(before, MitCue.Core.Job.WAR, new PlayerMapping { AssigneeKey = "WARDRK WAR", Slot = "MT" });
+        store.SetMapping(before, MitCue.Core.Job.SCH, new PlayerMapping { AssigneeKey = null, Slot = "H2" });
+        Assert.Equal("WAR/DRK WAR", MitCue.Plans.PlanStore.CarryOver(after, store.SavedMapping(before, MitCue.Core.Job.WAR))?.AssigneeKey);
+        after.Id = before.Id;
+        Assert.True(store.Save(after, out error), error);
+        Assert.Equal(("WAR/DRK WAR", "MT"), (store.SavedMapping(after, MitCue.Core.Job.WAR)?.AssigneeKey, store.SavedMapping(after, MitCue.Core.Job.WAR)?.Slot));
+        Assert.Equal((null, "H2"), (store.SavedMapping(after, MitCue.Core.Job.SCH)?.AssigneeKey, store.SavedMapping(after, MitCue.Core.Job.SCH)?.Slot));
+    }
+
+    [Fact]
     public async Task KeepsTheExportsTabNamesWhenTheTabListCannotBeRead()
     {
         var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
@@ -164,6 +222,37 @@ public class LoadLinkTests
 
         Assert.Contains("P1P2", source.Document.Tabs.Select(t => t.Name));
         Assert.Contains("WARDRK", source.Document.Tabs.Select(t => t.Name));
+    }
+
+    [Fact]
+    public async Task TheTabListIsAskedForWithTheWorkbookAndAStuckOneDoesNotHoldTheImport()
+    {
+        // Review finding (41d2893): the tab list was asked for only after the workbook was in, with the fetcher's whole
+        // time limit (20 s), so a stuck htmlview page held a finished download; the only way out (Cancel) dropped it.
+        var lpdu = await File.ReadAllBytesAsync(Fixture("lpdu", "export", "lpdu.xlsx"));
+        var tabListAsked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var fetcher = new SheetFetcher(
+            new AsyncHandler(async (request, ct) =>
+            {
+                if (request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal))
+                {
+                    tabListAsked.TrySetResult();
+                    await Task.Delay(Timeout.Infinite, ct); // never answers
+                }
+
+                // The workbook is sent only once the tab list has been asked for: both requests are out together.
+                await tabListAsked.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+                return Respond(lpdu, SheetFetcher.XlsxMediaType, "LPDU TOP Mitigation Sheet.xlsx");
+            }),
+            timeout: TimeSpan.FromSeconds(60));
+        var link = GoogleLinks.Parse($"https://docs.google.com/spreadsheets/d/{LpduId}/edit")!;
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var source = await ImportPipeline.LoadLinkAsync(fetcher, link, CancellationToken.None, tabListGrace: TimeSpan.FromMilliseconds(200));
+
+        Assert.InRange(watch.Elapsed.TotalSeconds, 0, 10); // not the fetcher's 60 s
+        Assert.Contains("P1P2", source.Document.Tabs.Select(t => t.Name)); // the export's names are kept
+        Assert.Equal(13, source.Document.Tabs.Count);
     }
 
     [Fact]

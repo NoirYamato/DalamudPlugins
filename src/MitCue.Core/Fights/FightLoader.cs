@@ -25,7 +25,8 @@ namespace MitCue.Core.Fights;
 /// </para>
 /// <para>
 /// Optional <c>timeline_additions</c>: cactbot timeline sync lines appended to the timeline when it is loaded
-/// (<see cref="FightDefinition.TimelineAdditions"/>); every line must be an entry with a sync and no label jump.
+/// (<see cref="FightDefinition.TimelineAdditions"/>); every line must be an entry with a sync and no label jump (no label
+/// or hideall statements: they would change the cactbot file's).
 /// </para>
 /// </remarks>
 public static class FightLoader
@@ -82,7 +83,8 @@ public static class FightLoader
 
     /// <summary>
     /// The optional <c>timeline_additions</c> (<see cref="FightDefinition.TimelineAdditions"/>): cactbot timeline lines,
-    /// each an entry with a sync (comments allowed), without jumps to labels (labels are the cactbot file's).
+    /// each an entry with a sync (comments allowed), without jumps to labels and without label or hideall statements (the
+    /// labels and names are the cactbot file's).
     /// </summary>
     private static string? ReadTimelineAdditions(YamlMappingNode root, string context)
     {
@@ -101,6 +103,12 @@ public static class FightLoader
             throw new FormatException(ex.Message, ex);
         }
 
+        // Appended to the cactbot file, a label would redefine the file's label of that name (the parser keeps the last one)
+        // and a hideall would hide its entries: only entries are added.
+        if (parsed.Labels.Count > 0)
+            throw new FormatException($"{where}: label \"{parsed.Labels.Keys.First()}\" (only sync lines can be added: the labels are the cactbot file's).");
+        if (parsed.HiddenNames.Count > 0)
+            throw new FormatException($"{where}: hideall \"{parsed.HiddenNames.First()}\" (only sync lines can be added).");
         if (parsed.Entries.FirstOrDefault(e => e.JumpLabel != null) is { } jump)
             throw new FormatException($"{where}: line {jump.Line} (\"{jump.Name}\") jumps to a label (use a time: the labels are the cactbot file's).");
         if (parsed.Warnings.Count > 0)

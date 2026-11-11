@@ -172,6 +172,37 @@ public class TimelineAdditionsTests
     }
 
     [Fact]
+    public void FightLoader_rejects_labels_and_hideall_in_timeline_additions()
+    {
+        // Review finding (41d2893): a label line passed the loader and, appended to the cactbot file, redefined the
+        // file's label of that name (the parser only warns and keeps the last one), so every jump to it went elsewhere.
+        const string Head = "fight: x\nname: X\nterritory: 1\nsync_level: 90\ntimeline: x.txt\nphases:\n  - { id: p1, start: 0 }\nmechanics:\n  - { id: p1.a, hit: 10 }\n";
+        const string Sync = "  8.0 \"--sync--\" StartsUsing { id: \"AB\" } window 8,100\n";
+
+        var label = Assert.Throws<FormatException>(() => FightLoader.Load(Head + "timeline_additions: |\n  50.0 label \"p2\"\n" + Sync, "fights/x.yaml"));
+        Assert.Contains("fights/x.yaml: timeline_additions: label \"p2\"", label.Message, StringComparison.Ordinal);
+
+        var hide = Assert.Throws<FormatException>(() => FightLoader.Load(Head + "timeline_additions: |\n  hideall \"A\"\n" + Sync, "fights/x.yaml"));
+        Assert.Contains("hideall \"A\"", hide.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_fight_whose_additions_define_a_label_is_not_loaded_and_the_cactbot_jumps_stay()
+    {
+        var data = new MemoryData(new Dictionary<string, string>
+        {
+            ["fights/x.yaml"] = "fight: x\nname: X\nterritory: 1\nsync_level: 90\ntimeline: x.txt\nphases:\n  - { id: p1, start: 0 }\nmechanics:\n  - { id: p1.a, hit: 10, entry: \"A\" }\n" +
+                                "timeline_additions: |\n  50.0 label \"p2\"\n  8.0 \"--sync--\" StartsUsing { id: \"AB\" } window 8,100\n",
+            ["timelines/x.txt"] = "0.0 \"--sync--\" InCombat { inGameCombat: \"1\" } window 0,1\n10.0 \"A\" Ability { id: \"AB\" } jump \"p2\"\n200.0 label \"p2\"\n205.0 \"B\" Ability { id: \"CD\" }\n",
+        });
+
+        var library = new FightLibrary(data);
+
+        Assert.Null(library.Get("x"));
+        Assert.Contains(library.Problems, p => p.Message.Contains("label \"p2\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void FightLibrary_appends_the_additions_to_the_timeline_it_loads()
     {
         var data = new MemoryData(new Dictionary<string, string>
