@@ -2,6 +2,9 @@
 
 Usage: python3 -I normalize_sheets.py <api-dump.json> <out-dir>
 
+<api-dump.json> is either a raw spreadsheets.get response (a Spreadsheet object) or the MCP tool-result file
+that wraps it as {"content": <Spreadsheet>}.
+
 Output: one <sanitized-tab-name>.json per tab, format documented in docs/research/sheets-import.md.
 """
 import json
@@ -35,7 +38,9 @@ def resolve(style: dict | None, legacy: dict | None, theme: dict) -> str | None:
 
 
 def main(src: str, out_dir: str) -> None:
-    doc = json.load(open(src, encoding="utf-8"))["content"]
+    raw = json.load(open(src, encoding="utf-8"))
+    # The MCP harness saves the Spreadsheet wrapped as {"content": {...}}; a raw spreadsheets.get response is not wrapped.
+    doc = raw["content"] if "sheets" not in raw and "content" in raw else raw
     theme = {}
     for tc in doc.get("properties", {}).get("spreadsheetTheme", {}).get("themeColors", []):
         theme[tc["colorType"]] = resolve(tc["color"], None, {})

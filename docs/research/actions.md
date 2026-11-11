@@ -26,6 +26,8 @@ Contents
 14. UNVERIFIED items and open questions
 15. Pitfalls for implementers
 
+Verification (independent re-check, appended at the end)
+
 ---
 
 ## 1. Deliverables
@@ -47,11 +49,12 @@ job-scoped alias names an action that job can use (section 13). `MitCue.Core.csp
 |---|---|---|
 | `Action.csv`, `ActionTransient.csv`, `ClassJob.csv`, `ClassJobCategory.csv`, `Status.csv` | xivapi/ffxiv-datamining `csv/en`, game version **7.58** (repo commit `52a72b38`, 2026-11-10 "7.58 (#122)"); copies in `scratchpad/research/gamedata/` | ids, names, icons, levels, jobs, cast, base recast, base charges, costs, cooldown groups, targeting flags; level-100 tooltips |
 | `Trait.csv`, `TraitTransient.csv`, `GeneralAction.csv`, `ActionCategory.csv` | same repository and commit, from `raw.githubusercontent.com/xivapi/ffxiv-datamining/master/csv/en/` | trait levels for recast, charge, duration and upgrade changes; Sprint's general-action row; category names |
-| `csv/ActionTransient.csv` (old export format, raw macros) | same repository at commit **`6a2329d`** "7.4 (#88)" (2025-12-16), the last commit before the repository switched export formats (`d3eb86d`, 2026-01-04) | per-level tooltip values (the macros) |
-| `csv/ActionTransient.csv` | same repository at commit `a9b1180` "7.35" | proof that Plenary Indulgence's 10% mitigation arrived in 7.4 |
+| `csv/ActionTransient.csv` (old export format, raw macros) | same repository at commit **`6a2329d`** "7.4 (#88)" (2025-12-16). Two more old-format commits followed, `521a8f7` "7.4h1" and `97ca355` "7.4h2" (2025-12-25, the last one before the format switch `d3eb86d`, 2026-01-04); both carry the byte-identical `csv/ActionTransient.csv` blob (`09b69a60`), so 6a2329d is equivalent to the final 7.4 export | per-level tooltip values (the macros) |
+| `csv/ActionTransient.csv` | same repository at commit `a9b1180` "7.35"; the next export, `e960bd4` "7.38", did not change this file | proof that Plenary Indulgence's 10% mitigation arrived in 7.4 |
 | `FFXIVClientStructs/FFXIV/Component/Text/MacroDecoder.cs` | `scratchpad/research/repos/clientstructs` | meaning of `PlayerParameter(n)` |
 | BossMod `BossMod/ActionQueue/Healers/SCH.cs` | `scratchpad/research/repos/bossmod` @ `6e410ef8` (read with `git show`) | cross-check of SCH ids and pet-action ids |
-| Dalamud 15.0.3.9 assemblies | `~/.xlcore/dalamud/Hooks/dev/` | Lumina sheet property names and gauge properties (reflection plus a compiled probe, section 10) |
+| Dalamud assemblies the project calls 15.0.3.9 (`Dalamud.dll` reports AssemblyVersion **15.0.4.0**, SCMVersion `15.0.3.9-31-g12e318c19`, branch `rc`, ClientStructs `80cb4a7b7`) | `~/.xlcore/dalamud/Hooks/dev/` | Lumina sheet property names and gauge properties (reflection plus a compiled probe, section 10) |
+| `ActionIndirection.csv` (7.58, same commit as the other sheets) | `csv/en/ActionIndirection.csv` | hotbar replacements (`Name` = action shown, `PreviousComboAction` = the button it replaces); added during verification, section 9 |
 | Carry the Clear (`1chKttd7…`): tabs `TOP – White Mage`, `TOP – Scholar`, `TOP – WHM + SCH`; LPDU TOP Mitigation Sheet (`1Dlnye-i7…`): all 13 tabs | read with the Google Sheets MCP tools and, with identical content, through the public CSV export (`/export?format=csv&gid=…`) | shorthand actually used (section 12) |
 
 ### 2.1 The current tooltip export has no macros
@@ -64,20 +67,32 @@ disables sheet-link processing, and `@as(html)` gives coloured HTML. Both are ev
 character.
 
 The macros survive in the repository's **old-format export up to patch 7.4** (commit `6a2329d`,
-`csv/ActionTransient.csv`, 879 `PlayerParameter` uses). I evaluated each of the 178 actions' 7.4 macro
-tooltips at level 100 with the action's own ClassJob id, converted `UIForeground` runs to `**` and `\r\n` to
-`\n`, and compared the result with the 7.58 tooltip: **all 178 are byte-identical**. Therefore:
+`csv/ActionTransient.csv`, unchanged through 7.4h2; 2 660 `PlayerParameter` uses in 550 rows, on 879 physical
+lines of the CSV). I evaluated each of the 178 actions' 7.4 macro tooltips at level 100 with
+`PlayerParameter(68)` = the ClassJob id of a **job that can use the action** (the first entry of its `jobs`
+list; verification repeated this for every job in the list), converted `UIForeground` runs to `**` and `\r\n` to
+`\n`, and compared the result with the 7.58 tooltip: **all 178 are byte-identical**. (Using the row's own
+`Action.ClassJob` instead does not work: it is −1 for role actions, 0 for follow-up rows and the base class
+for some job actions, and 11 of the 178 tooltips then differ, e.g. Reprisal evaluates to 10 s.) Therefore:
 
 1. the 7.58 export is "the tooltip a level-100 player of that job sees";
 2. none of these tooltips changed between 7.4 and 7.58 at level 100;
 3. the 7.4 macros are the per-level source. Every level threshold in them that changes a duration, charge
-   count or effect matches a **7.58** trait at the same level and job (section 8, checked by script). Lower-level
+   count or effect matches a **7.58** trait at the same level and job (section 8, checked by script; thresholds
+   that only add text about another action follow that action's unlock level instead, e.g. Seraph at 80 in
+   Whispering Dawn, Afflatus Rapture at 76 in Plenary Indulgence, the "Increases Faerie Gauge by 10" line at 70,
+   Aetherpact's level, in the Aetherflow actions). Lower-level
    branches could in theory have changed without the level-100 text changing. Nothing suggests that, and the
    trait cross-check would catch a moved threshold.
 
 ### 2.2 Traits as the second source
 
-`Trait.csv` gives the level, job and description of every trait. Three phrasings matter, all parsed by script:
+`Trait.csv` gives the level and job of every trait, and `TraitTransient.csv` its description. Role-action
+traits (Enhanced Rampart 639, Reprisal 640, Feint 641, Second Wind 642, Addle 643, Swiftcast 644) have
+`Trait.ClassJob` = 0 and are scoped by `Trait.ClassJobCategory` instead (113 tanks, 114 melee, 118 melee and
+physical ranged, 198 casters, 199 healers and casters), so a lookup by `ClassJob` alone misses them. All 52 traits
+cited in sections 8 and 9 have the same name and level in the 7.4 export as in 7.58. Three phrasings matter,
+all parsed by script:
 
 - `Reduces **X** recast time to N seconds.` gives `recast_by_level` (the base recast is `Recast100ms`);
 - `Allows the accumulation of charges for consecutive uses of **X**. … Maximum Charges: N` and
@@ -178,7 +193,7 @@ Same-name rows that matter at runtime (listed under `related` in the YAML):
 | `Cast100ms` | cast time × 10 | |
 | `Recast100ms` | **base** recast × 10, *before traits* (Recitation 900, Deployment Tactics 1200, Zoe 1200, Swiftcast 600; the level-100 values are 60, 90, 90 and 40 s) | `Trait.csv` "Reduces **X** recast time to N" |
 | `MaxCharges` | **base** charges; traits add more (Divine Benison 1 → 2 at 88). 0 = no charge system | tooltip macros and traits |
-| `CooldownGroup` / `AdditionalCooldownGroup` | recast group; 58 = the GCD. Actions in one group share a recast (Raw Intuition, Bloodwhetting and Nascent Flash: group 7) | |
+| `CooldownGroup` / `AdditionalCooldownGroup` | recast group; 58 = the GCD. Actions of one job in one group share a recast (Raw Intuition, Bloodwhetting and Nascent Flash: group 7). The numbers are reused across jobs (group 7 is also Icarus, Emergency Tactics, Minor Arcana, Third Eye, Arcane Crest), so compare groups only within one player's job | |
 | `PrimaryCostType` / `PrimaryCostValue` | see the table below | tooltip "… Cost:" lines |
 | `IsPlayerAction`, `IsPvP`, `IsRoleAction` | as named; section 4 lists the traps | |
 | `CanTargetSelf/Party/Hostile`, `TargetArea`, `EffectRange`, `CastType` | targeting; used to check the `target` field | |
@@ -195,12 +210,13 @@ Pneuma are GCD spells with their own long recast (group 23 plus 58). Eukrasian G
 | 10 | requires a status; value = `Status` row | Divine Caress 3881 Divine Grace, Sun Sign 3895 Suntouched, Lux Solaris 3874 Refulgent Lux | `Status.csv` names |
 | 11 | limit break gauge | all LBs (value 0) | |
 | 30 | Aetherflow | Energy Drain, Lustrate, Sacred Soil, Indomitability, Excogitation (1) | tooltip "Aetherflow Gauge Cost: 1" |
+| 33 | the drawn AST card (meaning inferred) | the Bole (2), the Arrow (3), the Ewer (5), the Spire (6), Lady of Crowns (8); not stored in the YAML (`requires` text instead) | values equal Dalamud's `CardType` enum (Bole 2, Arrow 3, Ewer 5, Spire 6, Lady 8; compile-time checked in the verification probe) |
 | 41 | Oath Gauge | Sheltron, Holy Sheltron, Intervention, Cover (50) | tooltip "Oath Gauge Cost: 50" |
 | 56 | Blood Lily | Afflatus Misery (3) | tooltip "Can only be executed when the Blood Lily is in full bloom" |
 | 57 | Lily | Afflatus Solace, Afflatus Rapture (1) | tooltip "Healing Gauge Cost: 1 Lily" |
 | 68 | Addersgall | Druochole, Kerachole, Ixochole, Taurochole (1) | tooltip "Addersgall Cost: 1" |
 | 69 | Addersting | Toxikon (not in the KB) | tooltip |
-| 70 | **UNVERIFIED** meaning (Eukrasian Diagnosis, Prognosis and Prognosis II: value 8; Eukrasian Dosis: value 4) | | no tooltip text; MitCue does not use it |
+| 70 | **UNVERIFIED** meaning (Eukrasian Diagnosis, Prognosis and Prognosis II: value 8; Eukrasian Dosis: value 4) | | no cost text in the tooltips (they only say "Can only be executed while under the effect of **Eukrasia**"); MitCue does not use it |
 
 Aetherpact's Faerie Gauge cost (10) appears only in its tooltip (`PrimaryCostType` 0); the YAML takes it from there.
 
@@ -230,7 +246,7 @@ actions:
 | Field | Type | Present | Meaning → `ActionInfo` |
 |---|---|---|---|
 | `id`, `name`, `jobs`, `level`, `kind`, `gcd`, `cast`, `recast` | | always | `Id`, `Name`, `Jobs`, `Level`, `Kind` (snake_case → enum: `party_mit` → `PartyMit`, `tank_mit` → `TankMit`, `lb` → `LimitBreak`), `IsGcd`, `CastTime`, `Recast` |
-| `target` | enum string | always | **new**: `self`, `single` (self or one party member), `party` (area around you or around the target), `ground` (placed area), `enemy` (debuff on enemies) |
+| `target` | enum string | always | **new**: `self`, `single` (one chosen player: self or a party member; Synastry, Intervention, Nascent Flash, Cover, Shirk and Rescue cannot target self and Icarus targets a party member or an enemy, per `Action.CanTargetSelf/Party/Hostile`), `party` (area around you or around the target), `ground` (placed area), `enemy` (debuff on enemies) |
 | `cooldown_group`, `additional_cooldown_group` | int | always / when ≠ 0 | **new**: raw sheet groups (shared recasts; charge systems use 71, 72, 73) |
 | `recast_by_level` | {level: s} | only when a trait changes the recast | **new**; `recast` is the level-100 value |
 | `charges` | {level: n} | only when > 1 at some level | `ChargesByLevel`; missing = 1 |
@@ -628,8 +644,8 @@ Follow-up actions (a button that becomes usable, or changes, after another actio
 | Summon Seraph (16545) | Consolation (16546): 2 charges, 30 s recast | Seraph present (22 s) | Consolation tooltip "Orders Seraph to execute Consolation" |
 | Seraphism (37014) | Manifestation (37015) replaces Adloquium; Accession (37016) replaces Concitation | Seraphism active (20 s) | tooltips "※Adloquium changes to Manifestation …", "※Concitation changes to Accession …" |
 | Eukrasia (24290) | Eukrasian Diagnosis (24291), Eukrasian Prognosis (24292) / II (37034) | next GCD | tooltips "※Prognosis changes to Eukrasian Prognosis …" |
-| Earthly Star (7439) | Stellar Detonation (8324) | star placed | tooltip |
-| Horoscope (16557) | Horoscope (16558) | Horoscope active | ClassJob-0 row with the same name |
+| Earthly Star (7439) | Stellar Detonation (8324) | star placed | tooltip; `ActionIndirection` row 153 (button change) |
+| Horoscope (16557) | Horoscope (16558) | Horoscope active | ClassJob-0 row with the same name; `ActionIndirection` row 154 (button change) |
 | Macrocosmos (25874) | Microcosmos (25875) | Macrocosmos active (15 s) | tooltip |
 | Minor Arcana (37022) | Lady of Crowns (7445) | Umbral Draw | tooltip "※Minor Arcana changes to Lady of Crowns …" |
 | Play II (37020) / Play III (37021) | the Bole (37027), the Arrow (37024) / the Spire (37025), the Ewer (37028) | Umbral or Astral Draw | card tooltips "※Play II changes to The Bole …" |
@@ -644,10 +660,24 @@ Macrocosmos → Microcosmos: those follow-ups are ordinary player rows (`ClassJo
 without a "※X changes to Y" line. The pairs that do have that line are VERIFIED as button changes by the game text.
 `docs/research/clientstructs.md` §3.7 describes the runtime check.
 
+Second source (added in verification): the 7.58 `ActionIndirection` sheet lists hotbar replacements as
+`Name` (action shown) ← `PreviousComboAction` (button). The column meaning is inferred, not documented: every pair
+that also has a "※X changes to Y" tooltip line agrees with that line (Accession and Eukrasian Prognosis II through the
+level-96 upgrade of their button). For these actions it has: Improvised Finish ← Improvisation,
+Rekindle ← Astral Flow, Manifestation ← Adloquium, Accession ← **Succor** (186; the button shows Concitation from 96),
+Emergency Tactics 37037 ← 3586, the Arrow / the Bole ← Play II, the Spire / the Ewer ← Play III, **Stellar Detonation ←
+Earthly Star**, **Horoscope 16558 ← Horoscope 16557**, Lord / Lady of Crowns ← Minor Arcana, Eukrasian Diagnosis ←
+Diagnosis (24284), Eukrasian Prognosis ← Prognosis, Eukrasian Prognosis II ← Eukrasian Prognosis. So Earthly Star →
+Stellar Detonation and Horoscope → Horoscope 16558 are VERIFIED button changes too. None of the four UNVERIFIED pairs is
+in the sheet, which suggests separate buttons, but the sheet is not complete: Liturgy of the Bell → 28509 (BossMod
+`LiturgyOfTheBellEnd`, a re-press of the same button) and Aetherpact → Dissolve Union are missing from it as well, so
+the four stay UNVERIFIED.
+
 ## 10. Resources and their runtime gauges
 
 Resource names used in `cost.resource`, and the Dalamud 15 gauge property that reports each one. Property names and
-types were read from `Dalamud.dll` by reflection and used in a probe plugin that compiles against Dalamud 15.0.3.9
+types were read from `Dalamud.dll` by reflection and used in a probe plugin that compiles against the dev assemblies
+(AssemblyVersion 15.0.4.0, the build the project calls 15.0.3.9; section 2)
 (`scratchpad/actkb/probe/Plugin.cs`, `dotnet build -c Release`: 0 errors, 0 warnings):
 
 | `cost.resource` | Gauge (via `IJobGauges.Get<T>()`) | Type | Notes |
@@ -669,7 +699,18 @@ Lumina sheet access used by the probe (all of it compiles): `IDataManager.GetExc
 `ActionTransient.Description`; `ClassJob.LimitBreak3` (`RowRef<Action>`), `ClassJob.IsLimitedJob`;
 `GeneralAction.Action`; `Trait.Level`, `Trait.ClassJob`, `Trait.Value`, `TraitTransient.Description`;
 `ActionManager.GetMaxCharges(uint actionId, uint level)` (static, returns `ushort`) and
-`am->GetAdjustedActionId(uint)` (instance). Runtime use of `ActionManager` is in
+`am->GetAdjustedActionId(uint)` (instance). Verification re-proved every one of these with exact-type checks
+(`ref` parameters, so no implicit conversion can hide a wrong type) in
+`scratchpad/probes/verify-actions/Plugin.cs`: `Name`/`Description` are `ReadOnlySeString`; `ClassJob`,
+`ClassJobCategory`, `ActionCategory` are `RowRef<ClassJob>`, `RowRef<ClassJobCategory>`, `RowRef<ActionCategory>`;
+`ClassJob.LimitBreak1/3` and `GeneralAction.Action` are `RowRef<Action>`; `ClassJob.ClassJobParent` is
+`RowRef<ClassJob>`; `Trait.Level` is `byte`, `Trait.Value` `short`, `Trait.ClassJobCategory`
+`RowRef<ClassJobCategory>` (needed for role traits, section 2.2); `ActionIndirection.Name` and
+`.PreviousComboAction` are `RowRef<Action>`; `SGEGauge.AddersgallTimer` is `short`, `SGEGauge.Addersting` `byte`,
+`SCHGauge.DismissedFairy` the enum `DismissedFairy`. `GetMaxCharges` binds to a `delegate*<uint, uint, ushort>`
+(so it is static with exactly that signature) and takes named arguments `actionId`/`level`; the ClientStructs
+source comment (`ActionManager.cs` line 234) says level **0 means the current level**; what it returns for another
+job's action is UNVERIFIED. Calling `GetAdjustedActionId` statically fails with CS0120 (instance method). Runtime use of `ActionManager` is in
 `docs/research/clientstructs.md` §3: only the local player's cooldowns are readable, so the co-healer's come from
 this KB.
 
@@ -704,6 +745,19 @@ aliases:
   Extra rules these sheets need: strip a leading job abbreviation as a job filter ("WHM Bell", "SCH Soil";
   `pld wings` is also a key because it appears in non-PLD columns); treat a run of 3 or more spaces as a separator
   ("Party Mit        Dismantle", LPDU P6 J7); "Co-Tank", "to/on R1", "to 4" and "R1/2" are targets.
+- Separators actually used by the coverage run (section 12, `actkb/tokens.py`): `/` (with or without spaces), `+`,
+  `,`, `→`, `->`, `·`, `(`, `)`, newline, `>>`, `<<`, `;`; times such as `1:07`, `~0:40`, `≈4:32` are removed. The
+  verification re-ran the coverage with these plus the 3-space rule and the leading-job rule: every action item still
+  resolves.
+- `/` is ambiguous in these sheets. In "Short CD to R1/2" it lists targets; in "Kera/Soil" (LPDU P1/P2 E2, shared H2
+  column) it means "whichever your job has" (the job filter handles it); in "TBN/Oblation Co-Tank" (LPDU 'WAR/DRK' C12,
+  'DRK/GNB' B13, 'DRK/PLD' B13) the trailing target belongs to both actions, but a plain split gives "TBN" (no target)
+  and "Oblation Co-Tank". The parser should carry a trailing target back over `/`-joined actions.
+- Short keys can swallow targets: `co` (AST Celestial Opposition) would match a bare "Co-Tank" item (normalized
+  `co tank`). The sheets never have a bare "Co-Tank" item after splitting, and the AST-only job filter keeps it away
+  from tank columns, but a target word must not be resolved as an action for another job.
+- "Letter" in the normalization means ASCII `a`–`z` after lowercasing (the validator's `[^a-z0-9%]`); with
+  `char.IsLetter` non-ASCII letters would survive, which no key contains.
 - **Job filter**: an expansion with `job` applies only to that job; one without `job` applies to any job whose
   `jobs` contain every action. Several expansions may exist (`lb3`, `party mit`): use the one for the assignee's job.
 - **Level resolution**: resolve each name, then apply section 6's upgrade rules at the plan's sync level:
@@ -732,10 +786,11 @@ Meanings that are conventions rather than game data (all taken from the two shee
 
 ## 12. Token coverage for both example sheets
 
-Method: every non-empty cell of the plan columns was split on `/ + , → -> · ( )` and newlines, times were removed,
+Method: every non-empty cell of the plan columns was split on `/ + , → -> · ( ) >> << ;` and newlines, times were removed,
 and each item was matched with the longest-prefix rule of section 11. Plan columns: CtC column C and the count
-column E (combined tab: C and D); LPDU: every assignment column of the 6 phase tabs and columns B–C of the 7 tank
-tabs. **Every action item resolves.** The alias keys hit (spellings include trailing hints and the count column's
+column E (combined tab: C and D); LPDU: every assignment column of the 5 phase tabs (P1/P2, P3, P4, P5, P6) and
+columns B–C of the 7 tank tabs (the 13th tab, ALOO, is a title and credits page with no assignments). **Every action
+item resolves.** The alias keys hit (spellings include trailing hints and the count column's
 numbers; cells are A1 references):
 
 | Alias key | Times | Spellings seen (incl. trailing hints / counts) | Example cells | Resolves to |
@@ -849,9 +904,9 @@ healer LB3 (checked by script over the notes columns).
 Checks run, all passing:
 
 1. 7.4 macro tooltips evaluated at level 100 equal the 7.58 tooltips: 178 of 178 identical.
-2. Charge counts from the tooltip macros equal the trait-derived charges for all 7 trait-charged actions; every
-   `replaced_by` has an "Upgrades X to Y" trait at that level; every duration or effect threshold has a 7.58 trait at
-   the same level.
+2. Charge counts from the tooltip macros equal the trait-derived charges for all 6 trait-charged actions (7 charge
+   traits: Essential Dignity has two); every `replaced_by` has an "Upgrades X to Y" trait at that level; every
+   duration or effect threshold has a 7.58 trait at the same level.
 3. The cost labels in the tooltips (`Healing Gauge Cost`, `Aetherflow Gauge Cost`, `Addersgall Cost`,
    `Oath Gauge Cost`) agree with `PrimaryCostType/Value`.
 4. The row selection rule (section 4) reproduces every chosen id.
@@ -876,7 +931,8 @@ actions. If the old-format history ever stops matching, the trait sheet alone co
 
 1. **Job LB3 durations** of Land Waker, Dark Force and Gunmetal Soul: their tooltips are empty in the game data (so
    are Angel Feathers, Astral Stasis and Techne Makre). The YAML uses Last Bastion's 12 s for every tank LB3; the
-   statuses (863, 864, 1931) only say "Damage taken is reduced".
+   statuses (863, 864, 1931) only say "Damage taken is reduced". BossMod has a stale, commented-out 8 s for Last
+   Bastion (see Verification), so check the LB3 status timer in game once.
 2. The meaning of `PrimaryCostType` 70 (Eukrasian actions).
 3. Hotbar button replacement for Summon Seraph → Consolation, Temperance → Divine Caress, Neutral Sect → Sun Sign
    and Macrocosmos → Microcosmos (section 9).
@@ -897,6 +953,117 @@ actions. If the old-format history ever stops matching, the trait sheet alone co
 - Plenary Indulgence has been a 10% party mitigation since 7.4, at every level. Older plans and logs treat it as a heal.
 - Sacred Soil, Asylum, Earthly Star and Liturgy of the Bell are ground-targeted: the reminder should say where.
 - Liturgy of the Bell, Earthly Star, Horoscope, Macrocosmos and Excogitation are heals pressed before the damage.
-- Consolation needs Seraph. Whispering Dawn, Fey Illumination, Fey Blessing and Aetherpact need the fairy (or Seraph)
-  and are unavailable for 30 s after Dissipation. Plans that say "Seraph" expect two Consolations.
+- Consolation needs Seraph. Whispering Dawn and Fey Illumination work with the faerie or Seraph (Seraph executes
+  Angel's Whisper / Seraphic Illumination). Fey Blessing and Aetherpact only order the faerie (their tooltips do not
+  mention Seraph) and Summon Seraph sends the faerie away for 22 s, so they should be unusable while Seraph is out
+  (UNVERIFIED in game). All four are unavailable for 30 s after Dissipation. Plans that say "Seraph" expect two
+  Consolations.
 - Same-name rows: Horoscope 16557/16558 and Liturgy of the Bell 25862/28509 (a re-press is not a second use).
+
+## Verification
+
+Independent re-check of this report and of both data files (2026-11-11). Nothing was taken from the researcher's
+scripts or downloads: inputs were fetched again, and every check below ran on new code in
+`scratchpad/verify-actions/` (Python, run with `-I`) and `scratchpad/probes/verify-actions/` (a copy of
+`buildtest/Probe`). Every one of the 178 actions was checked by script, not a sample; the hand-written fields
+(target, labels, notes, follow-ups) were checked against the tooltips, targeting flags, `ActionIndirection` and
+BossMod, and `kind` was reviewed by hand against the tooltips (no change needed).
+
+### Checked and confirmed
+
+1. **Inputs.** A fresh blobless clone of xivapi/ffxiv-datamining gives the same commit hashes, dates and messages
+   (`52a72b3` 7.58, `6a2329d` 7.4, `a9b1180` 7.35, `d3eb86d` format switch). Every CSV the researcher used
+   (Action, ActionTransient, ClassJob, ClassJobCategory, Status, Trait, TraitTransient, GeneralAction,
+   ActionCategory at 7.58; ActionTransient, Action, Trait, TraitTransient at 7.4; ActionTransient at 7.35) is
+   byte-identical to the blob at its commit. The 7.58 tooltip export has 0 `<`, `If(` and `PlayerParameter`.
+2. **Macro grammar.** Tag counts reproduced exactly (UIForeground and UIGlow 21 208 each, If/Else//If 2 660 each,
+   GreaterThanOrEqualTo 1 341, Equal 1 319). `MacroDecoder.cs` (ClientStructs `80cb4a7b`, the build inside the dev
+   Dalamud) says the list is zero-based and "you need to subtract 1 from gnum": 68 → 67 Player ClassJobId,
+   72 → 71 Player Synced Level, 69 → 68 Player Level (21 rows, all gathering abilities), 108 → 107 Occult Crescent
+   Support Job Level (19 Phantom rows). The raw 7.4 text of the three examples in section 3 and the role-action job
+   lists match.
+3. **7.4 = 7.58 at level 100.** A new evaluator evaluated all 178 tooltips at level 100 once for **every** job in
+   each `jobs` list: 178 of 178 identical to the 7.58 text for every job, and durations and charges are identical
+   between the listed jobs at every level from 1 to 100. xivapi v2 (live request) returns `Duration: 15s` for 7535
+   both plain and with `@as(raw)`, a coloured `<span>` with `@as(html)`, and `Maximum Charges: 2` for 7432.
+4. **actions.yaml against Action.csv, all 178 entries:** name, level, icon, cast, base recast and
+   `recast`/`recast_by_level`, cooldown groups, GCD flag, MP, job resource, `requires_status`, `jobs` (against
+   ClassJobCategory), charges at every level (against the tooltip's "Maximum Charges" or `MaxCharges`) and `sync`
+   80/90/100 (against the tooltip durations evaluated at that level). **0 mismatches.** The only `sync` values not
+   literally in a tooltip are the declared overrides: Earthly Star 20 (10 + 10) and the three tank LB3s (12 s,
+   still UNVERIFIED). Every level map starts at the learned level; every charge action has
+   AdditionalCooldownGroup 71–73. Percentages in the effect labels agree with the tooltips (Intervention's "−20%" is
+   the tooltip's 10% plus "an additional 10%"); notes checked against
+   tooltips include Liturgy of the Bell, Earthly Star, Macrocosmos, Seraphism, Dissipation, Aetherflow, Rhizomata,
+   Kerachole/Taurochole and Troubadour stacking, Radiant Aegis and Lux Solaris requirements.
+5. **Traits.** All 52 trait ids cited in sections 8–9 re-read (name, level, job or category, text). Every tooltip
+   threshold that changes a duration or a charge count has a trait of that job at that level, no other 7.58 trait
+   mentions a recast, charge or duration of a KB action, and the 52 traits have the same name and level in 7.4.
+6. **Row selection.** The section 4 rule, re-implemented, picks the YAML id for all 165 entries that are not a limit
+   break or Sprint, except the intentional Horoscope 16558. Confirmed: LB ids per job from `ClassJob.LimitBreak1–3`,
+   LB rows (category 9, ClassJobCategory 1, cost type 11), Sprint (GeneralAction 4 → Action 3, `IsPlayerAction`
+   False, category 10), the `IsPlayerAction = False` follow-up rows, the unlearnable rows 17794/17866/27828, and the
+   same-name table. BossMod `6e410ef` names 28509 `LiturgyOfTheBellEnd`, 16558 `HoroscopeEnd`, 25875
+   `MicrocosmosEnd`, 7869 `DissolveUnion`, 37037 `EmergencyTactics1` and the pet ids 803/805/7438/16544/16547/16550/16551.
+7. **Plenary Indulgence.** The 7.35 tooltip lacks "reducing damage taken by 10%"; the 7.38 export did not touch
+   ActionTransient; 7.4 and 7.58 have it with no level condition. Carry the Clear C13 reads "my placement for its 10%
+   mitigation (7.4+)".
+8. **Costs.** Every tooltip cost line agrees with `PrimaryCostType/Value`; status ids 3881 Divine Grace,
+   3895 Suntouched and 3874 Refulgent Lux are the `Status` rows named; BossMod's MP helper also uses
+   `PrimaryCostValue × 100` for type 3.
+9. **API (compiled).** The probe builds with 0 errors and 0 warnings against the dev assemblies and checks every type
+   with `ref` parameters, which allow no conversion: all Lumina members and gauge properties in section 10, plus
+   `Trait.ClassJobCategory`, `ClassJob.ClassJobParent` and `ActionIndirection`. A negative build (wrong types, static
+   call of `GetAdjustedActionId`) fails with CS1503 and CS0120 as expected. `CardType.Bole/Arrow/Ewer/Spire/Lady`
+   = 2/3/5/6/8 is asserted at compile time (a mismatch fails with CS0020).
+10. **YAML loading.** The strict typed DTO of section 6 loads both files with YamlDotNet 18.1.0 (the version in
+    `MitCue.Core.csproj`); PyYAML loads both. 341 alias keys, all normalized and unique; every target exists and
+    suits its job; every alias the brief lists is present. A scratch build of `MitCue.Core` on Linux embeds
+    `MitCue.data/actions/actions.yaml` and `MitCue.data/actions/aliases.yaml`.
+11. **Sheets (Google Sheets tools).** Carry the Clear: 'TOP – White Mage' C13, C17/D17/E17, C19/D19/E19, C22, C51/E51,
+    E57, C66/E66, E67; 'TOP – WHM + SCH' D17 "Tetragrammaton (0:49)"; 'TOP – Scholar' C14, E17, C18/D18/E18, E23.
+    LPDU: P3 (D4 "Wings", E4, F3, F5 "FeyIllum + 2nd Seraph Charge", G3, J6, K2), P6 (B2, C5 "PLD Wings", D5 "Wings",
+    F2, G3, J7 "Party Mit        Dismantle"), 'General Tank Mit til P5' (B2, B5, B6, B9, B10, D8), 'WAR/DRK', 'WAR/GNB',
+    'WAR/PLD', 'GNB/PLD', 'DRK/GNB', 'DRK/PLD' (typos "Bullwark", "Sentinal", "Super Bolide", "Nascant", "Vengance").
+    All match the report and the CSV exports the coverage used. A new coverage run (all plan columns, full separator
+    set, 3-space and leading-job rules) leaves only headers, hints, targets and notes unresolved; the counts of 15
+    keys match the section 12 table.
+
+### Wrong, and corrected in place
+
+1. §2 and §2.1: 6a2329d was called "the last commit before the repository switched export formats". Two old-format
+   commits follow it (`521a8f7` 7.4h1, `97ca355` 7.4h2) with the identical ActionTransient blob. Text corrected.
+2. §2.1: "879 `PlayerParameter` uses". 879 is the number of CSV lines containing it; there are 2 660 uses in 550
+   rows. Corrected.
+3. §2.1: the equivalence was said to use "the action's own ClassJob id". With `Action.ClassJob` (−1, 0 or a base
+   class for 11 entries) 11 of 178 tooltips differ; the scripts used a job that can use the action. Corrected.
+4. §12: "6 phase tabs". LPDU has 5 phase tabs; ALOO is a title and credits page. Corrected.
+5. §13: "all 7 trait-charged actions". There are 6 actions with 7 charge traits. Corrected.
+6. §5: the cost-type table left out type 33 (AST cards, Lady of Crowns). Row added; meaning inferred from the
+   `CardType` values.
+7. §15: Fey Blessing and Aetherpact were said to work with Seraph. Their tooltips only order the faerie. Corrected,
+   with the in-game behaviour marked UNVERIFIED.
+8. §6: `single` was defined as "self or one party member"; seven of these actions cannot target self. Clarified.
+9. §2: the Dalamud assemblies were labelled 15.0.3.9; `Dalamud.dll` reports 15.0.4.0 (SCMVersion
+   15.0.3.9-31-g12e318c19, branch rc). Label made exact.
+
+Added for precision (not errors): role traits are scoped by `Trait.ClassJobCategory` (§2.2); cooldown group numbers
+are per job (§5); `ActionIndirection` evidence makes Earthly Star → Stellar Detonation and Horoscope → Horoscope
+16558 verified button changes and supports, without proving, that the four UNVERIFIED pairs are separate buttons
+(§9); exact probe types and `GetMaxCharges` level 0 = current level (§10); the full separator list, the `/`
+ambiguity in "TBN/Oblation Co-Tank", the short-key pitfall and ASCII-only normalization (§11).
+
+### Unchanged
+
+- `actions.yaml` and `aliases.yaml`: no errors found; not modified.
+- Last Bastion's 12 s is the 7.4 and 7.58 tooltip value and stays. Note that BossMod's `PLD.cs` keeps a
+  commented-out `//d.Spell(AID.LastBastion)!.EffectDuration = 8;` among other stale commented-out values (Sheltron 4
+  in the same file, Feint and Addle 10 in `ClassShared.cs`), so an in-game check of the tank LB3 status duration is
+  still worthwhile.
+- The UNVERIFIED items of section 14 stay open: tank LB3 durations, cost type 70 (its tooltips only say "Can only be
+  executed while under the effect of Eukrasia"), the four hotbar pairs, fairy-command ids in ActionEffect, and the
+  inferred `wings`/`filler`/`short cd` meanings (in LPDU P3 Latent 2 and P6 WC2 the H1 WHM "Wings" sits next to the
+  H1 AST's Neutral Sect, the AST's 120 s counterpart, which supports Temperance).
+- Outside this report: `MitCue.Core.csproj` builds the resource name from `%(RecursiveDir)`, which on a Windows
+  build probably contains a backslash (`MitCue.data/actions\actions.yaml`). Only the Linux build was checked here
+  (UNVERIFIED on Windows).

@@ -13,5 +13,10 @@ verification: `docs/research/sheets-import.md` (section 2).
 - `<key>/export/<key>.xlsx`: `…/export?format=xlsx` of the whole spreadsheet (same moment).
 - `<key>/export/csv/<tab>.csv`: `…/export?format=csv&gid=<gid>` per tab, byte-exact (CRLF, no final newline).
 
-Regenerate the JSON: run the `get_spreadsheet` call given in the report, save the response, then
-`python3 -I normalize_sheets.py <response.json> <key>/`.
+Regenerate the JSON: run the `get_spreadsheet` call given in the report, save the response (either the raw
+`spreadsheets.get` JSON or the MCP tool-result file that wraps it as `{"content": …}`), then
+`python3 -I normalize_sheets.py <response.json> <key>/`. Re-running this on 2026-11-11 reproduced all 16 files
+byte for byte.
+
+The xlsx files are not byte-stable: every download reorders shared strings and style records (same content),
+so compare parsed cells, never file hashes. The CSV exports were byte-identical across downloads.
