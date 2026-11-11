@@ -2,7 +2,8 @@
 
   <!--
     Tests for the plugin (src/MitCue): runtime logic (sessions, overlay model, own-use detection, settings, plan
-    store) without the game. The plugin targets net10.0-windows and needs the Dalamud assemblies to build, found the
+    store) and the import helpers (src/MitCue/Import: link parsing, downloads, the AI prompt, validation, review model)
+    without the game. The plugin targets net10.0-windows and needs the Dalamud assemblies to build, found the
     same way Dalamud.NET.Sdk finds them: $(DALAMUD_HOME), else the XIVLauncher dev folder of the OS. They are copied
     next to the tests (Private=true) so plugin types that implement Dalamud interfaces (Configuration) and stand-ins
     for Dalamud services (DispatchProxy) load; nothing here calls into the game.

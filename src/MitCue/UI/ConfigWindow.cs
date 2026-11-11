@@ -366,6 +366,10 @@ internal sealed class ConfigWindow : Window
     {
         var store = this.plugin.Plans;
         var data = this.plugin.Data;
+
+        // Draw runs on the framework thread: load on first use (both calls do nothing once loaded).
+        data.EnsureLoaded();
+        store.EnsureLoaded();
         if (!store.Loaded || !data.Loaded)
         {
             ImGui.TextDisabled("Loading...");
@@ -511,7 +515,7 @@ internal sealed class ConfigWindow : Window
     {
         if (store.All.Count == 0)
         {
-            ImGui.TextWrapped("No plans yet. Paste a share code below (or use \"Import from sheet...\" once it is available).");
+            ImGui.TextWrapped("No plans yet. Use \"Import from sheet...\" below, or paste a share code.");
             return;
         }
 
@@ -595,7 +599,18 @@ internal sealed class ConfigWindow : Window
         if (ImGui.Button("Import from sheet..."))
             this.plugin.OpenImport();
         ImGui.SameLine();
-        ImGui.TextDisabled("(Google Sheets import: coming soon)");
+        ImGui.TextDisabled("(?)");
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(
+                "Import a plan from a Google Sheets or Docs link (shared as \"Anyone with the link\"), from cells copied out of\n" +
+                "Google Sheets, or from YAML that an AI chat converted for you (the window gives you the prompt).\n" +
+                "You review every entry (mechanic, timing, actions) before it is saved. Also: /mitcue import");
+        }
+
+        ImGui.TextWrapped(
+            "Paste a link to the plan (or its cells), check the entries, save. Plans read from a link keep the sheet's colours, " +
+            "so grey \"optional\" calls stay optional.");
 
         ImGui.TextUnformatted("Share code:");
         ImGui.InputTextMultiline("##shareCode", ref this.shareCode, ShareCodeMaxBytes, new Vector2(-1, 70 * ImGuiHelpers.GlobalScale));
@@ -669,6 +684,7 @@ internal sealed class ConfigWindow : Window
         ImGui.Spacing();
         ImGui.TextWrapped("Commands:");
         ImGui.BulletText("/mitcue - open or close this window");
+        ImGui.BulletText("/mitcue import - import a plan from a Google Sheets/Docs link, pasted cells or AI-converted YAML");
         ImGui.BulletText("/mitcue overlay - show or hide the overlay");
         ImGui.BulletText("/mitcue preview [fight] [phase] - simulate a pull (again to stop), e.g. /mitcue preview top p3");
         ImGui.BulletText("/mitcue reset - reset the live session");

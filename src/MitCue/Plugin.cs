@@ -30,6 +30,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly List<OwnUse> fallbackUses = new(8);
     private readonly ConfigWindow configWindow;
     private readonly OverlayWindow overlayWindow;
+    private readonly ImportWindow importWindow;
     private uint lastTerritory;
     private bool soundRequested;
     private bool disposed;
@@ -53,12 +54,14 @@ public sealed class Plugin : IDalamudPlugin
 
         this.configWindow = new ConfigWindow(this);
         this.overlayWindow = new OverlayWindow(this);
+        this.importWindow = new ImportWindow(this);
         this.windows.AddWindow(this.configWindow);
         this.windows.AddWindow(this.overlayWindow);
+        this.windows.AddWindow(this.importWindow);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Open settings. Subcommands: overlay (toggle the reminder window), preview [fight] [phase] (start/stop a simulated pull), reset (reset the live session), debug (open the Debug tab).",
+            HelpMessage = "Open settings. Subcommands: import (import a plan from a Google Sheets/Docs link, pasted cells or AI-converted YAML), overlay (toggle the reminder window), preview [fight] [phase] (start/stop a simulated pull), reset (reset the live session), debug (open the Debug tab).",
             ShowInHelp = true,
         });
 
@@ -157,6 +160,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= this.ToggleConfig;
         CommandManager.RemoveHandler(CommandName);
         this.windows.RemoveAllWindows();
+        this.importWindow.Dispose();
 
         this.Preview.Stop();
         this.Events.Dispose();
@@ -186,9 +190,8 @@ public sealed class Plugin : IDalamudPlugin
         this.Sessions.Invalidate();
     }
 
-    /// <summary>Hook for the sheet import window (milestone 4).</summary>
-    internal void OpenImport() =>
-        Chat.Print("[MitCue] Importing from a sheet is coming in the next update. For now, use a share code or a bundled plan.");
+    /// <summary>Opens the import window (link, pasted cells or AI-converted YAML, then review and save).</summary>
+    internal void OpenImport() => this.importWindow.Open();
 
     private void RequestSound()
     {
@@ -245,8 +248,11 @@ public sealed class Plugin : IDalamudPlugin
                 this.configWindow.IsOpen = true;
                 this.configWindow.OpenDebug();
                 break;
+            case "import":
+                this.OpenImport();
+                break;
             default:
-                Chat.Print("[MitCue] Usage: /mitcue [overlay | preview [fight] [phase] | reset | debug]");
+                Chat.Print("[MitCue] Usage: /mitcue [import | overlay | preview [fight] [phase] | reset | debug]");
                 break;
         }
     }
