@@ -34,7 +34,7 @@ internal static class PlanImports
     /// <summary>The id of "Carry the Clear - SCH" (fixed, so a later rename keeps players' choices).</summary>
     public const string CarryTheClearSchId = "5b622e32-04ae-53de-a4f8-f66e4c0aae0c";
 
-    // The Scholar's automatic TOP plan (PlanStore.BundledDefaults), from 0.1.0.3.
+    // Shipped from 0.1.0.3; never automatic (PlanStore.BundledDefaults keeps the Scholar on LPDU).
     private static readonly Lazy<BundledPlan> SchPlan = new(() =>
         new("top-ctc-sch.yaml", "carry-the-clear", Options("Carry the Clear - SCH", ["TOP – Scholar"], CtcUrl + "#gid=777200", "carry_the_clear", CarryTheClearSchId)));
 
