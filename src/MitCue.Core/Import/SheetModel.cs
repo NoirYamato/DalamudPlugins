@@ -4,11 +4,22 @@ using MitCue.Core.Plans;
 
 namespace MitCue.Core.Import;
 
-/// <summary>A rich-text run inside a cell: formatting applies from <see cref="Start"/> to the next run.</summary>
-public sealed record TextRun(int Start, string? Fg, bool Bold);
+/// <summary>
+/// A rich-text run inside a cell: formatting applies from <see cref="Start"/> (a UTF-16 index into
+/// <see cref="SheetCell.Text"/>) to the next run. Runs carry the effective formatting of their characters,
+/// so <see cref="Fg"/> null means the default (black) text colour even when the cell has its own colour.
+/// </summary>
+public sealed record TextRun(int Start, string? Fg, bool Bold)
+{
+    /// <summary>Strikethrough for this run (read from xlsx rich text; the JSON fixtures do not record it).</summary>
+    public bool Strike { get; init; }
+}
 
 /// <summary>A merged range (inclusive row/column indexes).</summary>
-public sealed record CellRange(int R0, int C0, int R1, int C1);
+public sealed record CellRange(int R0, int C0, int R1, int C1)
+{
+    public bool Contains(int row, int col) => row >= this.R0 && row <= this.R1 && col >= this.C0 && col <= this.C1;
+}
 
 public sealed class SheetCell
 {
@@ -42,15 +53,31 @@ public sealed class SheetTab
 
     public long? Gid { get; init; }
 
+    /// <summary>Position of the tab in its document (0-based), when the source records it.</summary>
+    public int Index { get; init; }
+
     /// <summary>Rows of cells (ragged; missing cells are empty).</summary>
     public required IReadOnlyList<IReadOnlyList<SheetCell>> Rows { get; init; }
 
     public IReadOnlyList<CellRange> Merges { get; init; } = [];
 
+    /// <summary>Rows hidden in the source (0-based, ascending). Empty for pasted text.</summary>
+    public IReadOnlyList<int> HiddenRows { get; init; } = [];
+
+    /// <summary>Columns hidden in the source (0-based, ascending). Empty for pasted text.</summary>
+    public IReadOnlyList<int> HiddenCols { get; init; } = [];
+
     public int ColumnCount => this.Rows.Count == 0 ? 0 : this.Rows.Max(r => r.Count);
 
     public SheetCell Cell(int row, int col) =>
         row >= 0 && row < this.Rows.Count && col >= 0 && col < this.Rows[row].Count ? this.Rows[row][col] : SheetCell.Empty;
+
+    public bool IsRowHidden(int row) => this.HiddenRows.Contains(row);
+
+    public bool IsColumnHidden(int col) => this.HiddenCols.Contains(col);
+
+    /// <summary>The merged range covering a cell, or null when the cell is not merged.</summary>
+    public CellRange? MergeAt(int row, int col) => this.Merges.FirstOrDefault(m => m.Contains(row, col));
 
     /// <summary>A1 reference like "'P3'!C4" for provenance.</summary>
     public string Ref(int row, int col)
@@ -76,20 +103,57 @@ public sealed class SheetDocument
     public SheetTab? Tab(string name) => this.Tabs.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase));
 }
 
+/// <summary>Options for <see cref="SheetReaders.FromXlsx(Stream, string, XlsxReadOptions?)"/>.</summary>
+public sealed class XlsxReadOptions
+{
+    /// <summary>
+    /// Original tab names in workbook order. Excel does not allow '/' in sheet names, so a Google export
+    /// names "P1/P2" "P1P2"; pass the names from the source (e.g. Google's htmlview page) to restore them.
+    /// Extra or missing entries are ignored (the xlsx name is kept).
+    /// </summary>
+    public IReadOnlyList<string>? TabNames { get; init; }
+
+    /// <summary>The gid of a single-tab download (<c>export?format=xlsx&amp;gid=…</c>); applied when the workbook has one tab.</summary>
+    public long? Gid { get; init; }
+}
+
 /// <summary>Readers that produce a <see cref="SheetDocument"/> from the supported inputs.</summary>
 public static class SheetReaders
 {
-    /// <summary>One tab from the JSON fixture format (docs/research/sheets-import.md).</summary>
-    public static SheetTab FromFixtureJson(string json) => throw new NotImplementedException();
+    /// <summary>One tab from the JSON fixture format (docs/research/sheets-import.md §2.2).</summary>
+    /// <exception cref="FormatException">The JSON is not a fixture tab.</exception>
+    public static SheetTab FromFixtureJson(string json) => FixtureJsonReader.ReadTab(json);
 
-    /// <summary>All *.json fixtures in a directory as one document (tabs ordered by file name unless the JSON has an index).</summary>
-    public static SheetDocument FromFixtureDirectory(string directory, string title) => throw new NotImplementedException();
+    /// <summary>All *.json fixtures in a directory (not recursive) as one document, ordered by their "index" (then file name).</summary>
+    public static SheetDocument FromFixtureDirectory(string directory, string title) => FixtureJsonReader.ReadDirectory(directory, title);
 
-    /// <summary>Pasted text: TSV (Google Sheets clipboard) or CSV, with quoted multi-line fields.</summary>
-    public static SheetTab FromDelimited(string text, char separator = '\t', string tabName = "Pasted") => throw new NotImplementedException();
+    /// <summary>
+    /// Pasted or exported text as one tab. With <c>'\t'</c> the Google Sheets clipboard rule applies (a field is quoted
+    /// only when it contains a line break or tab, so a cell like <c>"Kera" on MT</c> stays raw); any other separator
+    /// uses RFC 4180 quoting (quoted fields may hold separators, doubled quotes and line breaks). Line breaks inside
+    /// fields become <c>\n</c>, rows may have different lengths, empty fields are empty cells (null text), and a
+    /// trailing line break or UTF-8 BOM is ignored. Cells carry text only.
+    /// </summary>
+    public static SheetTab FromDelimited(string text, char separator = '\t', string tabName = "Pasted") =>
+        DelimitedReader.ReadTab(text, separator, tabName);
+
+    /// <summary>
+    /// The separator to use for pasted text: tab when the text contains one (Google Sheets / Excel clipboard),
+    /// otherwise comma.
+    /// </summary>
+    public static char GuessSeparator(string text) => text.Contains('\t') ? '\t' : ',';
 
     /// <summary>An .xlsx workbook (e.g. a Google Sheets export), keeping fills, font colours, rich-text runs and merges.</summary>
-    public static SheetDocument FromXlsx(Stream xlsx, string title) => throw new NotImplementedException();
+    /// <exception cref="InvalidDataException">The stream is not a readable xlsx workbook.</exception>
+    public static SheetDocument FromXlsx(Stream xlsx, string title) => XlsxReader.Read(xlsx, title, null);
+
+    /// <summary>
+    /// An .xlsx workbook with options: text (shared, inline and rich strings; numbers formatted with their number
+    /// format), fills, font colours (RGB, theme with tint, indexed), bold, strikethrough, rich-text runs, merges,
+    /// notes (comments), hidden rows/columns, and conditional-format colours evaluated the way Google Sheets does.
+    /// </summary>
+    /// <exception cref="InvalidDataException">The stream is not a readable xlsx workbook.</exception>
+    public static SheetDocument FromXlsx(Stream xlsx, string title, XlsxReadOptions? options) => XlsxReader.Read(xlsx, title, options);
 }
 
 public enum DiagnosticSeverity

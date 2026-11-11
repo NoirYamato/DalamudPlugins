@@ -9,6 +9,9 @@
 
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="18.1.0" />
+    <!-- xlsx import (Google Sheets export); see docs/research/sheets-import.md §4. Both MIT. -->
+    <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageReference Include="ExcelNumberFormat" Version="1.2.0" />
   </ItemGroup>
 
   <!-- Fight data, timelines, action knowledge base and bundled plans ship inside the assembly. -->
