@@ -160,7 +160,7 @@ Status line says what is missing.
 **The plan.** `PlanStore.ActivePlanFor` takes the plan chosen in the Plans tab (`ActivePlans["top/WHM"]`; an
 empty value means "no plan"). Without a choice it is automatic: the bundled plan meant for the job
 (`PlanStore.BundledDefaults`, by plan id: `top/WHM` → *NoirMit - WHM*, `top/SCH` → *LPDU TOP Mitigation*, so
-*Carry the Clear - SCH*, first by name, is used only when chosen), else the first bundled plan for the job by
+*Carry the Clear - SCH*, first by name, is never automatic), else the first bundled plan for the job by
 name, else the player's first own plan for the fight that has a column or entries for the job (TEA and DMU
 ship no plans). A choice of a plan that is gone (*Carry the Clear – WHM + SCH*, bundled in 0.1.0.1 only)
 counts as automatic. An imported plan replaces a bundled plan only when chosen: the import window's **Make
@@ -261,9 +261,11 @@ starts, resolved abilities, duty resets), so the preview syncs and follows phase
 TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. Then:
 
 - **Plan.** The plan and column the live session would use for the current job outside a party (of a job's
-  tank pairs, the first). Without one, the first plan for the fight (user plans first, then bundled, each by
-  name), as the job of the column saved for it, else as its first job. The co-healer's calls come from every
-  other column of the role except the player's seat: the preview does not know the party.
+  tank pairs, the first). Without one (a crafter; in TOP, a melee job without a chosen plan), the first plan
+  for the fight (user plans first, then bundled, each by name), as the job of the column saved for it, else
+  as its first job: in TOP without user plans, *Carry the Clear - SCH* as SCH. The co-healer's calls are
+  chosen as in §1.5, except that the preview does not know the party: no column is left out for a job nobody
+  in the party plays (LPDU's "H1 AST" shows for the Scholar).
 - **Clock.** The pull happens at simulated clock 1000. A whole-fight preview starts 10 s earlier, with a
   simulated countdown. A phase preview starts 2 s before the pull, without a countdown. It drops the earlier
   phases' events, so P1 starts at the pull and the chosen phase begins 2 s after it, where the phase's own
@@ -481,8 +483,9 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       review.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
-      **Import share code**, unticked. Tick it. **Copy share code** of your job's bundled plan, paste it into
-      **Share code**, **Import share code**: it is listed as *user* instead of *bundled*, and the message ends
+      **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan
+      (*NoirMit - WHM* as White Mage, *LPDU TOP Mitigation* as Scholar), paste it into **Share code**,
+      **Import share code**: it is listed as *user* instead of *bundled*, and the message ends
       *It is your active plan for TOP as <JOB>.* **Delete** it: the bundled plan is back. A damaged code
       gives a message instead of a plan.
 - [ ] Untick **Make an imported share code my active plan as <JOB>** and import the co-healer's plan's code.
