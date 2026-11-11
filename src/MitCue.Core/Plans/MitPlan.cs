@@ -157,11 +157,20 @@ public static class PlanSelection
 {
     /// <summary>
     /// Entries that apply to the player: job matches (or unset), slot matches (or unset), and the
-    /// assignee matches when the player picked one and the entry records one.
+    /// assignee matches when the player picked one and the entry records one; an entry of another column still applies
+    /// when it names the player's slot (see <see cref="Applies"/>).
     /// </summary>
     public static IEnumerable<PlanEntry> For(MitPlan plan, PlayerContext me) =>
         plan.Entries.Where(e => Applies(e, me));
 
+    /// <summary>
+    /// True when the entry is the player's. With a column chosen (<see cref="PlayerContext.AssigneeKey"/>), an entry of
+    /// another column is the player's only when it names their slot, for their job, or for whoever plays the slot (no
+    /// job) when the slot is one of their role (<see cref="Slots.Fits"/>): the slot is the player's seat whichever column
+    /// they follow. LPDU's job-less "MT" calls (Reprisal, Rampart) belong to a Warrior in MT who follows the tank-pair
+    /// column "WAR/DRK WAR", like the "MT" column's Warrior calls; a Warrior whose configured slot is M1 does not get
+    /// the "M1" column's melee calls.
+    /// </summary>
     public static bool Applies(PlanEntry e, PlayerContext me)
     {
         if (e.Who.Job is { } j && j != me.Job)
@@ -172,9 +181,37 @@ public static class PlanSelection
             return false;
         if (me.AssigneeKey != null && e.Who.Assignee != null && !string.Equals(e.Who.Assignee, me.AssigneeKey, StringComparison.OrdinalIgnoreCase))
         {
-            // An entry from another column still applies if it targets the player's job+slot explicitly.
-            return e.Who.Job == me.Job && e.Who.Slot != null && string.Equals(e.Who.Slot, me.Slot, StringComparison.OrdinalIgnoreCase);
+            // Another column: the player's only when it names their slot (its job, if any, is theirs: checked above).
+            return e.Who.Slot != null && string.Equals(e.Who.Slot, me.Slot, StringComparison.OrdinalIgnoreCase)
+                   && (e.Who.Job == me.Job || Slots.Fits(e.Who.Slot, me.Job));
         }
         return true;
+    }
+}
+
+/// <summary>Clean-up of plans read from any source (plan files, share codes, AI YAML, plans built in code).</summary>
+public static class PlanNormalizer
+{
+    /// <summary>
+    /// Writes the slots of a plan's columns and entries that are slot synonyms ("D3", "T1", "st", " H2 ") as the standard
+    /// slots ("R1", "MT", "OT", "H2"). <see cref="PlanSelection"/> compares slots by name, and the player's slot (the
+    /// configured one, a column picked in /mitcue > Plans, the CLI's --slot) is a standard name, so a call for "D3" would
+    /// otherwise never be shown to the R1 player. Slots that are neither are kept (the plugin's plan checks report a
+    /// job-less call for one: it is never shown). Null columns, entries and who are left alone.
+    /// </summary>
+    public static void NormalizeSlots(MitPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        foreach (var a in plan.Assignees ?? [])
+        {
+            if (a != null && Slots.TryNormalize(a.Slot, out var slot))
+                a.Slot = slot;
+        }
+
+        foreach (var e in plan.Entries ?? [])
+        {
+            if (e?.Who != null && Slots.TryNormalize(e.Who.Slot, out var slot))
+                e.Who.Slot = slot;
+        }
     }
 }

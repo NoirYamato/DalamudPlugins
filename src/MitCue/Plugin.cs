@@ -379,10 +379,11 @@ public sealed class Plugin : IDalamudPlugin
         ctx.InCombat = Condition[ConditionFlag.InCombat];
         ctx.BoundByDuty = Condition.Any(ConditionFlag.BoundByDuty, ConditionFlag.BoundByDuty56, ConditionFlag.BoundByDuty95);
 
-        // The party's jobs choose the co-healer's column; only read while those calls are shown. IPartyList is empty
-        // when not in a party (then every co-healer column is shown).
+        // The party's jobs choose the tank pair's column of a plan with one per team composition (without a saved column)
+        // and the co-healer's columns. IPartyList is empty when not in a party (then the first pair's column is used and
+        // every co-healer column is shown).
         ulong party = 0;
-        if (this.Config.ShowOtherAssignees && ctx.LoggedIn)
+        if (ctx.LoggedIn)
         {
             foreach (var member in PartyList)
             {

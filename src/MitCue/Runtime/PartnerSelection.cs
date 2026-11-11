@@ -10,8 +10,10 @@ namespace MitCue.Runtime;
 /// co-healer for a healer, the co-tank for a tank and the other DPS for a DPS. Columns for the player's own seat in
 /// another team composition (LPDU's "H2 SGE" for the H2 Scholar, or the player's job in another tank pair) are not a
 /// partner's, nor are the partner's columns for compositions without the player's job (LPDU's "DRK/GNB DRK" and
-/// "DRK/PLD DRK" for a Warrior: their Dark Knight co-tank plays "WAR/DRK DRK"), and when the party is known, neither are
-/// columns of jobs nobody in the party plays (LPDU's "H1 AST" when the co-healer is a White Mage).
+/// "DRK/PLD DRK" for a Warrior: their Dark Knight co-tank plays "WAR/DRK DRK") or for a composition that repeats the
+/// partner's own column (Carry the Clear's combined tab next to its Scholar tab), and when the party is known, neither are
+/// columns of jobs nobody in the party plays (LPDU's "H1 AST" when the co-healer is a White Mage). The partner's columns
+/// that are not a team composition (a general "DRK" column next to "WAR/DRK DRK", a column per phase) are all kept.
 /// </summary>
 internal static class PartnerSelection
 {
@@ -27,8 +29,9 @@ internal static class PartnerSelection
     /// Entries that do not apply to <paramref name="me"/>, belong to the player's role and are not for the player's own
     /// seat: their job (or their column's job) is not the player's, and their slot (or their column's slot) is not the
     /// player's. An entry's role comes from its job, else its slot, else its column (the assignee's job or slot, or a key
-    /// such as "H2" or "Scholar"); entries whose role cannot be told are left out. When a job has several columns and
-    /// some of their keys name the player's job too (team compositions such as "WAR/DRK DRK"), only those are kept.
+    /// such as "H2" or "Scholar"); entries whose role cannot be told are left out. Of a job's columns for team
+    /// compositions (keys naming several jobs, such as "WAR/DRK DRK"), only those with the player's job are kept when
+    /// there are any (<see cref="AlternativeColumns"/>).
     /// </summary>
     /// <param name="plan">The plan.</param>
     /// <param name="me">The player.</param>
@@ -43,7 +46,7 @@ internal static class PartnerSelection
 
         var mySlot = Slots.TryNormalize(me.Slot, out var s) ? s : null;
         var party = partyJobs is { Count: > 0 } ? partyJobs : null;
-        var otherCompositions = CompositionsWithout(plan, me.Job);
+        var alternatives = AlternativeColumns(plan, me);
         foreach (var entry in plan.Entries)
         {
             if (PlanSelection.Applies(entry, me) || GroupOf(RoleOf(plan, entry)) != mine)
@@ -55,8 +58,8 @@ internal static class PartnerSelection
                 continue; // the player's job in another column: their own seat in another composition
             if (mySlot != null && SlotOf(entry, column) == mySlot)
                 continue; // the player's slot in another column (another job for it, or its job-less column)
-            if (column != null && otherCompositions.Contains(column))
-                continue; // the partner's job in a team composition without the player's job
+            if (column != null && alternatives.Contains(column))
+                continue; // the partner's job in a team composition without the player's job, or the same seat twice
             if (party != null && job != null && !party.Contains(job.Value))
                 continue; // a job nobody in the party plays
 
@@ -86,26 +89,42 @@ internal static class PartnerSelection
     }
 
     /// <summary>
-    /// Columns of another job for team compositions without <paramref name="myJob"/>: when a job has several columns and
-    /// the keys of some of them name <paramref name="myJob"/> too (<see cref="LayoutDetector.JobsFromTabName"/>, which also
-    /// reads the xlsx form "WARDRK DRK"), the others. For a Warrior on LPDU: "DRK/GNB DRK", "DRK/PLD DRK", "DRK/GNB GNB",
-    /// "GNB/PLD GNB", "DRK/PLD PLD" and "GNB/PLD PLD". Columns of a job none of whose keys name the player's job (Carry the
-    /// Clear's "Scholar", a column per phase) are all kept.
+    /// Columns of another job that are not the partner's seat next to the player. Among its columns for team
+    /// compositions (<see cref="ColumnSuggestion.IsComposition"/>: keys naming several jobs, also in the xlsx form
+    /// "WARDRK DRK"), those without the player's job when some name it (for a Warrior on LPDU: "DRK/GNB DRK",
+    /// "DRK/PLD DRK", "DRK/GNB GNB", "GNB/PLD GNB", "DRK/PLD PLD" and "GNB/PLD PLD"). And the same seat written twice
+    /// (<see cref="ColumnSuggestion.Repeats"/>: Carry the Clear's combined tab "TOP – WHM + SCH Scholar" next to the
+    /// Scholar tab's "Scholar"): the one that does not go with the player's column, which is the composition column when
+    /// the player follows a composition column ("TOP – WHM + SCH White Mage"), else the job's other column. A job's
+    /// columns that are not a composition and repeat nothing ("Scholar", "H1 WHM", a general "DRK" column next to
+    /// "WAR/DRK DRK", a column per phase) are kept.
     /// </summary>
-    private static HashSet<Assignee> CompositionsWithout(MitPlan plan, Job myJob)
+    private static HashSet<Assignee> AlternativeColumns(MitPlan plan, PlayerContext me)
     {
         var result = new HashSet<Assignee>();
+        var myJob = me.Job;
         if (myJob == Job.None)
             return result;
+
+        var myColumn = me.AssigneeKey is { } key ? plan.Assignees.FirstOrDefault(a => a != null && string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)) : null;
+        var inComposition = myColumn?.Job == myJob && ColumnSuggestion.IsComposition(myColumn);
         foreach (var group in plan.Assignees.Where(a => a?.Job is { } j && j != Job.None && j != myJob).GroupBy(a => a.Job))
         {
-            var columns = group.ToList();
-            if (columns.Count < 2)
+            var compositions = group.Where(ColumnSuggestion.IsComposition).ToList();
+            if (compositions.Count == 0)
                 continue;
-            var withMine = columns.Where(a => LayoutDetector.JobsFromTabName(a.Key).Contains(myJob)).ToList();
-            if (withMine.Count == 0)
+            var withMine = compositions.Where(a => LayoutDetector.JobsFromTabName(a.Key).Contains(myJob)).ToList();
+            if (withMine.Count > 0)
+                result.UnionWith(compositions.Except(withMine));
+
+            var kept = withMine.Count > 0 ? withMine : compositions;
+            var plain = group.Except(compositions).ToList();
+            if (plain.Count == 0)
                 continue;
-            result.UnionWith(columns.Except(withMine));
+            if (inComposition)
+                result.UnionWith(plain.Where(a => ColumnSuggestion.Repeats(plan, a, kept)));
+            else
+                result.UnionWith(kept.Where(a => ColumnSuggestion.Repeats(plan, a, plain)));
         }
 
         return result;

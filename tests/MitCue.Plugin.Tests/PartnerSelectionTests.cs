@@ -210,6 +210,57 @@ public class PartnerSelectionTests
     }
 
     [Fact]
+    public void ACoTanksGeneralColumnIsKeptNextToTheirPairColumn()
+    {
+        // Review round 3: a "General" tab headed WAR/DRK next to a "WAR/DRK" pair tab (rekeyed "WAR/DRK DRK"). As soon as
+        // one Dark Knight column named the Warrior, every other one was dropped, the general "DRK" column too.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.pantokrator", -3, Kit.Reprisal, "Dark Missionary", job: Job.DRK, assignee: "DRK"),
+                Kit.Entry("p2.solar_ray", -3, Kit.Reprisal, "Shadow Wall", job: Job.DRK, assignee: "DRK"),
+                Kit.Entry("p5.solar_ray_1", -3, Kit.Reprisal, "Living Dead", job: Job.DRK, assignee: "WAR/DRK DRK"),
+                Kit.Entry("p5.solar_ray_2", -3, Kit.Reprisal, "Living Dead (DRK/GNB)", job: Job.DRK, assignee: "DRK/GNB DRK"),
+                Kit.Entry("p5.solar_ray_1", -3, Kit.Reprisal, "Holmgang", job: Job.WAR, assignee: "WAR/DRK WAR"),
+            ],
+            new Assignee { Key = "WAR", Job = Job.WAR },
+            new Assignee { Key = "DRK", Job = Job.DRK },
+            new Assignee { Key = "WAR/DRK WAR", Job = Job.WAR },
+            new Assignee { Key = "WAR/DRK DRK", Job = Job.DRK },
+            new Assignee { Key = "DRK/GNB DRK", Job = Job.DRK });
+
+        var war = new PlayerContext(Job.WAR, 90, "MT", "WAR/DRK WAR");
+
+        Assert.Equal(["Dark Missionary", "Shadow Wall", "Living Dead"], Names(PartnerSelection.For(plan, war)));
+    }
+
+    [Fact]
+    public void ACombinedTabThatRepeatsTheCoHealersTabIsNotShownTwice()
+    {
+        // Carry the Clear imported with every tab: the combined tab's Scholar column ("TOP – WHM + SCH Scholar", which
+        // names the White Mage) has the Scholar tab's calls again, at the same mechanics.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.pantokrator", -3, Kit.Temperance, "Temperance", job: Job.WHM, assignee: "White Mage"),
+                Kit.Entry("p1.pantokrator", -3, Kit.SacredSoil, "Sacred Soil", job: Job.SCH, assignee: "Scholar"),
+                Kit.Entry("p2.solar_ray", -3, Kit.SacredSoil, "Expedient", job: Job.SCH, assignee: "Scholar"),
+                Kit.Entry("p1.pantokrator", -3, Kit.SacredSoil, "Sacred Soil again", job: Job.SCH, assignee: "TOP – WHM + SCH Scholar"),
+                Kit.Entry("p2.solar_ray", -3, Kit.SacredSoil, "Expedient again", job: Job.SCH, assignee: "TOP – WHM + SCH Scholar"),
+            ],
+            new Assignee { Key = "White Mage", Job = Job.WHM },
+            new Assignee { Key = "Scholar", Job = Job.SCH },
+            new Assignee { Key = "TOP – WHM + SCH Scholar", Job = Job.SCH },
+            new Assignee { Key = "TOP – WHM + SCH White Mage", Job = Job.WHM });
+
+        var whm = new PlayerContext(Job.WHM, 90, "H1", "White Mage");
+
+        Assert.Equal(["Sacred Soil", "Expedient"], Names(PartnerSelection.For(plan, whm)));
+
+        // A White Mage who follows the combined tab sees the Scholar's column of that tab.
+        var combined = new PlayerContext(Job.WHM, 90, "H1", "TOP – WHM + SCH White Mage");
+        Assert.Equal(["Sacred Soil again", "Expedient again"], Names(PartnerSelection.For(plan, combined)));
+    }
+
+    [Fact]
     public void PartyJobMasksRoundTrip()
     {
         var mask = PartyJobs.Mask([Job.WHM, Job.SCH, Job.WAR]);

@@ -55,8 +55,8 @@ public class BundledPlanTests
     [Theory]
     [InlineData(Job.WHM, "H1", CtcWhm, "White Mage", 57)]
     [InlineData(Job.WHM, null, CtcWhm, "White Mage", 57)]
-    [InlineData(Job.SCH, "H2", Lpdu, null, 31)]
-    [InlineData(Job.SCH, null, Lpdu, null, 31)]
+    [InlineData(Job.SCH, "H2", Lpdu, "H2 SCH", 31)]
+    [InlineData(Job.SCH, null, Lpdu, "H2 SCH", 31)]
     public void EachHealerGetsTheirSheetWithoutChoosing(Job job, string? slot, string planId, string? column, int entries)
     {
         // Final review finding: DESIGN D2 has the H2 Scholar follow LPDU, but the automatic choice (the first plan by name
@@ -186,7 +186,8 @@ public class BundledPlanTests
     {
         // Final review finding: the bundled LPDU plan has no saved column choice, and the suggestion (the job's column,
         // "H2 SCH") left out the job-less "H2" calls ("Everything" on Pantokrator and Limitless Synergy) that an in-game
-        // import of the same sheet saves a column choice for. The CLI's simulate (no --assignee) kept them.
+        // import of the same sheet saves a column choice for. The CLI's simulate (no --assignee) kept them. Since review
+        // round 3 a column has the job-less calls of its slot, so the job's column is the suggestion again.
         var config = new Configuration { DefaultSlot = slot };
         config.ActivePlans[PlanStore.ActiveKey("top", job)] = Lpdu;
         var parts = Live(job, slot, config);
@@ -194,7 +195,7 @@ public class BundledPlanTests
 
         var mapping = parts.Manager.Mapping!;
         Assert.True(mapping.IsSuggestion);
-        Assert.Null(mapping.AssigneeKey);
+        Assert.Equal(slot + " " + job, mapping.AssigneeKey);
         Assert.Equal(slot, mapping.Slot);
         var own = OwnEntryIds(parts);
         Assert.All(jobless, id => Assert.Contains(id, own));
@@ -211,17 +212,18 @@ public class BundledPlanTests
     }
 
     [Theory]
-    [InlineData(Job.WAR, "MT", "WAR/DRK WAR", 24)]
-    [InlineData(Job.WAR, "OT", "WAR/DRK WAR", 23)]
+    [InlineData(Job.WAR, "MT", "WAR/DRK WAR", 35)]
+    [InlineData(Job.WAR, "OT", "WAR/DRK WAR", 28)]
     [InlineData(Job.WAR, null, "WAR/DRK WAR", 9)]
-    [InlineData(Job.DRK, "MT", "WAR/DRK DRK", 23)]
-    [InlineData(Job.DRK, "OT", "WAR/DRK DRK", 22)]
+    [InlineData(Job.DRK, "MT", "WAR/DRK DRK", 34)]
+    [InlineData(Job.DRK, "OT", "WAR/DRK DRK", 27)]
     [InlineData(Job.DRK, null, "WAR/DRK DRK", 8)]
     public void OnLpduATankGetsOneTankPairColumn(Job job, string? slot, string column, int entries)
     {
         // Review finding (41d2893): the suggestion for a tank became "any column for my job", which has LPDU's job-less MT
         // calls but also every tank pair's column of the job (WAR/DRK, WAR/GNB and WAR/PLD WAR) and both Cosmo Memory
-        // roles; without a slot even the MT and the OT calls. The job's column (one pair) stays the suggestion.
+        // roles; without a slot even the MT and the OT calls. The job's column (one pair) stays the suggestion. Review
+        // round 3: with it the slot's job-less calls (MT: 8 Reprisals, 3 Ramparts; OT: 5), which round 2 left out.
         var parts = Live(job, slot);
 
         Assert.True(parts.Manager.PlanIsAutomatic);
@@ -231,8 +233,10 @@ public class BundledPlanTests
         var own = parts.Manager.Session!.Scheduler.All.Select(r => r.Entry).Distinct().ToList();
         Assert.Equal(entries, own.Count);
         Assert.All(own, e => Assert.True(
-            e.Who.Assignee == null || e.Who.Assignee == column || (slot != null && e.Who.Assignee == slot && e.Who.Job == job),
+            e.Who.Assignee == null || e.Who.Assignee == column || (slot != null && e.Who.Assignee == slot && (e.Who.Job == null || e.Who.Job == job)),
             $"{e.Id} {e.Who.Assignee} {e.Who.Slot}/{e.Who.Job}"));
+        if (slot != null)
+            Assert.Contains(own, e => e.Who.Assignee == slot && e.Who.Job == null);
     }
 
     [Theory]

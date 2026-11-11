@@ -7,6 +7,7 @@ using MitCue.Core;
 using MitCue.Core.Fights;
 using MitCue.Core.Plans;
 using MitCue.Plans;
+using MitCue.Runtime;
 using MitCue.Util;
 
 namespace MitCue.UI;
@@ -17,6 +18,13 @@ namespace MitCue.UI;
 /// </summary>
 internal sealed class ConfigWindow : Window
 {
+    /// <summary>
+    /// Whether "Make an imported share code my active plan" starts ticked: no. A share code is often taken to look at
+    /// it (the co-healer's plan), and the bundled plan stays the job's until the player chooses another
+    /// (<see cref="PlanStore.ActivePlanFor(string, Job)"/>); the import's message says how to use the plan.
+    /// </summary>
+    internal const bool ShareCodeMakesActiveByDefault = false;
+
     /// <summary>Byte limit of the share-code box (the default 512 bytes is far too small).</summary>
     private const int ShareCodeMaxBytes = 512 * 1024;
 
@@ -26,7 +34,7 @@ internal sealed class ConfigWindow : Window
 
     private readonly Plugin plugin;
     private string shareCode = string.Empty;
-    private bool shareMakeActive = true;
+    private bool shareMakeActive = ShareCodeMakesActiveByDefault;
     private string shareMessage = string.Empty;
     private bool shareMessageIsError;
     private string? confirmDeleteId;
@@ -492,7 +500,11 @@ internal sealed class ConfigWindow : Window
     private void DrawColumnCombo(PlanStore store, StoredPlan stored, Job job)
     {
         var plan = stored.Plan;
-        var mapping = store.MappingFor(plan, job);
+
+        // The current job's row follows the party, as the live session does (the tank pair it plays); the party says
+        // nothing about the player's other jobs.
+        var party = job == this.plugin.Frame.Job ? PartyJobs.Of(this.plugin.Frame.PartyJobMask) : null;
+        var mapping = store.MappingFor(plan, job, party);
         var current = mapping.AssigneeKey == null ? $"({ColumnLabel(plan, mapping)})" : ColumnLabel(plan, mapping);
         var preview = mapping.IsSuggestion ? $"(suggested) {current}" : current;
 
@@ -502,9 +514,9 @@ internal sealed class ConfigWindow : Window
             return;
 
         // Saved for this job only: the other jobs' rows keep their own column. The suggestion is the one the overlay
-        // uses without a choice (the job's column, or every column of the player's slot when the job's column alone
-        // would leave out some of their calls).
-        var suggestion = PlanStore.SuggestedMapping(plan, job, this.plugin.Config.DefaultSlot);
+        // uses without a choice (the job's column with the job-less calls of the player's slot, or "any column for my
+        // job" when the job's calls are in several columns).
+        var suggestion = PlanStore.SuggestedMapping(plan, job, this.plugin.Config.DefaultSlot, party);
         if (ImGui.Selectable($"(suggested: {ColumnLabel(plan, suggestion)})", mapping.IsSuggestion))
             store.SetMapping(plan, job, null);
         if (ImGui.Selectable("(any column for my job)", !mapping.IsSuggestion && mapping.AssigneeKey == null))
@@ -624,6 +636,21 @@ internal sealed class ConfigWindow : Window
         ImGui.TextUnformatted("Share code:");
         ImGui.InputTextMultiline("##shareCode", ref this.shareCode, ShareCodeMaxBytes, new Vector2(-1, 70 * ImGuiHelpers.GlobalScale));
         var job = this.plugin.Frame.Job;
+
+        // Above the button, so it is seen before importing; unticked until the player ticks it (not saved).
+        if (job != Job.None)
+        {
+            ImGui.Checkbox($"Make an imported share code my active plan as {job}", ref this.shareMakeActive);
+            ImGui.SameLine();
+            ImGui.TextDisabled("(?)");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Ticked: the plan becomes your active plan for its fight as your current job (when it has calls for it).\n" +
+                    "Unticked: it is only saved, e.g. to look at a co-healer's plan; choose it in the table above to use it.");
+            }
+        }
+
         if (ImGui.Button("Import share code"))
         {
             var ok = store.ImportShareCode(this.shareCode, job, this.shareMakeActive && job != Job.None, out _, out var message);
@@ -640,19 +667,6 @@ internal sealed class ConfigWindow : Window
         {
             store.Reload();
             this.SetShareMessage($"Reloaded {store.All.Count} plans.", false);
-        }
-
-        if (job != Job.None)
-        {
-            ImGui.Checkbox($"Make an imported share code my active plan as {job}", ref this.shareMakeActive);
-            ImGui.SameLine();
-            ImGui.TextDisabled("(?)");
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(
-                    "Ticked: the plan becomes your active plan for its fight as your current job (when it has calls for it).\n" +
-                    "Unticked: it is only saved, e.g. to look at a co-healer's plan; choose it in the table above to use it.");
-            }
         }
 
         if (this.shareMessage.Length > 0)

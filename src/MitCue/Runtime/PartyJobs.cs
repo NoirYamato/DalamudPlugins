@@ -4,8 +4,10 @@ namespace MitCue.Runtime;
 
 /// <summary>
 /// The jobs in the player's party as a bit mask (bit n set = the job with ClassJob id n is there), cheap to compare
-/// every frame: <see cref="SessionManager"/> rebuilds the session when it changes while the co-healer's calls are shown,
-/// and <see cref="PartnerSelection"/> then leaves out the plan's columns for jobs nobody in the party plays.
+/// every frame: <see cref="SessionManager"/> rebuilds the session when a party change changes the player's suggested
+/// column (the tank pair the party plays, <see cref="MitCue.Core.Plans.ColumnSuggestion.JobColumn"/>) or, while the
+/// co-healer's calls are shown, those calls (<see cref="PartnerSelection"/> leaves out the plan's columns for jobs
+/// nobody in the party plays).
 /// </summary>
 internal static class PartyJobs
 {

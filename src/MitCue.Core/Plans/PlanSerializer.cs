@@ -238,7 +238,10 @@ public static class PlanSerializer
         return plan ?? throw new FormatException($"The {what} contains no plan.");
     }
 
-    /// <summary>Checks the format and repairs nulls so callers can rely on non-null collections.</summary>
+    /// <summary>
+    /// Checks the format, repairs nulls so callers can rely on non-null collections, and writes slot synonyms as the
+    /// standard slots (<see cref="PlanNormalizer.NormalizeSlots"/>).
+    /// </summary>
     private static MitPlan Finish(MitPlan plan)
     {
         var format = plan.Format?.Trim();
@@ -277,6 +280,9 @@ public static class PlanSerializer
             e.Do ??= [];
             RepairItems(e.Do);
         }
+
+        // Every reader (the plugin's store and AI route, the CLI) then selects calls from the same slots.
+        PlanNormalizer.NormalizeSlots(plan);
         return plan;
     }
 

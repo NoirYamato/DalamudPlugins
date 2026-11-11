@@ -2,6 +2,7 @@ using MitCue.Core;
 using MitCue.Core.Data;
 using MitCue.Core.Plans;
 using MitCue.Import;
+using MitCue.Runtime;
 using MitCue.Util;
 
 namespace MitCue.Plans;
@@ -80,7 +81,7 @@ internal sealed class PlanStore
     private readonly Action saveConfig;
     private readonly ErrorReporter errors;
     private readonly List<StoredPlan> plans = [];
-    private readonly Dictionary<(string PlanId, Job Job, string? Slot), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
+    private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
     private int suggestionsRevision = -1;
 
     /// <summary>Creates the store; nothing is read until <see cref="EnsureLoaded"/>.</summary>
@@ -254,8 +255,8 @@ internal sealed class PlanStore
 
     /// <summary>
     /// Imports a plan from a share code and saves it as a user plan. With <paramref name="makeActive"/> it becomes the
-    /// active plan for its fight as <paramref name="job"/> (the player's current job) when it has calls for that job;
-    /// the message says which plan is active for that job afterwards.
+    /// active plan for its fight as <paramref name="job"/> (the player's current job) when it has calls for that job
+    /// (<see cref="CallsFor"/>); the message says which plan is active for that job afterwards.
     /// </summary>
     public bool ImportShareCode(string code, Job job, bool makeActive, out MitPlan? plan, out string message)
     {
@@ -265,9 +266,13 @@ internal sealed class PlanStore
         if (job != Job.None)
         {
             var fightName = plan!.Fight.ToUpperInvariant();
-            if (!JobsOf(plan).Contains(job))
+            if (this.CallsFor(plan, job) == 0)
             {
-                message += $" It has no calls for {job}: choose it in the table above for the job it is for.";
+                // A role sheet (columns by slot only) has calls for every job, but only in a slot.
+                var bySlot = this.config.DefaultSlot == null && plan.Entries.Exists(e => e.Who.Job == null && Slots.TryNormalize(e.Who.Slot, out _));
+                message += bySlot
+                    ? $" It has no calls for {job} without a slot: set \"My usual party slot\" in the General tab, or choose it in the table above for the job it is for."
+                    : $" It has no calls for {job}: choose it in the table above for the job it is for.";
             }
             else
             {
@@ -283,6 +288,20 @@ internal sealed class PlanStore
         if (problems.Count > 0)
             message += " " + PlanChecks.Summary(problems, max: 1) + " See Problems in /mitcue."; // each problem says what it does to the call
         return true;
+    }
+
+    /// <summary>
+    /// How many calls of a plan the overlay shows as <paramref name="job"/>: those of the saved or suggested column
+    /// (<see cref="MappingFor"/>) in the configured slot. A role sheet (columns by slot only, LPDU's job-less "M1") has
+    /// calls for every job of the configured slot, although no column names the job (<see cref="JobsOf"/>).
+    /// </summary>
+    public int CallsFor(MitPlan plan, Job job)
+    {
+        if (job == Job.None)
+            return 0;
+        var mapping = this.MappingFor(plan, job);
+        var me = new PlayerContext(job, 0, mapping.Slot ?? this.config.DefaultSlot, mapping.AssigneeKey);
+        return plan.Entries.Count(e => e != null && PlanSelection.Applies(e, me));
     }
 
     private bool ImportShareCodeCore(string code, out MitPlan? plan, out string message, out IReadOnlyList<string> problems)
@@ -435,24 +454,32 @@ internal sealed class PlanStore
         return mappings.TryGetValue(plan.Id, out var legacy) && Fits(plan, legacy, job) ? legacy : null;
     }
 
-    /// <summary>The saved mapping for this job, or the automatic suggestion (<see cref="PlayerMapping.IsSuggestion"/> = true).</summary>
-    public PlayerMapping MappingFor(MitPlan plan, Job job)
+    /// <summary>
+    /// The saved mapping for this job, or the automatic suggestion (<see cref="PlayerMapping.IsSuggestion"/> = true).
+    /// </summary>
+    /// <param name="plan">The plan.</param>
+    /// <param name="job">The player's job.</param>
+    /// <param name="party">
+    /// The jobs in the player's party when known (the live session, the Plans tab's row of the current job): the
+    /// suggestion then follows the team composition the party plays (<see cref="ColumnSuggestion.JobColumn"/>).
+    /// </param>
+    public PlayerMapping MappingFor(MitPlan plan, Job job, IReadOnlyCollection<Job>? party = null)
     {
         if (this.SavedMapping(plan, job) is { } saved)
             return saved;
 
         // The suggestion reads every entry of the plan a few times and the Plans tab asks for it every frame: cache it
-        // until the plans change (stored plans are replaced, not edited in place) or the configured slot does.
+        // until the plans change (stored plans are replaced, not edited in place), the configured slot or the party does.
         if (this.suggestionsRevision != this.Revision)
         {
             this.suggestions.Clear();
             this.suggestionsRevision = this.Revision;
         }
 
-        var key = (plan.Id, job, this.config.DefaultSlot);
+        var key = (plan.Id, job, this.config.DefaultSlot, party is { Count: > 0 } ? PartyJobs.Mask(party) : 0UL);
         if (!this.suggestions.TryGetValue(key, out var suggestion) || !ReferenceEquals(suggestion.Plan, plan))
         {
-            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot));
+            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot, party));
             this.suggestions[key] = suggestion;
         }
 
@@ -462,12 +489,17 @@ internal sealed class PlanStore
     /// <summary>
     /// The automatic column choice for a plan and job (<see cref="PlayerMapping.IsSuggestion"/> = true): what
     /// <see cref="MappingFor"/> returns when nothing is saved (<see cref="ColumnSuggestion.Suggest"/>). It is the job's
-    /// column (<see cref="ColumnMapping"/>), unless that leaves out the job-less calls of the player's slot (LPDU's "H2"
-    /// calls for a Scholar); then the narrowest choice that has them too and no call of another column, the same one an
-    /// import saves. Other columns of the job are alternatives (LPDU's tank pairs), never added to it.
+    /// column (<see cref="ColumnMapping"/>), which shows the job-less calls of the player's slot too, unless that leaves
+    /// out some of the player's calls (a sheet with a column per phase, "SCH" and "H2 SCH"); then the narrowest choice
+    /// that has them too and no call of another column, the same one an import saves. Columns of the job for other team
+    /// compositions (LPDU's other tank pairs) are alternatives, never added to it.
     /// </summary>
-    public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot) =>
-        Suggestion(ColumnSuggestion.Suggest(plan, job, defaultSlot));
+    /// <param name="plan">The plan.</param>
+    /// <param name="job">The player's job.</param>
+    /// <param name="defaultSlot">The configured slot, if any.</param>
+    /// <param name="party">The jobs in the player's party, when known.</param>
+    public static PlayerMapping SuggestedMapping(MitPlan plan, Job job, string? defaultSlot, IReadOnlyCollection<Job>? party = null) =>
+        Suggestion(ColumnSuggestion.Suggest(plan, job, defaultSlot, party));
 
     /// <summary>
     /// The job's own column as a mapping (<see cref="PlayerMapping.IsSuggestion"/> = true), from
@@ -571,9 +603,10 @@ internal sealed class PlanStore
         });
 
     /// <summary>
-    /// Repairs a plan read from text or a share code, and writes slot synonyms ("D3", "T1") as the standard slot names:
-    /// <see cref="PlanSelection"/> compares slots by name, and the configured slot and a column picked in /mitcue > Plans
-    /// are standard names, so an entry for "D3" would never be shown to the R1 player (the plan checks do not flag it).
+    /// Repairs a plan read from text or a share code or built by the import window, and writes slot synonyms ("D3", "T1")
+    /// as the standard slot names (<see cref="PlanNormalizer.NormalizeSlots"/>, which every plan reader of the core
+    /// applies too): <see cref="PlanSelection"/> compares slots by name, and the configured slot and a column picked in
+    /// /mitcue > Plans are standard names, so an entry for "D3" would never be shown to the R1 player.
     /// </summary>
     private static void Normalize(MitPlan plan)
     {
@@ -585,19 +618,13 @@ internal sealed class PlanStore
         plan.Entries ??= [];
         plan.Assignees.RemoveAll(a => a == null);
         plan.Entries.RemoveAll(e => e == null);
-        foreach (var a in plan.Assignees)
-        {
-            if (Slots.TryNormalize(a.Slot, out var slot))
-                a.Slot = slot;
-        }
-
         foreach (var e in plan.Entries)
         {
             e.Who ??= new WhoSpec();
             e.Do ??= [];
-            if (Slots.TryNormalize(e.Who.Slot, out var slot))
-                e.Who.Slot = slot;
         }
+
+        PlanNormalizer.NormalizeSlots(plan);
     }
 
     private static string SafeFileName(string id)
