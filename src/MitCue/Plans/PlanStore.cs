@@ -248,9 +248,46 @@ internal sealed class PlanStore
         return true;
     }
 
-    /// <summary>Imports a plan from a share code and saves it as a user plan.</summary>
-    public bool ImportShareCode(string code, out MitPlan? plan, out string message)
+    /// <summary>Imports a plan from a share code and saves it as a user plan (it becomes active only when chosen).</summary>
+    public bool ImportShareCode(string code, out MitPlan? plan, out string message) =>
+        this.ImportShareCode(code, Job.None, false, out plan, out message);
+
+    /// <summary>
+    /// Imports a plan from a share code and saves it as a user plan. With <paramref name="makeActive"/> it becomes the
+    /// active plan for its fight as <paramref name="job"/> (the player's current job) when it has calls for that job;
+    /// the message says which plan is active for that job afterwards.
+    /// </summary>
+    public bool ImportShareCode(string code, Job job, bool makeActive, out MitPlan? plan, out string message)
     {
+        if (!this.ImportShareCodeCore(code, out plan, out message, out var problems))
+            return false;
+
+        if (job != Job.None)
+        {
+            var fightName = plan!.Fight.ToUpperInvariant();
+            if (!JobsOf(plan).Contains(job))
+            {
+                message += $" It has no calls for {job}: choose it in the table above for the job it is for.";
+            }
+            else
+            {
+                if (makeActive)
+                    this.SetActive(plan.Fight, job, plan.Id);
+                var active = this.ActivePlanFor(plan.Fight, job);
+                message += active?.Id == plan.Id
+                    ? $" It is your active plan for {fightName} as {job}."
+                    : $" Your active plan for {fightName} as {job} stays \"{active?.DisplayName ?? "none"}\": choose this one in the table above to use it.";
+            }
+        }
+
+        if (problems.Count > 0)
+            message += " " + PlanChecks.Summary(problems, max: 1) + " See Problems in /mitcue."; // each problem says what it does to the call
+        return true;
+    }
+
+    private bool ImportShareCodeCore(string code, out MitPlan? plan, out string message, out IReadOnlyList<string> problems)
+    {
+        problems = [];
         plan = null;
         code = code.Trim();
         if (code.Length == 0)
@@ -293,9 +330,7 @@ internal sealed class PlanStore
         }
 
         message = $"Imported \"{plan.Name}\" ({plan.Entries.Count} entries, fight {plan.Fight}).";
-        var problems = this.CheckUserPlan(plan, $"share code \"{plan.Name}\"");
-        if (problems.Count > 0)
-            message += " " + PlanChecks.Summary(problems, max: 1) + " See Problems in /mitcue."; // each problem says what it does to the call
+        problems = this.CheckUserPlan(plan, $"share code \"{plan.Name}\"");
         return true;
     }
 
@@ -341,10 +376,16 @@ internal sealed class PlanStore
 
     /// <summary>
     /// The active plan for a fight and job: the user's choice when set, otherwise (<paramref name="automatic"/> = true)
-    /// the first of the user's own plans for the fight that has a column or entries for the job, else the bundled plan
-    /// meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan for the job. Null when there
-    /// is none or the user chose "no plan".
+    /// the bundled plan meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan with a column
+    /// or entries for the job, else the first of the user's own plans for it. Null when there is none or the user chose
+    /// "no plan".
     /// </summary>
+    /// <remarks>
+    /// A plan the user imports (or receives as a share code) replaces a bundled plan only when they choose it: the import
+    /// window's "Make it my active plan" and the share-code import's checkbox do that, and so does the Plans tab. So a
+    /// White Mage who imports the co-healer's LPDU share code to look at it keeps Carry the Clear. Where no bundled plan
+    /// covers the job (TEA and DMU ship none), the user's own plan is the automatic one.
+    /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {
         automatic = false;
@@ -361,11 +402,11 @@ internal sealed class PlanStore
 
         automatic = true;
         var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
-        if (candidates.FirstOrDefault(p => p.Origin == PlanOrigin.User) is { } own)
-            return own;
+
+        // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job.
         if (BundledDefaults.TryGetValue(key, out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
             return recommended;
-        return candidates.FirstOrDefault();
+        return candidates.FirstOrDefault(p => p.Origin == PlanOrigin.Bundled) ?? candidates.FirstOrDefault();
     }
 
     /// <summary>The active plan for a fight and job (see <see cref="ActivePlanFor(string, Job, out bool)"/>).</summary>

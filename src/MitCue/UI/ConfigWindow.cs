@@ -26,6 +26,7 @@ internal sealed class ConfigWindow : Window
 
     private readonly Plugin plugin;
     private string shareCode = string.Empty;
+    private bool shareMakeActive = true;
     private string shareMessage = string.Empty;
     private bool shareMessageIsError;
     private string? confirmDeleteId;
@@ -475,7 +476,7 @@ internal sealed class ConfigWindow : Window
         if (!combo)
             return active;
 
-        if (ImGui.Selectable("(automatic: my own plan for this job, else the bundled plan meant for it)", automatic && !explicitNone))
+        if (ImGui.Selectable("(automatic: the bundled plan for this job, else my own plan for it)", automatic && !explicitNone))
             store.SetActive(fight.Key, job, null);
         if (ImGui.Selectable("(no plan: no reminders for this job)", explicitNone))
             store.SetActive(fight.Key, job, string.Empty);
@@ -622,9 +623,10 @@ internal sealed class ConfigWindow : Window
 
         ImGui.TextUnformatted("Share code:");
         ImGui.InputTextMultiline("##shareCode", ref this.shareCode, ShareCodeMaxBytes, new Vector2(-1, 70 * ImGuiHelpers.GlobalScale));
+        var job = this.plugin.Frame.Job;
         if (ImGui.Button("Import share code"))
         {
-            var ok = store.ImportShareCode(this.shareCode, out _, out var message);
+            var ok = store.ImportShareCode(this.shareCode, job, this.shareMakeActive && job != Job.None, out _, out var message);
             this.SetShareMessage(message, !ok);
             if (ok)
                 this.shareCode = string.Empty;
@@ -640,8 +642,21 @@ internal sealed class ConfigWindow : Window
             this.SetShareMessage($"Reloaded {store.All.Count} plans.", false);
         }
 
+        if (job != Job.None)
+        {
+            ImGui.Checkbox($"Make an imported share code my active plan as {job}", ref this.shareMakeActive);
+            ImGui.SameLine();
+            ImGui.TextDisabled("(?)");
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "Ticked: the plan becomes your active plan for its fight as your current job (when it has calls for it).\n" +
+                    "Unticked: it is only saved, e.g. to look at a co-healer's plan; choose it in the table above to use it.");
+            }
+        }
+
         if (this.shareMessage.Length > 0)
-            ImGui.TextColored(this.shareMessageIsError ? ColorError : ColorOk, this.shareMessage);
+            ImGui.TextColoredWrapped(this.shareMessageIsError ? ColorError : ColorOk, this.shareMessage);
     }
 
     private void SetShareMessage(string message, bool isError)

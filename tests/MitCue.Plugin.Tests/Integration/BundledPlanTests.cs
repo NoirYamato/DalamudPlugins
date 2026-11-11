@@ -96,15 +96,70 @@ public class BundledPlanTests
     }
 
     [Fact]
-    public void AnImportedPlanForTheJobStillComesFirst()
+    public void AnImportedPlanReplacesTheBundledPlanOnlyWhenChosen()
     {
+        // Docs review finding: an imported plan (or a share code) used to win the automatic choice over the bundled
+        // plans, so saving one with "Make it my active plan" unticked, or taking the co-healer's share code to look at
+        // it, silently switched the player's plan.
         var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "H2" });
         parts.Plans.EnsureLoaded();
-        var own = new MitPlan { Id = "own", Name = "Zz my static's plan", Fight = "top", Entries = [Kit.Entry("p1.pantokrator", -3, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
+        var own = new MitPlan { Id = "own", Name = "Aa my static's plan", Fight = "top", Entries = [Kit.Entry("p1.pantokrator", -3, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
         Assert.True(parts.Plans.Save(own, out var error), error);
 
-        Assert.Equal("own", parts.Plans.ActivePlanFor("top", Job.SCH, out var automatic)?.Id);
+        Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.SCH, out var automatic)?.Id);
         Assert.True(automatic);
+
+        parts.Plans.SetActive("top", Job.SCH, "own");
+        Assert.Equal("own", parts.Plans.ActivePlanFor("top", Job.SCH, out automatic)?.Id);
+        Assert.False(automatic);
+    }
+
+    [Fact]
+    public void WhereNoBundledPlanCoversTheJobTheImportedPlanIsTheAutomaticOne()
+    {
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        var tea = new MitPlan { Id = "tea-own", Name = "My TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
+        Assert.True(parts.Plans.Save(tea, out var error), error);
+
+        Assert.Equal("tea-own", parts.Plans.ActivePlanFor("tea", Job.SCH, out var automatic)?.Id);
+        Assert.True(automatic);
+    }
+
+    [Fact]
+    public void AWhiteMageWhoImportsTheCoHealersLpduCodeKeepsCarryTheClearUnlessTheyAskForIt()
+    {
+        var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "H1" });
+        parts.Plans.EnsureLoaded();
+        var code = PlanSerializer.ToShareCode(parts.Plans.Get(Lpdu)!.Plan);
+
+        Assert.True(parts.Plans.ImportShareCode(code, Job.WHM, makeActive: false, out var copy, out var message), message);
+        Assert.Equal(Lpdu, copy!.Id);
+        Assert.Equal(CtcWhm, parts.Plans.ActivePlanFor("top", Job.WHM, out var automatic)?.Id);
+        Assert.True(automatic);
+        Assert.Contains("Your active plan for TOP as WHM stays \"Carry the Clear – WHM\"", message);
+
+        Assert.True(parts.Plans.ImportShareCode(code, Job.WHM, makeActive: true, out _, out message), message);
+        Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.WHM, out automatic)?.Id);
+        Assert.False(automatic);
+        Assert.Contains("It is your active plan for TOP as WHM.", message);
+
+        // The Scholar's default is LPDU by id, so the copy of it stays the Scholar's automatic plan.
+        Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.SCH, out automatic)?.Id);
+        Assert.True(automatic);
+    }
+
+    [Fact]
+    public void AShareCodeWithoutCallsForTheCurrentJobSaysWhereToChooseIt()
+    {
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        var plan = new MitPlan { Id = "sch-only", Name = "SCH notes", Fight = "top", Entries = [Kit.Entry("p1.pantokrator", -3, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(plan), Job.WHM, makeActive: true, out _, out var message), message);
+        Assert.Contains("It has no calls for WHM", message);
+        Assert.Equal(CtcWhm, parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
+        Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.SCH)?.Id);
     }
 
     [Fact]

@@ -1481,7 +1481,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (this.setActive && job != Job.None)
             store.SetActive(model.Fight.Key, job, plan.Id);
 
-        var where = this.setActive && job != Job.None ? $", active for {model.Fight.Key.ToUpperInvariant()} as {job}" : string.Empty;
+        // Say which plan the job gets now: an unticked import of a fight with a bundled plan for the job leaves that one active.
+        var where = string.Empty;
+        if (job != Job.None)
+        {
+            var active = store.ActivePlanFor(model.Fight.Key, job);
+            var fightName = model.Fight.Key.ToUpperInvariant();
+            where = active?.Id == plan.Id
+                ? $", active for {fightName} as {job}"
+                : $"; your active plan for {fightName} as {job} stays \"{active?.DisplayName ?? "none"}\", choose this one in /mitcue > Plans to use it";
+        }
+
         if (choice is { Save: true })
             where += $", your column: {ImportColumns.Describe(choice.Mapping, job)}";
         Plugin.Chat.Print($"[MitCue] Saved plan \"{plan.Name}\" ({Plural(plan.Entries.Count, "entry", "entries")}{where}).");
