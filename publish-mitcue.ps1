@@ -5,9 +5,14 @@ Builds MitCue from its source checkout and publishes it to this plugin repositor
   .\publish-mitcue.ps1 -Changelog "..." -Fetch     # same, fetching the pushed mitcue first
   .\publish-mitcue.ps1 -Changelog "..." -NoPush    # everything except the push
   .\publish-mitcue.ps1 -Changelog "..." -DryRun    # every gate, the tests, the build and the scan; nothing copied or committed
+  .\publish-mitcue.ps1 -ScanHistory                # only the identity scan of mitcue's history: run it before pushing mitcue
 
 The MitCue checkout is ..\MitCue unless -Source names another: a git worktree of this repository on the mitcue
 branch, made once from this folder with "git worktree add ..\MitCue mitcue".
+
+A push of mitcue makes every commit on it public, its whole history on the first push, and a publish only starts
+from a pushed commit. So -ScanHistory runs the identity scan of the checkout's history alone, before any push: it
+needs only the terms file and the checkout on mitcue, and tests, builds, copies, commits and pushes nothing.
 
 On Windows it runs at Idle priority on the -Affinity CPUs (0xF0: 4 of them): it drops itself there before it
 starts any process, so git, the tests and the whole Release build are born there too, and restores its own
@@ -22,13 +27,15 @@ It refuses to publish unless:
 - the MitCue checkout is on mitcue with a clean tree;
 - HEAD is in the pushed mitcue: the remote-tracking ref of the remote that points at NoirYamato/DalamudPlugins
   (found by its URL, "origin" in a worktree of this checkout; -Remote names it), as last fetched;
+- the identity terms file (-TermsFile; NoirMech's %APPDATA%\NoirMech\identity-terms.txt by default) lists the
+  identity terms, one per line, and HEAD's history holds none of them: no commit's author, committer, message or
+  paths, and no version of any file;
 - the new version is higher than the one repo.json lists for MitCue, so Dalamud offers it as an update;
 - the whole test suite (dotnet test MitCue.slnx -c Release) passes on that checkout;
-- the identity terms file (-TermsFile; NoirMech's %APPDATA%\NoirMech\identity-terms.txt by default) lists the
-  identity terms, one per line, and neither the built plugin zip nor the source zip holds any of them, in any
-  case, as ASCII, UTF-8 or UTF-16 text, in the DLLs' embedded PDBs, the zips' entry names and the files inside
-  zip-based files (the source's .xlsx fixtures) included. Known strings that must be found prove each part of
-  the scan works.
+- neither the built plugin zip nor the source zip holds any of the identity terms.
+Each identity scan matches the terms in any case, as ASCII, UTF-8 or UTF-16 text, and reads the files inside
+zip-based files (the source's .xlsx fixtures) too; the zips' scan also reads the DLLs' embedded PDBs and the zips'
+entry names. Known strings that must be found prove each part of each scan works.
 Its commit takes only plugins\MitCue and repo.json, and in repo.json only MitCue's entry changes.
 
 The version is the MAJOR.MINOR.PATCH <Version> from src\MitCue\MitCue.csproj with our own fourth segment, which
@@ -47,7 +54,9 @@ param(
     [object]$Affinity = '0xF0',
     [switch]$Fetch,
     [switch]$DryRun,
-    [switch]$NoPush
+    [switch]$NoPush,
+    # Only the identity scan of the checkout's history, the commits a push of mitcue makes public; then stop.
+    [switch]$ScanHistory
 )
 
 $ErrorActionPreference = 'Stop'
@@ -75,6 +84,15 @@ $Controls = @(
     @{ Entry = '*-source/tests/fixtures/sheets/lpdu/export/lpdu.xlsx > xl/workbook.xml'; Encoding = 'ascii'; Text = 'name="General Tank Mit til P5"' }
 )
 
+# The same for the history scan: a commit's header lines (its author, committer and paths are read), a MitCue
+# source file, one with a non-ASCII character for the UTF-8 read, and a sheet name inside a fixture .xlsx.
+$HistoryControls = @(
+    @{ Entry = 'author, committer, message and paths'; Encoding = 'ascii'; Text = 'committer ' }
+    @{ Entry = 'src/MitCue/Plugin.cs'; Encoding = 'ascii'; Text = 'class Plugin : IDalamudPlugin' }
+    @{ Entry = 'src/MitCue/Import/GoogleLinks.cs'; Encoding = 'utf8'; Text = ('"{0}" + id[^5..]' -f [char]0x2026) }
+    @{ Entry = 'tests/fixtures/sheets/lpdu/export/lpdu.xlsx > xl/workbook.xml'; Encoding = 'ascii'; Text = 'name="General Tank Mit til P5"' }
+)
+
 function Find-Tool([string]$name, [string]$fallback) {
     $cmd = Get-Command $name -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
@@ -100,7 +118,7 @@ function Invoke-Quiet([string]$exe, [string[]]$arguments) {
 }
 
 function Stop-Publish([string]$reason) {
-    Write-Host "Refusing to publish: $reason" -ForegroundColor Red
+    Write-Host "Refusing to $(if ($ScanHistory) { 'scan' } else { 'publish' }): $reason" -ForegroundColor Red
     exit 1
 }
 
@@ -140,9 +158,23 @@ function Get-EmbeddedPdbs([byte[]]$bytes) {
     }
 }
 
-# Every entry of an open zip, and of the zips inside it: an .xlsx stores its sheets deflated, out of a plain read's
-# sight, so a file that starts like a zip is opened and read too, two levels down at most. Inner entries are
-# named "<outer entry> > <inner entry>".
+# A file's bytes as blobs: the file, a DLL's embedded PDBs, and the entries of a zip-based file: an .xlsx stores
+# its sheets deflated, out of a plain read's sight, so a file that starts like a zip is opened and read too, two
+# levels down at most. Inner entries are named "<file> > <inner entry>".
+function Get-FileBlobs([string]$name, [byte[]]$bytes, [int]$depth) {
+    [pscustomobject]@{ Entry = $name; Texts = Get-Texts $bytes }
+    if ($name -match '\.(dll|exe)$') {
+        foreach ($pdb in @(Get-EmbeddedPdbs $bytes)) { [pscustomobject]@{ Entry = "$name embedded PDB"; Texts = Get-Texts $pdb } }
+    }
+    if ($depth -lt 2 -and $bytes.Length -gt 4 -and $bytes[0] -eq 0x50 -and $bytes[1] -eq 0x4B -and $bytes[2] -eq 3 -and $bytes[3] -eq 4) {
+        try { $inner = [IO.Compression.ZipArchive]::new([IO.MemoryStream]::new($bytes), [IO.Compression.ZipArchiveMode]::Read) }
+        catch { throw "$name starts like a zip but doesn't open as one, so the scan can't read inside it: $($_.Exception.Message)" }
+        try { Get-ArchiveBlobs $inner "$name > " ($depth + 1) }
+        finally { $inner.Dispose() }
+    }
+}
+
+# Every entry of an open zip, its name included, and of the zips inside it.
 function Get-ArchiveBlobs([IO.Compression.ZipArchive]$zip, [string]$prefix, [int]$depth) {
     foreach ($entry in $zip.Entries) {
         $name = "$prefix$($entry.FullName)"
@@ -152,17 +184,7 @@ function Get-ArchiveBlobs([IO.Compression.ZipArchive]$zip, [string]$prefix, [int
         $memory = [IO.MemoryStream]::new()
         $stream.CopyTo($memory)
         $stream.Dispose()
-        $bytes = $memory.ToArray()
-        [pscustomobject]@{ Entry = $name; Texts = Get-Texts $bytes }
-        if ($entry.FullName -match '\.(dll|exe)$') {
-            foreach ($pdb in @(Get-EmbeddedPdbs $bytes)) { [pscustomobject]@{ Entry = "$name embedded PDB"; Texts = Get-Texts $pdb } }
-        }
-        if ($depth -lt 2 -and $bytes.Length -gt 4 -and $bytes[0] -eq 0x50 -and $bytes[1] -eq 0x4B -and $bytes[2] -eq 3 -and $bytes[3] -eq 4) {
-            try { $inner = [IO.Compression.ZipArchive]::new([IO.MemoryStream]::new($bytes), [IO.Compression.ZipArchiveMode]::Read) }
-            catch { throw "$name starts like a zip but doesn't open as one, so the scan can't read inside it: $($_.Exception.Message)" }
-            try { Get-ArchiveBlobs $inner "$name > " ($depth + 1) }
-            finally { $inner.Dispose() }
-        }
+        Get-FileBlobs $name $memory.ToArray() $depth
     }
 }
 
@@ -172,19 +194,84 @@ function Get-ZipBlobs([string]$zipPath) {
     finally { $zip.Dispose() }
 }
 
-# Names each problem without echoing a term: a term is shown by its line in the terms file.
-function Test-Identity([string[]]$zips, [string[]]$terms) {
-    $problems = @()
-    $blobs = @()
-    foreach ($zip in $zips) {
-        $blobs += @(Get-ZipBlobs $zip | ForEach-Object { $_.Entry = "$(Split-Path -Leaf $zip): $($_.Entry)"; $_ })
+# The blobs of these zips, each named after its zip.
+function Get-ZipsBlobs([string[]]$zips) {
+    foreach ($zip in $zips) { Get-ZipBlobs $zip | ForEach-Object { $_.Entry = "$(Split-Path -Leaf $zip): $($_.Entry)"; $_ } }
+}
+
+# The history of a checkout's HEAD, which a push of its branch makes public, as git fast-export writes it: every
+# version of every file, once, named "history blob <id>: <the first path it has>", and every commit, named
+# "history commit <id>: author, committer, message and paths". Read as bytes: Windows PowerShell would decode a
+# native command's output as text in the console's code page.
+function Get-HistoryBlobs([string]$repo) {
+    $info = [Diagnostics.ProcessStartInfo]::new($git, 'fast-export --show-original-ids --reencode=yes HEAD')
+    $info.WorkingDirectory = $repo
+    $info.UseShellExecute = $false
+    $info.RedirectStandardOutput = $true
+    $process = [Diagnostics.Process]::Start($info)
+    $memory = [IO.MemoryStream]::new()
+    $process.StandardOutput.BaseStream.CopyTo($memory)
+    $process.WaitForExit()
+    if ($process.ExitCode -ne 0) { throw "git fast-export HEAD failed in $repo with exit code $($process.ExitCode); the history scan needs git 2.23 or later." }
+    $stream = $memory.ToArray()
+
+    # The stream is command lines, each "data <n>" line followed by n bytes of content: a file's for a blob, the
+    # message for a commit. A commit's lines and message are kept together; "M <mode> :<mark> <path>" names a blob.
+    $files = [Collections.Generic.List[object]]::new()
+    $commits = [Collections.Generic.List[object]]::new()
+    $paths = @{}
+    $record = $null
+    $at = 0
+    while ($at -lt $stream.Length) {
+        $end = [Array]::IndexOf($stream, [byte]10, $at)
+        if ($end -lt 0) { $end = $stream.Length }
+        $line = [Text.Encoding]::UTF8.GetString($stream, $at, $end - $at)
+        if ($line -eq 'blob') { $record = @{ Id = ''; Mark = ''; Bytes = [byte[]]@() }; $files.Add($record) }
+        elseif ($line.StartsWith('commit ')) { $record = @{ Id = ''; Mark = ''; Text = [IO.MemoryStream]::new() }; $commits.Add($record) }
+        elseif ($line.StartsWith('reset ')) { $record = $null }
+        if ($record -and $record.Text) { $record.Text.Write($stream, $at, [Math]::Min($end + 1, $stream.Length) - $at) }
+        $at = $end + 1
+        if ($line.StartsWith('data ')) {
+            $size = [int]$line.Substring(5)
+            if ($at + $size -gt $stream.Length) { throw "git fast-export's output ends inside a $size-byte data block." }
+            $data = New-Object byte[] $size
+            [Array]::Copy($stream, $at, $data, 0, $size)
+            $at += $size
+            if ($at -lt $stream.Length -and $stream[$at] -eq 10) { $at++ }
+            if ($record -and $record.Text) { $record.Text.Write($data, 0, $size); $record.Text.WriteByte(10) }
+            elseif ($record) { $record.Bytes = $data }
+        }
+        elseif ($line.StartsWith('mark :') -and $record) { $record.Mark = $line.Substring(6) }
+        elseif ($line.StartsWith('original-oid ') -and $record) { $record.Id = $line.Substring(13) }
+        elseif ($line.StartsWith('M ')) {
+            $fields = $line -split ' ', 4
+            if ($fields.Count -eq 4 -and $fields[2].StartsWith(':') -and -not $paths.ContainsKey($fields[2].Substring(1))) {
+                $paths[$fields[2].Substring(1)] = $fields[3]
+            }
+        }
     }
-    foreach ($control in $Controls) {
+    foreach ($file in $files) {
+        $path = if ($paths.ContainsKey($file.Mark)) { $paths[$file.Mark] } else { '(no path)' }
+        Get-FileBlobs "history blob $(Get-ShortId $file): $path" $file.Bytes 0
+    }
+    foreach ($commit in $commits) {
+        [pscustomobject]@{ Entry = "history commit $(Get-ShortId $commit): author, committer, message and paths"; Texts = Get-Texts $commit.Text.ToArray() }
+    }
+}
+
+function Get-ShortId($record) {
+    if ($record.Id.Length -ge 7) { $record.Id.Substring(0, 7) } else { ":$($record.Mark)" }
+}
+
+# Names each problem without echoing a term: a term is shown by its line in the terms file.
+function Test-Identity([object[]]$blobs, [object[]]$controls, [string[]]$terms, [string]$what) {
+    $problems = @()
+    foreach ($control in $controls) {
         $found = @($blobs | Where-Object {
             $_.Entry -like "*: $($control.Entry)" -and $_.Texts.ContainsKey($control.Encoding) -and
             $_.Texts[$control.Encoding].IndexOf($control.Text, [StringComparison]::OrdinalIgnoreCase) -ge 0
         })
-        if ($found.Count -eq 0) { $problems += "the scan didn't find its $($control.Encoding) control '$($control.Text)' in $($control.Entry)" }
+        if ($found.Count -eq 0) { $problems += "the scan of $what didn't find its $($control.Encoding) control '$($control.Text)' in $($control.Entry)" }
     }
     for ($i = 0; $i -lt $terms.Length; $i++) {
         foreach ($blob in $blobs) {
@@ -195,14 +282,20 @@ function Test-Identity([string[]]$zips, [string[]]$terms) {
             }
         }
     }
-    Write-Host "Scanned $($blobs.Count) blobs in $($zips.Count) zips for $($terms.Length) identity terms and $($Controls.Count) controls"
+    Write-Host "Scanned $($blobs.Count) blobs in $what for $($terms.Length) identity terms and $($controls.Count) controls"
     $problems
 }
 
+function Write-Problems([object[]]$problems) {
+    foreach ($problem in $problems | Select-Object -First 40) { Write-Host "  $problem" -ForegroundColor Red }
+}
+
 # repo.json's entries, one per pipeline object: Windows PowerShell's ConvertFrom-Json emits a top-level array as
-# one object, which ForEach-Object unrolls; PowerShell 7 already emits each entry.
+# one object, which ForEach-Object unrolls; PowerShell 7 already emits each entry. Read as UTF-8, which Write-Utf8
+# writes: Windows PowerShell reads a file without a BOM in the ANSI code page, which would garble the non-ASCII
+# text of every entry this script writes back, NoirMech's included.
 function Get-RepoEntries([string]$path) {
-    if (Test-Path $path) { Get-Content -Raw $path | ConvertFrom-Json | ForEach-Object { $_ } }
+    if (Test-Path $path) { Get-Content -Raw -Encoding UTF8 $path | ConvertFrom-Json | ForEach-Object { $_ } }
 }
 
 # repo.json lists every plugin of this repository: replace this plugin's entry where it stands, keep the others
@@ -230,7 +323,7 @@ if ($onWindows) {
 }
 else { $cpuCount = [Environment]::ProcessorCount }
 
-if (-not $Changelog.Trim()) { Stop-Publish 'give -Changelog "...": the plugin installer shows it.' }
+if (-not $ScanHistory -and -not $Changelog.Trim()) { Stop-Publish 'give -Changelog "...": the plugin installer shows it.' }
 if (-not $TermsFile) {
     if (-not $env:APPDATA) { Stop-Publish 'there is no %APPDATA% here to find NoirMech\identity-terms.txt in; pass -TermsFile.' }
     $TermsFile = Join-Path $env:APPDATA 'NoirMech\identity-terms.txt'
@@ -253,12 +346,14 @@ try {
     }
     else { Write-Host 'Idle priority and -Affinity work on Windows only: here the tests and the build run at normal priority on every CPU.' -ForegroundColor Yellow }
 
-    $here = (& $git -C $PSScriptRoot rev-parse --abbrev-ref HEAD).Trim()
-    if ($here -ne 'main') { Stop-Publish "$PSScriptRoot is on '$here'; switch it to 'main', which the publish commits to and pushes." }
-    if (& $git -C $PSScriptRoot status --porcelain) {
-        Stop-Publish "$PSScriptRoot has uncommitted changes or untracked files; commit or remove them first, since the publish pushes main."
+    if (-not $ScanHistory) {
+        $here = (& $git -C $PSScriptRoot rev-parse --abbrev-ref HEAD).Trim()
+        if ($here -ne 'main') { Stop-Publish "$PSScriptRoot is on '$here'; switch it to 'main', which the publish commits to and pushes." }
+        if (& $git -C $PSScriptRoot status --porcelain) {
+            Stop-Publish "$PSScriptRoot has uncommitted changes or untracked files; commit or remove them first, since the publish pushes main."
+        }
+        if (-not (Test-Path $IconFile)) { Stop-Publish "$IconFile is missing; MitCue's IconUrl points at icons/mitcue.png on main." }
     }
-    if (-not (Test-Path $IconFile)) { Stop-Publish "$IconFile is missing; MitCue's IconUrl points at icons/mitcue.png on main." }
 
     if (-not (Test-Path ([IO.Path]::Combine($Source, 'src', 'MitCue', 'MitCue.csproj')))) {
         Stop-Publish "$Source isn't a MitCue checkout; make one with 'git worktree add ..\MitCue $Branch' from $PSScriptRoot, or pass -Source."
@@ -267,6 +362,19 @@ try {
 
     $currentBranch = (& $git -C $Source rev-parse --abbrev-ref HEAD).Trim()
     if ($currentBranch -ne $Branch) { Stop-Publish "$Source is on '$currentBranch'; switch it to '$Branch' first." }
+
+    # What a push of the branch would make public, before it's pushed: only committed history counts.
+    if ($ScanHistory) {
+        $problems = @(Test-Identity @(Get-HistoryBlobs $Source) $HistoryControls $terms "$Branch's history")
+        if ($problems.Count -gt 0) {
+            Write-Problems $problems
+            Write-Host "History scan failed ($($problems.Count) problems): don't push $Branch until its history is clean." -ForegroundColor Red
+            exit 1
+        }
+        Write-Host "History scan clean: every control found, no identity term in $Branch's history up to $((& $git -C $Source rev-parse --short HEAD).Trim())."
+        exit 0
+    }
+
     if (& $git -C $Source status --porcelain) { Stop-Publish "$Source has uncommitted changes or untracked files; commit or remove them first." }
     $commit = (& $git -C $Source rev-parse HEAD).Trim()
 
@@ -291,6 +399,14 @@ try {
     if ($LASTEXITCODE -ne 0) {
         $hint = if ($Fetch) { 'push it first (git push {0} {1})' } else { "push it (git push {0} {1}), or pass -Fetch if it's pushed" }
         Stop-Publish "$($commit.Substring(0, 7)) isn't in $Remote/$Branch as last fetched; $($hint -f $Remote, $Branch)."
+    }
+
+    # The pushed history is public already, so it's scanned before the tests and the build: a term in it means
+    # the branch needs rewriting, not another build.
+    $problems = @(Test-Identity @(Get-HistoryBlobs $Source) $HistoryControls $terms "$Branch's history")
+    if ($problems.Count -gt 0) {
+        Write-Problems $problems
+        Stop-Publish "the identity scan of $Branch's history failed ($($problems.Count) problems); it's already public in $Remote/$Branch."
     }
 
     $csproj = [IO.Path]::Combine($Source, 'src', 'MitCue', 'MitCue.csproj')
@@ -326,7 +442,7 @@ try {
     $zip = Join-Path $packaged 'latest.zip'
     $manifestPath = Join-Path $packaged "$InternalName.json"
     if (-not (Test-Path $zip) -or -not (Test-Path $manifestPath)) { throw "Packager output not found in $packaged." }
-    $manifest = Get-Content -Raw $manifestPath | ConvertFrom-Json
+    $manifest = Get-Content -Raw -Encoding UTF8 $manifestPath | ConvertFrom-Json
     if ($manifest.InternalName -ne $InternalName -or $manifest.AssemblyVersion -ne $version) {
         throw "Built manifest is $($manifest.InternalName) $($manifest.AssemblyVersion), expected $InternalName $version."
     }
@@ -337,9 +453,9 @@ try {
     $sourceZip = Join-Path $releaseOut $sourceName
     Invoke-Checked $git @('-C', $Source, 'archive', '--format=zip', "--prefix=$InternalName-$version-source/", '-o', $sourceZip, $commit)
 
-    $problems = @(Test-Identity @($zip, $sourceZip) $terms)
+    $problems = @(Test-Identity @(Get-ZipsBlobs @($zip, $sourceZip)) $Controls $terms 'the zips')
     if ($problems.Count -gt 0) {
-        foreach ($problem in $problems | Select-Object -First 40) { Write-Host "  $problem" -ForegroundColor Red }
+        Write-Problems $problems
         Stop-Publish "the identity scan failed ($($problems.Count) problems)."
     }
     Write-Host 'Identity scan clean: every control found, no identity term.'

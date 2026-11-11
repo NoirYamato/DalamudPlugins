@@ -153,13 +153,28 @@ MitCue's source lives on the `mitcue` branch, with its own history. Once, make i
 a worktree of this clone on that branch:
 
 ```powershell
+git -C <DalamudPlugins clone> remote set-branches --add origin mitcue
 git -C <DalamudPlugins clone> fetch origin
 git -C <DalamudPlugins clone> worktree add ..\MitCue mitcue
 ```
 
-`<DalamudPlugins clone>` is this folder, so from here that's `git fetch origin` and
-`git worktree add ..\MitCue mitcue`. Change MitCue in `..\MitCue`, commit there and `git push origin mitcue`;
-pushes and pull requests to `mitcue` run its CI. Then, from this folder:
+`<DalamudPlugins clone>` is this folder, so from here these are the same commands without the `-C` part. The first
+one lets a clone made with `--single-branch`, which fetches only `main`, fetch `mitcue` and keep `origin/mitcue`
+up to date; it's harmless in a full clone. Before its first push, `mitcue` isn't on GitHub yet, and with the first
+line in place `fetch origin` fails. For that push, fetch its commits from where they are into a local `mitcue`
+instead (from a bundle file: `git fetch <file> mitcue:mitcue`), make the worktree, scan as below, push with
+`git push -u origin mitcue`, and only then run the first two lines.
+
+Change MitCue in `..\MitCue` and commit there. A push of `mitcue` makes its commits public, and the first push
+makes its whole history public at once, so before each `git push origin mitcue`, scan what it would publish:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\publish-mitcue.ps1 -ScanHistory
+```
+
+It reads the whole history of `..\MitCue`'s `mitcue` (every commit's author, committer, message and paths, and
+every version of every file, inside the `.xlsx` test fixtures too) for the identity terms below, and builds and
+pushes nothing. Push only when it's clean. Pushes and pull requests to `mitcue` run its CI. Then, from this folder:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\publish-mitcue.ps1 -Changelog "What changed" -DryRun
@@ -169,14 +184,19 @@ powershell -ExecutionPolicy Bypass -File .\publish-mitcue.ps1 -Changelog "What c
 It publishes only with a changelog, when this folder is on `main` with nothing uncommitted or untracked, when
 `..\MitCue` (or `-Source`) is on `mitcue` with a clean tree and its commit is in the pushed `mitcue` of the
 remote that points at NoirYamato/DalamudPlugins (`origin` here; `-Remote` names another, `-Fetch` fetches it
-first), when the new version is higher than the listed one, when `dotnet test MitCue.slnx -c Release` passes on
-that commit, and when an identity scan of the built plugin zip and the source zip, the files inside their zips
-(such as the source's `.xlsx` test fixtures) included, finds every one of its control strings and none of the
-terms in NoirMech's `%APPDATA%\NoirMech\identity-terms.txt` (or the file `-TermsFile` names). The version is the
-`<Version>` in `src\MitCue\MitCue.csproj` with a fourth part that goes up by one on every publish. Its commit
-takes only `plugins/MitCue` and `repo.json`, and in `repo.json` it replaces only MitCue's entry, as `publish.ps1`
-replaces only NoirMech's. `-DryRun` runs every gate, the tests, the build and the scan, then stops before copying,
-committing or pushing; `-NoPush` stops before the push.
+first), when the history scan above is clean, when the new version is higher than the listed one, when
+`dotnet test MitCue.slnx -c Release` passes on that commit, and when an identity scan of the built plugin zip and
+the source zip, the files inside their zips (such as the source's `.xlsx` test fixtures) included, finds every one
+of its control strings and none of the terms in NoirMech's `%APPDATA%\NoirMech\identity-terms.txt` (or the file
+`-TermsFile` names). The version is the `<Version>` in `src\MitCue\MitCue.csproj` with a fourth part that goes up
+by one on every publish. Its commit takes only `plugins/MitCue` and `repo.json`, and in `repo.json` it replaces
+only MitCue's entry, as `publish.ps1` replaces only NoirMech's. `-DryRun` runs every gate, the tests, the build and
+the scans, then stops before copying, committing or pushing; `-NoPush` stops before the push.
 
 Like `publish.ps1`, it runs at Idle priority on the `-Affinity` CPUs (`0xF0` by default), the tests and the
 Release build included. Run it as above, so its exit code isn't lost.
+
+After changing either publish script, run
+`powershell -ExecutionPolicy Bypass -File .\tests\Test-PublishScripts.ps1`. Without building anything, it checks
+that each script keeps the other's `repo.json` entry intact, non-ASCII text included, and that `-ScanHistory`
+finds terms anywhere in a branch's history.

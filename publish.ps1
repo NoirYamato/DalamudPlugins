@@ -175,9 +175,11 @@ function Test-Identity([string[]]$zips, [string[]]$terms) {
 }
 
 # repo.json's entries, one per pipeline object: Windows PowerShell's ConvertFrom-Json emits a top-level array as
-# one object, which ForEach-Object unrolls; PowerShell 7 already emits each entry.
+# one object, which ForEach-Object unrolls; PowerShell 7 already emits each entry. Read as UTF-8, which Write-Utf8
+# writes: Windows PowerShell reads a file without a BOM in the ANSI code page, which would garble the non-ASCII
+# text of every entry this script writes back.
 function Get-RepoEntries([string]$path) {
-    if (Test-Path $path) { Get-Content -Raw $path | ConvertFrom-Json | ForEach-Object { $_ } }
+    if (Test-Path $path) { Get-Content -Raw -Encoding UTF8 $path | ConvertFrom-Json | ForEach-Object { $_ } }
 }
 
 # repo.json lists every plugin of this repository: replace this plugin's entry where it stands, keep the others
@@ -270,7 +272,7 @@ try {
     $zip = Join-Path $packaged 'latest.zip'
     $manifestPath = Join-Path $packaged "$InternalName.json"
     if (-not (Test-Path $zip) -or -not (Test-Path $manifestPath)) { throw "Packager output not found in $packaged." }
-    $manifest = Get-Content -Raw $manifestPath | ConvertFrom-Json
+    $manifest = Get-Content -Raw -Encoding UTF8 $manifestPath | ConvertFrom-Json
     if ($manifest.InternalName -ne $InternalName -or $manifest.AssemblyVersion -ne $version) {
         throw "Built manifest is $($manifest.InternalName) $($manifest.AssemblyVersion), expected $InternalName $version."
     }
