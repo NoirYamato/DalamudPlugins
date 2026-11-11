@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- MitCue icon: a mitigation shield with a healer cross, inside a countdown ring whose cue marker
+       is about to reach 12 o'clock. Hand-authored vector art (no image generation). -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#2a4d8a"/>
+      <stop offset="0.5" stop-color="#14305e"/>
+      <stop offset="1" stop-color="#060d20"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/>
+      <stop offset="0.3" stop-color="#f4c95e"/>
+      <stop offset="0.7" stop-color="#c88e27"/>
+      <stop offset="1" stop-color="#7d4f0e"/>
+    </linearGradient>
+    <linearGradient id="arc" x1="1" y1="0.2" x2="0" y2="0.6">
+      <stop offset="0" stop-color="#ffe7a0"/>
+      <stop offset="0.45" stop-color="#f5b942"/>
+      <stop offset="1" stop-color="#ff6a1f"/>
+    </linearGradient>
+    <linearGradient id="shield" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#8ff5bf"/>
+      <stop offset="0.4" stop-color="#2fbe78"/>
+      <stop offset="1" stop-color="#0b5e3b"/>
+    </linearGradient>
+    <linearGradient id="cross" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#d9f7e6"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#4dffa6" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#4dffa6" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="spark" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#ffd27a"/>
+      <stop offset="0.7" stop-color="#ff7a1f" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#ff5a0a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="9" stdDeviation="9" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="tile"><rect width="512" height="512" rx="60"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#tile)">
+    <!-- Tile, gloss and frame -->
+    <rect width="512" height="512" fill="url(#bg)"/>
+    <ellipse cx="256" cy="40" rx="300" ry="170" fill="url(#gloss)"/>
+    <rect x="12" y="12" width="488" height="488" rx="50" fill="none" stroke="url(#gold)" stroke-width="7" opacity="0.55"/>
+
+    <!-- Countdown ring: dark track, gold-to-orange elapsed arc (300 deg clockwise from 12 o'clock) -->
+    <circle cx="256" cy="256" r="194" fill="none" stroke="#071330" stroke-width="34" opacity="0.85"/>
+    <path d="M 256 62 A 194 194 0 1 1 87.99 159" fill="none" stroke="url(#arc)" stroke-width="26" stroke-linecap="round" filter="url(#glow)"/>
+    <!-- The target notch at 12 o'clock -->
+    <rect x="248" y="34" width="16" height="44" rx="5" fill="url(#gold)" stroke="#5a3608" stroke-width="2"/>
+    <!-- Cue marker at the leading edge of the arc -->
+    <circle cx="87.99" cy="159" r="34" fill="url(#spark)"/>
+    <circle cx="87.99" cy="159" r="11" fill="#fffbe8"/>
+
+    <!-- Healer aura behind the shield -->
+    <circle cx="256" cy="262" r="150" fill="url(#aura)"/>
+
+    <!-- Shield with gold rim -->
+    <g filter="url(#shadow)">
+      <path d="M 150 148 Q 256 118 362 148 L 360 262 C 358 324 316 370 256 400 C 196 370 154 324 152 262 Z"
+            fill="url(#shield)" stroke="url(#gold)" stroke-width="15" stroke-linejoin="round"/>
+      <!-- Bevel highlight on the left half -->
+      <path d="M 168 162 Q 220 146 256 143 L 256 378 C 205 350 172 312 170 262 Z" fill="#ffffff" opacity="0.13"/>
+      <!-- Healer cross -->
+      <g stroke="#0a4a2e" stroke-width="5" stroke-linejoin="round">
+        <rect x="229" y="186" width="54" height="152" rx="11" fill="url(#cross)"/>
+        <rect x="180" y="235" width="152" height="54" rx="11" fill="url(#cross)"/>
+      </g>
+      <rect x="234" y="240" width="44" height="44" fill="url(#cross)"/>
+    </g>
+  </g>
+</svg>
