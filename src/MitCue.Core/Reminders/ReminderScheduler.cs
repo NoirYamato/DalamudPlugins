@@ -20,8 +20,9 @@ namespace MitCue.Core.Reminders;
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or
 /// Passed for notes and optional entries); <see cref="OnOwnAction"/> marks Done and
-/// <see cref="OnTimelineJump"/> marks Skipped. Only a backward jump of more than 5 s or
-/// <see cref="Reset"/> moves reminders back to Pending.
+/// <see cref="OnTimelineJump"/> marks Skipped, or Due for phase-end reminders at the transition that
+/// ends their phase. Only a backward jump of more than 5 s or <see cref="Reset"/> moves reminders back
+/// to Pending.
 /// </para>
 /// <para>
 /// Not thread-safe: call every member from one thread (or synchronize externally).
@@ -29,14 +30,21 @@ namespace MitCue.Core.Reminders;
 /// <see cref="ReminderOptions.Lookahead"/>, <see cref="ReminderOptions.DueLead"/>,
 /// <see cref="ReminderOptions.KeepFinishedFor"/> and <see cref="ReminderOptions.ShowSkipped"/> are read
 /// live (lookahead and due lead also widen the start of a use's matching window, see
-/// <see cref="OnOwnAction"/>); <see cref="Reminder.Earliest"/> and <see cref="Reminder.Latest"/> are
-/// fixed when the scheduler is built.
+/// <see cref="OnOwnAction"/>), and so is <see cref="ReminderOptions.HealLateWindow"/> for the phase-end
+/// grace; <see cref="Reminder.Earliest"/> and <see cref="Reminder.Latest"/> are fixed when the scheduler
+/// is built, except that a phase transition moves the latest of the phase-end reminders it makes due.
 /// </para>
 /// </remarks>
 public sealed class ReminderScheduler
 {
     /// <summary>Capacity of <see cref="RecentUses"/>.</summary>
     public const int RecentUsesCapacity = 50;
+
+    /// <summary>
+    /// A phase-end reminder made due by a phase transition stays due at least this long after it (or
+    /// <see cref="ReminderOptions.HealLateWindow"/> when that is longer), see <see cref="OnTimelineJump"/>.
+    /// </summary>
+    public const double MinPhaseEndGrace = 8;
 
     /// <summary>Lateness below this is not reported in <see cref="Reminder.ReadyIn"/>.</summary>
     private const double ReadyInThreshold = 0.25;
@@ -45,6 +53,7 @@ public sealed class ReminderScheduler
     private const double SmallBackwardCorrection = 5;
 
     private readonly Track[] tracks;
+    private readonly double[] phaseStarts;
     private readonly List<Reminder> visibleBuffer = [];
     private readonly List<ActionUse> recentUses = new(RecentUsesCapacity);
 
@@ -57,6 +66,7 @@ public sealed class ReminderScheduler
 
         this.Fight = fight;
         this.Options = options;
+        this.phaseStarts = fight.Phases.Select(p => p.Start).Distinct().Order().ToArray();
 
         var problems = new List<string>();
         this.tracks = Build(fight, entries, actions, options, problems);
@@ -86,15 +96,17 @@ public sealed class ReminderScheduler
     /// Not raised for reminders that finish (Missed/Passed) in the same update. Raised again only
     /// after the reminder went back to Pending: <see cref="Reset"/>, or a backward jump that reopened
     /// it (see <see cref="OnTimelineJump"/>; a reminder still due at the jump target stays Due and is
-    /// not raised twice).
+    /// not raised twice). A phase-end reminder that a phase transition makes Due is announced by the
+    /// next <see cref="Update"/>, once (not again if it was already due before the transition).
     /// </remarks>
     public event Action<Reminder>? BecameDue;
 
-    /// <summary>Back to the start of a pull (all reminders Pending).</summary>
+    /// <summary>Back to the start of a pull (all reminders Pending, with their planned use windows).</summary>
     public void Reset()
     {
         foreach (var track in this.tracks)
         {
+            track.RestorePlannedWindow();
             track.Rearm();
             var r = track.Reminder;
             r.UsedAt = null;
@@ -107,8 +119,16 @@ public sealed class ReminderScheduler
 
     /// <summary>
     /// The timeline jumped from <paramref name="fromTime"/> to <paramref name="toTime"/> (phase push,
-    /// resync or loop): reminders the jump made pointless are Skipped, rewound ones are reopened.
+    /// resync or loop): reminders the jump made pointless are Skipped, phase-end reminders of the phase
+    /// it ends become Due, rewound ones are reopened.
     /// </summary>
+    /// <param name="fromTime">
+    /// Timeline time before the jump, or −∞ for a jump from nowhere: a bulk skip of everything before
+    /// <paramref name="toTime"/>, or a timeline that started from stopped (e.g. a pull joined mid-fight). Pass such
+    /// a start as a jump from −∞, not from 0: it skips what it passed and never ends a phase (the plugin's session
+    /// does so).
+    /// </param>
+    /// <param name="toTime">Timeline time after the jump.</param>
     /// <remarks>
     /// <para>
     /// Forward jump: a Pending/Upcoming reminder whose press time lies in (from, to] becomes Skipped
@@ -119,13 +139,40 @@ public sealed class ReminderScheduler
     /// reminders are left alone.
     /// </para>
     /// <para>
+    /// Phase-end reminders (<see cref="Reminder.IsPhaseEnd"/>: the entry is flagged
+    /// <see cref="PlanEntry.AtPhaseEnd"/> or anchored to an enrage) are the exception (docs/DESIGN.md §5.2): the
+    /// jump that ends their phase is exactly when they should be pressed. Such a reminder, not finished and not
+    /// made due by an earlier transition, is caught by a forward jump that
+    /// </para>
+    /// <list type="bullet">
+    /// <item>reached its press time (press ≤ to; it may already be Upcoming or Due),</item>
+    /// <item>passed its hit or its planned use window (hit in (from, to], or latest &lt; to), and</item>
+    /// <item>starts in the phase its press time belongs to (a press exactly at a phase start belongs to the phase
+    /// ending there) and lands in that phase or the next one: a phase push, or a push inside the phase that ends a
+    /// stage of it before its enrage (TEA P3: killing the adds of the DPS check jumps over the Eternal Darkness enrage
+    /// to 771.9, still in P3). In a fight without phases every such jump counts. The other jumps skip it by the rule
+    /// above: one that starts in another phase, one that lands two or more phases on (a preview that cuts whole
+    /// phases), and one from −∞ (a bulk skip, or a timeline that started from stopped, see
+    /// <paramref name="fromTime"/>).</item>
+    /// </list>
+    /// <para>
+    /// It becomes Due at once, <see cref="Reminder.Latest"/> moves to max(latest, to + grace), where grace =
+    /// max(<see cref="ReminderOptions.HealLateWindow"/>, <see cref="MinPhaseEndGrace"/>), and
+    /// <see cref="Reminder.PhaseEndDueAt"/> is set to <paramref name="toTime"/>. The next <see cref="Update"/>
+    /// raises <see cref="BecameDue"/> (only once: not if it was already due before the jump, nor if it finishes in
+    /// that update); after the new latest it is Missed (Passed for notes and optional entries) as usual.
+    /// </para>
+    /// <para>
     /// Backward jump of more than 5 s: every reminder that is not Done and whose use window is still
     /// open at <paramref name="toTime"/> (latest ≥ to) goes back to Pending, and the next
     /// <see cref="Update"/> re-derives Upcoming/Due from the new time. The exception is a Due reminder
     /// that is still due at <paramref name="toTime"/>: it stays Due (no flicker, no second
     /// <see cref="BecameDue"/>). Reminders that stay finished (Done, or with their window over at the
     /// target) keep their outcome but are no longer listed by <see cref="Update"/>, because their
-    /// finished row belongs to the timeline before the rewind.
+    /// finished row belongs to the timeline before the rewind. A phase-end reminder made due by a
+    /// transition keeps its moved latest, unless the jump goes back before its due time
+    /// (to &lt; press − due lead): then it gets its planned window back, and the next transition can make it
+    /// due again.
     /// Smaller backward corrections change nothing.
     /// </para>
     /// </remarks>
@@ -133,9 +180,18 @@ public sealed class ReminderScheduler
     {
         if (toTime > fromTime)
         {
+            var grace = Math.Max(this.Options.HealLateWindow, MinPhaseEndGrace);
             foreach (var track in this.tracks)
             {
                 var r = track.Reminder;
+                if (this.EndsPhaseOf(track, fromTime, toTime))
+                {
+                    // Due now; Advance raises BecameDue on the next update unless it was already due (DueRaised).
+                    track.CatchAtPhaseEnd(toTime, Math.Max(track.PlannedLatest, toTime + grace));
+                    r.State = ReminderState.Due;
+                    continue;
+                }
+
                 if ((r.State is ReminderState.Pending or ReminderState.Upcoming)
                     && r.PressAt > fromTime && r.PressAt <= toTime
                     && ((r.Hit > fromTime && r.Hit <= toTime) || r.Latest < toTime))
@@ -149,6 +205,11 @@ public sealed class ReminderScheduler
             foreach (var track in this.tracks)
             {
                 var r = track.Reminder;
+
+                // Back before its due time: the transition that made it due has to happen again.
+                if (r.PhaseEndDueAt != null && toTime < r.PressAt - this.Options.DueLead)
+                    track.RestorePlannedWindow();
+
                 if (r.State == ReminderState.Done || r.Latest < toTime)
                 {
                     // The outcome stands, but its finished row is from before the rewind.
@@ -387,6 +448,48 @@ public sealed class ReminderScheduler
     private double UseWindowStart(Reminder r) =>
         Math.Min(r.Earliest, r.PressAt - Math.Max(this.Options.Lookahead, this.Options.DueLead));
 
+    /// <summary>
+    /// True when the forward jump from <paramref name="from"/> to <paramref name="to"/> ends the phase (or the stage
+    /// of it) of a phase-end reminder that is still waiting to be pressed (the conditions are listed on
+    /// <see cref="OnTimelineJump"/>).
+    /// </summary>
+    private bool EndsPhaseOf(Track track, double from, double to)
+    {
+        var r = track.Reminder;
+        return r.IsPhaseEnd
+            && r.PhaseEndDueAt == null
+            && !IsFinished(r.State)
+            && double.IsFinite(from)
+            && r.PressAt <= to
+            && ((r.Hit > from && r.Hit <= to) || track.PlannedLatest < to)
+            && this.StartsInPhaseAndLandsInItOrTheNext(r.PressAt, from, to);
+    }
+
+    /// <summary>
+    /// True when a jump from <paramref name="from"/> to <paramref name="to"/> starts in the phase <paramref name="pressAt"/>
+    /// belongs to (a press exactly at a phase start belongs to the phase ending there) and lands in that phase or the
+    /// one right after it. Always true for a fight without phases; never for a press time before the first phase.
+    /// </summary>
+    private bool StartsInPhaseAndLandsInItOrTheNext(double pressAt, double from, double to)
+    {
+        if (this.phaseStarts.Length == 0)
+            return true;
+
+        int beforePress = 0, startedAtFrom = 0, startedAtTo = 0;
+        foreach (var start in this.phaseStarts)
+        {
+            if (start < pressAt)
+                beforePress++;
+            if (start <= from)
+                startedAtFrom++;
+            if (start <= to)
+                startedAtTo++;
+        }
+        return beforePress > 0
+            && startedAtFrom == beforePress
+            && (startedAtTo == beforePress || startedAtTo == beforePress + 1);
+    }
+
     private void Advance(Track track, double t, ICooldownProvider? cooldowns)
     {
         var r = track.Reminder;
@@ -410,15 +513,14 @@ public sealed class ReminderScheduler
             return;
         }
 
+        // Due from press − due lead on, or already (a phase transition makes phase-end reminders due at once and
+        // leaves the announcement to this update). Announced once until the reminder goes back to Pending.
         var becameDue = false;
-        if (t >= r.PressAt - options.DueLead)
+        if (t >= r.PressAt - options.DueLead || r.State == ReminderState.Due)
         {
-            if (r.State != ReminderState.Due)
-            {
-                r.State = ReminderState.Due;
-                becameDue = !track.DueRaised;
-                track.DueRaised = true;
-            }
+            r.State = ReminderState.Due;
+            becameDue = !track.DueRaised;
+            track.DueRaised = true;
         }
         else if (r.State == ReminderState.Pending && t >= r.PressAt - options.Lookahead)
         {
@@ -480,6 +582,7 @@ public sealed class ReminderScheduler
             this.Reminder = reminder;
             this.EntryIndex = entryIndex;
             this.ActionIds = reminder.ActionIds;
+            this.PlannedLatest = reminder.Latest;
             this.Deadline = reminder.Latest;
         }
 
@@ -487,6 +590,9 @@ public sealed class ReminderScheduler
 
         /// <summary>Position of the entry in the plan (tie-breaker for equal press times).</summary>
         public int EntryIndex { get; }
+
+        /// <summary>The end of the use window as built (<see cref="Reminder.Latest"/> before a phase transition moved it).</summary>
+        public double PlannedLatest { get; }
 
         public IReadOnlyList<uint> ActionIds { get; }
 
@@ -533,6 +639,27 @@ public sealed class ReminderScheduler
         {
             this.ReadySince = null;
             this.Deadline = this.Reminder.Latest;
+        }
+
+        /// <summary>
+        /// A phase transition to <paramref name="jumpTo"/> made this phase-end reminder due until
+        /// <paramref name="latest"/> (the deadline never shrinks: a when-ready entry may still be waiting).
+        /// </summary>
+        public void CatchAtPhaseEnd(double jumpTo, double latest)
+        {
+            this.Reminder.PhaseEndDueAt = jumpTo;
+            this.Reminder.SetLatest(latest);
+            this.Deadline = Math.Max(this.Deadline, latest);
+        }
+
+        /// <summary>Undoes <see cref="CatchAtPhaseEnd"/>: the planned use window again (no-op when not caught).</summary>
+        public void RestorePlannedWindow()
+        {
+            if (this.Reminder.PhaseEndDueAt == null)
+                return;
+            this.Reminder.PhaseEndDueAt = null;
+            this.Reminder.SetLatest(this.PlannedLatest);
+            this.RestartReadiness();
         }
 
         /// <summary>Back to Pending with no outcome (the usage of Done reminders is cleared separately).</summary>

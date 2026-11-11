@@ -441,6 +441,12 @@ internal sealed class EncounterSession
         this.countdownEndedClock = null;
     }
 
+    /// <summary>
+    /// Forwards a timeline jump (a sync that moved time by more than 5 s, <see cref="SyncResult.IsJump"/>, or a jump
+    /// seen by a tick) to the schedulers: reminders a phase push jumped over are skipped, and the phase-end reminders
+    /// of the phase it ended become due at once (DESIGN §5.2; their sound plays on the next <see cref="Update"/>).
+    /// A timeline start comes here from −∞ (see <see cref="OnSynced"/>).
+    /// </summary>
     private void Jump(double from, double to)
     {
         this.Scheduler.OnTimelineJump(from, to);
@@ -469,8 +475,12 @@ internal sealed class EncounterSession
             return;
         }
 
+        // A sync that started the stopped timeline (e.g. a pull joined mid-fight: the plugin was loaded in combat, so there
+        // was no InCombat edge) does not come from time 0, whatever FromTime says: it is forwarded as a jump from −∞, which
+        // skips the reminders it passed and never makes a phase-end call due (DESIGN §5.2). A start at the pull (InCombat,
+        // time 0) is no jump.
         if (result.IsJump)
-            this.Jump(result.FromTime, result.ToTime);
+            this.Jump(result.Started ? double.NegativeInfinity : result.FromTime, result.ToTime);
     }
 
     private void OnBecameDue(Reminder reminder) => this.BecameDue?.Invoke(this, reminder);

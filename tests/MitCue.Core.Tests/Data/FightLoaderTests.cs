@@ -226,11 +226,17 @@ public class FightLoaderTests
             Assert.Same(fight, library.Get("TEST"));
             Assert.Same(fight, library.ForTerritory(1234));
             Assert.Null(library.ForTerritory(1));
+            Assert.Empty(library.Problems);
 
+            // A broken file no longer stops the library: it is left out and named in Problems.
             File.WriteAllText(Path.Combine(root, "fights", "broken.yaml"), Sample.Replace("hit: 30", "hit: thirty", StringComparison.Ordinal));
-            var ex = Assert.Throws<FormatException>(() => new FightLibrary(new DirectoryDataSource(root)));
-            Assert.Contains("fights/broken.yaml", ex.Message, StringComparison.Ordinal);
-            Assert.Contains("p1.check", ex.Message, StringComparison.Ordinal);
+            library = new FightLibrary(new DirectoryDataSource(root));
+            Assert.Equal("test", Assert.Single(library.Fights).Key);
+            var problem = Assert.Single(library.Problems);
+            Assert.Equal("fights/broken.yaml", problem.Path);
+            Assert.Contains("fights/broken.yaml", problem.Message, StringComparison.Ordinal);
+            Assert.Contains("p1.check", problem.Message, StringComparison.Ordinal);
+            Assert.IsType<FormatException>(problem.Exception);
         }
         finally
         {

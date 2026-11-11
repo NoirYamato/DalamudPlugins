@@ -116,9 +116,10 @@ internal sealed class PreviewDriver
         if (fight == null)
         {
             var available = string.Join(", ", this.data.FightList.Select(f => f.Key));
+            var unloaded = this.data.FightProblems.Count > 0 ? " Some fight files did not load (see Problems in /mitcue)." : string.Empty;
             message = fightKey != null
-                ? $"Unknown fight \"{fightKey}\". Available: {(available.Length > 0 ? available : "none")}."
-                : $"No fight to preview. Available: {(available.Length > 0 ? available : "none")}.";
+                ? $"Unknown fight \"{fightKey}\". Available: {(available.Length > 0 ? available : "none")}.{unloaded}"
+                : $"No fight to preview. Available: {(available.Length > 0 ? available : "none")}.{unloaded}";
             return false;
         }
 

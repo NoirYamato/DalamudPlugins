@@ -20,7 +20,8 @@ public enum ReminderState
 
     /// <summary>
     /// The timeline jumped past it (phase push) before it was due: past its press time and also past
-    /// its hit (the mechanic was skipped) or past its use window.
+    /// its hit (the mechanic was skipped) or past its use window. Phase-end reminders become
+    /// <see cref="Due"/> at the transition instead (<see cref="Reminder.IsPhaseEnd"/>).
     /// </summary>
     Skipped,
 
@@ -39,7 +40,10 @@ public sealed class ReminderOptions
     /// <summary>Mitigation/shields stay Due until this many seconds before the hit.</summary>
     public double MitigationLatestBeforeHit { get; set; } = 0.3;
 
-    /// <summary>Heals stay Due this many seconds after the press time.</summary>
+    /// <summary>
+    /// Heals (and anything planned after the hit) stay Due this many seconds after the press time. Phase-end
+    /// reminders made due by a phase transition stay Due max(this, 8 s) after it.
+    /// </summary>
     public double HealLateWindow { get; set; } = 5;
 
     /// <summary>Done/Missed/Skipped reminders stay listed this long before disappearing.</summary>
@@ -62,6 +66,7 @@ public interface ICooldownProvider
 public sealed class Reminder
 {
     private IReadOnlyList<uint>? actionIds;
+    private double latest;
 
     public required PlanEntry Entry { get; init; }
 
@@ -82,7 +87,31 @@ public sealed class Reminder
     public required double Earliest { get; init; }
 
     /// <summary>Last useful moment; after it the reminder is missed.</summary>
-    public required double Latest { get; init; }
+    /// <remarks>
+    /// Fixed when the scheduler is built, except for phase-end reminders (<see cref="IsPhaseEnd"/>): the phase
+    /// transition that makes one due moves it to the transition plus a grace period (see
+    /// <see cref="PhaseEndDueAt"/>); <see cref="ReminderScheduler.Reset"/>, or a rewind to before the reminder's due
+    /// time, puts it back.
+    /// </remarks>
+    public required double Latest
+    {
+        get => this.latest;
+        init => this.latest = value;
+    }
+
+    /// <summary>
+    /// True for phase-end reminders (docs/DESIGN.md §5.2): the entry is flagged <see cref="PlanEntry.AtPhaseEnd"/>
+    /// or its anchor mechanic is the phase's enrage (<see cref="MechanicKind.Enrage"/>). A phase push does not skip
+    /// them: they become due at the transition, see <see cref="ReminderScheduler.OnTimelineJump"/>.
+    /// </summary>
+    public bool IsPhaseEnd => this.Entry.AtPhaseEnd || this.Mechanic.Kind == MechanicKind.Enrage;
+
+    /// <summary>
+    /// For a phase-end reminder that the phase transition made due: the timeline time the transition jumped to
+    /// (<see cref="Latest"/> was moved to it plus the grace period). Null otherwise, and again after
+    /// <see cref="ReminderScheduler.Reset"/> or a rewind to before the reminder's due time.
+    /// </summary>
+    public double? PhaseEndDueAt { get; internal set; }
 
     public ReminderState State { get; set; } = ReminderState.Pending;
 
@@ -112,6 +141,9 @@ public sealed class Reminder
     public bool IsAction => this.ActionIds.Count > 0;
 
     public double SecondsUntilPress(double timelineTime) => this.PressAt - timelineTime;
+
+    /// <summary>Moves <see cref="Latest"/> (the scheduler's phase-end rule).</summary>
+    internal void SetLatest(double value) => this.latest = value;
 }
 
 public sealed record PullSummary(int Total, int Done, int Missed, int Skipped, IReadOnlyList<Reminder> MissedReminders);
