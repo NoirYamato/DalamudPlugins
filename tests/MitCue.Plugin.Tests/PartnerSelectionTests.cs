@@ -184,13 +184,61 @@ public class PartnerSelectionTests
             new Assignee { Key = "OT", Slot = "OT" },
             new Assignee { Key = "CM LB Tank" });
 
+        // Review round 5: the Cosmo Memory role column ("LB tank") is no longer the co-tank's: which role they play is not
+        // known, as it is not for the player, whose own selection leaves those columns out.
         var war = new PlayerContext(Job.WAR, 90, "MT", warDrk + " WAR");
-        Assert.Equal(["DRK in WAR/DRK", "GNB in WAR/GNB", "OT call", "LB tank"], Names(PartnerSelection.For(plan, war)));
-        Assert.Equal(["DRK in WAR/DRK", "OT call", "LB tank"], Names(PartnerSelection.For(plan, war, [Job.WAR, Job.DRK, Job.WHM, Job.SCH])));
+        Assert.Equal(["DRK in WAR/DRK", "GNB in WAR/GNB", "OT call"], Names(PartnerSelection.For(plan, war)));
+        Assert.Equal(["DRK in WAR/DRK", "OT call"], Names(PartnerSelection.For(plan, war, [Job.WAR, Job.DRK, Job.WHM, Job.SCH])));
 
         // A Gunbreaker with a Dark Knight co-tank: the DRK/GNB pair.
         var gnb = new PlayerContext(Job.GNB, 90, "MT", drkGnb + " GNB");
-        Assert.Equal(["WAR in WAR/GNB", "DRK in DRK/GNB", "OT call", "LB tank"], Names(PartnerSelection.For(plan, gnb)));
+        Assert.Equal(["WAR in WAR/GNB", "DRK in DRK/GNB", "OT call"], Names(PartnerSelection.For(plan, gnb)));
+    }
+
+    [Fact]
+    public void TheCoTanksRoleWithoutASeatIsShownOnlyOppositeThePlayersOwn()
+    {
+        // Review round 5: LPDU's Cosmo Memory columns "CM LB Tank" and "CM Rep Tank" have each tank job's calls and no slot.
+        // The co-tank rows held both (Dark Missionary twice at Wave Cannon 1 and Cosmo Meteor). The co-tank plays one role:
+        // the other one than the player's when the player follows one of them in /mitcue > Plans, else unknown.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p6.raid", -5, Kit.Reprisal, "DRK pair", job: Job.DRK, assignee: "WAR/DRK DRK"),
+                Kit.Entry("p6.raid", -5, Kit.Reprisal, "DRK LB", job: Job.DRK, assignee: "CM LB Tank"),
+                Kit.Entry("p6.raid", -5, Kit.Reprisal, "DRK Rep", job: Job.DRK, assignee: "CM Rep Tank"),
+                Kit.Entry("p6.raid", -5, Kit.Reprisal, "WAR LB", job: Job.WAR, assignee: "CM LB Tank"),
+                Kit.Entry("p6.raid", -5, Kit.Reprisal, "DRK LB in OT", job: Job.DRK, slot: "OT", assignee: "CM LB Tank"),
+            ],
+            new Assignee { Key = "WAR/DRK WAR", Job = Job.WAR },
+            new Assignee { Key = "WAR/DRK DRK", Job = Job.DRK },
+            new Assignee { Key = "CM LB Tank" },
+            new Assignee { Key = "CM Rep Tank" });
+        Job[] party = [Job.WAR, Job.DRK, Job.WHM, Job.SCH];
+
+        Assert.Equal(["DRK pair", "DRK LB in OT"], Names(PartnerSelection.For(plan, new PlayerContext(Job.WAR, 90, "MT", "WAR/DRK WAR"), party)));
+        Assert.Equal(["DRK pair", "DRK Rep", "DRK LB in OT"], Names(PartnerSelection.For(plan, new PlayerContext(Job.WAR, 90, "MT", "CM LB Tank"), party)));
+    }
+
+    [Fact]
+    public void APartnerJobWithCallsInTwoSlotsIsNotInASlotThePartyGivesAnotherJob()
+    {
+        // Review round 5: LPDU has Red Mage calls in R1 and R2; next to a Bard (all of whose calls are in R1) the Red Mage is
+        // R2, but a Samurai's co-DPS rows held both seats' calls (Magick Barrier twice at Pantokrator).
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "BRD R1", job: Job.BRD, slot: "R1", assignee: "R1"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "RDM R1", job: Job.RDM, slot: "R1", assignee: "R1"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "RDM R2", job: Job.RDM, slot: "R2", assignee: "R2"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "PCT R1", job: Job.PCT, slot: "R1", assignee: "R1"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "PCT R2", job: Job.PCT, slot: "R2", assignee: "R2"),
+            ],
+            new Assignee { Key = "R1", Slot = "R1" },
+            new Assignee { Key = "R2", Slot = "R2" });
+        var sam = new PlayerContext(Job.SAM, 90, "M1");
+
+        Assert.Equal(["BRD R1", "RDM R2"], Names(PartnerSelection.For(plan, sam, [Job.SAM, Job.BRD, Job.RDM])));
+        Assert.Equal(["RDM R1", "RDM R2", "PCT R1", "PCT R2"], Names(PartnerSelection.For(plan, sam, [Job.SAM, Job.PCT, Job.RDM]))); // not settled
+        Assert.Equal(["BRD R1", "RDM R1", "RDM R2", "PCT R1", "PCT R2"], Names(PartnerSelection.For(plan, sam))); // party unknown
     }
 
     [Fact]

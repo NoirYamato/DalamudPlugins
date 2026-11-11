@@ -12,6 +12,7 @@ using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Import;
 using MitCue.Plans;
+using MitCue.Runtime;
 using MitCue.Util;
 
 namespace MitCue.UI;
@@ -94,7 +95,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
     private string? replaceId;
     private string saveMessage = string.Empty;
     private ColumnChoice? columnChoice;
-    private (ReviewModel? Model, int Revision, Job Job, string? ReplaceId, int StoreRevision, string? Slot) columnChoiceKey;
+    private (ReviewModel? Model, int Revision, Job Job, string? ReplaceId, int StoreRevision, string? Slot, ulong Party) columnChoiceKey;
 
     /// <summary>Creates the (closed) window.</summary>
     public ImportWindow(Plugin plugin)
@@ -1399,22 +1400,24 @@ internal sealed partial class ImportWindow : Window, IDisposable
     }
 
     /// <summary>
-    /// The column choice the plan gets for the player's job and the entries the overlay will then show (cached until the
-    /// review, the replaced plan, the job or the store changes).
+    /// The column choice the plan gets for the player's job and the entries the overlay will then show, for the party
+    /// the player is in, as the overlay chooses (cached until the review, the replaced plan, the job, the store, the
+    /// usual slot or the party changes).
     /// </summary>
     private ColumnChoice ColumnChoiceFor(ReviewModel model)
     {
         var job = this.plugin.Frame.Job;
         var store = this.plugin.Plans;
         var slot = this.plugin.Config.DefaultSlot;
-        var key = (model, model.Revision, job, this.replaceId, store.Revision, slot);
+        var party = this.plugin.Frame.PartyJobMask;
+        var key = (model, model.Revision, job, this.replaceId, store.Revision, slot, party);
         if (this.columnChoice != null && this.columnChoiceKey.Equals(key))
             return this.columnChoice;
 
         // The replaced plan's choice, its column named as this import names it: PlanStore.Save carries the saved choices over
         // the same way ("WARDRK WAR" of an import that kept the xlsx export's tab names is "WAR/DRK WAR" here).
         var kept = this.replaceId != null && store.Get(this.replaceId) is { } replaced ? PlanStore.CarryOver(model.Plan, store.SavedMapping(replaced.Plan, job)) : null;
-        this.columnChoice = ImportColumns.Choose(model.Plan, job, model.Fight.SyncLevel, slot, kept);
+        this.columnChoice = ImportColumns.Choose(model.Plan, job, model.Fight.SyncLevel, slot, kept, PartyJobs.Of(party));
         this.columnChoiceKey = key;
         return this.columnChoice;
     }

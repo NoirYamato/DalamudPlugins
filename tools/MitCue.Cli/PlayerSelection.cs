@@ -29,7 +29,7 @@ internal static class PlayerSelection
     public static readonly OptionSpec Assignee = new(
         "assignee",
         "key",
-        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (other columns' calls for your slot apply too), or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
+        "The plan column that is yours, e.g. \"White Mage\" or \"H2 SCH\" (a column's slot is your slot; other columns' calls for your slot apply too), or \"*\" for every column for your job and slot (default: the column the plugin chooses when none is saved).");
 
     public static readonly OptionSpec FightOption = new("fight", "key", "Fight key (default: the plan's fight).");
 
@@ -86,7 +86,15 @@ internal static class PlayerSelection
         PlayerContext me;
         if (assignee != null || anyColumn)
         {
-            me = new PlayerContext(job, fight.SyncLevel, slot, assignee);
+            // As /mitcue > Plans saves a picked column: with the column's slot, which the plugin takes before the usual slot
+            // ("H2 SCH" is the H2 seat, with the job-less calls of the "H2" column, whatever --slot says).
+            var columnSlot = assignee != null && plan.Assignees.FirstOrDefault(a => string.Equals(a.Key, assignee, StringComparison.OrdinalIgnoreCase)) is { } column
+                             && Slots.TryNormalize(column.Slot, out var cs)
+                ? cs
+                : null;
+            if (columnSlot != null && slot != null && columnSlot != slot)
+                ctx.Err.WriteLine($"note: column \"{assignee}\" is in slot {columnSlot}, so --slot {slot} is not used (the plugin takes a column's slot too).");
+            me = ColumnSuggestion.Context(new ColumnPick(assignee, columnSlot), job, slot, fight.SyncLevel);
         }
         else
         {
@@ -115,12 +123,12 @@ internal static class PlayerSelection
         return new Player(fight, plan, me, entries);
     }
 
-    /// <summary>"column "WAR/DRK WAR"", "any column for SCH in slot H2 (the slot of your job's column)".</summary>
+    /// <summary>"column "WAR/DRK WAR"", "any column for SCH in slot H2 (the slot the plan gives SCH; --slot sets yours)".</summary>
     private static string Describe(ColumnPick pick, Job job, string? slot)
     {
         var what = pick.AssigneeKey != null
             ? $"column \"{pick.AssigneeKey}\""
             : pick.Slot != null ? $"any column for {job} in slot {pick.Slot}" : $"any column for {job}";
-        return slot == null && pick.Slot != null && pick.AssigneeKey == null ? what + " (the slot of your job's column)" : what;
+        return slot == null && pick.Slot != null && pick.AssigneeKey == null ? what + $" (the slot the plan gives {job}; --slot sets yours)" : what;
     }
 }

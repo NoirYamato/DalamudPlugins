@@ -89,6 +89,42 @@ public class PlanCommandTests : IDisposable
             Assert.Contains("note: entries of 6 columns apply", r.Err, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(new[] { "--job", "SCH", "--assignee", "H2 SCH" }, "as SCH, slot H2, column \"H2 SCH\": 31 of 475 entries", null)]
+    [InlineData(new[] { "--job", "SCH", "--assignee", "H2 SCH", "--slot", "H1" }, "as SCH, slot H2, column \"H2 SCH\": 31 of 475 entries", "column \"H2 SCH\" is in slot H2, so --slot H1 is not used")]
+    [InlineData(new[] { "--job", "RDM", "--assignee", "R2" }, "as RDM, slot R2, column \"R2\": 13 of 475 entries", null)]
+    public void Plan_AColumnIsReadWithItsSlotAsThePluginSavesIt(string[] options, string header, string? note)
+    {
+        // Review round 5: /mitcue > Plans saves a picked column with its slot and the overlay uses it, but --assignee read
+        // the column with --slot only: "H2 SCH" gave 27 entries (without the job-less "H2" calls), and 2 with --slot H1
+        // (the H1 seat's notes).
+        var r = this.kit.Run(["plan", Path.Combine(CliKit.RepoRoot, "plans", "top-lpdu.yaml"), .. options]);
+
+        Assert.True(r.ExitCode == 0, r.ToString());
+        Assert.Contains(header, r.OutLines[0], StringComparison.Ordinal);
+        if (note != null)
+            Assert.Contains($"note: {note}", r.Err, StringComparison.Ordinal);
+        else
+            Assert.DoesNotContain("is not used", r.Err, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("RDM", null, "as RDM, slot R1: 9 of 475 entries")]
+    [InlineData("RDM", "R2", "as RDM, slot R2, column \"R2\": 13 of 475 entries")]
+    [InlineData("BLM", null, "as BLM, slot R2: 7 of 475 entries")]
+    public void Plan_AJobWithoutAColumnGetsTheSeatOfItsCalls(string job, string? slot, string header)
+    {
+        // Review round 5: LPDU has no column for the ranged jobs, only "R1" and "R2" with calls per job; without --slot a
+        // Red Mage got both seats' calls (22 entries, Magick Barrier twice at four mechanics), as the plugin did.
+        string[] options = slot == null ? ["--job", job] : ["--job", job, "--slot", slot];
+        var r = this.kit.Run(["plan", Path.Combine(CliKit.RepoRoot, "plans", "top-lpdu.yaml"), .. options]);
+
+        Assert.True(r.ExitCode == 0, r.ToString());
+        Assert.Contains(header, r.OutLines[0], StringComparison.Ordinal);
+        if (slot == null && job == "RDM") // the Black Mage's calls are all in R2: the same calls as without a slot, so no note
+            Assert.Contains("note: any column for RDM in slot R1 (the slot the plan gives RDM; --slot sets yours)", r.Err, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Plan_ReadsSlotSynonymsAsThePluginDoes()
     {

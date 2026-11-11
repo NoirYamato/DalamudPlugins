@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="MitCue.Cli.Tests" />
+    <InternalsVisibleTo Include="MitCue.Plugin.Tests" />
   </ItemGroup>
 
 </Project>

@@ -171,7 +171,9 @@ public static class PlanSelection
     /// column "WAR/DRK WAR", like the "MT" column's Warrior calls; a Warrior in slot M1 does not get the "M1" column's
     /// melee calls. The plan readers give a job-less entry of a column with a job that job
     /// (<see cref="PlanNormalizer.JobsFromColumns"/>), so the "H1 AST" column's calls are never the White Mage's, and a
-    /// usual party slot of another role is not the player's slot (<see cref="Slots.ForJob"/>).
+    /// usual party slot of another role is not the player's slot (<see cref="Slots.ForJob"/>). The player's job's column
+    /// for the same team composition in another tab ("WHM/SCH P3 WHM" next to "WHM/SCH P1 WHM",
+    /// <see cref="ColumnSuggestion.SameComposition"/>) is the player's column too.
     /// </summary>
     public static bool Applies(PlanEntry e, PlayerContext me)
     {
@@ -183,9 +185,11 @@ public static class PlanSelection
             return false;
         if (me.AssigneeKey != null && e.Who.Assignee != null && !string.Equals(e.Who.Assignee, me.AssigneeKey, StringComparison.OrdinalIgnoreCase))
         {
-            // Another column: the player's only when it names their slot (its job, if any, is theirs: checked above).
-            return e.Who.Slot != null && string.Equals(e.Who.Slot, me.Slot, StringComparison.OrdinalIgnoreCase)
-                   && (e.Who.Job == me.Job || Slots.Fits(e.Who.Slot, me.Job));
+            // Another column: the player's only when it names their slot (its job, if any, is theirs: checked above), or
+            // when it is their job's column for the same team composition (one composition split over per-phase tabs).
+            if (e.Who.Slot != null && string.Equals(e.Who.Slot, me.Slot, StringComparison.OrdinalIgnoreCase))
+                return e.Who.Job == me.Job || Slots.Fits(e.Who.Slot, me.Job);
+            return e.Who.Job is { } job && job == me.Job && ColumnSuggestion.SameComposition(e.Who.Assignee, me.AssigneeKey);
         }
         return true;
     }

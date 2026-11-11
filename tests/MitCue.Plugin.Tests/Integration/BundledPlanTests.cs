@@ -318,11 +318,12 @@ public class BundledPlanTests
 
         var others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
         Assert.All(others, e => Assert.True(e.Who.Job == null || e.Who.Job == coTank, $"{e.Id} {e.Who.Assignee} {e.Who.Job}"));
-        Assert.Equal(job == Job.WAR ? 41 : 49, others.Count); // 57 and 65 before the fix
+        Assert.Equal(job == Job.WAR ? 27 : 35, others.Count); // 57 and 65 before the fix, 41 and 49 with both Cosmo Memory roles (round 5)
         var columns = others.Select(e => e.Who.Assignee).Distinct().ToList();
         Assert.Contains(pairColumn, columns);
         Assert.DoesNotContain(columns, c => c != null && c.Contains('/', StringComparison.Ordinal) && c != pairColumn);
         Assert.Contains(slot == "MT" ? "OT" : "MT", columns); // the co-tank's slot column
+        Assert.DoesNotContain(columns, c => c != null && c.StartsWith("CM ", StringComparison.Ordinal)); // their Cosmo Memory role is not known
     }
 
     [Fact]

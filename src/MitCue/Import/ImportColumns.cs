@@ -36,19 +36,24 @@ internal static class ImportColumns
     /// <param name="level">The fight's level.</param>
     /// <param name="defaultSlot">The configured slot (<see cref="Configuration.DefaultSlot"/>).</param>
     /// <param name="kept">The column choice of the plan this import replaces, for this job, if any (it is kept).</param>
-    public static ColumnChoice Choose(MitPlan plan, Job job, int level, string? defaultSlot, PlayerMapping? kept = null)
+    /// <param name="party">
+    /// The jobs in the player's party, when known: as for the overlay, the job's column is then the one for the team
+    /// composition the party plays (<see cref="ColumnSuggestion.JobColumn"/>).
+    /// </param>
+    public static ColumnChoice Choose(MitPlan plan, Job job, int level, string? defaultSlot, PlayerMapping? kept = null, IReadOnlyCollection<Job>? party = null)
     {
-        var column = PlanStore.ColumnMapping(plan, job, defaultSlot);
+        var column = PlanStore.ColumnMapping(plan, job, defaultSlot, party);
         if (job == Job.None)
             return new ColumnChoice(kept ?? column, false, kept != null, 0, 0, [], []);
 
         // The player's calls: those of their column (the kept one when it is one of theirs, else the job's), of the
         // job-less columns of their slot and of the job's other columns that are not a team composition; the job's columns
-        // for other team compositions are alternatives (another tank pair), not their calls.
+        // for other team compositions are alternatives (another tank pair), not their calls. The slot is the one the
+        // overlay uses: the job's column's ("H2 SCH": H2, also for a Scholar whose usual slot is H1), else the usual one.
         var columns = ColumnSuggestion.PlayerColumns(plan.Assignees, job, defaultSlot);
         var basis = kept?.AssigneeKey is { } keptKey && columns.Exists(a => string.Equals(a.Key, keptKey, StringComparison.OrdinalIgnoreCase)) ? keptKey : column.AssigneeKey;
         var keys = ColumnSuggestion.IntendedColumns(plan, columns, basis);
-        var slot = ColumnSuggestion.PlayerSlot(columns, job, defaultSlot, out _);
+        var slot = column.Slot ?? ColumnSuggestion.PlayerSlot(columns, job, defaultSlot, out _);
         var intended = ColumnSuggestion.Intended(plan, keys, job, slot, level);
 
         if (kept != null)
