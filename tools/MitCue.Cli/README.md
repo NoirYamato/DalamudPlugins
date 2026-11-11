@@ -44,6 +44,10 @@ Notes:
   time except the `--miss` ones. The `Sync:` line says how many boss events the timeline was in sync with; DMU's P2 and
   P4 starts, for example, are only seen through ActorControl lines, so pushes there are not followed without
   `--all-events`, as in game.
+- `import` of a Google Sheets link downloads the whole workbook (`export?format=xlsx`; pick tabs with `--tabs`) and
+  restores the tab names the xlsx export changes ("P1/P2" becomes "P1P2") from the sheet's htmlview page, so plan
+  provenance and the importer's column names (LPDU's "WAR/DRK" pairs) match the sheet. `--tabs` matches names ignoring
+  case and punctuation either way.
 - `check` compares planned uses on the timeline's nominal times. Within a phase these are exact, so a conflict is an
   error; across a phase transition the real gap depends on when the earlier phase ends, so it is a warning. Gauge and
   follow-up findings are marked `(h)`: they rest on stated assumptions (e.g. Lilies full at the pull, +1 every 20 s).

@@ -91,6 +91,65 @@ public class ImportCommandTests : IDisposable
         Assert.Contains("download failed: Name or service not known", r.Err);
     }
 
+    [Fact]
+    public void HtmlView_ListsTheOriginalTabNames()
+    {
+        const string html = """
+            <script>var items = [];items.push({name: "ALOO", pageUrl: "https:\/\/docs.google.com\/x", gid: "0"});
+            items.push({name: "P1\/P2", pageUrl: "", gid: "871196336"});items.push({name: "Say \"hi\" é\\", gid: "5"});</script>
+            """;
+        Assert.Equal(["ALOO", "P1/P2", "Say \"hi\" é\\"], SheetSource.TabNamesFromHtmlView(html));
+        Assert.Empty(SheetSource.TabNamesFromHtmlView("<html>Sign in</html>"));
+    }
+
+    [Fact]
+    public void Download_RestoresTheTabNamesTheXlsxExportChanged()
+    {
+        // LPDU's "P1/P2" and "WAR/DRK" are "P1P2" and "WARDRK" in the xlsx export.
+        var lpdu = File.ReadAllBytes(Path.Combine(CliKit.Fixtures, "lpdu", "export", "lpdu.xlsx"));
+        string[] names = ["ALOO", "P1/P2", "P3", "P4", "P5", "P6", "General Tank Mit til P5", "WAR/DRK", "WAR/GNB", "WAR/PLD", "DRK/GNB", "DRK/PLD", "GNB/PLD"];
+        var page = string.Concat(names.Select(n => "items.push({name: \"" + n.Replace("/", "\\/", StringComparison.Ordinal) + "\", gid: \"1\"});"));
+        this.kit.Http = request => request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal)
+            ? Responses.Status(HttpStatusCode.OK, "text/html", page)
+            : Responses.Xlsx(lpdu, "LPDU TOP Mitigation Sheet.xlsx");
+
+        var loaded = this.Load($"https://docs.google.com/spreadsheets/d/{CtcId}/edit");
+        Assert.Equal(names, loaded.Document.Tabs.Select(t => t.Name));
+        Assert.Equal("LPDU TOP Mitigation Sheet", loaded.Document.Title);
+        Assert.Equal(lpdu, loaded.Bytes);
+        Assert.Equal(
+            [new Uri($"https://docs.google.com/spreadsheets/d/{CtcId}/export?format=xlsx"), new Uri($"https://docs.google.com/spreadsheets/d/{CtcId}/htmlview")],
+            this.kit.Requests);
+
+        // Without the page the exported names stay.
+        this.kit.Http = request => request.RequestUri!.AbsolutePath.EndsWith("/htmlview", StringComparison.Ordinal)
+            ? Responses.Status(HttpStatusCode.NotFound)
+            : Responses.Xlsx(lpdu, "LPDU TOP Mitigation Sheet.xlsx");
+        Assert.Contains("P1P2", this.Load($"https://docs.google.com/spreadsheets/d/{CtcId}").Document.Tabs.Select(t => t.Name));
+    }
+
+    private LoadedSheet Load(string source)
+    {
+        var environment = new CliEnvironment
+        {
+            CurrentDirectory = this.kit.WorkDir,
+            ProgramDirectory = AppContext.BaseDirectory,
+            Input = () => new StringReader(string.Empty),
+            HttpHandler = () => new DelegatingFake(this.kit),
+        };
+        return SheetSource.Load(new CliContext(TextWriter.Null, TextWriter.Null, environment), source);
+    }
+
+    /// <summary>Routes requests to <see cref="CliKit.Http"/> and records them.</summary>
+    private sealed class DelegatingFake(CliKit kit) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            kit.Requests.Add(request.RequestUri!);
+            return Task.FromResult(kit.Http!(request));
+        }
+    }
+
     // ---- sources and tabs -------------------------------------------------------------------------------------
 
     [Fact]

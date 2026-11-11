@@ -17,6 +17,9 @@ internal sealed partial record GoogleSheetLink(string Id, long? Gid, bool Publis
 {
     public const string XlsxMediaType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
+    /// <summary>The page that lists the original tab names (not for published links).</summary>
+    public string? HtmlViewUrl => this.Published ? null : $"https://docs.google.com/spreadsheets/d/{this.Id}/htmlview";
+
     /// <summary>The whole workbook as xlsx (docs/research/sheets-import.md §1).</summary>
     public string ExportUrl => this.Published
         ? $"https://docs.google.com/spreadsheets/d/e/{this.Id}/pub?output=xlsx"
@@ -61,7 +64,7 @@ internal sealed partial record GoogleSheetLink(string Id, long? Gid, bool Publis
 }
 
 /// <summary>Turns the <c>import</c> source argument into a <see cref="SheetDocument"/>.</summary>
-internal static class SheetSource
+internal static partial class SheetSource
 {
     /// <summary>Largest workbook the CLI downloads (the example sheets are under 0.5 MB).</summary>
     private const long MaxDownloadBytes = 50L * 1024 * 1024;
@@ -173,10 +176,81 @@ internal static class SheetSource
                 throw new FailureException($"the workbook is larger than {MaxDownloadBytes / (1024 * 1024)} MB.");
             var bytes = ReadBounded(response.Content);
             var title = TitleFrom(response.Content.Headers.ContentDisposition) ?? "Google Sheet " + link.Id;
+            var names = OriginalTabNames(ctx, client, link);
             using var stream = new MemoryStream(bytes, writable: false);
-            return new LoadedSheet(SheetReaders.FromXlsx(stream, title), "google-sheet link", original, bytes);
+            var document = SheetReaders.FromXlsx(stream, title, new XlsxReadOptions { TabNames = names });
+            return new LoadedSheet(document, "google-sheet link", original, bytes);
         }
     }
+
+    /// <summary>
+    /// The tab names as Google shows them, from the spreadsheet's htmlview page (one <c>items.push({name: "P1\/P2", ...})</c>
+    /// per tab, in tab order; docs/research/sheets-import.md §1.2). The xlsx export renames the tabs Excel does not allow
+    /// ("P1/P2" becomes "P1P2"), and the names are the plan's provenance and the importer's column names. Best effort:
+    /// null when the page cannot be read, and the xlsx names are kept.
+    /// </summary>
+    private static List<string>? OriginalTabNames(CliContext ctx, HttpClient client, GoogleSheetLink link)
+    {
+        if (link.HtmlViewUrl is not { } url)
+            return null;
+        try
+        {
+            using var response = client.GetAsync(url).GetAwaiter().GetResult();
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentType?.MediaType != "text/html")
+                return null;
+            var names = TabNamesFromHtmlView(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+            return names.Count > 0 ? names : null;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or IOException)
+        {
+            ctx.Err.WriteLine($"note: the original tab names could not be read ({ex.Message}); keeping the xlsx names.");
+            return null;
+        }
+    }
+
+    /// <summary>The tab names a spreadsheet's htmlview page lists, in order, with JavaScript string escapes decoded.</summary>
+    public static List<string> TabNamesFromHtmlView(string html) =>
+        HtmlViewTabName().Matches(html).Select(m => UnescapeJs(m.Groups["name"].Value)).ToList();
+
+    /// <summary>Decodes the escapes of a JavaScript string literal (\/ \" \\ \n \uXXXX \xHH ...).</summary>
+    private static string UnescapeJs(string s)
+    {
+        if (!s.Contains('\\'))
+            return s;
+        var sb = new System.Text.StringBuilder(s.Length);
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c != '\\' || i + 1 >= s.Length)
+            {
+                sb.Append(c);
+                continue;
+            }
+
+            var e = s[++i];
+            if ((e is 'u' or 'x') && TryHex(s, i + 1, e == 'u' ? 4 : 2, out var code))
+            {
+                sb.Append((char)code);
+                i += e == 'u' ? 4 : 2;
+                continue;
+            }
+
+            sb.Append(e switch { 'n' => '\n', 't' => '\t', 'r' => '\r', 'b' => '\b', 'f' => '\f', _ => e });
+        }
+
+        return sb.ToString();
+    }
+
+    private static bool TryHex(string s, int start, int length, out int value)
+    {
+        value = 0;
+        return start + length <= s.Length
+               && int.TryParse(s.AsSpan(start, length), System.Globalization.NumberStyles.AllowHexSpecifier, System.Globalization.CultureInfo.InvariantCulture, out value);
+    }
+
+    // The name runs to the first unescaped quote.
+    [GeneratedRegex("""items\.push\(\{name: "(?<name>(?:[^"\\]|\\.)*)""")]
+    private static partial Regex HtmlViewTabName();
 
     /// <summary>The body, at most <see cref="MaxDownloadBytes"/> (also when the server sends no length).</summary>
     private static byte[] ReadBounded(HttpContent content)
