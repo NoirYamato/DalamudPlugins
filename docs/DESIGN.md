@@ -402,9 +402,10 @@ previews, which have no cooldown provider.
    each entry with the importer's diagnostics and the plugin's checks; the user can change
    the mechanic, hit, offset, flags, target, note and items, and delete entries; replacing
    a note with an action offers to save the shorthand as a personal alias; the plan is
-   saved as a user plan, made the active plan only when the player ticks it, with the
-   column choice that has all of the player's calls when one has them without another
-   column's (otherwise the Save step names the columns of the calls left out).
+   saved as a user plan, made the active plan when *Make it my active plan …* is ticked
+   (it is by default when entries apply to the player), with the column choice that has
+   all of the player's calls when one has them without another column's (otherwise the
+   Save step names the columns of the calls left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
@@ -434,16 +435,21 @@ files and links; the plugin's import window adds downloading, the review and the
 - **Plans tab:** list/import/export/share code, active plan per fight and job, "which
   column is me". **As built:** without a choice, the active plan for a fight and job is the
   bundled plan meant for the job (TOP: WHM → *Carry the Clear – WHM*, SCH → *LPDU TOP
-  Mitigation*), else the first bundled plan by name with calls for the job, else the
-  player's own plan with calls for it (TEA and DMU ship no plans). An imported plan or a
-  share code replaces a bundled plan only when the player chooses it: in the table, or
-  with the "make it my active plan" checkboxes of the import window and the share-code
-  box. "My column" without a choice is the job's column, or, when that leaves out the
-  job-less calls of the player's slot, the narrowest choice that has them too and no call
-  of another column (`ColumnSuggestion`: LPDU's H2 Scholar gets every column for SCH in
-  slot H2, including the job-less "H2" column of P1/P2). Several columns of one job are
-  alternatives, never combined: a Warrior on LPDU gets the first tank pair's "WAR/DRK
-  WAR". Plans are exported as share codes, not as files.
+  Mitigation*), else the first bundled plan by name that names the job in a column or
+  entry, else the player's first own plan by name that names it (TEA and DMU ship no
+  plans). A plan whose calls for the player's seat are only in job-less slot columns
+  (LPDU's M1/M2 for melee jobs) is not chosen automatically: the player chooses it in the
+  table. An imported plan or a share code replaces a bundled plan only when the player
+  chooses it: in the table, or by leaving the "make it my active plan" checkbox of the
+  import window or the share-code box ticked (both start ticked, the import window's when
+  entries apply to the player). The exception is the share code of a bundled plan: it has
+  that plan's id and takes its place until it is deleted. "My column" without a choice is
+  the job's column, or, when that leaves out the job-less calls of the player's slot, the
+  narrowest choice that has them too and no call of another column (`ColumnSuggestion`:
+  LPDU's H2 Scholar gets every column for SCH in slot H2, including the job-less "H2"
+  column of P1/P2). Several columns of one job are alternatives, never combined: a
+  Warrior on LPDU gets the first tank pair's "WAR/DRK WAR". Plans are exported as share
+  codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a

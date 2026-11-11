@@ -296,11 +296,11 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    plan's column choices follow a renamed column (`PlanStore.CarryOver`). When the job's column leaves out
    the job-less calls of the player's slot, `ImportColumns` saves the suggestion that has them too
    (`PlanStore.SetMapping`). When a column choice leaves out some of the player's calls (the replaced plan's,
-   or a tank's pair column on LPDU: no choice has the job-less "MT" calls without the other pairs'), the
-   step warns and names the columns of the calls left out. With **Make it my active plan …** ticked,
-   `PlanStore.SetActive` makes it the active plan. Chat says *Saved plan "…" (N entries, active for TOP as
-   WHM)*, or *…; your active plan for TOP as WHM stays "…", choose this one in /mitcue > Plans to use it)*,
-   and the window closes.
+   or a tank's pair column on LPDU: no choice has the pair column's calls and the job-less "MT" calls without
+   the other pairs'), the step warns and names the columns of the calls left out. With **Make it my active
+   plan …** ticked, `PlanStore.SetActive` makes it the active plan. Chat says *Saved plan "…" (N entries,
+   active for TOP as WHM)*, or *…; your active plan for TOP as WHM stays "…", choose this one in /mitcue >
+   Plans to use it)*, and the window closes.
 
 **Threading.** The slow steps (download, reading a workbook or a document, reading pasted cells, the trial
 import, the import, reading YAML) run through `BackgroundJobs`:
@@ -438,8 +438,8 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       does the same.
 - [ ] **Link**: paste the link of the LPDU sheet and click **Fetch**. The status line shows *Downloading the
       sheet... (N s)* with **Cancel**, then *Loaded Google Sheet "…" (N tabs).*, and **2. Options** opens.
-      The tab list shows `P1/P2` and `WAR/DRK`, not `P1P2` and `WARDRK` (those mean Google's tab list took
-      more than 3 s after the sheet: note it).
+      The tab list shows `P1/P2` and `WAR/DRK`, not `P1P2` and `WARDRK` (those mean Google's tab list did not
+      arrive within 3 s of the sheet, or could not be read: note it).
 - [ ] A link to a sheet that is not shared publicly gives a message about sharing (*Anyone with the link*).
 - [ ] **Options**: after *Looking at the tabs...*, your tabs and columns are ticked, and your columns are
       marked *(you: <JOB>)*. **Import and review**: the review lists the entries, with counts of entries with
@@ -472,10 +472,11 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       the table above for the job it is for.* Tick the box again.
 - [ ] **Problems** stays empty, apart from plan-check warnings you caused on purpose.
 - [ ] Clean up before §2.5: **Delete** every plan you saved in this section (**Delete**, then **Click again
-      to delete**). The TOP row for your job must then read *(automatic) Carry the Clear – WHM* (White Mage)
-      or *(automatic) LPDU TOP Mitigation* (Scholar); if it doesn't, choose *(automatic: the bundled plan for
-      this job, else my own plan for it)*. Deleting a plan you made active sets the row back to automatic,
-      except for the share code of a bundled plan: that bundled plan then stays chosen, without *(automatic)*.
+      to delete**). Since the share-code step, the TOP row for your job reads *Carry the Clear – WHM* (White
+      Mage) or *LPDU TOP Mitigation* (Scholar) without *(automatic)*: deleting the share-code copy of a
+      bundled plan leaves that bundled plan chosen (deleting any other plan you made active sets the row back
+      to automatic). Choose *(automatic: the bundled plan for this job, else my own plan for it)*: the row
+      must then read *(automatic) Carry the Clear – WHM* or *(automatic) LPDU TOP Mitigation*.
 
 ### 2.4 A simple fight (10 minutes: a dungeon boss or a trial)
 
@@ -542,8 +543,9 @@ During pulls:
 - [ ] If you die, the reminders keep running until the wipe.
 - [ ] After a wipe: chat shows `TOP pull ended (wipe): N done, M missed. Missed: …`, the overlay goes back to
       *waiting for pull*, and the next pull starts cleanly.
-- [ ] Switch plan or column between pulls: the Status line updates. Switching during a countdown or a pull
-      only takes effect after the pull. Switch back to the automatic plan and the suggested column afterwards.
+- [ ] Switch plan or column between pulls: the Status line updates. Switching during a pull, or during a
+      countdown that runs into the pull, only takes effect after the pull. Switch back to the automatic plan
+      and the suggested column afterwards.
 - [ ] `/mitcue reset` during a pull clears the reminders without a summary. Note whether MitCue picks the
       fight up again before the pull ends. The next pull must work normally.
 - [ ] Optional: `/xlstats` opens Dalamud's plugin statistics. It lists no plugins until you switch tracking

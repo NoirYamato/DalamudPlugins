@@ -162,7 +162,8 @@ with no enemy activity. The chat summary then reads, for example:
 
 Changes apply immediately and are saved automatically. The exception is changes that need a new reminder
 session, such as switching plan or column: those wait until the current pull is over, and a change made
-during a countdown waits for the pull after it.
+during a countdown waits through the pull that follows (it applies at once if you cancel the countdown, or
+20 s after "0" if no pull starts).
 
 **General**
 
@@ -237,9 +238,10 @@ job (in green).
 
 - **Active plan:** the plan you choose. On *(automatic: the bundled plan for this job, else my own plan for
   it)*, MitCue takes the bundled plan meant for the job (TOP: White Mage → *Carry the Clear – WHM*, Scholar →
-  *LPDU TOP Mitigation*), else the first bundled plan by name with calls for the job, else the first of your
-  own plans by name with calls for it. *(no plan: no reminders for this job)* switches MitCue off for that
-  job.
+  *LPDU TOP Mitigation*), else the first bundled plan by name that names the job in a column or entry, else
+  the first of your own plans by name that names it. A plan whose calls for your seat are only in slot
+  columns without a job (LPDU's M1 and M2 for melee jobs) is not chosen automatically: choose it here.
+  *(no plan: no reminders for this job)* switches MitCue off for that job.
 
   A plan you import or receive as a share code replaces the bundled one only when you choose it: here, with
   **Make it my active plan for … as …** in the import window, or with **Make an imported share code my active
@@ -316,9 +318,10 @@ it, and closing the window cancels it too.
 - **Checks.** Share codes and plan files skip the review, so MitCue checks them with the review's rules when
   they load and reports only calls that can never work: a mechanic the fight doesn't have (the call is never
   shown), an unknown action (never tracked), and an action the entry's job or slot can't use, or not at the
-  fight's level. The problems are listed under **Problems**, each with what it does to the call, for example
-  *Entry 'e1': Expedient is learned at level 90, above this fight's level 80, so the call can never be
-  done.* The share-code message names the first one and ends *See Problems in /mitcue.*
+  fight's level. Up to five problems per plan are listed under **Problems** (then *and N more*), each with
+  what it does to the call, for example *Entry 'e1': Expedient is learned at level 90, above this fight's
+  level 80, so the call can never be done.* The share-code message names the first one and ends *See
+  Problems in /mitcue.*
 - **Delete.** User plans have a **Delete** button: click it, then **Click again to delete**.
 
 ## Troubleshooting
@@ -347,9 +350,11 @@ Read the **Status** line at the top of `/mitcue`:
 The Status line names the plan in use: `Ready: <plan> (N of M entries are yours).` Without a choice under
 **Active plan** (Plans tab), MitCue uses the bundled plan for your job. A plan you imported or received
 as a share code is used when you made it your active plan (in the import window, with the share-code
-checkbox, or under **Active plan**), or when no bundled plan has calls for your job (see [Which plan and
-column MitCue uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**;
-*(automatic: …)* goes back to the bundled plan for your job.
+checkbox, or under **Active plan**), when no bundled plan names your job, or when it is the share code of
+the bundled plan for your job: it takes that plan's place until you delete it (see [Which plan and column
+MitCue uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**; *(automatic: …)*
+goes back to the bundled plan for your job. If you imported a share code of that plan, delete the copy to
+get the bundled one back.
 
 **Reminders come too early or too late, or the clock jumps**
 
