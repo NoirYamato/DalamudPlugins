@@ -1,0 +1,687 @@
+format: mitcue-plan/1
+id: 5b622e32-04ae-53de-a4f8-f66e4c0aae0c
+name: Carry the Clear - SCH
+fight: top
+source: {kind: google-sheet, url: 'https://docs.google.com/spreadsheets/d/1chKttd7POMf-aRLMAzQjNHDIgVzOKmLk9igSt-o2X6s/edit#gid=777200', tabs: [TOP – Scholar], imported: 2026-11-11}
+assignees:
+  - {key: Scholar, job: SCH}
+entries:
+  - id: e001
+    mechanic: p1.program_loop
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    detail: 'Dissipation at the pull (52/58), so the fairy is back at 0:31. Excog goes on a #3 or #4 player once the debuffs are out (a squishy, never a tank).'
+    severity: 1
+    src: "'TOP – Scholar'!C17"
+  - id: e002
+    mechanic: p1.program_loop
+    hit_index: 1
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: 'Dissipation at the pull (52/58), so the fairy is back at 0:31. Excog goes on a #3 or #4 player once the debuffs are out (a squishy, never a tank).'
+    severity: 1
+    src: "'TOP – Scholar'!C17"
+  - id: e003
+    mechanic: p1.pantokrator
+    offset: -14
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: "Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4."
+    severity: 3
+    src: "'TOP – Scholar'!C18"
+  - id: e004
+    mechanic: p1.pantokrator
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: "Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4."
+    severity: 3
+    src: "'TOP – Scholar'!C18"
+  - id: e005
+    mechanic: p1.pantokrator
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: "Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4."
+    severity: 3
+    src: "'TOP – Scholar'!C18"
+  - id: e006
+    mechanic: p1.pantokrator
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: "Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4."
+    severity: 3
+    src: "'TOP – Scholar'!C18"
+  - id: e007
+    mechanic: p1.pantokrator
+    hit_index: 1
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: "Recit 0:57 and Protraction 1:00 on the Adlo target (Protraction makes the shield bigger), Adlo right before Deploy: the shields last until ~1:35. Consolation ×2 around 1:30. Lines up with your White Mage's Temperance (1:18). Your shields take the 1st stack, so their Bell goes down right after it (~1:22) and covers stacks 2–4."
+    severity: 3
+    src: "'TOP – Scholar'!C18"
+  - id: e008
+    mechanic: p1.wave_cannon_kyrios
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Heals the tank cleaves.
+    severity: 2
+    src: "'TOP – Scholar'!C19"
+  - id: e009
+    mechanic: p2.solar_ray
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+    target: tank
+    detail: Soil under the tanks, Protraction on one of them.
+    severity: 2
+    src: "'TOP – Scholar'!C22"
+  - id: e010
+    mechanic: p2.solar_ray
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Soil under the tanks, Protraction on one of them.
+    severity: 2
+    src: "'TOP – Scholar'!C22"
+  - id: e011
+    mechanic: p2.party_synergy_spreads
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Regen for the spreads and the Spotlight stacks.
+    src: "'TOP – Scholar'!C23"
+  - id: e012
+    mechanic: p2.party_synergy_stacks
+    offset: 4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'Soil after the stacks, for its regen. Top SCHs Dissipate around 0:57 (44/58): no fairy until 1:27, so fairy actions go before or after.'
+    severity: 1
+    src: "'TOP – Scholar'!C24"
+  - id: e013
+    mechanic: p2.bladedance
+    offset: -11
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: Recit 1:15 + Protraction 1:17; cast Adlo once the Limitless Synergy cast ends (~1:21) so the shields last until ~1:52, through the flares. Consolation at 1:37 and 1:50.
+    severity: 1
+    src: "'TOP – Scholar'!C25"
+  - id: e014
+    mechanic: p2.bladedance
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: Recit 1:15 + Protraction 1:17; cast Adlo once the Limitless Synergy cast ends (~1:21) so the shields last until ~1:52, through the flares. Consolation at 1:37 and 1:50.
+    severity: 1
+    src: "'TOP – Scholar'!C25"
+  - id: e015
+    mechanic: p2.flares
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: Same window as your White Mage's Temperance (1:39). Expedient and Soil also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – Scholar'!C26"
+  - id: e016
+    mechanic: p2.flares
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: Same window as your White Mage's Temperance (1:39). Expedient and Soil also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – Scholar'!C26"
+  - id: e017
+    mechanic: p2.flares
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Same window as your White Mage's Temperance (1:39). Expedient and Soil also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – Scholar'!C26"
+  - id: e018
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 0.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Soil lasts through Hello, World (0:42).
+    severity: 2
+    src: "'TOP – Scholar'!C30"
+  - id: e019
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 1.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Soil lasts through Hello, World (0:42).
+    severity: 2
+    src: "'TOP – Scholar'!C30"
+  - id: e020
+    mechanic: p3.latent_1
+    offset: -16
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: 'Recit 0:41 + Protraction 0:43 → Deploy 0:49: the shields last until ~1:16.'
+    severity: 2
+    src: "'TOP – Scholar'!C32"
+  - id: e021
+    mechanic: p3.latent_2
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: ⏱ Back on time only if P2 lasted about 2:17+ (Seraph), 2:18+ (Expedient), 2:15+ (Illumination). Otherwise press each the moment it's back. Consolation at 1:18 and 1:30.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C33"
+  - id: e022
+    mechanic: p3.latent_2
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: ⏱ Back on time only if P2 lasted about 2:17+ (Seraph), 2:18+ (Expedient), 2:15+ (Illumination). Otherwise press each the moment it's back. Consolation at 1:18 and 1:30.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C33"
+  - id: e023
+    mechanic: p3.latent_2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: ⏱ Back on time only if P2 lasted about 2:17+ (Seraph), 2:18+ (Expedient), 2:15+ (Illumination). Otherwise press each the moment it's back. Consolation at 1:18 and 1:30.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C33"
+  - id: e024
+    mechanic: p3.latent_3
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Your White Mage's Bell (1:49) covers this round too.
+    severity: 2
+    src: "'TOP – Scholar'!C34"
+  - id: e025
+    mechanic: p3.critical_error
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Pairs with your White Mage's Plenary (2:27).
+    severity: 3
+    src: "'TOP – Scholar'!C36"
+  - id: e026
+    mechanic: p3.ion_efflux
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    note: Deploy just before P3 ends
+    detail: The shields carry into P4 and cover its first wave cannons (P4 0:15 and 0:20).
+    at_phase_end: true
+    src: "'TOP – Scholar'!C38"
+  - id: e027
+    mechanic: p4.wave_cannon
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e028
+    mechanic: p4.wave_cannon
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e029
+    mechanic: p4.wave_cannon
+    hit_index: 1
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e030
+    mechanic: p4.wave_cannon
+    hit_index: 2
+    offset: -3.5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    when_ready: true
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e031
+    mechanic: p4.wave_cannon
+    hit_index: 2
+    offset: 0
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e032
+    mechanic: p4.wave_cannon
+    hit_index: 4
+    offset: 2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: ⏱ Back on time only if P3 lasted about 3:04+ (Seraph, Illumination) or 3:02+ (Expedient). Otherwise press each the moment it's back. Consolation ×2 around 0:25.
+    severity: 2
+    src: "'TOP – Scholar'!C40"
+  - id: e033
+    mechanic: p4.blue_screen
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Top SCHs often Emergency Tactics + Succor right after it (31/58).
+    severity: 1
+    src: "'TOP – Scholar'!C41"
+  - id: e034
+    mechanic: p5.delta
+    offset: -12
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Recit 0:12 → Deploy 0:17. 17 of 58 Deploy after the raidwide instead (0:31). Your White Mage's Plenary (0:22) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C44"
+  - id: e035
+    mechanic: p5.delta
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: Recit 0:12 → Deploy 0:17. 17 of 58 Deploy after the raidwide instead (0:31). Your White Mage's Plenary (0:22) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C44"
+  - id: e036
+    mechanic: p5.delta_all
+    hit_index: 4
+    offset: 0.2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Consolation ×2 around 1:12 for the Hello World hits.
+    severity: 1
+    src: "'TOP – Scholar'!C45"
+  - id: e037
+    mechanic: p5.delta_all
+    hit_index: 5
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: Consolation ×2 around 1:12 for the Hello World hits.
+    severity: 1
+    src: "'TOP – Scholar'!C45"
+  - id: e038
+    mechanic: p5.sigma
+    offset: -17
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: Expedient from 1:30 still covers it. Same window as your White Mage's Temperance (1:29).
+    severity: 3
+    src: "'TOP – Scholar'!C47"
+  - id: e039
+    mechanic: p5.sigma
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Expedient from 1:30 still covers it. Same window as your White Mage's Temperance (1:29).
+    severity: 3
+    src: "'TOP – Scholar'!C47"
+  - id: e040
+    mechanic: p5.sigma_proteans
+    hit_index: 1
+    offset: 0.8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Heals right after; the fairy is back from Dissipation at 2:00.
+    severity: 2
+    src: "'TOP – Scholar'!C48"
+  - id: e041
+    mechanic: p5.sigma_proteans
+    hit_index: 1
+    offset: 1.8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Heals right after; the fairy is back from Dissipation at 2:00.
+    severity: 2
+    src: "'TOP – Scholar'!C48"
+  - id: e042
+    mechanic: p5.solar_ray_3
+    offset: -16
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+    seq: true
+    target: you or another non-tank
+    note: Adlo 2:50
+    detail: "Adlo goes on you or another non-tank: Deploy waits until after the second Solar Ray (3:03) so the buster doesn't eat the shield. If your tanks share that buster, Deploy before it instead."
+    severity: 3
+    src: "'TOP – Scholar'!C51"
+  - id: e043
+    mechanic: p5.omega
+    offset: -13
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: "Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too."
+    optional: true
+    severity: 3
+    src: "'TOP – Scholar'!C52"
+  - id: e044
+    mechanic: p5.omega
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 3585, name: Deployment Tactics}
+    detail: "Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too."
+    severity: 3
+    src: "'TOP – Scholar'!C52"
+  - id: e045
+    mechanic: p5.omega
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: "Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too."
+    optional: true
+    severity: 3
+    src: "'TOP – Scholar'!C52"
+  - id: e046
+    mechanic: p5.omega
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: "Deploy right after the second Solar Ray spreads the 2:50 Adlo. Split choices: Illumination here (23) or at Sigma (18); Seraph here (22) or at 3:55 (20). Your White Mage's Plenary (3:14) is on this too."
+    severity: 3
+    src: "'TOP – Scholar'!C52"
+  - id: e047
+    mechanic: p5.omega_all
+    offset: -19.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    target: a tank
+    detail: Excog on a tank before the sword/shield hits (target not in the logs). Expedient during the dodge also gives the party Sprint.
+    severity: 1
+    src: "'TOP – Scholar'!C53"
+  - id: e048
+    mechanic: p5.omega_all
+    offset: -2.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: Excog on a tank before the sword/shield hits (target not in the logs). Expedient during the dodge also gives the party Sprint.
+    severity: 1
+    src: "'TOP – Scholar'!C53"
+  - id: e049
+    mechanic: p5.solar_ray_4
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+    target: the Solar Ray tank
+    detail: On the Solar Ray tank.
+    severity: 3
+    src: "'TOP – Scholar'!C54"
+  - id: e050
+    mechanic: p5.blind_faith
+    offset: -10.2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    severity: 1
+    src: "'TOP – Scholar'!C55"
+  - id: e051
+    mechanic: p6.cosmo_memory
+    offset: -11
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Soil at 0:57 lasts until 1:12. Tank LB3 (~1:04). Your White Mage's Plenary (1:05) is on this too.
+    severity: 4
+    src: "'TOP – Scholar'!C57"
+  - id: e052
+    mechanic: p6.cosmo_memory
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Soil at 0:57 lasts until 1:12. Tank LB3 (~1:04). Your White Mage's Plenary (1:05) is on this too.
+    severity: 4
+    src: "'TOP – Scholar'!C57"
+  - id: e053
+    mechanic: p6.cosmo_memory
+    offset: 5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Soil at 0:57 lasts until 1:12. Tank LB3 (~1:04). Your White Mage's Plenary (1:05) is on this too.
+    severity: 4
+    src: "'TOP – Scholar'!C57"
+  - id: e054
+    mechanic: p6.cosmo_dive_1
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: Consolation ×2 around 1:40. Your White Mage's Temperance (1:30) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C59"
+  - id: e055
+    mechanic: p6.cosmo_dive_1
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Consolation ×2 around 1:40. Your White Mage's Temperance (1:30) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C59"
+  - id: e056
+    mechanic: p6.wave_cannon_1
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: "Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares."
+    severity: 3
+    src: "'TOP – Scholar'!C60"
+  - id: e057
+    mechanic: p6.wave_cannon_1
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: "Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares."
+    severity: 3
+    src: "'TOP – Scholar'!C60"
+  - id: e058
+    mechanic: p6.wave_cannon_1
+    hit_index: 1
+    offset: 0
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: "Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares."
+    severity: 3
+    src: "'TOP – Scholar'!C60"
+  - id: e059
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: "Top SCHs split Expedient: 2:07 + 4:10 (27/58) or 1:26 + 3:53 (25–30/58). I picked 2:07 because your White Mage's Temperance already covers Cosmo Dive and Cosmo Meteor. Sprint (2:00) for the exaflares."
+    severity: 3
+    src: "'TOP – Scholar'!C60"
+  - id: e060
+    mechanic: p6.wave_cannon_2
+    offset: -17
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: 'Recit 2:26 + Protraction 2:29 → Deploy 2:33: the shields last until ~3:01, through Wild Charge.'
+    severity: 3
+    src: "'TOP – Scholar'!C61"
+  - id: e061
+    mechanic: p6.wave_cannon_2
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: 'Recit 2:26 + Protraction 2:29 → Deploy 2:33: the shields last until ~3:01, through Wild Charge.'
+    severity: 3
+    src: "'TOP – Scholar'!C61"
+  - id: e062
+    mechanic: p6.wave_cannon_2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'Recit 2:26 + Protraction 2:29 → Deploy 2:33: the shields last until ~3:01, through Wild Charge.'
+    severity: 3
+    src: "'TOP – Scholar'!C61"
+  - id: e063
+    mechanic: p6.cosmo_dive_2
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Your White Mage's Plenary (3:30) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C63"
+  - id: e064
+    mechanic: p6.cosmo_dive_2
+    offset: 2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Your White Mage's Plenary (3:30) is on this too.
+    severity: 3
+    src: "'TOP – Scholar'!C63"
+  - id: e065
+    mechanic: p6.cosmo_meteor
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: Consolation ×2 around 3:48 and 4:00. Soil goes down after the raidwide, for the meteor baits.
+    severity: 3
+    src: "'TOP – Scholar'!C64"
+  - id: e066
+    mechanic: p6.cosmo_meteor
+    hit_index: 3
+    offset: -4.1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Consolation ×2 around 3:48 and 4:00. Soil goes down after the raidwide, for the meteor baits.
+    severity: 3
+    src: "'TOP – Scholar'!C64"
+  - id: e067
+    mechanic: p6.flares
+    offset: -7
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: 'Recit 4:03 + Protraction 4:05 → Deploy 4:09: the shields last into Magic Number (~4:37); Expedient runs until 4:30.'
+    severity: 2
+    src: "'TOP – Scholar'!C65"
+  - id: e068
+    mechanic: p6.flares
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: 'Recit 4:03 + Protraction 4:05 → Deploy 4:09: the shields last into Magic Number (~4:37); Expedient runs until 4:30.'
+    severity: 2
+    src: "'TOP – Scholar'!C65"
+  - id: e069
+    mechanic: p6.magic_number_2
+    offset: 4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 4247, name: Angel Feathers}
+    note: after the hit
+    detail: Tank LB3 first (~4:40). Top SCHs take this second healer LB3; the White Mage takes the first.
+    severity: 4
+    src: "'TOP – Scholar'!C67"

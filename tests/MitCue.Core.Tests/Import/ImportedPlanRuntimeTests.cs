@@ -19,6 +19,8 @@ public class ImportedPlanRuntimeTests
         { 2, Job.AST, "H1" },
         { 2, Job.WAR, "MT" },
         { 2, Job.MCH, "R1" },
+        { 3, Job.SCH, null },
+        { 3, Job.SCH, "H2" },
     };
 
     [Theory]

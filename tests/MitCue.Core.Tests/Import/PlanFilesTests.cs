@@ -15,7 +15,7 @@ namespace MitCue.Core.Tests.Import;
 /// </remarks>
 public class PlanFilesTests
 {
-    private static readonly string[] FileNames = ["top-noirmit-whm.yaml", "top-lpdu.yaml"];
+    private static readonly string[] FileNames = ["top-noirmit-whm.yaml", "top-ctc-sch.yaml", "top-lpdu.yaml"];
 
     public static TheoryData<string> Files
     {

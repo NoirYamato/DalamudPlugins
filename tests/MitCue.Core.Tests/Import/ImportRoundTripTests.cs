@@ -6,7 +6,7 @@ namespace MitCue.Core.Tests.Import;
 /// <summary>The same plan from every reader (fixture JSON, xlsx), and plans that survive YAML and JSON.</summary>
 public class ImportRoundTripTests
 {
-    public static TheoryData<int> Plans => new() { 0, 1, 2 };
+    public static TheoryData<int> Plans => new() { 0, 1, 2, 3 };
 
     [Theory]
     [MemberData(nameof(Plans))]

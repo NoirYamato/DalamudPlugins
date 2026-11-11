@@ -31,6 +31,13 @@ internal static class PlanImports
     private static readonly Lazy<BundledPlan> WhmPlan = new(() =>
         new("top-noirmit-whm.yaml", "carry-the-clear", Options("NoirMit - WHM", ["TOP – White Mage"], CtcUrl + "#gid=777100", "carry_the_clear", NoirMitWhmId)));
 
+    /// <summary>The id of "Carry the Clear - SCH" (fixed, so a later rename keeps players' choices).</summary>
+    public const string CarryTheClearSchId = "5b622e32-04ae-53de-a4f8-f66e4c0aae0c";
+
+    // The Scholar's automatic TOP plan (PlanStore.BundledDefaults), from 0.1.0.3.
+    private static readonly Lazy<BundledPlan> SchPlan = new(() =>
+        new("top-ctc-sch.yaml", "carry-the-clear", Options("Carry the Clear - SCH", ["TOP – Scholar"], CtcUrl + "#gid=777200", "carry_the_clear", CarryTheClearSchId)));
+
     // Carry the Clear's combined tab, shipped as "Carry the Clear – WHM + SCH" in 0.1.0.1 only: still imported by the
     // importer's tests (both columns, sequences, per-step times).
     private static readonly Lazy<BundledPlan> WhmSchPlan = new(() =>
@@ -39,19 +46,26 @@ internal static class PlanImports
     private static readonly Lazy<BundledPlan> LpduPlan = new(() => new("top-lpdu.yaml", "lpdu", Options("LPDU TOP Mitigation", null, LpduUrl, null)));
 
     private static readonly Lazy<ImportResult> LazyWhm = new(() => Import(WhmPlan.Value));
+    private static readonly Lazy<ImportResult> LazySch = new(() => Import(SchPlan.Value));
     private static readonly Lazy<ImportResult> LazyWhmSch = new(() => Import(WhmSchPlan.Value));
     private static readonly Lazy<ImportResult> LazyLpdu = new(() => Import(LpduPlan.Value));
 
     public static FightDefinition Top => LazyTop.Value;
 
     /// <summary>The plans in plans/ and how they are made (regenerate with MITCUE_UPDATE_PLANS=1, see <see cref="PlanFilesTests"/>).</summary>
-    public static IReadOnlyList<BundledPlan> Bundled => [WhmPlan.Value, LpduPlan.Value];
+    public static IReadOnlyList<BundledPlan> Bundled => [WhmPlan.Value, SchPlan.Value, LpduPlan.Value];
 
-    /// <summary>Every sheet import the importer tests use: the White Mage tab, the combined tab (not shipped) and LPDU.</summary>
-    public static IReadOnlyList<BundledPlan> SheetImports => [WhmPlan.Value, WhmSchPlan.Value, LpduPlan.Value];
+    /// <summary>
+    /// Every sheet import the importer tests use, by index: the White Mage tab, the combined tab (not shipped), LPDU and
+    /// the Scholar tab.
+    /// </summary>
+    public static IReadOnlyList<BundledPlan> SheetImports => [WhmPlan.Value, WhmSchPlan.Value, LpduPlan.Value, SchPlan.Value];
 
     /// <summary>Carry the Clear, tab 'TOP – White Mage' (shipped as "NoirMit - WHM").</summary>
     public static ImportResult Whm => LazyWhm.Value;
+
+    /// <summary>Carry the Clear, tab 'TOP – Scholar' (shipped as "Carry the Clear - SCH").</summary>
+    public static ImportResult Sch => LazySch.Value;
 
     /// <summary>Carry the Clear, tab 'TOP – WHM + SCH' (both columns; not shipped).</summary>
     public static ImportResult WhmSch => LazyWhmSch.Value;

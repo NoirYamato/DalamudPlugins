@@ -66,7 +66,9 @@ internal sealed class PlanStore
     /// <summary>
     /// The bundled plan a job gets when the player has chosen none, keyed like <see cref="ActiveKey"/> (plan ids of
     /// plans/*.yaml). DESIGN D2: the White Mage (H1) follows "NoirMit - WHM" (made from Carry the Clear's White Mage
-    /// tab) and the Scholar (H2) follows LPDU. Explicit, so a bundled plan added later cannot change what they get.
+    /// tab) and the Scholar (H2) follows LPDU. Explicit, so a bundled plan added later cannot change what they get:
+    /// "Carry the Clear - SCH" (plans/top-ctc-sch.yaml) sorts before LPDU and has a Scholar column, but a Scholar gets it
+    /// only by choosing it.
     /// </summary>
     internal static readonly IReadOnlyDictionary<string, string> BundledDefaults = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
     {

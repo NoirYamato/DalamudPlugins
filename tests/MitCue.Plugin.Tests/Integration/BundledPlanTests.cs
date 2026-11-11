@@ -17,6 +17,7 @@ namespace MitCue.PluginTests.Integration;
 public class BundledPlanTests
 {
     private const string NoirMitWhm = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
+    private const string CarryTheClearSch = "5b622e32-04ae-53de-a4f8-f66e4c0aae0c";
     private const string CarryTheClearWhmSch = "ded79070-7479-5023-80ca-5e3ef257c99a"; // shipped in 0.1.0.1 only
     private const string Lpdu = "1f75e1e8-7321-566c-ae86-8568019fe914";
 
@@ -42,11 +43,11 @@ public class BundledPlanTests
         parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).Distinct().ToList();
 
     [Fact]
-    public void TheTwoPlansAreBundled()
+    public void TheThreePlansAreBundled()
     {
         var parts = SessionManagerTests.NewManager();
         parts.Plans.EnsureLoaded();
-        (string, string)[] expected = [(NoirMitWhm, "NoirMit - WHM"), (Lpdu, "LPDU TOP Mitigation")];
+        (string, string)[] expected = [(NoirMitWhm, "NoirMit - WHM"), (CarryTheClearSch, "Carry the Clear - SCH"), (Lpdu, "LPDU TOP Mitigation")];
         Assert.Equal(expected.Order(), parts.Plans.All.Select(p => (p.Id, p.DisplayName)).Order());
         Assert.All(parts.Plans.All, p => Assert.Equal(PlanOrigin.Bundled, p.Origin));
         Assert.Empty(parts.Errors.Snapshot());
@@ -81,6 +82,26 @@ public class BundledPlanTests
         Assert.True(preview.Start("top", null, 1122, Job.SCH, 0, out var message), message);
         Assert.Contains("\"LPDU TOP Mitigation\" as SCH", message, StringComparison.Ordinal);
         Assert.Contains("31 entries are yours", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CarryTheClearSchIsBundledButTheScholarKeepsLpduUntilTheyChooseIt()
+    {
+        // Carry the Clear - SCH sorts before LPDU and has a Scholar column, but BundledDefaults keeps the Scholar on LPDU.
+        var parts = Live(Job.SCH, "H2");
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.Equal(Lpdu, parts.Manager.Plan?.Id);
+
+        parts.Plans.SetActive("top", Job.SCH, CarryTheClearSch);
+        parts.Manager.Update(Frame(Job.SCH, 2));
+        Assert.False(parts.Manager.PlanIsAutomatic);
+        Assert.Equal(CarryTheClearSch, parts.Manager.Plan?.Id);
+        Assert.Equal("Scholar", parts.Manager.Mapping?.AssigneeKey);
+        Assert.Equal(69, OwnEntryIds(parts).Count);
+
+        // No other job gets it automatically.
+        foreach (var job in new[] { Job.WHM, Job.AST, Job.SGE, Job.WAR, Job.MCH })
+            Assert.NotEqual(CarryTheClearSch, parts.Plans.ActivePlanFor("top", job)?.Id);
     }
 
     [Fact]
@@ -314,6 +335,7 @@ public class BundledPlanTests
 
     [Theory]
     [InlineData(NoirMitWhm)]
+    [InlineData(CarryTheClearSch)]
     [InlineData(Lpdu)]
     public void TheShareCodeOfABundledPlanReplacesItInTheList(string id)
     {
