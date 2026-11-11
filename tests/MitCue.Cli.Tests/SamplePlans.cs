@@ -4,8 +4,10 @@ namespace MitCue.Cli.Tests;
 internal static class SamplePlans
 {
     /// <summary>
-    /// A White Mage column (8 entries: a pre-pull Medica II, Asylum, two Temperances, Bell without a time, a choice on MT,
-    /// an optional Plenary with a note, a Benediction late in P1) and one Scholar entry.
+    /// A White Mage column (9 entries: a pre-pull Medica II, Asylum, three Temperances (the last without a time), Bell, a
+    /// Benediction late in P1 without a time, a choice on MT, an optional Plenary with a note) and one Scholar entry.
+    /// Entries without a time use actions whose default timing is the same in every version of the rules (a party
+    /// mitigation's 30 % of its duration, a plain heal's +1 s).
     /// </summary>
     public const string Whm = """
         format: mitcue-plan/1
@@ -34,12 +36,12 @@ internal static class SamplePlans
             severity: 3
           - id: e4
             mechanic: p1.pantokrator
+            offset: 1
             who: { job: WHM, assignee: White Mage }
             do: [ { action: 25862, name: Liturgy of the Bell } ]
             note: right after the 1st stack
           - id: e9
             mechanic: p1.wave_cannon_kyrios
-            offset: 1
             who: { job: WHM, assignee: White Mage }
             do: [ { action: 140, name: Benediction } ]
           - id: e5

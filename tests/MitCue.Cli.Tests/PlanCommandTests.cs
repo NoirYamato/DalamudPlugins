@@ -31,8 +31,10 @@ public class PlanCommandTests : IDisposable
         Assert.Matches(@"^\s+P1\s+-0:05\s+-5\.0\s+Medica II\s+Pull \(combat start\)\s+e1$", rows[0]);
         Assert.Matches(@"^\s+P1\s+1:18\s+-3\.2\s+Temperance\s+Pantokrator.*★★★\s+e3$", rows[2]);
 
-        // Bell has no time: the heal default (+1 s after the hit), marked with *.
-        Assert.Matches(@"^\s+P1\s+1:22\s+\+1\.0\*\s+Liturgy of the Bell\s+Pantokrator.*right after the 1st stack\s+e4$", rows[3]);
+        Assert.Matches(@"^\s+P1\s+1:22\s+\+1\.0\s+Liturgy of the Bell\s+Pantokrator.*right after the 1st stack\s+e4$", rows[3]);
+
+        // Benediction has no time: the heal default (+1 s after the hit), marked with *.
+        Assert.Matches(@"^\s+P1\s+1:49\s+\+1\.0\*\s+Benediction\s+Wave Cannon Kyrios.*\s+e9$", rows[4]);
         Assert.Matches(@"^\s+P2\s+0:07\s+-7\.5\s+Divine Benison / Tetragrammaton\s+Solar Ray \(both tanks\)\s+on MT\s+e5$", rows[5]);
         Assert.Contains("note: Medica II + Rapture straight after", rows[8]);
         Assert.Contains("optional", rows[7]);
