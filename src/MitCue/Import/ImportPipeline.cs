@@ -196,7 +196,7 @@ internal static class ImportPipeline
         var plan = Guard("Reading plan YAML", () => PlanSerializer.FromYaml(yaml));
         if (plan == null)
             throw new ImportStepException("The YAML is empty.");
-        PlanValidator.Repair(plan);
+        ReviewValidator.Repair(plan);
         return plan;
     }
 

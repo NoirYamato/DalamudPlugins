@@ -1,0 +1,1252 @@
+format: mitcue-plan/1
+id: ded79070-7479-5023-80ca-5e3ef257c99a
+name: Carry the Clear – WHM + SCH
+fight: top
+source: {kind: google-sheet, url: 'https://docs.google.com/spreadsheets/d/1chKttd7POMf-aRLMAzQjNHDIgVzOKmLk9igSt-o2X6s/edit#gid=777300', tabs: [TOP – WHM + SCH], imported: 2026-11-11}
+assignees:
+  - {key: Scholar, job: SCH}
+  - {key: White Mage, job: WHM}
+entries:
+  - id: e001
+    mechanic: p1.program_loop
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    detail: 'Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31).'
+    severity: 1
+    src: "'TOP – WHM + SCH'!C17"
+  - id: e002
+    mechanic: p1.program_loop
+    hit_index: 1
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: 'Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31).'
+    severity: 1
+    src: "'TOP – WHM + SCH'!C17"
+  - id: e003
+    mechanic: p1.program_loop
+    hit_index: 2
+    offset: -6
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: 'Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31).'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D17"
+  - id: e004
+    mechanic: p1.program_loop
+    hit_index: 2
+    offset: -5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: 'Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31).'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D17"
+  - id: e005
+    mechanic: p1.program_loop
+    hit_index: 2
+    offset: 3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3570, name: Tetragrammaton}
+    detail: 'Blaster targets drop to 1%: WHM Benison + Tetra them, SCH Excog (0:20) on one. WHM Asylum (~0:40) heals through the 3rd and 4th towers. SCH Dissipates at the pull (fairy back at 0:31).'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D17"
+  - id: e006
+    mechanic: p1.pantokrator
+    offset: -14
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!C18"
+  - id: e007
+    mechanic: p1.pantokrator
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!C18"
+  - id: e008
+    mechanic: p1.pantokrator
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!C18"
+  - id: e009
+    mechanic: p1.pantokrator
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!D18"
+  - id: e010
+    mechanic: p1.pantokrator
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!C18"
+  - id: e011
+    mechanic: p1.pantokrator
+    hit_index: 1
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!C18"
+  - id: e012
+    mechanic: p1.pantokrator
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    note: after the 1st stack
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!D18"
+  - id: e013
+    mechanic: p1.pantokrator
+    hit_index: 2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: "Both healers' big cooldowns go here: SCH Deploy (1:07) + Expedient / Seraph, WHM Temperance (1:18). SCH shields take the 1st stack, so WHM Bell goes down right after it and covers stacks 2–4. Plenary (1:31), before the 3rd stack, covers stacks 3 and 4."
+    severity: 3
+    src: "'TOP – WHM + SCH'!D18"
+  - id: e014
+    mechanic: p1.wave_cannon_kyrios
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: WHM Bene on the low tank after the cleaves; keep Aquaveil for P2 Solar Ray.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C19"
+  - id: e015
+    mechanic: p1.wave_cannon_kyrios
+    hit_index: 1
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: the low tank
+    detail: WHM Bene on the low tank after the cleaves; keep Aquaveil for P2 Solar Ray.
+    severity: 2
+    src: "'TOP – WHM + SCH'!D19"
+  - id: e016
+    mechanic: p2.solar_ray
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+    target: tanks
+    detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
+    severity: 2
+    src: "'TOP – WHM + SCH'!C22"
+  - id: e017
+    mechanic: p2.solar_ray
+    offset: -5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tanks
+    detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
+    severity: 2
+    src: "'TOP – WHM + SCH'!D22"
+  - id: e018
+    mechanic: p2.solar_ray
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
+    severity: 2
+    src: "'TOP – WHM + SCH'!C22"
+  - id: e019
+    mechanic: p2.solar_ray
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tanks
+    detail: 'Tanks: SCH Soil + Protraction, WHM Benison + Aquaveil.'
+    severity: 2
+    src: "'TOP – WHM + SCH'!D22"
+  - id: e020
+    mechanic: p2.party_synergy_spreads
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Regen from Whispering Dawn; Medica II / Rapture as needed.
+    src: "'TOP – WHM + SCH'!C23"
+  - id: e021
+    mechanic: p2.party_synergy_stacks
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: SCH Dissipates around 0:57 (no fairy until 1:27). WHM Asylum heals the stacks back up.
+    severity: 1
+    src: "'TOP – WHM + SCH'!D24"
+  - id: e022
+    mechanic: p2.party_synergy_stacks
+    offset: 2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: SCH Dissipates around 0:57 (no fairy until 1:27). WHM Asylum heals the stacks back up.
+    severity: 1
+    src: "'TOP – WHM + SCH'!D24"
+  - id: e023
+    mechanic: p2.party_synergy_stacks
+    offset: 4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Dissipates around 0:57 (no fairy until 1:27). WHM Asylum heals the stacks back up.
+    severity: 1
+    src: "'TOP – WHM + SCH'!C24"
+  - id: e024
+    mechanic: p2.bladedance
+    offset: -11
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: SCH Deploy shields (1:23) last through the flares.
+    severity: 1
+    src: "'TOP – WHM + SCH'!C25"
+  - id: e025
+    mechanic: p2.bladedance
+    offset: -5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: SCH Deploy shields (1:23) last through the flares.
+    optional: true
+    severity: 1
+    src: "'TOP – WHM + SCH'!D25"
+  - id: e026
+    mechanic: p2.bladedance
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    detail: SCH Deploy shields (1:23) last through the flares.
+    optional: true
+    severity: 1
+    src: "'TOP – WHM + SCH'!D25"
+  - id: e027
+    mechanic: p2.bladedance
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: SCH Deploy shields (1:23) last through the flares.
+    severity: 1
+    src: "'TOP – WHM + SCH'!C25"
+  - id: e028
+    mechanic: p2.flares
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: Both 20s mits go at 1:39 (Expedient + Temperance) and also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C26"
+  - id: e029
+    mechanic: p2.flares
+    offset: -9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: Both 20s mits go at 1:39 (Expedient + Temperance) and also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D26"
+  - id: e030
+    mechanic: p2.flares
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: Both 20s mits go at 1:39 (Expedient + Temperance) and also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C26"
+  - id: e031
+    mechanic: p2.flares
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Both 20s mits go at 1:39 (Expedient + Temperance) and also cover Cosmo Memory.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C26"
+  - id: e032
+    mechanic: p2.cosmo_memory
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Covered by the 1:39 mits, Soil and Plenary (1:55). Medica II + Rapture after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D27"
+  - id: e033
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 0.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Soil + WHM Asylum keep healing through Hello, World.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C30"
+  - id: e034
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 1.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: SCH Soil + WHM Asylum keep healing through Hello, World.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C30"
+  - id: e035
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 1.9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: SCH Soil + WHM Asylum keep healing through Hello, World.
+    severity: 2
+    src: "'TOP – WHM + SCH'!D30"
+  - id: e036
+    mechanic: p3.hello_world
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: ⏱ Plenary is only back if P2 lasted 2:16+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!D31"
+  - id: e037
+    mechanic: p3.latent_1
+    offset: -16
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: SCH Deploy shields (0:49) cover it.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C32"
+  - id: e038
+    mechanic: p3.latent_2
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: ⏱ Seraph, Expedient, Illumination and Temperance need P2 to have lasted about 2:18+. Otherwise press each the moment it's back.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C33"
+  - id: e039
+    mechanic: p3.latent_2
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: ⏱ Seraph, Expedient, Illumination and Temperance need P2 to have lasted about 2:18+. Otherwise press each the moment it's back.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C33"
+  - id: e040
+    mechanic: p3.latent_2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: ⏱ Seraph, Expedient, Illumination and Temperance need P2 to have lasted about 2:18+. Otherwise press each the moment it's back.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C33"
+  - id: e041
+    mechanic: p3.latent_2
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: ⏱ Seraph, Expedient, Illumination and Temperance need P2 to have lasted about 2:18+. Otherwise press each the moment it's back.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!D33"
+  - id: e042
+    mechanic: p3.latent_3
+    offset: -2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Soil + WHM Bell.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C34"
+  - id: e043
+    mechanic: p3.latent_3
+    hit_index: 1
+    offset: -0.5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: SCH Soil + WHM Bell.
+    severity: 2
+    src: "'TOP – WHM + SCH'!D34"
+  - id: e044
+    mechanic: p3.latent_4
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: WHM Asylum (2:04).
+    severity: 2
+    src: "'TOP – WHM + SCH'!D35"
+  - id: e045
+    mechanic: p3.critical_error
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Soil (2:20) + WHM Plenary (2:27).
+    severity: 3
+    src: "'TOP – WHM + SCH'!C36"
+  - id: e046
+    mechanic: p3.critical_error
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: SCH Soil (2:20) + WHM Plenary (2:27).
+    severity: 3
+    src: "'TOP – WHM + SCH'!D36"
+  - id: e047
+    mechanic: p3.ion_efflux
+    offset: -4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    note: Deploy just before P3 ends
+    detail: SCH Deploy at the end of P3 pre-shields P4's first wave cannons.
+    at_phase_end: true
+    src: "'TOP – WHM + SCH'!C38"
+  - id: e048
+    mechanic: p4.wave_cannon
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e049
+    mechanic: p4.wave_cannon
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e050
+    mechanic: p4.wave_cannon
+    hit_index: 1
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e051
+    mechanic: p4.wave_cannon
+    hit_index: 1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!D40"
+  - id: e052
+    mechanic: p4.wave_cannon
+    hit_index: 2
+    offset: -3.5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e053
+    mechanic: p4.wave_cannon
+    hit_index: 2
+    offset: 0
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e054
+    mechanic: p4.wave_cannon
+    hit_index: 3
+    offset: -4.3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    when_ready: true
+    severity: 2
+    src: "'TOP – WHM + SCH'!D40"
+  - id: e055
+    mechanic: p4.wave_cannon
+    hit_index: 3
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    severity: 2
+    src: "'TOP – WHM + SCH'!D40"
+  - id: e056
+    mechanic: p4.wave_cannon
+    hit_index: 4
+    offset: 2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: ⏱ Both 20s mits at 0:19 need P3 to have lasted about 3:06+ (Temperance) / 3:02+ (Expedient); Seraph and Illumination 3:04+, Asylum 3:08+.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C40"
+  - id: e057
+    mechanic: p4.blue_screen
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Soil (0:45); Medica II before it. SCH often Emergency Tactics + Succor after.
+    severity: 1
+    src: "'TOP – WHM + SCH'!C41"
+  - id: e058
+    mechanic: p5.solar_ray_1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: the tank
+    detail: WHM Benison (+ Aquaveil) on the tank; skip if they invuln.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D43"
+  - id: e059
+    mechanic: p5.solar_ray_1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: the tank
+    detail: WHM Benison (+ Aquaveil) on the tank; skip if they invuln.
+    optional: true
+    severity: 3
+    src: "'TOP – WHM + SCH'!D43"
+  - id: e060
+    mechanic: p5.delta
+    offset: -12
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Soil + Deploy (0:17) and WHM Plenary (0:22). Bell comes right after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C44"
+  - id: e061
+    mechanic: p5.delta
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: SCH Soil + Deploy (0:17) and WHM Plenary (0:22). Bell comes right after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C44"
+  - id: e062
+    mechanic: p5.delta
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: SCH Soil + Deploy (0:17) and WHM Plenary (0:22). Bell comes right after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D44"
+  - id: e063
+    mechanic: p5.delta_all
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: WHM Bell + Asylum, SCH Seraph (Consolation ×2 around 1:12).
+    severity: 1
+    src: "'TOP – WHM + SCH'!D45"
+  - id: e064
+    mechanic: p5.delta_all
+    hit_index: 4
+    offset: 0.2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: WHM Bell + Asylum, SCH Seraph (Consolation ×2 around 1:12).
+    severity: 1
+    src: "'TOP – WHM + SCH'!C45"
+  - id: e065
+    mechanic: p5.delta_all
+    hit_index: 5
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: WHM Bell + Asylum, SCH Seraph (Consolation ×2 around 1:12).
+    severity: 1
+    src: "'TOP – WHM + SCH'!C45"
+  - id: e066
+    mechanic: p5.delta_all
+    hit_index: 7
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: WHM Bell + Asylum, SCH Seraph (Consolation ×2 around 1:12).
+    severity: 1
+    src: "'TOP – WHM + SCH'!D45"
+  - id: e067
+    mechanic: p5.solar_ray_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    detail: SCH Dissipates around 1:30 (no fairy until 2:00).
+    severity: 3
+    src: "'TOP – WHM + SCH'!D46"
+  - id: e068
+    mechanic: p5.solar_ray_2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    detail: SCH Dissipates around 1:30 (no fairy until 2:00).
+    optional: true
+    severity: 3
+    src: "'TOP – WHM + SCH'!D46"
+  - id: e069
+    mechanic: p5.sigma
+    offset: -18
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: 'Both 20s mits again: Expedient (1:30) + Temperance (1:29), plus Soil and Plenary.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D47"
+  - id: e070
+    mechanic: p5.sigma
+    offset: -17
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: 'Both 20s mits again: Expedient (1:30) + Temperance (1:29), plus Soil and Plenary.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!C47"
+  - id: e071
+    mechanic: p5.sigma
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'Both 20s mits again: Expedient (1:30) + Temperance (1:29), plus Soil and Plenary.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!C47"
+  - id: e072
+    mechanic: p5.sigma
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: 'Both 20s mits again: Expedient (1:30) + Temperance (1:29), plus Soil and Plenary.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D47"
+  - id: e073
+    mechanic: p5.sigma_proteans
+    hit_index: 1
+    offset: 0.8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Fairy heals right after (back from Dissipation at 2:00).
+    severity: 2
+    src: "'TOP – WHM + SCH'!C48"
+  - id: e074
+    mechanic: p5.sigma_proteans
+    hit_index: 1
+    offset: 1.8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Fairy heals right after (back from Dissipation at 2:00).
+    severity: 2
+    src: "'TOP – WHM + SCH'!C48"
+  - id: e075
+    mechanic: p5.solar_ray_3
+    offset: -16
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+    seq: true
+    target: a non-tank
+    note: Adlo 2:50
+    detail: SCH Protraction + Recit → Adlo (2:50) on a non-tank; WHM Bene after the second hit.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C51"
+  - id: e076
+    mechanic: p5.sigma_hello_world
+    hit_index: 2
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: WHM Asylum (2:48).
+    severity: 2
+    src: "'TOP – WHM + SCH'!D50"
+  - id: e077
+    mechanic: p5.omega
+    offset: -13
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it.
+    optional: true
+    severity: 3
+    src: "'TOP – WHM + SCH'!C52"
+  - id: e078
+    mechanic: p5.solar_ray_3
+    hit_index: 1
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: tank
+    detail: SCH Protraction + Recit → Adlo (2:50) on a non-tank; WHM Bene after the second hit.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D51"
+  - id: e079
+    mechanic: p5.omega
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 3585, name: Deployment Tactics}
+    detail: SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C52"
+  - id: e080
+    mechanic: p5.omega
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it.
+    optional: true
+    severity: 3
+    src: "'TOP – WHM + SCH'!C52"
+  - id: e081
+    mechanic: p5.omega
+    offset: -9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C52"
+  - id: e082
+    mechanic: p5.omega
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: SCH Deploy after the 2nd Solar Ray (3:07) + Soil, WHM Plenary (3:14). Deploy before the buster only if the tanks share it.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D52"
+  - id: e083
+    mechanic: p5.omega_all
+    offset: -19.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    detail: SCH Expedient (3:31) also gives Sprint for the dodge; optional WHM Temperance (4:09).
+    severity: 1
+    src: "'TOP – WHM + SCH'!C53"
+  - id: e084
+    mechanic: p5.omega_all
+    offset: -2.9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: SCH Expedient (3:31) also gives Sprint for the dodge; optional WHM Temperance (4:09).
+    severity: 1
+    src: "'TOP – WHM + SCH'!C53"
+  - id: e085
+    mechanic: p5.omega_all
+    hit_index: 7
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: SCH Expedient (3:31) also gives Sprint for the dodge; optional WHM Temperance (4:09).
+    optional: true
+    severity: 1
+    src: "'TOP – WHM + SCH'!D53"
+  - id: e086
+    mechanic: p5.solar_ray_4
+    offset: -3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+    target: tank
+    detail: 'Tank: SCH Protraction, WHM Benison + Aquaveil.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!C54"
+  - id: e087
+    mechanic: p5.solar_ray_4
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    detail: 'Tank: SCH Protraction, WHM Benison + Aquaveil.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D54"
+  - id: e088
+    mechanic: p5.solar_ray_4
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    detail: 'Tank: SCH Protraction, WHM Benison + Aquaveil.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D54"
+  - id: e089
+    mechanic: p5.blind_faith
+    offset: -16.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: 'Free cooldowns before P6: SCH Soil, WHM Asylum + Bell + Plenary.'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D55"
+  - id: e090
+    mechanic: p5.blind_faith
+    offset: -10.2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'Free cooldowns before P6: SCH Soil, WHM Asylum + Bell + Plenary.'
+    severity: 1
+    src: "'TOP – WHM + SCH'!C55"
+  - id: e091
+    mechanic: p5.blind_faith
+    offset: -7.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: 'Free cooldowns before P6: SCH Soil, WHM Asylum + Bell + Plenary.'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D55"
+  - id: e092
+    mechanic: p5.blind_faith
+    offset: -4.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: 'Free cooldowns before P6: SCH Soil, WHM Asylum + Bell + Plenary.'
+    severity: 1
+    src: "'TOP – WHM + SCH'!D55"
+  - id: e093
+    mechanic: p6.cosmo_memory
+    offset: -11
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: Tank LB3 (~1:04) + SCH Soil + WHM Plenary. Medica II, Rapture and fairy heals right after.
+    severity: 4
+    src: "'TOP – WHM + SCH'!C57"
+  - id: e094
+    mechanic: p6.cosmo_memory
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Tank LB3 (~1:04) + SCH Soil + WHM Plenary. Medica II, Rapture and fairy heals right after.
+    severity: 4
+    src: "'TOP – WHM + SCH'!D57"
+  - id: e095
+    mechanic: p6.cosmo_memory
+    offset: 3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: Tank LB3 (~1:04) + SCH Soil + WHM Plenary. Medica II, Rapture and fairy heals right after.
+    severity: 4
+    src: "'TOP – WHM + SCH'!C57"
+  - id: e096
+    mechanic: p6.cosmo_memory
+    offset: 5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: Tank LB3 (~1:04) + SCH Soil + WHM Plenary. Medica II, Rapture and fairy heals right after.
+    severity: 4
+    src: "'TOP – WHM + SCH'!C57"
+  - id: e097
+    mechanic: p6.cosmo_dive_1
+    offset: -9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: WHM Temperance (1:30) + SCH Seraph and Soil.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D59"
+  - id: e098
+    mechanic: p6.cosmo_dive_1
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: WHM Temperance (1:30) + SCH Seraph and Soil.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C59"
+  - id: e099
+    mechanic: p6.cosmo_dive_1
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: WHM Temperance (1:30) + SCH Seraph and Soil.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C59"
+  - id: e100
+    mechanic: p6.cosmo_dive_1
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: WHM Temperance (1:30) + SCH Seraph and Soil.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D59"
+  - id: e101
+    mechanic: p6.wave_cannon_1
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C60"
+  - id: e102
+    mechanic: p6.wave_cannon_1
+    offset: -5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C60"
+  - id: e103
+    mechanic: p6.wave_cannon_1
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D60"
+  - id: e104
+    mechanic: p6.wave_cannon_1
+    hit_index: 1
+    offset: 0
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C60"
+  - id: e105
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -5.3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D60"
+  - id: e106
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C60"
+  - id: e107
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: SCH Expedient (2:07) + Soil and WHM Plenary (2:17, after the first proteans) cover Wild Charge. Both Sprint around 2:00.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D60"
+  - id: e108
+    mechanic: p6.wave_cannon_2
+    offset: -17
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C61"
+  - id: e109
+    mechanic: p6.wave_cannon_2
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+    detail: SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C61"
+  - id: e110
+    mechanic: p6.wave_cannon_2
+    offset: -1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C61"
+  - id: e111
+    mechanic: p6.wave_cannon_2
+    hit_index: 2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D61"
+  - id: e112
+    mechanic: p6.wave_cannon_2
+    hit_index: 2
+    offset: 3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: the front tank
+    detail: SCH Deploy shields (2:33) last through Wild Charge; WHM Bene the front tank after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D61"
+  - id: e113
+    mechanic: p6.cosmo_dive_2
+    offset: -8
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!C63"
+  - id: e114
+    mechanic: p6.cosmo_dive_2
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D63"
+  - id: e115
+    mechanic: p6.cosmo_dive_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D63"
+  - id: e116
+    mechanic: p6.cosmo_dive_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!D63"
+  - id: e117
+    mechanic: p6.cosmo_dive_2
+    offset: 2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16537, name: Whispering Dawn}
+    detail: 'SCH Soil (3:25) + WHM Plenary (3:30); tank: Aquaveil + Benison.'
+    severity: 3
+    src: "'TOP – WHM + SCH'!C63"
+  - id: e118
+    mechanic: p6.cosmo_meteor
+    offset: -10
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16545, name: Summon Seraph}
+    detail: WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C64"
+  - id: e119
+    mechanic: p6.cosmo_meteor
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D64"
+  - id: e120
+    mechanic: p6.cosmo_meteor
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D64"
+  - id: e121
+    mechanic: p6.cosmo_meteor
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!D64"
+  - id: e122
+    mechanic: p6.cosmo_meteor
+    hit_index: 3
+    offset: -4.1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: WHM Bell + Asylum + Temperance (3:52–3:54) before the raidwide; SCH Seraph (3:46), Soil after.
+    severity: 3
+    src: "'TOP – WHM + SCH'!C64"
+  - id: e123
+    mechanic: p6.flares
+    offset: -7
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25867, name: Protraction}
+      - {action: 16542, name: Recitation}
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+    seq: true
+    detail: SCH Deploy (4:09) + Expedient (4:10) carry into Magic Number.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C65"
+  - id: e124
+    mechanic: p6.flares
+    offset: -6
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 25868, name: Expedient}
+    detail: SCH Deploy (4:09) + Expedient (4:10) carry into Magic Number.
+    severity: 2
+    src: "'TOP – WHM + SCH'!C65"
+  - id: e125
+    mechanic: p6.magic_number_1
+    offset: 4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 208, name: Pulse of Life}
+    note: after the hit
+    detail: Tank LB3 (~4:24), then WHM healer LB3 (~4:32).
+    severity: 4
+    src: "'TOP – WHM + SCH'!D66"
+  - id: e126
+    mechanic: p6.magic_number_2
+    offset: -6
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Tank LB3 (~4:40) + WHM Plenary (4:38), then SCH healer LB3 (~4:48).
+    severity: 4
+    src: "'TOP – WHM + SCH'!D67"
+  - id: e127
+    mechanic: p6.magic_number_2
+    offset: 4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 4247, name: Angel Feathers}
+    note: after the hit
+    detail: Tank LB3 (~4:40) + WHM Plenary (4:38), then SCH healer LB3 (~4:48).
+    severity: 4
+    src: "'TOP – WHM + SCH'!C67"

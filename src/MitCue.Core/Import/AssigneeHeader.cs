@@ -82,7 +82,8 @@ public sealed partial record AssigneeHeader
 
     /// <summary>
     /// Parses a column header strictly: the whole text must be a slot, a job (abbreviation or English name), a slot
-    /// with job(s), a slot phrase ("Main Tank", "Healer 2", "Healer #2") or a short name ending in a role word ("CM LB Tank").
+    /// with job(s), a slot phrase ("Main Tank", "Healer 2", "Healer #2"), a slot phrase with job(s) ("Healer 2 (SCH)") or a
+    /// short name ending in a role word ("CM LB Tank").
     /// Anything else (titles like "TOP — White Mage", statistics like "Top WHMs (of 36)", plan text) is rejected.
     /// </summary>
     public static bool TryParse(string? header, [NotNullWhen(true)] out AssigneeHeader? result)
@@ -112,7 +113,8 @@ public sealed partial record AssigneeHeader
         if (parts.Count == 0)
             return false;
 
-        // 2. Optional slot + one or more jobs ("SCH", "White Mage", "H2 SCH", "SCH (H2)", "H1 WHM/AST").
+        // 2. Optional slot + one or more jobs ("SCH", "White Mage", "H2 SCH", "SCH (H2)", "H1 WHM/AST"); the slot may be a
+        //    slot phrase ("Healer 2 (SCH)", "Main Tank - WAR", "SCH (Healer 2)").
         string? foundSlot = null;
         var jobs = new List<Job>();
         var ok = true;
@@ -122,6 +124,21 @@ public sealed partial record AssigneeHeader
             {
                 ok = foundSlot is null;
                 foundSlot = s;
+                continue;
+            }
+
+            if (i + 1 < parts.Count && SlotPhrases.TryGetValue(parts[i] + " " + parts[i + 1], out var phrase))
+            {
+                ok = foundSlot is null;
+                foundSlot = phrase;
+                i++;
+                continue;
+            }
+
+            if (SlotPhrases.TryGetValue(parts[i], out var word))
+            {
+                ok = foundSlot is null;
+                foundSlot = word;
                 continue;
             }
 

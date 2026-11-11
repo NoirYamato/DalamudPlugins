@@ -58,7 +58,7 @@ internal sealed class LlmPromptInput
 /// (§3.2) with an example made from the selected fight, the conversion rules, the fight's mechanic catalog (ids, names,
 /// phases, aliases, hit times), the selected jobs' actions at the sync level and their shorthand aliases, and the plan
 /// text when it is known. The answer is pasted back into MitCue and goes through <see cref="ExtractYaml"/>, the plan
-/// YAML reader and <see cref="PlanValidator"/>.
+/// YAML reader and <see cref="ReviewValidator"/>.
 /// </summary>
 internal static class LlmPrompt
 {

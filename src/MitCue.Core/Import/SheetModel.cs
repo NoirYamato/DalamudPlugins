@@ -185,7 +185,11 @@ public sealed class ImportOptions
 
     public string? SourceUrl { get; init; }
 
-    /// <summary>Calibration preset key in the fight file (e.g. "carry_the_clear"), used when fitting fails.</summary>
+    /// <summary>
+    /// The sheet's preset in the fight file (e.g. "carry_the_clear"): its <c>calibration</c> zero points are used for phases
+    /// the importer cannot fit, and its <c>row_offsets</c> correct rows that time another event than their mechanic's anchor.
+    /// Null: a preset whose words all occur in the document title, if any.
+    /// </summary>
     public string? CalibrationKey { get; init; }
 
     /// <summary>Only import these tabs (null = every tab that looks like a plan table).</summary>
@@ -196,6 +200,18 @@ public sealed class ImportOptions
 
     /// <summary>ISO date to stamp on the plan (tests pass a fixed value).</summary>
     public string? ImportedDate { get; init; }
+
+    /// <summary>
+    /// The plan id. Null: a name-based GUID from the fight, plan name, source (URL or document title), tabs and assignee
+    /// filter, so importing the same source again gives the same id.
+    /// </summary>
+    public string? PlanId { get; init; }
+
+    /// <summary>
+    /// <see cref="PlanSource.Kind"/>: "google-sheet", "google-doc", "file", "paste". Null: "google-doc"/"google-sheet" when
+    /// <see cref="SourceUrl"/> is set, "paste" for a single tab named "Pasted" (<see cref="SheetReaders.FromDelimited"/>), else "file".
+    /// </summary>
+    public string? SourceKind { get; init; }
 }
 
 public sealed class ImportResult
@@ -209,10 +225,21 @@ public sealed class ImportResult
 
     /// <summary>Largest absolute residual of the fit per phase (seconds).</summary>
     public IReadOnlyDictionary<string, double> PhaseSpread { get; init; } = new Dictionary<string, double>();
+
+    /// <summary>Every mechanic row of the imported tabs (with or without assignments) and the mechanic it was matched to, for review.</summary>
+    public IReadOnlyList<ImportedRow> Rows { get; init; } = [];
 }
 
-/// <summary>Converts a sheet into a <see cref="MitPlan"/> (pipeline in docs/DESIGN.md §6).</summary>
-public sealed class PlanImporter
-{
-    public ImportResult Import(SheetDocument document, ImportOptions options) => throw new NotImplementedException();
-}
+/// <summary>A mechanic row of an imported tab and what the importer made of it.</summary>
+/// <param name="Tab">Tab name.</param>
+/// <param name="Row">1-based sheet row.</param>
+/// <param name="Label">The row's mechanic label, or null.</param>
+/// <param name="Phase">The row's phase id, or null.</param>
+/// <param name="Mechanic">The mechanic id the row's entries anchor to, or null when there is none.</param>
+/// <param name="Match">
+/// How: "exact", "simplified", "prefix" or "fuzzy" (by alias), "time" or "order" (among several mechanics with the label),
+/// "other-phase" (the label belongs to another phase), "previous" (no label: the row above's mechanic), "next" (no label and
+/// no row above in its phase: the next row's mechanic) or "unknown". A timed row re-anchored by its time is "time".
+/// </param>
+/// <param name="Src">The label cell (or the row's first cell).</param>
+public sealed record ImportedRow(string Tab, int Row, string? Label, string? Phase, string? Mechanic, string Match, string Src);

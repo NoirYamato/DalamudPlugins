@@ -7,7 +7,7 @@ using MitCue.Core.Plans;
 
 namespace MitCue.Import;
 
-/// <summary>A problem shown in the review: from the importer (<see cref="FromImporter"/>) or from <see cref="PlanValidator"/>.</summary>
+/// <summary>A problem shown in the review: from the importer (<see cref="FromImporter"/>) or from <see cref="ReviewValidator"/>.</summary>
 /// <param name="Severity">How serious it is.</param>
 /// <param name="Code">Stable code ("unknown-mechanic", "not-usable-by-job", ...).</param>
 /// <param name="Message">User-facing text.</param>
@@ -23,8 +23,10 @@ internal sealed record ReviewIssue(DiagnosticSeverity Severity, string Code, str
 /// Checks a plan against the fight and the action catalog, for plans from the AI route (whose ids nobody has checked)
 /// and after review edits: unknown mechanic ids, unknown action ids, actions the entry's job cannot use, actions not
 /// available at the fight's sync level, missing who, odd offsets. Never throws for a well-formed plan object.
+/// Works entry by entry so the review table can re-check a row after each edit; the core's whole-plan
+/// <see cref="MitCue.Core.Import.PlanValidator"/> covers the same rules for imported and bundled plans.
 /// </summary>
-internal static class PlanValidator
+internal static class ReviewValidator
 {
     /// <summary>Offsets beyond this many seconds are reported as suspicious.</summary>
     public const double MaxPlausibleOffset = 60;

@@ -29,7 +29,7 @@ internal sealed class ReviewRow
     /// <summary>Diagnostics of the importer for this entry's source cell or row.</summary>
     public List<ReviewIssue> ImportIssues { get; } = [];
 
-    /// <summary>Problems found by <see cref="PlanValidator"/>.</summary>
+    /// <summary>Problems found by <see cref="ReviewValidator"/>.</summary>
     public List<ReviewIssue> CheckIssues { get; set; } = [];
 
     /// <summary>The user changed something.</summary>
@@ -91,7 +91,7 @@ internal sealed class ReviewModel
         IReadOnlyDictionary<string, double>? phaseZeros = null,
         IReadOnlyDictionary<string, double>? phaseSpread = null)
     {
-        PlanValidator.Repair(plan);
+        ReviewValidator.Repair(plan);
         this.Plan = plan;
         this.Fight = fight;
         this.actions = actions;
@@ -99,7 +99,7 @@ internal sealed class ReviewModel
         this.Origin = origin;
         this.PhaseZeros = phaseZeros ?? new Dictionary<string, double>();
         this.PhaseSpread = phaseSpread ?? new Dictionary<string, double>();
-        this.RenumberedIds = PlanValidator.NormalizeIds(plan);
+        this.RenumberedIds = ReviewValidator.NormalizeIds(plan);
 
         foreach (var entry in plan.Entries)
             this.Rows.Add(new ReviewRow { Uid = this.nextUid++, Entry = entry });
@@ -322,7 +322,7 @@ internal sealed class ReviewModel
     /// <summary>Re-validates one row.</summary>
     public void Recheck(ReviewRow row)
     {
-        row.CheckIssues = PlanValidator.CheckEntry(row.Entry, this.Plan, this.Fight, this.actions, this.actionsLoaded);
+        row.CheckIssues = ReviewValidator.CheckEntry(row.Entry, this.Plan, this.Fight, this.actions, this.actionsLoaded);
         row.Version++;
     }
 
@@ -333,7 +333,7 @@ internal sealed class ReviewModel
             this.Recheck(row);
         this.GlobalIssues.Clear();
         this.GlobalIssues.AddRange(this.importGlobal);
-        this.GlobalIssues.AddRange(PlanValidator.CheckPlan(this.Plan, this.Fight, this.actionsLoaded));
+        this.GlobalIssues.AddRange(ReviewValidator.CheckPlan(this.Plan, this.Fight, this.actionsLoaded));
         if (this.RenumberedIds > 0)
             this.GlobalIssues.Add(new ReviewIssue(DiagnosticSeverity.Info, "renumbered", $"{this.RenumberedIds} entries had a missing or repeated id and were renumbered."));
         this.Revision++;

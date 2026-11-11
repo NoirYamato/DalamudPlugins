@@ -1,0 +1,552 @@
+format: mitcue-plan/1
+id: 335b6c4f-3684-55e0-a8d0-3e78724ef200
+name: Carry the Clear – WHM
+fight: top
+source: {kind: google-sheet, url: 'https://docs.google.com/spreadsheets/d/1chKttd7POMf-aRLMAzQjNHDIgVzOKmLk9igSt-o2X6s/edit#gid=777100', tabs: [TOP – White Mage], imported: 2026-11-11}
+assignees:
+  - {key: White Mage, job: WHM}
+entries:
+  - id: e001
+    mechanic: p1.program_loop
+    hit_index: 2
+    offset: -6
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: 'Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).'
+    severity: 1
+    src: "'TOP – White Mage'!C17"
+  - id: e002
+    mechanic: p1.program_loop
+    hit_index: 3
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16531, name: Afflatus Solace}
+      - {action: 7432, name: Divine Benison}
+    target: your 3rd/4th-in-line player
+    detail: 'Blasters drop each tether player to 1% when their HP Penalty wears off. Heal the 3rd- and 4th-in-line players before their towers, split with your Scholar (e.g. you take #4). Add Aquaveil on the 4th; Bene / Tetra for emergencies. Asylum at ~0:40 heals through the 3rd and 4th towers; top WHMs place it at ~0:59 so it lasts into Pantokrator. Lilies start full (7.4).'
+    severity: 1
+    src: "'TOP – White Mage'!C17"
+  - id: e003
+    mechanic: p1.pantokrator
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: Shields cover the 1st stack, so Bell in the centre right after it covers stacks 2–4. Plenary at ~1:31, before the 3rd stack, covers stacks 3 and 4. Rapture between stacks.
+    severity: 3
+    src: "'TOP – White Mage'!C18"
+  - id: e004
+    mechanic: p1.pantokrator
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    note: right after the 1st stack
+    detail: Shields cover the 1st stack, so Bell in the centre right after it covers stacks 2–4. Plenary at ~1:31, before the 3rd stack, covers stacks 3 and 4. Rapture between stacks.
+    severity: 3
+    src: "'TOP – White Mage'!C18"
+  - id: e005
+    mechanic: p1.pantokrator
+    hit_index: 2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Shields cover the 1st stack, so Bell in the centre right after it covers stacks 2–4. Plenary at ~1:31, before the 3rd stack, covers stacks 3 and 4. Rapture between stacks.
+    severity: 3
+    src: "'TOP – White Mage'!C18"
+  - id: e006
+    mechanic: p1.wave_cannon_kyrios
+    hit_index: 1
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: a tank
+    detail: Bene right after the last cleave, usually on a tank. Keep Aquaveil for P2 Solar Ray.
+    severity: 2
+    src: "'TOP – White Mage'!C19"
+  - id: e007
+    mechanic: p2.solar_ray
+    offset: -5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: the tanks
+    detail: On the tanks.
+    severity: 2
+    src: "'TOP – White Mage'!C22"
+  - id: e008
+    mechanic: p2.solar_ray
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: the tanks
+    detail: On the tanks.
+    severity: 2
+    src: "'TOP – White Mage'!C22"
+  - id: e009
+    mechanic: p2.party_synergy_stacks
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Asylum right after the stacks to heal everyone back up.
+    severity: 1
+    src: "'TOP – White Mage'!C24"
+  - id: e010
+    mechanic: p2.party_synergy_stacks
+    offset: 2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: Asylum right after the stacks to heal everyone back up.
+    severity: 1
+    src: "'TOP – White Mage'!C24"
+  - id: e011
+    mechanic: p2.bladedance
+    offset: -5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: the Bladedance tank
+    detail: Optional, on the Bladedance tank.
+    optional: true
+    severity: 1
+    src: "'TOP – White Mage'!C25"
+  - id: e012
+    mechanic: p2.bladedance
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: the Bladedance tank
+    detail: Optional, on the Bladedance tank.
+    optional: true
+    severity: 1
+    src: "'TOP – White Mage'!C25"
+  - id: e013
+    mechanic: p2.flares
+    offset: -9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: One Temperance covers both the flares and Cosmo Memory (it runs until 1:59).
+    severity: 3
+    src: "'TOP – White Mage'!C26"
+  - id: e014
+    mechanic: p2.cosmo_memory
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Temperance from 1:39 is still up. Medica II + Rapture straight after.
+    severity: 3
+    src: "'TOP – White Mage'!C27"
+  - id: e015
+    mechanic: p3.transition
+    hit_index: 1
+    offset: 1.9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: Asylum after the hits; it keeps healing through Hello, World. Top WHMs Sprint at 0:24 for the rings.
+    severity: 2
+    src: "'TOP – White Mage'!C30"
+  - id: e016
+    mechanic: p3.hello_world
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: ⏱ Only back if P2 lasted 2:16 or longer (60s after your Cosmo Memory Plenary). If it isn't, use it on round 1.
+    when_ready: true
+    severity: 2
+    src: "'TOP – White Mage'!C31"
+  - id: e017
+    mechanic: p3.latent_2
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: ⏱ Only back at 1:25 if P2 lasted 2:14 or longer. Otherwise press it the moment it's up.
+    when_ready: true
+    severity: 2
+    src: "'TOP – White Mage'!C33"
+  - id: e018
+    mechanic: p3.latent_3
+    hit_index: 1
+    offset: -0.5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: Bell lasts until 2:09, so it also catches round 4's first hit.
+    severity: 2
+    src: "'TOP – White Mage'!C34"
+  - id: e019
+    mechanic: p3.latent_4
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    severity: 2
+    src: "'TOP – White Mage'!C35"
+  - id: e020
+    mechanic: p3.critical_error
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Your only free party cooldown here. Top WHMs had nothing for it (pre-7.4) and healed after.
+    severity: 3
+    src: "'TOP – White Mage'!C36"
+  - id: e021
+    mechanic: p4.wave_cannon
+    hit_index: 1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: ⏱ Temp is back by 0:19 only if P3 lasted 3:06+, Asylum by 0:26 only if P3 lasted 3:08+. Otherwise press each the moment it's up. Plenary at 0:28 covers the 0:30 stack and 0:35 lasers.
+    when_ready: true
+    severity: 2
+    src: "'TOP – White Mage'!C40"
+  - id: e022
+    mechanic: p4.wave_cannon
+    hit_index: 3
+    offset: -4.3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: ⏱ Temp is back by 0:19 only if P3 lasted 3:06+, Asylum by 0:26 only if P3 lasted 3:08+. Otherwise press each the moment it's up. Plenary at 0:28 covers the 0:30 stack and 0:35 lasers.
+    when_ready: true
+    severity: 2
+    src: "'TOP – White Mage'!C40"
+  - id: e023
+    mechanic: p4.wave_cannon
+    hit_index: 3
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: ⏱ Temp is back by 0:19 only if P3 lasted 3:06+, Asylum by 0:26 only if P3 lasted 3:08+. Otherwise press each the moment it's up. Plenary at 0:28 covers the 0:30 stack and 0:35 lasers.
+    severity: 2
+    src: "'TOP – White Mage'!C40"
+  - id: e024
+    mechanic: p5.solar_ray_1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    detail: Skip if the tank is using an invuln.
+    severity: 3
+    src: "'TOP – White Mage'!C43"
+  - id: e025
+    mechanic: p5.solar_ray_1
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    detail: Skip if the tank is using an invuln.
+    optional: true
+    severity: 3
+    src: "'TOP – White Mage'!C43"
+  - id: e026
+    mechanic: p5.delta
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Top WHMs press nothing here and drop Bell right after.
+    severity: 3
+    src: "'TOP – White Mage'!C44"
+  - id: e027
+    mechanic: p5.delta_all
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: Bell right after the raidwide covers the tethers and monitors; Asylum for the Hello World hits.
+    severity: 1
+    src: "'TOP – White Mage'!C45"
+  - id: e028
+    mechanic: p5.delta_all
+    hit_index: 7
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: Bell right after the raidwide covers the tethers and monitors; Asylum for the Hello World hits.
+    severity: 1
+    src: "'TOP – White Mage'!C45"
+  - id: e029
+    mechanic: p5.solar_ray_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    severity: 3
+    src: "'TOP – White Mage'!C46"
+  - id: e030
+    mechanic: p5.solar_ray_2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    optional: true
+    severity: 3
+    src: "'TOP – White Mage'!C46"
+  - id: e031
+    mechanic: p5.sigma
+    offset: -18
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: Temperance from 1:29 still covers this.
+    severity: 3
+    src: "'TOP – White Mage'!C47"
+  - id: e032
+    mechanic: p5.sigma
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Temperance from 1:29 still covers this.
+    severity: 3
+    src: "'TOP – White Mage'!C47"
+  - id: e033
+    mechanic: p5.sigma_hello_world
+    hit_index: 2
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    severity: 2
+    src: "'TOP – White Mage'!C50"
+  - id: e034
+    mechanic: p5.solar_ray_3
+    hit_index: 1
+    offset: 1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: the tank
+    detail: Bene the tank after the second hit.
+    severity: 3
+    src: "'TOP – White Mage'!C51"
+  - id: e035
+    mechanic: p5.omega
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    severity: 3
+    src: "'TOP – White Mage'!C52"
+  - id: e036
+    mechanic: p5.omega_all
+    hit_index: 7
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: "Optional free Temperance: it's back for P6 at 1:30 either way."
+    optional: true
+    severity: 1
+    src: "'TOP – White Mage'!C53"
+  - id: e037
+    mechanic: p5.solar_ray_4
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: tank
+    severity: 3
+    src: "'TOP – White Mage'!C54"
+  - id: e038
+    mechanic: p5.solar_ray_4
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    target: tank
+    severity: 3
+    src: "'TOP – White Mage'!C54"
+  - id: e039
+    mechanic: p5.blind_faith
+    offset: -16.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: Free cooldowns before the long P6 transition. Bell is back for Cosmo Meteor, Plenary for Cosmo Memory.
+    severity: 1
+    src: "'TOP – White Mage'!C55"
+  - id: e040
+    mechanic: p5.blind_faith
+    offset: -7.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: Free cooldowns before the long P6 transition. Bell is back for Cosmo Meteor, Plenary for Cosmo Memory.
+    severity: 1
+    src: "'TOP – White Mage'!C55"
+  - id: e041
+    mechanic: p5.blind_faith
+    offset: -4.2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Free cooldowns before the long P6 transition. Bell is back for Cosmo Meteor, Plenary for Cosmo Memory.
+    severity: 1
+    src: "'TOP – White Mage'!C55"
+  - id: e042
+    mechanic: p6.cosmo_memory
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Tank LB3 (~1:04). Medica II + Rapture straight after; tank autos at 1:13 and 1:16. 15 of 36 top WHMs skip P5's 4:30 Asylum and put one here instead (0:58, then 2:29 and 4:04).
+    severity: 4
+    src: "'TOP – White Mage'!C57"
+  - id: e043
+    mechanic: p6.cosmo_dive_1
+    offset: -9
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    severity: 3
+    src: "'TOP – White Mage'!C59"
+  - id: e044
+    mechanic: p6.cosmo_dive_1
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    severity: 3
+    src: "'TOP – White Mage'!C59"
+  - id: e045
+    mechanic: p6.wave_cannon_1
+    offset: 0
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Plenary right after the first proteans lasts through Wild Charge. Top WHMs Sprint (2:02) and Swiftcast (2:03) for the exaflares.
+    severity: 3
+    src: "'TOP – White Mage'!C60"
+  - id: e046
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -5.3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: Plenary right after the first proteans lasts through Wild Charge. Top WHMs Sprint (2:02) and Swiftcast (2:03) for the exaflares.
+    severity: 3
+    src: "'TOP – White Mage'!C60"
+  - id: e047
+    mechanic: p6.wave_cannon_1
+    hit_index: 2
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: Plenary right after the first proteans lasts through Wild Charge. Top WHMs Sprint (2:02) and Swiftcast (2:03) for the exaflares.
+    severity: 3
+    src: "'TOP – White Mage'!C60"
+  - id: e048
+    mechanic: p6.wave_cannon_2
+    hit_index: 2
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    detail: Bene right after Wild Charge, usually on the front tank.
+    severity: 3
+    src: "'TOP – White Mage'!C61"
+  - id: e049
+    mechanic: p6.wave_cannon_2
+    hit_index: 2
+    offset: 3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: the front tank
+    detail: Bene right after Wild Charge, usually on the front tank.
+    severity: 3
+    src: "'TOP – White Mage'!C61"
+  - id: e050
+    mechanic: p6.cosmo_dive_2
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25861, name: Aquaveil}
+    severity: 3
+    src: "'TOP – White Mage'!C63"
+  - id: e051
+    mechanic: p6.cosmo_dive_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    severity: 3
+    src: "'TOP – White Mage'!C63"
+  - id: e052
+    mechanic: p6.cosmo_dive_2
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    severity: 3
+    src: "'TOP – White Mage'!C63"
+  - id: e053
+    mechanic: p6.cosmo_meteor
+    offset: -4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 25862, name: Liturgy of the Bell}
+    detail: All three right before the raidwide.
+    severity: 3
+    src: "'TOP – White Mage'!C64"
+  - id: e054
+    mechanic: p6.cosmo_meteor
+    offset: -3
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    detail: All three right before the raidwide.
+    severity: 3
+    src: "'TOP – White Mage'!C64"
+  - id: e055
+    mechanic: p6.cosmo_meteor
+    offset: -2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    detail: All three right before the raidwide.
+    severity: 3
+    src: "'TOP – White Mage'!C64"
+  - id: e056
+    mechanic: p6.magic_number_1
+    offset: 4
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 208, name: Pulse of Life}
+    note: after the hit
+    detail: Tank LB3 first (~4:24). Top WHMs take this healer LB3 and the Scholar takes the second one. Agree on it with your group.
+    severity: 4
+    src: "'TOP – White Mage'!C66"
+  - id: e057
+    mechanic: p6.magic_number_2
+    offset: -6
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    detail: Tank LB3 (~4:40), then your Scholar's healer LB3 (~4:48).
+    severity: 4
+    src: "'TOP – White Mage'!C67"

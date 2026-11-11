@@ -133,6 +133,17 @@ public sealed partial class CellParser
     [GeneratedRegex(@"[\p{L}\p{N}]")]
     private static partial Regex HasWordChar();
 
+    /// <summary>
+    /// True for a word the parser reads as part of a hint rather than an action: a connector ("after", "if", "use"), a
+    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), a count ("×2") or a number ("4", "1st").
+    /// </summary>
+    internal static bool IsHintWord(string word)
+    {
+        var w = word.Trim('.', ',', ':', ';', '!', '?', '"', '\'', '(', ')', '[', ']');
+        return w.Length > 0 && (Connectors.Contains(w) || Continuations.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w)
+            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
+    }
+
     /// <summary>Parses plain text (no formatting).</summary>
     public ParsedCell Parse(string? text, string? src = null) => this.Parse(new SheetCell { Text = text }, src);
 

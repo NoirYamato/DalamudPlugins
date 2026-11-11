@@ -1073,3 +1073,13 @@ mechanics:
 # Importers should prefer a row's own time when it has one and use these only for rows without a time.
 calibration:
   carry_the_clear: { p1: 0.9, p2: 201.8, p3: 399.4, p4: 606.7, p5: 714.7, p6: 1099.3 }
+
+# row_offsets: per sheet (same keys as calibration), seconds from a mechanic's first hit to the event that the sheet's
+# row time marks, for rows that time another event than the catalog anchor (docs/research/mechanics.md section 4.2,
+# "Conclusions"). The importer adds it to row-relative offsets: offset = t_item - t_row + row offset.
+# Carry the Clear: Blue Screen is timed at the 7B7C hit (1.0 s after the 7B7B cast end anchor), the Omega row's first
+# time at the cones (1.1 s after the cast end anchor), Blind Faith at the 7B87 cast end (1.2 s before the hit) and the
+# P6 enrage at the end of its 16 s cast bar (14 s before cactbot's effect). P2 Cosmo Memory and the Hello World rounds
+# are timed at the cast end like their anchors, so their offset is 0.
+row_offsets:
+  carry_the_clear: { p4.blue_screen: 1.0, p5.omega_all: 1.1, p5.blind_faith: -1.2, p6.run_mi_enrage: -14.0 }

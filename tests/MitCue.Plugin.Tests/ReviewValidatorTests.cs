@@ -6,12 +6,12 @@ using static MitCue.PluginTests.TestData;
 
 namespace MitCue.PluginTests;
 
-public class PlanValidatorTests
+public class ReviewValidatorTests
 {
     private static List<ReviewIssue> Check(PlanEntry entry, MitPlan? plan = null, bool actionsLoaded = true)
     {
         plan ??= new MitPlan { Fight = "top", Entries = [entry] };
-        return PlanValidator.CheckEntry(entry, plan, Top(), Catalog(), actionsLoaded);
+        return ReviewValidator.CheckEntry(entry, plan, Top(), Catalog(), actionsLoaded);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class PlanValidatorTests
             Key = "dmu", Name = "Dancing Mad", Territory = 1363, SyncLevel = 100, TimelineFile = "x", Mechanics = fight.Mechanics, Phases = fight.Phases,
         };
         var succor = Entry("e2", "p1.pantokrator", Job.SCH, Action(Succor, "Succor"));
-        var issues = PlanValidator.CheckEntry(succor, new MitPlan { Entries = [succor] }, tea, Catalog(), true);
+        var issues = ReviewValidator.CheckEntry(succor, new MitPlan { Entries = [succor] }, tea, Catalog(), true);
         var replaced = Assert.Single(issues);
         Assert.Equal("not-available-at-level", replaced.Code);
         Assert.Contains("replaced by its upgrade at level 96", replaced.Message);
@@ -129,13 +129,13 @@ public class PlanValidatorTests
     {
         Assert.Empty(Check(Entry("e1", "p1.pantokrator", Job.WHM, Action(999999, "Made Up")), actionsLoaded: false));
         var plan = new MitPlan { Fight = "top", Entries = [Entry("e1", "p1.pantokrator", Job.WHM)] };
-        Assert.Contains(PlanValidator.CheckPlan(plan, Top(), actionsLoaded: false), i => i.Code == "actions-not-checked");
+        Assert.Contains(ReviewValidator.CheckPlan(plan, Top(), actionsLoaded: false), i => i.Code == "actions-not-checked");
     }
 
     [Fact]
     public void ChecksThePlan()
     {
-        var codes = PlanValidator.CheckPlan(new MitPlan { Fight = "tea" }, Top(), true).Select(i => i.Code).ToList();
+        var codes = ReviewValidator.CheckPlan(new MitPlan { Fight = "tea" }, Top(), true).Select(i => i.Code).ToList();
         Assert.Contains("no-entries", codes);
         Assert.Contains("fight-mismatch", codes);
     }
@@ -154,7 +154,7 @@ public class PlanValidatorTests
             ],
         };
 
-        Assert.Equal(2, PlanValidator.NormalizeIds(plan));
+        Assert.Equal(2, ReviewValidator.NormalizeIds(plan));
 
         var ids = plan.Entries.Select(e => e.Id).ToList();
         Assert.Equal("e002", ids[0]);
@@ -167,7 +167,7 @@ public class PlanValidatorTests
     public void RepairsNullCollections()
     {
         var plan = new MitPlan { Assignees = null!, Entries = [new PlanEntry { Id = "e1", Mechanic = null!, Who = null!, Do = null! }] };
-        PlanValidator.Repair(plan);
+        ReviewValidator.Repair(plan);
         Assert.NotNull(plan.Assignees);
         Assert.NotNull(plan.Entries[0].Who);
         Assert.NotNull(plan.Entries[0].Do);
