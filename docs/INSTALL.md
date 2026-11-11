@@ -187,8 +187,7 @@ are inside `MitCue.Core.dll`, so there is nothing else to install.
 
 - **MitCue is not in "All Plugins"**: check that the repository row is **Enabled** and that you clicked
   **Save**. Then reopen `/xlplugins`. If it still doesn't appear, open the URL in a browser: you should see a
-  JSON list. Search the page for `MitCue`. If the list has NoirMech but not MitCue, MitCue has not been
-  published there yet.
+  JSON list. Search the page for `MitCue`: it is listed there, next to NoirMech, since version 0.1.0.1.
 - **MitCue (and NoirMech) stopped loading**: the repository row was removed, disabled or changed. Put it back
   exactly as above (see [Updates](#updates)).
 - **"outdated" or "incompatible"**: Dalamud's API level changed. MitCue needs a rebuild for the new Dalamud.

@@ -69,8 +69,8 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `SoundPlayer` | `Game/SoundPlayer.cs` | Plays chat sound effect `<se.N>` through `UIGlobals.PlaySoundEffect` |
 | `CoreData` | `Data/CoreData.cs` | Loads the fight library (`data/fights`, cactbot timelines), action catalog and alias dictionary embedded in `MitCue.Core.dll`, and adds the personal aliases. Loads on the first tick, and again on the tick after **Reload data**. Every call is guarded |
 | `GameData` | `Data/GameData.cs` | Lumina lookups: action names in the client language, icons, the GCD flag, job abbreviations, zone names (cached) |
-| `PlanStore` | `Plans/PlanStore.cs` | The bundled plans (embedded, read-only) plus user plans (`pluginConfigs/MitCue/plans/*.json`); a user plan with a bundled plan's id takes its place. Works out the active plan per fight and job and "my column" (§1.5). Imports and exports share codes. Loads on the first tick, after `CoreData`, and again with **Reload plans** |
-| `ColumnSuggestion`, `PlanChecks` | `Plans/` | The automatic column choice (§1.5). The core `PlanValidator` run on plans that skip the import review: share codes and plan files in the plans folder |
+| `PlanStore` | `Plans/PlanStore.cs` | The bundled plans (embedded, read-only) plus user plans (`pluginConfigs/MitCue/plans/*.json`); a user plan with a bundled plan's id takes its place. Stores slot synonyms (`T1`, `T2`, `ST`, `D1`–`D4`) as the standard slots. Works out the active plan per fight and job and "my column" (§1.5, with the core's `ColumnSuggestion`). Imports and exports share codes. Loads on the first tick, after `CoreData`, and again with **Reload plans** |
+| `PlanChecks` | `Plans/PlanChecks.cs` | Checks plans that skip the import review (share codes and plan files in the plans folder) with the review's `ReviewValidator`, and keeps only what makes a call impossible: a mechanic the fight lacks, an unknown action, an action (or every option of an either/or) the entry's job or slot cannot use, or not at the sync level |
 | `SessionManager` | `Runtime/SessionManager.cs` | Owns the live `EncounterSession`: builds it, rebuilds it when something changes, feeds it every frame, prints the pull summary and asks for the sound |
 | `EncounterSession` | `Runtime/EncounterSession.cs` | One fight, plan and player: a core `TimelinePlayer` plus a `ReminderScheduler` for your entries and an optional one for the co-healer's. Handles the countdown, pull start and pull end |
 | `TimelineSyncEngine` | `Runtime/SyncEngine.cs` | The core `TimelinePlayer` behind an interface, so tests can drive a session with a scripted engine |
@@ -86,7 +86,7 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `DocHtmlReader`, `DocTextReader` | `Import/` | Google Docs: the web page export (each table becomes a tab, the other paragraphs a "Text" tab), or the plain-text export when the page is too large or too slow |
 | `ImportAnalysis`, `TrialImportTracker` | `Import/` | The Options step's trial import: tabs, columns and entry counts, and the tabs and columns ticked by default |
 | `ReviewModel`, `ReviewValidator` | `Import/` | The review's rows, edits and undo; the checks of each entry (unknown mechanics or actions, actions the job can't use at the sync level, missing who, odd offsets) |
-| `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, and how many entries the overlay will show |
+| `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, how many entries the overlay will show, and which of the player's calls the choice leaves out, by column |
 | `LlmPrompt`, `SheetText` | `Import/` | The AI prompt: the plan format and rules, the fight's mechanics, the chosen jobs' actions and aliases, and the loaded sheet as text. Reads the YAML out of the AI's answer |
 | `PersonalAliases` | `Import/PersonalAliases.cs` | Review fixes remembered as personal aliases |
 | `ErrorReporter` | `Util/ErrorReporter.cs` | Collects problems. Each distinct problem is logged once to Dalamud's log and listed under **Problems** and in the debug report |
@@ -158,23 +158,33 @@ TEA 887, DMU 1363), on a combat job, and there must be an active plan for that f
 Status line says what is missing.
 
 **The plan.** `PlanStore.ActivePlanFor` takes the plan chosen in the Plans tab (`ActivePlans["top/WHM"]`; an
-empty value means "no plan"). Without a choice it is automatic: the player's first own plan for the fight
-that has a column or entries for the job, else the bundled plan meant for the job
-(`PlanStore.BundledDefaults`: `top/WHM` → *Carry the Clear – WHM*, `top/SCH` → *LPDU TOP Mitigation*),
-else the first bundled plan for the job by name.
+empty value means "no plan"). Without a choice it is automatic: the bundled plan meant for the job
+(`PlanStore.BundledDefaults`, by plan id: `top/WHM` → *Carry the Clear – WHM*, `top/SCH` → *LPDU TOP
+Mitigation*), else the first bundled plan for the job by name, else the player's first own plan for the
+fight that has a column or entries for the job (TEA and DMU ship no plans). An imported plan replaces a
+bundled plan only when chosen: the import window's **Make it my active plan …**, the Plans tab's **Make an
+imported share code my active plan as …** (`PlanStore.ImportShareCode` with the current job; it sets the plan
+only when it has calls for that job), or the **Active plan** combo. A share code of a bundled plan has that
+plan's id and takes its place, so it stays the automatic plan of the job the bundled plan is meant for.
 
 **The column.** `PlanStore.MappingFor` takes the column chosen for that plan and job. Without a choice it
-suggests the job's column (`SuggestAssignee`: the job's column, the one in the configured slot when there are
-several, else the slot's column). When that column leaves out calls of the player's other columns, it
-suggests the narrowest choice that has them all instead (`ColumnSuggestion.Complete`: "any column for my job
-in my slot", or one of the player's columns). On the bundled LPDU plan the H2 Scholar gets "any column for
-SCH in slot H2": 31 entries, including the job-less "H2" calls of P1 and P2.
+uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
+column, the one in the configured slot when there are several, else the first; else the slot's column). When
+that column leaves out the job-less calls of the player's slot, it suggests the narrowest choice that has
+them too and no call of another column (`Complete`: "any column for my job in my slot", or one of the
+player's columns). Several columns of the job are alternatives, never combined. On the bundled LPDU plan the
+H2 Scholar gets "any column for SCH in slot H2": 31 entries, including the job-less "H2" calls of P1 and P2
+(the H1 White Mage gets 11 the same way). A Warrior gets the first tank-pair column, "WAR/DRK WAR", and the
+MT or OT calls for WAR (24 entries in MT, 23 in OT); the job-less "MT"/"OT" calls (Reprisal, Rampart) and
+the "CM LB Tank" and "CM Rep Tank" columns are left out, so tanks pick their column.
 
 **The co-healer's calls.** With **Also show my co-healer's calls** on, `PartnerSelection` adds the entries
 that are not the player's, from the player's role group (tank, healer or DPS), but not those for the player's
-own seat (their job or their slot in another column, such as LPDU's "H2 SGE" for the H2 Scholar). When the
-party is known, columns of jobs nobody in the party plays are left out too (LPDU's "H1 AST" next to a White
-Mage). A change in the party's jobs rebuilds the session only while the option is on.
+own seat (their job or their slot in another column, such as LPDU's "H2 SGE" for the H2 Scholar), nor the
+partner job's columns for team compositions without the player's job (a Warrior sees "WAR/DRK DRK", not
+"DRK/GNB DRK" or "DRK/PLD DRK"). When the party is known, columns of jobs nobody in the party plays are left
+out too (LPDU's "H1 AST" next to a White Mage). A change in the party's jobs rebuilds the session only while
+the option is on.
 
 **Rebuilds.** The session is rebuilt when what it was built from changes: the zone, job, synced level or
 client language; the active plan, or the column and slot used for the player (**My column**, **My usual
@@ -182,7 +192,9 @@ party slot**); the plans themselves (a save, a delete, **Reload plans**); **Also
 calls**; and, while that option is on, the party's jobs.
 
 - A change of zone, job or login rebuilds it straight away.
-- The other changes wait until the current countdown or pull is over.
+- The other changes wait until the current countdown or pull is over. After a countdown that reaches zero
+  they also wait through the hold before the pull and through the pull (or until 20 s after "0" when no pull
+  starts), so a pre-pull call already pressed stays done.
 - The timing sliders (*Show reminders this early*, *Turn "NOW" this early*) and *Show skipped* apply
   immediately, even in the middle of a pull. The other settings don't need a rebuild.
 - **Reload data** (Debug tab) does not rebuild it: the session keeps the fight data it was built with, and a
@@ -258,8 +270,10 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
      `ImportPipeline.LoadLinkAsync`. A sheet is downloaded whole as `.xlsx` (`export?format=xlsx`) and read
      by the core `SheetReaders.FromXlsx` with its colours. When the link names a tab (`gid=`), the one-tab
      export finds which one. The `htmlview` page gives back the tab names the export changes (`P1P2` →
-     `P1/P2`, `WARDRK` → `WAR/DRK`), best effort. A doc is read from its web page export, or from its
-     plain-text export when the page is too large or too slow (it inlines every image).
+     `P1/P2`, `WARDRK` → `WAR/DRK`), best effort: it is requested together with the workbook, and once the
+     workbook is in, the import waits at most 3 s more for it (`ImportPipeline.TabListGrace`), then keeps
+     the export's names. A doc is read from its web page export, or from its plain-text export when the page
+     is too large or too slow (it inlines every image).
    - *Paste cells*: `ImportPipeline.LoadPasted` reads tab- or comma-separated text, one tab per paste; **Add
      as another tab** adds the next tab to the same document.
    - *Paste plan YAML (AI route)*: **Copy AI prompt** puts `LlmPrompt.Build`'s prompt on the clipboard: the
@@ -276,10 +290,17 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    note and items, and delete entries (with undo). Replacing a note with an action offers to remember it:
    `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the
    alias dictionary for later imports.
-4. **Save.** `PlanStore.Save` writes the user plan. When the job's own column would miss some of the player's
-   calls, `ImportColumns` saves the column choice that has them all (`PlanStore.SetMapping`). With **Make it
-   my active plan …** ticked, `PlanStore.SetActive` makes it the active plan. Chat says *Saved plan "…"* and
-   the window closes.
+4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
+   and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
+   compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced
+   plan's column choices follow a renamed column (`PlanStore.CarryOver`). When the job's column leaves out
+   the job-less calls of the player's slot, `ImportColumns` saves the suggestion that has them too
+   (`PlanStore.SetMapping`). When a column choice leaves out some of the player's calls (the replaced plan's,
+   or a tank's pair column on LPDU: no choice has the job-less "MT" calls without the other pairs'), the
+   step warns and names the columns of the calls left out. With **Make it my active plan …** ticked,
+   `PlanStore.SetActive` makes it the active plan. Chat says *Saved plan "…" (N entries, active for TOP as
+   WHM)*, or *…; your active plan for TOP as WHM stays "…", choose this one in /mitcue > Plans to use it)*,
+   and the window closes.
 
 **Threading.** The slow steps (download, reading a workbook or a document, reading pasted cells, the trial
 import, the import, reading YAML) run through `BackgroundJobs`:
@@ -405,7 +426,7 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       `[H1 AST]` too), never `[H2 SGE]`. As White Mage, *Carry the Clear – WHM* has no Scholar column, so
       first choose *Carry the Clear – WHM + SCH* under **Active plan**: the `[Scholar]` calls appear. All rows
       are in press-time order, and your own rows are never pushed out. White Mage: afterwards, set **Active
-      plan** back to *(automatic: my own plan for this job, else the bundled plan meant for it)*.
+      plan** back to *(automatic: the bundled plan for this job, else my own plan for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
@@ -417,7 +438,8 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       does the same.
 - [ ] **Link**: paste the link of the LPDU sheet and click **Fetch**. The status line shows *Downloading the
       sheet... (N s)* with **Cancel**, then *Loaded Google Sheet "…" (N tabs).*, and **2. Options** opens.
-      The tab list shows `P1/P2` and `WAR/DRK`, not `P1P2` and `WARDRK`.
+      The tab list shows `P1/P2` and `WAR/DRK`, not `P1P2` and `WARDRK` (those mean Google's tab list took
+      more than 3 s after the sheet: note it).
 - [ ] A link to a sheet that is not shared publicly gives a message about sharing (*Anyone with the link*).
 - [ ] **Options**: after *Looking at the tabs...*, your tabs and columns are ticked, and your columns are
       marked *(you: <JOB>)*. **Import and review**: the review lists the entries, with counts of entries with
@@ -439,15 +461,21 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       paste the answer back, **Check the YAML and review**. Unknown mechanics or actions show as errors in the
       review.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
-- [ ] **Share codes**: **Copy share code** of a bundled plan, paste it into **Share code**, **Import share
-      code**: it is listed as *user* instead of *bundled*. **Delete** it: the bundled plan is back. A damaged
-      code gives a message instead of a plan.
+- [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, ticked.
+      **Copy share code** of your job's bundled plan, paste it into **Share code**, **Import share code**: it
+      is listed as *user* instead of *bundled*, and the message ends *It is your active plan for TOP as
+      <JOB>.* **Delete** it: the bundled plan is back. A damaged code gives a message instead of a plan.
+- [ ] Untick **Make an imported share code my active plan as <JOB>** and import the co-healer's plan's code.
+      As White Mage, *LPDU TOP Mitigation*'s: the message ends *Your active plan for TOP as WHM stays "Carry
+      the Clear – WHM": choose this one in the table above to use it.*, and the TOP / WHM row still shows
+      *Carry the Clear – WHM*. As Scholar, *Carry the Clear – WHM*'s: *It has no calls for SCH: choose it in
+      the table above for the job it is for.* Tick the box again.
 - [ ] **Problems** stays empty, apart from plan-check warnings you caused on purpose.
 - [ ] Clean up before §2.5: **Delete** every plan you saved in this section (**Delete**, then **Click again
       to delete**). The TOP row for your job must then read *(automatic) Carry the Clear – WHM* (White Mage)
-      or *(automatic) LPDU TOP Mitigation* (Scholar); if it doesn't, choose *(automatic: my own plan for this
-      job, else the bundled plan meant for it)*. An imported plan left in the list stays your plan for TOP:
-      the LPDU import gives a White Mage LPDU's calls instead of Carry the Clear's.
+      or *(automatic) LPDU TOP Mitigation* (Scholar); if it doesn't, choose *(automatic: the bundled plan for
+      this job, else my own plan for it)*. Deleting a plan you made active sets the row back to automatic,
+      except for the share code of a bundled plan: that bundled plan then stays chosen, without *(automatic)*.
 
 ### 2.4 A simple fight (10 minutes: a dungeon boss or a trial)
 
@@ -514,8 +542,8 @@ During pulls:
 - [ ] If you die, the reminders keep running until the wipe.
 - [ ] After a wipe: chat shows `TOP pull ended (wipe): N done, M missed. Missed: …`, the overlay goes back to
       *waiting for pull*, and the next pull starts cleanly.
-- [ ] Switch plan or column between pulls: the Status line updates. Switching during a pull only takes effect
-      after it. Switch back to the automatic plan and the suggested column afterwards.
+- [ ] Switch plan or column between pulls: the Status line updates. Switching during a countdown or a pull
+      only takes effect after the pull. Switch back to the automatic plan and the suggested column afterwards.
 - [ ] `/mitcue reset` during a pull clears the reminders without a summary. Note whether MitCue picks the
       fight up again before the pull ends. The next pull must work normally.
 - [ ] Optional: `/xlstats` opens Dalamud's plugin statistics. It lists no plugins until you switch tracking
