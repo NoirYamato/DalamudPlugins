@@ -226,6 +226,24 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void AnInferredTarget_IsForTheSingleTargetActionsOnly()
+    {
+        // 'LL/BJCC'!F54 "EukDiag/Kerachole" on Double Rocket Punch, a tankbuster: the tank is Eukrasian Diagnosis's target;
+        // Kerachole (an area) gets an entry without one, as "Soil/Excog (Tank)" splits by its written target.
+        var r = Import(Sheet("P2", "Sage\tScholar", "Double Rocket Punch\tEukDiag/Kerachole\tSoil/Excog (Tank)"), SlashReading.All, PlanImports.Tea);
+
+        var sage = r.Plan.Entries.Where(e => e.Who.Job == Job.SGE).ToList();
+        Assert.Equal([("Eukrasian Diagnosis", "tank"), ("Kerachole", null)], sage.Select(e => (string.Join("+", e.Names()), e.Target)).OrderBy(x => x.Item1));
+        var sch = r.Plan.Entries.Where(e => e.Who.Job == Job.SCH).ToList();
+        Assert.Equal([("Excogitation", "Tank"), ("Sacred Soil", null)], sch.Select(e => (string.Join("+", e.Names()), e.Target)).OrderBy(x => x.Item1));
+
+        // A sequence stays one entry with the target ("ZoeEukProg" is Zoe → Eukrasian Prognosis).
+        var seq = Assert.Single(Import(Sheet("P2", "Sage", "Double Rocket Punch\tEukDiag/ZoeEukProg"), SlashReading.All, PlanImports.Tea).Plan.Entries);
+        Assert.True(seq.Seq);
+        Assert.Equal("tank", seq.Target);
+    }
+
+    [Fact]
     public void ParentheticalNamingTheTokensOwnActions_LimitsTheJobs()
     {
         var r = Import(Sheet("P1", "Tank 1", "Pantokrator\tParty Mit (DM/HoL)"));

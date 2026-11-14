@@ -1677,6 +1677,8 @@ public sealed partial class PlanImporter
             var target = item.IsSequence
                 ? group.Select(t => t.Token.Target?.Value).FirstOrDefault(v => v is not null)
                 : group.Select(t => t.Target?.Value).FirstOrDefault(v => v is not null);
+            if (target is null)
+                entries = entries.SelectMany(e => this.SplitByInferredTarget(e, row, anchor, header)).ToList();
             var footnote = group.Any(t => t.Token.Footnote) ? this.Footnote(row, cell, group) : null;
             var notesText = this.EntryNote(group, footnote, groupIndex == 0 ? shared.StepNotes : []);
             var conditional = group.Any(t => t.Condition is not null) || shared.Condition is not null;
@@ -1766,6 +1768,34 @@ public sealed partial class PlanImporter
                     part++;
                 }
             }
+        }
+
+        /// <summary>
+        /// The target the row gives single-target actions (<see cref="InferTarget"/>: "tank" on a tankbuster) is theirs only:
+        /// an entry that also has actions for the party or an area ("EukDiag/Kerachole" on TEA's Double Rocket Punch) becomes
+        /// two, as a written target splits it ("Soil/Excog (Tank)"). A sequence, an either/or choice and an item of both
+        /// kinds (or a note) keep the entry whole.
+        /// </summary>
+        private IEnumerable<EntryParts> SplitByInferredTarget(EntryParts parts, RowState row, Mechanic anchor, AssigneeHeader header)
+        {
+            var isTank = parts.Job is { } job ? Jobs.RoleOf(job) == Role.Tank : header.Role == Role.Tank;
+            var singles = parts.Actions.Where(a => a.Target == ActionTarget.Single).ToList();
+            if (parts.Seq || parts.Choice is not null || isTank || singles.Count == 0 || singles.Count == parts.Actions.Count)
+                return [parts];
+            var kinds = parts.Items.Select(this.IsSingleTarget).ToList();
+            if (kinds.Any(k => k is null) || this.InferTarget(row, anchor, singles) is null)
+                return [parts];
+
+            var targeted = parts with { Items = parts.Items.Where((_, i) => kinds[i] == true).ToList(), Actions = singles };
+            var rest = parts with { Items = parts.Items.Where((_, i) => kinds[i] == false).ToList(), Actions = parts.Actions.Where(a => a.Target != ActionTarget.Single).ToList() };
+            return kinds[0] == true ? [targeted, rest] : [rest, targeted];
+        }
+
+        /// <summary>Whether every action of an item takes a single target; null for a note or an either/or of both kinds.</summary>
+        private bool? IsSingleTarget(PlanItem item)
+        {
+            var kinds = item.ActionIds().Select(id => this.options.Actions.Get(id)?.Target == ActionTarget.Single).Distinct().ToList();
+            return kinds.Count == 1 ? kinds[0] : null;
         }
 
         /// <summary>The plan items of an alternative: one per action, or an either/or per group of options ("the Arrow|the Bole").</summary>

@@ -178,7 +178,7 @@ public class BundledPlanTests
     [InlineData(Job.WHM, null, "White Mage", null, 25)]
     [InlineData(Job.SCH, "H2", "Scholar", "H2", 32)]
     [InlineData(Job.SCH, null, "Scholar", null, 32)]
-    [InlineData(Job.SGE, "H2", "Sage", "H2", 29)]
+    [InlineData(Job.SGE, "H2", "Sage", "H2", 30)]
     [InlineData(Job.AST, "H1", "Astrologian", "H1", 26)]
     [InlineData(Job.WAR, "MT", "Tank 1", "MT", 16)]
     [InlineData(Job.PLD, "MT", "Tank 1", "MT", 19)]
