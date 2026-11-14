@@ -72,8 +72,9 @@ NoirMech change:
   `e0c03f0`, as on upstream's v0.5.1.0; `89aa318` alone fixes none of them;
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
-- the pull-log report (below): an [Explicit] test in `tests/AnoMech.Tests/Reports/` that checks TOP's values,
-  UNVERIFIED or settled, against the user's ACT logs, and the ACT log parser it reads them with;
+- the pull-log reports (below): two [Explicit] tests in `tests/AnoMech.Tests/Reports/`, one for TOP and one for TEA,
+  that check their values, UNVERIFIED or settled, against the user's ACT logs, and the ACT log parser they read them
+  with;
 - Retry and Drill (below): `Core/Game/RollReplay.cs`, which upstream's `PracticeLoop` owns and reports every run to
   (it keeps a replayed roll off the streak and lets Drill make the restart); upstream's `RunController` is `partial`,
   with Retry in `RunController.Retry.cs` and a `checkSettings` flag on its `StartRefusal`; in upstream's `Plugin`,
@@ -287,6 +288,32 @@ anywhere, since they hold other players' names.
   locations (263 lines) are exact to about 0.03 y, and the report measures from them where it can.
 - The measures cover what the logs reach (P3 and P4 Blue Screen); a phase's values need a measure class beside
   the others, listed in `TopPullLogReport.Measures`.
+- TEA's report is `Reports/TeaPullLogs/TeaPullLogReport.cs` (`TeaUnverifiedValues`, run the same way with
+  `--filter Name=TeaUnverifiedValues`, writing `pull-logs/tea-unverified.txt`). Its measure classes
+  (`TeaPullLogReport.Measures`) cover P1: the timeline, the actors, the Protean Waves, the Liquid Hand and the cleaves,
+  the dolls and Emboli, Drainage and Throttle, Limit Cut and the deaths. `TeaPullLogReportTests` is its companion.
+  - What both reports share is in `Reports/PullLogs/`: `PullLog` (a pull as typed events; `TopPull` and `TeaPull`
+    derive from it), `LogFinding`, `SimSource`, `LethalHits` and the report's text.
+  - A fifth verdict, "measured, not in the sim", is for what the fight does that no scenario plays: the opening
+    (the dolls, the cleaves, whom the bosses turn to), health (maximum hit points, Hand of Pain's gap) and the like.
+    Such a finding points at the scenario's own note that the opening isn't played, or that no health is, so
+    building it, which rewords the note, fails `TeaPullLogReportTests` for every finding that then has a value to
+    check.
+  - A part's literals are read from its `fight.X(start + 4.8f)` lines (`SimSource.PartTime`) and held against the
+    event's time after the cast the part is timed by: the Liquid's telegraphed cast for Protean 1, Cascade 2's cast for
+    Cascade 2, the first Hawk Blaster pair for Limit Cut. The combat flag gives the opening's times and each part's
+    place on the fight's clock; a pull the log joined after its start (the Living Liquid not at full health as it
+    opened) is left out of those.
+  - A pull carries what stood as it opened (`ActPull.Standing`: each combatant's 03 line, each object's 261 Add and
+    the map effects since the last pull), which is where the Liquid's spot before the pull, the helpers and the
+    entrance barrier are read from; a combatant of the pull before can linger there, so the report takes what joined
+    with the pull's own Living Liquid. The plugin's own runs are left out by asking for a cast or an ability of the
+    fight's own actors: a fairy's ids sit among the enemies'.
+  - A boss's own spot and facing on a cast, an ability or a move line are the server's. "Closest" and "farthest"
+    among players are told apart no finer than a yalm, and a player's bearing from a boss a few yalms away turns by
+    ten degrees for a yalm of error. A player just raised (Transcendent) is left out of kill rules as one under a
+    tank's invulnerability is; the wave and Cruise Chaser rules also leave out a hit on a player an earlier hit had
+    already left at 0 HP.
 
 ## LPDU strat timing
 Moves are timed like upstream's NA strat; the symbol flex at 8.5s is the only extra step. The flex has no
