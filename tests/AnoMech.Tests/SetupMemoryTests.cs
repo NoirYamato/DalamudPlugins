@@ -252,28 +252,31 @@ public class SetupMemoryTests
         });
     }
 
-    // Each public setting a peer would be sent, on a value other than a fresh one's: bools on, enums on their last
-    // member, numbers on 1, and a per-player setting's own value the same way.
+    // Each public setting a peer would be sent, on a value other than the fresh one it has: bools flipped, enums on
+    // their last member, or their first where the last is the default, numbers on 1, or 2 from 1, and a per-player
+    // setting's own value the same way.
     private static void MoveOffTheDefaults(object overrides)
     {
         foreach (var property in overrides.GetType().GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (!property.CanRead || !property.CanWrite) continue;
-            if (OffDefault(property.PropertyType) is { } value) property.SetValue(overrides, value);
+            if (OffDefault(property.PropertyType, property.GetValue(overrides)) is { } value) property.SetValue(overrides, value);
             else if (property.GetValue(overrides) is IPerRoleSetting perRole
                      && perRole.GetType().GetProperty(nameof(PerRoleSetting<bool>.Mine)) is { } mine
-                     && OffDefault(mine.PropertyType) is { } own)
+                     && OffDefault(mine.PropertyType, mine.GetValue(perRole)) is { } own)
                 mine.SetValue(perRole, own);
         }
     }
 
-    private static object? OffDefault(Type type)
+    private static object? OffDefault(Type type, object? fresh)
     {
         var plain = Nullable.GetUnderlyingType(type) ?? type;
-        if (plain == typeof(bool)) return true;
-        if (plain == typeof(int)) return 1;
-        if (plain == typeof(float)) return 1f;
-        if (plain.IsEnum) return Enum.GetValues(plain).GetValue(Enum.GetValues(plain).Length - 1);
-        return null;
+        if (plain == typeof(bool)) return fresh is not true;
+        if (plain == typeof(int)) return fresh is 1 ? 2 : 1;
+        if (plain == typeof(float)) return fresh is 1f ? 2f : 1f;
+        if (!plain.IsEnum) return null;
+        var members = Enum.GetValues(plain);
+        var last = members.GetValue(members.Length - 1);
+        return Equals(last, fresh) ? members.GetValue(0) : last;
     }
 }
