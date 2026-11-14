@@ -38,6 +38,15 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(run.Elapsed, Is.InRange(35.5f, 37f), "the run ends by itself after J Kick");
     }
 
+    // The rim is a wall in the fight, and the zone has no boundary that kills past it.
+    [Test]
+    public void StandingPastTheRimKillsNobody()
+    {
+        var run = new Stage().Run(MainTank, stopAt: 7.5f, takeovers: new Takeover(1.0f, new Vector2(0f, P1Geometry.ArenaRadius + 1.5f)));
+
+        Assert.That(run.Passed, run.ToString);
+    }
+
     [TestCase(WestEast, -14f, 0f)]
     [TestCase(NorthwestSoutheast, 10f, 10f)]
     [TestCase(NorthSouth, 0f, -14f)]
@@ -270,15 +279,6 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(cleaved, Is.True, $"#{number} was cleaved where it stepped to");
     }
 
-    // He is hidden until a warp-in shows him, once, as he first lands.
-    [Test]
-    public void CruiseChaserAppearsAsHeFirstLands()
-    {
-        var warpIns = new List<float>();
-        var run = new Stage().Run(MainTank, probe: p =>
-        {
-            if (!p.Crossed(33f)) return;
-            var cruiseChaser = CruiseChaser(p).EntityId.ToString("X8");
     // The number stays on its spot until 0.05 s before the cleave, after his turn to it, and is then 0.3 y behind
     // his centre, behind the cone that turn aimed. The cleave turned after it runs back through the rest of its
     // group, so the run stops before any of them falls.
@@ -333,6 +333,15 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(hit, Is.True, $"#{number} was hit where it stepped to");
     }
 
+    // He is hidden until a warp-in shows him, once, as he first lands.
+    [Test]
+    public void CruiseChaserAppearsAsHeFirstLands()
+    {
+        var warpIns = new List<float>();
+        var run = new Stage().Run(MainTank, probe: p =>
+        {
+            if (!p.Crossed(33f)) return;
+            var cruiseChaser = CruiseChaser(p).EntityId.ToString("X8");
             warpIns.AddRange(p.Fake.Timeline.Rows
                 .Where(row => row["kind"] == "ac" && row["actor"] == cruiseChaser && row["id"] == "0x197"
                               && Convert.ToUInt32(row["p"].Split(',')[0], 16) == ActionTimelineId.WarpEnd)
@@ -389,24 +398,27 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(charges, Is.EqualTo(1), "and charged");
     }
 
-    // The run's own dice pick whom: over 40 seeds the dead M1's cleave lands behind most of the seven others.
-    [Test]
-    public void ADeadNumbersHitCanGoToAnyoneLiving()
+    // The run's own dice pick whom: over 40 fixed seeds the dead M1's cleave lands behind each of the seven others,
+    // the player's own seat among them when the dead number is a bot's.
+    [TestCase(MeleeDpsA, TestName = "{m}(the player's own number is dead)")]
+    [TestCase(MainTank, TestName = "{m}(a bot's number is dead)")]
+    public void ADeadNumbersHitCanGoToAnyoneLiving(PartyRole player)
     {
+        var onTheNorthBlaster = new Takeover(12.0f, new Vector2(0f, -14f), Bot: player == MeleeDpsA ? null : MeleeDpsA);
         var landedBehind = new HashSet<PartyRole>();
         for (var seed = 1; seed <= 40; seed++)
         {
-            var run = new Stage { Seed = seed }.Run(MeleeDpsA, stopAt: 15.2f, takeovers: new Takeover(12.0f, new Vector2(0f, -14f)), probe: p =>
+            var run = new Stage { Seed = seed }.Run(player, stopAt: 15.2f, takeovers: onTheNorthBlaster, probe: p =>
             {
                 if (!p.Crossed(15.0f)) return;
                 var landed = CruiseChaser(p).Placement();
                 landedBehind.UnionWith(PerRole.All.Where(role => Vector3.Distance(landed.Position, p.Member(role)!.Placement().MoveForward(-3f).Position) < 0.01f));
             });
             Assert.That(run.Failure, Is.Null, run.ToString);
+            Assert.That(run.Deaths.Select(death => death.Role), Is.EqualTo(new[] { MeleeDpsA }), run.ToString);
         }
 
-        Assert.That(landedBehind, Has.No.Member(MeleeDpsA));
-        Assert.That(landedBehind, Has.Count.GreaterThanOrEqualTo(5));
+        Assert.That(landedBehind, Is.EquivalentTo(PerRole.All.Except([MeleeDpsA])));
     }
 
     // M1 stands on the north-east blaster as it goes off at 14.6 and falls at 15.6. Until then it is still #1: Cruise

@@ -53,7 +53,8 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(landed, from + 20f * away), Is.LessThan(0.05f), $"landed at {landed}");
     }
 
-    // Half a yalm inside the rim, with the rest of group A behind Cruise Chaser.
+    // Half a yalm inside the rim, with the rest of group A behind Cruise Chaser. It stays against the rim, alive,
+    // until the run stops just before the next blast.
     [Test]
     public void AThrowStopsAtTheRim()
     {
@@ -61,7 +62,7 @@ public class TeaP1LimitCutKnockbackTests
         var from = Stage.OnRing(300f, Rim - 0.5f);
         var away = Vector2.Normalize(from - CruiseChaserSpot(stage));
 
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f, new Takeover(16.5f, from));
+        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 18.8f, new Takeover(16.5f, from));
 
         Assert.That(ToTheRim(from, away), Is.InRange(0.5f, 1f));
         Assert.That(Vector2.Distance(landed, from + ToTheRim(from, away) * away), Is.LessThan(0.05f), $"landed at {landed}");
@@ -93,8 +94,8 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.ArmsLength)]
     [TestCase(P1PlayerActionId.Surecast)]
     [TestCase(P1PlayerActionId.InnerRelease)]
-    public void AnAntiKnockbackPressedBeforeTheChargeHoldsTheHumanInPlace(uint press)
     [TestCase(P1PlayerActionId.Berserk)]
+    public void AnAntiKnockbackPressedBeforeTheChargeHoldsTheHumanInPlace(uint press)
     {
         var stage = HumanNumberTwo;
 
@@ -106,8 +107,8 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.ArmsLength)]
     [TestCase(P1PlayerActionId.Surecast)]
     [TestCase(P1PlayerActionId.InnerRelease)]
-    public void AnAntiKnockbackPressedBeforeTheCleaveHoldsTheHumanInPlace(uint press)
     [TestCase(P1PlayerActionId.Berserk)]
+    public void AnAntiKnockbackPressedBeforeTheCleaveHoldsTheHumanInPlace(uint press)
     {
         var stage = HumanNumberOne;
 
@@ -124,9 +125,9 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.Surecast, 10.7f, true)]
     [TestCase(P1PlayerActionId.InnerRelease, 2.1f, false)]
     [TestCase(P1PlayerActionId.InnerRelease, 1.7f, true)]
-    public void AnAntiKnockbackHoldsForAsLongAsItsEffectLasts(uint press, float pressAt, bool thrown)
     [TestCase(P1PlayerActionId.Berserk, 2.1f, false)]
     [TestCase(P1PlayerActionId.Berserk, 1.7f, true)]
+    public void AnAntiKnockbackHoldsForAsLongAsItsEffectLasts(uint press, float pressAt, bool thrown)
     {
         var stage = HumanNumberTwo;
 
