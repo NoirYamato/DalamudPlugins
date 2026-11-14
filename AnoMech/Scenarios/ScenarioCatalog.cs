@@ -8,6 +8,7 @@ using AnoMech.Scenarios.Fru.P4CrystallizeTime;
 using AnoMech.Scenarios.Fru.P4DarklitDragonsong;
 using AnoMech.Scenarios.Fru.P5FulgentBlade;
 using AnoMech.Scenarios.Fru.P5ParadiseRegained;
+using AnoMech.Scenarios.Tea.P1LimitCut;
 using AnoMech.Scenarios.Top.P2PartySynergy;
 using AnoMech.Scenarios.Top.P3HelloWorld;
 using AnoMech.Scenarios.Top.P3Intermission;
@@ -104,5 +105,6 @@ public sealed class ScenarioCatalog
         new UltimatePredationScenario(),
         new UltimateSuppressionScenario(),
         new UcobP5ExaflaresScenario(),
+        new TeaP1LimitCutScenario(),
     ]);
 }
