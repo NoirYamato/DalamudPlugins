@@ -107,6 +107,56 @@ public class ImportLayoutRulesTests
     }
 
     [Fact]
+    public void MergedRemarkThatStartsWithAPhase_StaysANote()
+    {
+        // Merged across the player columns, with no header row below: a sentence is no title. It neither starts its phase
+        // nor loses its text, for the phase it is in or a later one.
+        var tab = Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2), new CellRange(5, 1, 5, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", "P1: MT invulns the second Wave Cannon, OT takes boss after", ""],
+            ["Wave Cannon Kyrios", "Holmgang", ""],
+            ["", "P2: MT pulls the boss north at the start of P2", ""],
+            ["Atomic Ray", "Rep", ""]);
+        var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
+
+        Assert.Equal("HDDNDND", Kinds(layout));
+        Assert.Equal("1111111", Phases(layout));
+        Assert.Single(layout.Sections);
+
+        var r = Import(tab);
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code is "mechanic-phase" or "phase-title");
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains("P1: MT invulns the second Wave Cannon", StringComparison.Ordinal) == true);
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains("P2: MT pulls the boss north", StringComparison.Ordinal) == true);
+    }
+
+    [Fact]
+    public void MergedPhaseTitle_WithoutAHeaderBelow_StartsThePhase_WhenItReadsAsATitle()
+    {
+        // The fight's name for the phase ("Omega-M/F"), or a short name ("Hello World", which the fight does not call P3:
+        // reported, as a short remark would read the same). Neither is a note.
+        var layout = new LayoutDetector(PlanImports.Top).Detect(Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2), new CellRange(5, 1, 5, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", "P2: Omega-M/F", ""],
+            ["Solar Ray", "Rep", ""],
+            ["", "P3: Hello World", ""],
+            ["Latent 1", "", "Rep"]));
+
+        Assert.Equal("HDDSDSD", Kinds(layout));
+        Assert.Equal("1112233", Phases(layout));
+        var d = Assert.Single(layout.Diagnostics, x => x.Code == "phase-title");
+        Assert.Equal((DiagnosticSeverity.Info, "'Mit'!B6"), (d.Severity, d.Src));
+        Assert.Contains("read as the title of P3", d.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void EarlierPhaseTitleOverThePlayerColumns_IsNoNewSection()
     {
         var layout = new LayoutDetector().Detect(Tab(

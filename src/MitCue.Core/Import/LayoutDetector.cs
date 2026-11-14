@@ -17,9 +17,9 @@ namespace MitCue.Core.Import;
 /// assignee cells carry the header's fill instead of the column's data fill (LPDU writes notes in white on black under
 /// its tables) is a note, otherwise long sentences and "*" footnotes are notes and short text is a label-less data row.
 /// A header row repeated further down with other players (stacked tables) re-maps the player columns below it; a phase
-/// title written over the player columns (a merged banner, or a cell with a header row below it) starts its phase. An
-/// unlabelled column of prose beside the label column holds the rows' notes. Everything uncertain is reported in
-/// <see cref="TabLayout.Diagnostics"/>.
+/// title written over the player columns (a cell with a header row below it, or a merged banner that reads as a title)
+/// starts its phase. An unlabelled column of prose beside the label column holds the rows' notes. Everything uncertain is
+/// reported in <see cref="TabLayout.Diagnostics"/>.
 /// </remarks>
 public sealed partial class LayoutDetector
 {
@@ -75,6 +75,9 @@ public sealed partial class LayoutDetector
 
     [GeneratedRegex(@"[\p{L}\p{N}:%#']+")]
     private static partial Regex HeaderWordRegex();
+
+    [GeneratedRegex(@"[\p{L}\p{N}]+")]
+    private static partial Regex TitleWordRegex();
 
     [GeneratedRegex(@"(?:^|\s)=(?:\s|$)|\b(?:key|legend)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LegendRegex();
@@ -229,6 +232,9 @@ public sealed partial class LayoutDetector
     // Header words without the colon of "Time:" or "Notes:" ("m:ss" keeps its inner colon).
     private static IEnumerable<string> HeaderWords(string text) =>
         HeaderWordRegex().Matches(text).Select(m => m.Value.Trim(':')).Where(w => w.Length > 0);
+
+    // The words of a phase title: runs of letters and digits ("Omega-M/F" → Omega, M, F).
+    private static List<string> TitleWords(string text) => TitleWordRegex().Matches(text).Select(m => m.Value).ToList();
 
     private static bool IsNotesHeader(string h) => HeaderWords(h).Any(NotesWords.Contains);
 
@@ -638,12 +644,15 @@ public sealed partial class LayoutDetector
                 }
 
                 // A phase title over the player columns ("P2: Brute Justice / Cruise Chaser" merged across D:L above a repeated
-                // header): the row's only text, with no label or time, names the current or a later phase, and is a banner
-                // (merged across columns) or has a header row below it before the next row with a label or time.
+                // header): the row's only text, with no label or time, names the current or a later phase, and has a header row
+                // below it before the next row with a label or time, or is a banner (merged across columns) that reads as a
+                // title (IsTitle). A merged remark that starts with a phase ("P1: MT invulns the second Wave Cannon, OT takes
+                // boss after") stays a note; a title whose name is not the fight's for its phase is reported, so that a short
+                // remark taken for one is not lost unseen.
                 if (assignments.Count > 0 && label is null && timeText is null && texts.Count == 1
                     && TryParseSection(texts[0].Text, out var tn, out var tname, out var thint)
                     && (tn == current?.Number || this.StartsLaterPhase(tn, current))
-                    && (this.IsBanner(r, texts[0].Column) || this.HeaderFollows(r, block)))
+                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column) && this.IsTitle(tn, tname))))
                 {
                     var titled = tname is not null || thint is not null;
                     if (tn != current?.Number)
@@ -652,6 +661,8 @@ public sealed partial class LayoutDetector
                         this.sections.Add(current);
                     }
 
+                    if (tname is not null && !this.IsPhaseName(tn, tname))
+                        this.Diag(DiagnosticSeverity.Info, "phase-title", $"Row {r + 1} ('{Quote(texts[0].Text)}') over the player columns is read as the title of P{tn}, not as a note.", texts[0].Src);
                     rows.Add(new RowLayout { Index = r, Kind = titled ? RowKind.Section : RowKind.PhaseLabel, Phase = current, Notes = notesJoined, Texts = texts, Src = texts[0].Src });
                     continue;
                 }
@@ -789,6 +800,27 @@ public sealed partial class LayoutDetector
 
         /// <summary>The cell is the first cell of a merge that spans two or more columns (a title banner).</summary>
         private bool IsBanner(int r, int c) => this.tab.MergeAt(r, c) is { } m && m.R0 == r && m.C0 == c && m.C1 > m.C0;
+
+        /// <summary>
+        /// A phase section's name reads as a title: none ("P2"), the fight's name for the phase (<see cref="IsPhaseName"/>),
+        /// or a short one (at most four words, no sentence punctuation: "Brute Justice / Cruise Chaser"); not a remark ("MT
+        /// invulns the second Wave Cannon, OT takes boss after").
+        /// </summary>
+        private bool IsTitle(int number, string? name) =>
+            name is null || this.IsPhaseName(number, name) || (TitleWords(name).Count <= 4 && name.IndexOfAny([',', ';', '.', '!', '?']) < 0);
+
+        /// <summary>
+        /// The name is the fight's for the phase: each of its words but "and", "the", "of" and "vs" is a word of the fight's
+        /// phase name ("Brute Justice and Cruise Chaser" for TEA's "P2: Cruise Chaser + Brute Justice (Limit Cut …)").
+        /// </summary>
+        private bool IsPhaseName(int number, string name)
+        {
+            if (this.owner.Fight is not { } fight || number < 1 || number > fight.Phases.Count)
+                return false;
+            var known = TitleWords(fight.Phases[number - 1].Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var words = TitleWords(name).Where(w => w.ToLowerInvariant() is not ("and" or "the" or "of" or "vs")).ToList();
+            return words.Count > 0 && words.All(known.Contains);
+        }
 
         /// <summary>A header row (<see cref="IsHeaderLike"/>) comes below row <paramref name="r"/> before the next row with a label or time.</summary>
         private bool HeaderFollows(int r, Block block)

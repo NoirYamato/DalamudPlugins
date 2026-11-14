@@ -31,10 +31,12 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 - Phase ids: the fight's N-th phase id when a `FightDefinition` is given, else `pN`.
 - Phase sources: tab name (`P3`, `P1/P2`, `P1P2`), the header cell of the label (or time) column (`P1 `), section rows
   (`P2 — Omega-M/F  (from phase start)`, `Phase Two`), bare label rows (`P2`), a `Phase` column (`P2` or `2`), a
-  phase title above the header, a phase title over the player columns that is a merged banner or has a header row
-  below it (TEA's `P2: Brute Justice / Cruise Chaser`), a marker in front of a row's label (`P2 - Solar Ray`: `Label`
-  is `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
-  `guessed-phase`).
+  phase title above the header, a phase title over the player columns that has a header row below it (TEA's
+  `P2: Brute Justice / Cruise Chaser`) or is a merged banner that reads as a title (the fight's name for the phase, or
+  at most four words without `,` `;` `.` `!` `?`), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is
+  `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
+  `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss
+  after`) stays a note; a title over the player columns whose name is not the fight's is reported (`phase-title`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.
@@ -51,7 +53,7 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 - Diagnostic codes: `not-a-plan`, `unknown-column`, `unlabelled-column`, `ignored-column`, `duplicate-assignee`,
   `multiple-label-columns`, `multiple-time-columns`, `no-mechanic-column`, `missing-mechanic-label`,
   `unparsed-time`, `time-as-hms`, `implausible-time`, `no-phase`, `phase-not-in-tab-name`, `phase-not-found`,
-  `phase-order`, `unknown-phase`, `guessed-phase`, `header-changed`, `header-like-row`, `note-in-table`,
+  `phase-order`, `unknown-phase`, `guessed-phase`, `phase-title`, `header-changed`, `header-like-row`, `note-in-table`,
   `hidden-content`, `hidden-tab`, `merged-rows`.
 
 ## Cells (`CellParser.cs`, `ParsedCell.cs`, `ParsedTime.cs`)
