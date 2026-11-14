@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using MitCue.Core.Data;
 using MitCue.Core.Timelines;
@@ -31,7 +32,8 @@ namespace MitCue.Core.Fights;
 /// <para>
 /// Optional per mechanic, for the automatic press times of calls planned there without a time
 /// (<see cref="Reminders.TimingRules.ForEntry"/>): <c>press: after</c> (<see cref="Mechanic.PressAfter"/>: pressed after
-/// the hit, like heals).
+/// the hit, like heals) and <c>heal_lead</c> (<see cref="Mechanic.HealLead"/>: seconds before the hit for heals; positive,
+/// and not with <c>press: after</c>).
 /// </para>
 /// </remarks>
 public static class FightLoader
@@ -189,6 +191,11 @@ public static class FightLoader
             var press = YamlNodes.GetString(node, "press", m)?.Trim();
             if (press is not null && !string.Equals(press, "after", StringComparison.OrdinalIgnoreCase))
                 throw new FormatException($"{m}: unknown press '{press}' (expected after: calls without a time are pressed after the hit).");
+            var healLead = YamlNodes.GetDouble(node, "heal_lead", m);
+            if (healLead is { } lead && lead <= 0)
+                throw new FormatException($"{m}: 'heal_lead' must be a positive number of seconds before the hit, not {lead.ToString(CultureInfo.InvariantCulture)}.");
+            if (healLead is not null && press is not null)
+                throw new FormatException($"{m}: 'heal_lead' and 'press: after' contradict each other (heals before the hit, every call after it).");
 
             var entry = YamlNodes.GetString(node, "entry", m);
             var name = YamlNodes.GetString(node, "name", m)?.Trim();
@@ -203,6 +210,7 @@ public static class FightLoader
                 Kind = kind,
                 Aliases = YamlNodes.GetStringList(node, "aliases", m),
                 PressAfter = press is not null,
+                HealLead = healLead,
             });
         }
         return mechanics;

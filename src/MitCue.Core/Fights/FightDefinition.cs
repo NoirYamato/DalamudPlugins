@@ -60,6 +60,13 @@ public sealed class Mechanic
     /// </summary>
     public bool PressAfter { get; init; }
 
+    /// <summary>
+    /// Fight file <c>heal_lead</c>: seconds before the hit for heals planned here without a time (heals normally go out
+    /// after the damage), or null. For a hit the heals must top the targets up for (TEA's Double Rocket Punch, 8 s after the
+    /// second Photon leaves both tanks at 1 HP).
+    /// </summary>
+    public double? HealLead { get; init; }
+
     /// <summary>Hit time of the n-th hit (0-based), falling back to the last/first available hit.</summary>
     public double HitAt(int index)
     {

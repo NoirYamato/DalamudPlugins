@@ -140,6 +140,42 @@ public class EntryTimingTests
         Assert.Equal(94, Kit.Timing(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance)), fight).PressAt, Kit.Tolerance);
     }
 
+    // ---- heal_lead (heals top the targets up for the hit) ------------------------------------------------------
+
+    /// <summary>A raidwide at 100 and a tankbuster at 130 whose heals go 4 s before it (sync 90).</summary>
+    private static FightDefinition HealLeadFight() => Kit.Fight(
+        90,
+        Kit.Mech("p1.raidwide", 100),
+        new Mechanic { Id = "p1.buster", Name = "buster", Phase = "p1", Hit = 130, Hits = [130], HealLead = 4 });
+
+    [Theory]
+    [InlineData(3570u, -4.0)]     // Tetragrammaton: a heal goes before the hit here
+    [InlineData(208u, -4.0)]      // Pulse of Life: so does a healer LB
+    [InlineData(7434u, -8.0)]     // Excogitation: a heal placed before the damage keeps its own lead
+    [InlineData(16536u, -6.0)]    // Temperance: mitigation keeps its own lead
+    [InlineData(7432u, -4.0)]     // Divine Benison: a shield, its own −4
+    [InlineData(999999u, -3.0)]   // not in the catalog: like a note
+    public void HealLead_HealsArePressedThatLongBeforeTheHit(uint actionId, double offset)
+    {
+        var t = Kit.Timing(Kit.Entry("p1.buster", null, PlanItem.ForAction(actionId, "x")), HealLeadFight());
+        Assert.Equal(offset, t.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(130 + offset, t.PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void HealLead_TheEntryFollowsItsFirstAction_AWrittenTimeStays_OtherMechanicsAreNotAffected()
+    {
+        var fight = HealLeadFight();
+        var healFirst = Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Temperance)), fight);
+        Assert.Equal(126, healFirst.PressAt, Kit.Tolerance);
+        Assert.Equal(131, healFirst.Items[0].Latest, Kit.Tolerance);   // the heal's window: press + 5
+        Assert.Equal(129.7, healFirst.Items[1].Latest, Kit.Tolerance); // the mitigation's: before the hit
+
+        Assert.Equal(124, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Temperance), Kit.Do(Kit.Tetragrammaton)), fight).PressAt, Kit.Tolerance);
+        Assert.Equal(131, Kit.Timing(Kit.Entry("p1.buster", 1, Kit.Do(Kit.Tetragrammaton)), fight).PressAt, Kit.Tolerance);
+        Assert.Equal(101, Kit.Timing(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Tetragrammaton)), fight).PressAt, Kit.Tolerance);
+    }
+
     // ---- EarliestPreHitOffset ------------------------------------------------------------------
 
     [Fact]

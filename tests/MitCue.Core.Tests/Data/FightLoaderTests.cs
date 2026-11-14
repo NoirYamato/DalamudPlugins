@@ -45,6 +45,7 @@ public class FightLoaderTests
             hits: [210.2, 213.4]
             kind: tank_buster
             aliases: Buster
+            heal_lead: 3.5
         calibration:
           carry_the_clear: { p1: 0.0, p2: 202.0 }
           lpdu: { p1: 0.5, p2: ~ }
@@ -119,6 +120,8 @@ public class FightLoaderTests
         Assert.Equal("p2", buster.Phase);
         Assert.Equal(MechanicKind.Tankbuster, buster.Kind);
         Assert.Equal(["Buster"], buster.Aliases);
+        Assert.Equal(3.5, buster.HealLead);
+        Assert.Null(later.HealLead); // heals after the hit by default
     }
 
     [Fact]
@@ -190,6 +193,10 @@ public class FightLoaderTests
     [InlineData("p2: 202.0", "p2: soon", "carry_the_clear", "p2")]
     [InlineData("lpdu: { p1: 0.5, p2: ~ }", "lpdu: [0.5]", "lpdu", "calibration")]
     [InlineData("press: after", "press: before", "p2.later", "press")]
+    [InlineData("heal_lead: 3.5", "heal_lead: 0", "p2.buster", "heal_lead")]
+    [InlineData("heal_lead: 3.5", "heal_lead: -2", "p2.buster", "positive")]
+    [InlineData("heal_lead: 3.5", "heal_lead: soon", "p2.buster", "'heal_lead'")]
+    [InlineData("heal_lead: 3.5", "heal_lead: 3.5\n    press: after", "p2.buster", "contradict")]
     public void Load_ReportsTheOffendingItemAndField(string find, string replace, string item, string field)
     {
         Assert.Contains(find, Sample, StringComparison.Ordinal);

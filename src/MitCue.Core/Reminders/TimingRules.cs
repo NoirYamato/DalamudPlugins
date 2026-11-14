@@ -68,6 +68,8 @@ public static class TimingRules
     /// <list type="bullet">
     /// <item><see cref="Mechanic.PressAfter"/>: after the hit, like heals (+1 s, or the action's own later default: +2 s
     /// for a healer limit break).</item>
+    /// <item><see cref="Mechanic.HealLead"/>: an entry timed by a heal used after the hit (<see cref="IsUsedAfterHit"/>) is
+    /// pressed that long before the hit instead, to top the targets up for it.</item>
     /// </list>
     /// <para>Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time.</para>
     /// </remarks>
@@ -219,6 +221,10 @@ public static class TimingRules
         // The hit makes what was pressed before it pointless (HP set to 1): the calls are the heal-up after it.
         if (mechanic.PressAfter)
             return Math.Max(offset, HealDelay);
+
+        // Heals that top the targets up for the hit (the tanks at 1 HP before a tankbuster).
+        if (mechanic.HealLead is { } healLead && IsUsedAfterHit(first))
+            return -healLead;
 
         return offset;
     }

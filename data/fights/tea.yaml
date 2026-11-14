@@ -430,8 +430,10 @@ mechanics:
       - "Gavel"
       - "Gavel Lineup"
   - id: p2.photon_2
-    # press: after, as p2.photon_1.
-    name: "Photon (everyone to 1 HP)"
+    # ids: 4836 then 4837 PhotonAOE as p2.photon_1, but this time on the two tanks only (BossMod: a Tankbuster hint; Materia
+    # Raiding TEA guide: "only affect tanks this time, dropping them both to 1HP"). press: after, as p2.photon_1; LPDU's
+    # sheet has no row for it: its heal-up is the Double Rocket Punch row's (p2.double_rocket_punch, heal_lead).
+    name: "Photon (tanks to 1 HP)"
     phase: p2
     hit: 366.8
     hits: [366.8]
@@ -442,13 +444,16 @@ mechanics:
       - "Photon"
       - "Photon 2"
   - id: p2.double_rocket_punch
-    # ids: 4847
+    # ids: 4847 (4 s cast from 3.4 s after p2.photon_2's HP drop, BossMod)
+    # heal_lead: the second Photon leaves both tanks at 1 HP 8 s before the buster, so heals planned on it without a time
+    # top them up before it: 4 s before the hit (with the row's shields), due 5.5 s before it, after the drop (~367.1).
     name: "Double Rocket Punch (shared tankbuster)"
     phase: p2
     hit: 374.8
     hits: [374.8]
     entry: "Double Rocket Punch"
     kind: tankbuster
+    heal_lead: 4
     aliases:
       - "Double Rocket Punch"
       - "DRP"   # unverified

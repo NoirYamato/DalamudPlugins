@@ -811,37 +811,37 @@ entries:
     src: "'LL/BJCC'!G54"
   - id: e116
     mechanic: p2.double_rocket_punch
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: tank
+    src: "'LL/BJCC'!G54"
+  - id: e117
+    mechanic: p2.double_rocket_punch
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 16556, name: Celestial Intersection}
     target: Tank
     src: "'LL/BJCC'!H54"
-  - id: e117
+  - id: e118
     mechanic: p2.double_rocket_punch
     who: {slot: MT, assignee: Tank 1}
     do:
       - {action: 7535, name: Reprisal}
     src: "'LL/BJCC'!C54"
-  - id: e118
+  - id: e119
     mechanic: p2.double_rocket_punch
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'LL/BJCC'!H54"
-  - id: e119
+  - id: e120
     mechanic: p2.double_rocket_punch
     who: {slot: M1, assignee: Melee 1}
     do:
       - {action: 7549, name: Feint}
     note: on BJ
     src: "'LL/BJCC'!I54"
-  - id: e120
-    mechanic: p2.double_rocket_punch
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 140, name: Benediction}
-    target: tank
-    src: "'LL/BJCC'!G54"
   - id: e121
     mechanic: p2.whirlwind_3
     who: {job: SCH, assignee: Scholar}

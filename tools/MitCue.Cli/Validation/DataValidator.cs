@@ -200,6 +200,8 @@ internal sealed class DataValidator(IDataSource data)
         var fields = new List<string>();
         if (m.PressAfter)
             fields.Add("press: after");
+        if (m.HealLead is { } lead)
+            fields.Add("heal_lead: " + Inv(lead));
         return fields;
     }
 

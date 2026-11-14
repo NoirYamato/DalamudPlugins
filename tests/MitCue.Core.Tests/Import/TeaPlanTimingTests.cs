@@ -54,6 +54,28 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// 'LL/BJCC'!G54 "Benison (Tank)/Benediction" on Double Rocket Punch (374.8): the second Photon (366.8) left both tanks
+    /// at 1 HP, so the Benediction tops the tank up before the buster, with the Benison, instead of a second after it; it
+    /// turns due only after Photon's drop (0.3 s after the cast end).
+    /// </summary>
+    [Fact]
+    public void DoubleRocketPunch_TheBenedictionTopsTheTankUpBeforeTheBuster()
+    {
+        var g54 = Reminders("'LL/BJCC'!G54");
+        var benediction = Assert.Single(g54, r => r.Item.Name == "Benediction");
+        var benison = Assert.Single(g54, r => r.Item.Name == "Divine Benison");
+        Assert.Equal(370.8, benediction.PressAt, 1e-9);
+        Assert.Equal(benison.PressAt, benediction.PressAt, 1e-9);
+        var photon2 = PlanImports.Tea.GetMechanic("p2.photon_2")!;
+        Assert.Equal("Photon (tanks to 1 HP)", photon2.Name);
+        Assert.True(benediction.PressAt - new ReminderOptions().DueLead > photon2.Hit + 0.3);
+        Assert.True(benediction.PressAt < benediction.Hit);
+
+        // The row's Excogitation is placed for the buster and keeps its own lead.
+        Assert.Equal(366.8, Assert.Single(Reminders("'LL/BJCC'!E54"), r => r.Item.Name == "Excogitation").PressAt, 1e-9);
+    }
+
+    /// <summary>
     /// 'LL/BJCC'!G40 "Asylum/Plenary": Plenary Indulgence (10 s, Confession on the heal-up GCDs) is pressed after the drop
     /// to 1 HP, not 7.2 s before it with Asylum's regen lead.
     /// </summary>
