@@ -5,15 +5,17 @@ using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea.P1LimitCut;
+using static AnoMech.Scenarios.Tea.TeaP1Constants;
 using static AnoMech.Tests.TeaP1LimitCutLpduAiTests;
 using static AnoMech.Tests.TeaP1LimitCutScenarioTests;
 using Stage = AnoMech.Tests.TeaP1LimitCutStage;
 
 namespace AnoMech.Tests;
 
-// The sunny-day soak only proves nobody dies where Cruise Chaser lands 3 y behind an odd number that faces exactly
-// along the rim. Nobody has measured that distance, and a player's facing is never exact, so these runs play every
-// first-blaster axis with him landing 1.5, 3 and 4.5 y behind and the odd number turned 5 degrees inward, not at
+// The sunny-day soak only proves nobody dies where Cruise Chaser lands the scenario's own distance (3 y) behind an
+// odd number that faces exactly along the rim. Nobody has measured that distance, and a player's facing is never
+// exact, so these runs play every first-blaster axis with him landing 1.5, 3 and 4.5 y behind, and the scenario's
+// own distance if it has been tuned off those, and the odd number turned 5 degrees inward, not at
 // all, and 5 degrees outward just before he lands, and measure how far every bot stands outside every cleave,
 // charge and blast as it goes off, with Cruise Chaser where that run put him: the hit pair's partner, the group's
 // other pair, and the other group wherever it is at that second, holding or walking. The numbers shift a seat each
@@ -25,7 +27,7 @@ public class TeaP1LimitCutLpduMarginTests
     // Two at least, so a hit aimed through the player's seat on one seed is aimed through bots on another.
     private static int SeedsPerRun => Math.Max(2, TestContext.Parameters.Get("MarginSeeds", 4));
 
-    private static readonly float[] LandsBehind = [1.5f, 3f, 4.5f];
+    private static readonly float[] LandsBehind = new[] { 1.5f, 3f, 4.5f, P1Geometry.CruiseChaserLandsBehind }.Distinct().Order().ToArray();
     private static readonly float[] DegreesOutward = [-5f, 0f, 5f];
     private const float JustBeforeHeLands = 0.05f;
 
@@ -42,8 +44,9 @@ public class TeaP1LimitCutLpduMarginTests
     // Clearances with every bot exactly on its spot, and what the bots' 0.3 y jitter can take: one bot's from a
     // blast, two bots' from a cleave (it moves with the odd), and the worst of three from a charge, whose line is
     // aimed from a few yalms away by the even, so that its jitter turns it. A bystander is read a frame after the
-    // hit, which costs a walking one another 0.11 y. `Usual` rows hold where he lands 3 y behind an odd facing
-    // exactly along the rim; the others hold in every case played.
+    // hit, which costs a walking one another 0.11 y. `Usual` rows hold where he lands the scenario's own distance
+    // behind an odd facing exactly along the rim, and were measured with it at 3 y; the others hold in every case
+    // played.
     private static readonly (string Check, bool Usual, float Exact, float AtLeast)[] Table =
     [
         (PairBlast, false, 1.16f, 0.84f),
@@ -61,7 +64,7 @@ public class TeaP1LimitCutLpduMarginTests
 
     private sealed record Case(TeaP1FirstBlasters Axis, float LandsBehind, float DegreesOutward)
     {
-        public bool Usual => LandsBehind == 3f && DegreesOutward == 0f;
+        public bool Usual => LandsBehind == P1Geometry.CruiseChaserLandsBehind && DegreesOutward == 0f;
     }
 
     [Test]
@@ -103,7 +106,7 @@ public class TeaP1LimitCutLpduMarginTests
             if (!result.Passed) problems.Add($"{at}: {result}");
         }
 
-        TestContext.Out.WriteLine("Smallest clearance (y) in every case played, and where he lands 3 y behind an odd facing along the rim:");
+        TestContext.Out.WriteLine($"Smallest clearance (y) in every case played, and where he lands {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd facing along the rim:");
         TestContext.Out.WriteLine(string.Join(Environment.NewLine,
             any.OrderBy(m => m.Key).Select(m => $"  {m.Key}: {F(m.Value)} ({tightest[m.Key]}); usual {F(usual.GetValueOrDefault(m.Key, float.NaN))}")));
         Assert.Multiple(() =>
@@ -112,7 +115,7 @@ public class TeaP1LimitCutLpduMarginTests
             Assert.That(held, Has.Count.EqualTo(64), "every role was a bot under every number");
             foreach (var (check, usualOnly, _, atLeast) in Table)
                 Assert.That((usualOnly ? usual : any).GetValueOrDefault(check, float.NaN), Is.GreaterThanOrEqualTo(atLeast),
-                            usualOnly ? $"{check}, landing 3 y behind an odd facing along the rim" : $"{check}, in every case");
+                            usualOnly ? $"{check}, landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd facing along the rim" : $"{check}, in every case");
             foreach (var (check, clearance) in any)
                 Assert.That(clearance, Is.GreaterThan(0f), $"{check}, in every case ({tightest[check]})");
         });

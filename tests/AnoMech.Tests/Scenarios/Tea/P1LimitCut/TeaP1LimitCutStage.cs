@@ -26,7 +26,9 @@ internal enum TeaLane { InnerOdd, InnerEven, OuterOdd, OuterEven }
 //
 // Group A leaves its spot 4 only after #4's charge: that charge runs through group A's spot 5 when Cruise Chaser
 // lands 4.5 y behind #3, though not at 3 y.
-internal sealed class TeaP1LimitCutStage(TeaP1FirstBlasters axis = TeaP1FirstBlasters.WestEast, float? landsBehind = null)
+//
+// He lands 3 y behind unless a test says otherwise, whatever the scenario's own distance is tuned to.
+internal sealed class TeaP1LimitCutStage(TeaP1FirstBlasters axis = TeaP1FirstBlasters.WestEast, float landsBehind = 3f)
 {
     // A strat index past the scenario's list.
     public const int NoStrat = int.MaxValue;
@@ -111,11 +113,17 @@ internal sealed class TeaP1LimitCutStage(TeaP1FirstBlasters axis = TeaP1FirstBla
             Takeovers = HumanUntil is null ? takeovers : takeovers.Prepend(new Takeover(0f, null)).ToList(),
             Probe = p =>
             {
-                foreach (var cue in Cues)
-                    if (p.Crossed(cue)) Put(p, cue);
+                Follow(p);
                 probe?.Invoke(p);
             },
         });
+
+    // Called every frame, puts every seat the stage still moves where the cues just crossed ask.
+    public void Follow(ScenarioProbe p)
+    {
+        foreach (var cue in Cues)
+            if (p.Crossed(cue)) Put(p, cue);
+    }
 
     private void Put(ScenarioProbe p, float cue)
     {

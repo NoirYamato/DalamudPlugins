@@ -350,8 +350,10 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(landedBehind, Has.Count.GreaterThanOrEqualTo(5));
     }
 
+    // The pool can't count more busy than it holds, and a blast that finds none free is dropped with only a warning,
+    // so the pool must keep one to spare.
     [Test]
-    public void NoMoreHelpersAreBusyThanThePoolHolds()
+    public void TheHelperPoolKeepsOneToSpare()
     {
         var peak = -1;
         var run = new Stage().Run(MainTank, probe: p =>
@@ -360,7 +362,8 @@ public class TeaP1LimitCutScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(peak, Is.InRange(1, P1Rules.LimitCutHelpers));
+        Assert.That(peak, Is.InRange(1, P1Rules.LimitCutHelpers - 1));
+        Assert.That(run.Warnings, Has.None.Contain("helpers busy"), run.ToString);
     }
 
     [Test]
