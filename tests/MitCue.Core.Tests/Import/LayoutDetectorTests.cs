@@ -12,6 +12,17 @@ public class LayoutDetectorTests
     private const string CtcRows = "hhhhh" + "?" + "GGGGGGG" + "N" + "H" + "S" + "DDDD" + "S" + "DDDDDDD" + "S" + "DDDDDDDDD" + "S" + "DD" + "S" + "DDDDDDDDDDDDD" + "S" + "DDDDDDDDDDDD";
     private const string CtcPhases = "---------------" + "11111" + "22222222" + "3333333333" + "444" + "55555555555555" + "6666666666666";
 
+    // LPDU TEA: a phase title merged over the player columns above the header (rows 4-6), header and data rows merged over
+    // two rows, then the next phase's title over the player columns (row 28/32) and the header again (row 34/37).
+    // 'LL/BJCC' also has a contact line (A2) and a tip merged over the player columns (C32).
+    private const string TeaLlBjccRows = "ENETEEEEHEDEDEDEDEDEDEDEEEESEEENEHEDEDEDEDEDEDEDEDEDEDED";
+    private const string TeaAlexPrimeRows = "EEETEEEEHEDEDEDEDEDEDEDEDEDEEEESEEEEHEDEDEDEDED";
+
+    // Seats for the tanks and melee, a column per healer job, role columns for the ranged, and "Extras" for anyone.
+    private const string TeaAssignees =
+        "Tank 1=MT/-/Tank|Tank 2=OT/-/Tank|Scholar=-/SCH/Healer|Sage=-/SGE/Healer|White Mage=-/WHM/Healer|Astrologian=-/AST/Healer|" +
+        "Melee 1=M1/-/Melee|Melee 2=M2/-/Melee|Phys Range=-/-/PhysicalRanged|Caster=-/-/Caster|Extras=-/-/None";
+
     /// <summary>Kinds, one character per row: H header, D data, L phase label, S section, N note, F footnote, E empty, h hidden, T title, G legend.</summary>
     private static char KindChar(RowKind k) => k switch
     {
@@ -69,6 +80,8 @@ public class LayoutDetectorTests
         { "carry-the-clear", "TOP – White Mage", 14, "TMANI", CtcRows.Replace('?', 'E'), CtcPhases },
         { "carry-the-clear", "TOP – Scholar", 14, "TMANI", CtcRows.Replace('?', 'G'), CtcPhases },
         { "carry-the-clear", "TOP – WHM + SCH", 14, "TMAAN", CtcRows.Replace('?', 'G'), CtcPhases },
+        { "lpdu-tea", "LL/BJCC", 8, "NMAAAAAAAAAAA", TeaLlBjccRows, "--------111111111111111111122222222222222222222222222222" },
+        { "lpdu-tea", "Alex Prime/PA", 8, "EMAAAAAAAAAAA", TeaAlexPrimeRows, "--------333333333333333333333334444444444444444" },
     };
 
     [Theory]
@@ -103,6 +116,8 @@ public class LayoutDetectorTests
         { "carry-the-clear", "TOP – White Mage", "White Mage=-/WHM/Healer" },
         { "carry-the-clear", "TOP – Scholar", "Scholar=-/SCH/Healer" },
         { "carry-the-clear", "TOP – WHM + SCH", "Scholar=-/SCH/Healer|White Mage=-/WHM/Healer" },
+        { "lpdu-tea", "LL/BJCC", TeaAssignees },
+        { "lpdu-tea", "Alex Prime/PA", TeaAssignees },
     };
 
     [Theory]

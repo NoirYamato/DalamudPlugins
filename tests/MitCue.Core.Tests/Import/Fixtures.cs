@@ -7,6 +7,7 @@ internal static class Fixtures
 {
     private static readonly Lazy<SheetDocument> LpduDoc = new(() => SheetReaders.FromFixtureDirectory(Dir("lpdu"), "LPDU TOP Mitigation Sheet"));
     private static readonly Lazy<SheetDocument> CtcDoc = new(() => SheetReaders.FromFixtureDirectory(Dir("carry-the-clear"), "Carry the Clear: TOP Healing Plan"));
+    private static readonly Lazy<SheetDocument> LpduTeaDoc = new(() => SheetReaders.FromFixtureDirectory(Dir("lpdu-tea"), "[LPDU] TEA Heal/Mit"));
 
     public static string SheetsRoot { get; } = FindRoot();
 
@@ -14,12 +15,17 @@ internal static class Fixtures
 
     public static SheetDocument CarryTheClear => CtcDoc.Value;
 
-    public static IEnumerable<(string Key, SheetDocument Doc)> Both => [("lpdu", Lpdu), ("carry-the-clear", CarryTheClear)];
+    /// <summary>LPDU's TEA sheet: 'LL/BJCC' (P1 and P2) and 'Alex Prime/PA' (P3 and P4).</summary>
+    public static SheetDocument LpduTea => LpduTeaDoc.Value;
+
+    /// <summary>Every fixture sheet: the two TOP sheets and the TEA sheet.</summary>
+    public static IEnumerable<(string Key, SheetDocument Doc)> All => [("lpdu", Lpdu), ("carry-the-clear", CarryTheClear), ("lpdu-tea", LpduTea)];
 
     public static SheetDocument Doc(string key) => key switch
     {
         "lpdu" => Lpdu,
         "carry-the-clear" => CarryTheClear,
+        "lpdu-tea" => LpduTea,
         _ => throw new ArgumentOutOfRangeException(nameof(key), key, null),
     };
 

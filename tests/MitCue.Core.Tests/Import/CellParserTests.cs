@@ -408,7 +408,7 @@ public class CellParserTests
     [Fact]
     public void Parse_TokensPointBackIntoTheCellText()
     {
-        foreach (var (_, doc) in Fixtures.Both)
+        foreach (var (_, doc) in Fixtures.All)
         {
             foreach (var tab in doc.Tabs)
             {
@@ -438,7 +438,7 @@ public class CellParserTests
         }
     }
 
-    // ---- properties over every cell of both sheets ------------------------------------------------
+    // ---- properties over every cell of every fixture sheet ----------------------------------------
 
     private static readonly Regex WordRegex = new(@"[\p{L}\p{N}]+", RegexOptions.CultureInvariant);
 
@@ -447,6 +447,8 @@ public class CellParserTests
     /// <summary>Every piece of text the parse kept, read from the result's fields (not from a helper of the parser).</summary>
     private static IEnumerable<string> KeptTexts(ParsedCell parsed)
     {
+        if (parsed.Above is not null)
+            yield return parsed.Above; // a caret cell's remark, for the cell above it ('LL/BJCC'!L21 "(^on LL)")
         foreach (var t in parsed.Tokens)
         {
             yield return t.Phrase; // head + trailing words
@@ -462,7 +464,7 @@ public class CellParserTests
     [Fact]
     public void EveryAssigneeCell_ParsesWithoutLosingAWord()
     {
-        var cells = Fixtures.Both.SelectMany(d => new LayoutDetector().Detect(d.Doc).PlanTabs)
+        var cells = Fixtures.All.SelectMany(d => new LayoutDetector().Detect(d.Doc).PlanTabs)
             .SelectMany(t => t.DataRows)
             .SelectMany(r => r.Assignments)
             .ToList();
@@ -482,7 +484,7 @@ public class CellParserTests
                 continue;
             }
 
-            if (parsed.IsEmpty)
+            if (parsed.IsEmpty && parsed.Above is null)
                 failures.Add($"{a.Src}: no items for '{a.Cell.Text}'");
             foreach (var d in parsed.Diagnostics)
                 failures.Add($"{a.Src}: {d.Code}: {d.Message}");
@@ -502,7 +504,7 @@ public class CellParserTests
     {
         var failures = new List<string>();
         var count = 0;
-        foreach (var (_, doc) in Fixtures.Both)
+        foreach (var (_, doc) in Fixtures.All)
         {
             foreach (var tab in doc.Tabs)
             {
