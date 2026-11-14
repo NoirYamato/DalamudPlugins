@@ -410,18 +410,21 @@ public sealed class TeaP1LivingLiquid
     public SimCharacter? Holder(SimTether tether) => tether.A;
 
     // Each tether starts on its roll's seat; a seat that is dead by then, or already holds the other, gives way to a
-    // random living one.
+    // random living one that no roll names.
     public void DrainageTethers(float at, IReadOnlyList<TeaP1DrainageRoll> rolls, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
             var holders = new List<SimCharacter>();
+            var rolled = rolls.Select(roll => world.Party.Get(roll.FirstTarget)).ToList();
             foreach (var roll in rolls)
             {
                 if (Tornadoes[roll.From] is not { } tornado) continue;
                 var first = world.Party.Get(roll.FirstTarget);
                 if (!first.IsAlive() || holders.Contains(first!))
                 {
-                    var others = world.Party.ActiveMembers().Where(member => !holders.Contains(member)).ToArray();
+                    var free = world.Party.ActiveMembers().Where(member => !holders.Contains(member)).ToArray();
+                    var unnamed = free.Where(member => !rolled.Contains(member)).ToArray();
+                    var others = unnamed.Length > 0 ? unnamed : free;
                     first = others.Length == 0 ? null : world.Rng.NextObj(others);
                 }
                 if (first is null) continue;
