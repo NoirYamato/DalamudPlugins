@@ -108,6 +108,46 @@ public class ActLogTests
         }));
     }
 
+    // The second pull finds the boss still standing, the helper removed, the object added in the first pull, and only the
+    // map effect sent since that pull closed.
+    [Test]
+    public void APullKnowsWhatStoodAsItOpened()
+    {
+        const uint helper = 0x40000020, barrier = 0x40000030, water = 0x40000031;
+        var pulls = Pulls(Zone(0, Top), Enemy(1, Boss, 11335, Vector2.Zero, 0f), Enemy(1, helper, 9020, Vector2.Zero, 0f),
+                          Memory(1, "Add", barrier, ("BNpcID", "1E8536")), MapEffect(2, 0x00010001, 1),
+                          Combat(10, true, true), Memory(12, "Add", water, ("BNpcID", "1E9998")), MapEffect(13, 0x00020004, 7), Combat(20, true, false),
+                          Removed(21, helper, 0), MapEffect(22, 0x00040004, 2), Combat(30, true, true), Combat(40, true, false));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(pulls[0].Standing.Select(l => (l.Type, l.Hex(l.Type == ActLineType.CombatantMemory ? 3 : 2))), Is.EqualTo(new[]
+            {
+                (ActLineType.AddCombatant, (uint?)Boss), (ActLineType.AddCombatant, helper), (ActLineType.CombatantMemory, barrier),
+                (ActLineType.MapEffect, 0x80037586),
+            }));
+            Assert.That(pulls[0].Lines.Select(l => l.Type), Is.EqualTo(new[] { ActLineType.CombatantMemory, ActLineType.MapEffect }));
+            Assert.That(pulls[1].Standing.Select(l => (l.Type, l.Hex(l.Type == ActLineType.CombatantMemory ? 3 : 2), l.Time)), Is.EqualTo(new[]
+            {
+                (ActLineType.AddCombatant, (uint?)Boss, Origin.AddSeconds(1)), (ActLineType.CombatantMemory, barrier, Origin.AddSeconds(1)),
+                (ActLineType.CombatantMemory, water, Origin.AddSeconds(12)), (ActLineType.MapEffect, 0x80037586, Origin.AddSeconds(22)),
+            }));
+        });
+    }
+
+    [Test]
+    public void WhatStoodInAnotherTerritoryIsForgotten()
+        => Assert.That(Pulls(Zone(0, Elsewhere), Enemy(1, Boss, 11335, Vector2.Zero, 0f), Zone(5, Top), Combat(10, true, true)).Single().Standing, Is.Empty);
+
+    [Test]
+    public void TethersHeadMarkersAndAbilityLocationsAreKept()
+    {
+        var pull = Pulls(Zone(0, Top), Combat(10, true, true), Tether(11, Boss, Player1, 3), HeadMarker(12, Player1, 79),
+                         AbilityAt(13, Boss, 0x4830, Vector2.Zero, 0f), Combat(20, true, false)).Single();
+
+        Assert.That(pull.Lines.Select(l => l.Type), Is.EqualTo(new[] { ActLineType.Tether, ActLineType.HeadMarker, ActLineType.AbilityExtra }));
+    }
+
     [Test]
     public void APlayersAbilityOpensNoPullWithoutCombatFlags()
         => Assert.That(Pulls(Zone(0, Top), Hit(6, Player1, 0x7B55, Boss)), Is.Empty);

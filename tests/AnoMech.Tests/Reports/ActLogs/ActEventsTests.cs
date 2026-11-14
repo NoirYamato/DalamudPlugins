@@ -30,6 +30,22 @@ public class ActEventsTests
     public void AHitReadsTheSequenceItsEffectResultNames()
         => Assert.That(ActHit.From(Parse(Hit(3, Helper, 0x7B63, Player1, sequence: 0x1A2B, aoe: true)))!.Value.Sequence, Is.EqualTo(0x1A2Bu));
 
+    // The second effect is the damage; under the 0x40 flag a third byte rides above the first two, added onto the second.
+    [TestCase("750003", "CB670000", 52071)]
+    [TestCase("750003", "424E400F", 999999)]
+    [TestCase("650605", "069F0000", 1695)]
+    public void AHitReadsTheDamageOfItsDamageEffect(string kind, string value, int damage)
+    {
+        var line = Line(21, 3, 55, (2, Hex(Helper)), (4, "4825"), (6, Hex(Player1)), (8, "A10"), (9, "4D00000"), (10, kind), (11, value));
+
+        Assert.That(ActHit.From(Parse(line))!.Value.Damage, Is.EqualTo(damage));
+    }
+
+    [Test]
+    public void AHitWithNoDamageEffectReadsNoDamage()
+        => Assert.That((ActHit.From(Parse(Hit(3, Helper, 0x7B63, Player1)))!.Value.Damage, ActHit.From(Parse(Hit(3, Helper, 0x7B63, Player1, damage: 1695)))!.Value.Damage),
+                       Is.EqualTo(((int?)null, (int?)1695)));
+
     [Test]
     public void AHitOnNobodyHitsNobody()
         => Assert.That(ActHit.From(Parse(Hit(3, Helper, 0x7B80, ActorIds.None)))!.Value.HitSomeone, Is.False);
@@ -117,6 +133,58 @@ public class ActEventsTests
             new ActObject(Origin.AddSeconds(7), true, Helper, 2013217), new ActObject(Origin.AddSeconds(26), false, Helper, null), null,
         }));
     }
+
+    [Test]
+    public void ATetherReadsItsEndsAndItsId()
+        => Assert.That(ActTether.From(Parse(Tether(7, Helper, Player1, 0x11))), Is.EqualTo(new ActTether(Origin.AddSeconds(7), Helper, Player1, 0x11)));
+
+    [Test]
+    public void AModelStateReadsFromItsActorControl()
+        => Assert.That(ActModelState.From(Parse(ModelState(6, Boss, 20))), Is.EqualTo(new ActModelState(Origin.AddSeconds(6), Boss, 20)));
+
+    [Test]
+    public void APlayedTimelineIsNoModelState()
+        => Assert.That(ActModelState.From(Parse(Line(273, 6, 10, (2, Hex(Boss)), (3, "0197"), (4, "1E43"), (5, "0")))), Is.Null);
+
+    // A line that names no maximum, as a boss's effect result, gives none.
+    [Test]
+    public void HitPointsBesideTheirMaximumReadFromACombatantJoiningAStatusListOrAnUpdate()
+        => Assert.That(new[]
+                       {
+                           Enemy(1, Boss, 11335, Vector2.Zero, 0f, 3300000, 3356051), StatusList(2, Player1, 5000, Vector2.Zero),
+                           UpdateHp(3, Player1, 6000, Vector2.Zero), Line(37, 4, 16, (2, Hex(Boss)), (4, "00001A2B"), (5, "900")),
+                       }.Select(l => ActHealth.From(Parse(l))),
+                       Is.EqualTo(new ActHealth?[]
+                       {
+                           new ActHealth(Origin.AddSeconds(1), Boss, 3300000, 3356051), new ActHealth(Origin.AddSeconds(2), Player1, 5000, 100000),
+                           new ActHealth(Origin.AddSeconds(3), Player1, 6000, 100000), null,
+                       }));
+
+    [Test]
+    public void ATargetChangeReadsWhomAnEnemyTurnsTo()
+    {
+        var turned = ActTargetChange.From(Parse(Memory(5, "Change", Boss, ("NPCTargetID", Hex(Player1)), ("PCTargetID", Hex(Player1)))));
+        var moved = ActTargetChange.From(Parse(Memory(6, "Change", Boss, ("PosX", "1.0"))));
+
+        Assert.That((turned, moved), Is.EqualTo(((ActTargetChange?)new ActTargetChange(Origin.AddSeconds(5), Boss, Player1), (ActTargetChange?)null)));
+    }
+
+    [Test]
+    public void AHeadMarkerReadsItsTargetAndId()
+        => Assert.That(ActHeadMarker.From(Parse(HeadMarker(8, Player1, 79))), Is.EqualTo(new ActHeadMarker(Origin.AddSeconds(8), Player1, 79)));
+
+    [Test]
+    public void AnAbilityAimedAtTheGroundReadsWhereItWentOff()
+        => Assert.That(ActAbilityAt.From(Parse(AbilityAt(9, Helper, 0x4830, new Vector2(109.88f, 90.07f), -2.35f))),
+                       Is.EqualTo(new ActAbilityAt(Origin.AddSeconds(9), Helper, 0x4830, new Vector2(109.88f, 90.07f), -2.35f)));
+
+    [Test]
+    public void AnAbilityOnATargetCarriesNoLocation()
+        => Assert.That(ActAbilityAt.From(Parse(Line(264, 9, 12, (2, Hex(Helper)), (3, "4825"), (4, "00001A2B"), (5, "0"), (9, "0.12")))), Is.Null);
+
+    [Test]
+    public void AMapEffectReadsItsSlotAndFlags()
+        => Assert.That(ActMapEffect.From(Parse(MapEffect(10, 0x00020004, 7))), Is.EqualTo(new ActMapEffect(Origin.AddSeconds(10), 0x00020004, 7)));
 
     [Test]
     public void ALineOfAnotherTypeReadsAsNoEvent()

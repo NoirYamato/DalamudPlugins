@@ -114,6 +114,7 @@ internal static class ActLineType
     public const int InCombat = 260;
     public const int CombatantMemory = 261;
     public const int StartsCastingExtra = 263;
+    public const int AbilityExtra = 264;
     public const int ActorMove = 270;
     public const int ActorSetPosition = 271;
     public const int ActorControlExtra = 273;

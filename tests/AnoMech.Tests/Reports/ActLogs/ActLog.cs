@@ -3,7 +3,9 @@ using System.Globalization;
 namespace AnoMech.Tests;
 
 // One combat segment in one territory, with the lines logged while it ran (only the types ActLog keeps), the job of
-// every player the log had seen in the territory by then, and Self, the player who logged it.
+// every player the log had seen in the territory by then, and Self, the player who logged it. Standing holds what stood
+// there as it opened: the line that added each combatant (03) and each object (261 Add) still present, and the map
+// effects (257) sent since the last pull closed.
 internal sealed class ActPull
 {
     public required string File { get; init; }
@@ -13,6 +15,7 @@ internal sealed class ActPull
     public required Dictionary<uint, uint> Jobs { get; init; }
     public uint? Self { get; init; }
     public List<ActLine> Lines { get; } = [];
+    public IReadOnlyList<ActLine> Standing { get; init; } = [];
     public List<uint> DirectorCodes { get; } = [];
 
     public bool Cleared => DirectorCodes.Contains(ActLog.DirectorClear);
@@ -42,12 +45,16 @@ internal sealed class ActLog
         ActLineType.AoeAbility, ActLineType.Death, ActLineType.GainsEffect, ActLineType.LosesEffect,
         ActLineType.ActorControl, ActLineType.NameToggle, ActLineType.EffectResult, ActLineType.StatusList,
         ActLineType.UpdateHp, ActLineType.CombatantMemory, ActLineType.StartsCastingExtra, ActLineType.ActorMove,
-        ActLineType.ActorSetPosition, ActLineType.ActorControlExtra,
+        ActLineType.ActorSetPosition, ActLineType.ActorControlExtra, ActLineType.Tether, ActLineType.MapEffect,
+        ActLineType.HeadMarker, ActLineType.AbilityExtra,
     ];
 
     private readonly string file;
     private readonly uint territory;
     private readonly Dictionary<uint, uint> jobs = [];
+    private readonly Dictionary<uint, ActLine> combatants = [];
+    private readonly Dictionary<uint, ActLine> objects = [];
+    private readonly List<ActLine> mapEffects = [];
     private uint? self;
     private uint? zone;
     private ActPull? open;
@@ -80,6 +87,7 @@ internal sealed class ActLog
             if (Read(text) is not { } line) continue;
             if (PlayerJob(line) is var (player, job)) log.jobs[player] = job;
             if (line.Type == ActLineType.ChangePrimaryPlayer) log.self = line.Hex(2);
+            log.Stand(line);
             var closed = byCombatFlag ? log.ByCombatFlag(line) : log.ByDirector(line);
             if (closed is not null) yield return closed;
         }
@@ -155,8 +163,41 @@ internal sealed class ActLog
             : null;
     }
 
+    // What stands in the territory from one pull to the next; a zone change empties it.
+    private void Stand(ActLine line)
+    {
+        switch (line.Type)
+        {
+            case ActLineType.ChangeZone:
+                combatants.Clear();
+                objects.Clear();
+                mapEffects.Clear();
+                break;
+            case ActLineType.AddCombatant when line.Hex(2) is { } id:
+                combatants[id] = line;
+                break;
+            case ActLineType.RemoveCombatant when line.Hex(2) is { } id:
+                combatants.Remove(id);
+                break;
+            case ActLineType.CombatantMemory when line.Hex(3) is { } id:
+                if (line.Text(2) == "Add") objects[id] = line;
+                else if (line.Text(2) == "Remove") objects.Remove(id);
+                break;
+            case ActLineType.MapEffect when open is null:
+                mapEffects.Add(line);
+                break;
+        }
+    }
+
     private void Open(DateTimeOffset at)
-        => open = new ActPull { File = file, Number = ++count, Start = at, Jobs = new Dictionary<uint, uint>(jobs), Self = self };
+    {
+        open = new ActPull
+        {
+            File = file, Number = ++count, Start = at, Jobs = new Dictionary<uint, uint>(jobs), Self = self,
+            Standing = combatants.Values.Concat(objects.Values).Concat(mapEffects).OrderBy(l => l.Time).ToList(),
+        };
+        mapEffects.Clear();
+    }
 
     private void Keep(ActLine line)
     {

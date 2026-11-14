@@ -47,10 +47,11 @@ internal static class ActLogLines
         => Line(263, seconds, 9, (2, Hex(source)), (3, Hex(action)), (4, F(at.X)), (5, F(at.Y)), (6, "0.00"), (7, F(heading)));
 
     // A 21 line (22 for an area ability) of the 55 fields a newer plugin writes, rotation (the effect's raw 16-bit heading)
-    // second to last; the sequence names the effect result (37) that lands it.
+    // second to last; the sequence names the effect result (37) that lands it, and damage, when given, is its one effect.
     public static string Hit(double seconds, uint source, uint action, uint target, Vector2? targetAt = null, Vector2? sourceAt = null,
-                             ushort rotation = 0x7FFF, int index = 0, int count = 1, uint sequence = 0, bool aoe = false)
+                             ushort rotation = 0x7FFF, int index = 0, int count = 1, uint sequence = 0, bool aoe = false, ushort damage = 0)
         => Line(aoe ? 22 : 21, seconds, 55, (2, Hex(source)), (3, Name), (4, Hex(action)), (5, "Action"), (6, Hex(target)), (7, Name),
+                (8, damage == 0 ? "" : "750003"), (9, damage == 0 ? "" : $"{damage:X4}0000"),
                 (30, targetAt is { } t ? F(t.X) : ""), (31, targetAt is { } t2 ? F(t2.Y) : ""), (33, "0.00"),
                 (40, sourceAt is { } s ? F(s.X) : ""), (41, sourceAt is { } s2 ? F(s2.Y) : ""), (43, "0.00"),
                 (44, Sequence(sequence)), (45, index.ToString(CultureInfo.InvariantCulture)),
@@ -91,6 +92,29 @@ internal static class ActLogLines
     // A 261 line: its mode (Add, Change or Remove), the actor and key/value pairs.
     public static string Memory(double seconds, string mode, uint actor, params (string Key, string Value)[] pairs)
         => $"261|{Time(seconds)}|{mode}|{Hex(actor)}|{string.Concat(pairs.Select(p => $"{p.Key}|{p.Value}|"))}0123456789abcdef";
+
+    // An enemy joining with its hit points, as a 03 line carries them.
+    public static string Enemy(double seconds, uint actor, uint bnpcBase, Vector2 at, float heading, int hp, int maxHp)
+        => Line(3, seconds, 22, (2, Hex(actor)), (3, Name), (10, bnpcBase.ToString(CultureInfo.InvariantCulture)),
+                (11, hp.ToString(CultureInfo.InvariantCulture)), (12, maxHp.ToString(CultureInfo.InvariantCulture)),
+                (17, F(at.X)), (18, F(at.Y)), (20, F(heading)));
+
+    public static string Tether(double seconds, uint source, uint target, uint id)
+        => Line(35, seconds, 13, (2, Hex(source)), (3, Name), (4, Hex(target)), (5, Name), (8, id.ToString("X4", CultureInfo.InvariantCulture)));
+
+    public static string ModelState(double seconds, uint actor, uint state)
+        => Line(273, seconds, 9, (2, Hex(actor)), (3, "003F"), (4, Hex(state)), (5, "0"));
+
+    public static string HeadMarker(double seconds, uint target, uint id)
+        => Line(27, seconds, 11, (2, Hex(target)), (3, Name), (6, id.ToString("X4", CultureInfo.InvariantCulture)));
+
+    // A 264 line of an ability aimed at the ground.
+    public static string AbilityAt(double seconds, uint source, uint action, Vector2 at, float heading)
+        => Line(264, seconds, 12, (2, Hex(source)), (3, Hex(action)), (4, "00001A2B"), (5, "1"), (6, F(at.X)), (7, F(at.Y)), (8, "0.00"), (9, F(heading)));
+
+    public static string MapEffect(double seconds, uint flags, uint slot)
+        => Line(257, seconds, 8, (2, "80037586"), (3, flags.ToString("X8", CultureInfo.InvariantCulture)),
+                (4, slot.ToString("X2", CultureInfo.InvariantCulture)));
 
     public static string Chat(double seconds) => $"00|{Time(seconds)}|0839||{Name} says something|0123456789abcdef";
 
