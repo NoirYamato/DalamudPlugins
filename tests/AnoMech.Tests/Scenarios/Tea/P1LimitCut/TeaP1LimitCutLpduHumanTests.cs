@@ -33,19 +33,24 @@ namespace AnoMech.Tests;
 //   #4 lands beside the other group's waiting pair and stays with that group;
 //   #6 sprints in as far as the middle blaster's edge, and on in once that has gone off;
 //   #8 has nothing left to dodge.
-// Whatever its seat, number, pace and reaction time, nobody may die, but for a thrown #2 that walks or is half a
-// second late: its way out is too narrow to hold a player to, so those runs are only recorded.
+// Whatever its seat, number, pace and reaction time, nobody may die, but for a thrown #2 that walks and reacts late:
+// its way out is too narrow to hold a player to, so those runs may lose no more than they do today.
 public class TeaP1LimitCutLpduHumanTests
 {
     // Five fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
-    private static IEnumerable<int> Seeds => Enumerable.Range(1, TestContext.Parameters.Get("HumanSeeds", 5)).Select(i => 17 * i);
+    private const int UsualSeeds = 5;
+    private static IEnumerable<int> Seeds => Enumerable.Range(1, TestContext.Parameters.Get("HumanSeeds", UsualSeeds)).Select(i => 17 * i);
     private static readonly float[] ReactionTimes = [0f, 0.25f, 0.5f];
 
     // A player's speeds; the legs a sprinter sprints are the long ones.
     public enum Pace { Walking, Sprinting }
 
     private static bool HeldTo(int number, Pace pace, float late, bool presses)
-        => presses || number != 2 || (pace == Pace.Sprinting && late <= 0.25f);
+        => presses || number != 2 || pace == Pace.Sprinting || late == 0f;
+
+    // Of the 40 runs on the usual rolls. A quarter second late it clears the blast by 0.2 y; half a second late it is
+    // inside it in more than half.
+    private static int RunsATooNarrowWayOutMayLose(float late) => late <= 0.25f ? 0 : 22;
 
     private static IEnumerable<TestCaseData> Matrix(bool heldTo)
         => from number in Enumerable.Range(1, 8)
@@ -57,7 +62,7 @@ public class TeaP1LimitCutLpduHumanTests
                .SetName($"{{m}}(#{number}, {pace}, {late.ToString("F2", CultureInfo.InvariantCulture)}s late, {(presses ? "pressing" : "thrown")})");
 
     private static IEnumerable<TestCaseData> HeldToCases() => Matrix(heldTo: true);
-    private static IEnumerable<TestCaseData> RecordedCases() => Matrix(heldTo: false);
+    private static IEnumerable<TestCaseData> TooNarrowCases() => Matrix(heldTo: false);
 
     [TestCaseSource(nameof(HeldToCases))]
     public void AHumanPlayingTheStratIsNeverCaught(int number, Pace pace, float late, bool presses)
@@ -76,11 +81,11 @@ public class TeaP1LimitCutLpduHumanTests
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
     }
 
-    [TestCaseSource(nameof(RecordedCases))]
-    public void AThrownNumberTwoThatWalksOrIsSlowIsOnlyRecorded(int number, Pace pace, float late, bool presses)
+    [TestCaseSource(nameof(TooNarrowCases))]
+    public void AThrownNumberTwoThatWalksAndReactsLateLosesNoMoreRunsThanItDoes(int number, Pace pace, float late, bool presses)
     {
         var tightest = new Clearances();
-        var (runs, lost) = (0, 0);
+        var (runs, lost, lostOnTheUsualRolls) = (0, 0, 0);
         var broken = new List<string>();
         foreach (var seat in PerRole.All)
         foreach (var seed in Seeds)
@@ -88,11 +93,16 @@ public class TeaP1LimitCutLpduHumanTests
             runs++;
             Play(seat, number, pace, late, presses, seed, tightest, out var run, writeArtifacts: false);
             if (run.Failure is not null) broken.Add(run.ToString());
-            else if (!run.Passed) lost++;
+            else if (!run.Passed)
+            {
+                lost++;
+                if (seed <= 17 * UsualSeeds) lostOnTheUsualRolls++;
+            }
         }
 
-        TestContext.Out.WriteLine($"{runs} runs, {lost} with a death; the human's tightest clearances: {tightest}");
+        TestContext.Out.WriteLine($"{runs} runs, {lost} with a death, {lostOnTheUsualRolls} of them on the usual rolls; the human's tightest clearances: {tightest}");
         Assert.That(broken, Is.Empty, () => string.Join(Environment.NewLine, broken));
+        Assert.That(lostOnTheUsualRolls, Is.LessThanOrEqualTo(RunsATooNarrowWayOutMayLose(late)), "runs with a death on the usual rolls");
     }
 
     private static List<string> Play(PartyRole seat, int number, Pace pace, float late, bool presses, int seed, Clearances tightest,
