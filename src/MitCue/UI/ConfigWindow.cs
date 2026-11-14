@@ -508,10 +508,19 @@ internal sealed class ConfigWindow : Window
         var party = job == this.plugin.Frame.Job ? PartyJobs.Of(this.plugin.Frame.PartyJobMask) : null;
         var mapping = store.MappingFor(plan, job, party);
         var current = mapping.AssigneeKey == null ? $"({ColumnLabel(plan, mapping)})" : ColumnLabel(plan, mapping);
-        var preview = mapping.IsSuggestion ? $"(suggested) {current}" : current;
+
+        // A suggestion whose slot is a guess (LPDU TEA's tanks without a usual slot) or not known (its Monk) says so, and
+        // its tooltip says how to choose (the status line says the same for the current job).
+        var seat = mapping.IsSuggestion ? store.UnknownSeatFor(plan, job, party) : null;
+        var preview = !mapping.IsSuggestion ? current
+            : seat == null ? $"(suggested) {current}"
+            : seat.Guess != null ? $"(suggested, a guess) {current}"
+            : $"(suggested, no slot) {current}";
 
         ImGui.SetNextItemWidth(-1);
         using var combo = ImRaii.Combo("##column", preview);
+        if (seat != null && ImGui.IsItemHovered() && store.SeatHint(plan, job, party) is { } hint)
+            ImGui.SetTooltip(hint);
         if (!combo)
             return;
 

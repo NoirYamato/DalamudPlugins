@@ -7,6 +7,11 @@ namespace MitCue.Core.Plans;
 /// <param name="Slot">The player's slot with this choice, or null for none.</param>
 public sealed record ColumnPick(string? AssigneeKey, string? Slot);
 
+/// <summary>A seat of the player's that the automatic choice cannot know (<see cref="ColumnSuggestion.SeatUnknown"/>).</summary>
+/// <param name="Guess">The slot the choice gives the player, a guess (the first of <paramref name="Slots"/>), or null when it gives none.</param>
+/// <param name="Slots">The slots of the job's role that may be the player's seat, in <see cref="Slots.Standard"/> order.</param>
+public sealed record UnknownSeat(string? Guess, IReadOnlyList<string> Slots);
+
 /// <summary>
 /// The automatic "which column is me" choice for a plan and job: the one the plugin uses when the player has saved none
 /// (bundled plans, share codes, imported plans), the one an import saves, and the one <c>mitcue plan/simulate/check</c>
@@ -122,19 +127,69 @@ public static class ColumnSuggestion
     /// The player's seat when the plan has no column for their job and their slot is unknown: the first slot of the job's
     /// role (<see cref="Slots.Standard"/> order) that the job's calls name, as the first tank pair is taken outside a
     /// party, passing over a slot that is another party job's seat (<see cref="PartySeats"/>). LPDU's Red Mage has calls
-    /// in R1 and R2: R1, or R2 next to a Bard. Null when the job's calls name no slot of its role.
+    /// in R1 and R2: R1, or R2 next to a Bard. Null when the job's calls name no slot of its role. With several such
+    /// slots the party leaves open it is a guess (<see cref="SeatUnknown"/>).
     /// </summary>
     private static string? SeatOfCalls(MitPlan plan, Job job, IReadOnlyCollection<Job>? party)
     {
-        if (job == Job.None)
-            return null;
-        var slots = Slots.Standard
-            .Where(s => Slots.Fits(s, job) && plan.Entries.Exists(e => e?.Who is { } who && who.Job == job && Slots.TryNormalize(who.Slot, out var es) && es == s))
-            .ToList();
+        var slots = SlotsOfCalls(plan, job);
         if (slots.Count < 2)
             return slots.FirstOrDefault();
+        return OpenSlots(plan, job, slots, party).FirstOrDefault() ?? slots[0];
+    }
+
+    /// <summary>The slots of the job's role that the job's calls name, in <see cref="Slots.Standard"/> order.</summary>
+    private static List<string> SlotsOfCalls(MitPlan plan, Job job) =>
+        job == Job.None
+            ? []
+            : Slots.Standard
+                .Where(s => Slots.Fits(s, job) && plan.Entries.Exists(e => e?.Who is { } who && who.Job == job && Slots.TryNormalize(who.Slot, out var es) && es == s))
+                .ToList();
+
+    /// <summary>Of <paramref name="slots"/>, those that are no other party job's seat (<see cref="PartySeats"/>).</summary>
+    private static List<string> OpenSlots(MitPlan plan, Job job, List<string> slots, IReadOnlyCollection<Job>? party)
+    {
         var seats = PartySeats(plan, party);
-        return slots.FirstOrDefault(s => !seats.TryGetValue(s, out var holder) || holder == job) ?? slots[0];
+        return slots.Where(s => !seats.TryGetValue(s, out var holder) || holder == job).ToList();
+    }
+
+    /// <summary>
+    /// The player's seat when the automatic choice (<see cref="Suggest"/>) cannot know it, for a player whose usual slot
+    /// is unknown on the job (none, or one of another role: <see cref="Slots.ForJob"/>); null when it is known (the usual
+    /// slot, the slot of the job's column, the one slot the job's calls name, or the one the party leaves open). Either the
+    /// choice guesses: the plan has no column for the job and the job's calls name several slots of its role the party
+    /// does not settle, and the first is taken (<see cref="SeatOfCalls"/>; LPDU TEA's tanks, whose jobs all have calls in
+    /// "Tank 1" (MT) and "Tank 2" (OT): a tank without a slot follows Tank 1, so two of them both get the MT's calls and
+    /// nobody Tank 2's). Or it gives no slot, and the plan has calls for whoever plays a slot of the job's role, which the
+    /// player then does not get (LPDU TEA's "Melee 1" and "Melee 2" Feints for a Monk, LPDU TOP's job-less MT and OT calls
+    /// for a Warrior who follows "WAR/DRK WAR"). The choice stays; the plugin tells the player.
+    /// </summary>
+    /// <param name="plan">The plan.</param>
+    /// <param name="job">The player's job.</param>
+    /// <param name="defaultSlot">The configured slot, if any.</param>
+    /// <param name="party">The jobs in the player's party, or null/empty when unknown.</param>
+    public static UnknownSeat? SeatUnknown(MitPlan plan, Job job, string? defaultSlot, IReadOnlyCollection<Job>? party = null)
+    {
+        if (job == Job.None || Slots.ForJob(defaultSlot, job) != null)
+            return null;
+
+        var pick = Suggest(plan, job, defaultSlot, party);
+        if (pick.Slot != null)
+        {
+            // Without a column for the job, the slot is the one its calls give.
+            if (JobColumn(plan, job, defaultSlot, party) != null)
+                return null;
+            var open = OpenSlots(plan, job, SlotsOfCalls(plan, job), party);
+            return open.Count >= 2 ? new UnknownSeat(pick.Slot, open) : null;
+        }
+
+        // No slot: the calls the player would get in a slot of the job's role.
+        var me = Context(pick, job, defaultSlot);
+        var shown = Selected(plan, me);
+        var missed = Slots.Standard
+            .Where(s => Slots.Fits(s, job) && plan.Entries.Exists(e => e != null && !shown.Contains(e) && PlanSelection.Applies(e, me with { Slot = s })))
+            .ToList();
+        return missed.Count > 0 ? new UnknownSeat(null, missed) : null;
     }
 
     /// <summary>The automatic choice: <see cref="Complete"/> when the job's column leaves out some of the player's calls, else the job's column.</summary>

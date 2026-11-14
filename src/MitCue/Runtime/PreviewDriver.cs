@@ -216,6 +216,8 @@ internal sealed class PreviewDriver
             message = $"Preview started: {this.Description}; {own.Count} entries are yours. Type /mitcue preview again to stop.";
             if (own.Count == 0)
                 message += " (No entries match: check \"My column\" in /mitcue > Plans.)";
+            if (this.plans.SeatHint(plan, job, partyJobs) is { } hint)
+                message += " " + hint; // the slot is a guess or not known, as the live session says
             return true;
         }
         catch (Exception ex)

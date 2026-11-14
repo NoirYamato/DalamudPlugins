@@ -101,6 +101,24 @@ public class BundledPlanTests
         Assert.Contains("31 entries are yours", message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null, " Your slot is a guess: MT (the plan has WAR calls in MT and OT).")]
+    [InlineData("OT", null)]
+    public void ThePreviewSaysWhenTheSlotIsAGuess(string? slot, string? hint)
+    {
+        var config = new Configuration { DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
+
+        Assert.True(preview.Start("tea", null, 887, Job.WAR, null, 0, out var message), message);
+
+        Assert.Contains("\"LPDU TEA Heal/Mit\" as WAR", message, StringComparison.Ordinal);
+        if (hint != null)
+            Assert.Contains(hint, message, StringComparison.Ordinal);
+        else
+            Assert.DoesNotContain("Your slot", message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CarryTheClearSchIsBundledButTheScholarKeepsLpduUntilTheyChooseIt()
     {
@@ -318,6 +336,105 @@ public class BundledPlanTests
         var own = OwnEntries(parts);
         Assert.Equal(8, own.Count); // 7 Feints and "Use Personals"
         Assert.Equal(7, own.Count(e => Names(e).SequenceEqual(["Feint"]) && e.Who.Slot == "M1" && e.Who.Job is null));
+    }
+
+    /// <summary>A TEA frame as <paramref name="job"/> in a party with both tanks, a Monk and the casters.</summary>
+    private static FrameContext InTeaParty(Job job, double now = 1)
+    {
+        var frame = SessionManagerTests.InTea(job, now);
+        frame.PartyJobMask = PartyJobs.Mask([Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM]);
+        return frame;
+    }
+
+    [Theory]
+    [InlineData(Job.DRK, null, "set \"My usual party slot\" in /mitcue > General, or choose \"Tank 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData(Job.WAR, null, "set \"My usual party slot\" in /mitcue > General, or choose \"Tank 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData(Job.DRK, "H1", "choose \"Tank 2\" under \"My column\" in /mitcue > Plans")] // a healer main keeps H1
+    public void OnTeaATankWithoutASlotIsToldTank1IsAGuess(Job job, string? slot, string how)
+    {
+        // Review findings B02/C11: every tank job has calls in "Tank 1" (MT) and "Tank 2" (OT), and the party cannot tell
+        // the tanks apart, so two tanks without a usual slot both followed Tank 1 (both the MT's Reprisals, none of Tank
+        // 2's), and nothing said so. The choice stays; the status and, once per plan and job, chat say it is a guess.
+        var config = new Configuration { DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Manager.Update(InTeaParty(job));
+
+        Assert.Equal(((string?)null, "MT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        var own = OwnEntries(parts);
+        Assert.Contains(own, e => e.Who.Assignee == "Tank 1" && e.Who.Job is null && Names(e).SequenceEqual(["Reprisal"])); // the MT's
+        Assert.DoesNotContain(own, e => e.Who.Assignee == "Tank 2");
+        var hint = $"Your slot is a guess: MT (the plan has {job} calls in MT and OT). If you play OT, {how}.";
+        Assert.Equal($"Ready: LPDU TEA Heal/Mit ({own.Count} of {parts.Manager.Plan!.Plan.Entries.Count} entries are yours). {hint}", parts.Manager.Status);
+        Assert.Equal([$"TEA, \"LPDU TEA Heal/Mit\" as {job}: {hint}"], parts.Chat.FirstArgs("Print"));
+
+        // Once: the session built again (Debug > Reload data, a zone change) prints nothing more.
+        parts.Manager.Invalidate();
+        parts.Manager.Update(InTeaParty(job, 2));
+        Assert.Equal(hint, parts.Manager.Status[^hint.Length..]);
+        Assert.Single(parts.Chat.FirstArgs("Print"));
+
+        // The usual slot OT (or "Tank 2" under "My column") gives Tank 2's calls, with no hint.
+        config.DefaultSlot = "OT";
+        config.Touch();
+        parts.Manager.Update(InTeaParty(job, 3));
+        Assert.Equal(("Tank 2", "OT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        Assert.DoesNotContain("Your slot", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Contains(OwnEntries(parts), e => e.Who.Assignee == "Tank 2" && e.Who.Job is null && Names(e).SequenceEqual(["Reprisal"]));
+    }
+
+    [Theory]
+    [InlineData(null, "set \"My usual party slot\" in /mitcue > General, or choose \"Melee 1\" or \"Melee 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData("H1", "choose \"Melee 1\" or \"Melee 2\" under \"My column\" in /mitcue > Plans")]
+    public void OnTeaAMonkWithoutAMeleeSlotIsToldWhyTheSeatsFeintsAreMissing(string? slot, string how)
+    {
+        // Review finding D11: the plan is the Monk's automatic one (its Mantras), but the Feints are the job-less calls of
+        // "Melee 1" and "Melee 2": without a melee slot the status said only "Ready", with none of them.
+        var parts = LiveInTea(Job.MNK, slot);
+
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.DoesNotContain(OwnEntries(parts), e => Names(e).Contains("Feint"));
+        var hint = $"Your slot (M1 or M2) is not known, so its calls are not shown: {how}.";
+        Assert.EndsWith(" entries are yours). " + hint, parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Equal([$"TEA, \"LPDU TEA Heal/Mit\" as MNK: {hint}"], parts.Chat.FirstArgs("Print"));
+    }
+
+    [Theory]
+    [InlineData(Job.MNK, "M1")]
+    [InlineData(Job.DRK, "OT")]
+    [InlineData(Job.SCH, null)]
+    [InlineData(Job.BLM, null)]
+    [InlineData(Job.MCH, "H1")]
+    public void OnTeaAKnownSeatGetsNoHint(Job job, string? slot)
+    {
+        var parts = LiveInTea(job, slot);
+
+        Assert.Matches(@"^Ready: LPDU TEA Heal/Mit \(\d+ of \d+ entries are yours\)\.$", parts.Manager.Status);
+        Assert.Empty(parts.Chat.FirstArgs("Print"));
+    }
+
+    [Fact]
+    public void ATankWhoChoseTheirColumnGetsNoHint()
+    {
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        parts.Plans.SetMapping(parts.Plans.Get(LpduTea)!.Plan, Job.WAR, new PlayerMapping { AssigneeKey = "Tank 2", Slot = "OT" }); // as /mitcue > Plans saves it
+
+        parts.Manager.Update(InTeaParty(Job.WAR));
+
+        Assert.Equal(("Tank 2", "OT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        Assert.DoesNotContain("Your slot", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Empty(parts.Chat.FirstArgs("Print"));
+    }
+
+    [Fact]
+    public void OnLpduATankWithoutASlotIsToldTheSlotsCallsAreMissing()
+    {
+        // LPDU TOP's job-less MT and OT calls (Reprisals, Ramparts) need the usual slot: the pair column has only the job's.
+        var parts = Live(Job.WAR, null);
+
+        Assert.Equal("WAR/DRK WAR", parts.Manager.Mapping?.AssigneeKey);
+        Assert.EndsWith(" entries are yours). Your slot (MT or OT) is not known, so its calls are not shown: set \"My usual party slot\" in /mitcue > General.", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Single(parts.Chat.FirstArgs("Print"));
     }
 
     [Fact]

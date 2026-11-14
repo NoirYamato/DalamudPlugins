@@ -92,7 +92,7 @@ internal sealed class PlanStore
     private readonly ErrorReporter errors;
     private readonly List<StoredPlan> plans = [];
     private readonly HashSet<string> bundledIds = new(StringComparer.OrdinalIgnoreCase); // also those a user copy replaces
-    private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
+    private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping, UnknownSeat? Seat)> suggestions = [];
     private int suggestionsRevision = -1;
 
     /// <summary>Creates the store; nothing is read until <see cref="EnsureLoaded"/>.</summary>
@@ -555,9 +555,50 @@ internal sealed class PlanStore
     {
         if (this.SavedMapping(plan, job) is { } saved)
             return saved;
+        var suggestion = this.Suggested(plan, job, party).Mapping;
+        return new PlayerMapping { AssigneeKey = suggestion.AssigneeKey, Slot = suggestion.Slot, IsSuggestion = true };
+    }
 
-        // The suggestion reads every entry of the plan a few times and the Plans tab asks for it every frame: cache it
-        // until the plans change (stored plans are replaced, not edited in place), the configured slot or the party does.
+    /// <summary>
+    /// The player's slot in a plan when the automatic column choice (<see cref="MappingFor"/>) has to guess it or cannot
+    /// give one (<see cref="ColumnSuggestion.SeatUnknown"/>: LPDU TEA's tanks and Monk without a usual slot); null when it
+    /// is known, and when the player chose their column for the plan and job.
+    /// </summary>
+    public UnknownSeat? UnknownSeatFor(MitPlan plan, Job job, IReadOnlyCollection<Job>? party = null) =>
+        this.SavedMapping(plan, job) != null ? null : this.Suggested(plan, job, party).Seat;
+
+    /// <summary>
+    /// What to tell a player whose slot in a plan is a guess or not known (<see cref="UnknownSeatFor"/>), or null: the slot
+    /// guessed, or that the slot's calls are not shown, and how to give the slot. "My usual party slot" gives it in every
+    /// plan; when the usual slot is one of another role (the player's main's), changing it would take that role's slot
+    /// calls away, so the slot's column under "My column" is named instead, as for a share code
+    /// (<see cref="ImportShareCode(string, Job, bool, out MitPlan?, out string)"/>), where that column has the job's calls
+    /// too (the plan has no column for the job).
+    /// </summary>
+    public string? SeatHint(MitPlan plan, Job job, IReadOnlyCollection<Job>? party = null)
+    {
+        if (this.UnknownSeatFor(plan, job, party) is not { } seat)
+            return null;
+
+        // The slots to choose from (the others than the one guessed) and their columns: LPDU TEA's "Tank 2".
+        var slots = seat.Slots.Where(s => s != seat.Guess).ToList();
+        var columns = slots.Select(slot => plan.Assignees.FirstOrDefault(a => (a.Job is null or Job.None) && Slots.TryNormalize(a.Slot, out var s) && s == slot)?.Key).ToList();
+        var byColumn = columns.TrueForAll(c => c != null) && ColumnSuggestion.JobColumn(plan, job, this.config.DefaultSlot, party) == null;
+        const string UsualSlot = "set \"My usual party slot\" in /mitcue > General";
+        var column = $"choose {string.Join(" or ", columns.Select(c => $"\"{c}\""))} under \"My column\" in /mitcue > Plans";
+        var how = !byColumn ? UsualSlot : this.config.DefaultSlot == null ? $"{UsualSlot}, or {column}" : column;
+        return seat.Guess != null
+            ? $"Your slot is a guess: {seat.Guess} (the plan has {job} calls in {string.Join(" and ", seat.Slots)}). If you play {string.Join(" or ", slots)}, {how}."
+            : $"Your slot ({string.Join(" or ", seat.Slots)}) is not known, so its calls are not shown: {how}.";
+    }
+
+    /// <summary>
+    /// The automatic column choice and its unknown slot for a plan and job, cached: they read every entry of the plan a few
+    /// times and the Plans tab asks for them every frame. Kept until the plans change (stored plans are replaced, not edited
+    /// in place), the configured slot or the party does.
+    /// </summary>
+    private (MitPlan Plan, PlayerMapping Mapping, UnknownSeat? Seat) Suggested(MitPlan plan, Job job, IReadOnlyCollection<Job>? party)
+    {
         if (this.suggestionsRevision != this.Revision)
         {
             this.suggestions.Clear();
@@ -567,11 +608,11 @@ internal sealed class PlanStore
         var key = (plan.Id, job, this.config.DefaultSlot, party is { Count: > 0 } ? PartyJobs.Mask(party) : 0UL);
         if (!this.suggestions.TryGetValue(key, out var suggestion) || !ReferenceEquals(suggestion.Plan, plan))
         {
-            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot, party));
+            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot, party), ColumnSuggestion.SeatUnknown(plan, job, this.config.DefaultSlot, party));
             this.suggestions[key] = suggestion;
         }
 
-        return new PlayerMapping { AssigneeKey = suggestion.Mapping.AssigneeKey, Slot = suggestion.Mapping.Slot, IsSuggestion = true };
+        return suggestion;
     }
 
     /// <summary>
