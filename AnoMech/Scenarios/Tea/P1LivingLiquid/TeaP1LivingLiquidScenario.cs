@@ -86,7 +86,7 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
         fight.UntelegraphedWaves(start + 9.9f, sluice: true);
         fight.LastUntelegraphedWaves(start + 13.0f);
         fight.Splashes(start + 19.1f);
-        fight.DrainageTethers(start + 20.0f, state.Drainage);
+        fight.DrainageTethers(start + 20.0f, state.Drainage);       // UNVERIFIED when they show ("about" 4.6 s before Drainage)
         fight.HandOfPain(start + 24.1f);
         fight.Drainage(start + 24.6f);
     }

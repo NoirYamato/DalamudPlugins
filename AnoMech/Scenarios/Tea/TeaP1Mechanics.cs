@@ -497,6 +497,7 @@ public sealed class TeaP1LivingLiquid
 
     // -- The Liquid Hand's slam --
     // The form it shows from its glow to its slam: a palm when the bosses stand far apart as it glows, else a fist.
+    // UNVERIFIED: that the form is chosen at the moment it glows.
     public bool? HandShowsAPalm { get; private set; }
 
     public void TheHandGlows(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
