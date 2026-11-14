@@ -69,6 +69,7 @@ $Buckets = @(
     @{ Name = 'p5-omega-margin'; Terms = @('FullyQualifiedName~TopP5OmegaLpduMarginTests'); Seconds = 43; Phase = 'P5' }
     @{ Name = 'p6-human'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~HumanTests'); Seconds = 182; Human = $true; Phase = 'P6' }
     @{ Name = 'p6-margin'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~MarginTests'); Seconds = 43; Phase = 'P6' }
+    @{ Name = 'tea-p1-human'; Terms = @('FullyQualifiedName~TeaP1LimitCutLpduHumanTests'); Seconds = 42; Human = $true }
     @{ Name = 'link-interruption'; Terms = @('FullyQualifiedName~LinkInterruptionTests'); Seconds = 89 }
     @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 58 }
     @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 25 }
