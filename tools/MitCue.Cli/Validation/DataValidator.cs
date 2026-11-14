@@ -357,7 +357,7 @@ internal sealed class DataValidator(IDataSource data)
                 applies |= expansions.Count > 0;
                 foreach (var expansion in expansions.Where(e => !e.NoteOnly))
                 {
-                    foreach (var name in expansion.Actions.Concat(expansion.Targeted))
+                    foreach (var name in expansion.ActionNames)
                     {
                         foreach (var level in SyncLevels)
                         {

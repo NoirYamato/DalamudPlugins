@@ -260,6 +260,29 @@ public class ImportCommandTests : IDisposable
     }
 
     [ImporterFact]
+    public void Import_Slashes_ChoosesWhatASlashBetweenActionsMeans()
+    {
+        // No other separator and four of one job's actions in a cell: read as "and" unless --slashes says otherwise.
+        var sheet = this.kit.Write("sch.tsv", "P1\tScholar\nLoop 1\tSoil/Reci/Deploy/Whisper\nLoop 2\tSoil/Succor/Indom\n");
+        var auto = this.kit.Run("import", sheet, "--fight", "top", "-o", "auto.yaml");
+        Assert.True(auto.ExitCode == 0, auto.ToString());
+        Assert.Contains("slash-reading", auto.Out);
+        Assert.Contains("is read as 'and'", auto.Out);
+        var and = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(this.kit.WorkDir, "auto.yaml")));
+        Assert.Equal(4, and.Entries.First(e => e.Mechanic == "p1.loop_set1").Do.Count);
+
+        var or = this.kit.Run("import", sheet, "--fight", "top", "--slashes", "or", "-o", "or.yaml");
+        Assert.True(or.ExitCode == 0, or.ToString());
+        Assert.Contains("is read as 'either one', as chosen in the import options", or.Out);
+        var either = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(this.kit.WorkDir, "or.yaml")));
+        Assert.NotNull(Assert.Single(either.Entries.First(e => e.Mechanic == "p1.loop_set1").Do).Any);
+
+        var bad = this.kit.Run("import", sheet, "--fight", "top", "--slashes", "maybe");
+        Assert.Equal(2, bad.ExitCode);
+        Assert.Contains("--slashes takes auto, or or and, not 'maybe'", bad.Err);
+    }
+
+    [ImporterFact]
     public void Import_Csv()
     {
         var r = this.kit.Run("import", Path.Combine(CliKit.Fixtures, "carry-the-clear", "export", "csv", "top-white-mage.csv"), "--fight", "top", "-o", "csv.yaml");

@@ -297,7 +297,11 @@ public static class ActionCatalogExtensions
 /// <summary>One possible meaning of a shorthand token (from data/actions/aliases.yaml or user corrections).</summary>
 public sealed class AliasExpansion
 {
-    /// <summary>Action names (resolved through <see cref="IActionCatalog"/>), in order.</summary>
+    /// <summary>
+    /// Action names (resolved through <see cref="IActionCatalog"/>), in order. A name may list options separated by "|"
+    /// ("the Arrow|the Bole"): one item that is done by any of them, such as the card an Astrologian drew
+    /// (<see cref="OptionsOf"/>).
+    /// </summary>
     public IReadOnlyList<string> Actions { get; init; } = [];
 
     /// <summary>Only applies to this job (null = any job that has the actions).</summary>
@@ -320,6 +324,13 @@ public sealed class AliasExpansion
 
     /// <summary>True for user-defined aliases (persisted by the plugin, highest priority).</summary>
     public bool IsUser { get; init; }
+
+    /// <summary>Every action name of <see cref="Actions"/> and <see cref="Targeted"/>, options split ("the Arrow|the Bole" gives both).</summary>
+    public IEnumerable<string> ActionNames => this.Actions.Concat(this.Targeted).SelectMany(OptionsOf);
+
+    /// <summary>The options of one name: "the Arrow|the Bole" → [the Arrow, the Bole]; "Kerachole" → [Kerachole].</summary>
+    public static IReadOnlyList<string> OptionsOf(string name) =>
+        (name ?? string.Empty).Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     public override string ToString()
     {

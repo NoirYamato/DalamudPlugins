@@ -38,8 +38,9 @@ public sealed record ParsedToken
 
     /// <summary>
     /// Either/or alternatives of the head: "Kera/Soil" → [Kera, Soil], "TBN/Oblation" → [TBN, Oblation], "Kera or Soil"
-    /// → [Kera, Soil]. A "/" is split only between letters, so "R1/2" and "3rd/4th" stay whole. [Head] when there is no
-    /// alternative, empty when <see cref="Head"/> is empty.
+    /// → [Kera, Soil]. A "/" is split when a letter follows it and a letter or digit precedes it ("Seraph1/Soil" →
+    /// [Seraph1, Soil]), but not between two slots ("R1/R2"), so "R1/2" and "3rd/4th" stay whole. [Head] when there is
+    /// no alternative, empty when <see cref="Head"/> is empty.
     /// </summary>
     public required IReadOnlyList<string> Alternatives { get; init; }
 
@@ -64,7 +65,10 @@ public sealed record ParsedToken
     /// </summary>
     public ParsedTime? Time { get; init; }
 
-    /// <summary>Optional: the head is in a grey colour (see <see cref="CellParserOptions.IsOptionalColor"/>) or the text says "optional".</summary>
+    /// <summary>
+    /// Optional: the head is in a grey colour (see <see cref="CellParserOptions.IsOptionalColor"/>), the text says
+    /// "optional", or the whole cell is in brackets ("(Shake)", <see cref="ParsedCell.Bracketed"/>).
+    /// </summary>
     public bool Optional { get; init; }
 
     /// <summary>Press when ready: marked "⏱" or written "on CD" / "when ready" / "whenever ready" / "asap".</summary>
@@ -175,6 +179,26 @@ public sealed record ParsedCell
 
     /// <summary>Problems met while parsing ("unclosed-bracket"), with <see cref="Src"/> as their source; empty for a clean cell.</summary>
     public IReadOnlyList<ImportDiagnostic> Diagnostics { get; init; } = [];
+
+    /// <summary>
+    /// Separators that join parts with words in writing, other than a "/" between words: "+", ",", "&amp;", arrows, ";",
+    /// "|", a spaced " / ", and line breaks or wide gaps that split tokens. A sheet with none of them in any cell may use
+    /// "/" for "and" (<see cref="SlashReading"/>).
+    /// </summary>
+    public int Joins { get; init; }
+
+    /// <summary>Slashes read as "and" (<see cref="CellParserOptions.SlashJoins"/>): "Soil/Reci/Deploy/Whisper" has 3.</summary>
+    public int SlashJoins { get; init; }
+
+    /// <summary>The whole cell is one pair of brackets around words ("(Shake)", "(Minne/Mantra)"): every token is optional.</summary>
+    public bool Bracketed { get; init; }
+
+    /// <summary>
+    /// The cell points up ("(^on LL)", "^ if MCH", "↑"): this text, without the caret and the brackets, is a remark about
+    /// the nearest cell above it in its column ("on LL", "if MCH", "" for a bare caret). Null otherwise; such a cell has
+    /// no items.
+    /// </summary>
+    public string? Above { get; init; }
 
     public bool IsEmpty => this.Items.Count == 0;
 

@@ -46,6 +46,12 @@ public sealed partial class PlanImporter
     /// <summary>Seconds after the hit for "after 1st Hit" / "after &lt;mechanic&gt;" hints without a time.</summary>
     public const double AfterHitOffset = 0.5;
 
+    /// <summary>
+    /// The offset of an action marked "(Late)" that is used before its hit ("Reprisal (Late)"): pressed just before the
+    /// hit, so that a 10 s Reprisal at Mega Holy 1 also covers Mega Holy 2, 7.1 s later.
+    /// </summary>
+    public const double LateOffset = -1.0;
+
     /// <summary>Imports a document (see the class remarks).</summary>
     /// <exception cref="ArgumentNullException">An argument is null.</exception>
     public ImportResult Import(SheetDocument document, ImportOptions options)
@@ -110,6 +116,23 @@ public sealed partial class PlanImporter
     /// <param name="Text">The text and its column.</param>
     private sealed record NoteText(TabState Tab, RowLayout Row, RowState? Above, RowText Text);
 
+    /// <summary>
+    /// A note merged across several player columns that names actions ("A tip for Soil/Kera timing …" over every column):
+    /// the detail of the entries of those columns, in its section, that press one of <see cref="Actions"/>.
+    /// </summary>
+    /// <param name="Note">The note.</param>
+    /// <param name="Columns">The player columns it spans.</param>
+    /// <param name="Text">Its text.</param>
+    /// <param name="Actions">The actions it names (<see cref="Run.NamedActions"/>).</param>
+    private sealed record BannerNote(NoteText Note, List<int> Columns, string Text, HashSet<uint> Actions)
+    {
+        /// <summary>Entries it is the detail of.</summary>
+        public int Uses { get; set; }
+
+        /// <summary>The actions it names that those entries press.</summary>
+        public HashSet<uint> Pressed { get; } = [];
+    }
+
     /// <summary>A token of an item with its resolution for every candidate job.</summary>
     private sealed class TokenState
     {
@@ -158,10 +181,32 @@ public sealed partial class PlanImporter
 
         /// <summary>Some job's action of the token is used on one player (a target makes sense for it; not Reprisal, Holmgang).</summary>
         public bool OnAPlayer => this.ByJob.Values.Any(r => r.Kind == TokenKind.Actions && r.Alternatives.Any(a => a.Actions.Any(x => x.Target == ActionTarget.Single)));
+
+        /// <summary>
+        /// An either/or with a choice of several actions ("Spread-Lo/Soil": Adloquium → Deployment Tactics, or Sacred
+        /// Soil), which one plan item cannot hold: each choice is an optional entry of its own.
+        /// </summary>
+        public bool SplitChoices => this.ByJob.Values.Any(r => r.Kind == TokenKind.Actions && r.Alternatives.Count > 1 && r.Alternatives.Any(a => a.Actions.Count > 1 || a.Groups is not null));
     }
 
     /// <summary>An entry before sorting, with its sort keys.</summary>
-    private sealed record Draft(PlanEntry Entry, double Press, int Tab, int Row, int Column, int Item, int Part);
+    /// <param name="Entry">The entry.</param>
+    /// <param name="Press">Its estimated press time (timeline seconds).</param>
+    /// <param name="Tab">Sort key: the tab.</param>
+    /// <param name="Row">Sort key: the row.</param>
+    /// <param name="Column">Sort key: the column.</param>
+    /// <param name="Item">Sort key: the item of the cell.</param>
+    /// <param name="Part">Sort key: the entry of the item.</param>
+    /// <param name="Confident">The row's label matched its mechanic (not a stand-in, the row above's or a guess from its spelling).</param>
+    private sealed record Draft(PlanEntry Entry, double Press, int Tab, int Row, int Column, int Item, int Part, bool Confident = false);
+
+    /// <summary>One entry of a group of tokens, before its timing (<see cref="Run.ImportGroup"/>).</summary>
+    /// <param name="Job">The job it is for, or null for every job of the column.</param>
+    /// <param name="Items">What to press.</param>
+    /// <param name="Seq">The items are pressed in order.</param>
+    /// <param name="Actions">The actions of the items.</param>
+    /// <param name="Choice">For one choice of an either/or that is an entry of its own: "or …" (the other choices); the entry is optional.</param>
+    private sealed record EntryParts(Job? Job, List<PlanItem> Items, bool Seq, List<ActionInfo> Actions, string? Choice = null);
 
     private sealed partial class Run
     {
@@ -210,6 +255,9 @@ public sealed partial class PlanImporter
         private readonly Dictionary<(TabState Tab, PhaseSection? Section, int Column), List<string>> columnNotes = [];
         private readonly HashSet<(TabState Tab, PhaseSection? Section, int Column)> columnNoteUse = [];
         private readonly List<(NoteText Note, List<int> Columns, string Text)> columnNoteTexts = [];
+        private readonly List<BannerNote> bannerNotes = [];
+        private readonly Dictionary<(TabState Tab, int Row, int Column), List<string>> caretRemarks = [];
+        private CellParser cells = CellParser.Default;
         private string? presetKey;
         private IReadOnlyDictionary<string, double> rowOffsets = new Dictionary<string, double>();
         private LayoutDetector detector = null!;
@@ -241,9 +289,14 @@ public sealed partial class PlanImporter
             var tabs = this.SelectTabs(layout);
             this.KeyColumns(tabs);
             this.ChoosePreset();
+            this.cells = this.ChooseSlashReading(layout);
 
             foreach (var tab in tabs)
+            {
                 this.CollectRows(tab);
+                this.AttachCarets(tab);
+            }
+
             var rows = tabs.SelectMany(t => t.Rows).ToList();
             foreach (var row in rows)
                 row.Candidates = this.mechanics.Candidates(row.Row.Label, row.PhaseId);
@@ -282,6 +335,8 @@ public sealed partial class PlanImporter
                 PhaseZeros = new Dictionary<string, double>(this.zeros, StringComparer.OrdinalIgnoreCase),
                 PhaseSpread = new Dictionary<string, double>(this.spreads, StringComparer.OrdinalIgnoreCase),
                 Rows = rows.Select(r => new ImportedRow(r.Tab.Layout.Name, r.Row.Index + 1, r.Row.Label, r.PhaseId, r.Mechanic?.Id, r.Match, r.Row.Src)).ToList(),
+                AnyoneColumns = tabs.SelectMany(t => t.Layout.AssigneeColumns.Where(c => c.Assignee!.Kind == AssigneeKind.Anyone).Select(c => new AnyoneColumn(t.Layout.Name, c.Index, c.Header ?? c.Assignee!.Key)))
+                    .Distinct().ToList(),
             };
         }
 
@@ -327,13 +382,15 @@ public sealed partial class PlanImporter
         /// </summary>
         private void KeyColumns(List<TabState> tabs)
         {
-            var keysByTab = tabs.ToDictionary(t => t, t => t.Layout.AssigneeColumns.Select(c => c.Assignee!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            // Columns for anyone ("Extras") hold no player: they make no composition variant and are never re-keyed.
+            static IEnumerable<ColumnLayout> Players(TabLayout layout) => layout.AssigneeColumns.Where(c => c.Assignee!.Kind != AssigneeKind.Anyone);
+            var keysByTab = tabs.ToDictionary(t => t, t => Players(t.Layout).Select(c => c.Assignee!.Key).ToHashSet(StringComparer.OrdinalIgnoreCase));
             foreach (var tab in tabs.ToList())
             {
                 var layout = tab.Layout;
                 var collides = tabs.Where(o => o != tab).Any(o => keysByTab[o].Overlaps(keysByTab[tab]));
                 var composition = layout.NameJobs.Count >= 2;
-                var clean = composition && layout.AssigneeColumns.All(c => c.Assignee!.Kind == AssigneeKind.Job && c.Assignee.Job is { } j && layout.NameJobs.Contains(j));
+                var clean = composition && Players(layout).All(c => c.Assignee!.Kind == AssigneeKind.Job && c.Assignee.Job is { } j && layout.NameJobs.Contains(j));
                 if (composition && collides && !clean)
                 {
                     this.Diag(DiagnosticSeverity.Warning, "tab-skipped", $"Tab '{layout.Name}' names a team composition, but its columns ({string.Join(", ", keysByTab[tab])}) are not one per job of it, so they cannot be told apart from the same columns of other tabs; the tab is not imported.", layout.Tab.Ref(layout.HeaderRow, 0));
@@ -343,7 +400,7 @@ public sealed partial class PlanImporter
 
                 var rekey = clean && collides;
                 foreach (var column in layout.AssigneeColumns)
-                    tab.Keys[column.Index] = rekey ? layout.Name + " " + column.Assignee!.Key : column.Assignee!.Key;
+                    tab.Keys[column.Index] = rekey && column.Assignee!.Kind != AssigneeKind.Anyone ? layout.Name + " " + column.Assignee!.Key : column.Assignee!.Key;
                 if (rekey)
                     this.Diag(DiagnosticSeverity.Info, "assignee-rekeyed", $"Tab '{layout.Name}' is one composition variant; its columns are keyed {string.Join(", ", tab.Keys.Values.Select(k => "'" + k + "'"))}.", layout.Tab.Ref(layout.HeaderRow, 0));
             }
@@ -355,6 +412,9 @@ public sealed partial class PlanImporter
         private bool AssigneeSelected(string key, string header) =>
             this.options.Assignees is not { } wanted
             || wanted.Any(w => string.Equals(w, key, StringComparison.OrdinalIgnoreCase) || string.Equals(w, header, StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>The column is imported: it is chosen (<see cref="ImportOptions.Assignees"/>), or it holds calls for anyone ("Extras"), which go by job.</summary>
+        private bool ColumnSelected(string key, AssigneeHeader header) => header.Kind == AssigneeKind.Anyone || this.AssigneeSelected(key, header.Key);
 
         /// <summary>The fight's calibration preset for the sheet: the option, else a preset whose words all occur in the document title.</summary>
         private void ChoosePreset()
@@ -379,6 +439,63 @@ public sealed partial class PlanImporter
         }
 
         private double RowOffset(Mechanic m) => this.rowOffsets.TryGetValue(m.Id, out var d) ? d : 0;
+
+        /// <summary>
+        /// What "/" between two actions of one job means in this document (<see cref="ImportOptions.Slashes"/>), reported as a
+        /// "slash-reading" diagnostic. Automatic: "and" (<see cref="CellParserOptions.SlashJoins"/>) when no assignment cell
+        /// joins actions any other way (<see cref="ParsedCell.Joins"/>: "+", ",", "&amp;", arrows, a spaced " / ", line breaks),
+        /// and at least two cells list several actions of one job with "/", one of them three or more
+        /// ("Soil/Reci/Deploy/Whisper"): a sheet that writes "TBN/Oblation" next to "Living Dead + …" means either one. Every
+        /// plan tab counts, whichever tabs and columns are imported, so that a re-import of one column reads the sheet the
+        /// same way.
+        /// </summary>
+        private CellParser ChooseSlashReading(DocumentLayout layout)
+        {
+            var (joined, listed, longest) = (0, 0, 0);
+            string? joinExample = null;
+            string? listExample = null;
+            foreach (var row in layout.PlanTabs.SelectMany(t => t.DataRows))
+            {
+                foreach (var cell in row.Assignments)
+                {
+                    var parsed = CellParser.Default.Parse(cell.Cell, cell.Src);
+                    if (parsed.Above is not null)
+                        continue;
+                    if (parsed.Joins > 0)
+                    {
+                        joined++;
+                        joinExample ??= $"{cell.Src} '{Flat(parsed.Text)}'";
+                    }
+
+                    // The most alternatives of one token that are actions of one job the column can stand for.
+                    var jobs = CandidateJobs(cell.Assignee);
+                    var most = parsed.Tokens.Where(t => t.Alternatives.Count >= 2)
+                        .Select(t => jobs.Select(j => t.Alternatives.Count(a => this.resolver.Resolve(t with { Alternatives = [a] }, j).Kind == TokenKind.Actions)).DefaultIfEmpty(0).Max())
+                        .DefaultIfEmpty(0).Max();
+                    if (most < 2)
+                        continue;
+                    listed++;
+                    if (most > longest)
+                        (longest, listExample) = (most, $"{cell.Src} '{Flat(parsed.Text)}'");
+                }
+            }
+
+            var auto = joined == 0 && listed >= 2 && longest >= 3 ? SlashReading.All : SlashReading.Either;
+            var reading = this.options.Slashes == SlashReading.Auto ? auto : this.options.Slashes;
+            const string Others = "'+', ',', '&', an arrow, ' / ' or a line break";
+            var counts = (listed == 0 ? "no cell lists several actions of one job with '/'" : $"{Count(listed, "cell lists", "cells list")} several actions of one job with '/', up to {longest} (e.g. {listExample})")
+                + "; " + (joined == 0 ? $"no cell joins actions another way ({Others})" : $"{Count(joined, "cell joins", "cells join")} actions another way ({Others}; e.g. {joinExample})");
+            var meaning = reading == SlashReading.All ? "'and' (press all of them, like '+')" : "'either one'";
+            var message = this.options.Slashes != SlashReading.Auto
+                ? $"'/' between actions of one job is read as {meaning}, as chosen in the import options{(auto == reading ? string.Empty : " (the sheet alone reads as " + (auto == SlashReading.All ? "'and'" : "'either one'") + ")")}: {counts}."
+                : reading == SlashReading.All
+                    ? $"'/' between actions of one job is read as {meaning}: {counts}. If the sheet means either one, set Slashes to 'either one' in the import options (CLI: --slashes or)."
+                    : $"'/' between actions of one job is read as {meaning}: {counts}. If the sheet means all of them, set Slashes to 'all of them' in the import options (CLI: --slashes and).";
+            this.Diag(DiagnosticSeverity.Info, "slash-reading", message, null);
+            return reading == SlashReading.All ? new CellParser(new CellParserOptions { SlashJoins = true }) : CellParser.Default;
+
+            static string Count(int n, string one, string many) => n.ToString(CultureInfo.InvariantCulture) + " " + (n == 1 ? one : many);
+        }
 
         // ------------------------------------------------------------------ rows and mechanics
 
@@ -421,11 +538,76 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
+        /// Cells that point up ("(^on LL)", "(^ if MCH)", "^ on BJ") are remarks about the nearest other cell above them in
+        /// the same column (the same players: no repeated header in between) and phase section: their words are read as a
+        /// parenthetical of that cell ("Addle (on LL)": a note; "(Party Mit (if MCH))": a job filter; a target, a timing or a
+        /// condition likewise). They are no entry of their own; a caret with nothing above it or no words is not imported.
+        /// </summary>
+        private void AttachCarets(TabState tab)
+        {
+            for (var i = 0; i < tab.Rows.Count; i++)
+            {
+                var row = tab.Rows[i];
+                foreach (var cell in row.Row.Assignments)
+                {
+                    if (CellParser.CaretRemark(cell.Cell.Text) is not { } remark
+                        || !this.ColumnSelected(tab.Keys.TryGetValue(cell.Column.Index, out var k) ? k : cell.Assignee.Key, cell.Assignee))
+                        continue;
+                    (RowState Row, AssigneeCell Cell)? above = null;
+                    for (var r = i - 1; r >= 0 && above is null && Equals(tab.Rows[r].Section, row.Section); r--)
+                    {
+                        if (tab.Rows[r].Row.Assignments.FirstOrDefault(a => ReferenceEquals(a.Column, cell.Column) && CellParser.CaretRemark(a.Cell.Text) is null) is { } found)
+                            above = (tab.Rows[r], found);
+                    }
+
+                    if (above is not { } target || remark.Length == 0)
+                    {
+                        this.Diag(DiagnosticSeverity.Warning, "caret-note",
+                            $"'{Flat(cell.Cell.Text)}' points at the cell above it, but {(remark.Length == 0 ? "says nothing about it" : "its column has no cell above it in this section")}; not imported.",
+                            cell.Src);
+                        continue;
+                    }
+
+                    var key = (tab, target.Row.Row.Index, target.Cell.Column.Index);
+                    if (!this.caretRemarks.TryGetValue(key, out var remarks))
+                        this.caretRemarks[key] = remarks = [];
+                    remarks.Add(remark);
+                    this.Diag(DiagnosticSeverity.Info, "caret-note",
+                        $"'{Flat(cell.Cell.Text)}' is a remark about {target.Cell.Src} above it ('{Flat(target.Cell.Cell.Text)}'), read as '{Flat(WithRemarks(target.Cell.Cell, [remark]).Text)}'.",
+                        cell.Src);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A cell with remarks added as parentheticals at its end ("Addle" + "on LL" → "Addle (on LL)"), inside the brackets
+        /// of a cell that is all in brackets ("(Party Mit)" + "if MCH" → "(Party Mit (if MCH))").
+        /// </summary>
+        private static SheetCell WithRemarks(SheetCell cell, IReadOnlyList<string> remarks)
+        {
+            var text = (cell.Text ?? string.Empty).TrimEnd();
+            var added = string.Concat(remarks.Select(r => " (" + r + ")"));
+            var at = CellParser.WholeBrackets(text) is var (_, close) ? close : text.Length;
+            return new SheetCell
+            {
+                Text = text[..at] + added + text[at..],
+                Bg = cell.Bg,
+                Fg = cell.Fg,
+                Bold = cell.Bold,
+                Strike = cell.Strike,
+                Runs = cell.Runs.Select(r => r.Start >= at ? r with { Start = r.Start + added.Length } : r).ToList(),
+                Note = cell.Note,
+            };
+        }
+
+        /// <summary>
         /// Notes written in a player's column under a table or between its rows (LPDU: "Shields bevor the boss is targetable"
         /// under the H2 SCH column, "WAR can use Shake as P3 dies for 1st P4 Proteans."). A footnote ("*…", with its lines
         /// that continue in lower case) belongs to the items marked "*". A note that names an action with a timing hint is
         /// imported as an entry (optional when it says "can"/"may"); any other note becomes the detail of the column's entries
-        /// in its section (of every column it spans when merged).
+        /// in its section (of every column it spans when merged). A note merged across several columns that names actions
+        /// ("A tip for Soil/Kera timing …") is the detail of the entries of those columns in its section that press one of
+        /// them (<see cref="BannerNote"/>), and of every entry of those columns when none does.
         /// </summary>
         private void PrepareNoteRows()
         {
@@ -444,7 +626,7 @@ public sealed partial class PlanImporter
             foreach (var note in this.noteTexts)
             {
                 var text = note.Text.Text.Trim();
-                if (!this.AssigneeSelected(note.Tab.Keys[note.Text.Column], note.Tab.Layout.Columns.First(c => c.Index == note.Text.Column).Assignee!.Key))
+                if (!this.ColumnSelected(note.Tab.Keys[note.Text.Column], note.Tab.Layout.Columns.First(c => c.Index == note.Text.Column).Assignee!))
                     continue;
                 if (footnoteCells.Contains(note.Text.Src))
                 {
@@ -461,7 +643,13 @@ public sealed partial class PlanImporter
                 var layout = note.Tab.Layout;
                 var merge = layout.Tab.MergeAt(note.Row.Index, note.Text.Column);
                 var columns = note.Tab.Keys.Keys.Where(c => c == note.Text.Column || (merge is { } m && m.Contains(note.Row.Index, c)))
-                    .Where(c => this.AssigneeSelected(note.Tab.Keys[c], layout.Columns.First(x => x.Index == c).Assignee!.Key)).Order().ToList();
+                    .Where(c => this.ColumnSelected(note.Tab.Keys[c], layout.Columns.First(x => x.Index == c).Assignee!)).Order().ToList();
+                if (columns.Count > 1 && this.NamedActions(text) is { Count: > 0 } named)
+                {
+                    this.bannerNotes.Add(new BannerNote(note, columns, text, named));
+                    continue;
+                }
+
                 foreach (var column in columns)
                 {
                     var key = (note.Tab, note.Row.Phase, column);
@@ -482,6 +670,36 @@ public sealed partial class PlanImporter
         /// </summary>
         private void ReportNoteRows()
         {
+            foreach (var banner in this.bannerNotes)
+            {
+                string Names(IEnumerable<uint> ids) => string.Join(", ", ids.Select(id => this.options.Actions.Get(id)?.Name).OfType<string>().Distinct());
+                var phase = banner.Note.Row.PhaseId?.ToUpperInvariant() ?? "the tab";
+                if (banner.Uses > 0)
+                {
+                    this.Diag(DiagnosticSeverity.Info, "note-row",
+                        $"Row {banner.Note.Row.Index + 1} is a note over several columns, not an assignment: \"{banner.Text}\"; kept as the detail of the {banner.Uses} entries of {phase} in its columns that press {Names(banner.Pressed)}.",
+                        banner.Note.Text.Src);
+                    continue;
+                }
+
+                // No entry of its columns presses an action it names: the detail of every entry of its columns, as a note
+                // in each of them would be.
+                var used = 0;
+                foreach (var d in this.drafts.Where(d => d.Tab == banner.Note.Tab.Order && banner.Columns.Contains(d.Column) && Equals(RowAt(banner.Note.Tab.Layout, d.Row)?.Phase, banner.Note.Row.Phase)))
+                {
+                    if (d.Entry.Detail?.Split('\n').Contains(banner.Text) == true)
+                        continue;
+                    d.Entry.Detail = d.Entry.Detail is null ? banner.Text : d.Entry.Detail + "\n" + banner.Text;
+                    used++;
+                }
+
+                this.Diag(DiagnosticSeverity.Info, "note-row",
+                    used > 0
+                        ? $"Row {banner.Note.Row.Index + 1} is a note over several columns, not an assignment: \"{banner.Text}\"; no entry of its columns in {phase} presses an action it names ({Names(banner.Actions)}), so it is the detail of all {used} entries of its columns there."
+                        : $"Row {banner.Note.Row.Index + 1} is a note over several columns, not an assignment: \"{banner.Text}\"; its columns have no entry in {phase} (shown for review only).",
+                    banner.Note.Text.Src);
+            }
+
             foreach (var (note, columns, text) in this.columnNoteTexts)
             {
                 var phase = note.Row.PhaseId?.ToUpperInvariant() ?? "the tab";
@@ -512,8 +730,9 @@ public sealed partial class PlanImporter
             var anchor = timing.Anchor ?? note.Above?.Mechanic ?? (note.Row.PhaseId is { } p ? this.mechanics.PhaseStart(p) : null);
             if (anchor is null)
                 return null;
+            // A note in a column for anyone ("Extras") is one entry for everyone.
             var candidates = CandidateJobs(header);
-            IReadOnlyList<Job?> jobs = header.Slot is null && header.Jobs.Count == 0 && candidates.Count > 1 ? candidates.Select(j => (Job?)j).ToList() : [header.Job];
+            IReadOnlyList<Job?> jobs = header.Slot is null && header.Jobs.Count == 0 && candidates.Count > 1 && header.Kind != AssigneeKind.Anyone ? candidates.Select(j => (Job?)j).ToList() : [header.Job];
             var lastHit = Math.Max(0, anchor.Hits.Count - 1);
             var hit = timing.After ? Math.Clamp(timing.HitIndex ?? lastHit, 0, lastHit) : 0;
             foreach (var job in jobs)
@@ -523,7 +742,7 @@ public sealed partial class PlanImporter
                     Mechanic = anchor.Id,
                     HitIndex = hit > 0 ? hit : null,
                     Offset = timing.After ? AfterHitOffset : null,
-                    Who = new WhoSpec { Slot = header.Slot, Job = job, Assignee = note.Tab.Keys[column] },
+                    Who = new WhoSpec { Slot = header.Slot, Job = job, Assignee = header.Kind == AssigneeKind.Anyone ? null : note.Tab.Keys[column] },
                     Do = [PlanItem.ForNote(text)],
                     AtPhaseEnd = timing.AtPhaseEnd,
                     Src = note.Text.Src,
@@ -595,7 +814,7 @@ public sealed partial class PlanImporter
                 var cell = new AssigneeCell(column, new SheetCell { Text = text }, note.Text.Src);
                 var key = ReferenceEquals(header, note.Tab.Layout.Columns.First(c => c.Index == note.Text.Column).Assignee) ? note.Tab.Keys[note.Text.Column] : null;
                 var before = this.drafts.Count;
-                foreach (var item in CellParser.Default.Parse(cell.Cell, cell.Src).Items)
+                foreach (var item in this.cells.Parse(cell.Cell, cell.Src).Items)
                     this.ImportItem(anchorRow, cell, key, item, new NoteStatement(optional));
                 var made = this.drafts.Skip(before)
                     .Select(d => string.Join(" + ", d.Entry.Do.Select(i => i.Name ?? i.Note)) + " at " + d.Entry.Mechanic + (d.Entry.AtPhaseEnd ? " (phase end)" : string.Empty))
@@ -916,15 +1135,16 @@ public sealed partial class PlanImporter
         {
             var tab = row.Tab;
             var key = tab.Keys.TryGetValue(cell.Column.Index, out var k) ? k : cell.Assignee.Key;
-            if (!this.AssigneeSelected(key, cell.Assignee.Key))
-                return;
+            if (!this.ColumnSelected(key, cell.Assignee) || CellParser.CaretRemark(cell.Cell.Text) is not null)
+                return; // a column not chosen, or a remark about the cell above (AttachCarets)
             if (row.Mechanic is null)
             {
                 this.Diag(DiagnosticSeverity.Warning, "dropped-cell", $"'{Flat(cell.Cell.Text)}' has no mechanic to anchor to and was not imported.", cell.Src);
                 return;
             }
 
-            var parsed = CellParser.Default.Parse(cell.Cell, cell.Src);
+            var source = this.caretRemarks.TryGetValue((tab, row.Row.Index, cell.Column.Index), out var remarks) ? WithRemarks(cell.Cell, remarks) : cell.Cell;
+            var parsed = this.cells.Parse(source, cell.Src);
             foreach (var item in parsed.Items)
                 this.ImportItem(row, cell, key, item);
         }
@@ -939,6 +1159,7 @@ public sealed partial class PlanImporter
             {
                 var token = parsedTokens[i];
                 var byJob = candidates.ToDictionary(j => j, j => this.resolver.Resolve(token, j));
+                (token, byJob) = this.FilterByNamedActions(token, byJob, cell.Src);
                 var kind = byJob.Values.Any(r => r.Kind == TokenKind.Actions) ? TokenKind.Actions
                     : byJob.Values.Any(r => r.Kind == TokenKind.NoteOnly) ? TokenKind.NoteOnly
                     : byJob.Values.Any(r => r.Kind == TokenKind.NotAvailable) ? TokenKind.NotAvailable
@@ -988,6 +1209,57 @@ public sealed partial class PlanImporter
                 Optional: statement?.Optional ?? false);
             for (var g = 0; g < groups.Count; g++)
                 this.ImportGroup(row, cell, key, item, groups[g], g, shared, candidates, header);
+        }
+
+        /// <summary>
+        /// A parenthetical that names, per job, the token's own actions ("Party Mit (DM/HoL)": Dark Missionary for a Dark
+        /// Knight, Heart of Light for a Gunbreaker) says which jobs the token is for: the other jobs get no entry (no Divine
+        /// Veil or Shake It Off), and the parenthetical is no note. A parenthetical that names any other action
+        /// ("Seraph (Consolation ×2)", "(+ Aquaveil)") stays a hint.
+        /// </summary>
+        private (ParsedToken Token, Dictionary<Job, TokenResolution> ByJob) FilterByNamedActions(ParsedToken token, Dictionary<Job, TokenResolution> byJob, string? src)
+        {
+            if (token.Hints.Count == 0 || !byJob.Values.Any(r => r.Kind == TokenKind.Actions))
+                return (token, byJob);
+            foreach (var hint in token.Hints)
+            {
+                // Each either/or part of the parenthetical ("DM", "HoL") must be an action of some job, and every action it
+                // names must be one the token stands for with that job.
+                var parts = CellParser.Default.Parse(hint).Tokens.SelectMany(t => t.Alternatives.Select(a => t with { Alternatives = [a], Trailing = null })).ToList();
+                if (parts.Count == 0)
+                    continue;
+                var named = new HashSet<Job>();
+                var outside = false;
+                var understood = new HashSet<int>();
+                foreach (var (job, own) in byJob)
+                {
+                    var ownIds = own.Kind == TokenKind.Actions ? own.Alternatives.SelectMany(a => a.Actions).Select(a => a.Id).ToHashSet() : [];
+                    for (var p = 0; p < parts.Count; p++)
+                    {
+                        var r = this.resolver.Resolve(parts[p], job);
+                        if (r.Kind != TokenKind.Actions || r.Alternatives.Any(a => a.Fuzzy))
+                            continue;
+                        understood.Add(p);
+                        if (r.Alternatives.SelectMany(a => a.Actions).All(a => ownIds.Contains(a.Id)))
+                            named.Add(job);
+                        else
+                            outside = true;
+                    }
+                }
+
+                if (named.Count == 0 || outside || understood.Count < parts.Count)
+                    continue;
+                if (named.Count < byJob.Count(kv => kv.Value.Kind == TokenKind.Actions))
+                {
+                    var which = named.Select(j => $"{j} {string.Join("/", byJob[j].Alternatives.SelectMany(a => a.Actions).Select(a => a.Name).Distinct())}");
+                    this.Diag(DiagnosticSeverity.Info, "named-actions", $"'{token.Phrase} ({hint})': the parenthetical names {string.Join(", ", which)}; only {(named.Count == 1 ? "that job gets" : "those jobs get")} an entry.", src);
+                }
+
+                var filtered = byJob.ToDictionary(kv => kv.Key, kv => named.Contains(kv.Key) ? kv.Value : new TokenResolution { Kind = TokenKind.OtherJob, Matched = token.Phrase });
+                return (token with { Hints = token.Hints.Where(h => h != hint).ToList() }, filtered);
+            }
+
+            return (token, byJob);
         }
 
         /// <summary>
@@ -1072,6 +1344,20 @@ public sealed partial class PlanImporter
                     var missing = resolved.SelectMany(r => r.NotAvailable).Distinct().ToList();
                     if (missing.Count > 0)
                         this.Diag(DiagnosticSeverity.Warning, "not-available-at-level", $"'{token.Phrase}': {string.Join(", ", missing)} is not available at level {this.level}; left out.", cell.Src);
+
+                    // Either/or alternatives that mean nothing for any job that has the token ("Xyzzy" in "TBN/Xyzzy").
+                    var lost = resolved.Select(r => (IEnumerable<string>)r.UnresolvedAlternatives).Aggregate((a, b) => a.Intersect(b, StringComparer.OrdinalIgnoreCase)).ToList();
+                    foreach (var alternative in lost)
+                        this.Diag(DiagnosticSeverity.Warning, "unresolved-token", $"'{alternative}' in '{token.Phrase}' is not an action of {string.Join("/", candidates)} at level {this.level}; left out of the either/or. Fix it in review or add an alias.", cell.Src);
+                    if (t.SplitChoices)
+                    {
+                        var several = resolved.SelectMany(r => r.Alternatives).First(a => a.Actions.Count > 1 || a.Groups is not null);
+                        var what = string.Join(several.Sequence ? " → " : " + ", ItemGroups(several).Select(g => g.Count == 1 ? g[0].Name : "(" + string.Join(" or ", g.Select(a => a.Name)) + ")"));
+                        this.Diag(DiagnosticSeverity.Warning, "either-or-split",
+                            $"'{token.Phrase}': '{several.Text ?? several.Matched}' is several actions ({what}), which one choice of an either/or cannot hold; each choice is an optional entry of its own. Check it in review, or read '/' as 'and' (Slashes: all of them).",
+                            cell.Src);
+                    }
+
                     if (timing.Reanchored && timing.Anchor is { } anchor)
                         this.Diag(DiagnosticSeverity.Info, "reanchored", $"'{token.Phrase}' names {anchor.Id} ({anchor.Name}); anchored there instead of the row's {row.Mechanic?.Id}.", cell.Src);
                     break;
@@ -1139,7 +1425,14 @@ public sealed partial class PlanImporter
 
                     var a = current.Alternatives[0];
                     var b = next.Alternatives[0];
-                    var merged = a with { Actions = [.. a.Actions, .. b.Actions.Where(x => !a.Actions.Contains(x))], Sequence = a.Sequence || b.Sequence, Rest = b.Rest };
+                    var added = b.Actions.Where(x => !a.Actions.Contains(x)).ToList();
+                    var merged = a with
+                    {
+                        Actions = [.. a.Actions, .. added],
+                        Groups = a.Groups is null && b.Groups is null ? null : [.. ItemGroups(a), .. ItemGroups(b).Where(g => g.Any(added.Contains))],
+                        Sequence = a.Sequence || b.Sequence,
+                        Rest = b.Rest,
+                    };
                     current = current with { Alternatives = [merged], Rest = b.Rest, NotAvailable = [.. current.NotAvailable, .. next.NotAvailable] };
                     if (!joined.Contains(b.Matched, StringComparer.OrdinalIgnoreCase))
                         joined.Add(b.Matched);
@@ -1153,6 +1446,10 @@ public sealed partial class PlanImporter
             if (unknown is not null && !accepted)
                 this.Diag(DiagnosticSeverity.Warning, "unresolved-token", $"'{unknown}' after '{t.ByJob.Values.First(r => r.Kind == TokenKind.Actions).Matched}' is not an action of {string.Join("/", candidates)} at level {this.level}, a hint or a mechanic; kept in the note. Fix it in review or add an alias.", cell.Src);
         }
+
+        /// <summary>The plan items of an alternative as groups of actions: its <see cref="ResolvedAlternative.Groups"/>, else one per action.</summary>
+        private static IReadOnlyList<IReadOnlyList<ActionInfo>> ItemGroups(ResolvedAlternative alternative) =>
+            alternative.Groups ?? alternative.Actions.Select(a => (IReadOnlyList<ActionInfo>)[a]).ToList();
 
         /// <summary>The text after an action without its target and "on CD"/"when ready" words; null when nothing is left.</summary>
         private string? CleanRest(string? rest, ParsedToken token)
@@ -1269,6 +1566,12 @@ public sealed partial class PlanImporter
             }
         }
 
+        /// <summary>
+        /// The entries of a group of tokens that share their timing, condition and target: one for the column, or one per
+        /// job when the jobs' actions differ. In a column for anyone ("Extras") a call is for the jobs whose own action it
+        /// names, with no assignee; an action several jobs share ("Feint") does not say whose it is and is a note for
+        /// everyone. An either/or with a choice of several actions ("Spread-Lo/Soil") gives one optional entry per choice.
+        /// </summary>
         private void ImportGroup(RowState row, AssigneeCell cell, string? key, ParsedItem item, List<TokenState> group, int groupIndex, ItemShared shared, IReadOnlyList<Job> candidates, AssigneeHeader header)
         {
             // The tokens of a group share their timing, except in a sequence, whose hint may sit on any step
@@ -1283,7 +1586,8 @@ public sealed partial class PlanImporter
             }
 
             // Items per job; jobs that resolve no action of the group get no entry of their own.
-            var perJob = new List<(Job Job, List<PlanItem> Items, bool Seq, List<ActionInfo> Actions)>();
+            var perJob = new List<EntryParts>();
+            var choices = new List<EntryParts>();
             foreach (var job in jobs)
             {
                 var items = new List<PlanItem>();
@@ -1295,9 +1599,17 @@ public sealed partial class PlanImporter
                     {
                         if (r.Alternatives.Count == 1)
                         {
-                            items.AddRange(r.Alternatives[0].Actions.Select(a => PlanItem.ForAction(a.Id, a.Name)));
+                            items.AddRange(ItemsOf(r.Alternatives[0]));
                             actions.AddRange(r.Alternatives[0].Actions);
                             seq |= r.Alternatives[0].Sequence;
+                        }
+                        else if (t.SplitChoices)
+                        {
+                            foreach (var choice in r.Alternatives)
+                            {
+                                var others = r.Alternatives.Where(a => a != choice).Select(a => a.Text ?? a.Matched);
+                                choices.Add(new EntryParts(job, ItemsOf(choice).ToList(), choice.Sequence, choice.Actions.ToList(), "or " + string.Join(" or ", others)));
+                            }
                         }
                         else
                         {
@@ -1312,39 +1624,51 @@ public sealed partial class PlanImporter
                     }
                 }
 
-                perJob.Add((job, items, seq, actions));
+                perJob.Add(new EntryParts(job, items, seq, actions));
             }
 
             var withActions = perJob.Where(p => p.Actions.Count > 0).ToList();
-            List<(Job? Job, List<PlanItem> Items, bool Seq, List<ActionInfo> Actions)> entries;
-            if (withActions.Count == 0)
+            var entries = new List<EntryParts>();
+            if (header.Kind == AssigneeKind.Anyone && SharedByJobs(group, jobs) is { } common)
             {
-                var notes = perJob.FirstOrDefault().Items ?? [];
-                if (notes.Count == 0)
-                    return;
-
-                // Notes only: one entry for the column (per job for a column that has neither a slot nor a job).
-                entries = header.Slot is null && header.Jobs.Count == 0 && jobs.Count > 1
-                    ? perJob.Select(p => ((Job?)p.Job, p.Items, p.Seq, p.Actions)).ToList()
-                    : [(jobs.Count == 1 ? jobs[0] : null, notes, false, [])];
+                var owners = jobs.Where(j => common.ByJob[j].Kind == TokenKind.Actions);
+                this.Diag(DiagnosticSeverity.Warning, "anyone-role-action",
+                    $"'{common.NoteText}' in the '{header.Key}' column is an action of {string.Join("/", owners)}: it does not say whose, so it is a note for everyone. Name the job (\"DRK Reprisal\") or move it to a player's column.",
+                    cell.Src);
+                entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(" + ", group.Select(t => t.NoteText)))], false, []));
+                choices.Clear();
+            }
+            else if (withActions.Count == 0)
+            {
+                // Notes only: one entry for the column (per job for a column that has neither a slot nor a job; one for
+                // everyone in a column for anyone: "Use Personals" under "Extras").
+                var notes = perJob[0].Items;
+                if (notes.Count > 0)
+                {
+                    entries.AddRange(header.Slot is null && header.Jobs.Count == 0 && jobs.Count > 1 && header.Kind != AssigneeKind.Anyone
+                        ? perJob
+                        : [new EntryParts(jobs.Count == 1 ? jobs[0] : null, notes, false, [])]);
+                }
             }
             else if (jobs.Count == 1 || withActions.Count == 1)
             {
-                var p = withActions[0];
-                entries = [(p.Job, p.Items, p.Seq, p.Actions)];
+                entries.Add(withActions[0]);
             }
             else if (header.Slot is not null && withActions.Count == jobs.Count && withActions.Select(p => Signature(p.Items, p.Seq)).Distinct().Count() == 1)
             {
                 // The same actions for every job of the slot (a role action such as Reprisal or Feint). An action only some
                 // of the slot's jobs have (Addle in a ranged slot: casters only) gets per-job entries, so that the others
                 // (a Bard in R2) are not reminded of it.
-                var p = withActions[0];
-                entries = [(null, p.Items, p.Seq, p.Actions)];
+                entries.Add(withActions[0] with { Job = null });
             }
             else
             {
-                entries = withActions.Select(p => ((Job?)p.Job, p.Items, p.Seq, p.Actions)).ToList();
+                entries.AddRange(withActions);
             }
+
+            entries.AddRange(choices);
+            if (entries.Count == 0)
+                return;
 
             var anchor = timing.Anchor ?? row.Mechanic!;
             var target = item.IsSequence
@@ -1352,7 +1676,6 @@ public sealed partial class PlanImporter
                 : group.Select(t => t.Target?.Value).FirstOrDefault(v => v is not null);
             var footnote = group.Any(t => t.Token.Footnote) ? this.Footnote(row, cell, group) : null;
             var notesText = this.EntryNote(group, footnote, groupIndex == 0 ? shared.StepNotes : []);
-            var detail = this.DetailFor(row, cell);
             var conditional = group.Any(t => t.Condition is not null) || shared.Condition is not null;
             var optional = group.All(t => t.Token.Optional) || conditional || shared.Optional;
             var whenReady = group.Any(t => t.Token.WhenReady);
@@ -1387,7 +1710,7 @@ public sealed partial class PlanImporter
                 if (press is { } planned)
                     this.CheckAfterPhaseEnd(anchor, planned, item, cell);
 
-                foreach (var (job, items, seq, actions) in entries)
+                foreach (var (job, items, seq, actions, choice) in entries)
                 {
                     var timingAction = actions.FirstOrDefault();
 
@@ -1397,13 +1720,13 @@ public sealed partial class PlanImporter
                     var entry = new PlanEntry
                     {
                         Mechanic = anchor.Id,
-                        Who = new WhoSpec { Slot = header.Slot, Job = job, Assignee = key },
+                        Who = new WhoSpec { Slot = header.Slot, Job = job, Assignee = header.Kind == AssigneeKind.Anyone ? null : key },
                         Do = items.Select(Clone).ToList(),
                         Seq = seq && items.Count > 1,
-                        Target = target ?? (singles.Count > 0 && !isTank ? this.InferTarget(row, anchor, singles) : null),
-                        Note = notesText,
-                        Detail = detail,
-                        Optional = optional,
+                        Target = (choice is null || singles.Count > 0 ? target : null) ?? (singles.Count > 0 && !isTank ? this.InferTarget(row, anchor, singles) : null),
+                        Note = choice is null ? notesText : notesText is null ? choice : notesText + "; " + choice,
+                        Detail = this.DetailFor(row, cell, actions),
+                        Optional = optional || choice is not null,
                         WhenReady = whenReady,
                         AtPhaseEnd = timing.AtPhaseEnd,
                         Severity = row.Row.Severity,
@@ -1431,12 +1754,34 @@ public sealed partial class PlanImporter
                             entry.Offset = PreHitLead(actions, this.level);
                     }
 
+                    // "(Late)": an action used before its hit is pressed just before it.
+                    if (timing.Late && press is null && entry.Offset is null && timingAction is not null && !IsAfterHit(timingAction))
+                        entry.Offset = LateOffset;
+
                     var estimate = anchor.HitAt(entry.HitIndex ?? 0) + (entry.Offset ?? TimingRules.DefaultOffset(timingAction, this.level));
-                    this.drafts.Add(new Draft(entry, estimate, row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part));
+                    this.drafts.Add(new Draft(entry, estimate, row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row)));
                     part++;
                 }
             }
         }
+
+        /// <summary>The plan items of an alternative: one per action, or an either/or per group of options ("the Arrow|the Bole").</summary>
+        private static IEnumerable<PlanItem> ItemsOf(ResolvedAlternative alternative) =>
+            ItemGroups(alternative).Select(g => g.Count == 1 ? PlanItem.ForAction(g[0].Id, g[0].Name) : PlanItem.AnyOf(g.Select(a => PlanItem.ForAction(a.Id, a.Name))));
+
+        /// <summary>
+        /// In a column for anyone ("Extras"): the first token whose words name an action of two or more of the jobs ("Feint",
+        /// "Party Mit"), which does not say whose it is; null when each job's action is named by words of its own ("PLD Wings",
+        /// "Dismantle", "Minne/Mantra").
+        /// </summary>
+        private static TokenState? SharedByJobs(List<TokenState> group, IReadOnlyList<Job> jobs) =>
+            group.FirstOrDefault(t => jobs.Where(j => t.ByJob[j].Kind == TokenKind.Actions)
+                .SelectMany(j => t.ByJob[j].Alternatives.Select(a => (Job: j, a.Matched)))
+                .GroupBy(x => x.Matched, StringComparer.OrdinalIgnoreCase)
+                .Any(g => g.Select(x => x.Job).Distinct().Count() > 1));
+
+        /// <summary>The row's label matched its mechanic: not a stand-in, the row above's or the next row's, or a guess from its spelling.</summary>
+        private static bool IsConfident(RowState row) => !row.Unknown && row.Match is not ("unknown" or "previous" or "next" or "note" or "fuzzy" or "other-phase");
 
         /// <summary>
         /// The hit a target names by order ("your 3rd/4th-in-line player", "#4", "2nd tower") on a mechanic with at least that
@@ -1587,8 +1932,11 @@ public sealed partial class PlanImporter
             return notes;
         }
 
-        /// <summary>The detail of a cell's entries: the row's notes column, then the notes written for the cell's column in its section.</summary>
-        private string? DetailFor(RowState row, AssigneeCell cell)
+        /// <summary>
+        /// The detail of an entry of a cell: the row's notes column, then the notes written for the cell's column in its
+        /// section, then the notes merged across several columns that name one of the entry's <paramref name="actions"/>.
+        /// </summary>
+        private string? DetailFor(RowState row, AssigneeCell cell, IReadOnlyCollection<ActionInfo> actions)
         {
             var lines = new List<string>(row.Detail);
             var key = (row.Tab, row.Section, cell.Column.Index);
@@ -1598,7 +1946,45 @@ public sealed partial class PlanImporter
                 this.columnNoteUse.Add(key);
             }
 
+            foreach (var banner in this.bannerNotes)
+            {
+                if (banner.Note.Tab != row.Tab || !Equals(banner.Note.Row.Phase, row.Section) || !banner.Columns.Contains(cell.Column.Index)
+                    || !actions.Any(a => banner.Actions.Contains(a.Id)) || lines.Contains(banner.Text))
+                    continue;
+                lines.Add(banner.Text);
+                banner.Uses++;
+                banner.Pressed.UnionWith(actions.Select(a => a.Id).Where(banner.Actions.Contains));
+            }
+
             return lines.Count > 0 ? string.Join("\n", lines) : null;
+        }
+
+        /// <summary>
+        /// The actions a note names by alias ("Soil/Kera" → Sacred Soil, Kerachole), for any job, also as they are at the sync
+        /// level; note-only phrases do not count. A word that also names some job's action ("to cover all": Cover) only
+        /// matters when an entry presses it.
+        /// </summary>
+        private HashSet<uint> NamedActions(string text)
+        {
+            var found = new HashSet<uint>();
+            var words = ImportText.NormalizedWords(text);
+            for (var i = 0; i < words.Length; i++)
+            {
+                if (words[i].Length < 3 || this.options.Aliases.MatchLongest(string.Join(' ', words, i, words.Length - i)) is not { } match)
+                    continue;
+                foreach (var expansion in this.options.Aliases.Lookup(match.Key).Where(e => !e.NoteOnly))
+                {
+                    foreach (var name in expansion.ActionNames)
+                    {
+                        if (this.options.Actions.FindByName(name, expansion.Job) is not { } action)
+                            continue;
+                        found.Add(action.Id);
+                        found.Add(this.options.Actions.ResolveAt(action, this.level).Id);
+                    }
+                }
+            }
+
+            return found;
         }
 
         // ------------------------------------------------------------------ targets
@@ -1677,7 +2063,7 @@ public sealed partial class PlanImporter
                 {
                     foreach (var e in this.options.Aliases.Lookup(key))
                     {
-                        foreach (var name in e.Actions.Concat(e.Targeted))
+                        foreach (var name in e.ActionNames)
                         {
                             if (!this.actionKeys.TryGetValue(name, out var list))
                                 this.actionKeys[name] = list = [];
@@ -1709,12 +2095,91 @@ public sealed partial class PlanImporter
 
         // ------------------------------------------------------------------ plan
 
+        /// <summary>
+        /// A party buff planned again while the earlier press still lasts and before it can be pressed again (Temperance
+        /// at Hidden Mines and again at Water 2: a 20 s effect, a 120 s recast) says that the effect still covers the later
+        /// mechanic: it becomes the action's first follow-up available at the level (a second Seraph while Seraph is out is
+        /// Consolation), else a note "Temperance (still active)". Only for an action of one player (column, slot and job)
+        /// that is used on the party, an area or themselves, has one charge at the level and is planned again from another
+        /// row, both rows' labels matching their mechanics, and the later entry neither optional nor targeted.
+        /// </summary>
+        private void MarkStillActive(List<Draft> ordered)
+        {
+            var last = new Dictionary<(string? Assignee, string? Slot, Job? Job, uint Action), (double Press, string Mechanic, int Hit, int Tab, int Row)>();
+            foreach (var d in ordered.Where(d => d.Confident))
+            {
+                var e = d.Entry;
+                for (var i = 0; i < e.Do.Count; i++)
+                {
+                    if (e.Do[i].Action is not { } id || this.options.Actions.Get(id) is not { } action)
+                        continue;
+                    var key = (e.Who.Assignee, e.Who.Slot, e.Who.Job, id);
+                    var duration = action.DurationAt(this.level) ?? 0;
+                    if (!last.TryGetValue(key, out var prev) || (prev.Tab, prev.Row) == (d.Tab, d.Row) || (prev.Mechanic, prev.Hit) == (e.Mechanic, e.HitIndex ?? 0)
+                        || e.Optional || e.Target is not null || action.Target is not (ActionTarget.Party or ActionTarget.Ground or ActionTarget.Self)
+                        || action.ChargesAt(this.level) > 1 || duration <= 0 || action.RecastAt(this.level) <= duration || d.Press - prev.Press >= duration)
+                    {
+                        last[key] = (d.Press, e.Mechanic, e.HitIndex ?? 0, d.Tab, d.Row);
+                        continue;
+                    }
+
+                    var follow = action.FollowUps.Select(f => this.options.Actions.Get(f.Id))
+                        .FirstOrDefault(f => f is not null && f.AvailableAt(this.level) && (e.Who.Job is not { } job || f.UsableBy(job)));
+                    string now;
+                    if (follow is not null && e.Do.Any(x => x.Action == follow.Id))
+                    {
+                        e.Do.RemoveAt(i--);
+                        now = $"left out (its follow-up {follow.Name} is already there)";
+                    }
+                    else
+                    {
+                        e.Do[i] = follow is null ? PlanItem.ForNote(action.Name + " (still active)") : PlanItem.ForAction(follow.Id, follow.Name);
+                        now = follow is null ? $"a note '{action.Name} (still active)'" : follow.Name;
+                    }
+
+                    e.Seq &= e.Do.Count > 1;
+                    this.Diag(DiagnosticSeverity.Info, "still-active",
+                        $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(d.Press - prev.Press)} s after the {action.Name} at {prev.Mechanic}, which lasts {ImportText.Seconds(duration)} s (recast {ImportText.Seconds(action.RecastAt(this.level))} s): it is still active, so it is read as {now}.",
+                        e.Src);
+                }
+            }
+        }
+
+        /// <summary>
+        /// A limit break written for one role in several columns of different slots at one mechanic ("LB3" in both tank
+        /// columns at the P3 transition) is pressed by whoever has the shared gauge: every such entry is optional (never
+        /// counted as missed), with a note naming the other columns ("or Tank 2").
+        /// </summary>
+        private void MarkSharedLimitBreaks(List<Draft> ordered)
+        {
+            bool IsLimitBreak(PlanEntry e) => e.Do.Count > 0 && e.Do.All(i => i.ActionIds().Any() && i.ActionIds().All(id => this.options.Actions.Get(id)?.LimitBreakTier is not null));
+            foreach (var group in ordered.Select(d => d.Entry).Where(IsLimitBreak).GroupBy(e => (e.Mechanic, Hit: e.HitIndex ?? 0, Role: e.Who.Job is { } j ? Jobs.RoleOf(j) : Role.None)))
+            {
+                // Columns of different slots of one role (Tank 1 and Tank 2), not one slot's job variants (H1 WHM, H1 AST).
+                var columns = group.Select(e => e.Who.Assignee).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (columns.Count < 2 || group.Select(e => e.Who.Slot).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Count() < 2)
+                    continue;
+                foreach (var e in group)
+                {
+                    var others = "or " + string.Join(" or ", columns.Where(c => !string.Equals(c, e.Who.Assignee, StringComparison.OrdinalIgnoreCase)));
+                    e.Optional = true;
+                    e.Note = e.Note is null ? others : e.Note + "; " + others;
+                }
+
+                this.Diag(DiagnosticSeverity.Info, "shared-limit-break",
+                    $"The limit break at {group.Key.Mechanic} is written for {string.Join(" and ", columns)}: whoever has the shared gauge presses it, so each of these entries is optional.",
+                    group.First().Src);
+            }
+        }
+
         private MitPlan BuildPlan(List<TabState> tabs)
         {
             var ordered = this.drafts
                 .OrderBy(d => Math.Round(d.Press, 3))
                 .ThenBy(d => d.Tab).ThenBy(d => d.Row).ThenBy(d => d.Column).ThenBy(d => d.Item).ThenBy(d => d.Part)
                 .ToList();
+            this.MarkStillActive(ordered);
+            this.MarkSharedLimitBreaks(ordered);
             var width = Math.Max(3, ordered.Count.ToString(CultureInfo.InvariantCulture).Length);
             for (var i = 0; i < ordered.Count; i++)
                 ordered[i].Entry.Id = "e" + (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
@@ -1724,8 +2189,9 @@ public sealed partial class PlanImporter
             {
                 foreach (var column in tab.Layout.AssigneeColumns)
                 {
+                    // A column for anyone ("Extras") is no seat: its calls are for the jobs they name.
                     var key = tab.Keys[column.Index];
-                    if (!this.AssigneeSelected(key, column.Assignee!.Key) || assignees.Any(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)))
+                    if (column.Assignee!.Kind == AssigneeKind.Anyone || !this.AssigneeSelected(key, column.Assignee.Key) || assignees.Any(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase)))
                         continue;
                     assignees.Add(new Assignee { Key = key, Slot = column.Assignee.Slot, Job = column.Assignee.Job });
                 }

@@ -14,6 +14,8 @@
 # Heart of Stone at 80).
 # sequence: the actions are pressed in this order. note_only: show the text as a note, resolve nothing.
 # targeted: actions to use instead when the cell names another player ("Short CD to R1", "... Co-Tank").
+# An action name may list options separated by '|' ("the Arrow|the Bole"): one item that is done by any of
+# them (the card an Astrologian drew); every option must be an action of the jobs the alias is for.
 schema: mitcue-aliases/1
 aliases:
 
@@ -83,6 +85,7 @@ aliases:
   deployment tactics: Deployment Tactics
   dt: {job: SCH, actions: [Deployment Tactics]}
   recit: Recitation                      # CtC SCH "Protraction + Recit"
+  reci: Recitation                       # LPDU TEA "Soil/Reci/Deploy/Whisper"
   recitation: Recitation
   protraction: Protraction               # CtC SCH
   succor: Succor                         # LPDU P3/P6 "Soil + Succor"; resolves to Concitation at 96+
@@ -98,6 +101,11 @@ aliases:
   consol: Consolation
   seraph charge: Consolation
   2nd seraph charge: {actions: [Consolation], note: "second Consolation charge"}   # LPDU P3 Latent 3
+  seraph1:                               # LPDU TEA "Soil/Illum/Seraph1", then "Seraph2/Succor" at the next raidwide
+    {actions: [Summon Seraph, Consolation], sequence: true, note: "Summon Seraph and its first Consolation; Seraph2 is the second."}
+  seraph 1: {actions: [Summon Seraph, Consolation], sequence: true}
+  seraph2: {actions: [Consolation], note: "second Consolation charge"}   # LPDU TEA "Seraph2/Succor"
+  seraph 2: {actions: [Consolation], note: "second Consolation charge"}
   fey illum: Fey Illumination
   feyillum: Fey Illumination             # LPDU P3-P6 "FeyIllum"
   fey illumination: Fey Illumination
@@ -105,10 +113,12 @@ aliases:
   illum: Fey Illumination                # CtC SCH counts "Illum 55"
   seraphic illumination: Fey Illumination
   blessing: Fey Blessing                 # CtC SCH "Blessing (0:40)"
+  bless: Fey Blessing                    # LPDU TEA "Excog(OT)/Soil/Bless/Succor"
   fey blessing: Fey Blessing
   wd: Whispering Dawn                    # CtC SCH counts "WD 35"
   whispering dawn: Whispering Dawn       # CtC SCH "Whispering Dawn (0:49)"
   angels whisper: Whispering Dawn
+  whisper: Whispering Dawn               # LPDU TEA "Soil/Reci/Deploy/Whisper"
   dissipate: Dissipation                 # LPDU P6 "Soil + Dissipate"; CtC SCH notes "Dissipates around 0:57"
   dissipates: Dissipation
   dissipation: Dissipation
@@ -136,6 +146,7 @@ aliases:
   neutral sect: Neutral Sect
   neutralsect: Neutral Sect              # LPDU P3-P6 "Neutralsect"
   ns: Neutral Sect
+  neutral: Neutral Sect                  # LPDU TEA "Neutral/CU"
   sun sign: Sun Sign
   macro: Macrocosmos
   macrocosmos: Macrocosmos               # LPDU P3/P5/P6
@@ -170,6 +181,9 @@ aliases:
   the spire: the Spire
   ewer: the Ewer
   the ewer: the Ewer
+  defensive cards:                       # LPDU TEA "defensive Cards (Tank)": the Play II and Play III cards of the current draw
+    {actions: ["the Arrow|the Bole", "the Spire|the Ewer"], note: "Play II and Play III: the Arrow or the Bole, the Spire or the Ewer, whichever was drawn."}
+  defensive card: {actions: ["the Arrow|the Bole", "the Spire|the Ewer"]}
   helios: Helios
   aspected helios: Aspected Helios
   helios conjunction: Helios Conjunction
@@ -195,13 +209,21 @@ aliases:
   eprog:                                 # LPDU P6 "Kera + Eprog"; resolves to Eukrasian Prognosis II at 96+
     {actions: [Eukrasian Prognosis], note: "Eukrasia is pressed first (implied)."}
   e prog: Eukrasian Prognosis
+  eukprog: {actions: [Eukrasian Prognosis], note: "Eukrasia is pressed first (implied)."}   # LPDU TEA "EukProg/Kerachole"
+  euk prog: {actions: [Eukrasian Prognosis], note: "Eukrasia is pressed first (implied)."}
   eukrasian prognosis: Eukrasian Prognosis
   eprog 2: Eukrasian Prognosis II
   eprog ii: Eukrasian Prognosis II
   eukrasian prognosis ii: Eukrasian Prognosis II
   zoe eprog:                             # LPDU P3/P5 "Kera + Zoe Eprog"
     {actions: [Zoe, Eukrasian Prognosis], sequence: true, note: "Zoe, then Eukrasia + Eukrasian Prognosis."}
+  zoeeukprog:                            # LPDU TEA "ZoeEukProg/Holos/Kerachole"
+    {actions: [Zoe, Eukrasian Prognosis], sequence: true, note: "Zoe, then Eukrasia + Eukrasian Prognosis."}
+  zoe eukprog: {actions: [Zoe, Eukrasian Prognosis], sequence: true}
+  zoeeprog: {actions: [Zoe, Eukrasian Prognosis], sequence: true}
   ediag: Eukrasian Diagnosis
+  eukdiag: {actions: [Eukrasian Diagnosis], note: "Eukrasia is pressed first (implied)."}   # LPDU TEA "EukDiag/Kerachole"
+  euk diag: {actions: [Eukrasian Diagnosis], note: "Eukrasia is pressed first (implied)."}
   e diag: Eukrasian Diagnosis
   eukrasian diagnosis: Eukrasian Diagnosis
   eukrasia: Eukrasia
@@ -339,6 +361,11 @@ aliases:
   kitchen sink:                          # LPDU WAR/DRK, WAR/GNB, ... "Kitchen Sink"
     {note_only: true, note: "Use every personal mitigation available (Rampart, 30%/40% cooldown, short cooldowns, filler)."}
   personals: {note_only: true, note: "Personal mitigation and self-healing."}   # LPDU P6 "Use personals and self healing"
+  use personals: {note_only: true, note: "Personal mitigation and self-healing."}   # LPDU TEA Extras "Use Personals"
+  all cds:                               # LPDU TEA "All CD's" (the off-tank at Hidden Minefield)
+    {note_only: true, note: "Use every personal mitigation available."}
+  all cd: {note_only: true, note: "Use every personal mitigation available."}
+  all cooldowns: {note_only: true, note: "Use every personal mitigation available."}
 
   # ======================= Paladin =======================
   sentinel: Sentinel                     # LPDU WAR/PLD, DRK/PLD "Sentinel"; resolves to Guardian at 92+
@@ -397,6 +424,7 @@ aliases:
   dark missionary: Dark Missionary
   missionary: Dark Missionary
   dmiss: Dark Missionary
+  dm: {job: DRK, actions: [Dark Missionary]}   # LPDU TEA "Party Mit (DM/HoL)"
 
   # ======================= Gunbreaker =======================
   camo: Camouflage                       # LPDU GNB tabs "Rampart + Camo + HoC"

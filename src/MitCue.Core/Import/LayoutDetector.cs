@@ -16,8 +16,10 @@ namespace MitCue.Core.Import;
 /// by content (mostly times → time; text left of the assignees → mechanic label); a row without label and time whose
 /// assignee cells carry the header's fill instead of the column's data fill (LPDU writes notes in white on black under
 /// its tables) is a note, otherwise long sentences and "*" footnotes are notes and short text is a label-less data row.
-/// A header row repeated further down with other players (stacked tables) re-maps the player columns below it.
-/// Everything uncertain is reported in <see cref="TabLayout.Diagnostics"/>.
+/// A header row repeated further down with other players (stacked tables) re-maps the player columns below it; a phase
+/// title written over the player columns (a merged banner, or a cell with a header row below it) starts its phase. An
+/// unlabelled column of prose beside the label column holds the rows' notes. Everything uncertain is reported in
+/// <see cref="TabLayout.Diagnostics"/>.
 /// </remarks>
 public sealed partial class LayoutDetector
 {
@@ -516,7 +518,18 @@ public sealed partial class LayoutDetector
             }
 
             foreach (var (c, _) in mechanicCandidates.Where(x => roles[x.Col] == ColumnRole.Unknown))
+            {
+                // Remarks beside the label ("the one after MT invuln" next to "Fluid Swing 3"): prose, like an unlabelled
+                // column right of the players, is the rows' notes.
+                if (this.ColumnValues(c, headerEnd + 1).Average(WordCount) >= 4)
+                {
+                    roles[c] = ColumnRole.Notes;
+                    this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(c)} has no header; its text reads like remarks and is kept as the rows' notes.", this.tab.Ref(headerRow, c));
+                    continue;
+                }
+
                 this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(c)} has no header and is not the label column; it is not imported.", this.tab.Ref(headerRow, c));
+            }
 
             // Only the first label and time columns are read (two tables side by side are not supported).
             this.ReportSecondColumns(roles, ColumnRole.Mechanic, "multiple-label-columns", "mechanic label", headerRow);
@@ -622,6 +635,25 @@ public sealed partial class LayoutDetector
                 {
                     current = this.Section(pn, PhaseSource.PhaseColumn, r, null, null, pt, this.tab.Ref(r, pc), current);
                     this.sections.Add(current);
+                }
+
+                // A phase title over the player columns ("P2: Brute Justice / Cruise Chaser" merged across D:L above a repeated
+                // header): the row's only text, with no label or time, names the current or a later phase, and is a banner
+                // (merged across columns) or has a header row below it before the next row with a label or time.
+                if (assignments.Count > 0 && label is null && timeText is null && texts.Count == 1
+                    && TryParseSection(texts[0].Text, out var tn, out var tname, out var thint)
+                    && (tn == current?.Number || this.StartsLaterPhase(tn, current))
+                    && (this.IsBanner(r, texts[0].Column) || this.HeaderFollows(r, block)))
+                {
+                    var titled = tname is not null || thint is not null;
+                    if (tn != current?.Number)
+                    {
+                        current = this.Section(tn, titled ? PhaseSource.SectionRow : PhaseSource.LabelRow, r, tname, thint, texts[0].Text, texts[0].Src, current);
+                        this.sections.Add(current);
+                    }
+
+                    rows.Add(new RowLayout { Index = r, Kind = titled ? RowKind.Section : RowKind.PhaseLabel, Phase = current, Notes = notesJoined, Texts = texts, Src = texts[0].Src });
+                    continue;
                 }
 
                 // Section and label rows: a phase marker with no assignment in the row.
@@ -754,6 +786,25 @@ public sealed partial class LayoutDetector
             (current is null || number > current.Number)
             && (this.namePhases.Count == 0 || this.namePhases.Contains(number))
             && (this.owner.Fight is not { } fight || number <= fight.Phases.Count);
+
+        /// <summary>The cell is the first cell of a merge that spans two or more columns (a title banner).</summary>
+        private bool IsBanner(int r, int c) => this.tab.MergeAt(r, c) is { } m && m.R0 == r && m.C0 == c && m.C1 > m.C0;
+
+        /// <summary>A header row (<see cref="IsHeaderLike"/>) comes below row <paramref name="r"/> before the next row with a label or time.</summary>
+        private bool HeaderFollows(int r, Block block)
+        {
+            for (var next = r + 1; next < this.nRows; next++)
+            {
+                if (this.tab.IsRowHidden(next))
+                    continue;
+                if (this.IsHeaderLike(next, block))
+                    return true;
+                if ((this.mech is { } m && this.Txt(next, m) is not null) || (this.time is { } t && this.Txt(next, t) is not null))
+                    return false;
+            }
+
+            return false;
+        }
 
         /// <summary>A row whose cells name players like a header row (outside the label, time and phase columns).</summary>
         private bool IsHeaderLike(int r, Block block)

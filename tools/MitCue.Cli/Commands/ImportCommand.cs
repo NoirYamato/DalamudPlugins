@@ -11,7 +11,7 @@ internal static partial class ImportCommand
     public static CommandSpec Spec { get; } = new()
     {
         Name = "import",
-        Synopsis = "<source> --fight <key> [--tabs a,b] [--assignees a,b] [--calibration <key>] [--name <text>] [--url <text>] [-o <plan.yaml>]",
+        Synopsis = "<source> --fight <key> [--tabs a,b] [--assignees a,b] [--calibration <key>] [--slashes auto|or|and] [--name <text>] [--url <text>] [-o <plan.yaml>]",
         Summary = "Import a plan from a sheet (.xlsx, fixture folder, .csv/.tsv, or a Google Sheets link) into plan YAML.",
         Details = """
             The source is an .xlsx workbook, a folder of JSON fixture tabs (tests/fixtures/sheets/<sheet>), a .csv or .tsv
@@ -29,6 +29,7 @@ internal static partial class ImportCommand
             new("tabs", "a,b", "Only these tabs (comma-separated); default: every tab that looks like a plan table."),
             new("assignees", "a,b", "Only these columns (key or header), e.g. \"White Mage\" or \"H2 SCH\"; default: all. A name that matches no column is an error."),
             new("calibration", "key", "Calibration preset of the fight file (e.g. carry_the_clear) used when a phase cannot be fitted."),
+            new("slashes", "auto|or|and", "What \"X/Y\" between two actions of one job means: or = either one (TBN/Oblation), and = all of them (Soil/Succor), auto = decided from the sheet (default; the slash-reading diagnostic says how)."),
             new("name", "text", "Plan name (default: chosen by the importer from the sheet)."),
             new("url", "text", "Source link stored in the plan (default: the link imported, if any)."),
             new("date", "yyyy-mm-dd", "Import date stamped on the plan (default: today)."),
@@ -57,6 +58,13 @@ internal static partial class ImportCommand
             throw new UsageException($"import: {fight.Key} has no calibration preset '{calibration}'. Presets: {(keys.Count > 0 ? string.Join(", ", keys) : "none")}.");
         }
 
+        var slashes = args.Get("slashes")?.Trim().ToLowerInvariant() switch
+        {
+            null or "auto" => SlashReading.Auto,
+            "or" or "either" => SlashReading.Either,
+            "and" or "all" => SlashReading.All,
+            var other => throw new UsageException($"import: --slashes takes auto, or or and, not '{other}'."),
+        };
         var date = args.Get("date") ?? ctx.Environment.Today();
         if (!IsoDate().IsMatch(date))
             throw new UsageException($"import: --date needs an ISO date like 2026-11-11, not '{date}'.");
@@ -93,6 +101,7 @@ internal static partial class ImportCommand
             PlanName = args.Get("name"),
             SourceUrl = args.Get("url") ?? loaded.Url,
             CalibrationKey = calibration,
+            Slashes = slashes,
             Tabs = tabs,
             Assignees = assignees,
             ImportedDate = date,
