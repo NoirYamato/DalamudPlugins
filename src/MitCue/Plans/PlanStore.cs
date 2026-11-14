@@ -77,6 +77,15 @@ internal sealed class PlanStore
         ["top/SCH"] = "1f75e1e8-7321-566c-ae86-8568019fe914", // plans/top-lpdu.yaml: LPDU TOP Mitigation
     };
 
+    /// <summary>
+    /// The bundled plans a configuration of version 1 (MitCue up to 0.1.0.6) did not have (<see cref="MigrateFromVersion1"/>):
+    /// LPDU's TEA plan, the first bundled TEA plan.
+    /// </summary>
+    private static readonly IReadOnlySet<string> BundledSinceVersion2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7", // plans/tea-lpdu.yaml: LPDU TEA Heal/Mit
+    };
+
     private readonly DirectoryInfo configDirectory;
     private readonly Configuration config;
     private readonly Action saveConfig;
@@ -127,7 +136,7 @@ internal sealed class PlanStore
             this.Reload();
     }
 
-    /// <summary>Re-reads bundled and user plans.</summary>
+    /// <summary>Re-reads bundled and user plans (the first time, a configuration of an older version is brought up to date).</summary>
     public void Reload()
     {
         this.Loaded = true;
@@ -139,6 +148,7 @@ internal sealed class PlanStore
         this.LoadBundled();
         this.LoadUser();
         this.SortPlans();
+        this.MigrateFromVersion1();
     }
 
     /// <summary>The plan with this id, or null.</summary>
@@ -464,6 +474,47 @@ internal sealed class PlanStore
 
     /// <summary>The active plan for a fight and job (see <see cref="ActivePlanFor(string, Job, out bool)"/>).</summary>
     public StoredPlan? ActivePlanFor(string fightKey, Job job) => this.ActivePlanFor(fightKey, job, out _);
+
+    /// <summary>
+    /// Settings version 1 to 2, once, on the first load: where a fight and job now get another plan automatically than
+    /// with version 1, the plan they had is chosen for them, so an update never changes a player's plan unasked. Version 1
+    /// had no bundled TEA plan (<see cref="BundledSinceVersion2"/>): the player's own TEA plan (the first by name that
+    /// names the job) was the job's automatic plan, also after a share-code import with the box unticked or a plan file
+    /// put in the plans folder, and LPDU TEA would now take its place. Version 1 also ranked the share code of a bundled
+    /// plan among the player's own plans (<see cref="ActivePlanFor(string, Job, out bool)"/>). Choices made in
+    /// /mitcue > Plans, "no plan" included, stay, and so do the automatic plans that are the same as before (TOP's
+    /// bundled plans).
+    /// </summary>
+    private void MigrateFromVersion1()
+    {
+        if (this.config.Version >= 2)
+            return;
+
+        foreach (var fight in this.plans.Select(p => p.Plan.Fight).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+        {
+            foreach (var job in this.ForFight(fight).SelectMany(p => JobsOf(p.Plan)).Distinct().ToList())
+            {
+                var before = this.Version1Plan(fight, job);
+                var now = this.ActivePlanFor(fight, job, out var automatic);
+                if (automatic && before != null && !string.Equals(before.Id, now?.Id, StringComparison.OrdinalIgnoreCase))
+                    this.config.ActivePlans[ActiveKey(fight, job)] = before.Id;
+            }
+        }
+
+        this.config.Version = 2;
+        this.SaveConfig();
+    }
+
+    /// <summary>The plan a fight and job got automatically with settings version 1 (<see cref="MigrateFromVersion1"/>).</summary>
+    private StoredPlan? Version1Plan(string fightKey, Job job)
+    {
+        var candidates = this.ForFight(fightKey)
+            .Where(p => JobsOf(p.Plan).Contains(job) && !(p.Origin == PlanOrigin.Bundled && BundledSinceVersion2.Contains(p.Id)))
+            .ToList();
+        if (BundledDefaults.TryGetValue(ActiveKey(fightKey, job), out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
+            return recommended;
+        return candidates.FirstOrDefault(p => p.Origin == PlanOrigin.Bundled) ?? candidates.FirstOrDefault();
+    }
 
     /// <summary>Sets the active plan: an id, <c>""</c> for "no plan", or null for automatic.</summary>
     public void SetActive(string fightKey, Job job, string? planId)

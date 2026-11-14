@@ -173,6 +173,55 @@ public class BundledPlanTests
         Assert.True(automatic);
     }
 
+    [Fact]
+    public void AnUpdateKeepsThePlanEachJobHadAutomatically()
+    {
+        // Review finding (C10): settings of MitCue 0.1.0.6 (version 1) with the static's TEA plan, imported by share code
+        // with the box unticked: no TEA plan was bundled, so it was "your active plan for TEA as SCH". After the update LPDU
+        // TEA took its place, unasked, for every job both name. Likewise TOP's Warrior: version 1 ranked a share code of a
+        // bundled plan among the player's own plans, so "Aa my TOP plan" was theirs, not the copy of LPDU TOP.
+        var dir = Kit.TempDirectory();
+        var writer = new PlanStore(dir, new Configuration(), () => { }, Kit.Errors());
+        writer.EnsureLoaded();
+        MitPlan[] own =
+        [
+            new() { Id = "tea-own", Name = "Static TEA", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Temperance, "Temperance", Job.WHM)] },
+            new() { Id = "tea-zz", Name = "Zz other TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Reprisal, "Reprisal", Job.PLD)] },
+            new() { Id = "top-own", Name = "Aa my TOP plan", Fight = "top", Entries = [Kit.Entry("p1.pantokrator", 0, Kit.Reprisal, "Reprisal", Job.WAR)] },
+        ];
+        foreach (var plan in own)
+            Assert.True(writer.Save(plan, out var error), error);
+        Assert.True(writer.ImportShareCode(PlanSerializer.ToShareCode(writer.Get(Lpdu)!.Plan), out _, out var message), message);
+
+        var saves = 0;
+        var config = new Configuration { Version = 1, ActivePlans = { ["tea/WHM"] = string.Empty, ["tea/SGE"] = "deleted-plan" } };
+        var store = new PlanStore(dir, config, () => saves++, Kit.Errors());
+        store.EnsureLoaded();
+
+        Assert.Equal((2, 1), (config.Version, saves));
+        (string Fight, Job Job, string? Plan, bool Automatic)[] expected =
+        [
+            ("tea", Job.SCH, "tea-own", false), // the first own plan by name
+            ("tea", Job.PLD, "tea-zz", false),
+            ("tea", Job.WHM, null, false), // "no plan" stays
+            ("tea", Job.SGE, LpduTea, true), // no own plan names the Sage
+            ("tea", Job.WAR, LpduTea, true),
+            ("top", Job.WAR, "top-own", false),
+            ("top", Job.WHM, NoirMitWhm, true),
+            ("top", Job.SCH, Lpdu, true), // BundledDefaults: the copy of LPDU TOP, as before
+        ];
+        Assert.Equal(expected, expected.Select(e => (e.Fight, e.Job, store.ActivePlanFor(e.Fight, e.Job, out var automatic)?.Id, automatic)));
+
+        // Once: the store saved version 2, so a reload pins nothing more, and new settings never pin (an import saved later
+        // is active only when chosen).
+        store.Reload();
+        Assert.Equal(1, saves);
+        var fresh = new PlanStore(dir, new Configuration(), () => { }, Kit.Errors());
+        fresh.EnsureLoaded();
+        Assert.Equal(LpduTea, fresh.ActivePlanFor("tea", Job.SCH)?.Id);
+        Assert.Equal(Lpdu, fresh.ActivePlanFor("top", Job.WAR)?.Id);
+    }
+
     [Theory]
     [InlineData(Job.WHM, "H1", "White Mage", "H1", 25)]
     [InlineData(Job.WHM, null, "White Mage", null, 25)]
