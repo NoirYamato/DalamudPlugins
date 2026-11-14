@@ -556,8 +556,9 @@ public sealed partial class PlanImporter
         /// <summary>
         /// Cells that point up ("(^on LL)", "(^ if MCH)", "^ on BJ") are remarks about the nearest other cell above them in
         /// the same column (the same players: no repeated header in between) and phase section: their words are read as a
-        /// parenthetical of that cell ("Addle (on LL)": a note; "(Party Mit (if MCH))": a job filter; a target, a timing or a
-        /// condition likewise). They are no entry of their own; a caret with nothing above it or no words is not imported.
+        /// parenthetical of each item of that cell ("Addle (on LL)": a note; "(Party Mit (if MCH))": a job filter; a target, a
+        /// timing or a condition likewise; <see cref="WithRemarks"/>). They are no entry of their own; a caret with nothing
+        /// above it or no words is not imported.
         /// </summary>
         private void AttachCarets(TabState tab)
         {
@@ -589,29 +590,43 @@ public sealed partial class PlanImporter
                         this.caretRemarks[key] = remarks = [];
                     remarks.Add(remark);
                     this.Diag(DiagnosticSeverity.Info, "caret-note",
-                        $"'{Flat(cell.Cell.Text)}' is a remark about {target.Cell.Src} above it ('{Flat(target.Cell.Cell.Text)}'), read as '{Flat(WithRemarks(target.Cell.Cell, [remark]).Text)}'.",
+                        $"'{Flat(cell.Cell.Text)}' is a remark about {target.Cell.Src} above it ('{Flat(target.Cell.Cell.Text)}'), read as '{Flat(this.WithRemarks(target.Cell.Cell, [remark]).Text)}'.",
                         cell.Src);
                 }
             }
         }
 
         /// <summary>
-        /// A cell with remarks added as parentheticals at its end ("Addle" + "on LL" → "Addle (on LL)"), inside the brackets
-        /// of a cell that is all in brackets ("(Party Mit)" + "if MCH" → "(Party Mit (if MCH))").
+        /// A cell with remarks added as parentheticals after each of its items, so that they speak for all of the cell
+        /// ("Addle" + "on LL" → "Addle (on LL)"; "Soil / Expedient" + "late" → "Soil (late) / Expedient (late)"), inside the
+        /// brackets of a cell that is all in brackets ("(Party Mit)" + "if MCH" → "(Party Mit (if MCH))").
         /// </summary>
-        private static SheetCell WithRemarks(SheetCell cell, IReadOnlyList<string> remarks)
+        private SheetCell WithRemarks(SheetCell cell, IReadOnlyList<string> remarks)
         {
             var text = (cell.Text ?? string.Empty).TrimEnd();
             var added = string.Concat(remarks.Select(r => " (" + r + ")"));
-            var at = CellParser.WholeBrackets(text) is var (_, close) ? close : text.Length;
+
+            // After the last token of every item, from the last item back, so that the earlier positions stay (a cell in
+            // brackets is parsed with its brackets blanked: the positions are the text's).
+            var ends = this.cells.Parse(text).Items.Where(i => i.Tokens.Any()).Select(i => i.Tokens.Max(t => t.Start + t.Text.Length))
+                .Distinct().OrderDescending().ToList();
+            if (ends.Count == 0)
+                ends = [CellParser.WholeBrackets(text) is var (_, close) ? close : text.Length];
+            var runs = cell.Runs.ToList();
+            foreach (var at in ends)
+            {
+                text = text[..at] + added + text[at..];
+                runs = runs.Select(r => r.Start >= at ? r with { Start = r.Start + added.Length } : r).ToList();
+            }
+
             return new SheetCell
             {
-                Text = text[..at] + added + text[at..],
+                Text = text,
                 Bg = cell.Bg,
                 Fg = cell.Fg,
                 Bold = cell.Bold,
                 Strike = cell.Strike,
-                Runs = cell.Runs.Select(r => r.Start >= at ? r with { Start = r.Start + added.Length } : r).ToList(),
+                Runs = runs,
                 Note = cell.Note,
             };
         }
@@ -1164,7 +1179,7 @@ public sealed partial class PlanImporter
                 return;
             }
 
-            var source = this.caretRemarks.TryGetValue((tab, row.Row.Index, cell.Column.Index), out var remarks) ? WithRemarks(cell.Cell, remarks) : cell.Cell;
+            var source = this.caretRemarks.TryGetValue((tab, row.Row.Index, cell.Column.Index), out var remarks) ? this.WithRemarks(cell.Cell, remarks) : cell.Cell;
             var parsed = this.cells.Parse(source, cell.Src);
             foreach (var item in parsed.Items)
                 this.ImportItem(row, cell, key, item);

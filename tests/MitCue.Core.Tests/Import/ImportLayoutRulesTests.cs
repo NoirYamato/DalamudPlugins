@@ -273,6 +273,33 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("^ on Omega")]
+    [InlineData("(^ on Omega)")]
+    public void CaretCell_IsARemarkAboutEveryItemOfTheCellAboveIt(string caret)
+    {
+        // "Soil / Expedient" is two items: the remark speaks for both, not only for the last ("(Addle)" is one call in
+        // brackets: the remark goes inside them).
+        var r = Import(Tab("P3", [], ["P3", "SCH", "Caster"], ["Hello World", "Soil / Expedient", "(Addle)"], ["Latent 1", caret, "(^ if RDM)"]));
+
+        var sch = r.Plan.At("'P3'!B2");
+        Assert.Equal(["Expedient", "Sacred Soil"], sch.Select(e => e.Names().Single()).Order());
+        Assert.All(sch, e => Assert.Equal(("p3.hello_world", "on Omega"), (e.Mechanic, e.Note)));
+        var addle = Assert.Single(r.Plan.At("'P3'!C2"));
+        Assert.Equal((Job.RDM, "Addle", true), (addle.Who.Job!.Value, addle.Names().Single(), addle.Optional));
+        Assert.Contains(r.Diagnostics, d => d.Code == "caret-note" && d.Message.Contains("read as 'Soil (on Omega) / Expedient (on Omega)'", StringComparison.Ordinal));
+        Assert.Contains(r.Diagnostics, d => d.Code == "caret-note" && d.Message.Contains("read as '(Addle (if RDM))'", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void CaretCell_WithATimingWord_TimesEveryItemOfTheCellAbove()
+    {
+        // "(late)" presses each of the cell's calls just before the hit, not only the last one.
+        var r = Import(Tab("P3", [], ["P3", "SCH"], ["Hello World", "Soil / Expedient"], ["Latent 1", "^ late"]));
+
+        Assert.Equal([PlanImporter.LateOffset, PlanImporter.LateOffset], r.Plan.At("'P3'!B2").Select(e => e.Offset));
+    }
+
+    [Theory]
     [InlineData("(^on Omega)", "its column has no cell above it")]
     [InlineData("^", "says nothing about it")]
     public void CaretCell_WithNothingToSay_OrNothingAbove_IsReported(string caret, string why)
