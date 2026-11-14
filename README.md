@@ -17,12 +17,13 @@ sheet) and a Scholar (H2) on the *LPDU* TOP plan. Both plans come with the plugi
 | The Epic of Alexander (Ultimate), TEA | 887 | 80 | *LPDU TEA Heal/Mit* |
 | Dancing Mad (Ultimate), DMU | 1363 | 100 | none: [import](#importing-a-plan) your own |
 
-The TEA and DMU fight data is a first draft. TEA's has been mapped onto LPDU's TEA sheet; no mitigation
-sheet has been mapped onto DMU's yet. In TEA the fight clock follows phase pushes like in TOP, and MitCue
-adds the 16 J Waves of the P3 DPS check, which cactbot lists as one entry, so that a call can name a wave;
-their times come from BossMod and have not been checked against real pulls yet. In DMU, cactbot marks the
-starts of P2 and P4 with an event MitCue cannot see, so MitCue uses boss casts there instead; those have not
-been checked against real pulls yet.
+The TEA and DMU fight data is a first draft. TEA's has been mapped onto LPDU's TEA sheet; no mitigation sheet
+has been mapped onto DMU's yet. In TEA the fight clock follows phase pushes like in TOP, and MitCue adds the
+16 J Waves of the P3 DPS check, which cactbot lists as one entry, so that a call can name a wave, and the
+first crystal explosion of Inception, which cactbot does not list; their times come from BossMod and TEA
+guides and have not been checked against real pulls yet. In DMU, cactbot marks the starts of P2 and P4 with an
+event MitCue cannot see, so MitCue uses boss casts there instead; those have not been checked against real
+pulls yet.
 
 More documentation: [docs/INSTALL.md](docs/INSTALL.md) (installing, updating, files),
 [docs/PLUGIN.md](docs/PLUGIN.md) (how the plugin works, in-game test checklist),
@@ -153,10 +154,22 @@ TOP - P1: Omega - 1:15
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
 press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. It stays NOW until just before the hit for
 mitigation, shields and heals placed ahead of the damage (Liturgy of the Bell, Excogitation, Earthly Star,
-Horoscope, Macrocosmos), or until 5 s after the planned time for heals used after the damage, and then counts
-as missed. An entry marked *on cooldown* in the plan stays NOW until the action is ready. A call for the end
-of a phase (*as P1 dies*) turns NOW when a push ends that phase early. Plan entries without a time get a
-sensible press time from the action's kind and duration (details in [docs/DESIGN.md](docs/DESIGN.md) §5).
+Horoscope, Macrocosmos), or until 5 s after the planned time for heals and anything else planned after the
+damage, and then counts as missed. An entry marked *on cooldown* in the plan stays NOW until the action is
+ready. A call for the end of a phase (*as P1 dies*) turns NOW when a push ends that phase early.
+
+Plan entries without a time get an automatic press time (details in [docs/DESIGN.md](docs/DESIGN.md) §5.1):
+
+- **From the action:** mitigation, regens and shields before the hit, by their duration and cast time; heals
+  1 s after it. Passage of Arms comes last, 2 s before the hit, since any other action ends it; Neutral Sect
+  4.5 s before, so that its Aspected Helios lands in time.
+- **From the call:** a call with several actions that starts with a heal or a buff is pressed early enough for
+  the others: *Bless/Whisper/Succor* with Whispering Dawn's lead, so that the Succor lands before the hit.
+- **From the mechanic:** mitigation for a mechanic with several hits is pressed late enough to last through the
+  later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). In TEA, the calls
+  on Photon, which drops HP to 1, are its heal-up, 1 s after it; heals on Double Rocket Punch go out 4 s before
+  it, once the second Photon has dropped the tanks to 1 HP; and a call for a later J Wave waits for the wave
+  before it, so it turns NOW with less of a lead, or none.
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:

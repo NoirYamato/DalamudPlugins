@@ -26,8 +26,8 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 | D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** runtime first, then the importer front half and the in-game import window, then the CLI, the importer back half and the converted plans; no plugin dependencies. |
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
-| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. |
-| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). **Changed (2026-11-14):** TEA's data has been mapped onto LPDU's sheet *[LPDU] TEA Heal/Mit* (mechanics and aliases for its rows, and the 16 J Waves of the P3 DPS check added to the timeline, §3.1), and the sheet ships as *LPDU TEA Heal/Mit*, TEA's only plan and so the automatic one of every job it names (§7). The TEA data is still not checked against logs; DMU has no plan yet. |
+| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. **Changed (2026-11-14):** also from the entry's other actions, the mechanic's later hits and the fight file's timing fields, in one function that the reminders, the importer, the CLI and the review share (§5.1). |
+| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). **Changed (2026-11-14):** TEA's data has been mapped onto LPDU's sheet *[LPDU] TEA Heal/Mit* (mechanics and aliases for its rows; the 16 J Waves of the P3 DPS check and the first Inception crystal explosion added to the timeline; timing fields for the Photons, Double Rocket Punch and the J Waves, §3.1, §5.1), and the sheet ships as *LPDU TEA Heal/Mit*, TEA's only plan and so the automatic one of every job it names (§7). The TEA data is still not checked against logs; DMU has no plan yet. |
 | D8 | BossMod / cactbot as dependencies | **No runtime dependency.** cactbot is a browser overlay inside ACT/IINACT, so a Dalamud plugin cannot read its state; BossMod's IPC only exposes autorotation/AI/config controls, not fight timelines. Instead MitCue **bundles cactbot's timeline files** (Apache-2.0, attributed) and parses them itself. |
 
 ### 1.2 Functional requirements
@@ -159,6 +159,10 @@ mechanics:
     entry: "Cosmo Memory"                 # cactbot entry at that time (validated in tests)
     kind: raidwide                        # raidwide|tankbuster|multihit|stack|spread|mixed|lb_check|enrage|other|marker
     aliases: ["Cosmo Memory", "CM"]
+    # optional timing fields (none in top.yaml), for the calls planned here without a time (§5.1):
+    # press: after                        # pressed after the hit, like heals (TEA's Photons)
+    # heal_lead: 4                        # heals this many s before the hit (TEA's Double Rocket Punch)
+    # series: true                        # a later hit's calls wait for the hit before (TEA's J Waves)
 calibration:                              # known sheets' phase zero points (timeline seconds of sheet 0:00)
   carry_the_clear: { p1: 0.9, p2: 201.8, ... }
 row_offsets:                              # per sheet: seconds from a mechanic's first hit to what its row time marks
@@ -168,6 +172,15 @@ row_offsets:                              # per sheet: seconds from a mechanic's
 Pseudo-mechanics (`kind: marker`) exist for anchors that are not damage (`p1.pull`,
 phase starts, the boss becoming targetable).
 
+The timing fields change the automatic press time of the calls planned on the mechanic
+without a time (§5.1). `press: after` is for a hit that makes what was pressed before it
+pointless, `heal_lead` (seconds) for a hit the heals must top the targets up for, and
+`series: true` for hits that are one raidwide repeated a few seconds apart. The loader
+accepts only `after` for `press`, a positive `heal_lead` and never both on one mechanic,
+and `series` only with two or more hits; `mitcue validate` reports any of them on a marker.
+`tea.yaml` has `press: after` on both Photons, `heal_lead: 4` on Double Rocket Punch and
+`series: true` on `p3.j_waves`.
+
 `calibration` and `row_offsets` are keyed by sheet (the importer's calibration preset,
 §6). `row_offsets` names mechanics whose rows in that sheet time another event than the
 mechanic's hit (Carry the Clear times Blind Faith at the cast end, 1.2 s before the hit);
@@ -176,8 +189,9 @@ the importer adds the value to row-relative offsets (§6 step 7).
 Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
 cactbot's). Each line must have a sync and may not jump to a label. Label and hideall statements are refused (they
 would change the cactbot file's): the fight file then does not load. The additions are fallbacks for phase starts
-that cactbot syncs only on event types the plugin does not see (§4), or entries for hits that cactbot folds into
-one. `dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot uses director updates there:
+that cactbot syncs only on event types the plugin does not see (§4), or entries for damage an anchor needs that
+cactbot folds into one entry or does not list. `dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot
+uses director updates there:
 
 ```yaml
 timeline_additions: |
@@ -189,10 +203,14 @@ timeline_additions: |
 BossMod and not yet checked against a log), which cactbot folds into one entry, "J Storm + Waves x16" at 705.7. Each
 wave is then an entry that a mechanic anchors on (`p3.j_wave_1` to `p3.j_wave_16`; a mechanic's `entry` is checked
 against the additions too) and a sync within 1.4 s of it. LPDU's TEA sheet names them by Brute Justice's Damage Up
-stacks: "Jwaves (N)" is the (N+1)th wave.
+stacks: "Jwaves (N)" is the (N+1)th wave. It also adds the first explosion of the Inception crystals (`Ability
+4A88` Tetrashatter, 564.5, the anchor of `p3.inception_crystals`), which cactbot does not list. The explosions are
+player-timed (~564–568 s), so the sync only catches an early one: its window of 2 s before and none after can move the
+clock forward by at most 2 s, once, and the next boss sync (Inception, 581.0) corrects any error.
 
 ```yaml
 timeline_additions: |
+  564.5 "Tetrashatter" Ability { id: "4A88", source: "Judgment Crystal" } window 2,0
   710.9 "J Wave 1" Ability { id: "4877" } window 1.4,1.4
   713.9 "J Wave 2" Ability { id: "4877" } window 1.4,1.4
   …
@@ -324,15 +342,19 @@ and `the Spire|the Ewer`, whichever was drawn (`AliasExpansion.OptionsOf`).
 ### 5.1 Planned press time
 
 For each applicable entry: `hit` = the anchor mechanic's hit time (or the n-th hit when
-an "after the n-th hit" hint was parsed); `press = hit + offset`.
+an "after the n-th hit" hint was parsed); `press = hit + offset`. The entry's items share
+the press time; each has its own use window (§5.2).
 
-When `offset` is not given (plans without times), it is derived from the action: its `when`
-field (`actions.yaml`, docs/research/actions.md §6) decides the side of the hit when present,
-otherwise its kind does (code: `TimingRules`).
+When `offset` is not given (plans without times), the press time is automatic. One
+function computes it (`TimingRules.ForEntry`), and the scheduler, the importer, the CLI's
+`plan` and `check` and the import review all use it. It starts from the default of the
+entry's timing action, the first item action the catalog knows (of an either/or, its
+first known option): the action's `when` field (`actions.yaml`, docs/research/actions.md
+§6) decides the side of the hit when present, otherwise its kind does.
 
 | action | default press time |
 |--------|--------------------|
-| `when: before` — heals placed before the damage that act on a later event: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos | `hit − lead` when the action has a `lead` (Earthly Star: 10 s to mature); otherwise a heal is timed like mitigation of the same duration, `hit − clamp(0.3·D, 2, 8)` (Bell −6, Excogitation −8, Macrocosmos −4.5, Horoscope −3), and other kinds keep their row below |
+| `when: before` — heals placed before the damage that act on a later event (Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos), and actions with a lead of their own (Neutral Sect, Passage of Arms) | `hit − lead` when the action has a `lead`: Earthly Star 10 s (to mature), Neutral Sect 4.5 s (time to cast the Aspected Helios that puts up its barrier), Passage of Arms 2 s (pressed last: any other action ends its channel); otherwise a heal is timed like mitigation of the same duration, `hit − clamp(0.3·D, 2, 8)` (Bell −6, Excogitation −8, Macrocosmos −4.5, Horoscope −3), and other kinds keep their row below |
 | `when: after` (healer LBs) | `hit + 2` for limit breaks, else `hit + 1` |
 | party_mit, tank_mit, regen (duration D) | `hit − clamp(0.3·D, 2, 8)`; `hit − 3` when D is unknown |
 | shield (GCD, cast time C) | `hit − max(4, C + 2.5)` |
@@ -341,18 +363,58 @@ otherwise its kind does (code: `TimingRules`).
 | tank LB3 / healer LB3 (no `when`: by the role of the LB's jobs) | `hit − 3` / `hit + 2` |
 | buff, movement, other, notes, actions not in the catalog | `hit − 3` |
 
+Then, in this order:
+
+1. **The mechanic** (fight file fields, §3.1). With `press: after`, the press is
+   `hit + max(default, 1)`: the calls are the heal-up after a hit that makes what was
+   pressed before it pointless (TEA's Photons set HP to 1), mitigation and shields too; a
+   healer LB keeps its +2. Otherwise, with `heal_lead: L`, an entry timed by a heal used
+   after the hit is pressed at `hit − L` (Double Rocket Punch: 4 s, to top up the tanks the
+   second Photon left at 1 HP).
+2. **Several actions.** Otherwise an entry timed by a heal used after the hit, or by a
+   buff, movement or other action, takes the earliest default of its actions that are
+   pressed before the hit, when that is earlier: "Bless/Whisper/Succor" is pressed with
+   Whispering Dawn's −6.3 s, so that the Succor lands before the hit, and
+   "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's −6 s. An entry timed by mitigation,
+   a shield, a regen or an invuln keeps its action's default.
+3. **Several hits.** An entry for the whole of a mechanic with several hits (no hit index,
+   or the first) that is pressed before the hit also covers the later hits its mitigation
+   can reach. For each party or tank mitigation or invuln item of duration D (its longest
+   effect for `when: before`), the last later hit `hR` with `hR − hit ≤ D − 2.5` is
+   covered: the press is no earlier than `hR − D + 2`, so that the effect, even used on the
+   NOW cue (§5.2), outlasts `hR` by 0.5 s, and the press stays at least 0.5 s before the
+   first hit. The item that needs the latest press times the entry (Optical Sight, hits
+   6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s).
+4. **Series.** When the hit is a later hit of a mechanic with `series: true` (on that
+   mechanic with a hit index, or on one whose hit is that hit: `p3.j_wave_5` is the fifth
+   J Wave), the press is no earlier than the hit before it + 0.3 s, minus the cast time for
+   an entry timed by a shield with a cast, so that the shield lands then; nor does the
+   reminder turn due earlier (§5.2). The J Waves come 3 s apart, closer than the default
+   leads: a shield pressed earlier would be spent on the wave before, and mitigation would
+   end before the last, strongest waves it should cover.
+
+The importer writes no offset for these rules: a plan's untimed entries follow any change
+of them.
+
 ### 5.2 States
 
-- **Upcoming:** `press − lookahead ≤ now < press − dueLead` (defaults: lookahead 15 s, dueLead 1.5 s).
-- **Due (NOW):** from `press − dueLead` until `latest`, where `latest = hit − 0.3` for
-  mitigation, shields and pre-placed heals (`when: before`), and `press + 5` for heals used
-  after the damage and anything planned after the hit (never before `press + 0.5`). Sound
-  plays once on entering Due.
+- **Upcoming:** `press − lookahead ≤ now < due` (defaults: lookahead 15 s, dueLead 1.5 s).
+- **Due (NOW):** from `due` until `latest`, where `due = press − dueLead`, but for an
+  automatic press on a later hit of a series never before the series floor (§5.1 rule 4);
+  `latest = hit − 0.3` for mitigation, shields and pre-placed heals (`when: before`), and
+  `press + 5` for heals used after the damage and anything planned after the hit (never
+  before `press + 0.5`). Sound plays once on entering Due. A press that the series floor
+  sets turns due at the press itself, without the lead (TEA's Temperance for J Wave 5, 0.3 s
+  after J Wave 4).
 - **Done:** the action (or any alternative) was used between `earliest` and `latest`,
   with `earliest = hit − D + 1` for duration effects, else `press − 10`. A use before
   `earliest` is flagged *early*. For `when: before` actions D is the longest of their
-  effects (Horoscope Helios 30 s), so a pre-placed heal still active at the hit (Bell up to
-  19 s, Excogitation up to 44 s before it) is on time, not early.
+  effects (Horoscope Helios 30 s, Neutral Sect's Helios barrier 30 s), so a pre-placed heal
+  still active at the hit (Bell up to 19 s, Excogitation up to 44 s before it) is on time,
+  not early. With an automatic press, `earliest` is also no earlier than the series floor
+  and, for an item that covers a later hit `hR` (§5.1 rule 3), than `hR − D + 0.5`, but
+  never after the press: a use before the series floor, or one that ends before `hR + 0.5`,
+  is early.
 - **Missed:** `latest` passed without a matching use (not counted for optional entries).
 - **Skipped:** the timeline jumped past the entry (phase push) before it became due.
   Exception — **phase-end reminders**: entries anchored to a phase's enrage/end mechanic
@@ -447,24 +509,29 @@ previews, which have no cooldown provider.
    the boss cast end rather than the damage (mechanics.md lists them: P2 Cosmo Memory
    +1.4 s, Hello World rounds +1.0 s, Blind Faith, P6 enrage…). This needs no phase zero and
    is immune to drift. Only items without a usable row time use `offset = (zero + t) − hit`.
-   Otherwise §5.1 defaults; parsed hints adjust the anchor (e.g. after the 1st hit). Items
-   described as happening at a phase's end are anchored to that phase's enrage/end mechanic
-   and flagged `at_phase_end` (§5.2). **As built:** δ per sheet and mechanic is the fight
-   file's `row_offsets` (§3.1). For Carry the Clear they are Blue Screen +1.0 s, the
-   Omega row +1.1 s, Blind Faith −1.2 s and the P6 enrage −14.0 s; P2 Cosmo Memory and
-   the Hello World rounds need none, because the catalog anchors them at the cast end
-   too. A timed item counts from the hit it belongs to (the first hit at or after its
-   press; for heals the last one at or before it), stored as `hit_index`.
+   Otherwise the offset stays automatic (§5.1); parsed hints adjust the anchor (e.g. after
+   the 1st hit). Items described as happening at a phase's end are anchored to that phase's
+   enrage/end mechanic and flagged `at_phase_end` (§5.2). **As built:** δ per sheet and
+   mechanic is the fight file's `row_offsets` (§3.1). For Carry the Clear they are Blue
+   Screen +1.0 s, the Omega row +1.1 s, Blind Faith −1.2 s and the P6 enrage −14.0 s; P2
+   Cosmo Memory and the Hello World rounds need none, because the catalog anchors them at
+   the cast end too. A timed item counts from the hit it belongs to (the first hit at or
+   after its press; for heals the last one at or before it), stored as `hit_index`. The
+   plan lists its entries in press order, as §5.1 times them (ties in sheet order), also
+   when step 4 changed an entry's actions, and numbers them `e001`, `e002` … in that order:
+   a change of the timing rules renumbers a plan imported again, as it did the bundled LPDU
+   plans' entries (2026-11-14). Nothing stores entry ids.
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
    fixes become personal aliases; save. **As built** (the import window, PLUGIN.md §1.7):
-   each entry with the importer's diagnostics and the plugin's checks; the user can change
-   the mechanic, hit, offset, flags, target, note and items, and delete entries; replacing
-   a note with an action offers to save the shorthand as a personal alias; the plan is
-   saved as a user plan, made the active plan when *Make it my active plan …* is ticked
-   (it is by default when entries apply to the player, counted as the overlay will select
-   them in the player's party), with the column choice that has all of the player's calls
-   when one has them without another column's (otherwise the Save step names the columns
-   of the calls left out).
+   each entry with the importer's diagnostics and the plugin's checks, and the automatic
+   offset and press time the overlay will use (§5.1); the user can change the mechanic,
+   hit, offset, flags, target, note and items, and delete entries; replacing a note with an
+   action offers to save the shorthand as a personal alias; the plan is saved as a user
+   plan, made the active plan when *Make it my active plan …* is ticked (it is by default
+   when entries apply to the player, counted as the overlay will select them in the
+   player's party), with the column choice that has all of the player's calls when one has
+   them without another column's (otherwise the Save step names the columns of the calls
+   left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
@@ -571,7 +638,9 @@ files and links; the plugin's import window adds downloading, the review and the
 
 - `tests/MitCue.Core.Tests`: the above, with LPDU's TEA sheet as a third fixture (every
   row mapped to its mechanic), plus the bundled plans: each is the importer's output for
-  its sheet fixture and valid at its fight's sync level (90 for TOP, 80 for TEA).
+  its sheet fixture, lists its entries in the scheduler's press order and is valid at its
+  fight's sync level (90 for TOP, 80 for TEA); the TEA plan's timing rules (§5.1) are
+  checked at their mechanics.
 - `tests/MitCue.Plugin.Tests`: sessions and pulls, the plan store with the automatic plan
   and column choices on the bundled plans, the co-healer's calls, the import pipeline
   (link parsing, downloads through a fake HTTP handler, pasted cells, the AI prompt and

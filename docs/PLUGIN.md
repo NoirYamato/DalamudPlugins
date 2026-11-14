@@ -147,11 +147,15 @@ TEA's phases also start on syncs MitCue sees: `Ability 4830` (Hawk Blaster) at 2
 (Temporal Stasis) at 492.0 and `Ability 4A8B` at 900.0. cactbot folds the J Waves of TEA's P3 DPS check into
 one entry, so `data/fights/tea.yaml` adds a sync per wave (`timeline_additions`, appended to the timeline when
 it loads): `Ability 4877` every 3 s from 710.9 to 755.9, each with a window of 1.4 s either way, the anchors
-of LPDU's "Jwaves (N)" rows. They are timed from BossMod and have not been checked against logs yet. In DMU,
-cactbot syncs the P2 (297.4) and P4 (1087.7) starts only on `ActorControl` lines, which MitCue does not see.
-`data/fights/dmu.yaml` therefore adds two fallback syncs: `StartsUsing C24C` (Ultimate Embrace) at 315.1 for
-P2 and `StartsUsing C2DC` (Kefka Says) at 1095.0 for P4. They are derived from cast data and have not been
-checked against logs yet. DMU's P3 (597.0) and P5 (1355.6) are entered through cactbot's own jumps.
+of LPDU's "Jwaves (N)" rows. It also adds the first Inception crystal explosion, which cactbot does not list:
+`Ability 4A88` (Tetrashatter, from a "Judgment Crystal") at 564.5, with a window of 2 s before and none after,
+since the explosions are player-timed. It can only move the clock forward, by at most 2 s, once, and the next
+boss sync (Inception, 581.0) corrects any error. These times come from BossMod and TEA guides and have not
+been checked against logs yet. In DMU, cactbot syncs the P2 (297.4) and P4 (1087.7) starts only on
+`ActorControl` lines, which MitCue does not see. `data/fights/dmu.yaml` therefore adds two fallback syncs:
+`StartsUsing C24C` (Ultimate Embrace) at 315.1 for P2 and `StartsUsing C2DC` (Kefka Says) at 1095.0 for P4.
+They are derived from cast data and have not been checked against logs yet. DMU's P3 (597.0) and P5 (1355.6)
+are entered through cactbot's own jumps.
 
 ### 1.5 Sessions, pulls and reminders
 
@@ -269,10 +273,11 @@ At the end, if anything was done, missed or skipped, the summary goes to chat wh
 
 **Reminders.** The core `ReminderScheduler` turns your plan entries into reminders: Pending, then Upcoming,
 then Due (NOW), and finally Done, Missed, Skipped, or Passed for notes and optional entries. The timing rules
-are in [DESIGN.md](DESIGN.md) §5. Done and missed rows stay visible for 3 s, or vanish at once with **Track
-done/missed** off; skipped rows show for 3 s only with **Show reminders skipped by a phase push**. At the
-lookahead time the cooldown provider is asked whether the action will be ready, which produces *ready in N s*
-and *no Lily*.
+are in [DESIGN.md](DESIGN.md) §5: an entry without a time gets the automatic press time of
+`TimingRules.ForEntry`, the one the import review and the CLI show too. Done and missed rows stay visible for
+3 s, or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show reminders
+skipped by a phase push**. At the lookahead time the cooldown provider is asked whether the action will be
+ready, which produces *ready in N s* and *no Lily*.
 
 **Recognising your presses.**
 
@@ -352,10 +357,11 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    the moment it runs (a new source sets **Slashes** back to automatic). A later change of either applies to
    **Import and review** only: the lists and their entry counts keep the trial's reading.
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
-   checks, which run again after each edit. The player can change the mechanic, hit, offset, flags, target,
-   note and items, and delete entries (with undo). Replacing a note with an action offers to remember it:
-   `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the
-   alias dictionary for later imports.
+   checks, which run again after each edit. An entry without a time shows the automatic offset and press time
+   the overlay will use (`TimingRules.ForEntry`). The player can change the mechanic, hit, offset, flags,
+   target, note and items, and delete entries (with undo). Replacing a note with an action offers to remember
+   it: `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to
+   the alias dictionary for later imports.
 4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
    and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
    compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced
@@ -486,7 +492,10 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
 - [ ] `/mitcue preview tea` plays *LPDU TEA Heal/Mit*: as White Mage `"LPDU TEA Heal/Mit" as WHM, column
       "White Mage"`, as Scholar `"LPDU TEA Heal/Mit" as SCH, column "Scholar"`. With `/mitcue preview tea
       p3`, the DPS check's calls show their J Wave as the mechanic: the sheet's *Jwaves (4)* row is *J Wave 5
-      (Brute Justice at 4 Damage Up stacks)*.
+      (Brute Justice at 4 Damage Up stacks)*. As White Mage, its Temperance turns NOW only once J Wave 4 has
+      hit (P3 3:48), without the usual 1.5 s lead. With `/mitcue preview tea p2`, the *Photon* calls (White
+      Mage: Asylum and Plenary Indulgence; Scholar: Indomitability, Recitation, Deployment Tactics,
+      Dissipation) are its heal-up: **Debug** > *reminders* lists them with press 263.5 and hit 262.5.
 - [ ] `/mitcue preview dmu` says *No plan for Dancing Mad (Ultimate). Import one in /mitcue > Plans.*
 - [ ] **Overlay** tab:
   - [ ] dragging works and the position is kept after a reload;

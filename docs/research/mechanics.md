@@ -8,21 +8,22 @@ fixtures and readers in `docs/research/sheets-import.md`.
 | File | Content |
 |---|---|
 | `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), and the `carry_the_clear` calibration. Complete and verified. |
-| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), and 16 `timeline_additions` (the J Waves, §6.2). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
+| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), 17 `timeline_additions` (the J Waves, §6.2, and the first Tetrashatter, §6.3) and timing fields on four mechanics (§6.2, §6.3). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
 | `data/fights/dmu.yaml` | Dancing Mad (Ultimate): 63 mechanics (1 marker), 145 aliases (12 unverified). First draft, no calibration. |
 
 ## 0. Results
 
 - **Timeline checks (all three files).**
   - Every `hit`/`entry` pair is an entry of the cactbot timeline (same name, same time ±0.05 s), or of the fight
-    file's `timeline_additions` (TEA's J Waves, §6.2).
+    file's `timeline_additions` (TEA's J Waves and first Tetrashatter, §6.2, §6.3).
   - Every value in `hits` is the time of a timeline entry.
   - `hits[0] == hit`, and `hits` is ascending and has no duplicates.
   - Every hit lies inside its mechanic's phase (`PhaseAt(hit) == phase`).
   - Ids are unique and carry their phase as a prefix, and mechanics are ordered by `hit`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
     sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; DMU and TEA also
-    `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`.
+    `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`
+    (TEA also the timing fields `press`, `heal_lead` and `series`, `docs/DESIGN.md` §3.1).
 - **TOP sheet coverage.**
   - All 47 mechanic rows of Carry the Clear map to a TOP mechanic. Their columns A and B are identical in the three
     tabs.
@@ -1007,7 +1008,7 @@ Details and fallbacks are in `docs/research/cactbot-timelines.md` §4.3, §5.2, 
   - It is followed by `Ability 4830` (Hawk Blaster) at 200.0, window 200,0, which is enough.
   - P4 is entered by Perfect Alexander's first auto-attack (4A8B = 19083 in `Action.csv`) at 900.0, window 900,0.
   - The J Waves of the P3 DPS check (4877) are part of one cactbot entry; `tea.yaml` adds an `Ability` sync per
-    wave (§6.2).
+    wave (§6.2), and one for the first Inception crystal explosion (4A88), which cactbot does not list (§6.3).
 - **TOP**: the `MapEffect` at the P2 start has the fallback above.
 
 ## 6. TEA (first draft)
@@ -1028,15 +1029,15 @@ Living Liquid`, `P2: BJ+CC`, `P3: Alex Prime`, `P4: Perfect Alex`):
 Damage events kept: raidwides, tankbusters, multi-hits, stacks, the LB3 check and enrages. Added when LPDU's TEA
 sheet was mapped (2026-11-14, §6.1): the untelegraphed Protean Wave sets the sheet numbers (`p1.protean_1/2`), the
 J Waves of the P3 DPS check one by one (`p3.j_wave_1..16`, §6.2), and three kinds of player-timed damage that have
-no timeline entry, each anchored on the fixed entry that marks it: the Jagd Doll feeds (Reducible Complexity, on
-cactbot's ignore line) on the second Exhaust, the Hidden Mine soaks on Enumeration, and the Judgment Crystal
-explosions (Tetrashatter) on the crystal drop.
+no cactbot entry: the Jagd Doll feeds (Reducible Complexity, on cactbot's ignore line) are anchored on the second
+Exhaust and the Hidden Mine soaks on Enumeration, the fixed entries that mark them, and the Judgment Crystal
+explosions (Tetrashatter) on the first of them, which `tea.yaml` adds to the timeline (§6.3).
 
 Left out:
 - **Dodges:** the telegraphed Protean Wave cones, Sluice, Rage Wave (but for the untelegraphed one at 115.1, a hit
   of `p1.protean_2`), Exhaust (the second one anchors `p1.doll_feeds`), Hawk Blaster puddles, Chakrams, Spin
-  Crusher, Flarethrower baits, Propeller Wind (line of sight), Judgment Crystal (the drop anchors
-  `p3.inception_crystals`), Sacrament crosses, Radiant Sacrament, Almighty Judgment exatrines.
+  Crusher, Flarethrower baits, Propeller Wind (line of sight), Judgment Crystal (the crystal drop; the first explosion
+  anchors `p3.inception_crystals`), Sacrament crosses, Radiant Sacrament, Almighty Judgment exatrines.
 - **Casts that apply debuffs or check positions without damage on success:** Throttle (`Liquid Gaol`), Judgment
   Nisi, Link-Up, Enumeration (BossMod: "does nothing on success"; it anchors `p2.hidden_mines`), Plaint of Surety,
   The Final Word, Ordained Motion/Stillness. Gavel is one too, but stays a mechanic (kind `other`) because LPDU's
@@ -1085,7 +1086,7 @@ Left out:
 | `p3.temporal_stasis` | mixed | 503.1 | 503.1, 505.1, 505.2, 506.1, 507.2, 507.4 | Surety and Severity (Ability) | 4861 Plaint of Severity (0 s, r0) | Temporal Stasis, TS (unverified) |
 | `p3.chastening_heat_1` | tankbuster | 521.5 | 521.5 | Chastening Heat (Ability) | 4A80 Chastening Heat (5 s, r5) | Chastening Heat, Chastening Heat 1 |
 | `p3.divine_spear_1` | tankbuster | 524.6 | 524.6, 526.7, 528.8 | Divine Spear 1 (unsynced) | 4A82 Divine Spear (0 s, r17) | Divine Spear, Divine Spear 1 |
-| `p3.inception_crystals` | raidwide | 558.2 | 558.2 | Judgment Crystal + True Heart (Ability) | 485C Judgment Crystal (0 s, r5); the explosions: 4A88 Tetrashatter (0 s, r80) | Inception (Crystals Boom), Crystals Boom, Crystals, Judgment Crystals, Judgment Crystal, Tetrashatter |
+| `p3.inception_crystals` | raidwide | 564.5 | 564.5 | Tetrashatter (Ability, `timeline_additions`) | 4A88 Tetrashatter (0 s, r80); the drop: 485C Judgment Crystal (0 s, r5) | Inception (Crystals Boom), Crystals Boom, Crystals, Judgment Crystals, Judgment Crystal, Tetrashatter |
 | `p3.inception` | mixed | 589.1 | 589.1, 595.3, 596.4, 597.5, 598.3 | Surety, Solidarity and Severity (Ability) | 4861 Plaint of Severity (0 s, r0) | Inception, Inception Formation |
 | `p3.chastening_heat_2` | tankbuster | 610.9 | 610.9 | Chastening Heat (Ability) | 4A80 Chastening Heat (5 s, r5) | Chastening Heat, Chastening Heat 2 |
 | `p3.divine_spear_2` | tankbuster | 616.0 | 616.0, 618.1, 620.2 | Divine Spear 1 (unsynced) | 4A82 Divine Spear (0 s, r17) | Divine Spear, Divine Spear 2 |
@@ -1149,11 +1150,13 @@ Evidence and **UNVERIFIED** points:
   Set 2 adds the tornadoes' untelegraphed waves (49B6, cactbot "Rage Wave 2", 115.1). cactbot's "Protean Wave
   1–3" names repeat in both sets, so they are not aliases.
 - The player-timed anchors (`p1.doll_feeds`, `p2.hidden_mines`, `p3.inception_crystals`) and their timing are
-  judgment calls (§6.3); the damage itself has no timeline entry and is **UNVERIFIED** against a log.
+  judgment calls (§6.3); the damage itself has no cactbot entry (the first Tetrashatter is a timeline addition) and is
+  **UNVERIFIED** against a log.
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
   is right is **UNVERIFIED**.
-- `p2.photon_1/2` set every player to 1 HP (4837 `PhotonAOE`). Mitigation has no effect; the anchors are for heals.
-  BossMod's second Photon state carries a Tankbuster hint, probably because Double Rocket Punch follows.
+- `p2.photon_1` sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` the two tanks only (community guides;
+  BossMod's second Photon state carries a Tankbuster hint, and Double Rocket Punch follows 8 s later). Mitigation has
+  no effect: both have `press: after`, so the calls planned there are the heal-up (§6.3).
 - `p2.super_jump` (Super Jump + Apocalyptic Ray): who takes the hits is **UNVERIFIED** (BossMod: the jump is baited
   on the farthest player), so it is kind `other`.
 - `p3.alexander_down` is a marker. cactbot names the line "Divine Judgment Enrage", but it syncs on 4879, which
@@ -1199,7 +1202,7 @@ spelling "Irresistable" included).
 | LPDU TEA | LL/BJCC | 52 | `Gavel Lineup` | - | `p2.gavel` | 356.5 | - | 1 |
 | LPDU TEA | LL/BJCC | 54 | `Double Rocket Punch` | - | `p2.double_rocket_punch` | 374.8 | - | 1 |
 | LPDU TEA | LL/BJCC | 56 | `Whirlwind` | - | `p2.whirlwind_3` | 395.0 | - | 4 |
-| LPDU TEA | Alex Prime/PA | 11 | `Inception (Crystals Boom)` | - | `p3.inception_crystals` | 558.2 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 11 | `Inception (Crystals Boom)` | - | `p3.inception_crystals` | 564.5 | - | 1 |
 | LPDU TEA | Alex Prime/PA | 13 | `Post-Wormhole Stack` | - | `p3.incinerating_heat` | 670.0 | - | 1 |
 | LPDU TEA | Alex Prime/PA | 15 | `Mega Holy` | - | `p3.mega_holy_1` | 682.9 | - | 2 |
 | LPDU TEA | Alex Prime/PA | 17 | `JKick` | - | `p3.j_storm` | 705.7 | - | 1 |
@@ -1250,19 +1253,34 @@ anchor on and to sync:
   `J Wave (n−1)`, `Jwave (n−1)` and, from wave 3, `After n−1 stacks`; wave 1 also `Jwaves (0-3)` and the like.
   `p3.j_waves` is the umbrella of all 16 (`J Waves`, `Jwaves`), for rows that cover the waves as one. `p3.j_storm`
   is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
+- **Series.** `p3.j_waves` has `series: true`: a call without a time for wave n > 1 (on `p3.j_wave_n`, or on the
+  umbrella with a hit index) is pressed no earlier than wave n − 1 + 0.3 s, and turns NOW no earlier
+  (`docs/DESIGN.md` §5.1, §5.2); a shield with a cast is started so that it lands then. The default leads (3–6 s) are
+  longer than the 3 s between waves, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before
+  the last, strongest waves it should cover. LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2
+  and 732.2; their Succors (a 2 s cast) keep −4.5 s and turn NOW at 718.2 and 730.2.
 
 ### 6.3 Judgment calls (TEA)
 
 1. **`Doll Feeds` → `p1.doll_feeds`**, anchored on the second Exhaust (481E, 50.3). The Reducible Complexity
-   raidwides (4820) come when a Jagd Doll below 25% HP is fed to Living Liquid or the Hand: the melee dolls after
-   the first Exhaust, the ranged ones after the next, all before Fluid Swing 3 (56.7) (community guides). The
-   default press times (about 44–47 s) cover the feeds.
+   raidwides (4820) come when a Jagd Doll below 25% HP is fed to Living Liquid or the Hand. The feed order varies
+   (community guides): the melee dolls as the tanks centre the bosses after the first Exhaust (39.7; ~41–45 s) and
+   the ranged ones after the second, or one doll at ~43–48 s, one after the second Exhaust and two after Fluid Swing
+   3 (56.7). The entry before the second Exhaust, Hand of Pain 1 (42.8), would press the row's Sacred Soil and
+   Kerachole within their 30 s recast of the Cascade row's (~15 s). The row's automatic press times (about 44–47 s)
+   cover the feeds from ~45 s on; an early melee pair lands before most of them.
 2. **`Mines` → `p2.hidden_mines`** (kind `tankbuster`), anchored on Enumeration (4850, 292.7), the start of the soak
    window: once the Enumeration stacks and the ice puddle resolve, the tanks run over the two mines (4852 Hidden
    Mine, player-timed). An unsoaked mine explodes for the raid about 6.3 s after the ice (4853, ~299.8, BossMod).
-3. **`Inception (Crystals Boom)` → `p3.inception_crystals`**, anchored on the crystal drop (485C, 558.2). Each crystal
-   the True Heart crosses explodes (4A88 Tetrashatter) about 6–10 s later, before the first Flarethrower (569.5).
-   The verbatim label is an alias because its simplified form, "inception", is `p3.inception`'s.
+3. **`Inception (Crystals Boom)` → `p3.inception_crystals`**, anchored on the first crystal explosion (4A88
+   Tetrashatter, 564.5). The crystal drop (485C, 558.2) leaves four crystals; each one the True Heart crosses
+   explodes about 6–10 s later, before the first Flarethrower (569.5): ~564–568 s (community guides). cactbot lists
+   no Tetrashatter, so `tea.yaml` adds `564.5 "Tetrashatter" Ability { id: "4A88", source: "Judgment Crystal" } window
+   2,0`. The explosions are player-timed, so the window only catches an early one: from 562.5 to 564.5 it can move
+   the clock forward by at most 2 s, once, a later explosion never moves it back, and the next boss sync (485E
+   Inception, 581.0) corrects any error. Anchored there, 15 s mitigation pressed for the row lasts through the fourth
+   explosion; anchored on the drop, it could end before the last ones. The verbatim label is an alias because its
+   simplified form, "inception", is `p3.inception`'s.
 4. **`JKick` in P3 → `p3.j_storm`.** P3 has no J Kick (4854); Brute Justice's landing there is J Storm (4876,
    705.7). `JKick` and `J Kick` are aliases of `p2.j_kick` and `p3.j_storm`, and the phase decides.
 5. **`Gavel Lineup` → `p2.gavel`**: the Nisi lineup behind the frozen tornado that blocks Propeller Wind (4832,
@@ -1271,6 +1289,17 @@ anchor on and to sync:
    the importer makes each optional (`shared-limit-break`).
 7. **`Whirlwind` (row 56) → `p2.whirlwind_3`** (395.0) by row order. P2's fourth Whirlwind (403.1) has no row, so
    the 10 s Reprisal of that row covers the third only.
+8. **`Photon` → `p2.photon_1`, with `press: after`**, like `p2.photon_2`, which no row names. Photon sets HP to 1 (the
+   second, the tanks' only), so what is pressed before it is lost: the calls planned there without a time are the
+   heal-up, pressed 1 s after the hit like heals (`docs/DESIGN.md` §5.1), mitigation and shields too (the sheet's
+   C32 tip: Soil/Kera "immediatly after Photon"). An entry's actions share one press time, so the White Mage's
+   `Asylum/Plenary` ('LL/BJCC'!G40) moves after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum (G52,
+   P2 2:29), within Asylum's 90 s recast: `mitcue check --job WHM` reports the conflict, and in game the Gavel Asylum
+   shows *ready in N s*. Keeping the regen before Photon would need the cell split.
+9. **`Double Rocket Punch` → `p2.double_rocket_punch`, with `heal_lead: 4`.** The second Photon leaves both tanks at
+   1 HP 8 s before the buster (374.8; its 4 s cast starts 3.4 s after the drop, BossMod). Heals planned on the row
+   without a time ('LL/BJCC'!G54 `Benison (Tank)/Benediction`) are pressed 4 s before the hit, with the row's
+   shields, and turn NOW 5.5 s before it, after the drop (~367.1), instead of 1 s after the buster.
 
 ## 7. DMU (first draft)
 
@@ -1415,8 +1444,8 @@ filled. This is **UNVERIFIED** and irrelevant to the catalog.
 3. `ActorControl` support for DMU (§5.5), and how to trigger reminders "before the phase ends" (§4.6 item 6).
 4. Why the Carry the Clear P5/P6 times drift against cactbot by 0.5–0.75 s per 100 s (§4.2).
 5. TEA/DMU: confirm the UNVERIFIED damage events with a log or a real plan before shipping plans for them. TEA's
-   plan ships since 2026-11-14 (LPDU's sheet, §6.1); its player-timed anchors (§6.3) and the J Wave times (§6.2)
-   are still to be checked against a log.
+   plan ships since 2026-11-14 (LPDU's sheet, §6.1); its player-timed anchors (§6.3, the Tetrashatter sync among
+   them) and the J Wave times (§6.2) are still to be checked against a log.
 
 ## Appendix: TOP mechanics (summary of `top.yaml`)
 
