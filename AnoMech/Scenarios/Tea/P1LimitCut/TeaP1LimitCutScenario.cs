@@ -154,7 +154,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
     }
 
     // Behind is the reverse of the way the player faces as he lands. In the client he stayed unseen at his later
-    // landings when only the first played a warp-in, so every landing plays one.
+    // landings when only the first played a warp-in, so every landing plays one. UNVERIFIED: that this shows him at
+    // each.
     private void LandBehind(int number)
     {
         landedBehind = null;

@@ -125,8 +125,8 @@ public static class TeaP1Constants
         public const float TornadoRingRadius = 14.5f;               // UNVERIFIED; drawn between 14.3 and 15.0
         // UNVERIFIED; between 7.0 and 7.6. The larger, so a player learns the wider berth.
         public const float PuddleRadius = 7.6f;
-        public const float ProteanWaveHalfAngle = MathF.PI / 12f;   // not on the sheet
-        public const float CleaveHalfAngle = MathF.PI / 4f;         // not on the sheet
+        public const float ProteanWaveHalfAngle = MathF.PI / 12f;   // UNVERIFIED; not on the sheet
+        public const float CleaveHalfAngle = MathF.PI / 4f;         // UNVERIFIED; not on the sheet
         public const float DrainageRadius = 6f;
         public const float EmbolusContact = 1f;                     // UNVERIFIED
 
@@ -159,7 +159,8 @@ public static class TeaP1Constants
         public const float JKickDamageDelay = 1f;
         public const float HawkBlasterAnimationLock = 0.6f;         // UNVERIFIED; its helper is busy until then
 
-        // The fight's clock as each Living Liquid part starts.
+        // The fight's clock as each Living Liquid part starts. UNVERIFIED as LimitCutIntoTheTrack: that the track
+        // starts with the pull.
         public const float ProteanOneIntoTheTrack = 62f;
         public const float CascadeTwoIntoTheTrack = 85.8f;
         public const float WaterResistanceDown = 5f;                // UNVERIFIED; 3.1 to 6.0 by how the strats space the waves
