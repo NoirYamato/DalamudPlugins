@@ -20,7 +20,8 @@ namespace AnoMech.Tests;
 // A player's speeds; a sprinter sprints the long walks.
 public enum TeaP1HumanPace { Walking, Sprinting }
 
-// Where the human stands for a bait: on its spot, a yalm farther from the Living Liquid, or a yalm to the side.
+// Where the human stands for a bait: on its spot, a yalm farther from the Living Liquid, or a yalm to the side; never
+// in water it can see.
 public enum TeaP1HumanStance { Exact, AYalmOut, AYalmAside }
 
 // What a human in the stack does with a Drainage tether that starts on it.
@@ -40,6 +41,12 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // Protean 1's second set through Drainage, and (-0.8, -7.4) for Protean 2's stack. The Living Liquid walks up to
     // 4 y from it.
     public bool MaxMelee { get; init; }
+
+    // The main tank turns the Living Liquid this many degrees clockwise of north for Protean 2's telegraph.
+    public float TurnsItOffNorth { get; init; }
+
+    // The main tank never walks the Living Liquid back onto the middle: it turns it north where its fetch left it.
+    public bool LeavesTheLiquidWhereItStands { get; init; }
 
     public bool NeverFetches { get; init; }
 
@@ -146,7 +153,8 @@ internal sealed class TeaP1LivingLiquidHuman
         if (roll.Plays(Cascade2)) legs.AddRange(FromCascadeTwo());
     }
 
-    // One run with the human in its seat, the strat pressing nothing for it. A tank's own cooldowns count.
+    // One run with the human in its seat from the first frame, as the plugin has it: nothing but that tells the strat
+    // to press nothing for it. A tank's own cooldowns count.
     public static (ScenarioRun Run, TeaP1LivingLiquidHuman Human) Play(Roll roll, TeaP1LivingLiquidHumanPlay play, int seed,
         bool mayLose = false, Action<TeaP1LivingLiquidStateOverrides>? pin = null, Action<ScenarioProbe>? probe = null, float? stopAt = null)
     {
@@ -161,7 +169,7 @@ internal sealed class TeaP1LivingLiquidHuman
             Overrides = o =>
             {
                 var overrides = (TeaP1LivingLiquidStateOverrides)o;
-                (roll with { PlayerPressesItsOwnActions = true }).Pin(overrides);
+                roll.Pin(overrides);
                 pin?.Invoke(overrides);
             },
             Takeovers = [new Takeover(0f, null)],
@@ -207,18 +215,23 @@ internal sealed class TeaP1LivingLiquidHuman
 
         if (seat == MainTank)
         {
-            yield return new(NewTornadoes, 0.5f, p => TheLiquidLooksOffTheMiddle(p) ? Vector2.Zero : null);
-            yield return new(NewTornadoes, 1.3f, p => TheLiquidLooksOffTheMiddle(p) ? -Vector2.Normalize(TheLiquid(p)) * 4f : null, Follows: true);
-            yield return new(NewTornadoes, 3.6f, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f)) : Spot(p, Cascade2, 9.5f), Follows: true);
+            if (!play.LeavesTheLiquidWhereItStands)
+            {
+                yield return new(NewTornadoes, 0.5f, p => TheLiquidLooksOffTheMiddle(p) ? Vector2.Zero : null);
+                yield return new(NewTornadoes, 1.3f, p => TheLiquidLooksOffTheMiddle(p) ? -Vector2.Normalize(TheLiquid(p)) * 4f : null, Follows: true);
+            }
+            yield return new(NewTornadoes, 3.6f, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
+                : play.TurnsItOffNorth != 0f ? Frame2.ToArena(Stage.Off(TheLiquidIn(p, Frame2), 3.9f, play.TurnsItOffNorth))
+                : Spot(p, Cascade2, 9.5f), Follows: true);
         }
         else yield return new(Throttle, 1.5f, p => Spot(p, Cascade2, 12.0f));
 
-        yield return new(Nth(Telegraph, Cascade2), 0.5f, p => Spot(p, Cascade2, 18.7f));
-        if (seat == MeleeDpsA) yield return new(Nth(TelegraphFired, Cascade2), 0.1f, p => Spot(p, Cascade2, 21.3f));
+        yield return new(Nth(Telegraph, Cascade2), 0.5f, p => Bait(p, Spot(p, Cascade2, 18.7f)));
+        if (seat == MeleeDpsA) yield return new(Nth(TelegraphFired, Cascade2), 0.1f, p => Bait(p, Spot(p, Cascade2, 21.3f)));
         if (seat == MainTank) yield return new(Nth(Set, Cascade2), 0.05f, p => Spot(p, Cascade2, 23.35f));
-        if (FarFour.Contains(seat)) yield return new(TornadoAim, 0.05f, p => Spot(p, Cascade2, 24.25f), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
-        if (seat is MeleeDpsA or MeleeDpsB) yield return new(TornadoAim, 0.05f, p => Spot(p, Cascade2, 24.25f));
-        if (seat == OffTank) yield return new(TornadoAim, 1.0f, p => Spot(p, Cascade2, 27.0f));
+        if (FarFour.Contains(seat)) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
+        if (seat is MeleeDpsA or MeleeDpsB) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)));
+        if (seat == OffTank) yield return new(TornadoAim, 1.0f, p => Bait(p, Spot(p, Cascade2, 27.0f)));
         yield return new(UnseenTornadoWaves, 0.05f, p => Spot(p, Cascade2, 29.35f));
         if (seat != OffTank) yield return new(Glow, 0.3f, p => SawAPalm == true ? Spot(p, Cascade2, 33.5f) : null);
         else if (play.BringsTheHandIn is { } bringsLate) yield return new(Glow, 0.3f + bringsLate, p => SawAPalm == true ? Spot(p, Cascade2, 33.5f) : null);
@@ -340,7 +353,11 @@ internal sealed class TeaP1LivingLiquidHuman
     {
         if (spot is not { } on || play.Stance == TeaP1HumanStance.Exact) return spot;
         var outward = Vector2.Normalize(on - TheLiquid(p));
-        return on + (play.Stance == TeaP1HumanStance.AYalmOut ? outward : new Vector2(-outward.Y, outward.X));
+        var stands = on + (play.Stance == TeaP1HumanStance.AYalmOut ? outward : new Vector2(-outward.Y, outward.X));
+        foreach (var centre in TheWater(p))
+            if (Vector2.Distance(stands, centre) < KeepsClearOfTheWater + 0.1f)
+                stands = centre + Vector2.Normalize(stands - centre) * (KeepsClearOfTheWater + 0.1f);
+        return stands;
     }
 
     private Vector2? WhereItStoodForDrainage(ScenarioProbe p)
