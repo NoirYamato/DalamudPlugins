@@ -178,6 +178,8 @@ public class ActionCatalogTests
 
         var neutral = A("Neutral Sect"); // a buff pressed in time for the Aspected Helios that puts up its barrier
         Assert.Equal((ActionKind.Buff, UseTiming.Before, 4.5), (neutral.Kind, neutral.When, neutral.Lead!.Value));
+        var wings = A("Passage of Arms");  // a channel any action ends: pressed last
+        Assert.Equal((ActionKind.PartyMit, UseTiming.Before, 2.0), (wings.Kind, wings.When, wings.Lead!.Value));
 
         var caress = A("Divine Caress");
         Assert.Equal(3881u, caress.RequiresStatus);

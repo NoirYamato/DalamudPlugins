@@ -370,6 +370,7 @@ public class TimingRulesTests
     [InlineData("Horoscope", -3, 71, 99.7)]
     [InlineData("Macrocosmos", -4.5, 86, 99.7)]
     [InlineData("Neutral Sect", -4.5, 71, 99.7)]        // its barrier (after a Helios) lasts 30 s
+    [InlineData("Passage of Arms", -2, 83, 99.7)]       // a channel: pressed last; on time from 17 s before (18 s)
     [InlineData("Tetragrammaton", 1, 91, 106)]          // a heal without "when": after the damage
     [InlineData("Healing Wind", 2, 92, 107)]            // healer LB1 ("when: after")
     [InlineData("Pulse of Life", 2, 92, 107)]
@@ -391,6 +392,19 @@ public class TimingRulesTests
     [InlineData(100, "Helios Conjunction")]
     public void RealCatalog_NeutralSectIsPressedNoLaterThanTheHeliosItEnables(int level, string helios) =>
         Assert.True(TimingRules.DefaultOffset(RepoFiles.Action("Neutral Sect"), level) <= TimingRules.DefaultOffset(RepoFiles.Action(helios), level));
+
+    /// <summary>Passage of Arms is a channel any other action ends: the Paladin's Reprisal and Divine Veil for the same hit come first.</summary>
+    [Theory]
+    [InlineData(80)]
+    [InlineData(90)]
+    [InlineData(100)]
+    public void RealCatalog_PassageOfArmsIsPressedAfterThePaladinsOtherMitigation(int level)
+    {
+        var wings = TimingRules.DefaultOffset(RepoFiles.Action("Passage of Arms"), level);
+        Assert.Equal(-2, wings, Kit.Tolerance);
+        Assert.True(wings > TimingRules.DefaultOffset(RepoFiles.Action("Reprisal"), level));
+        Assert.True(wings > TimingRules.DefaultOffset(RepoFiles.Action("Divine Veil"), level));
+    }
 
     [Fact]
     public void RealCatalog_EveryBeforeActionIsPressedBeforeTheHit_EveryAfterActionAfterIt()

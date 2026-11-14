@@ -113,6 +113,30 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// "PLD Wings" in Extras with the Paladin's own calls for the same hit ('LL/BJCC' C11/M11 Cascade and C54/M54 Double
+    /// Rocket Punch as MT; 'Alex Prime/PA' D23/M23 J Wave 7 and D47/M47 Irresistible Grace 2 as OT): Passage of Arms is a
+    /// channel any other action ends, so it is the Paladin's last press before the hit, after the Reprisal and Divine Veil.
+    /// </summary>
+    [Theory]
+    [InlineData("MT", "p1.cascade_1", "p2.double_rocket_punch")]
+    [InlineData("OT", "p3.j_wave_7", "p4.irresistible_grace_2")]
+    public void PassageOfArms_IsThePaladinsLastPressBeforeTheHit(string slot, string first, string second)
+    {
+        var plan = PlanImports.LpduTea.Plan;
+        var me = ColumnSuggestion.Context(ColumnSuggestion.Suggest(plan, Job.PLD, slot), Job.PLD, slot, 80);
+        var mine = new ReminderScheduler(PlanImports.Tea, PlanSelection.For(plan, me).ToList(), RepoFiles.Actions, new ReminderOptions()).All;
+        foreach (var mechanic in new[] { first, second })
+        {
+            var atHit = mine.Where(r => r.Mechanic.Id == mechanic).ToList();
+            var wings = Assert.Single(atHit, r => r.Item.Name == "Passage of Arms");
+            var others = atHit.Where(r => r != wings).ToList();
+            Assert.NotEmpty(others);
+            Assert.All(others, r => Assert.True(r.PressAt < wings.PressAt, $"{mechanic}: {r.Item.Name} at {r.PressAt}, Passage of Arms at {wings.PressAt}"));
+            Assert.True(wings.PressAt < wings.Hit);
+        }
+    }
+
+    /// <summary>
     /// 'LL/BJCC'!G40 "Asylum/Plenary": Plenary Indulgence (10 s, Confession on the heal-up GCDs) is pressed after the drop
     /// to 1 HP, not 7.2 s before it with Asylum's regen lead.
     /// </summary>

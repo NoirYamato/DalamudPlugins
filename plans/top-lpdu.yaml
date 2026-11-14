@@ -2681,54 +2681,48 @@ entries:
     src: "'DRK/PLD'!B12"
   - id: e379
     mechanic: p6.wave_cannon_2
-    who: {job: PLD, assignee: CM Rep Tank}
-    do:
-      - {action: 7385, name: Passage of Arms}
-    src: "'P6'!C5"
-  - id: e380
-    mechanic: p6.wave_cannon_2
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
       - {action: 24292, name: Eukrasian Prognosis}
       - {action: 24310, name: Holos}
     src: "'P6'!G5"
-  - id: e381
+  - id: e380
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/DRK WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/DRK'!B12"
-  - id: e382
+  - id: e381
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/GNB WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/GNB'!B12"
-  - id: e383
+  - id: e382
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: WAR/PLD WAR}
     do:
       - {action: 44, name: Vengeance}
       - {action: 25751, name: Bloodwhetting}
     src: "'WAR/PLD'!B12"
-  - id: e384
+  - id: e383
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: GNB/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'GNB/PLD'!C12"
-  - id: e385
+  - id: e384
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
       - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
     target: Co-Tank
     src: "'WAR/DRK'!C12"
-  - id: e386
+  - id: e385
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: CM LB Tank}
     do:
@@ -2736,7 +2730,7 @@ entries:
     note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e387
+  - id: e386
     mechanic: p6.wave_cannon_2
     who: {job: WAR, assignee: CM LB Tank}
     do:
@@ -2744,7 +2738,7 @@ entries:
     note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e388
+  - id: e387
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: CM LB Tank}
     do:
@@ -2752,7 +2746,7 @@ entries:
     note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e389
+  - id: e388
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: CM LB Tank}
     do:
@@ -2760,7 +2754,7 @@ entries:
     note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B5"
-  - id: e390
+  - id: e389
     mechanic: p6.wave_cannon_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
@@ -2769,7 +2763,7 @@ entries:
     note: Neutralsect shields for proteans
     detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E5"
-  - id: e391
+  - id: e390
     mechanic: p6.wave_cannon_2
     who: {slot: M2, assignee: M2}
     do:
@@ -2777,47 +2771,53 @@ entries:
     note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
     detail: ">>Holy Melee LB3 Bible<<\nDiscuss Feints and LB3s during the cutscene!!\nUse personals and self healing all during Meteors!"
     src: "'P6'!I5"
-  - id: e392
+  - id: e391
     mechanic: p6.wave_cannon_2
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P6'!K5"
-  - id: e393
+  - id: e392
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: Co-Tank
     src: "'WAR/GNB'!C12"
-  - id: e394
+  - id: e393
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {action: 7382, name: Intervention}
     target: Co-Tank
     src: "'WAR/PLD'!C12"
-  - id: e395
+  - id: e394
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: Co-Tank
     src: "'DRK/GNB'!C12"
-  - id: e396
+  - id: e395
     mechanic: p6.wave_cannon_2
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {action: 7382, name: Intervention}
     target: Co-Tank
     src: "'DRK/PLD'!C12"
-  - id: e397
+  - id: e396
     mechanic: p6.wave_cannon_2
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {action: 25758, name: Heart of Corundum}
     target: Co-Tank
     src: "'GNB/PLD'!B12"
+  - id: e397
+    mechanic: p6.wave_cannon_2
+    who: {job: PLD, assignee: CM Rep Tank}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'P6'!C5"
   - id: e398
     mechanic: p6.wave_cannon_2
     who: {job: DRK, assignee: WAR/DRK DRK}
