@@ -963,10 +963,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         }
 
-        HelpMarker(
-            "What \"X/Y\" between two actions of one job means. Automatic: all of them when the sheet joins actions no other way " +
-            "(no \"+\") and lists three or more with \"/\" (Soil/Reci/Deploy/Whisper), else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
-            "The review's notes about the whole import say which reading was used.");
+        HelpMarker(SlashesHelp);
 
         var (canImport, why) = this.CanImport(data);
         using (ImRaii.Disabled(!canImport || this.jobs.Busy))
@@ -1000,6 +997,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The Slashes choice's help: the importer's automatic reading exactly (PlanImporter's "slash-reading" diagnostic says
+    /// the same with the cells it counted).
+    /// </summary>
+    internal const string SlashesHelp =
+        "What \"X/Y\" between two actions of one job means. Automatic: all of them when no cell joins actions another way " +
+        "(\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job " +
+        "with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
+        "The cells of every tab count, whichever tabs and columns you import. The review's notes about the whole import say " +
+        "which reading was used.";
 
     /// <summary>The Slashes choice as the combo shows it.</summary>
     internal static string SlashLabel(SlashReading reading) => reading switch
