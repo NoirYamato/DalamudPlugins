@@ -113,8 +113,11 @@ after is a connector/target, or a time on the same line ("Soil      0:12"). "and
 # Import — back half
 
 Steps 4–7 (`docs/DESIGN.md` §6; step 8, the review, is the plugin's import window): `new PlanImporter().Import(document,
-options)` → `ImportResult` (`Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`). Check any plan (imported, hand-written,
-LLM) with `PlanValidator.Validate(plan, fight, actions)`.
+options)` → `ImportResult`: `Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`, the document's own readings that the
+plugin's AI prompt states for the sheet it includes (`DocumentSlashes`: "/" between one job's actions, also when
+`ImportOptions.Slashes` overrides it; `SeraphNumbered`: a plain "Seraph" means "Seraph1"), and for the import window
+`Rows` (each row's mechanic) and `AnyoneColumns` ("Extras"). Check any plan (imported, hand-written, LLM) with
+`PlanValidator.Validate(plan, fight, actions)`.
 
 ```
 DocumentLayout ─► rows ─► MechanicResolver (alias in phase; repeated labels by time or row order)
@@ -186,7 +189,8 @@ Rules worth knowing:
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
-  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. "All of
+  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why
+  (`ImportResult.DocumentSlashes` is the document's own reading). "All of
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
   `and/or`. In both readings, slots and tank target words joined by `/` after an action are one target, either of them
   (`Benison MT/Co-tank`), and `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an
@@ -196,7 +200,8 @@ Rules worth knowing:
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
   Otherwise a plain `Seraph` is Summon Seraph alone (Carry the Clear writes its Consolations apart). Every plan tab
-  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one.
+  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one, and
+  `ImportResult.SeraphNumbered` says that the document numbers its Seraph calls.
 - **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
   `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
