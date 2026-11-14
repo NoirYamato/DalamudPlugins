@@ -196,9 +196,9 @@ if no pull starts).
 | *Reminders* | | |
 | Track done/missed (keep used and missed calls listed with a check or a cross) | on | Off: a call disappears once used or once its time has passed, and no summary is printed |
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
-| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). In a party, not the columns of jobs nobody in the party plays, nor a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
+| Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). A role column's calls for a job without a column of its own are that job's: on the TEA plan a DPS sees the other ranged jobs' *Phys Range* and *Caster* calls. In a party, not the columns of jobs nobody in the party plays, nor a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
-| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU's TOP plan misses the calls of its MT or OT slot and on the TEA plan gets the MT's, and a melee job misses those of its M1 or M2 seat on both). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs your column and calls are chosen as if it were not set |
+| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU's TOP plan misses the calls of its MT or OT slot and on the TEA plan gets the MT's, and a melee job misses those of its M1 or M2 seat on both; the Status line then says so). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs your column and calls are chosen as if it were not set |
 | Run /mitcue preview at 4x speed | off | Preview speed |
 | *Recording* | | |
 | Record pulls (event log for tuning the sync; no player names) | off | Writes a log of each duty or fight-zone visit (see [Recording pulls](#recording-pulls)). The folder is shown under the checkbox |
@@ -271,10 +271,13 @@ job (in green).
   *NoirMit - WHM*. DMU has no bundled plan, so there your own plan is the automatic one. In TEA it is the
   automatic one only for a job that *LPDU TEA Heal/Mit* does not name: a TEA plan you imported without making
   it your active plan gives way to the bundled LPDU plan until you choose it here. The share code of a bundled
-  plan takes that plan's place until it is deleted, and so stays the automatic plan of the job the bundled
-  plan is meant for. For any other job the copy counts as one of your own plans: once you import the share
-  code of *LPDU TEA Heal/Mit*, which is meant for no job, the first of your TEA plans by name that names your
-  job is the automatic one.
+  plan takes that plan's place until it is deleted, also as the automatic plan: a copy of *LPDU TEA Heal/Mit*
+  stays the TEA plan of every job it names.
+
+  An update from 0.1.0.6 or older keeps the plan each job had. Where the new rules would give a job another
+  plan without a choice of yours, above all where a TEA plan of your own was the job's plan (no TEA plan came
+  with MitCue then), MitCue chooses the old plan for that job, once: this table then shows it without
+  *(automatic)*. Your choices, *(no plan)* included, stay.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
   calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
   column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,
@@ -292,12 +295,16 @@ job (in green).
   TEA plan, whose tank calls are per seat (*Tank 1* = MT, *Tank 2* = OT), a tank without that setting gets
   the MT's: the off-tank sets it to OT. Calls for no job in a slot's column (LPDU's M1 and M2 for melee
   jobs) give no seat: they are yours when **My usual party slot** is that slot, or when you choose that
-  column here. Columns for team compositions (LPDU's tank pairs) are alternatives, and one composition's
-  columns in several phase tabs count as one: a tank gets the pair with the party's co-tank (a Warrior next
-  to a Paladin: *WAR/PLD WAR*; without a party, the first: *WAR/DRK WAR*), plus the calls of their MT or OT
-  slot, also those for any tank (Reprisal, Rampart), when **My usual party slot** is MT or OT. A party that
-  plays none of your job's compositions gets your job's column that is not for one, if the plan has it. The
-  *CM LB Tank* and *CM Rep Tank* columns are left out: pick one here to follow it instead.
+  column here. MitCue says when it has to guess your seat, or leaves a slot's calls out because it knows none:
+  the Status line ends with *Your slot is a guess: MT (the plan has WAR calls in MT and OT). If you play OT,
+  …* or *Your slot (M1 or M2) is not known, so its calls are not shown: …*, and the setting that fixes it;
+  chat says it once, and this column reads *(suggested, a guess)* or *(suggested, no slot)*, with the same
+  text when you hover it. Columns for team compositions (LPDU's tank pairs) are alternatives, and one
+  composition's columns in several phase tabs count as one: a tank gets the pair with the party's co-tank (a
+  Warrior next to a Paladin: *WAR/PLD WAR*; without a party, the first: *WAR/DRK WAR*), plus the calls of
+  their MT or OT slot, also those for any tank (Reprisal, Rampart), when **My usual party slot** is MT or OT.
+  A party that plays none of your job's compositions gets your job's column that is not for one, if the plan
+  has it. The *CM LB Tank* and *CM Rep Tank* columns are left out: pick one here to follow it instead.
 
 ### Importing a plan
 
@@ -315,8 +322,10 @@ steps.
      TEA tabs) is one tab. Pasted cells carry no colours.
    - **Paste plan YAML (AI route):** for layouts MitCue can't read. Check the fight and the jobs (yours is
      ticked), click **Copy AI prompt** and paste the prompt into any AI chat. If you loaded the sheet first,
-     the prompt already holds the plan; otherwise paste the plan after it. Paste the AI's answer back and click
-     **Check the YAML and review**. A MitCue plan file (YAML or JSON) can be pasted here too.
+     the prompt already holds the plan, and says how MitCue reads `X/Y` between one job's actions in it (your
+     **Slashes** choice, else the sheet's own reading); otherwise paste the plan after it. Paste the AI's
+     answer back and click **Check the YAML and review**. A MitCue plan file (YAML or JSON) can be pasted here
+     too.
 2. **Options:** the fight, the tabs and columns to import (MitCue ticks yours after looking at the tabs), the
    plan name, the calibration preset and **Slashes**. A column of calls for anyone (*Extras*, *Other*, *Misc*
    or *Utility*) is no choice: it is always imported, and the window says so (*Always imported: Extras - N
@@ -326,7 +335,8 @@ steps.
    (TBN/Oblation)* or *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when no cell of
    the sheet joins actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line break) and at least
    two cells list several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
-   (`Soil/Reci/Deploy/Whisper`), else either one; the review's notes about the whole import say which. Click
+   (`Soil/Reci/Deploy/Whisper`), else either one. The cells of every tab count, whichever tabs and columns you
+   import, and the review's notes about the whole import say which reading was used. Click
    **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
    ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
@@ -336,13 +346,16 @@ steps.
 4. **Save:** the plan name; **Save as** a new plan or in place of an earlier import of the same sheet (which
    keeps that plan's active-plan and column settings; an import that kept the export's tab names, such as
    `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
-   calls for your job (this step counts them as the overlay will show them, in your current party).
-   Unticked, the plan is only saved: your job keeps the plan it has where a bundled plan or your choice
-   covers it (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)), and the chat
-   line after saving says which plan is active for your job. When your calls are in several columns of your
-   job (one per phase or tab), the plan is saved with the column choice that has them all. When no choice
-   has all of your calls without another column's (a general tank column next to several tank-pair
-   columns), this step names the columns of the calls left out: check **My column** after saving.
+   calls for your job (this step counts them as the overlay will show them, in your current party). Notes for
+   everyone, such as LPDU TEA's *Use Personals*, are shown to you too but are no call of your job: when only
+   they apply, this step says *Only 2 notes for everyone apply to you as NIN: check the columns you imported.*
+   and the box starts unticked. Unticked, the plan is only saved: your job keeps the plan it has where a
+   bundled plan or your choice covers it (see [Which plan and column MitCue
+   uses](#which-plan-and-column-mitcue-uses)), and the chat line after saving says which plan is active for
+   your job. When your calls are in several columns of your job (one per phase or tab), the plan is saved with
+   the column choice that has them all. When no choice has all of your calls without another column's (a
+   general tank column next to several tank-pair columns), this step names the columns of the calls left out:
+   check **My column** after saving.
 
 MitCue reads a sheet with a row per mechanic (with or without times) and a column per player: a slot (`MT`,
 `H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
@@ -367,8 +380,8 @@ it, and closing the window cancels it too.
   of a bundled plan replaces the bundled one until it is deleted. Tick **Make an imported share code my
   active plan as …** (above **Import share code**, shown while you are on a combat job; unticked each time
   MitCue loads) to also make the plan your active plan for its fight as your current job, if it has calls
-  for that job: calls the overlay would show you, with your column and **My usual party slot**. Unticked,
-  the plan is only saved, for example to look at your co-healer's
+  for that job: calls the overlay would show you, with your column and **My usual party slot**, not counting
+  notes for everyone. Unticked, the plan is only saved, for example to look at your co-healer's
   (see [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
   The message under the box then says which plan your job has: *It is your active plan for TOP as WHM.*,
   *Your active plan for TOP as WHM stays "NoirMit - WHM": choose this one in the table above to use it.*, or
@@ -422,12 +435,16 @@ The Status line names the plan in use: `Ready: <plan> (N of M entries are yours)
 **Active plan** (Plans tab), MitCue uses the bundled plan for your job. A plan you imported or received
 as a share code is used when you made it your active plan (in the import window, with the share-code
 checkbox, or under **Active plan**), when no bundled plan names your job, or when it is the share code of
-the bundled plan for your job: it takes that plan's place until you delete it (see [Which plan and column
-MitCue uses](#which-plan-and-column-mitcue-uses)). In TEA, *LPDU TEA Heal/Mit* names every job but the melee
-jobs other than the Monk, so a TEA plan you imported without making it your active plan is used only once
-you choose it, or, after you imported the LPDU plan's own share code, when it is the first of your TEA plans
-by name. Choose your plan under **Active plan**; *(automatic: …)* goes back to the bundled plan for your job.
-If you imported a share code of that plan, delete the copy to get the bundled one back.
+a bundled plan: it takes that plan's place until you delete it (see [Which plan and column MitCue
+uses](#which-plan-and-column-mitcue-uses)). In TEA, *LPDU TEA Heal/Mit* names every job but the melee jobs
+other than the Monk, so a TEA plan you imported without making it your active plan is used only once you
+choose it; an update from 0.1.0.6 or older chose it for the jobs whose plan it was. Choose your plan under
+**Active plan**; *(automatic: …)* goes back to the bundled plan for your job. If you imported a share code
+of that plan, delete the copy to get the bundled one back.
+
+The Status line also says when your seat in the plan is a guess, or when a slot's calls are left out because
+MitCue does not know your slot (*Your slot is a guess: …*, *Your slot (M1 or M2) is not known …*): set **My
+usual party slot**, or choose your column under **My column**.
 
 **Reminders come too early or too late, or the clock jumps**
 

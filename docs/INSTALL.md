@@ -67,6 +67,10 @@ a few minutes to show up, because GitHub caches `repo.json` for up to about five
 Dalamud only offers an update when the new version number is higher than the installed one, and only from
 the repository you installed from.
 
+Updates keep your settings and plans. An update from 0.1.0.6 or older also keeps the plan each job used: where
+that was a TEA plan of your own, MitCue chooses it for that job, although a TEA plan now comes with MitCue (see
+[Which plan and column MitCue uses](../README.md#which-plan-and-column-mitcue-uses)).
+
 **Keep the repository row exactly as it is and enabled.** Dalamud loads a plugin installed from a custom
 repository only while that repository is in the list, enabled, with the same URL. If the row is removed,
 disabled or edited, MitCue (and NoirMech) stop loading until the row is back as it was.

@@ -554,17 +554,22 @@ previews, which have no cooldown provider.
    hit, offset, flags, target, note and items, and delete entries; replacing a note with an
    action offers to save the shorthand as a personal alias; the plan is saved as a user
    plan, made the active plan when *Make it my active plan …* is ticked (it is by default
-   when entries apply to the player, counted as the overlay will select them in the
-   player's party), with the column choice that has all of the player's calls when one has
-   them without another column's (otherwise the Save step names the columns of the calls
-   left out).
+   when calls of the player's apply, counted as the overlay will select them in the
+   player's party; notes for everyone do not count), with the column choice that has all of
+   the player's calls when one has them without another column's (otherwise the Save step
+   names the columns of the calls left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any
 LLM and pastes the YAML back, which goes through the same validation and review. **As
 built:** the prompt also lists the chosen jobs' actions usable at the fight's sync level,
 and holds the loaded sheet's text when one is loaded; the YAML is read out of the answer
-(text around its code block is ignored).
+(text around its code block is ignored). Its rule for `X/Y` between one job's actions is
+the importer's per-document reading (step 3), and with the sheet's text it says which
+reading MitCue's importer uses for that sheet: the import options' *Slashes* choice, else
+the sheet's own. It does not state the per-document Seraph reading (step 4): its alias
+list reads a plain `Seraph` as Summon Seraph alone, also for a sheet that numbers its
+Seraph calls.
 
 Code: steps 1–7 are the core's `SheetReaders`, `LayoutDetector`, `CellParser` and
 `PlanImporter` (`src/MitCue.Core/Import/README.md`); the CLI's `import` runs them on
@@ -588,25 +593,33 @@ files and links; the plugin's import window adds downloading, the review and the
   column is me". **As built:** without a choice, the active plan for a fight and job is the
   bundled plan meant for the job (TOP: WHM → *NoirMit - WHM*, SCH → *LPDU TOP
   Mitigation*; *Carry the Clear - SCH* only when chosen), else the first bundled plan by
-  name that names the job in a column or entry, else the player's first own plan by name
-  that names it. TEA's only bundled plan, *LPDU TEA Heal/Mit*, is thus the automatic one of
-  every job it names, with no entry in `PlanStore.BundledDefaults`, and a TEA plan the player
-  imported without choosing it gives way to it while it is bundled; DMU ships no plan. A plan
-  whose calls for the player's seat are only in job-less slot columns (LPDU's M1/M2 for melee
-  jobs, and the TEA plan's "Melee 1"/"Melee 2" for melee jobs other than the Monk, whose
-  Mantra calls name it) is not chosen automatically: the player chooses it in the table. An
-  imported plan or a share code replaces a bundled plan only when the player chooses it: in
-  the table, or with the "make it my active plan" checkbox of the import window (ticked when
-  entries apply to the player) or of the share-code box (unticked each time the plugin
-  loads). The exception is the share code of a bundled plan: it has that plan's id and takes
-  its place until it is deleted. For the jobs that plan is not meant for (every job, for the
-  TEA plan), the copy is one of the player's own plans. The share-code box sets a plan only
-  when it has calls for the job as the overlay selects them; for a role sheet whose calls for
-  the job are only in other slots' job-less columns, the message names those slots and says
-  to choose the plan and then the slot's column under "My column" (or, only while no usual
-  slot is set at all, to set it first; a usual slot of another role gets the column hint
-  too): one usual slot serves every job of its role, so changing it would take the slot calls
-  of the player's main job away.
+  name that names the job in a column or entry (a share code of a bundled plan counts as
+  that plan), else the player's first own plan by name that names it. TEA's only bundled
+  plan, *LPDU TEA Heal/Mit*, is thus the automatic one of every job it names, with no entry
+  in `PlanStore.BundledDefaults`, and a TEA plan the player imported without choosing it
+  gives way to it while it is bundled; DMU ships no plan. A plan whose calls for the
+  player's seat are only in job-less slot columns (LPDU's M1/M2 for melee jobs, and the TEA
+  plan's "Melee 1"/"Melee 2" for melee jobs other than the Monk, whose Mantra calls name
+  it) is not chosen automatically: the player chooses it in the table. An imported plan or
+  a share code replaces a bundled plan only when the player chooses it: in the table, or
+  with the "make it my active plan" checkbox of the import window (ticked when calls of the
+  player's apply) or of the share-code box (unticked each time the plugin loads). The
+  exception is the share code of a bundled plan: it has that plan's id and takes its place
+  until it is deleted, also in the automatic choice (`PlanStore` remembers the bundled
+  ids): a copy of the TEA plan stays the automatic plan of every job it names. The
+  share-code box sets a plan only when it has calls for the job as the overlay selects
+  them, not counting notes for everyone (entries with no job, slot or column, such as the
+  TEA plan's "Use Personals": `PlanSelection.ForEveryone`); for a role sheet whose calls
+  for the job are only in other slots' job-less columns, the message names those slots and
+  says to choose the plan and then the slot's column under "My column" (or, only while no
+  usual slot is set at all, to set it first; a usual slot of another role gets the column
+  hint too): one usual slot serves every job of its role, so changing it would take the
+  slot calls of the player's main job away. **Changed (2026-11-14):** settings version 2.
+  On the first load of version 1 settings (MitCue up to 0.1.0.6), every fight and job
+  without a choice whose automatic plan differs from the one version 1 gave it is set to
+  the version 1 plan (`PlanStore.MigrateFromVersion1`): above all the player's own TEA
+  plan, the first by name that names the job, which the bundled TEA plan would otherwise
+  replace unasked.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),
@@ -617,17 +630,22 @@ files and links; the plugin's import window adds downloading, the review and the
   name, passing over a slot the party gives another job, one whose calls are all in it (a
   Red Mage gets R1, or R2 next to a Bard; on the TEA plan, with calls per job in the seats
   "Tank 1" (MT) and "Tank 2" (OT), every tank gets MT, while the calls of the role columns
-  "Phys Range" and "Caster" name no slot, so their jobs get them all). Columns for team
-  compositions (keys naming two or more jobs) are alternatives, never combined, and one
-  composition split over per-phase tabs is one seat: a Warrior on LPDU gets the tank pair
-  with the party's co-tank ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK
-  WAR"; a party that plays none of the job's compositions gets the job's column that is no
-  composition, if there is one (Carry the Clear's White Mage tab for a White Mage next to a
-  Sage). A job's column that repeats the calls of its composition column is the same seat
-  written twice, whichever tab comes first (Carry the Clear's White Mage tab and its
-  combined tab). Calls in no column (the TEA plan's "Extras": "PLD Wings", "Dismantle")
-  belong to the jobs they name, whatever the column. Plans are exported as share codes, not
-  as files.
+  "Phys Range" and "Caster" name no slot, so their jobs get them all). When the seat is a
+  guess like this, between slots of the role that the party does not settle, or the choice
+  gives no slot while the plan has calls for whoever plays a slot of the role (the TEA
+  Monk's seat's Feints), the choice stays, and the status line, chat (once per plan and
+  job), the preview and the Plans tab say so and name the setting that gives the seat: "My
+  usual party slot", or the slot's column under "My column"
+  (`ColumnSuggestion.SeatUnknown`). Columns for team compositions (keys naming two or more
+  jobs) are alternatives, never combined, and one composition split over per-phase tabs is
+  one seat: a Warrior on LPDU gets the tank pair with the party's co-tank ("WAR/PLD WAR"
+  next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none of the job's
+  compositions gets the job's column that is no composition, if there is one (Carry the
+  Clear's White Mage tab for a White Mage next to a Sage). A job's column that repeats the
+  calls of its composition column is the same seat written twice, whichever tab comes first
+  (Carry the Clear's White Mage tab and its combined tab). Calls in no column (the TEA
+  plan's "Extras": "PLD Wings", "Dismantle") belong to the jobs they name, whatever the
+  column. Plans are exported as share codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
@@ -636,7 +654,9 @@ files and links; the plugin's import window adds downloading, the review and the
   that are not a composition are kept (a general "DRK" next to "WAR/DRK DRK"); a
   combined-tab column that repeats the partner's other column is shown once. Columns for
   a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank") are no one's: not shown,
-  unless the player follows one of them, and then the other one is the co-tank's.
+  unless the player follows one of them, and then the other one is the co-tank's; but a
+  job without a column of its own has its calls there as its seat (the TEA plan's "Phys
+  Range" and "Caster": a DPS sees the other ranged jobs' calls).
 - **Preview/simulation:** run the fight timeline with simulated events at 1×/4× from any
   phase to check the overlay and the plan. **As built:** only the event kinds the plugin
   sees in game are played, so a preview syncs like a pull, and it shows the calls the
