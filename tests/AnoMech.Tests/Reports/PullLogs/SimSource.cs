@@ -24,6 +24,24 @@ internal static partial class SimSource
         return (Line(path, text, occurrence), seconds);
     }
 
+    // The seconds into its part of the occurrence-th line holding the text, read from that line's "start + 4.8f".
+    public static (string Where, float? Seconds) PartTime(string path, string text, int occurrence = 1)
+    {
+        var found = Find(path, text, occurrence);
+        var match = found is null ? null : StartPlus().Match(found.Value.Text);
+        var seconds = match is { Success: true } ? float.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : (float?)null;
+        return (Line(path, text, occurrence), seconds);
+    }
+
+    // The number the occurrence-th line holding the text assigns: its "= 1.1f" or "= 6".
+    public static (string Where, float? Value) Assigned(string path, string text, int occurrence = 1)
+    {
+        var found = Find(path, text, occurrence);
+        var match = found is null ? null : Assignment().Match(found.Value.Text);
+        var value = match is { Success: true } ? float.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : (float?)null;
+        return (Line(path, text, occurrence), value);
+    }
+
     private static (int Number, string Text)? Find(string path, string text, int occurrence)
     {
         var lines = Files.GetOrAdd(path, Read);
@@ -48,4 +66,10 @@ internal static partial class SimSource
 
     [GeneratedRegex(@"Events\.Add\(\s*(\d+(?:\.\d+)?)f")]
     private static partial Regex EventsAdd();
+
+    [GeneratedRegex(@"start \+ (\d+(?:\.\d+)?)f")]
+    private static partial Regex StartPlus();
+
+    [GeneratedRegex(@"=\s*(-?\d+(?:\.\d+)?)f?\s*;")]
+    private static partial Regex Assignment();
 }

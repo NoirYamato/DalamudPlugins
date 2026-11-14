@@ -1,4 +1,3 @@
-using System.Text;
 using AnoMech.Scenarios.Top;
 
 namespace AnoMech.Tests;
@@ -34,7 +33,8 @@ public class TopPullLogReport
             foreach (var measure in measures) measure.Observe(top);
         }
 
-        var report = Write(logs, reached, quiet, measures.SelectMany(m => m.Findings()).ToList());
+        var report = PullLogReportText.Write("TOP pull-log report: NoirMech's values, UNVERIFIED or settled, against real pulls",
+                                             logs, PullsFound(reached, quiet), Notes, measures.SelectMany(m => m.Findings()).ToList());
         var path = Path.Combine(TestContext.CurrentContext.WorkDirectory, "pull-logs", "top-unverified.txt");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, report);
@@ -50,47 +50,23 @@ public class TopPullLogReport
         new TopP4BlueScreenPullLogs(),
     ];
 
-    private static string Write(List<string> logs, List<(string Pull, string Reached)> reached, List<string> quiet, List<LogFinding> findings)
+    private static readonly string[] Notes =
+    [
+        "Times are seconds from the cast that starts the mechanic (its 20 line). Positions logged by the client trail",
+        "the server's for other players by a few tenths of a second and are sampled unevenly, so a distance between",
+        "players is good to about a yalm; a server placement (271 line) or a cast's location (263 line) is exact to",
+        "the packet's precision, about 0.03 y.",
+    ];
+
+    private static IEnumerable<string> PullsFound(List<(string Pull, string Reached)> reached, List<string> quiet)
     {
-        var text = new StringBuilder();
-        text.AppendLine("TOP pull-log report: NoirMech's values, UNVERIFIED or settled, against real pulls");
-        text.AppendLine($"Logs: {string.Join(", ", logs.Select(Path.GetFileName))}");
-        text.AppendLine($"TOP pulls: {reached.Count}. Furthest mechanic reached:");
+        yield return $"TOP pulls: {reached.Count}. Furthest mechanic reached:";
         foreach (var (name, _) in TopPull.Milestones)
             if (reached.Count(r => r.Reached == name) is var n and > 0)
-                text.AppendLine($"  {name,-16} {n} ({string.Join(", ", reached.Where(r => r.Reached == name).Select(r => r.Pull))})");
+                yield return $"  {name,-16} {n} ({string.Join(", ", reached.Where(r => r.Reached == name).Select(r => r.Pull))})";
         if (quiet.Count > 0)
-            text.AppendLine($"Left out, {quiet.Count} combat segments where no enemy cast or used an ability: {string.Join(", ", quiet)}");
-        text.AppendLine();
-        text.AppendLine("Times are seconds from the cast that starts the mechanic (its 20 line). Positions logged by the client trail");
-        text.AppendLine("the server's for other players by a few tenths of a second and are sampled unevenly, so a distance between");
-        text.AppendLine("players is good to about a yalm; a server placement (271 line) or a cast's location (263 line) is exact to");
-        text.AppendLine("the packet's precision, about 0.03 y.");
-        text.AppendLine();
-        text.AppendLine($"{findings.Count} values: " + string.Join(", ", Enum.GetValues<Verdict>()
-            .Select(v => $"{findings.Count(f => f.Verdict == v)} {LogFinding.Describe(v)}")));
-        foreach (var finding in findings.Where(f => f.Verdict == Verdict.Differs))
-            text.AppendLine($"  differs: [{finding.Section}] {finding.Name}");
-        foreach (var section in findings.GroupBy(f => f.Section))
-        {
-            text.AppendLine();
-            text.AppendLine($"== {section.Key} ==");
-            foreach (var finding in section)
-            {
-                text.AppendLine();
-                text.AppendLine(finding.Name);
-                text.AppendLine($"  constant  {finding.Constant}");
-                text.AppendLine($"  sim       {finding.Sim}");
-                text.AppendLine($"  measured  {Indent(finding.Measured)}");
-                text.AppendLine($"  verdict   {LogFinding.Describe(finding.Verdict)}");
-                foreach (var detail in finding.Details)
-                    text.AppendLine($"    - {detail}");
-            }
-        }
-        return text.ToString();
+            yield return $"Left out, {quiet.Count} combat segments where no enemy cast or used an ability: {string.Join(", ", quiet)}";
     }
-
-    private static string Indent(string text) => text.ReplaceLineEndings(Environment.NewLine + "            ");
 }
 
 internal interface ITopPullLogMeasures

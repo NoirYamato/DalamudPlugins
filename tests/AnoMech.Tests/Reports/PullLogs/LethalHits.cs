@@ -6,7 +6,7 @@ internal sealed class LethalHits
 {
     private readonly List<(HitOutcome Outcome, string Detail)> hits = [];
 
-    public void Observe(TopPull pull, IEnumerable<ActHit> observed, Func<ActHit, string> describe)
+    public void Observe(PullLog pull, IEnumerable<ActHit> observed, Func<ActHit, string> describe)
     {
         foreach (var hit in observed.Where(h => h.HitSomeone))
             if (pull.Outcome(hit) is var outcome and not HitOutcome.AlreadyDead)
