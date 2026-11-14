@@ -57,7 +57,7 @@ NoirMech change:
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - TEA P1 (below), the first family NoirMech adds: `Scenarios/Tea/` with `TeaZone` and its `P1` phase,
-  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own Arm's Length and Surecast) and
+  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses) and
   `P1LimitCut/`, the Limit Cut scenario with an `[LPDU] Light PF` strat; in upstream's `ScenarioCatalog.cs`, a `using`
   and one entry;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
@@ -787,8 +787,11 @@ scenario.
     15.4, 20.1, 24.8, 29.4) and charges the even ones (Super Blassty Charge at 16.9, 21.6, 26.3, 30.9). He lands
     3 y behind the odd number, by the reverse of that player's facing, 0.5 s before the cleave, and turns to that
     player again 0.1 s before it, so a number can't step out of its own cleave; he charges from the same spot,
-    turned to the even number 0.1 s before. A dead number's hit goes to a random living player.
-  - J Kick at 34.1, from an unseen helper under Brute Justice's name, hurts nobody.
+    turned to the even number 0.1 s before. A dead number's hit goes to a random living player. Dead means fallen:
+    a blast's death shows 1 s after it (`P1Duration.HawkBlasterDamageDelay`), and every round has a blast inside
+    the second before he lands or aims, so a number that blast killed still draws its own hit.
+  - J Kick at 34.1 hurts nobody. Brute Justice casts it himself in the fight; he isn't drawn here, so an unseen
+    helper under his name casts it.
 - Rolls: the numbers (a permutation of the party) and the first pair's axis, one of four. The settings pin the
   axis and the player's number; Automarkers is Off by default here, unlike TOP's, and On has the strat put Attack
   1-8 on numbers 1-8 at 6.3.
@@ -800,9 +803,10 @@ scenario.
 - Both of his hits knock back straight away from him, the cleave 5 y and the charge 20 y, through a `Push` whose
   distance `TeaP1Actions.Thrown` caps at the rim, since the engine stops only NPCs at a wall. Bots are taken to be
   immune and hold their spots, a headless run's debug-driven player among them. A human is thrown unless its own
-  Arm's Length or Surecast was pressed in the 6 s before: `TeaP1Presses` hears the press through
-  `IUserActions.Acted`, with "Resolve your own actions" on or off, and times it on the run's clock, since the sim
-  shows neither status.
+  Arm's Length or Surecast was pressed in the 6 s before, or a warrior's Inner Release, whose Inner Strength holds
+  15 s: `TeaP1Presses` hears the press through `IUserActions.Acted`, with "Resolve your own actions" on or off, and
+  times it on the run's clock, since the sim shows none of the statuses. It doesn't ask the job: only a warrior's
+  client can report Inner Release.
 - One scenario instance plays every run of a session. `Run` clears what the last run left on it and replaces the
   press listener, which a scenario can't dispose of as its run ends (`TeaP1LimitCutSecondRunTests`).
 - One strat, EU `[LPDU] Light PF` (`TeaP1LimitCutLpduAi`). Numbers 1, 2, 5, 6 take the first pair's blaster in the
@@ -811,24 +815,40 @@ scenario.
   turned clockwise along the rim and the even at b - 30, and the group's other pair waits 19.3 y out at b - 4 and
   b - 8. #1 and #2 are hit on their group's spot 2, #5 and #6 on its spot 5, #3 and #4 on their group's spot 3 and
   #7 and #8 on its spot 6. A cleaved odd walks on at once, onto the outer lane.
+- The strat turns its odd bots along the rim, but nothing turns a human or puts it exactly on a spot, and both of
+  Cruise Chaser's hits pass close to the group's other pair, waiting at the rim:
+  - Landing 3 y behind, an odd number's cleave reaches its group's waiting odd bot from about 20 degrees outward of
+    the rim, and #5's reaches #4, crossing ahead of it, from about 17 degrees inward (the other odds have 35 or
+    more). A step sideways after he lands turns the cleave the same way, 1.1 y for 20 degrees. The waiting odd's
+    b - 4 sets the outward limit.
+  - A human that stops facing the way it walked in, along the chord from its last spot, faces 22.5 degrees
+    outward: on its spot exactly, its cleave still clears the waiting odd bot, by 0.2 y.
+  - A bot caught carries the vulnerability and dies at its own cleave, or at once if it had been hit already.
+  - An even number on its spot's bearing has room to about 16 y out before its charge reaches the waiting even bot.
+    Thrown from 1.5 y wide of its spot, #4 lands inside the next pair's blast (below).
 - UNVERIFIED in `TeaP1Constants`: the 3 y landing (at most about 6) and its 0.5 s, the knockback distances and
   speeds and that both push straight away from him, the vulnerability's status (695) and its 20 s, the numbers'
   0.05 s, the 1 s after which each hit's damage shows and the 0.6 s a blast keeps its helper (the engine's
   placeholders), where the track stands as the run starts, and that an anti-knockback holds from the press. In the
   State and the scenario: how often each axis comes up, that he turns to his number again before the cleave, that
-  he charges from where he cleaved, that a dead number's hit goes to anyone living, his warp-in and J Kick's caster.
+  he charges from where he cleaved, that a dead number's hit goes to anyone living, his warp-in, and where Brute
+  Justice stands for J Kick.
 - No source fixes these strat values, so they are UNVERIFIED picks: the run-out from the middle 12 degrees behind
   the first spot for the odds and 16 for the waiting even, the 1 y ring everyone waits on in the middle and the
   2.5 y one for J Kick (from 31.0), when each odd turns along the rim (14.6, 19.3, 24.0, 28.6) and every move's
   time.
 - Change bot movement only with `TeaP1LimitCutLpduHumanTests` and `TeaP1LimitCutLpduMarginTests` green.
   - The human suite plays every number as a human from the first frame, walking or sprinting, reacting 0, 0.25 or
-    0.5 s late, pressing its anti-knockback or thrown, over every seat. Nobody may die, except with a thrown #2
-    that walks and reacts 0.25 or 0.5 s late: its way out is too narrow, and those cases may lose no more runs on
-    the usual rolls than they do today (0 and 22 of 40).
+    0.5 s late, pressing its anti-knockback or thrown, over every seat. On the spot it is hit on, an odd number
+    faces along the rim, 10 degrees inward or outward of it, or the way it walked in, and an even number stands on
+    its spot or 1.5 y outward of it. Nobody may die, except where a thrown even number's way out is too narrow;
+    those cases may lose no more runs on the usual rolls than they do today, of 40: a #2 thrown from its spot that
+    walks and reacts 0.25 or 0.5 s late (0 and 22), and a #4 thrown from 1.5 y wide, which the rim stops inside the
+    next pair's blast, that walks and reacts late (40) or sprints 0.5 s late (19).
   - The margin suite measures the bots' clearance from every blast, cleave and charge on every axis, with him
     landing 1.5, 3 and 4.5 y behind and the odd number turned 5 degrees either way. Its `Usual` rows hold at
-    `P1Geometry.CruiseChaserLandsBehind` and were measured at 3 y: retune them with it.
+    `P1Geometry.CruiseChaserLandsBehind` and were measured at 3 y: retune them with it. At that distance it also
+    turns the odd 15 degrees either way, held only to catching nobody.
   - The rule tests play no strat (`TeaP1LimitCutStage` puts every seat where the fight asks) and pin the landing
     at 3 y, whatever the constant says.
 - The gate has no `-Phase` for TEA; its human suite is the `tea-p1-human` bucket. The soak filter is
