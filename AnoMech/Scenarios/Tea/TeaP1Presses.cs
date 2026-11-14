@@ -28,13 +28,14 @@ public sealed class TeaP1Presses : IDisposable
     public bool AntiKnockbackUp(SimCharacter member)
         => ReferenceEquals(member, world.Party.Player) && world.Events.Elapsed < antiKnockbackUntil;
 
+    // A press comes with its button's own id, so a warrior's Inner Release can come as Berserk.
     private void Hear(PlayerAction action)
     {
         if (action is not { Step: PlayerActionStep.Resolved, ActionType: ActionType.Action }) return;
         float? holds = action.ActionId switch
         {
             P1PlayerActionId.ArmsLength or P1PlayerActionId.Surecast => P1Duration.AntiKnockback,
-            P1PlayerActionId.InnerRelease => P1Duration.InnerStrength,
+            P1PlayerActionId.InnerRelease or P1PlayerActionId.Berserk => P1Duration.InnerStrength,
             _ => null,
         };
         if (holds is { } seconds)

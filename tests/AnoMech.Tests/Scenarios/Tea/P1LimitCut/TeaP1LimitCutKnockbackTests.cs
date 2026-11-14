@@ -94,6 +94,7 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.Surecast)]
     [TestCase(P1PlayerActionId.InnerRelease)]
     public void AnAntiKnockbackPressedBeforeTheChargeHoldsTheHumanInPlace(uint press)
+    [TestCase(P1PlayerActionId.Berserk)]
     {
         var stage = HumanNumberTwo;
 
@@ -106,6 +107,7 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.Surecast)]
     [TestCase(P1PlayerActionId.InnerRelease)]
     public void AnAntiKnockbackPressedBeforeTheCleaveHoldsTheHumanInPlace(uint press)
+    [TestCase(P1PlayerActionId.Berserk)]
     {
         var stage = HumanNumberOne;
 
@@ -114,7 +116,8 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(landed, stage.HitSpot(1)), Is.LessThan(0.05f), $"landed at {landed}");
     }
 
-    // Arm's Length and Surecast last 6 s and a warrior's Inner Strength 15; the charge lands at 16.9.
+    // Arm's Length and Surecast last 6 s and a warrior's Inner Strength 15, whether its button reports Inner Release
+    // or the Berserk that became it; the charge lands at 16.9.
     [TestCase(P1PlayerActionId.ArmsLength, 11.1f, false)]
     [TestCase(P1PlayerActionId.ArmsLength, 10.7f, true)]
     [TestCase(P1PlayerActionId.Surecast, 11.1f, false)]
@@ -122,6 +125,8 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.InnerRelease, 2.1f, false)]
     [TestCase(P1PlayerActionId.InnerRelease, 1.7f, true)]
     public void AnAntiKnockbackHoldsForAsLongAsItsEffectLasts(uint press, float pressAt, bool thrown)
+    [TestCase(P1PlayerActionId.Berserk, 2.1f, false)]
+    [TestCase(P1PlayerActionId.Berserk, 1.7f, true)]
     {
         var stage = HumanNumberTwo;
 

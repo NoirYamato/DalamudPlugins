@@ -25,13 +25,28 @@ public class TeaP1PressesTests
         Assert.That(covered, Is.EqualTo(new[] { false, true, true, false }));
     }
 
-    [Test]
-    public void AWarriorsInnerReleaseCoversItForFifteenSeconds()
+    // A press comes with its button's own id: a button placed as Berserk reports Berserk at level 80, where it is
+    // Inner Release.
+    [TestCase(P1PlayerActionId.InnerRelease)]
+    [TestCase(P1PlayerActionId.Berserk)]
+    public void AWarriorsInnerReleaseCoversItForFifteenSeconds(uint press)
     {
         var covered = Covered(new[] { 0.9f, 1.1f, 15.9f, 16.1f }, (world, _) =>
-            world.Events.Add(1f, () => Press(P1PlayerActionId.InnerRelease)));
+            world.Events.Add(1f, () => Press(press)));
 
         Assert.That(covered, Is.EqualTo(new[] { false, true, true, false }));
+    }
+
+    // The ids are the client's: a wrong one would leave that press unheard in game with every other test green.
+    [TestCase(P1PlayerActionId.ArmsLength, "Arm's Length")]
+    [TestCase(P1PlayerActionId.Surecast, "Surecast")]
+    [TestCase(P1PlayerActionId.InnerRelease, "Inner Release")]
+    [TestCase(P1PlayerActionId.Berserk, "Berserk")]
+    public void EachPressIsTheActionItIsNamedFor(uint press, string name)
+    {
+        FakeGame.Install();
+
+        Assert.That(Natives.Data.Action(press)?.Name, Is.EqualTo(name));
     }
 
     // Inner Strength, from 1.0, outlasts the Arm's Length pressed at 3.0.

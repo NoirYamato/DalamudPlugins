@@ -50,6 +50,7 @@ public static class TeaP1Constants
         public const uint ArmsLength = 7548;
         public const uint Surecast = 7559;
         public const uint InnerRelease = 7389;                      // a warrior's; grants Inner Strength
+        public const uint Berserk = 38;                             // the button Inner Release replaces from level 70
     }
 
     public static class P1StatusId
