@@ -565,36 +565,30 @@ entries:
     src: "'LL/BJCC'!D44"
   - id: e080
     mechanic: p2.water_thunder_2
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {note: Temperance (still active)}
-    src: "'LL/BJCC'!G46"
-  - id: e081
-    mechanic: p2.water_thunder_2
     who: {job: SCH, assignee: Scholar}
     do:
       - {action: 188, name: Sacred Soil}
     detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
     src: "'LL/BJCC'!E46"
-  - id: e082
+  - id: e081
     mechanic: p2.water_thunder_2
     who: {job: BRD, assignee: Phys Range}
     do:
       - {action: 7405, name: Troubadour}
     src: "'LL/BJCC'!K46"
-  - id: e083
+  - id: e082
     mechanic: p2.water_thunder_2
     who: {job: MCH, assignee: Phys Range}
     do:
       - {action: 16889, name: Tactician}
     src: "'LL/BJCC'!K46"
-  - id: e084
+  - id: e083
     mechanic: p2.water_thunder_2
     who: {job: DNC, assignee: Phys Range}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'LL/BJCC'!K46"
-  - id: e085
+  - id: e084
     mechanic: p2.water_thunder_2
     who: {job: SGE, assignee: Sage}
     do:
@@ -602,6 +596,12 @@ entries:
       - {action: 24298, name: Kerachole}
     detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
     src: "'LL/BJCC'!F46"
+  - id: e085
+    mechanic: p2.water_thunder_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {note: Temperance (still active)}
+    src: "'LL/BJCC'!G46"
   - id: e086
     mechanic: p2.water_thunder_2
     who: {job: AST, assignee: Astrologian}
@@ -1250,18 +1250,18 @@ entries:
     src: "'Alex Prime/PA'!D23"
   - id: e182
     mechanic: p3.j_wave_7
-    who: {job: SGE, assignee: Sage}
-    do:
-      - {action: 24292, name: Eukrasian Prognosis}
-      - {action: 24310, name: Holos}
-    src: "'Alex Prime/PA'!F23"
-  - id: e183
-    mechanic: p3.j_wave_7
     who: {job: SCH, assignee: Scholar}
     do:
       - {action: 16546, name: Consolation}
       - {action: 16538, name: Fey Illumination}
     src: "'Alex Prime/PA'!E23"
+  - id: e183
+    mechanic: p3.j_wave_7
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24310, name: Holos}
+    src: "'Alex Prime/PA'!F23"
   - id: e184
     mechanic: p3.j_wave_7
     who: {job: WHM, assignee: White Mage}

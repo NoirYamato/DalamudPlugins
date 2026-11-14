@@ -2210,14 +2210,21 @@ public sealed partial class PlanImporter
             }
         }
 
+        /// <summary>Drafts in press order, then in sheet order (tab, row, column, item, part).</summary>
+        private static List<Draft> InPressOrder(IEnumerable<Draft> drafts) => drafts
+            .OrderBy(d => Math.Round(d.Press, 3))
+            .ThenBy(d => d.Tab).ThenBy(d => d.Row).ThenBy(d => d.Column).ThenBy(d => d.Item).ThenBy(d => d.Part)
+            .ToList();
+
         private MitPlan BuildPlan(List<TabState> tabs)
         {
-            var ordered = this.drafts
-                .OrderBy(d => Math.Round(d.Press, 3))
-                .ThenBy(d => d.Tab).ThenBy(d => d.Row).ThenBy(d => d.Column).ThenBy(d => d.Item).ThenBy(d => d.Part)
-                .ToList();
+            var ordered = InPressOrder(this.drafts);
             this.MarkStillActive(ordered);
             this.MarkSharedLimitBreaks(ordered);
+
+            // A follow-up or a note that MarkStillActive put in an entry can change its press time: the plan lists its entries
+            // in the order the scheduler presses them.
+            ordered = InPressOrder(ordered.Select(d => d with { Press = this.PressEstimate(d.Entry, this.fight.GetMechanic(d.Entry.Mechanic)!) }));
             var width = Math.Max(3, ordered.Count.ToString(CultureInfo.InvariantCulture).Length);
             for (var i = 0; i < ordered.Count; i++)
                 ordered[i].Entry.Id = "e" + (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');

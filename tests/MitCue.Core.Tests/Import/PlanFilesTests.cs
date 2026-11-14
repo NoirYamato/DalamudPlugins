@@ -88,8 +88,8 @@ public class PlanFilesTests
 
     /// <summary>
     /// The importer orders a plan's entries by the press time the scheduler gives them (<see cref="TimingRules.ForEntry"/>),
-    /// so the plan file reads in fight order; entries that a later step turned into a note ("Temperance (still active)")
-    /// keep the place their action had.
+    /// also those whose action a later step replaced ("Temperance (still active)", a second Seraph as Consolation), so the
+    /// plan file reads in the order of the reminders.
     /// </summary>
     [Theory]
     [MemberData(nameof(Files))]
@@ -99,7 +99,7 @@ public class PlanFilesTests
         var fight = bundled.Options.Fight;
         var plan = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(PlansDir, file)));
         var previous = double.NegativeInfinity;
-        foreach (var entry in plan.Entries.Where(e => !e.Do.Any(i => i.Note?.EndsWith("(still active)", StringComparison.Ordinal) == true)))
+        foreach (var entry in plan.Entries)
         {
             var press = TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, RepoFiles.Actions).PressAt;
             Assert.True(Math.Round(press, 3) >= Math.Round(previous, 3), $"{file} {entry.Id} ({entry.Src}) is pressed at {press:0.###}, before the entry above it ({previous:0.###})");
