@@ -89,7 +89,7 @@ foreach (var cell in row.Assignments)            // cell.Assignee: Key, Slot, Jo
         // Timing (DESIGN.md §6 step 7, §5.1). An item without its own time never takes row.Time:
         //   item.Time and row.Time → offset = item.Time − (the row's matching hit, one of row.Time.All) + δ
         //   item.Time only         → offset = (phase zero + item.Time) − hit
-        //   no item.Time           → leave the offset automatic (§5.1 defaults from the action kind)
+        //   no item.Time           → leave the offset automatic (§5.1: TimingRules.ForEntry, as the scheduler times it)
         // A sequence's item.Time is its last step's; per-step times are step.Time ("Recit (2:44) → Adlo (2:50)").
         foreach (var step in item.Steps)
         foreach (var token in step.Tokens)
@@ -115,7 +115,7 @@ LLM) with `PlanValidator.Validate(plan, fight, actions)`.
 ```
 DocumentLayout ─► rows ─► MechanicResolver (alias in phase; repeated labels by time or row order)
                      └─► RowTiming.Align (row times ↔ hits, + δ) ─► phase zero fit (median; preset fallback)
-assignee cells ─► CellParser ─► ActionResolver (per candidate job) + HintParser ─► entries ─► time order, ids e001…
+assignee cells ─► CellParser ─► ActionResolver (per candidate job) + HintParser ─► entries ─► press order, ids e001…
 ```
 
 | File | Role |
@@ -172,7 +172,10 @@ Rules worth knowing:
   unless a hint applies (`after 1st Hit` → that hit +0.5 s; `after <mechanic>` → its last hit +0.5 s; phase-end phrases →
   that phase's enrage/end mechanic with `at_phase_end`). Hint text stays in `note`. Presses after a phase's last hit get
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
-  `untimed` warning.
+  `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
+  actions, a mechanic's several hits and the fight file's `press`, `heal_lead` and `series`); the importer writes no
+  offset for them. The plan lists its entries in that press order (ties in sheet order), also when `still-active`
+  changed an entry's action.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
