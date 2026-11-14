@@ -207,9 +207,9 @@ public sealed class TeaP1LivingLiquid
         this.presses = presses;
         Tornadoes = new TeaP1Tornadoes(world);
         throttle = new ThrottleCarriers(world, presses);
-        waveFromTheLiquid = Actions.ProteanWaveFromTheLiquid(presses);
-        waveAtAPlayer = Actions.ProteanWaveAtAPlayer(presses);
-        tornadoWave = Actions.TornadoWave(presses);
+        waveFromTheLiquid = Actions.ProteanWaveFromTheLiquid(world, presses);
+        waveAtAPlayer = Actions.ProteanWaveAtAPlayer(world, presses);
+        tornadoWave = Actions.TornadoWave(world, presses);
         helpers = new SpawnedHelperPool(world, new EnemySpawnConfig(
             BNpcBaseId: P1BNpcBaseId.Helper,
             NameId: P1BNpcNameId.LivingLiquid,

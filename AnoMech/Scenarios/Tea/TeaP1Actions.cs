@@ -61,15 +61,15 @@ public static class TeaP1Actions
     // wave on someone who carries the last one's Water Resistance Down kills, bots included; a first one never does.
     // UNVERIFIED: that the Living Liquid's own telegraphed wave is a cone straight ahead and not one more aimed at a
     // player.
-    public static EnemyAction ProteanWaveFromTheLiquid(TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveFromTheLiquid, presses);
+    public static EnemyAction ProteanWaveFromTheLiquid(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveFromTheLiquid, world, presses);
 
-    public static EnemyAction ProteanWaveAtAPlayer(TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveAtAPlayer, presses);
+    public static EnemyAction ProteanWaveAtAPlayer(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveAtAPlayer, world, presses);
 
     public static readonly EnemyAction ProteanWaveStraightAhead = Wave(P1ActionId.ProteanWaveStraightAhead);
 
     public static readonly EnemyAction ProteanWaveAtTheClosest = Wave(P1ActionId.ProteanWaveAtTheClosest) with { Area = UnseenWaveCone };
 
-    public static EnemyAction TornadoWave(TeaP1Presses presses) => KnockingWave(P1ActionId.TornadoWave, presses);
+    public static EnemyAction TornadoWave(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.TornadoWave, world, presses);
 
     public static readonly EnemyAction TornadoWaveUnseen = Wave(P1ActionId.TornadoWaveUnseen) with { Area = UnseenWaveCone };
 
@@ -83,9 +83,29 @@ public static class TeaP1Actions
         DeathExplanation = SecondWave,
     };
 
-    // The telegraphed rows throw whoever they hit; the push starts with the hit, as Cruise Chaser's does.
-    private static EnemyAction KnockingWave(uint actionId, TeaP1Presses presses)
-        => Wave(actionId, Push(Thrown(presses, P1Rules.ProteanWaveKnockback), P1Rules.ProteanWaveKnockbackSpeed, pushDelay: 0f));
+    private static EnemyAction KnockingWave(uint actionId, SimWorld world, TeaP1Presses presses)
+        => Wave(actionId, new ThrownAsTheWaveGoesOut(world, presses));
+
+    // The telegraphed rows throw whoever they hit. Whom is decided with the hit, as the bar ends; the client slides
+    // its player once the effect arrives, CastSpec.ActionEffectOffset later. The engine's Push reads its distance at
+    // the resolve, and the rim's cap is only exact from where the target stands as the slide starts.
+    private sealed class ThrownAsTheWaveGoesOut(SimWorld world, TeaP1Presses presses) : IEnemyActionEffect
+    {
+        public void Apply(EnemyActionContext ctx, IReadOnlyList<SimCharacter> hits)
+        {
+            var from = ctx.Caster.Position;
+            foreach (var target in hits)
+            {
+                if (ctx.IsKilled(target) || !target.IsAlive() || ctx.Party.IsBotDriven(target) || presses.AntiKnockbackUp(target)) continue;
+                world.Events.Add(CastSpec.ActionEffectOffset, () =>
+                {
+                    if (!target.IsAlive()) return;
+                    var capped = CappedAtTheRim(from, target.Position, P1Rules.ProteanWaveKnockback);
+                    if (capped > 0.01f) target.Push(from, capped, capped / P1Rules.ProteanWaveKnockbackSpeed);
+                });
+            }
+        }
+    }
 
     // -- Sluice --
     public static readonly EnemyAction Sluice = new(P1ActionId.Sluice)
