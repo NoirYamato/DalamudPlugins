@@ -157,7 +157,7 @@ internal sealed class DataValidator(IDataSource data)
             else if (m.Hits[0] != m.Hit || !m.Hits.Zip(m.Hits.Skip(1)).All(p => p.First <= p.Second))
                 item.Problems.Add($"{m.Id}: hits must be in time order and start with hit {Inv(m.Hit)}");
             if (m.Kind == MechanicKind.Marker && TimingFields(m) is { Count: > 0 } fields)
-                item.Problems.Add($"{m.Id} is a marker with {string.Join(" and ", fields)}: they time the calls planned on it against its damage, and a marker has none");
+                item.Problems.Add($"{m.Id} is a marker with {string.Join(" and ", fields)}: timing fields time the calls planned on a mechanic against its damage, and a marker has none");
         }
 
         foreach (var (sheet, zeros) in fight.Calibration)

@@ -112,7 +112,7 @@ public class ValidateCommandTests : IDisposable
         var r = this.kit.Run("validate", "--data", data);
         Assert.Equal(1, r.ExitCode);
         Assert.Matches(@"FAIL\s+fights/tea\.yaml: .*\(1 problem\)", r.Out);
-        Assert.Contains("problem: p1.pull is a marker with press: after: they time the calls planned on it against its damage, and a marker has none", r.Out);
+        Assert.Contains("problem: p1.pull is a marker with press: after: timing fields time the calls planned on a mechanic against its damage, and a marker has none", r.Out);
 
         var lead = this.CopyData("lead");
         Replace(Path.Combine(lead, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    heal_lead: 2\n    aliases:\n      - \"P4 Start\"");

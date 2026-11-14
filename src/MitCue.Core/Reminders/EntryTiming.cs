@@ -29,7 +29,7 @@ public sealed class EntryTiming
     /// </summary>
     public double? DueNotBefore { get; init; }
 
-    /// <summary>One per item of the entry, at the item's index (an empty timing for a missing item).</summary>
+    /// <summary>One per item of the entry, at the item's index (a missing item is timed like a note).</summary>
     public required IReadOnlyList<ItemTiming> Items { get; init; }
 }
 
