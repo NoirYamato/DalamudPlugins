@@ -17,11 +17,11 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     public string Name => "[LPDU] Light PF";
     public string? Group => "EU";
 
-    internal const float BaitJitter = 0.15f;
-    internal const float FirstFetch = 20.25f;
-    internal const float LastFetch = 24.5f;
-    internal const float FetchEvery = 0.25f;
-    internal static readonly float[] CleansesAt = [11.2f, 13.7f, 16.2f, 18.7f];
+    private const float BaitJitter = 0.15f;
+    private const float FirstFetch = 20.25f;
+    private const float LastFetch = 24.5f;
+    private const float FetchEvery = 0.25f;
+    private static readonly float[] CleansesAt = [11.2f, 13.7f, 16.2f, 18.7f];
 
     private const float WalkSpeed = 6.5f;
     private const float FetchShortOfEitherEnd = 1.5f;
