@@ -225,6 +225,15 @@ public class ImportLayoutRulesTests
     }
 
     [Fact]
+    public void ExtrasColumn_ActionsNamedPerJobInParentheses_SayWhoseTheyAre()
+    {
+        var r = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "Party Mit (DM/HoL)"]));
+
+        Assert.Equal([(Job.DRK, "Dark Missionary"), (Job.GNB, "Heart of Light")], r.Plan.Entries.OrderBy(e => e.Who.Job).Select(e => (e.Who.Job!.Value, e.Names().Single())));
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code == "anyone-role-action");
+    }
+
+    [Fact]
     public void ExtrasColumn_IsImportedWhicheverColumnsAreChosen()
     {
         var r = Import(Tab("P1", [], ["P1", "MT", "OT", "Extras"], ["Program Loop", "Rep", "Rampart", "PLD Wings"]), ["MT"]);

@@ -31,8 +31,10 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 - Phase ids: the fight's N-th phase id when a `FightDefinition` is given, else `pN`.
 - Phase sources: tab name (`P3`, `P1/P2`, `P1P2`), the header cell of the label (or time) column (`P1 `), section rows
   (`P2 — Omega-M/F  (from phase start)`, `Phase Two`), bare label rows (`P2`), a `Phase` column (`P2` or `2`), a
-  phase title above the header, a marker in front of a row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and
-  labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as `guessed-phase`).
+  phase title above the header, a phase title over the player columns that is a merged banner or has a header row
+  below it (TEA's `P2: Brute Justice / Cruise Chaser`), a marker in front of a row's label (`P2 - Solar Ray`: `Label`
+  is `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
+  `guessed-phase`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.
@@ -40,6 +42,9 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
   below it: their `AssigneeCell.Column` is one of `RepeatedHeaderColumns` (`header-changed`). A row whose label is
   not a header but whose cells name players ("Tether partner | OT | MT") stays a data row (`header-like-row`).
 - `AssigneeHeader.Role` is `Role.None` for a ranged slot alone (`R1`, `R2`, `D3`, `D4`): physical ranged or caster.
+  `Phys Range` (a physical word before `Range`) is a physical ranged role column like `Caster`; a whole header
+  `Extras`, `Other`, `Misc` or `Utility` is `AssigneeKind.Anyone`, a column of calls for whoever can press them.
+- An unlabelled column of prose (4 or more words on average) beside the label column holds the rows' `Notes`.
 - `PlanTabs` leaves out hidden tabs (`hidden-tab`); look tabs the user names up in `Tabs`.
 - Time column cells that all read `h:mm:00` (`1:21:00`, Sheets' display of `1:21` typed into a time-formatted cell)
   are read as m:ss (`time-as-hms`); row times of an hour or more are reported (`implausible-time`).
@@ -55,13 +60,17 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 `ParsedItem.Steps` (arrow-separated sequence: `→`, `->`, `=>`, `—>`, `>`, `»`, `⇨`, …) → `ParsedStep.Tokens` (`+`, `,`,
 line breaks, wide gaps: pressed together). Tokens with different times of their own become separate items
 (`Soil (0:12)\nDeploy (0:17)`, `0:12 Soil\n0:17 Deploy`); sequences keep their steps. `ParsedCell.Diagnostics` holds
-`unclosed-bracket` warnings (an unclosed `(` ends at the next separator, arrow or line break).
+`unclosed-bracket` warnings (an unclosed `(` ends at the next separator, arrow or line break). With
+`CellParserOptions.SlashJoins` a `/` between words joins tokens like `+` (not between slots, jobs or target words,
+before a digit, or inside brackets); `ParsedCell.Joins` counts the other separators between words. A cell that is one
+pair of brackets around words (`(Shake)`) is its inside with every token optional (`Bracketed`); a cell that points up
+(`(^on LL)`) has no items and its remark in `Above`.
 
-`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`), `Trailing` (`after 1st Hit`, `Co-Tank`,
-`to R1/2`, `if P4 skip`), `Target`, `Hints` (parentheticals), `Time` (`ParsedTime`: seconds, range end, list,
-approx flag, source text), `Optional` (grey), `WhenReady` (`⏱`, "on CD"), `Footnote` (`*`), `JobPrefix`
-(`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`. Steps and items aggregate
-`Time`/`Target`; items aggregate `Optional`/`WhenReady`/`Footnote`.
+`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`, `Seraph1/Soil`; not `R1/R2`), `Trailing`
+(`after 1st Hit`, `Co-Tank`, `to R1/2`, `if P4 skip`), `Target`, `Hints` (parentheticals), `Time` (`ParsedTime`:
+seconds, range end, list, approx flag, source text), `Optional` (grey, or the cell in brackets), `WhenReady` (`⏱`,
+"on CD"), `Footnote` (`*`), `JobPrefix` (`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`.
+Steps and items aggregate `Time`/`Target`; items aggregate `Optional`/`WhenReady`/`Footnote`.
 
 ## Recipe for the back half
 
@@ -162,6 +171,25 @@ Rules worth knowing:
   that phase's enrage/end mechanic with `at_phase_end`). Hint text stays in `note`. Presses after a phase's last hit get
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
   `untimed` warning.
+- **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
+  actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
+  more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
+  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. An
+  alternative that means nothing is an `unresolved-token` warning; an either/or with a choice of several actions
+  (`Spread-Lo/Soil`) gives one optional entry per choice (`either-or-split`).
+- **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
+  `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
+  share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). The column is imported whatever columns are
+  chosen, is not in `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
+- **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
+  column and section (`caret-note` info, a warning when nothing is above); a parenthetical that names the token's own
+  per-job actions limits the jobs (`Party Mit (DM/HoL)`: DRK and GNB, `named-actions`); one or two target words in
+  brackets (`(Range)`) are a target; `(Late)` on an action used before its hit presses it 1 s before it.
+- **Notes over several columns** that name actions ("A tip for Soil/Kera timing …") are the detail of the entries in
+  their columns and section that press one of them (all their columns' entries when none does).
+- **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
+  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`); a limit break written for one role in
+  columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

@@ -146,6 +146,9 @@ public sealed partial class PlanImporter
         /// <summary>The last token of its item: its parentheticals (hint, target, condition) speak for the whole item.</summary>
         public bool IsLast { get; init; }
 
+        /// <summary>A parenthetical named the jobs' own actions ("Party Mit (DM/HoL)"): the token says whose it is.</summary>
+        public bool JobsNamed { get; init; }
+
         /// <summary>The text after the action words, without the target and "on CD" ("after 1st Hit", "Stack"), or null.</summary>
         public string? Rest { get; set; }
 
@@ -1159,14 +1162,14 @@ public sealed partial class PlanImporter
             {
                 var token = parsedTokens[i];
                 var byJob = candidates.ToDictionary(j => j, j => this.resolver.Resolve(token, j));
-                (token, byJob) = this.FilterByNamedActions(token, byJob, cell.Src);
+                (token, byJob, var named) = this.FilterByNamedActions(token, byJob, cell.Src);
                 var kind = byJob.Values.Any(r => r.Kind == TokenKind.Actions) ? TokenKind.Actions
                     : byJob.Values.Any(r => r.Kind == TokenKind.NoteOnly) ? TokenKind.NoteOnly
                     : byJob.Values.Any(r => r.Kind == TokenKind.NotAvailable) ? TokenKind.NotAvailable
                     : byJob.Values.Any(r => r.Kind == TokenKind.OtherJob) ? TokenKind.OtherJob
                     : byJob.Values.All(r => r.Kind == TokenKind.Empty) ? TokenKind.Empty
                     : TokenKind.Unresolved;
-                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1 };
+                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1, JobsNamed = named };
                 this.Describe(state, row, cell, header, candidates);
                 tokens.Add(state);
             }
@@ -1217,10 +1220,10 @@ public sealed partial class PlanImporter
         /// Veil or Shake It Off), and the parenthetical is no note. A parenthetical that names any other action
         /// ("Seraph (Consolation ×2)", "(+ Aquaveil)") stays a hint.
         /// </summary>
-        private (ParsedToken Token, Dictionary<Job, TokenResolution> ByJob) FilterByNamedActions(ParsedToken token, Dictionary<Job, TokenResolution> byJob, string? src)
+        private (ParsedToken Token, Dictionary<Job, TokenResolution> ByJob, bool Named) FilterByNamedActions(ParsedToken token, Dictionary<Job, TokenResolution> byJob, string? src)
         {
             if (token.Hints.Count == 0 || !byJob.Values.Any(r => r.Kind == TokenKind.Actions))
-                return (token, byJob);
+                return (token, byJob, false);
             foreach (var hint in token.Hints)
             {
                 // Each either/or part of the parenthetical ("DM", "HoL") must be an action of some job, and every action it
@@ -1256,10 +1259,10 @@ public sealed partial class PlanImporter
                 }
 
                 var filtered = byJob.ToDictionary(kv => kv.Key, kv => named.Contains(kv.Key) ? kv.Value : new TokenResolution { Kind = TokenKind.OtherJob, Matched = token.Phrase });
-                return (token with { Hints = token.Hints.Where(h => h != hint).ToList() }, filtered);
+                return (token with { Hints = token.Hints.Where(h => h != hint).ToList() }, filtered, true);
             }
 
-            return (token, byJob);
+            return (token, byJob, false);
         }
 
         /// <summary>
@@ -1772,10 +1775,10 @@ public sealed partial class PlanImporter
         /// <summary>
         /// In a column for anyone ("Extras"): the first token whose words name an action of two or more of the jobs ("Feint",
         /// "Party Mit"), which does not say whose it is; null when each job's action is named by words of its own ("PLD Wings",
-        /// "Dismantle", "Minne/Mantra").
+        /// "Dismantle", "Minne/Mantra", "Party Mit (DM/HoL)").
         /// </summary>
         private static TokenState? SharedByJobs(List<TokenState> group, IReadOnlyList<Job> jobs) =>
-            group.FirstOrDefault(t => jobs.Where(j => t.ByJob[j].Kind == TokenKind.Actions)
+            group.FirstOrDefault(t => !t.JobsNamed && jobs.Where(j => t.ByJob[j].Kind == TokenKind.Actions)
                 .SelectMany(j => t.ByJob[j].Alternatives.Select(a => (Job: j, a.Matched)))
                 .GroupBy(x => x.Matched, StringComparer.OrdinalIgnoreCase)
                 .Any(g => g.Select(x => x.Job).Distinct().Count() > 1));
