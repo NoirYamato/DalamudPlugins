@@ -255,6 +255,13 @@ public sealed class ImportResult
     /// </summary>
     public SlashReading DocumentSlashes { get; init; } = SlashReading.Either;
 
+    /// <summary>
+    /// True when the document numbers its Seraph calls ("Seraph1": Summon Seraph and its first Consolation, "Seraph2": the
+    /// second), so that a plain "Seraph" in it means "Seraph1" too, as the importer reads it (the "seraph-reading"
+    /// diagnostic). Every plan tab counts, whichever tabs and columns are imported.
+    /// </summary>
+    public bool SeraphNumbered { get; init; }
+
     /// <summary>Every mechanic row of the imported tabs (with or without assignments) and the mechanic it was matched to, for review.</summary>
     public IReadOnlyList<ImportedRow> Rows { get; init; } = [];
 

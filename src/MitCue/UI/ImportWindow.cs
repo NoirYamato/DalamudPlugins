@@ -789,7 +789,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
             sourceText = SheetText.ForPrompt(this.source.Document, tabs);
         }
 
-        // With the sheet's text, the reading of "/" MitCue's importer uses for it, so the AI reads the sheet the same way.
+        // With the sheet's text, the reading of "/" and of a plain "Seraph" MitCue's importer uses for it, so the AI reads the
+        // sheet the same way.
         var (slashes, slashesChosen) = sourceText != null ? PromptSlashes(this.slashes, this.analysis) : (null, false);
         var prompt = LlmPrompt.Build(new LlmPromptInput
         {
@@ -804,6 +805,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             DataNote = notes.Count > 0 ? string.Join(' ', notes) : null,
             Slashes = slashes,
             SlashesChosen = slashesChosen,
+            SeraphNumbered = sourceText != null && PromptSeraph(this.analysis),
         });
 
         ImGui.SetClipboardText(prompt);
@@ -824,6 +826,13 @@ internal sealed partial class ImportWindow : Window, IDisposable
     /// </summary>
     internal static (SlashReading? Reading, bool Chosen) PromptSlashes(SlashReading choice, ImportAnalysis? analysis) =>
         choice != SlashReading.Auto ? (choice, true) : (analysis is { Available: true } ? analysis.DocumentSlashes : null, false);
+
+    /// <summary>
+    /// Whether the AI prompt says that a plain "Seraph" means "Seraph1" in the loaded sheet
+    /// (<see cref="LlmPromptInput.SeraphNumbered"/>): the trial import found that the sheet numbers its Seraph calls (every
+    /// tab counts, so it holds for the tabs in the prompt); false when it did not, or did not run.
+    /// </summary>
+    internal static bool PromptSeraph(ImportAnalysis? analysis) => analysis is { Available: true, SeraphNumbered: true };
 
     private void StartParseYaml()
     {
