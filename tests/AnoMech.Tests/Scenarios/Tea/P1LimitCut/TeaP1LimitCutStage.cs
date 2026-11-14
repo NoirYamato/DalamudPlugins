@@ -80,9 +80,11 @@ internal sealed class TeaP1LimitCutStage(TeaP1FirstBlasters axis = TeaP1FirstBla
         };
     }
 
+    // Which of its group's spots `number` is hit on.
+    public static int HitSpotOf(int number) => number switch { 1 or 2 => 2, 3 or 4 => 3, 5 or 6 => 5, _ => 6 };
+
     // Where `number` stands as its own hit lands.
-    public Vector2 HitSpot(int number)
-        => Spot(number, number % 2 == 1 ? InnerOdd : InnerEven, number switch { 1 or 2 => 2, 3 or 4 => 3, 5 or 6 => 5, _ => 6 });
+    public Vector2 HitSpot(int number) => Spot(number, number % 2 == 1 ? InnerOdd : InnerEven, HitSpotOf(number));
 
     public static Vector2 OnRing(float bearingDegrees, float radius)
     {

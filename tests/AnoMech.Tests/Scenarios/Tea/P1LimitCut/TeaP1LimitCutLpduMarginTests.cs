@@ -22,6 +22,11 @@ namespace AnoMech.Tests;
 // run and the player's seat moves round, so every role is a bot under every number. The player's seat is left out
 // and so is a hit aimed through it: under the debug driver it walks by movement input and can stop a frame's step
 // off its spot, and in play it is a human, whom TeaP1LimitCutLpduHumanTests covers.
+//
+// Nothing turns a human odd number, and the further it faces off the rim the nearer its cleave comes to the bots:
+// outward to its group's odd waiting at the rim, inward to #4 as it crosses ahead of #5's. So the scenario's own
+// landing distance is also played with the odd 15 degrees off either way, held only to catching nobody. Past about
+// 20 degrees outward, or 17 inward for #5, the cleave reaches them.
 public class TeaP1LimitCutLpduMarginTests
 {
     // Two at least, so a hit aimed through the player's seat on one seed is aimed through bots on another.
@@ -29,6 +34,7 @@ public class TeaP1LimitCutLpduMarginTests
 
     private static readonly float[] LandsBehind = new[] { 1.5f, 3f, 4.5f, P1Geometry.CruiseChaserLandsBehind }.Distinct().Order().ToArray();
     private static readonly float[] DegreesOutward = [-5f, 0f, 5f];
+    private static readonly float[] DegreesOutwardWellOffTheRim = [-15f, 15f];
     private const float JustBeforeHeLands = 0.05f;
 
     private const float BlastRadius = 10f, ConeHalfAngle = MathF.PI / 4f, ConeRange = 25f, ChargeLength = 50f, ChargeHalfWidth = 5f;
@@ -65,6 +71,7 @@ public class TeaP1LimitCutLpduMarginTests
     private sealed record Case(TeaP1FirstBlasters Axis, float LandsBehind, float DegreesOutward)
     {
         public bool Usual => LandsBehind == P1Geometry.CruiseChaserLandsBehind && DegreesOutward == 0f;
+        public bool WellOffTheRim => MathF.Abs(DegreesOutward) > 5f;
     }
 
     [Test]
@@ -72,13 +79,17 @@ public class TeaP1LimitCutLpduMarginTests
     {
         var usual = new Dictionary<string, float>();
         var any = new Dictionary<string, float>();
+        var wellOffTheRim = new Dictionary<string, float>();
         var tightest = new Dictionary<string, string>();
         var held = new HashSet<(PartyRole, int)>();
         var problems = new List<string>();
         var cases = (from axis in Enum.GetValues<TeaP1FirstBlasters>()
                      from landsBehind in LandsBehind
                      from degreesOutward in DegreesOutward
-                     select new Case(axis, landsBehind, degreesOutward)).ToList();
+                     select new Case(axis, landsBehind, degreesOutward))
+            .Concat(from axis in Enum.GetValues<TeaP1FirstBlasters>()
+                    from degreesOutward in DegreesOutwardWellOffTheRim
+                    select new Case(axis, P1Geometry.CruiseChaserLandsBehind, degreesOutward)).ToList();
         for (var run = 0; run < cases.Count; run++)
         for (var i = 0; i < SeedsPerRun; i++)
         {
@@ -96,6 +107,11 @@ public class TeaP1LimitCutLpduMarginTests
                     TurnTheOddJustBeforeHeLands(p, at, numbers);
                     Measure(p, at, numbers, player, (check, clearance) =>
                     {
+                        if (at.WellOffTheRim)
+                        {
+                            Note(wellOffTheRim, $"{check}, the odd {F(at.DegreesOutward)} degrees outward", clearance);
+                            return;
+                        }
                         if (clearance < any.GetValueOrDefault(check, float.MaxValue))
                             tightest[check] = $"first blasters {at.Axis}, landing {F(at.LandsBehind)} y behind, {F(at.DegreesOutward)} degrees outward";
                         Note(any, check, clearance);
@@ -109,6 +125,8 @@ public class TeaP1LimitCutLpduMarginTests
         TestContext.Out.WriteLine($"Smallest clearance (y) in every case played, and where he lands {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd facing along the rim:");
         TestContext.Out.WriteLine(string.Join(Environment.NewLine,
             any.OrderBy(m => m.Key).Select(m => $"  {m.Key}: {F(m.Value)} ({tightest[m.Key]}); usual {F(usual.GetValueOrDefault(m.Key, float.NaN))}")));
+        TestContext.Out.WriteLine($"And landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd well off the rim:");
+        TestContext.Out.WriteLine(string.Join(Environment.NewLine, wellOffTheRim.OrderBy(m => m.Key).Select(m => $"  {m.Key}: {F(m.Value)}")));
         Assert.Multiple(() =>
         {
             Assert.That(problems, Is.Empty);
@@ -118,6 +136,9 @@ public class TeaP1LimitCutLpduMarginTests
                             usualOnly ? $"{check}, landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd facing along the rim" : $"{check}, in every case");
             foreach (var (check, clearance) in any)
                 Assert.That(clearance, Is.GreaterThan(0f), $"{check}, in every case ({tightest[check]})");
+            Assert.That(wellOffTheRim, Is.Not.Empty);
+            foreach (var (check, clearance) in wellOffTheRim)
+                Assert.That(clearance, Is.GreaterThan(0f), $"{check}, landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind");
         });
     }
 

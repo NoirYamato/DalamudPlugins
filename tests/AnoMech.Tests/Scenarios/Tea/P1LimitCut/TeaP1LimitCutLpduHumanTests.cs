@@ -21,8 +21,14 @@ namespace AnoMech.Tests;
 // human from the first frame, who plays the strat from what a player can see: the number over its own head, where
 // the first two Hawk Blasters go off (its group takes one of them), every later blast, and Cruise Chaser's cleaves
 // and charges. It starts on the entrance, as a first run does, and walks in. At each cue it walks straight to its
-// number's next spot a reaction time late, at a player's pace, facing the way it walks; an odd number turns
-// clockwise along the rim once it stands on the spot it is cleaved on.
+// number's next spot a reaction time late, at a player's pace, facing the way it walks.
+//
+// Nothing turns a human or puts it exactly on a spot, so each number takes the spot it is hit on in more than one
+// way (Stance). Cruise Chaser lands by the odd number's facing and aims his charge at the even one, and both the
+// cleave and the charge pass close to the group's other pair, waiting at the rim. An odd number turns clockwise
+// along the rim once it stands there, or 10 degrees short of that or past it, or not at all: it then faces the way
+// it walked in, along the chord from its last spot, 22.5 degrees outward of the rim. An even number stands on its
+// spot or 1.5 y outward of it.
 //
 // Pressing, it uses Arm's Length or Surecast 2 s before its own hit and is not moved. Not pressing, it is thrown:
 // when it finds itself somewhere it did not walk to, it waits for the slide to end, then its reaction time, and
@@ -33,8 +39,9 @@ namespace AnoMech.Tests;
 //   #4 lands beside the other group's waiting pair and stays with that group;
 //   #6 sprints in as far as the middle blaster's edge, and on in once that has gone off;
 //   #8 has nothing left to dodge.
-// Whatever its seat, number, pace and reaction time, nobody may die, but for a thrown #2 that walks and reacts late:
-// its way out is too narrow to hold a player to, so those runs may lose no more than they do today.
+// Whatever its seat, number, pace, reaction time and stance, nobody may die, but where a thrown even number's way
+// out is too narrow to hold a player to (RunsATooNarrowWayOutMayLose): those runs may lose no more than they do
+// today.
 public class TeaP1LimitCutLpduHumanTests
 {
     // Five fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
@@ -45,27 +52,49 @@ public class TeaP1LimitCutLpduHumanTests
     // A player's speeds; the legs a sprinter sprints are the long ones.
     public enum Pace { Walking, Sprinting }
 
-    private static bool HeldTo(int number, Pace pace, float late, bool presses)
-        => presses || number != 2 || pace == Pace.Sprinting || late == 0f;
+    // How the human takes the spot it is hit on: an odd number's facing, an even number's place.
+    public enum Stance { Exact, TenDegreesInward, TenDegreesOutward, AsWalked, Wide }
 
-    // Of the 40 runs on the usual rolls. A quarter second late it clears the blast by 0.2 y; half a second late it is
-    // inside it in more than half.
-    private static int RunsATooNarrowWayOutMayLose(float late) => late <= 0.25f ? 0 : 22;
+    private const float TurnedOffTheRim = 10f * MathF.PI / 180f;
+    private const float WideOfItsSpot = 1.5f;
+
+    private static Stance[] StancesOf(int number)
+        => number % 2 == 1 ? [Stance.Exact, Stance.TenDegreesInward, Stance.TenDegreesOutward, Stance.AsWalked] : [Stance.Exact, Stance.Wide];
+
+    // Runs with a death, of the 40 on the usual rolls; null where the case is held to none.
+    //   #2 thrown from its spot lands among its group's first spots, which blow again. Walking, a quarter second
+    //      late it clears that blast by 0.2 y; half a second late it is inside it in more than half. From 1.5 y wide
+    //      of its spot the rim stops it sooner, further from that blast.
+    //   #4 thrown from its spot is stopped by the rim on the edge of the next pair's blast. From 1.5 y wide the rim
+    //      stops it 20 degrees further on, inside that blast 1.7 s before it goes off, with 7.5 y of rim to its
+    //      edge: it gets out only by setting off at once, or sprinting a quarter second late.
+    private static int? RunsATooNarrowWayOutMayLose(int number, Pace pace, float late, bool presses, Stance stance)
+    {
+        if (presses || late == 0f) return null;
+        return (number, stance, pace) switch
+        {
+            (2, Stance.Exact, Pace.Walking) => late <= 0.25f ? 0 : 22,
+            (4, Stance.Wide, Pace.Walking) => 40,
+            (4, Stance.Wide, Pace.Sprinting) => late <= 0.25f ? null : 19,
+            _ => null,
+        };
+    }
 
     private static IEnumerable<TestCaseData> Matrix(bool heldTo)
         => from number in Enumerable.Range(1, 8)
            from pace in Enum.GetValues<Pace>()
            from late in ReactionTimes
            from presses in new[] { true, false }
-           where HeldTo(number, pace, late, presses) == heldTo
-           select new TestCaseData(number, pace, late, presses)
-               .SetName($"{{m}}(#{number}, {pace}, {late.ToString("F2", CultureInfo.InvariantCulture)}s late, {(presses ? "pressing" : "thrown")})");
+           from stance in StancesOf(number)
+           where RunsATooNarrowWayOutMayLose(number, pace, late, presses, stance) is null == heldTo
+           select new TestCaseData(number, pace, late, presses, stance)
+               .SetName($"{{m}}(#{number}, {pace}, {late.ToString("F2", CultureInfo.InvariantCulture)}s late, {(presses ? "pressing" : "thrown")}, {stance})");
 
     private static IEnumerable<TestCaseData> HeldToCases() => Matrix(heldTo: true);
     private static IEnumerable<TestCaseData> TooNarrowCases() => Matrix(heldTo: false);
 
     [TestCaseSource(nameof(HeldToCases))]
-    public void AHumanPlayingTheStratIsNeverCaught(int number, Pace pace, float late, bool presses)
+    public void AHumanPlayingTheStratIsNeverCaught(int number, Pace pace, float late, bool presses, Stance stance)
     {
         var tightest = new Clearances();
         var runs = 0;
@@ -74,7 +103,7 @@ public class TeaP1LimitCutLpduHumanTests
         foreach (var seed in Seeds)
         {
             runs++;
-            problems.AddRange(Play(seat, number, pace, late, presses, seed, tightest, out _));
+            problems.AddRange(Play(seat, number, pace, late, presses, stance, seed, tightest, out _));
         }
 
         TestContext.Out.WriteLine($"{runs} runs; the human's tightest clearances: {tightest}");
@@ -82,7 +111,7 @@ public class TeaP1LimitCutLpduHumanTests
     }
 
     [TestCaseSource(nameof(TooNarrowCases))]
-    public void AThrownNumberTwoThatWalksAndReactsLateLosesNoMoreRunsThanItDoes(int number, Pace pace, float late, bool presses)
+    public void AThrownNumberWithATooNarrowWayOutLosesNoMoreRunsThanItDoes(int number, Pace pace, float late, bool presses, Stance stance)
     {
         var tightest = new Clearances();
         var (runs, lost, lostOnTheUsualRolls) = (0, 0, 0);
@@ -91,7 +120,7 @@ public class TeaP1LimitCutLpduHumanTests
         foreach (var seed in Seeds)
         {
             runs++;
-            Play(seat, number, pace, late, presses, seed, tightest, out var run, writeArtifacts: false);
+            Play(seat, number, pace, late, presses, stance, seed, tightest, out var run, writeArtifacts: false);
             if (run.Failure is not null) broken.Add(run.ToString());
             else if (!run.Passed)
             {
@@ -102,17 +131,17 @@ public class TeaP1LimitCutLpduHumanTests
 
         TestContext.Out.WriteLine($"{runs} runs, {lost} with a death, {lostOnTheUsualRolls} of them on the usual rolls; the human's tightest clearances: {tightest}");
         Assert.That(broken, Is.Empty, () => string.Join(Environment.NewLine, broken));
-        Assert.That(lostOnTheUsualRolls, Is.LessThanOrEqualTo(RunsATooNarrowWayOutMayLose(late)), "runs with a death on the usual rolls");
+        Assert.That(lostOnTheUsualRolls, Is.LessThanOrEqualTo(RunsATooNarrowWayOutMayLose(number, pace, late, presses, stance) ?? 0), "runs with a death on the usual rolls");
     }
 
-    private static List<string> Play(PartyRole seat, int number, Pace pace, float late, bool presses, int seed, Clearances tightest,
-                                     out ScenarioRun run, bool writeArtifacts = true)
+    private static List<string> Play(PartyRole seat, int number, Pace pace, float late, bool presses, Stance stance, int seed,
+                                     Clearances tightest, out ScenarioRun run, bool writeArtifacts = true)
     {
         var rng = new Random(seed * 8 + (int)seat);
         var numbers = PerRole.All.Where(role => role != seat).OrderBy(_ => rng.Next()).ToList();
         numbers.Insert(number - 1, seat);
         var axis = (TeaP1FirstBlasters)rng.Next(4);
-        var guide = new Guide(seat, pace, late, presses);
+        var guide = new Guide(seat, pace, late, presses, stance);
         var problems = new List<string>();
         run = ScenarioRun.Execute(typeof(TeaP1LimitCutScenario), LpduStrat, seed, new ScenarioRunOptions
         {
@@ -142,7 +171,7 @@ public class TeaP1LimitCutLpduHumanTests
         if (run.Passed && guide.LegsLeft > 0)
             problems.Add($"the human never set off on its last {guide.LegsLeft} walks");
         return problems.Select(problem => $"seed {seed}, {seat} as #{number} (first blasters {axis}, {pace}, {late:F2}s late, "
-                                          + $"{(presses ? "pressing" : "thrown")}): {problem}").ToList();
+                                          + $"{(presses ? "pressing" : "thrown")}, {stance}): {problem}").ToList();
     }
 
     private static uint AntiKnockbackOf(PartyRole seat)
@@ -150,7 +179,7 @@ public class TeaP1LimitCutLpduHumanTests
 
     // Each cue's walk sets off a reaction time after the cue is seen, from wherever the human is then; one marked
     // to follow the walk before it waits for that to arrive as well.
-    private sealed class Guide(PartyRole seat, Pace pace, float late, bool presses)
+    private sealed class Guide(PartyRole seat, Pace pace, float late, bool presses, Stance stance)
     {
         private const float WalkSpeed = 6f, SprintSpeed = 7.8f, SprintsLegsOver = 12f;
         private const float PressBeforeItsHit = 2f;
@@ -282,10 +311,11 @@ public class TeaP1LimitCutLpduHumanTests
         private Vector2 LaneSpot(TeaLane lane, int spot)
         {
             var bearing = GroupBearing!.Value + 45f * spot;
+            var wide = stance == Stance.Wide && spot == Stage.HitSpotOf(Number) ? WideOfItsSpot : 0f;
             return lane switch
             {
                 InnerOdd => Stage.OnRing(bearing - 2f, Stage.InnerRadius),
-                InnerEven => Stage.OnRing(bearing - 30f, Stage.InnerRadius),
+                InnerEven => Stage.OnRing(bearing - 30f, Stage.InnerRadius + wide),
                 OuterOdd => Stage.OnRing(bearing - 4f, Stage.OuterRadius),
                 _ => Stage.OnRing(bearing - 8f, Stage.OuterRadius),
             };
@@ -345,7 +375,7 @@ public class TeaP1LimitCutLpduHumanTests
             var walked = (p.Time - w.Depart) * w.Speed;
             var arrived = walked >= length;
             var at = arrived ? w.To : Vector2.Lerp(w.From, w.To, walked / length);
-            var heading = arrived && w.Turns ? Stage.ClockwiseAlongTheRim(w.To)
+            var heading = arrived && w.Turns && OnTheSpotItIsCleavedOn(w.To) is { } turned ? turned
                 : length > 1e-3f ? MathF.Atan2(w.To.X - w.From.X, w.To.Y - w.From.Y)
                 : me.Rotation;
             me.SetPosition(new Placement(new Vector3(at.X, 0f, at.Y), heading));
@@ -353,9 +383,19 @@ public class TeaP1LimitCutLpduHumanTests
             previous = at;
             if (arrived) walking = null;
         }
+
+        // Outward is toward the wall. Null: it does not turn.
+        private float? OnTheSpotItIsCleavedOn(Vector2 spot) => stance switch
+        {
+            Stance.AsWalked => null,
+            Stance.TenDegreesInward => Stage.ClockwiseAlongTheRim(spot) - TurnedOffTheRim,
+            Stance.TenDegreesOutward => Stage.ClockwiseAlongTheRim(spot) + TurnedOffTheRim,
+            _ => Stage.ClockwiseAlongTheRim(spot),
+        };
     }
 
-    // How close the human came to each hit that was not its own, as it went off, over every run of a case.
+    // How close the human came to each hit that was not its own, and everyone else to the human's own, as it went
+    // off, over every run of a case.
     private sealed class Clearances
     {
         private readonly Dictionary<string, float> tightest = new();
@@ -373,12 +413,21 @@ public class TeaP1LimitCutLpduHumanTests
                                                 Vector2.Distance(at, TeaP1LimitCutLpduMarginTests.BlastCentre(bearing + 180f))) - 10f);
             }
             if (HawkBlasterMiddlesAt.Any(p.Crossed)) Note("a middle blast", at.Length() - 10f);
+            var others = PerRole.All.Where(role => role != seat && p.Member(role).IsAlive()).Select(role => Flat(p.Member(role)!.Position)).ToList();
             for (var hit = 0; hit < AlphaSwordsAt.Length; hit++)
             {
-                if (number != 2 * hit + 1 && p.Crossed(AlphaSwordsAt[hit]))
-                    Note("another number's cleave", TeaP1LimitCutLpduMarginTests.OutsideTheCone(at, CruiseChaser(p).Placement(), 25f + CruiseChaser(p).HitboxRadius));
-                if (number != 2 * hit + 2 && p.Crossed(SuperBlasstyChargesAt[hit]))
-                    Note("another number's charge", TeaP1LimitCutLpduMarginTests.OutsideTheCharge(at, CruiseChaser(p).Placement(), 50f + CruiseChaser(p).HitboxRadius));
+                if (p.Crossed(AlphaSwordsAt[hit]))
+                {
+                    float Outside(Vector2 who) => TeaP1LimitCutLpduMarginTests.OutsideTheCone(who, CruiseChaser(p).Placement(), 25f + CruiseChaser(p).HitboxRadius);
+                    if (number != 2 * hit + 1) Note("another number's cleave", Outside(at));
+                    else if (others.Count > 0) Note("its own cleave, off everyone else", others.Min(Outside));
+                }
+                if (p.Crossed(SuperBlasstyChargesAt[hit]))
+                {
+                    float Outside(Vector2 who) => TeaP1LimitCutLpduMarginTests.OutsideTheCharge(who, CruiseChaser(p).Placement(), 50f + CruiseChaser(p).HitboxRadius);
+                    if (number != 2 * hit + 2) Note("another number's charge", Outside(at));
+                    else if (others.Count > 0) Note("its own charge, off everyone else", others.Min(Outside));
+                }
             }
         }
 
