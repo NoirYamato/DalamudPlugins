@@ -98,7 +98,7 @@ public partial class FightDataTests(ITestOutputHelper output)
         {
             if (!RepoFiles.Data.Exists("timelines/" + fight.TimelineFile))
                 continue; // reported by EveryFight_HasItsTimeline
-            var entries = TimelineEntries(RepoFiles.Data.ReadText("timelines/" + fight.TimelineFile));
+            var entries = TimelineEntries(TimelineText(fight));
             foreach (var m in fight.Mechanics.Where(m => m.Entry != null))
             {
                 checkedCount++;
@@ -110,6 +110,31 @@ public partial class FightDataTests(ITestOutputHelper output)
             }
         }
         output.WriteLine($"{checkedCount} mechanic entries checked");
+        Assert.Empty(problems);
+    }
+
+    /// <summary>The fight's cactbot timeline with its <c>timeline_additions</c> appended, as <see cref="FightLibrary.LoadTimeline"/> loads it.</summary>
+    private static string TimelineText(FightDefinition fight)
+    {
+        var text = RepoFiles.Data.ReadText("timelines/" + fight.TimelineFile);
+        return string.IsNullOrWhiteSpace(fight.TimelineAdditions) ? text : text.TrimEnd() + "\n" + fight.TimelineAdditions;
+    }
+
+    [Fact]
+    public void EveryHit_IsTheTimeOfATimelineEntry()
+    {
+        var problems = new List<string>();
+        foreach (var (path, fight) in Fights)
+        {
+            if (!RepoFiles.Data.Exists("timelines/" + fight.TimelineFile))
+                continue;
+            var times = TimelineEntries(TimelineText(fight)).Select(e => e.Time).ToList();
+            foreach (var m in fight.Mechanics)
+            {
+                foreach (var h in m.Hits.Where(h => !times.Any(t => Math.Abs(t - h) <= EntryTolerance)))
+                    problems.Add($"{path}: {m.Id} hit {h.ToString(CultureInfo.InvariantCulture)} is not the time of a timeline entry");
+            }
+        }
         Assert.Empty(problems);
     }
 

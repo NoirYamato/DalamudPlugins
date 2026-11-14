@@ -172,11 +172,16 @@ internal sealed class DataValidator(IDataSource data)
             return;
         }
 
+        // The fight's timeline_additions are part of the timeline the plugin plays (FightLibrary.LoadTimeline).
+        var entries = timeline.Entries.ToList();
+        if (!string.IsNullOrWhiteSpace(fight.TimelineAdditions))
+            entries.AddRange(TimelineParser.Parse(fight.TimelineAdditions, fight.Key + " timeline_additions").Entries);
+
         var checkedEntries = 0;
         foreach (var m in fight.Mechanics.Where(m => m.Entry != null))
         {
             checkedEntries++;
-            var named = timeline.Entries.Where(e => e.Name == m.Entry).ToList();
+            var named = entries.Where(e => e.Name == m.Entry).ToList();
             if (named.Any(e => Math.Abs(e.Time - m.Hit) <= EntryTolerance))
                 continue;
             item.Problems.Add(named.Count > 0
