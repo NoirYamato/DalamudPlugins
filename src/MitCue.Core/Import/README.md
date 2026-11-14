@@ -61,15 +61,17 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 line breaks, wide gaps: pressed together). Tokens with different times of their own become separate items
 (`Soil (0:12)\nDeploy (0:17)`, `0:12 Soil\n0:17 Deploy`); sequences keep their steps. `ParsedCell.Diagnostics` holds
 `unclosed-bracket` warnings (an unclosed `(` ends at the next separator, arrow or line break). With
-`CellParserOptions.SlashJoins` a `/` between words joins tokens like `+` (not between slots, jobs or target words,
-before a digit, or inside brackets); `ParsedCell.Joins` counts the other separators between words. A cell that is one
-pair of brackets around words (`(Shake)`) is its inside with every token optional (`Bracketed`); a cell that points up
-(`(^on LL)`) has no items and its remark in `Above`.
+`CellParserOptions.SlashJoins` a `/` between words joins tokens like `+` (not between slots, jobs, target or mechanic
+words, hyphens included: `MT/Co-tank`, `Stack/Spread`; not in `and/or`, before a digit, or inside brackets);
+`ParsedCell.Joins` counts the other separators between words. A cell that is one pair of brackets around words
+(`(Shake)`) is its inside with every token optional (`Bracketed`); a cell that points up (`(^on LL)`) has no items and
+its remark in `Above`.
 
-`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`, `Seraph1/Soil`; not `R1/R2`), `Trailing`
-(`after 1st Hit`, `Co-Tank`, `to R1/2`, `if P4 skip`), `Target`, `Hints` (parentheticals), `Time` (`ParsedTime`:
-seconds, range end, list, approx flag, source text), `Optional` (grey, or the cell in brackets), `WhenReady` (`⏱`,
-"on CD"), `Footnote` (`*`), `JobPrefix` (`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`.
+`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`, `Seraph1/Soil`, `Kera or Soil`, `Kera and/or
+Soil`; not `R1/R2`), `Trailing` (`after 1st Hit`, `Co-Tank`, `to R1/2`, `MT/Co-tank`, `if P4 skip`), `Target` (slots
+and tank target words joined by `/` are one: `MT/Co-tank`), `Hints` (parentheticals), `Time` (`ParsedTime`: seconds,
+range end, list, approx flag, source text), `Optional` (grey, or the cell in brackets), `WhenReady` (`⏱`, "on CD"),
+`Footnote` (`*`), `JobPrefix` (`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`.
 Steps and items aggregate `Time`/`Target`; items aggregate `Optional`/`WhenReady`/`Footnote`.
 
 ## Recipe for the back half
@@ -179,9 +181,12 @@ Rules worth knowing:
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
-  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. An
-  alternative that means nothing is an `unresolved-token` warning; an either/or with a choice of several actions
-  (`Spread-Lo/Soil`) gives one optional entry per choice (`either-or-split`).
+  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. "All of
+  them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
+  `and/or`. In both readings, slots and tank target words joined by `/` after an action are one target, either of them
+  (`Benison MT/Co-tank`), and `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an
+  `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry
+  per choice (`either-or-split`).
 - **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
   `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). The column is imported whatever columns are

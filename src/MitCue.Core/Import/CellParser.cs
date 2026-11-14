@@ -15,8 +15,9 @@ public sealed class CellParserOptions
 
     /// <summary>
     /// "X/Y" between two words means "and", like "X + Y" ("Soil/Reci/Deploy/Whisper": four tokens), instead of either/or.
-    /// The importer decides it per document (<see cref="SlashReading"/>). A "/" between slots, jobs or target words
-    /// ("MT/OT", "WAR/DRK", "Tank/Healer"), before a digit ("R1/2"), after "w" ("w/") or inside brackets never joins.
+    /// The importer decides it per document (<see cref="SlashReading"/>). A "/" between slots, jobs, target or mechanic
+    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), before a digit ("R1/2"), after "w" ("w/"),
+    /// in "and/or" or inside brackets never joins.
     /// </summary>
     public bool SlashJoins { get; init; }
 }
@@ -147,13 +148,14 @@ public sealed partial class CellParser
 
     /// <summary>
     /// True for a word the parser reads as part of a hint rather than an action: a connector ("after", "if", "use"), a
-    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), a count ("×2") or a number ("4", "1st").
+    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), slots and target words joined by "/"
+    /// ("MT/Co-tank"), a count ("×2") or a number ("4", "1st").
     /// </summary>
     internal static bool IsHintWord(string word)
     {
         var w = word.Trim('.', ',', ':', ';', '!', '?', '"', '\'', '(', ')', '[', ']');
         return w.Length > 0 && (Connectors.Contains(w) || Continuations.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w)
-            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
+            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
     }
 
     /// <summary>Parses plain text (no formatting).</summary>
@@ -231,6 +233,13 @@ public sealed partial class CellParser
 
     private static bool IsTargetNoun(string w) =>
         TargetWords.Contains(w) || TargetNouns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w);
+
+    /// <summary>A word that names a player: a slot, a target word or noun, or a job ("MT", "Co-tank", "tank", "WAR").</summary>
+    private static bool NamesAPlayer(string w) => SlotWord().IsMatch(w) || TargetWords.Contains(w) || TargetNouns.Contains(w)
+        || (w.Length == 3 && w.All(char.IsAsciiLetter) && Jobs.TryParse(w, out _));
+
+    /// <summary>Slots and tank target words joined by "/", either of them ("MT/Co-tank", "Off-tank/MT", "MT/OT").</summary>
+    private static bool IsPlayerList(string w) => w.Contains('/') && w.Split('/').All(p => SlotWord().IsMatch(p) || TargetWords.Contains(p));
 
     /// <summary>
     /// A parenthetical naming a player: one or two words that are slots or target words ("(MT)", "(Co-Tank)", "(Tank)",
@@ -754,7 +763,8 @@ public sealed partial class CellParser
         /// <summary>
         /// A "/" that joins two tokens when slashes mean "and" (<see cref="CellParserOptions.SlashJoins"/>): a letter follows
         /// it, a letter, digit or closing bracket precedes it ("Seraph1/Soil", "Excog(OT)/Soil"), and the words around it
-        /// are not both slots, jobs or target words ("MT/OT", "WAR/DRK", "Tank/Healer"), nor "w/" (with).
+        /// (with their hyphens: "Co-tank") are not both slots, jobs, target or mechanic words ("MT/OT", "WAR/DRK",
+        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor "w/" (with) or "and/or".
         /// </summary>
         private bool IsJoinSlash(int j)
         {
@@ -765,17 +775,23 @@ public sealed partial class CellParser
                 return true;
             if (!char.IsLetterOrDigit(s[j - 1]))
                 return false;
-            var a = j - 1;
-            while (a > 0 && char.IsLetterOrDigit(s[a - 1]))
+
+            // The words around it, hyphens inside them included, and their parts next to the "/" ("Spread-Lo/Soil": "Lo").
+            var a = j;
+            while (a > 0 && (char.IsLetterOrDigit(s[a - 1]) || (s[a - 1] == '-' && a < j && a >= 2 && char.IsLetterOrDigit(s[a - 2]))))
                 a--;
             var b = j + 1;
-            while (b < s.Length && char.IsLetterOrDigit(s[b]))
+            while (b < s.Length && (char.IsLetterOrDigit(s[b]) || (s[b] == '-' && b > j + 1 && b + 1 < s.Length && char.IsLetterOrDigit(s[b + 1]))))
                 b++;
             var left = s[a..j];
-            return !left.Equals("w", StringComparison.OrdinalIgnoreCase) && !(NamesAPlayer(left) && NamesAPlayer(s[(j + 1)..b]));
+            var right = s[(j + 1)..b];
+            var leftPart = left[(left.LastIndexOf('-') + 1)..];
+            var rightPart = right.Split('-')[0];
+            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j)
+                && !(NamesNoAction(left, leftPart) && NamesNoAction(right, rightPart));
 
-            static bool NamesAPlayer(string w) => SlotWord().IsMatch(w) || TargetWords.Contains(w) || TargetNouns.Contains(w)
-                || (w.Length == 3 && w.All(char.IsAsciiLetter) && Jobs.TryParse(w, out _));
+            static bool NamesNoAction(string word, string part) =>
+                NamesAPlayer(word) || NamesAPlayer(part) || MechanicWords.Contains(word) || MechanicWords.Contains(part);
         }
 
         private bool EndsWord(int j, int wordStart)
@@ -1067,7 +1083,7 @@ public sealed partial class CellParser
             for (var i = 1; i < words.Count; i++)
             {
                 var w = words[i].Clean;
-                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || CountWord().IsMatch(w)
+                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || CountWord().IsMatch(w)
                     || (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < words.Count && words[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase)))
                 {
                     split = i;
@@ -1146,7 +1162,7 @@ public sealed partial class CellParser
             return runs;
         }
 
-        /// <summary>"to R1/2", "on MT", "to 4", "Co-Tank", "co tank": the first target in the trailing words.</summary>
+        /// <summary>"to R1/2", "on MT", "to 4", "Co-Tank", "co tank", "MT/Co-tank": the first target in the trailing words.</summary>
         private static ParsedTarget? TrailingTarget(List<Word> trail)
         {
             for (var i = 0; i < trail.Count; i++)
@@ -1174,7 +1190,7 @@ public sealed partial class CellParser
                     continue;
                 }
 
-                if (TargetWords.Contains(w) || SlotWord().IsMatch(w))
+                if (TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w))
                     return new ParsedTarget(trail[i].Text, trail[i].Text);
                 if (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < trail.Count && trail[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase))
                     return new ParsedTarget(trail[i].Text + " " + trail[i + 1].Text, trail[i].Text + " " + trail[i + 1].Text);
@@ -1184,8 +1200,8 @@ public sealed partial class CellParser
         }
 
         /// <summary>
-        /// "Kera/Soil" → [Kera, Soil]; "Seraph1/Soil" → [Seraph1, Soil]; "Kera or Soil" → [Kera, Soil]. A "/" before a digit
-        /// ("R1/2", "3rd/4th") or between two slots ("R1/R2") does not split.
+        /// "Kera/Soil" → [Kera, Soil]; "Seraph1/Soil" → [Seraph1, Soil]; "Kera or Soil" and "Kera and/or Soil" → [Kera, Soil].
+        /// A "/" before a digit ("R1/2", "3rd/4th") or between two slots ("R1/R2") does not split.
         /// </summary>
         private static IReadOnlyList<string> SplitAlternatives(string head)
         {
@@ -1196,7 +1212,7 @@ public sealed partial class CellParser
             for (var i = 0; i < head.Length; i++)
             {
                 if (head[i] == '/' && i > 0 && i + 1 < head.Length && char.IsLetterOrDigit(head[i - 1]) && char.IsLetter(head[i + 1])
-                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)))
+                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i))
                 {
                     parts.Add(head[start..i]);
                     start = i + 1;
@@ -1206,10 +1222,15 @@ public sealed partial class CellParser
             parts.Add(head[start..]);
             var result = new List<string>();
             foreach (var p in parts)
-                result.AddRange(Regex.Split(p, @"\s+or\s+", RegexOptions.IgnoreCase));
+                result.AddRange(Regex.Split(p, @"\s+(?:and/)?or\s+", RegexOptions.IgnoreCase));
             result = result.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
             return result.Count == 0 ? [head] : result;
         }
+
+        /// <summary>The "/" at <paramref name="i"/> is the one of "and/or".</summary>
+        private static bool IsAndOr(string s, int i) =>
+            i >= 3 && i + 3 <= s.Length && s[(i - 3)..i].Equals("and", StringComparison.OrdinalIgnoreCase) && s.Substring(i + 1, 2).Equals("or", StringComparison.OrdinalIgnoreCase)
+            && (i == 3 || !char.IsLetterOrDigit(s[i - 4])) && (i + 3 == s.Length || !char.IsLetterOrDigit(s[i + 3]));
 
         /// <summary>The words around the "/" at <paramref name="i"/> are both slots ("R1/R2", "H1/OT").</summary>
         private static bool SlotPair(string head, int i)

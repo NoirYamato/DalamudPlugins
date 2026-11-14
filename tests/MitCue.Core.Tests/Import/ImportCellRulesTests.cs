@@ -64,7 +64,48 @@ public class ImportCellRulesTests
     [Theory]
     [InlineData("WAR/DRK Rampart")]
     [InlineData("Tank/Healer LB")]
-    public void SlashJoins_DoesNotJoinJobsOrPlayers(string text) => Assert.Single(And.Parse(text).Tokens);
+    [InlineData("Benison MT/Co-tank")] // a hyphenated target word
+    [InlineData("Excog MT/Off-tank")]
+    [InlineData("Haima MT/Co-Tank")]
+    [InlineData("Intersection Main-tank/OT")]
+    [InlineData("Kera after Stack/Spread")] // mechanic words
+    [InlineData("Soil and/or Expedient")]
+    public void SlashJoins_DoesNotJoinJobsPlayersOrMechanicWords_NorAndOr(string text) => Assert.Single(And.Parse(text).Tokens);
+
+    [Fact]
+    public void SlashJoins_AHyphenatedActionWordStillJoins()
+    {
+        // TEA 'Alex Prime/PA'!E17: Spreadlo (Adloquium → Deployment Tactics), then Sacred Soil.
+        Assert.Equal(["Spread-Lo", "Soil"], And.Parse("Spread-Lo/Soil").Tokens.Select(t => t.Head));
+        Assert.Equal(["Kera", "Spread"], And.Parse("Kera/Spread").Tokens.Select(t => t.Head)); // one side an action: joined
+    }
+
+    [Theory]
+    [InlineData("Benison MT/Co-tank", "Benison", "MT/Co-tank")]
+    [InlineData("Intersection Co-tank/MT", "Intersection", "Co-tank/MT")]
+    [InlineData("Excog MT/Offtank", "Excog", "MT/Offtank")]
+    [InlineData("Haima MT/Co-tank after 1st hit", "Haima", "MT/Co-tank")]
+    public void TankTargetsJoinedBySlash_AreOneTarget_InEitherReading(string text, string head, string target)
+    {
+        foreach (var parser in new[] { And, CellParser.Default })
+        {
+            var token = Assert.Single(parser.Parse(text).Tokens);
+            Assert.Equal((head, target), (token.Head, token.Target?.Value));
+            Assert.Equal([head], token.Alternatives);
+        }
+    }
+
+    [Theory]
+    [InlineData(SlashReading.All)]
+    [InlineData(SlashReading.Either)]
+    public void AndOr_IsEitherOne_InEitherReading(SlashReading slashes)
+    {
+        Assert.Equal(["Soil", "Expedient"], Assert.Single(new CellParser(new CellParserOptions { SlashJoins = slashes == SlashReading.All }).Parse("Soil and/or Expedient").Tokens).Alternatives);
+
+        var entry = Assert.Single(Import(Sheet("P3", "Scholar", "Hello World\tSoil and/or Expedient"), slashes).Plan.Entries);
+        Assert.Equal(["Sacred Soil|Expedient"], entry.Names());
+        Assert.Null(entry.Note);
+    }
 
     [Fact]
     public void SlashJoins_ATargetBindsToTheTokenItFollows()
