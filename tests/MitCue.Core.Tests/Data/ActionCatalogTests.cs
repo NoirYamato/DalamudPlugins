@@ -176,6 +176,9 @@ public class ActionCatalogTests
         Assert.Equal(10, star.Lead);
         Assert.Contains(star.FollowUps, f => f.Id == 8324 && f.Name == "Stellar Detonation");
 
+        var neutral = A("Neutral Sect"); // a buff pressed in time for the Aspected Helios that puts up its barrier
+        Assert.Equal((ActionKind.Buff, UseTiming.Before, 4.5), (neutral.Kind, neutral.When, neutral.Lead!.Value));
+
         var caress = A("Divine Caress");
         Assert.Equal(3881u, caress.RequiresStatus);
         Assert.Equal(16536u, caress.FollowUpOf);

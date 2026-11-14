@@ -957,6 +957,12 @@ entries:
     src: "'P3'!B8"
   - id: e139
     mechanic: p4.protean_1
+    who: {slot: H1, job: AST, assignee: H1 AST}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    src: "'P4'!E2"
+  - id: e140
+    mechanic: p4.protean_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 185, name: Adloquium}
@@ -964,52 +970,46 @@ entries:
     seq: true
     detail: Shields bevor the boss is targetable
     src: "'P4'!F2"
-  - id: e140
+  - id: e141
     mechanic: p4.protean_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P4'!G2"
-  - id: e141
+  - id: e142
     mechanic: p4.protean_1
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R1
     src: "'P4'!B2"
-  - id: e142
+  - id: e143
     mechanic: p4.protean_1
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R2
     src: "'P4'!C2"
-  - id: e143
+  - id: e144
     mechanic: p4.wave_cannon
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R1
     src: "'General Tank Mit til P5'!B13"
-  - id: e144
+  - id: e145
     mechanic: p4.wave_cannon
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 7393, name: The Blackest Night}
     target: R2
     src: "'General Tank Mit til P5'!C13"
-  - id: e145
+  - id: e146
     mechanic: p4.protean_1
     who: {slot: MT, assignee: MT}
     do:
       - {action: 7535, name: Reprisal}
     src: "'P4'!B2"
-  - id: e146
-    mechanic: p4.protean_1
-    who: {slot: H1, job: AST, assignee: H1 AST}
-    do:
-      - {action: 16559, name: Neutral Sect}
-    src: "'P4'!E2"
   - id: e147
     mechanic: p4.protean_1
     who: {slot: MT, job: PLD, assignee: MT}
@@ -1463,25 +1463,19 @@ entries:
     src: "'P5'!E4"
   - id: e210
     mechanic: p5.delta_patch
-    who: {slot: H2, job: SGE, assignee: H2 SGE}
-    do:
-      - {action: 24298, name: Kerachole}
-    src: "'P5'!G4"
-  - id: e211
-    mechanic: p5.delta_patch
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 16559, name: Neutral Sect}
     note: if P4 skip
     optional: true
     src: "'P5'!E4"
-  - id: e212
-    mechanic: p5.delta_hello_world
+  - id: e211
+    mechanic: p5.delta_patch
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
-      - {action: 24311, name: Panhaima}
-    src: "'P5'!G5"
-  - id: e213
+      - {action: 24298, name: Kerachole}
+    src: "'P5'!G4"
+  - id: e212
     mechanic: p5.delta_hello_world
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
@@ -1489,6 +1483,12 @@ entries:
     note: no skip
     optional: true
     src: "'P5'!E5"
+  - id: e213
+    mechanic: p5.delta_hello_world
+    who: {slot: H2, job: SGE, assignee: H2 SGE}
+    do:
+      - {action: 24311, name: Panhaima}
+    src: "'P5'!G5"
   - id: e214
     mechanic: p5.delta_hello_world
     who: {slot: H2, job: SCH, assignee: H2 SCH}
@@ -2436,41 +2436,48 @@ entries:
     src: "'P6'!C4"
   - id: e346
     mechanic: p6.wave_cannon_1
+    who: {slot: H1, job: AST, assignee: H1 AST}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
+    src: "'P6'!E4"
+  - id: e347
+    mechanic: p6.wave_cannon_1
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 186, name: Succor}
       - {action: 188, name: Sacred Soil}
     note: Succor Proteans
     src: "'P6'!F4"
-  - id: e347
+  - id: e348
     mechanic: p6.wave_cannon_1
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
       - {action: 24292, name: Eukrasian Prognosis}
     src: "'P6'!G4"
-  - id: e348
+  - id: e349
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e349
+  - id: e350
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e350
+  - id: e351
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e351
+  - id: e352
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: WAR/DRK DRK}
     do:
@@ -2478,21 +2485,21 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'WAR/DRK'!C11"
-  - id: e352
+  - id: e353
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: WAR/GNB GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'WAR/GNB'!C11"
-  - id: e353
+  - id: e354
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: WAR/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'WAR/PLD'!C11"
-  - id: e354
+  - id: e355
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: DRK/GNB DRK}
     do:
@@ -2500,14 +2507,14 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/GNB'!B11"
-  - id: e355
+  - id: e356
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: DRK/GNB GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'DRK/GNB'!C11"
-  - id: e356
+  - id: e357
     mechanic: p6.wave_cannon_1
     who: {job: DRK, assignee: DRK/PLD DRK}
     do:
@@ -2515,21 +2522,21 @@ entries:
       - {action: 25754, name: Oblation}
       - {action: 7393, name: The Blackest Night}
     src: "'DRK/PLD'!B11"
-  - id: e357
+  - id: e358
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: DRK/PLD PLD}
     do:
       - {action: 17, name: Sentinel}
       - {action: 25746, name: Holy Sheltron}
     src: "'DRK/PLD'!C11"
-  - id: e358
+  - id: e359
     mechanic: p6.wave_cannon_1
     who: {job: GNB, assignee: GNB/PLD GNB}
     do:
       - {action: 16148, name: Nebula}
       - {action: 25758, name: Heart of Corundum}
     src: "'GNB/PLD'!B11"
-  - id: e359
+  - id: e360
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: CM LB Tank}
     do:
@@ -2537,7 +2544,7 @@ entries:
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e360
+  - id: e361
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: CM LB Tank}
     do:
@@ -2545,7 +2552,7 @@ entries:
     note: after 6th puddle; *WAR/PLD use Mit after Protean befor Stack
     detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
     src: "'P6'!B4"
-  - id: e361
+  - id: e362
     mechanic: p6.wave_cannon_1
     who: {job: PLD, assignee: CM Rep Tank}
     do:
@@ -2553,7 +2560,7 @@ entries:
       - {action: 7535, name: Reprisal}
     note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e362
+  - id: e363
     mechanic: p6.wave_cannon_1
     who: {job: WAR, assignee: CM Rep Tank}
     do:
@@ -2561,7 +2568,7 @@ entries:
       - {action: 7535, name: Reprisal}
     note: Party Mit after 6th puddle; *Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!
     src: "'P6'!C4"
-  - id: e363
+  - id: e364
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -2570,13 +2577,6 @@ entries:
     seq: true
     note: after 6th puddle
     src: "'P6'!J4"
-  - id: e364
-    mechanic: p6.wave_cannon_1
-    who: {slot: H1, job: AST, assignee: H1 AST}
-    do:
-      - {action: 16559, name: Neutral Sect}
-    detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
-    src: "'P6'!E4"
   - id: e365
     mechanic: p6.wave_cannon_1
     who: {slot: R1, job: RDM, assignee: R1}

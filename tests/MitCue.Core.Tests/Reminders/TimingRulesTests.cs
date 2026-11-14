@@ -369,6 +369,7 @@ public class TimingRulesTests
     [InlineData("Earthly Star", -10, 81, 99.7)]
     [InlineData("Horoscope", -3, 71, 99.7)]
     [InlineData("Macrocosmos", -4.5, 86, 99.7)]
+    [InlineData("Neutral Sect", -4.5, 71, 99.7)]        // its barrier (after a Helios) lasts 30 s
     [InlineData("Tetragrammaton", 1, 91, 106)]          // a heal without "when": after the damage
     [InlineData("Healing Wind", 2, 92, 107)]            // healer LB1 ("when: after")
     [InlineData("Pulse of Life", 2, 92, 107)]
@@ -382,6 +383,14 @@ public class TimingRulesTests
         Assert.Equal(earliest, window.Earliest, Kit.Tolerance);
         Assert.Equal(latest, window.Latest, Kit.Tolerance);
     }
+
+    /// <summary>Neutral Sect's barrier comes with the Aspected Helios (Helios Conjunction at 100) cast after it: never later.</summary>
+    [Theory]
+    [InlineData(80, "Aspected Helios")]
+    [InlineData(90, "Aspected Helios")]
+    [InlineData(100, "Helios Conjunction")]
+    public void RealCatalog_NeutralSectIsPressedNoLaterThanTheHeliosItEnables(int level, string helios) =>
+        Assert.True(TimingRules.DefaultOffset(RepoFiles.Action("Neutral Sect"), level) <= TimingRules.DefaultOffset(RepoFiles.Action(helios), level));
 
     [Fact]
     public void RealCatalog_EveryBeforeActionIsPressedBeforeTheHit_EveryAfterActionAfterIt()

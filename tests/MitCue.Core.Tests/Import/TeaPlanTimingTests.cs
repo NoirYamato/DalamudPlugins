@@ -97,6 +97,21 @@ public class TeaPlanTimingTests
         Assert.True(reprisal.PressAt >= reprisal.Hit - 3, $"press {reprisal.PressAt}");
     }
 
+    // ---- actions with a lead of their own (actions.yaml) -------------------------------------------------------
+
+    /// <summary>
+    /// 'LL/BJCC'!H48 "Neutral" on Whirlwind 2 (327.6) and 'Alex Prime/PA'!H47 "Neutral/CU" on Irresistible Grace 2 (1187.9):
+    /// Neutral Sect is pressed 4.5 s before the hit, in time for the Neutral Aspected Helios (1.5 s cast) to put up its
+    /// barrier before the damage.
+    /// </summary>
+    [Fact]
+    public void NeutralSect_LeavesTimeForTheHeliosItsBarrierComesWith()
+    {
+        var neutral = Reminders("'LL/BJCC'!H48", "'Alex Prime/PA'!H47").Where(r => r.Item.Name == "Neutral Sect").ToList();
+        Assert.Equal(2, neutral.Count);
+        Assert.All(neutral, r => Assert.Equal(r.Hit - 4.5, r.PressAt, 1e-9));
+    }
+
     /// <summary>
     /// 'LL/BJCC'!G40 "Asylum/Plenary": Plenary Indulgence (10 s, Confession on the heal-up GCDs) is pressed after the drop
     /// to 1 HP, not 7.2 s before it with Asylum's regen lead.

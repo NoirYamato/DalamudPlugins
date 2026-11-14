@@ -26,7 +26,8 @@ namespace MitCue.Core.Reminders;
 /// <item><see cref="UseTiming.Before"/>: pre-placed effects that act on a later event, pressed before the damage even
 /// when they heal: Liturgy of the Bell (heals as the damage consumes its stacks), Excogitation (heals when the
 /// target drops below 50 % HP), Earthly Star (detonated after the damage, full potency after maturing 10 s),
-/// Horoscope and Macrocosmos (heal on a re-press or on expiry).</item>
+/// Horoscope and Macrocosmos (heal on a re-press or on expiry). Also actions with a lead of their own: Neutral Sect
+/// (4.5 s, time to cast the Aspected Helios that puts up its barrier) and Passage of Arms (2 s, pressed last).</item>
 /// <item><see cref="UseTiming.After"/>: pressed after the damage (the healer limit breaks).</item>
 /// </list>
 /// </remarks>

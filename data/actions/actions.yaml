@@ -942,6 +942,10 @@ actions:
     cooldown_group: 22
     duration: {80: 20}
     sync: {80: 20, 90: 20, 100: 20}
+    # A buff's default (-3 s) leaves no time for the Aspected Helios / Helios Conjunction (1.5 s cast) that puts up its
+    # barrier: pressed 4.5 s before the hit, that GCD's own lead (a 15 s regen), so the barrier lands before the hit.
+    when: before
+    lead: 4.5
     effects:
       - {name: "Neutral Sect (healing magic +20%)", duration: {80: 20}}
       - {name: "Aspected Benefic / Helios Conjunction barrier", duration: {80: 30}}

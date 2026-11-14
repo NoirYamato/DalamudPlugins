@@ -42,7 +42,10 @@ public enum UseTiming
     /// <summary>The kind's default: heals after the hit, everything else before it (docs/research/actions.md §6).</summary>
     Default,
 
-    /// <summary>Pressed before the damage even though it heals (pre-placed heals: Liturgy of the Bell, Earthly Star, Excogitation, Horoscope, Macrocosmos).</summary>
+    /// <summary>
+    /// Pressed before the damage even though it heals (pre-placed heals: Liturgy of the Bell, Earthly Star, Excogitation,
+    /// Horoscope, Macrocosmos), or with a <see cref="ActionInfo.Lead"/> of its own (Neutral Sect, Passage of Arms).
+    /// </summary>
     Before,
 
     /// <summary>Pressed after the damage (healer limit breaks).</summary>
@@ -137,7 +140,11 @@ public sealed class ActionInfo
     /// <summary>Press before or after the damage, when it differs from the kind's default.</summary>
     public UseTiming When { get; init; } = UseTiming.Default;
 
-    /// <summary>Minimum seconds between the press and the damage (Earthly Star: 10, the star must mature), or null.</summary>
+    /// <summary>
+    /// For a <see cref="UseTiming.Before"/> action: seconds between the press and the damage (Earthly Star: 10, the star must
+    /// mature; Neutral Sect: 4.5, time to cast the Aspected Helios that puts up its barrier; Passage of Arms: 2, a channel
+    /// any other action ends, so it is pressed last), or null.
+    /// </summary>
     public double? Lead { get; init; }
 
     /// <summary>Limit break tier (1, 2 or 3) for limit breaks, else null.</summary>
