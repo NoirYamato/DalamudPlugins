@@ -733,6 +733,7 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var states = new List<(bool LiquidUp, bool HandUp)>();
         var positions = new List<Vector3>();
+        var tornadoes = new List<bool>();
         var run = CascadeTwo.Run(MeleeDpsB, takeovers: new Takeover(40.2f, new Vector2(-12f, 0f)), probe: p =>
         {
             var fight = Stage.Fight(p);
@@ -741,11 +742,13 @@ public class TeaP1LivingLiquidScenarioTests
                 {
                     states.Add((fight.Liquid.IsAlive(), fight.Hand is { IsActive: true }));
                     positions.Add(fight.Position(TeaP1Boss.LiquidHand));
+                    tornadoes.Add(fight.Tornadoes.Standing is not null);
                 }
         });
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(states, Is.EqualTo(new[] { (true, true), (false, true), (false, true), (false, false) }));
+        Assert.That(tornadoes, Is.EqualTo(new[] { true, false, false, false }), "the tornadoes and their water go with the Liquid");
         Assert.That(positions[3], Is.EqualTo(positions[2]), "the Hand's last spot is still answered once it has left");
     }
 

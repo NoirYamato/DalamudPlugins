@@ -581,7 +581,8 @@ public sealed class TeaP1LivingLiquid
 
     // -- The end --
     // The Living Liquid falls on the timeline, which ends the run; the Liquid Hand leaves
-    // P1Duration.HandLeavesAfterTheLiquid later. Nothing kills from here on.
+    // P1Duration.HandLeavesAfterTheLiquid later. Nothing kills from here on, so the tornadoes and the Emboli go with
+    // the Liquid (UNVERIFIED when the fight's leave).
     public void TheLiquidFalls(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(at, () =>
@@ -589,6 +590,7 @@ public sealed class TeaP1LivingLiquid
             fallen = true;
             Position(TeaP1Boss.LivingLiquid);
             Liquid?.Defeat(P1Duration.LiquidCorpseFade);
+            Tornadoes.Leave();
             foreach (var embolus in emboli.Where(embolus => embolus.IsActive)) embolus.FadeOut();
         }, file, line);
         At(at + P1Duration.HandLeavesAfterTheLiquid, () =>
