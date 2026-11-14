@@ -907,7 +907,9 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
 - The tornadoes (`TeaP1Tornadoes`, `TeaP1TornadoLayout`): three Liquid Rages 14.5 y out on three quarters, each with
   a 7.6 y puddle, and the quarter without one names the frame everything is written in (relative north; the
   tornadoes are then West, Middle and East). A puddle kills whoever enters it, from 1 s after it appears, since
-  Cascade 2's set can land under someone who had no way to know where; bots walk round each as an obstacle.
+  Cascade 2's set can land under someone who had no way to know where; bots walk round each as an obstacle. The
+  first set leaves with Drainage and the second as the Liquid falls, water and all (UNVERIFIED when the fight's
+  second set goes).
 - Targets: the Living Liquid on the main tank's seat and the Liquid Hand on the off tank's, from 0.5. Each follows
   and faces its target through the engine's `Follow`, which stops 4.0 y (the Liquid) and 2.1 y (the Hand) from it
   and holds still through a cast, so a human tank drags its boss. `SetTarget` is public for the opening's Provoke;
@@ -926,8 +928,12 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
   tornadoes aim one each at their closest player, telegraphed at 24.2 and unseen at 29.3. Every wave leaves Water
   Resistance Down for 5 s, and a wave on someone who carries it kills, bots included, short of a tank's
   invulnerability; a first wave never does. Two waves that catch one player in one frame are a first and a second.
-  The telegraphed rows also knock back 10 y straight away from their source, through Limit Cut's rim-capped
-  `Thrown`: bots are not pushed, nor is a human whose anti-knockback is up.
+  The telegraphed rows also knock back 10 y straight away from their source: bots are not pushed, nor is a human
+  whose anti-knockback is up as the bar ends. Whom a wave throws is decided then, with the hit; the slide starts as
+  the wave goes out, 0.3 s later, when the client would slide its player, and Limit Cut's `CappedAtTheRim` stops it
+  from where the human stands by then. That is `TeaP1Actions`' own effect (`ThrownAsTheWaveGoesOut`): the engine's
+  `Push` reads its distance at the resolve, so a human who walked on through those 0.3 s would be thrown past the
+  rim.
 - Sluice: a 5 y circle under each of the four farthest from the Liquid as the first set goes off, lethal 3 s later.
 - Drainage: two of the three tornadoes tether a player each at 20.0. The tethers are passable and declared player
   first, as P5 Omega's Blaster tethers are: only a tether's source carries it, and a pass skips whoever carries one,
@@ -973,11 +979,22 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
     the second set's four closest, the tightest move of the strat; the off tank leaves for its tornado a second
     after the melee, clear of the middle tornado's telegraph.
   - For the last hand the tanks hold the bosses 24 y apart, and as the palm shows each walks through the middle and
-    stops its boss's stopping distance beyond it.
+    stops its boss's stopping distance beyond it, which leaves each bot tank on the side the other tank comes in
+    from. Under a fist the bot tanks stay where they are: only a human tank can bring one about (an off tank that
+    waits for the glow in the middle shows one, the Hand some 10 y from the Liquid), and it then has to take its
+    own boss away, 8 y being enough from the middle.
+  - No move brings a bot's boss onto a human tank's. A human tank that stops on the middle has its boss within the
+    palm's 5.1 y (the Liquid 4.2 y from the Hand, the Hand 2.3 y from the Liquid); one that stops a yalm beside the
+    other tank is short of the middle and leaves them 5.7 to 6.3 y apart, and everyone dies. A bot tank that walked
+    its boss onto the other boss's live spot would cover that, and would also carry an off tank that never brings
+    the Hand in, which the rule's test expects to lose: not made, the user's to pick.
 - `TeaP1LivingLiquidPlan` is the one piece of strat the scenario reads, for the start's chat lines: a human tank's
   tether, and that two tanks who start with each other's keep them, each on its own spot; a human main tank's
-  leading the Liquid back onto the middle and turning it to the open quarter before Protean 2; a human healer's
-  cleanse order. A healer's seat on a job without Esuna is held to no cleanse: the
+  standing away from the open quarter before Protean 1, so the Liquid's own wave goes that way, its leading the
+  Liquid back onto the middle and turning it to the open quarter before Protean 2, and its last hand (hold the
+  Liquid more than 12 y from the Hand until the palm shows, then walk on through the middle until the Liquid
+  stands on the Hand); a human off tank's last hand, the same with the Hand, which stops 2.1 y behind it; a human
+  healer's cleanse order. A healer's seat on a job without Esuna is held to no cleanse: the
   run cleanses for it. The strat presses nothing for a human in its seat. In headless runs the debug driver walks
   the player's seat and presses nothing, so the strat cleanses for it too, unless a test sets the internal
   `PlayerPressesItsOwnActions`.
@@ -986,11 +1003,35 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
   puddle's first harmless second, the 1 s the Liquid holds its facing after its last set, the bosses' walk speed,
   the Hand's three distances and which model state and which action is the palm's, Drainage's 0.2 mitigation, the
   Embolus's speed and 1 y, the 17 helpers, and where a start puts the bosses. In the State and the mechanics: the
-  odds of every roll, 20.0 for the tethers and whom they pick, that a holder can't take the second tether, that one
-  Drainage circle kills a tank that holds no tether, that the Liquid's own telegraphed wave is a fixed cone ahead,
-  which tornado casts Liquid Gaol, and that each Embolus heads for one boss's spot and stops there. In the plan:
-  that the client's party list shows the seats in the order the cleanses go by (MT, OT, H1, H2, M1, M2, R1, R2); it
-  may sort each role by job.
+  odds of every roll, 20.0 for the tethers (marked on the scenario's line) and whom they pick, that a holder can't
+  take the second tether, that one Drainage circle kills a tank that holds no tether, that the Liquid's own
+  telegraphed wave is a fixed cone ahead, which tornado casts Liquid Gaol, that the Hand's form is chosen at the
+  moment it glows, that each Embolus heads for one boss's spot and stops there, and when the second tornadoes
+  leave. In the plan: that the client's party list shows the seats in the order the cleanses go by (MT, OT, H1,
+  H2, M1, M2, R1, R2); it may sort each role by job.
+- No source fixes these strat values, so they are UNVERIFIED picks. Protean 1's spots, the six's Drainage stack, the
+  last hand's and the kill's are the guide's drawing; these depart from it or fill what it leaves open, each for
+  the margin named, and the margin suite's floors hold them:
+  - the main tank within 3.9 y of the Liquid whenever the follow is live, where the guide draws it at the edge of
+    its reach ((5.0, 5.5) for Drainage, (-0.8, -7.4) for Protean 2's stack): the Liquid walks after a tank more
+    than 4.0 y away;
+  - everyone inside r 6 for Cascade 2's cast, where the guide keeps the six stacked at r 7 to 9.4: a new puddle
+    reaches in to r 6.9;
+  - Protean 2's two stacks on the Liquid's north-south line (H1 5.7 and R2 7.5 y north of it; H2 3.2, M1 3.8, R1
+    4.4, M2 5.0 and the off tank 5.6 y south), where the guide scatters them: two narrow bundles of telegraphs,
+    which H2's far spot clears by 7.9 degrees instead of 2.8;
+  - M1 aside at bearing 215 for the telegraph and onto its south bait at 21.3: that bait is inside the south
+    bundle;
+  - the first set's baits: M2 at bearing 85 (the guide's 91), so R1 beside the east tornado is 13 degrees outside
+    its cone, and the off tank 4.0 y west (5.1), 10.5 y from the west tornado, which has to aim at H1, 8.4 y from
+    it;
+  - the second set's baits: R2 4.0 y out at 275 (4.4 at 269) and R1 at 95 (92), so the off tank by the west tornado
+    and M2 by the east one clear their cones by 13 and 12 degrees; the main tank out to 8.5 y at 43 (8.1), so the
+    four that run in are nearer by 3 y;
+  - the tornado baits 8.4 to 8.5 y from their tornado (8.2 to 8.8): half a yalm outside its water after the jitter;
+    the off tank leaving for its own at 25.2, a second after the melee;
+  - every move's time; the fetch from 20.25 every 0.25 s, to 1.5 y short of either end of the tether; the
+    recentring at 6.4 and 7.2 and its 0.3 y threshold; the cleanses' 11.2, 13.7, 16.2 and 18.7.
 - Change bot movement only with `TeaP1LivingLiquidLpduMarginTests` and both human suites green.
   - The rule tests play no strat (`TeaP1LivingLiquidStage` teleports every seat cue by cue; its header has the
     timeline). `TeaP1LivingLiquidLpduAiTests` reads the strat's spots against the stage's on every layout, and the
@@ -1007,12 +1048,22 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
     the main tank also plays the guides' edge-of-reach spots, dragging the Liquid 3.4 y, and turns it up to 20
     degrees off south for Protean 1 and off north for Protean 2. In both parts a walking human also stands a yalm
     farther from the Liquid, or a yalm aside, on every spot it baits from, short of the water. Nobody may die, but
-    in these cases, each its own test: a tank that never takes its tether
-    (the six die), a healer that never cleanses (two die) or starts three GCDs late (one), an off tank that never
-    brings the Hand in (everyone), a main tank that never leads the Liquid back onto the middle (4 of 40 runs), and
-    the run in walked 0.5 s late: R1 from its spot and H2 from a yalm farther out are 0.2 to 0.7 y farther from the
-    Liquid than the main tank as the second set goes off (the main tank dies; 0.25 s late they are in time), and R2
-    from a yalm aside is still on its way in, along H1's wave, on 2 of 24 rolls (both die).
+    in these cases, each its own test:
+    - a tank that never takes its tether (the six die); a healer that never cleanses (two die) or starts three GCDs
+      late (one);
+    - the last hand: either tank that never brings its boss in, or stops a yalm beside the other tank (everyone, to
+      the palm), and an off tank that waits for the glow in the middle and stays (everyone, to the fist); a tank
+      that stops on the middle, and that off tank stepping 8 or 10 y away, lose nobody;
+    - a main tank that never leads the Liquid back onto the middle (4 of 40 runs);
+    - a main tank that never turns the Liquid and waits for the bar where the start put it. In Protean 1 it dies of
+      its own two waves, its bait 3 degrees off the Liquid's facing. In Protean 2 the Liquid faces any eighth of
+      the second frame, and whoever's spot is in its face dies, on every roll: nobody at the open quarter, the tank
+      itself at 45, M2 at 90, R1 at 135, M1 and H2 at 180 (to the unseen sets) and at 225, the off tank at 270, H1
+      and R2 at 315;
+    - the run in walked 0.5 s late: R1 from its spot or a yalm farther out and H2 from a yalm farther out are 0.2
+      to 1.7 y farther from the Liquid than the main tank as the second set goes off (the main tank dies; 0.25 s
+      late they are in time); R1 from a yalm aside is in time on 6 of 24 rolls; and R2 from a yalm aside is still
+      on its way in, along H1's wave, on 2 of 24 rolls (both die).
 - The gate's buckets are `tea-p1-protean-human`, `tea-p1-cascade-human` and `tea-p1-liquid` (the rest of the
   scenario's tests). The soak filter is
   `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Living&Name~Liquid`.
