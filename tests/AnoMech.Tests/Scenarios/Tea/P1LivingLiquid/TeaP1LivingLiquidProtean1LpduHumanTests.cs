@@ -103,6 +103,35 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
         runs.AssertNoneLostBut();
     }
 
+    // It waits for the bar where the start put it, south-east of the Living Liquid, which faces it there: the
+    // Liquid's own wave and the one aimed at the tank go down one line, and its first-set bait, 3 degrees off that
+    // line, is inside both. The start's chat line asks the main tank to stand opposite the open quarter.
+    [Test]
+    public void AHumanMainTankWhoNeverTurnsTheLiquidSouthIsCaughtByItsOwnTwoWaves([Values] TeaP1HumanPace pace)
+    {
+        var problems = new List<string>();
+        foreach (var open in Layouts)
+        foreach (var late in ReactionTimes)
+        {
+            var roll = ProteanOne(open, 102);
+            var play = new TeaP1LivingLiquidHumanPlay(MainTank, pace, late) { NeverTurnsTheLiquid = true };
+            float? faces = null;
+            var (run, human) = Human.Play(roll, play, 102, mayLose: true, probe: p =>
+            {
+                if (p.Crossed(4.9f)) faces = Turn(Stage.Fight(p).Liquid!.Rotation, roll.Frame1.Facing(135f)) * 180f / MathF.PI;
+            });
+            var context = $"{roll}, {Secs(late)}s late";
+            if (human.Open1Read != roll.Open1) problems.Add($"{context}: the human read the open quarter as {human.Open1Read}");
+            if (faces is not { } off || MathF.Abs(off) > 4f) problems.Add($"{context}: the Living Liquid faced {faces} degrees off south-east");
+            if (run.Failure is not null || run.Deaths.Count != 1
+                || run.Deaths[0] is not { Role: MainTank, ActionId: P1ActionId.ProteanWaveFromTheLiquid or P1ActionId.ProteanWaveAtAPlayer, Time: > 8.4f and < 8.6f }
+                || !run.Deaths[0].Cause.Contains(TeaP1Actions.SecondWave))
+                problems.Add($"{context}: the main tank alone did not die of a second telegraphed wave: {run}");
+        }
+
+        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
+    }
+
     // From the second set on it stands 7.4 y south-east of the middle, as the guides draw it: the Living Liquid, free
     // again at 14.0, walks 3.4 y toward it, and the tank takes its tether from there.
     [Test]

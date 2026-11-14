@@ -29,6 +29,10 @@ public enum TeaP1HumanHolder { Stays, WalksToMeetItsTank, WalksAwayFromItsTank, 
 
 public enum TeaP1HumanCleanses { InItsOwnOrder, InTheOtherHealersOrder, Never }
 
+// Where a tank takes its boss once the Liquid Hand shows a palm: through the middle and on until its boss stands on
+// it, as the strat does; onto the middle and no farther; or beside the other tank, short of the middle.
+public enum TeaP1HumanBringsItsBoss { ThroughTheMiddle, OntoTheMiddle, BesideTheOtherTank, Never }
+
 // How one scripted human plays its seat; the defaults are the strat's.
 internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace Pace, float Late)
 {
@@ -47,6 +51,10 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 
     // The main tank never walks the Living Liquid back onto the middle: it turns it north where its fetch left it.
     public bool LeavesTheLiquidWhereItStands { get; init; }
+
+    // The main tank never turns the Living Liquid: it waits for each telegraph's bar where the start put it, in the
+    // Liquid's face, and plays its spots from there on.
+    public bool NeverTurnsTheLiquid { get; init; }
 
     public bool NeverFetches { get; init; }
 
@@ -70,6 +78,14 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 
     // The off tank sets off for the middle this long after the palm shows; null: never.
     public float? BringsTheHandIn { get; init; } = 0f;
+
+    public TeaP1HumanBringsItsBoss BringsItsBoss { get; init; }
+
+    // The off tank waits for the glow in the middle with the six, the Liquid Hand beside it, which shows a fist.
+    public bool WaitsForTheGlowInTheMiddle { get; init; }
+
+    // Shown a fist, the off tank walks this far straight away from the Living Liquid; null: it stays.
+    public float? StepsAwayOnAFist { get; init; }
 
     // It waits where the six stood for Drainage, and steps out of a new puddle once it sees one round it.
     public bool StaysOutForTheCascade { get; init; }
@@ -193,9 +209,10 @@ internal sealed class TeaP1LivingLiquidHuman
         }
         else
         {
-            yield return new(Start, 1.5f, p => seat == MainTank && play.StacksOffSouth != 0f
-                ? Frame1.ToArena(Stage.Off(TheLiquidIn(p, Frame1), 3.3f, 180f + play.StacksOffSouth))
-                : Spot(p, Protean1, 1.5f));
+            if (seat != MainTank || !play.NeverTurnsTheLiquid)
+                yield return new(Start, 1.5f, p => seat == MainTank && play.StacksOffSouth != 0f
+                    ? Frame1.ToArena(Stage.Off(TheLiquidIn(p, Frame1), 3.3f, 180f + play.StacksOffSouth))
+                    : Spot(p, Protean1, 1.5f));
             yield return new(Nth(Telegraph, Protean1), 0.5f, p => Bait(p, Spot(p, Protean1, 5.3f)));
         }
         yield return new(Nth(Set, Protean1), 0.05f, p => Bait(p, Spot(p, Protean1, 9.95f)));
@@ -213,7 +230,8 @@ internal sealed class TeaP1LivingLiquidHuman
         else if (roll.Plays(Protean1))
             yield return new(Drainage, 0.1f, p => Spot(p, Cascade2, 0.9f));
 
-        if (seat == MainTank)
+        if (seat != MainTank) yield return new(Throttle, 1.5f, p => Spot(p, Cascade2, 12.0f));
+        else if (!play.NeverTurnsTheLiquid)
         {
             if (!play.LeavesTheLiquidWhereItStands)
             {
@@ -224,7 +242,6 @@ internal sealed class TeaP1LivingLiquidHuman
                 : play.TurnsItOffNorth != 0f ? Frame2.ToArena(Stage.Off(TheLiquidIn(p, Frame2), 3.9f, play.TurnsItOffNorth))
                 : Spot(p, Cascade2, 9.5f), Follows: true);
         }
-        else yield return new(Throttle, 1.5f, p => Spot(p, Cascade2, 12.0f));
 
         yield return new(Nth(Telegraph, Cascade2), 0.5f, p => Bait(p, Spot(p, Cascade2, 18.7f)));
         if (seat == MeleeDpsA) yield return new(Nth(TelegraphFired, Cascade2), 0.1f, p => Bait(p, Spot(p, Cascade2, 21.3f)));
@@ -232,10 +249,31 @@ internal sealed class TeaP1LivingLiquidHuman
         if (FarFour.Contains(seat)) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
         if (seat is MeleeDpsA or MeleeDpsB) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)));
         if (seat == OffTank) yield return new(TornadoAim, 1.0f, p => Bait(p, Spot(p, Cascade2, 27.0f)));
-        yield return new(UnseenTornadoWaves, 0.05f, p => Spot(p, Cascade2, 29.35f));
-        if (seat != OffTank) yield return new(Glow, 0.3f, p => SawAPalm == true ? Spot(p, Cascade2, 33.5f) : null);
-        else if (play.BringsTheHandIn is { } bringsLate) yield return new(Glow, 0.3f + bringsLate, p => SawAPalm == true ? Spot(p, Cascade2, 33.5f) : null);
+        yield return new(UnseenTornadoWaves, 0.05f, p => seat == OffTank && play.WaitsForTheGlowInTheMiddle ? Vector2.Zero : Spot(p, Cascade2, 29.35f));
+        if (seat == OffTank && play.StepsAwayOnAFist is { } steps)
+            yield return new(Glow, 0.3f, p => SawAPalm == false ? Flat(p.Member(seat)!.Position) + AwayFromTheLiquid(p) * steps : null);
+        if (play.BringsItsBoss == TeaP1HumanBringsItsBoss.Never) yield break;
+        if (seat != OffTank) yield return new(Glow, 0.3f, p => SawAPalm == true ? TakesItsBossTo(p) : null);
+        else if (play.BringsTheHandIn is { } bringsLate) yield return new(Glow, 0.3f + bringsLate, p => SawAPalm == true ? TakesItsBossTo(p) : null);
     }
+
+    // The other tank's bot ends its boss's stopping distance past the middle; beside it is a yalm to its side.
+    private Vector2? TakesItsBossTo(ScenarioProbe p)
+    {
+        if (!seat.IsTank() || play.BringsItsBoss == TeaP1HumanBringsItsBoss.ThroughTheMiddle) return Spot(p, Cascade2, 33.5f);
+        if (play.BringsItsBoss == TeaP1HumanBringsItsBoss.OntoTheMiddle) return Vector2.Zero;
+        var others = OtherTanksSpot(p);
+        var aside = others.Length() < 1e-3f ? Vector2.UnitX : Vector2.Normalize(new Vector2(-others.Y, others.X));
+        return others + aside;
+    }
+
+    private Vector2 OtherTanksSpot(ScenarioProbe p)
+    {
+        var last = TheStage.Cues().Single(cue => MathF.Abs(cue.At - TheStage.C2(33.5f)) < 0.001f);
+        return TheStage.ArenaSpots(p, last)[seat == MainTank ? OffTank : MainTank];
+    }
+
+    private Vector2 AwayFromTheLiquid(ScenarioProbe p) => Vector2.Normalize(Flat(p.Member(seat)!.Position) - TheLiquid(p));
 
     // The n-th of a part's cues of one kind, as the run counts them from its start.
     private string Nth(string cue, TeaP1LivingLiquidPart part, int n = 1)
@@ -341,13 +379,14 @@ internal sealed class TeaP1LivingLiquidHuman
     // they stand now. Null: the cue moves another seat.
     private Vector2? Spot(ScenarioProbe p, TeaP1LivingLiquidPart part, float cueAt)
     {
-        stage ??= new Stage { First = roll.First, Last = roll.Last, Open1 = Frame1.Open, Open2 = Frame2.Open };
-        var at = part == Protean1 ? stage.P1(cueAt)
+        var at = part == Protean1 ? TheStage.P1(cueAt)
             : cueAt == 0.9f && !roll.Plays(Protean1) ? 0.05f
-            : stage.C2(cueAt);
-        var cue = stage.Cues().Single(cue => MathF.Abs(cue.At - at) < 0.001f);
-        return stage.ArenaSpots(p, cue).TryGetValue(seat, out var spot) ? spot : null;
+            : TheStage.C2(cueAt);
+        var cue = TheStage.Cues().Single(cue => MathF.Abs(cue.At - at) < 0.001f);
+        return TheStage.ArenaSpots(p, cue).TryGetValue(seat, out var spot) ? spot : null;
     }
+
+    private Stage TheStage => stage ??= new Stage { First = roll.First, Last = roll.Last, Open1 = Frame1.Open, Open2 = Frame2.Open };
 
     private Vector2? Bait(ScenarioProbe p, Vector2? spot)
     {
