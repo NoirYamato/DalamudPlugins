@@ -87,8 +87,9 @@ public sealed class Reminder
     public required double Earliest { get; init; }
 
     /// <summary>
-    /// Due no earlier than this (timeline seconds), whatever <see cref="ReminderOptions.DueLead"/>: an automatic press for a
-    /// later hit of a series of hits comes after the hit before it (<see cref="TimingRules.ForEntry"/>). Null otherwise.
+    /// Due no earlier than this (timeline seconds), whatever <see cref="ReminderOptions.DueLead"/>: a press for a later hit
+    /// of a series of hits, automatic or written at or after the hit before it, comes after that hit
+    /// (<see cref="TimingRules.ForEntry"/>). Null otherwise.
     /// </summary>
     public double? DueNotBefore { get; init; }
 

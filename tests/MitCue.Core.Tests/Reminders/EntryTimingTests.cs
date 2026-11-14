@@ -406,6 +406,29 @@ public class EntryTimingTests
         Assert.Equal(-2.7, timed.AutomaticOffset, Kit.Tolerance);      // what the review offers as automatic
     }
 
+    [Theory]
+    [InlineData(-2.7, 103.3)] // at the floor (wave 2 at 103 + 0.3)
+    [InlineData(-2.5, 103.5)] // after it: due by the due lead at 102, but not before the floor
+    [InlineData(-1.0, 105.0)]
+    public void Series_AWrittenPressAtOrAfterTheFloor_KeepsIt(double offset, double press)
+    {
+        // A press the importer moved later on wave 3 (106), so that the action is ready again: its reminder still does not
+        // turn due before wave 2 (103) + 0.3, and a use before that is early, as for the automatic press.
+        var fight = SeriesFight();
+        var t = Kit.Timing(Kit.Entry("p1.wave_3", offset, Kit.Do(Kit.Temperance)), fight);
+        Assert.Equal(press, t.PressAt, Kit.Tolerance);
+        Assert.Equal(103.3, t.DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(Math.Max(press - new ReminderOptions().DueLead, 103.3), t.DueAt(new ReminderOptions()), Kit.Tolerance);
+        Assert.Equal(103.3, t.Items[0].Earliest, Kit.Tolerance);       // a 20 s Temperance from 87 on would be spent on wave 2
+
+        var s = Kit.Scheduler(fight, new ReminderOptions(), Kit.Entry("p1.wave_3", offset, Kit.Do(Kit.Temperance)));
+        var r = Assert.Single(s.All);
+        s.Update(103.29);
+        Assert.Equal(ReminderState.Upcoming, r.State);
+        s.Update(Math.Max(press - new ReminderOptions().DueLead, 103.3));
+        Assert.Equal(ReminderState.Due, r.State);
+    }
+
     // ---- EarliestPreHitOffset ------------------------------------------------------------------
 
     [Fact]

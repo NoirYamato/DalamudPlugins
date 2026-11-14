@@ -46,6 +46,7 @@ public static class TimingRules
     private const double HealerLimitBreakDelay = 2;
     private const double AfterPreviousHit = 0.3;     // a later hit of a series: pressed this long after the hit before it
     private const double SameHit = 0.001;            // hits this close are one (a series hit and a mechanic of its own)
+    private const double WrittenPrecision = 0.005;   // plan offsets are written to 0.01 s: a press this close to a floor is at it
     private const double CoverageMargin = 0.5;       // a later hit is covered when the effect outlasts it by this much...
     private const double CoverageLead = 2;           // ...also pressed on the NOW cue: the default due lead (1.5 s) + 0.5 s
     private const double CoverageSpanMargin = 2.5;   // the press is then still 0.5 s before the first hit
@@ -97,10 +98,13 @@ public static class TimingRules
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): the automatic
     /// press is never before the hit before it + 0.3 s (for an entry timed by a shield with a cast: minus the cast, so the
     /// shield lands then), and the reminder does not turn due before that either (<see cref="EntryTiming.DueNotBefore"/>).
+    /// A written press at or after that floor keeps it too (a press the importer moved later, so that the action is ready
+    /// again); one before the floor has none.
     /// </para>
     /// <para>
-    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; with an automatic
-    /// press, a use before the series' floor, or one that ends before a later hit the item covers, is early.
+    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; a use before the
+    /// series' floor, when the entry has it, or with an automatic press one that ends before a later hit the item covers,
+    /// is early.
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -144,13 +148,13 @@ public static class TimingRules
 
         var isAutomatic = entry.Offset is null;
         var pressAt = hit + (entry.Offset ?? automatic);
-        var notBefore = isAutomatic ? floor : null;
+        var notBefore = floor is { } f && pressAt >= f - WrittenPrecision ? floor : null;
 
         var windows = new ItemTiming[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             var (earliest, latest) = UseWindow(timing[i], level, hit, pressAt, options);
-            if (isAutomatic && Later(covers[i], notBefore) is { } notEarly)
+            if (Later(isAutomatic ? covers[i] : null, notBefore) is { } notEarly)
                 earliest = Math.Min(Math.Max(earliest, notEarly), pressAt);
             windows[i] = new ItemTiming(timing[i], earliest, latest);
         }
