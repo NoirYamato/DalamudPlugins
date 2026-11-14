@@ -487,6 +487,27 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("Scholar", 6)]
+    [InlineData("Sage", 6)]
+    [InlineData("Tank 1", 0)] // the note's own column
+    [InlineData("White Mage", 0)]
+    public void NoteMergedAcrossColumns_TeaOneSeatImport_ReadsAsTheWholeSheet(string column, int entries)
+    {
+        // 'LL/BJCC'!C32, the Soil/Kera tip merged over every column (C:M): a column imported alone gets it on the entries
+        // that get it in the whole import (the Scholar's Soil, the Sage's Kerachole), and nowhere else.
+        static bool HasTip(PlanEntry e) => e.Detail?.Contains("A tip for Soil/Kera timing", StringComparison.Ordinal) == true;
+        var seat = new PlanImporter().Import(
+            Fixtures.Doc("lpdu-tea"),
+            new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, Assignees = [column] });
+
+        var tipped = seat.Plan.Entries.Where(HasTip).Select(e => e.Src!).Order().ToList();
+        Assert.Equal(entries, tipped.Count);
+        Assert.Equal(PlanImports.LpduTea.Plan.Entries.Where(e => e.Who.Assignee == column && HasTip(e)).Select(e => e.Src!).Order(), tipped);
+        var info = Assert.Single(seat.Diagnostics, d => d.Code == "note-row" && d.Src == "'LL/BJCC'!C32");
+        Assert.Contains(entries > 0 ? "kept as the detail of the 6 entries" : "are in its columns that are not imported", info.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData(2, "Tanks: Rampart the first tower set, then OT provokes and takes the boss after Pantokrator")]
     [InlineData(3, "Tanks: Rampart the first tower set, then OT provokes and takes the boss after Pantokrator")]
     [InlineData(3, "Temperance as the first debuff hits 14s, the Scholar covers the rest")]

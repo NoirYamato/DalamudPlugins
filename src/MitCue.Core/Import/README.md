@@ -212,7 +212,9 @@ Rules worth knowing:
   those actions: the detail of the entries in their columns and section that press one of them (all their columns'
   entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
   provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their entries, as a
-  note in each column.
+  note in each column. A merged note reads the same whichever of its columns are imported: imported alone, the Scholar
+  column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported name Soil and
+  Kera; a `note-row` info says so).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
   Seraph → Consolation) or a note "Temperance (still active)" (`still-active`). "Still lasts" is the reminders' rule
   (`TimingRules.ForEntry`, `EarliestCoveringUse`): used on its NOW cue (the default due lead), the earlier effect

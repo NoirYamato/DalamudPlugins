@@ -123,10 +123,11 @@ public sealed partial class PlanImporter
     /// that press one of <see cref="Actions"/>.
     /// </summary>
     /// <param name="Note">The note.</param>
-    /// <param name="Columns">The player columns it spans.</param>
+    /// <param name="Columns">The player columns it spans that are imported.</param>
+    /// <param name="Others">The player columns it spans that are not imported.</param>
     /// <param name="Text">Its text.</param>
     /// <param name="Actions">The actions it names (<see cref="Run.NamedActions"/>).</param>
-    private sealed record BannerNote(NoteText Note, List<int> Columns, string Text, HashSet<uint> Actions)
+    private sealed record BannerNote(NoteText Note, List<int> Columns, List<int> Others, string Text, HashSet<uint> Actions)
     {
         /// <summary>Entries it is the detail of.</summary>
         public int Uses { get; set; }
@@ -692,7 +693,9 @@ public sealed partial class PlanImporter
         /// in its section (of every column it spans when merged). A note merged across several columns that names actions and
         /// no player ("A tip for Soil/Kera timing …") is the detail of the entries of those columns in its section that press
         /// one of them (<see cref="BannerNote"/>), and of every entry of those columns when none does; one that names players
-        /// ("Tanks: Rampart the first tower set, then OT provokes …") is for all of its columns' entries.
+        /// ("Tanks: Rampart the first tower set, then OT provokes …") is for all of its columns' entries. A merged note reads
+        /// the same whichever of its columns are imported: a Scholar who imports only their column gets the Soil/Kera tip on
+        /// their Soil entries, a tank none (the entries that press what it names are in columns not imported).
         /// </summary>
         private void PrepareNoteRows()
         {
@@ -710,8 +713,14 @@ public sealed partial class PlanImporter
 
             foreach (var note in this.noteTexts)
             {
+                // The player columns the note spans (the whole merge, whichever of them are imported, so that a note reads the
+                // same in an import of one column as in the whole sheet's) and those of them that are imported.
                 var text = note.Text.Text.Trim();
-                if (!this.ColumnSelected(note.Tab.Keys[note.Text.Column], note.Tab.Layout.Columns.First(c => c.Index == note.Text.Column).Assignee!))
+                var layout = note.Tab.Layout;
+                var merge = layout.Tab.MergeAt(note.Row.Index, note.Text.Column);
+                var spanned = note.Tab.Keys.Keys.Where(c => c == note.Text.Column || (merge is { } m && m.Contains(note.Row.Index, c))).Order().ToList();
+                var columns = spanned.Where(c => this.ColumnSelected(note.Tab.Keys[c], layout.Columns.First(x => x.Index == c).Assignee!)).ToList();
+                if (columns.Count == 0)
                     continue;
                 if (footnoteCells.Contains(note.Text.Src))
                 {
@@ -719,22 +728,17 @@ public sealed partial class PlanImporter
                     continue;
                 }
 
-                if (this.ReadStatement(note) is { } statement)
+                if (columns.Contains(note.Text.Column) && this.ReadStatement(note) is { } statement)
                 {
                     this.statements.Add(statement);
                     continue;
                 }
 
-                var layout = note.Tab.Layout;
-                var merge = layout.Tab.MergeAt(note.Row.Index, note.Text.Column);
-                var columns = note.Tab.Keys.Keys.Where(c => c == note.Text.Column || (merge is { } m && m.Contains(note.Row.Index, c)))
-                    .Where(c => this.ColumnSelected(note.Tab.Keys[c], layout.Columns.First(x => x.Index == c).Assignee!)).Order().ToList();
-
                 // Over several columns, a note about using the actions it names (it names no player) is for whoever presses
                 // them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
-                if (columns.Count > 1 && !NamesAPlayer(text) && this.NamedActions(text) is { Count: > 0 } named)
+                if (spanned.Count > 1 && !NamesAPlayer(text) && this.NamedActions(text) is { Count: > 0 } named)
                 {
-                    this.bannerNotes.Add(new BannerNote(note, columns, text, named));
+                    this.bannerNotes.Add(new BannerNote(note, columns, spanned.Except(columns).ToList(), text, named));
                     continue;
                 }
 
@@ -770,8 +774,17 @@ public sealed partial class PlanImporter
                     continue;
                 }
 
-                // No entry of its columns presses an action it names: the detail of every entry of its columns, as a note
-                // in each of them would be.
+                // No entry of its columns presses an action it names. When a cell of a column it spans that is not imported
+                // names one, the entries that press it are not in this import: the note is theirs, as in the whole sheet's.
+                if (this.NamedInColumnsNotImported(banner) is { Count: > 0 } elsewhere)
+                {
+                    this.Diag(DiagnosticSeverity.Info, "note-row",
+                        $"Row {banner.Note.Row.Index + 1} is a note over several columns, not an assignment: \"{banner.Text}\"; the entries of {phase} that press {Names(elsewhere)} are in its columns that are not imported (shown for review only).",
+                        banner.Note.Text.Src);
+                    continue;
+                }
+
+                // Otherwise the detail of every entry of its columns, as a note in each of them would be.
                 var used = 0;
                 foreach (var d in this.drafts.Where(d => d.Tab == banner.Note.Tab.Order && banner.Columns.Contains(d.Column) && Equals(RowAt(banner.Note.Tab.Layout, d.Row)?.Phase, banner.Note.Row.Phase)))
                 {
@@ -2182,6 +2195,18 @@ public sealed partial class PlanImporter
         /// </summary>
         private static bool NamesAPlayer(string text) =>
             Regex.Split(text, @"[^\p{L}\p{N}]+").Any(PlayerWords.Contains) || LayoutDetector.JobsFromTabName(text).Count > 0;
+
+        /// <summary>
+        /// The actions the note names that cells of its section name in the columns it spans that are not imported: the
+        /// entries that would press them are not in this import (TEA's Soil/Kera tip, importing the Tank 1 column).
+        /// </summary>
+        private HashSet<uint> NamedInColumnsNotImported(BannerNote banner) =>
+            banner.Note.Tab.Layout.DataRows
+                .Where(r => Equals(r.Phase, banner.Note.Row.Phase))
+                .SelectMany(r => r.Assignments)
+                .Where(a => banner.Others.Contains(a.Column.Index))
+                .SelectMany(a => this.NamedActions(a.Cell.Text ?? string.Empty).Where(banner.Actions.Contains))
+                .ToHashSet();
 
         // ------------------------------------------------------------------ targets
 
