@@ -1371,7 +1371,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
         {
             // Counted the way the overlay selects them, with the column choice the plan is saved with.
             var choice = this.ColumnChoiceFor(model);
-            ImGui.TextColored(choice.Mine > 0 ? ColorOk : ColorWarning, $"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}" + (choice.Mine == 0 ? ": check the columns you imported." : "."));
+            var (applies, warning) = AppliesLine(choice, job);
+            ImGui.TextColored(warning ? ColorWarning : ColorOk, applies);
             if (choice.Save)
             {
                 ImGui.TextDisabled(
@@ -1447,6 +1448,16 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (this.saveMessage.Length > 0)
             ImGui.TextColoredWrapped(ColorError, this.saveMessage);
     }
+
+    /// <summary>
+    /// The Save step's line about the entries the overlay will show the player, and whether it is a warning: it is when
+    /// none of them is a call of the player's (<see cref="ColumnChoice.Seat"/>), as the imported columns are then not
+    /// theirs. Notes for everyone ("Use Personals") are shown to every player of the plan, so they alone are no such call.
+    /// </summary>
+    internal static (string Text, bool Warning) AppliesLine(ColumnChoice choice, Job job) =>
+        choice.Seat > 0 ? ($"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}.", false)
+        : choice.Mine > 0 ? ($"Only {Plural(choice.Mine, "note for everyone applies", "notes for everyone apply")} to you as {job}: check the columns you imported.", true)
+        : ($"{Plural(0, "entry applies", "entries apply")} to you as {job}: check the columns you imported.", true);
 
     /// <summary>
     /// The column choice the plan gets for the player's job and the entries the overlay will then show, for the party

@@ -313,7 +313,9 @@ internal sealed class PlanStore
     /// <summary>
     /// How many calls of a plan the overlay shows as <paramref name="job"/>: those of the saved or suggested column
     /// (<see cref="MappingFor"/>) in the configured slot. A role sheet (columns by slot only, LPDU's job-less "M1") has
-    /// calls for every job of the configured slot, although no column names the job (<see cref="JobsOf"/>).
+    /// calls for every job of the configured slot, although no column names the job (<see cref="JobsOf"/>). Notes for
+    /// everyone (<see cref="PlanSelection.ForEveryone"/>: LPDU TEA's "Use Personals") are not counted: the overlay shows
+    /// them, but they are no call of the job's, so a plan with only those has no calls for it.
     /// </summary>
     public int CallsFor(MitPlan plan, Job job)
     {
@@ -321,12 +323,13 @@ internal sealed class PlanStore
             return 0;
         var mapping = this.MappingFor(plan, job);
         var me = new PlayerContext(job, 0, mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, job), mapping.AssigneeKey);
-        return plan.Entries.Count(e => e != null && PlanSelection.Applies(e, me));
+        return plan.Entries.Count(e => e != null && !PlanSelection.ForEveryone(e) && PlanSelection.Applies(e, me));
     }
 
     /// <summary>
     /// The slots of <paramref name="job"/>'s role (<see cref="Slots.Fits"/>) in which the overlay would show calls of the
     /// plan, with the saved or suggested column for that slot: where "My usual party slot" has to be for a role sheet.
+    /// Notes for everyone are no call of a slot (<see cref="CallsFor"/>).
     /// </summary>
     private List<string> SlotsWithCallsFor(MitPlan plan, Job job)
     {
@@ -335,7 +338,7 @@ internal sealed class PlanStore
         {
             var mapping = this.SavedMapping(plan, job) ?? SuggestedMapping(plan, job, slot);
             var me = new PlayerContext(job, 0, mapping.Slot ?? slot, mapping.AssigneeKey);
-            if (plan.Entries.Exists(e => e != null && PlanSelection.Applies(e, me)))
+            if (plan.Entries.Exists(e => e != null && !PlanSelection.ForEveryone(e) && PlanSelection.Applies(e, me)))
                 slots.Add(slot);
         }
 
