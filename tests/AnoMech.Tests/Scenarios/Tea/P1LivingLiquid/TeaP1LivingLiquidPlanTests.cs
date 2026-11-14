@@ -97,9 +97,9 @@ public class TeaP1LivingLiquidPlanTests
         Assert.Multiple(() =>
         {
             Assert.That(whole, Has.Count.EqualTo(4));
-            Assert.That(whole[2], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle, and turn it to the open quarter before Protean 2"));
+            Assert.That(whole[2], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
             Assert.That(fromCascadeTwo, Has.Count.EqualTo(2));
-            Assert.That(fromCascadeTwo[0], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter before Protean 2"));
+            Assert.That(fromCascadeTwo[0], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
             Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(_ => true).Where(line => line.StartsWith("Your Living Liquid")), Is.Empty);
         });
     }

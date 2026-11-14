@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Numerics;
+using System.Text.RegularExpressions;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
@@ -25,6 +26,8 @@ namespace AnoMech.Tests;
 //   - the main tank's fetch drags the Living Liquid off the middle, so at Cascade 2's 6.4 it steps onto the middle,
 //     which the Liquid lets it do without moving, and at 7.2 walks on straight away from the Liquid, 4 y out: the
 //     Liquid follows in a line and stops on the middle;
+//   - Protean 2's two stacks, taken at 12.0, are taken again until 17.75 whenever the Living Liquid has moved more than
+//     0.25 y since, for a human main tank who is still leading it back: with bots alone it never has;
 //   - the off tank walks to the west tornado from 25.2 with no wait on the way;
 //   - both healers cleanse at 11.2, 13.7, 16.2 and 18.7, each itself first, then H1 down the party list and H2 up it.
 public class TeaP1LivingLiquidLpduAiTests
@@ -267,6 +270,30 @@ public class TeaP1LivingLiquidLpduAiTests
             Assert.That(liquidOff, Is.LessThan(1f), "the Living Liquid from the middle as the Hand slams");
             Assert.That(handOff, Is.LessThan(1f), "the Liquid Hand from the middle as it slams");
         });
+    }
+
+    // The Living Liquid stands still from before 12.0, so the seven take their stacks once.
+    [Test]
+    public void WithBotsAloneProteanTwosStacksAreTakenOnce([Values] TeaP1OpenQuarter open1, [Values(Protean1, Cascade2)] TeaP1LivingLiquidPart first)
+    {
+        var roll = new Roll { First = first, Open1 = open1, Open2 = (TeaP1OpenQuarter)(((int)open1 + 3) % 8) };
+        for (var i = 0; i < 3; i++)
+        {
+            var seed = Random.Shared.Next();
+            var player = PerRole.All[((int)open1 + 3 * i) % 8];
+            var context = $"{roll}, player {player}, seed {seed}";
+            TraceLog? trace = null;
+            var run = Play(roll, player, seed, _ => trace ??= (TraceLog)(object)Plugin.Log);
+
+            Assert.That(run.Passed, () => $"{run}{Environment.NewLine}{context}");
+            var movesAt = trace!.Lines
+                .Select(line => Regex.Match(line, @"\[AiManager\] Move@([\d.]+):"))
+                .Where(match => match.Success)
+                .Select(match => float.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture))
+                .ToList();
+            Assert.That(movesAt.Count(at => MathF.Abs(at - roll.C2(12.0f)) < 0.06f), Is.EqualTo(7), $"the seven take their stacks at 12.0 ({context})");
+            Assert.That(movesAt.Where(at => at > roll.C2(12.1f) && at < roll.C2(18.6f)), Is.Empty, $"nobody is sent again before the telegraph ({context})");
+        }
     }
 
     // -- Drainage --

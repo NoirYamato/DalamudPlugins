@@ -80,7 +80,7 @@ public sealed class TeaP1LivingLiquidPlan
                       + (plays(TeaP1LivingLiquidPart.Protean1)
                           ? ", so fetching your tether drags it off the middle. After Drainage walk it back onto the middle"
                           : ". Keep it on the middle")
-                      + ", and turn it to the open quarter before Protean 2: the party's spots are taken from where it stands");
+                      + ", and turn it to the open quarter 2 s or more before Protean 2's bar shows: the party stacks on the line it stands on then");
         }
         if (HumanSeat.IsTank() && plays(TeaP1LivingLiquidPart.Cascade2))
         {

@@ -52,6 +52,9 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // The main tank never walks the Living Liquid back onto the middle: it turns it north where its fetch left it.
     public bool LeavesTheLiquidWhereItStands { get; init; }
 
+    // The main tank leads the Living Liquid back onto the middle, and turns it north, this long after the strat's beat.
+    public float LeadsItBackLate { get; init; }
+
     // The main tank never turns the Living Liquid: it waits for each telegraph's bar where the start put it, in the
     // Liquid's face, and plays its spots from there on.
     public bool NeverTurnsTheLiquid { get; init; }
@@ -235,10 +238,10 @@ internal sealed class TeaP1LivingLiquidHuman
         {
             if (!play.LeavesTheLiquidWhereItStands)
             {
-                yield return new(NewTornadoes, 0.5f, p => TheLiquidLooksOffTheMiddle(p) ? Vector2.Zero : null);
-                yield return new(NewTornadoes, 1.3f, p => TheLiquidLooksOffTheMiddle(p) ? -Vector2.Normalize(TheLiquid(p)) * 4f : null, Follows: true);
+                yield return new(NewTornadoes, 0.5f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? Vector2.Zero : null);
+                yield return new(NewTornadoes, 1.3f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? -Vector2.Normalize(TheLiquid(p)) * 4f : null, Follows: true);
             }
-            yield return new(NewTornadoes, 3.6f, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
+            yield return new(NewTornadoes, 3.6f + play.LeadsItBackLate, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
                 : play.TurnsItOffNorth != 0f ? Frame2.ToArena(Stage.Off(TheLiquidIn(p, Frame2), 3.9f, play.TurnsItOffNorth))
                 : Spot(p, Cascade2, 9.5f), Follows: true);
         }

@@ -22,6 +22,10 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     private const float LastFetch = 24.5f;
     private const float FetchEvery = 0.25f;
     private static readonly float[] CleansesAt = [11.2f, 13.7f, 16.2f, 18.7f];
+    private const float TheStacksAreTakenAt = 12.0f;
+    private const float TheStacksLastFollowTheLiquidAt = 17.75f;
+    private const float TheStacksLookForTheLiquidEvery = 0.25f;
+    private const float TheStacksFollowTheLiquidBeyond = 0.25f;
 
     private const float WalkSpeed = 6.5f;
     private const float FetchShortOfEitherEnd = 1.5f;
@@ -42,6 +46,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     private static readonly Vector2 TheOffTanksDrainageSpot = new(-5.4f, 5.4f);
 
     private readonly HashSet<PartyRole> walkingItsTetherBack = [];
+    private Vector2? theStacksWereTakenRound;
 
     private TeaP1LivingLiquidState state = null!;
     private SimWorld world = null!;
@@ -55,6 +60,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
         fight = s.Fight!;
         ai = new AiManager(world);
         walkingItsTetherBack.Clear();
+        theStacksWereTakenRound = null;
         var parts = state.Parts;
         if (parts.First == Protean1) world.Events.Add(0f, () => PutEveryoneOn(TheTanksBesideTheBossesWithFourNorthAndTheRangedFarOut()));
         else world.Events.Add(0f, () => PutEveryoneOn(EveryoneInsideTheReachOfAnyNewPuddle()));
@@ -84,7 +90,9 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
         ai.Move(start + 9.5f, TheMainTankTurnsTheLiquidNorth, BaitJitter);
         foreach (var at in CleansesAt)
             world.Events.Add(start + at, EachHealerCleansesTheNextThrottleInItsOrder);
-        ai.Move(start + 12.0f, TwoStackBehindTheMainTankAndFiveSouthOfTheLiquid);
+        ai.Move(start + TheStacksAreTakenAt, TwoStackBehindTheMainTankAndFiveSouthOfTheLiquid);
+        for (var look = 1; TheStacksAreTakenAt + look * TheStacksLookForTheLiquidEvery <= TheStacksLastFollowTheLiquidAt + 0.001f; look++)
+            ai.Move(start + TheStacksAreTakenAt + look * TheStacksLookForTheLiquidEvery, TheStacksFollowTheLiquidWhenItsTankHasMovedItSince);
         ai.Move(start + 18.7f, TanksAndMeleeStepOutOfTheTelegraphsWithTheFirstMeleeAside, BaitJitter);
         ai.Move(start + 18.7f, HealersAndRangedGoOutToTheirTornadoes);
         ai.Move(start + 21.3f, TheFirstMeleeStepsOntoItsSouthBaitOnceTheTelegraphsHaveFired, BaitJitter);
@@ -230,11 +238,17 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     private IAiMove TwoStackBehindTheMainTankAndFiveSouthOfTheLiquid()
     {
         var liquid = TheLiquidIn(state.Tornadoes2);
+        theStacksWereTakenRound = liquid;
         return Turned(state.Tornadoes2,
             (RegenHealer, Off(liquid, 5.7f, 0f)), (CasterDps, Off(liquid, 7.5f, 0f)),
             (ShieldHealer, Off(liquid, 3.2f, 180f)), (MeleeDpsA, Off(liquid, 3.8f, 180f)), (PhysRangedDps, Off(liquid, 4.4f, 180f)),
             (MeleeDpsB, Off(liquid, 5.0f, 180f)), (OffTank, Off(liquid, 5.6f, 180f)));
     }
+
+    private IAiMove TheStacksFollowTheLiquidWhenItsTankHasMovedItSince()
+        => theStacksWereTakenRound is { } taken && Vector2.Distance(TheLiquidIn(state.Tornadoes2), taken) > TheStacksFollowTheLiquidBeyond
+            ? TwoStackBehindTheMainTankAndFiveSouthOfTheLiquid()
+            : Nobody();
 
     private IAiMove TanksAndMeleeStepOutOfTheTelegraphsWithTheFirstMeleeAside()
     {

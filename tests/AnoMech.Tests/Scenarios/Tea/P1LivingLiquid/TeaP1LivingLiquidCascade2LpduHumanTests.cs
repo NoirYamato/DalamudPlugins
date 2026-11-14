@@ -559,6 +559,38 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         runs.AssertNoneLostBut();
     }
 
+    // Its fetch has dragged the Living Liquid off the middle, and it leads it back and turns it north this long after
+    // the strat's beat: from 4.5 s late the Liquid is still on its way as the two stacks are first taken, at 12.0. The
+    // stacks follow it until half a second before Protean 2's bar, so the telegraphs, the spots round the Liquid and
+    // the ones beside the tornadoes still fit. At 7 s late the tank sets off for its last spot 1.2 to 1.7 s before
+    // the bar; a second later the turn itself lands as the bar shows, and half of these runs lose someone.
+    [Test]
+    public void AHumanMainTankWhoLeadsTheLiquidBackLateStillHasTheStacksOnItsLine([Values(2f, 4f, 4.5f, 6f, 7f)] float leadsItBackLate)
+    {
+        var runs = new TeaP1HumanRuns();
+        var (movedAfterTheStacks, farthestOff) = (0, 0f);
+        foreach (var seed in new[] { 153, 170, 187, 204, 221 })
+        for (var i = 0; i < 8; i++)
+        {
+            var roll = BothParts(i, seed);
+            var play = new TeaP1LivingLiquidHumanPlay(MainTank, TeaP1HumanPace.Walking, ReactionTimes[i % 3]) { LeadsItBackLate = leadsItBackLate };
+            Vector3 asTheStacksWereTaken = default, atTheAim = default;
+            var (run, human) = Human.Play(roll, play, seed, probe: p =>
+            {
+                if (p.Crossed(roll.C2(12.0f))) asTheStacksWereTaken = Stage.Fight(p).Position(TeaP1Boss.LivingLiquid);
+                if (p.Crossed(roll.C2(18.2f))) atTheAim = Stage.Fight(p).Position(TeaP1Boss.LivingLiquid);
+            });
+            if (Vector3.Distance(asTheStacksWereTaken, atTheAim) > 1f) movedAfterTheStacks++;
+            farthestOff = MathF.Max(farthestOff, atTheAim.Length());
+            runs.Add($"seed {seed}, {roll}, the Living Liquid at {asTheStacksWereTaken} as the stacks were taken and {atTheAim} at the aim", run, Faults(roll, human, run));
+        }
+
+        TestContext.Out.WriteLine($"the Living Liquid moved more than a yalm after 12.0 in {movedAfterTheStacks} runs and stood up to {Secs(farthestOff)} y off the middle at the aim");
+        if (leadsItBackLate >= 4.5f) Assert.That(movedAfterTheStacks, Is.GreaterThanOrEqualTo(10), "runs in which the Living Liquid was still being led back after 12.0");
+        Assert.That(farthestOff, Is.LessThan(0.6f), "the tank had it back on the middle by the aim");
+        runs.AssertNoneLostBut();
+    }
+
     // No move of the strat's reaches a human, and the Living Liquid walks after its tank from 4 y. This main tank
     // fetches its tether, takes it to its spot and later turns the Liquid north where it stands, never leading it
     // back: it is left up to 2.7 y off the middle for Protean 2, whose spots round it and beside the tornadoes are
