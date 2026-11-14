@@ -17,9 +17,11 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 //
 // A human in a healer's seat on a job without Esuna is held to no cleanse: the run cleanses for the seat.
 //
-// The one piece of strat the scenario reads, for the start-of-run chat lines naming the human's duties. A human main
-// tank's include bringing the Living Liquid back onto the middle: it follows its tank from 4 y, the bots' spots round
-// it and beside the tornadoes only fit with it there, and no move of the strat's reaches a human.
+// The one piece of strat the scenario reads, for the start-of-run chat lines naming the human's duties. A human
+// tank's include where it takes its boss, since no move of the strat's reaches a human and each boss follows its tank,
+// the Living Liquid from 4 y and the Liquid Hand from 2.1 y: the main tank turns the Liquid for both Protean Waves
+// and brings it back onto the middle, where the bots' spots round it and beside the tornadoes fit; for the last hand
+// each tank walks on through the middle, since a tank that stops on it leaves its boss short of the other.
 public sealed class TeaP1LivingLiquidPlan
 {
     // UNVERIFIED: that the client's party list shows the seats in this order; it may sort each role by job.
@@ -67,6 +69,11 @@ public sealed class TeaP1LivingLiquidPlan
             lines.Add($"Your Drainage tether: from the tornado {side} of the open quarter, seen from the middle, or from the middle tornado when that one has none; the {otherTank} tank takes the other. "
                       + "If each of you starts with the other's, keep it on your own spot: a tether's holder can't take the second");
         }
+        if (HumanSeat == MainTank && plays(TeaP1LivingLiquidPart.Protean1))
+        {
+            lines.Add("Your Living Liquid in Protean 1: it faces you until its Protean Wave's bar shows, and its own wave goes the way it faces then. "
+                      + "Stand on its side away from the open quarter before the bar, then step out of that line");
+        }
         if (HumanSeat == MainTank && plays(TeaP1LivingLiquidPart.Cascade2))
         {
             lines.Add("Your Living Liquid: it walks after you whenever you are more than 4 y from it"
@@ -74,6 +81,14 @@ public sealed class TeaP1LivingLiquidPlan
                           ? ", so fetching your tether drags it off the middle. After Drainage walk it back onto the middle"
                           : ". Keep it on the middle")
                       + ", and turn it to the open quarter before Protean 2: the party's spots are taken from where it stands");
+        }
+        if (HumanSeat.IsTank() && plays(TeaP1LivingLiquidPart.Cascade2))
+        {
+            lines.Add(HumanSeat == MainTank
+                ? "Your last hand: hold the Living Liquid more than 12 y from the Liquid Hand until the Hand shows its palm, "
+                  + "then walk on through the middle until the Living Liquid stands on the Hand: it stops 4 y behind you"
+                : "Your Liquid Hand: it walks after you and stops 2.1 y behind you. For the last hand hold it more than 12 y from the Living Liquid until it shows its palm, "
+                  + "then walk on through the middle until it stands on the Living Liquid");
         }
         if (IsHealer(HumanSeat) && plays(TeaP1LivingLiquidPart.Cascade2))
         {

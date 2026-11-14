@@ -874,10 +874,12 @@ public class TeaP1LivingLiquidScenarioTests
 
     // -- The chat line, the settings, the catalog --
 
-    [TestCase(MainTank, Protean1, "Your Drainage tether: from the tornado right of the open quarter", "Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle")]
-    [TestCase(OffTank, Protean1, "Your Drainage tether: from the tornado left of the open quarter")]
-    [TestCase(MainTank, Cascade2, "Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter before Protean 2")]
-    [TestCase(OffTank, Cascade2)]
+    [TestCase(MainTank, Protean1, "Your Drainage tether: from the tornado right of the open quarter", "Your Living Liquid in Protean 1: it faces you until its Protean Wave's bar shows",
+        "Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle",
+        "Your last hand: hold the Living Liquid more than 12 y from the Liquid Hand until the Hand shows its palm, then walk on through the middle")]
+    [TestCase(OffTank, Protean1, "Your Drainage tether: from the tornado left of the open quarter", "Your Liquid Hand: it walks after you and stops 2.1 y behind you")]
+    [TestCase(MainTank, Cascade2, "Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter before Protean 2", "Your last hand:")]
+    [TestCase(OffTank, Cascade2, "Your Liquid Hand: it walks after you and stops 2.1 y behind you. For the last hand hold it more than 12 y from the Living Liquid until it shows its palm, then walk on through the middle")]
     [TestCase(RegenHealer, Protean1, "Your Throttle cleanses: yourself first, then MT, OT, H2, M1, M2, R1, R2")]
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
     [TestCase(MeleeDpsA, Protean1)]
