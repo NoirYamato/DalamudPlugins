@@ -75,6 +75,28 @@ public class TeaPlanTimingTests
         Assert.Equal(366.8, Assert.Single(Reminders("'LL/BJCC'!E54"), r => r.Item.Name == "Excogitation").PressAt, 1e-9);
     }
 
+    // ---- cells that list several actions -------------------------------------------------------------------------
+
+    /// <summary>
+    /// 'LL/BJCC'!E38 "Bless/Whisper/Succor" on Whirlwind 1 (238.3): Fey Blessing is a heal, but the cell is the Scholar's
+    /// heal and shield for the raidwide: pressed with Whispering Dawn's lead (−6.3 s), so the Succor (2 s cast) lands
+    /// before the hit. 'Alex Prime/PA'!E45 "Reci/Deploy/Soil/Fey Illum" on Irresistible Grace 1 (1142.5): Recitation is a
+    /// buff, the combo needs Fey Illumination's lead (−6 s).
+    /// </summary>
+    [Fact]
+    public void SeveralActions_AHealOrABuffFirst_IsPressedWithTheEarliestPreHitAction()
+    {
+        var e38 = Reminders("'LL/BJCC'!E38");
+        Assert.Equal(["Fey Blessing", "Whispering Dawn", "Succor"], e38.Select(r => r.Item.Name));
+        Assert.All(e38, r => Assert.Equal(238.3 - 6.3, r.PressAt, 1e-9));
+        Assert.All(Reminders("'Alex Prime/PA'!E45"), r => Assert.Equal(1142.5 - 6, r.PressAt, 1e-9));
+
+        // An entry that starts with mitigation keeps its lead: the Paladin's Reprisal in "Party Mit/Reprisal" on Optical
+        // Sight is not moved earlier by the Divine Veil (it would end before the second hit).
+        var reprisal = Assert.Single(Reminders("'Alex Prime/PA'!D39"), r => r.Item.Name == "Reprisal" && r.Entry.Who.Job == Job.PLD);
+        Assert.True(reprisal.PressAt >= reprisal.Hit - 3, $"press {reprisal.PressAt}");
+    }
+
     /// <summary>
     /// 'LL/BJCC'!G40 "Asylum/Plenary": Plenary Indulgence (10 s, Confession on the heal-up GCDs) is pressed after the drop
     /// to 1 HP, not 7.2 s before it with Asylum's regen lead.

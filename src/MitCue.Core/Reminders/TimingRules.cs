@@ -71,6 +71,14 @@ public static class TimingRules
     /// <item><see cref="Mechanic.HealLead"/>: an entry timed by a heal used after the hit (<see cref="IsUsedAfterHit"/>) is
     /// pressed that long before the hit instead, to top the targets up for it.</item>
     /// </list>
+    /// <para>
+    /// Otherwise an entry timed by a heal used after the hit or by a buff, movement or other action (which give the other
+    /// items no lead) is pressed with its earliest action pressed before the hit (<see cref="EarliestPreHitOffset"/>) when
+    /// that is earlier: "Bless/Whisper/Succor" with Whispering Dawn's −6.3 s, so the Succor lands before the hit;
+    /// "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's −6 s, time for the whole combo. An entry timed by mitigation,
+    /// a shield, a regen or an invuln keeps its action's lead ("Reprisal/Party Mit": Reprisal's −3 s still covers the
+    /// mechanic's second hit).
+    /// </para>
     /// <para>Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time.</para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -225,6 +233,13 @@ public static class TimingRules
         // Heals that top the targets up for the hit (the tanks at 1 HP before a tankbuster).
         if (mechanic.HealLead is { } healLead && IsUsedAfterHit(first))
             return -healLead;
+
+        // A heal or a buff gives no lead of its own: an action of the entry that goes before the hit times it.
+        if (first != null && (IsUsedAfterHit(first) || first.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other)
+            && EarliestPreHitOffset(timing, syncLevel) is { } earliest && earliest < offset)
+        {
+            return earliest;
+        }
 
         return offset;
     }

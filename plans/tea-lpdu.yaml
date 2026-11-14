@@ -56,61 +56,6 @@ entries:
     src: "'LL/BJCC'!I11"
   - id: e007
     mechanic: p1.doll_feeds
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 16536, name: Temperance}
-      - {action: 7433, name: Plenary Indulgence}
-    src: "'LL/BJCC'!G13"
-  - id: e008
-    mechanic: p1.doll_feeds
-    who: {slot: MT, job: DRK, assignee: Tank 1}
-    do:
-      - {action: 16471, name: Dark Missionary}
-    src: "'LL/BJCC'!C13"
-  - id: e009
-    mechanic: p1.doll_feeds
-    who: {slot: MT, job: GNB, assignee: Tank 1}
-    do:
-      - {action: 16160, name: Heart of Light}
-    src: "'LL/BJCC'!C13"
-  - id: e010
-    mechanic: p1.doll_feeds
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {action: 188, name: Sacred Soil}
-      - {action: 16542, name: Recitation}
-      - {action: 3585, name: Deployment Tactics}
-      - {action: 16537, name: Whispering Dawn}
-    src: "'LL/BJCC'!E13"
-  - id: e011
-    mechanic: p1.doll_feeds
-    who: {job: MCH, assignee: Phys Range}
-    do:
-      - {action: 16889, name: Tactician}
-    note: if MCH
-    optional: true
-    src: "'LL/BJCC'!K13"
-  - id: e012
-    mechanic: p1.doll_feeds
-    who: {slot: MT, job: PLD, assignee: Tank 1}
-    do:
-      - {action: 3540, name: Divine Veil}
-    src: "'LL/BJCC'!C13"
-  - id: e013
-    mechanic: p1.doll_feeds
-    who: {slot: MT, job: WAR, assignee: Tank 1}
-    do:
-      - {action: 7388, name: Shake It Off}
-    src: "'LL/BJCC'!C13"
-  - id: e014
-    mechanic: p1.doll_feeds
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 7432, name: Divine Benison}
-    target: Range
-    src: "'LL/BJCC'!G13"
-  - id: e015
-    mechanic: p1.doll_feeds
     who: {job: SGE, assignee: Sage}
     do:
       - {action: 24300, name: Zoe}
@@ -119,19 +64,74 @@ entries:
       - {action: 24298, name: Kerachole}
     seq: true
     src: "'LL/BJCC'!F13"
-  - id: e016
+  - id: e008
     mechanic: p1.doll_feeds
-    who: {job: AST, assignee: Astrologian}
+    who: {job: WHM, assignee: White Mage}
     do:
-      - {action: 16559, name: Neutral Sect}
-    src: "'LL/BJCC'!H13"
-  - id: e017
+      - {action: 16536, name: Temperance}
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G13"
+  - id: e009
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!C13"
+  - id: e010
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!C13"
+  - id: e011
+    mechanic: p1.doll_feeds
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 16537, name: Whispering Dawn}
+    src: "'LL/BJCC'!E13"
+  - id: e012
+    mechanic: p1.doll_feeds
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    note: if MCH
+    optional: true
+    src: "'LL/BJCC'!K13"
+  - id: e013
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'LL/BJCC'!C13"
+  - id: e014
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'LL/BJCC'!C13"
+  - id: e015
+    mechanic: p1.doll_feeds
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Range
+    src: "'LL/BJCC'!G13"
+  - id: e016
     mechanic: p1.doll_feeds
     who: {job: AST, assignee: Astrologian}
     do:
       - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
       - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
     target: Ranged
+    src: "'LL/BJCC'!H13"
+  - id: e017
+    mechanic: p1.doll_feeds
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16559, name: Neutral Sect}
     src: "'LL/BJCC'!H13"
   - id: e018
     mechanic: p1.fluid_swing_3
@@ -241,18 +241,18 @@ entries:
     src: "'LL/BJCC'!F19"
   - id: e034
     mechanic: p1.splash_1
-    who: {slot: MT, assignee: Tank 1}
-    do:
-      - {action: 7535, name: Reprisal}
-    src: "'LL/BJCC'!C19"
-  - id: e035
-    mechanic: p1.splash_1
     who: {job: AST, assignee: Astrologian}
     do:
       - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
       - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
     target: Tank
     src: "'LL/BJCC'!H19"
+  - id: e035
+    mechanic: p1.splash_1
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!C19"
   - id: e036
     mechanic: p1.splash_1
     who: {slot: M2, assignee: Melee 2}
@@ -415,12 +415,20 @@ entries:
     src: "'LL/BJCC'!H36"
   - id: e060
     mechanic: p2.whirlwind_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+      - {action: 16537, name: Whispering Dawn}
+      - {action: 186, name: Succor}
+    src: "'LL/BJCC'!E38"
+  - id: e061
+    mechanic: p2.whirlwind_1
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7432, name: Divine Benison}
     target: Tank
     src: "'LL/BJCC'!G38"
-  - id: e061
+  - id: e062
     mechanic: p2.whirlwind_1
     who: {job: AST, assignee: Astrologian}
     do:
@@ -429,20 +437,12 @@ entries:
       - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
     target: Tank
     src: "'LL/BJCC'!H38"
-  - id: e062
+  - id: e063
     mechanic: p2.whirlwind_1
     who: {slot: OT, assignee: Tank 2}
     do:
       - {action: 7535, name: Reprisal}
     src: "'LL/BJCC'!D38"
-  - id: e063
-    mechanic: p2.whirlwind_1
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {action: 16543, name: Fey Blessing}
-      - {action: 16537, name: Whispering Dawn}
-      - {action: 186, name: Succor}
-    src: "'LL/BJCC'!E38"
   - id: e064
     mechanic: p2.photon_1
     who: {slot: MT, job: WAR, assignee: Tank 1}
@@ -738,15 +738,15 @@ entries:
     mechanic: p2.water_thunder_3
     who: {job: AST, assignee: Astrologian}
     do:
-      - {note: Neutral Sect (still active)}
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: MT
     src: "'LL/BJCC'!H50"
   - id: e106
     mechanic: p2.water_thunder_3
     who: {job: AST, assignee: Astrologian}
     do:
-      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
-      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
-    target: MT
+      - {note: Neutral Sect (still active)}
     src: "'LL/BJCC'!H50"
   - id: e107
     mechanic: p2.water_thunder_3
@@ -1571,33 +1571,42 @@ entries:
     src: "'Alex Prime/PA'!M43"
   - id: e230
     mechanic: p4.irresistible_grace_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 188, name: Sacred Soil}
+      - {action: 16538, name: Fey Illumination}
+    src: "'Alex Prime/PA'!E45"
+  - id: e231
+    mechanic: p4.irresistible_grace_1
     who: {slot: MT, job: DRK, assignee: Tank 1}
     do:
       - {action: 16471, name: Dark Missionary}
       - {action: 7535, name: Reprisal}
     src: "'Alex Prime/PA'!C45"
-  - id: e231
+  - id: e232
     mechanic: p4.irresistible_grace_1
     who: {slot: MT, job: GNB, assignee: Tank 1}
     do:
       - {action: 16160, name: Heart of Light}
       - {action: 7535, name: Reprisal}
     src: "'Alex Prime/PA'!C45"
-  - id: e232
+  - id: e233
     mechanic: p4.irresistible_grace_1
     who: {slot: MT, job: PLD, assignee: Tank 1}
     do:
       - {action: 3540, name: Divine Veil}
       - {action: 7535, name: Reprisal}
     src: "'Alex Prime/PA'!C45"
-  - id: e233
+  - id: e234
     mechanic: p4.irresistible_grace_1
     who: {slot: MT, job: WAR, assignee: Tank 1}
     do:
       - {action: 7388, name: Shake It Off}
       - {action: 7535, name: Reprisal}
     src: "'Alex Prime/PA'!C45"
-  - id: e234
+  - id: e235
     mechanic: p4.irresistible_grace_1
     who: {job: SGE, assignee: Sage}
     do:
@@ -1607,15 +1616,6 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'Alex Prime/PA'!F45"
-  - id: e235
-    mechanic: p4.irresistible_grace_1
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {action: 16542, name: Recitation}
-      - {action: 3585, name: Deployment Tactics}
-      - {action: 188, name: Sacred Soil}
-      - {action: 16538, name: Fey Illumination}
-    src: "'Alex Prime/PA'!E45"
   - id: e236
     mechanic: p4.irresistible_grace_1
     who: {job: AST, assignee: Astrologian}

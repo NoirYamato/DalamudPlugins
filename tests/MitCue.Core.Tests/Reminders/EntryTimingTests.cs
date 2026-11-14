@@ -176,6 +176,55 @@ public class EntryTimingTests
         Assert.Equal(101, Kit.Timing(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Tetragrammaton)), fight).PressAt, Kit.Tolerance);
     }
 
+    // ---- several actions: a heal or a buff first ------------------------------------------------------------------
+
+    /// <summary>A 10 s party mitigation at level 90 (Reprisal): −3 s.</summary>
+    private static readonly ActionInfo TenSecondMit = Kit.Act(7535, "Reprisal", ActionKind.PartyMit, duration: 10, jobs: [Job.PLD]);
+
+    private static EntryTiming Several(params ActionInfo[] actions)
+    {
+        var fight = Kit.TestFight();
+        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", null, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog([.. Kit.Catalogued, TenSecondMit]));
+    }
+
+    [Fact]
+    public void Several_AHealFirst_IsPressedWithTheEarliestActionBeforeTheHit()
+    {
+        Assert.Equal(-6, Several(Kit.Tetragrammaton, Kit.DivineBenison, Kit.Temperance).AutomaticOffset, Kit.Tolerance); // "Bless/Whisper/Succor"
+        Assert.Equal(-2, Several(Kit.PulseOfLife, Kit.HallowedGround).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(1, Several(Kit.Tetragrammaton, Kit.PulseOfLife).AutomaticOffset, Kit.Tolerance);                    // only heals: after the hit
+    }
+
+    [Fact]
+    public void Several_ABuffFirst_IsPressedWithTheEarliestActionBeforeTheHit()
+    {
+        Assert.Equal(-4.5, Several(Kit.Swiftcast, Kit.DivineBenison, Kit.Adloquium).AutomaticOffset, Kit.Tolerance);    // "Reci/Deploy/Soil"
+        Assert.Equal(-8, Several(Kit.Swiftcast, Kit.Tetragrammaton, Kit.Excogitation).AutomaticOffset, Kit.Tolerance);   // a pre-placed heal counts
+        Assert.Equal(-3, Several(Kit.Swiftcast, Kit.Tetragrammaton).AutomaticOffset, Kit.Tolerance);                     // nothing earlier: the buff's −3
+    }
+
+    [Fact]
+    public void Several_MitigationShieldsRegensAndInvulnsFirst_KeepTheirLead()
+    {
+        Assert.Equal(-3, Several(TenSecondMit, Kit.DivineBenison).AutomaticOffset, Kit.Tolerance);       // "Reprisal/Party Mit": still covers a later hit
+        Assert.Equal(-4, Several(Kit.DivineBenison, Kit.Temperance).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Several(Kit.MedicaII, Kit.Temperance).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-2, Several(Kit.HallowedGround, Kit.Rampart).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-6, Several(Kit.Bell, Kit.Excogitation).AutomaticOffset, Kit.Tolerance);           // a pre-placed heal first keeps its own
+    }
+
+    [Fact]
+    public void Several_PressAfterAndHealLeadComeFirst()
+    {
+        var afterFight = PressAfterFight();
+        Assert.Equal(1, Kit.Timing(Kit.Entry("p1.drop", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Temperance)), afterFight).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(1, Kit.Timing(Kit.Entry("p1.drop", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Adloquium)), afterFight).AutomaticOffset, Kit.Tolerance);
+
+        var leadFight = HealLeadFight();
+        Assert.Equal(-4, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-6, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
+    }
+
     // ---- EarliestPreHitOffset ------------------------------------------------------------------
 
     [Fact]
