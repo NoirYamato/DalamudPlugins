@@ -319,12 +319,13 @@ steps.
      **Check the YAML and review**. A MitCue plan file (YAML or JSON) can be pasted here too.
 2. **Options:** the fight, the tabs and columns to import (MitCue ticks yours after looking at the tabs), the
    plan name, the calibration preset and **Slashes**. A column of calls for anyone (*Extras*, *Other*, *Misc*
-   or *Utility*) is no choice: it is always imported, its calls for the jobs whose action they name (*PLD
-   Wings* is the Paladin's), and the window says so (*Always imported: Extras - N calls for the jobs they
-   name*). **Slashes** says what `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or
-   *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when no cell of the sheet joins
-   actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line break) and at least two cells list
-   several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
+   or *Utility*) is no choice: it is always imported, and the window says so (*Always imported: Extras - N
+   calls for the jobs they name*). Its cells are read call by call: a call of a job's own action is that job's
+   (*PLD Wings* is the Paladin's), and the rest of the cell, a note or an action several jobs share (*Feint*),
+   is one note for everyone. **Slashes** says what `X/Y` between two actions of one job means: *either one
+   (TBN/Oblation)* or *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when no cell of
+   the sheet joins actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line break) and at least
+   two cells list several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
    (`Soil/Reci/Deploy/Whisper`), else either one; the review's notes about the whole import say which. Click
    **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
@@ -346,8 +347,11 @@ steps.
 MitCue reads a sheet with a row per mechanic (with or without times) and a column per player: a slot (`MT`,
 `H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
 job of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell
-that points up (`(^on BJ)`) adds its remark to the call above it; and `(Late)` moves a call meant for before
-the hit to 1 s before it. The full rules: [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
+that points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call
+meant for before the hit just before it, so that its cast ends 1 s before the hit (`Reprisal (Late)` 1 s
+before it, `Succor (Late)` 3 s). A call for a party buff that is still up from your earlier press becomes a
+note (*Temperance (still active)*) or the buff's follow-up (Summon Seraph's Consolation). The full rules:
+[src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.

@@ -763,6 +763,9 @@ aliases:
   and "Oblation Co-Tank". The parser should carry a trailing target back over `/`-joined actions. LPDU's TEA sheet
   joins actions with `/` only ("Soil/Reci/Deploy/Whisper": all four), so the importer reads `/` between actions of
   one job per document, as either one or as all of them (`ImportOptions.Slashes`, `src/MitCue.Core/Import/README.md`).
+  "All of them" never joins at a `/` between slots, jobs, target or mechanic words ("MT/Co-tank", "Stack/Spread") or
+  in "and/or"; in both readings "Benison MT/Co-tank" has one target, either of them, and "Soil and/or Expedient" is
+  either one.
 - Short keys can swallow targets: `co` (AST Celestial Opposition) would match a bare "Co-Tank" item (normalized
   `co tank`). The sheets never have a bare "Co-Tank" item after splitting, and the AST-only job filter keeps it away
   from tank columns, but a target word must not be resolved as an action for another job.
@@ -784,7 +787,7 @@ Meanings that are conventions rather than game data (all taken from the example 
 | `bene` | Benediction (not Divine Benison) | CtC WHM row 19: plan "Benediction (1:57)", note "Bene right after the last cleave", count "Bene 25"; "Benison" is used separately |
 | `tetra` | Tetragrammaton | CtC WHM row 17 note "Bene / Tetra for emergencies"; combined tab D17 "Tetragrammaton (0:49)" |
 | `spreadlo` | Adloquium → Deployment Tactics | LPDU SCH column; CtC writes the same play as "Recit → Adlo → Deploy" |
-| `seraph` | Summon Seraph (two Consolations follow) | CtC SCH "Seraph (1:19)" with the note "Consolation ×2 around 1:30" |
+| `seraph` | Summon Seraph (two Consolations follow); in a sheet that numbers its Seraph calls, like `seraph1` | CtC SCH "Seraph (1:19)" with the note "Consolation ×2 around 1:30"; LPDU TEA writes "Seraph1"/"Seraph2" and a plain "Seraph" (Scholar column, J Wave 5 "Succor/Soil/Seraph", J Wave 7 "Seraph/Fey Illum", Irresistible Grace 2 "Soil/Succor/Seraph"), which the importer reads per document as `seraph1` (`seraph-reading`) |
 | `2nd seraph charge` | Consolation | LPDU P3 Latent 3 "FeyIllum + 2nd Seraph Charge" (Consolation has 2 charges) |
 | `filler` | PLD Bulwark, WAR Thrill of Battle, DRK Dark Mind, GNB Camouflage | **Inferred**: the LPDU tank tabs always pair "Rampart + {Bullwark, Thrill, Dark Mind, Camo} + {HS, BW, TBN, HoC}", and "General Tank Mit" writes "Filler + Short CD" next to "Rampart + 30% + Short CD" |
 | `short cd` | PLD Holy Sheltron (targeted: Intervention), WAR Bloodwhetting (Nascent Flash), DRK The Blackest Night, GNB Heart of Corundum | the same tank tabs; "Short CD to R1/2" means the targeted version |

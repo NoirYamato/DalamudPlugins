@@ -73,9 +73,10 @@ Notes:
   "Tank 2" (OT), so `--job PLD` without `--slot` reads slot MT.
 - `import --slashes auto|or|and` sets what "X/Y" between two actions of one job means: `or` either one (LPDU
   TOP's "TBN/Oblation"), `and` all of them, like "+" (LPDU TEA's "Soil/Reci/Deploy/Whisper"). `auto`, the
-  default, reads "and" when no cell joins actions another way ("+", ",", "&", an arrow, " / " or a line
-  break) and two or more cells list several actions of one job with "/", three or more in one; the
-  `slash-reading` diagnostic says which reading was used and why.
+  default, reads "and" when no cell of the sheet (every tab counts, whichever `--tabs` are imported) joins actions
+  another way ("+", ",", "&", an arrow, " / " or a line break) and two or more cells list several actions of one job
+  with "/", three or more in one; the `slash-reading` diagnostic says which reading was used and why. Under "and",
+  a "/" between slots, jobs, target or mechanic words ("MT/Co-tank") or in "and/or" never joins.
 - Plans are read as the plugin reads them: slot synonyms (`T1`/`T2`, `ST`, `D1`-`D4`) become the standard slots,
   and an entry with no job in a column with a job gets that job (a job-less call in "H1 AST" is the Astrologian's).
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss

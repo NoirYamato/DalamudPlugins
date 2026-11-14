@@ -1220,9 +1220,10 @@ spelling "Irresistable" included).
 **Repeated labels.** Five labels match several mechanics of their phase (8 rows), and row order decides (§4.5), as
 the importer reports with `ambiguous-mechanic`: `Cascade` (rows 11 and 21), `Splashes` (19: the first Splash),
 `Whirlwind` (38, 48 and 56: the first three of P2's four), `Photon` (40: the first) and `Mega Holy` (`Alex
-Prime/PA` 15: the first; its `(Late)` calls are pressed 1 s before it, so that 10 s effects also cover the second,
-7.1 s later). `Optical Sight (Stack/Spread)` is written twice (rows 39 and 41, the second without calls): both rows
-are `p4.optical_sight`, whose two hits are the two Reprobations. `JKick` is a label in P2 and in P3 (§6.3).
+Prime/PA` 15: the first; its `(Late)` calls, Reprisal, Feint and Addle, have no cast and are pressed 1 s before it,
+so that 10 s effects also cover the second, 7.1 s later). `Optical Sight (Stack/Spread)` is written twice (rows 39
+and 41, the second without calls): both rows are `p4.optical_sight`, whose two hits are the two Reprobations.
+`JKick` is a label in P2 and in P3 (§6.3).
 
 ### 6.2 J Waves: timeline additions and stack counts
 
@@ -1286,7 +1287,7 @@ anchor on and to sync:
 5. **`Gavel Lineup` → `p2.gavel`**: the Nisi lineup behind the frozen tornado that blocks Propeller Wind (4832,
    354.5) until Gavel.
 6. **`Transition Raidwide` → `p3.divine_judgment`**, the tank LB3 raidwide (787.3). Both tank columns write `LB3`;
-   the importer makes each optional (`shared-limit-break`).
+   the importer makes each optional (`shared-limit-break`), also when only one of the two columns is imported.
 7. **`Whirlwind` (row 56) → `p2.whirlwind_3`** (395.0) by row order. P2's fourth Whirlwind (403.1) has no row, so
    the 10 s Reprisal of that row covers the third only.
 8. **`Photon` → `p2.photon_1`, with `press: after`**, like `p2.photon_2`, which no row names. Photon sets HP to 1 (the

@@ -464,11 +464,18 @@ previews, which have no cooldown provider.
    (statistics). Detect phase from tab names (`P3`), section rows (`P2 — Omega-M/F (from
    phase start)`), or label cells (`P2`). **As built (2026-11-14), for LPDU's TEA sheet:**
    `Phys Range` is a role column like `Caster` (calls for each job of the role), and a
-   column headed `Extras`, `Other`, `Misc` or `Utility` holds calls for anyone: each is an
-   entry for the jobs whose own action it names (`PLD Wings`, `Dismantle`), with no
-   assignee, and the column is imported whichever columns are chosen. A phase title over
-   the player columns (`P2: Brute Justice / Cruise Chaser`) starts its phase, and an
-   unlabelled column of prose beside the labels holds the rows' notes.
+   column headed `Extras`, `Other`, `Misc` or `Utility` holds calls for anyone, imported
+   whichever columns are chosen. Its cells are read call by call: a call that names a job's
+   own action is an entry for those jobs (`PLD Wings`, `Dismantle`), with no assignee; the
+   cell's other calls, notes and actions several jobs share (`Feint`), are one note for
+   everyone (`Dismantle + Feint`: the Machinist's Dismantle and the note "Feint"). A phase
+   title over the player columns starts its phase when a header row follows it (`P2: Brute
+   Justice / Cruise Chaser`), or, as a merged banner without one, when it reads as a title:
+   the fight's name for the phase, or at most four words with none of `,` `;` `.` `!` `?`.
+   A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT
+   takes boss after`) stays a note, and a title that is not the fight's name for its phase
+   gets a `phase-title` info. An unlabelled column of prose beside the labels holds the
+   rows' notes.
 3. **Cell parsing.** Split into items: ` / ` separates independent actions (each may have
    its own time), `+` and `,` join simultaneous actions, `→`/`->` make a sequence, `X/Y`
    without spaces means either/or (often across jobs: `Kera/Soil`). Extract `(1:18)`,
@@ -481,21 +488,40 @@ previews, which have no cooldown provider.
    of one job with `/` in two or more cells, three or more in one: then it is all of them,
    like `+` (LPDU's TEA sheet: `Soil/Reci/Deploy/Whisper`). `ImportOptions.Slashes` (the
    import window's *Slashes*, the CLI's `--slashes auto|or|and`) overrides the reading, and
-   the `slash-reading` info says which was used and why. Also read since then: a cell that
-   is one pair of brackets (`(Shake)`: optional), a cell that points up (`(^on BJ)`: a remark
-   on the cell above) and `(Late)` (an action used before its hit is pressed 1 s before it).
-   The full grammar: `src/MitCue.Core/Import/README.md`.
+   the `slash-reading` info says which was used and why. Every tab's cells count, whichever
+   are imported. "All of them" never joins at a `/` between slots, jobs, target or mechanic
+   words (`MT/Co-tank`, `Stack/Spread`) or in `and/or`; in both readings, `MT/Co-tank`
+   after an action is one target (either of them) and `X and/or Y` is either one. Also read
+   since then: a cell that is one pair of brackets (`(Shake)`: optional), a cell that
+   points up (`(^on BJ)`: a remark on every item of the cell above) and `(Late)`: an entry
+   pressed before its hit (not one on a mechanic with `press: after`, §5.1) is pressed just
+   before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)` −1 s,
+   `Succor (Late)` −3 s), but never earlier than without it. A target in parentheses goes
+   only to actions used on a player; elsewhere it stays in the note (`Asylum (melee)`:
+   where to place it). The full grammar: `src/MitCue.Core/Import/README.md`.
 4. **Action resolution.** Alias dictionary → exact name → fuzzy match (typos such as
    *Nascant*, *Vengance*), restricted to the assignee's job and the fight's sync level.
    Cross-job alternatives are split per job. Role phrases expand per job. Anything else
-   becomes a note. **As built (2026-11-14):** after the cells, a party buff the same player
-   plans again while it still lasts becomes its follow-up (Summon Seraph → Consolation) or a
-   note ("Temperance (still active)"); a limit break written for one role in several seats'
-   columns at one mechanic is optional in each; a target taken from the row (its notes, or
-   "tank" on a tankbuster) goes to single-target actions only, and the item's other actions
-   get an entry of their own; a note over several columns that names actions ("A tip for
-   Soil/Kera timing …") is the detail of the entries in its columns and section that press
-   one of them.
+   becomes a note. **As built (2026-11-14):** a sheet that numbers its Seraph calls
+   (`Seraph1`: Summon Seraph → Consolation) means the same by a plain `Seraph` (LPDU's TEA
+   sheet; a `seraph-reading` info says so); elsewhere a plain `Seraph` is Summon Seraph
+   alone. After the cells, a party buff the same player plans again while it still lasts
+   becomes its follow-up (Summon Seraph → Consolation) or a note ("Temperance (still
+   active)"). It still lasts when the earlier press, used on its NOW cue (§5.2, the default
+   due lead), outlasts the later hit, or the later press when that comes after the hit, by
+   1 s. An earlier press without a time in the sheet that falls short is pressed later so
+   that it covers both, no later than `(Late)` would press it (LPDU TEA's Hidden Mines
+   Temperance: −3.5 s, through Water 2); otherwise both stay presses (a `still-active`
+   info), and `check` reports the recast. An optional earlier press (in brackets, with a
+   condition, or one choice of an either/or) keeps no buff up. A limit break written for
+   one role in several seats' columns at one mechanic is optional in each, also when only
+   some of those columns are imported. A target taken from the row (its notes, or "tank" on
+   a tankbuster) goes to single-target actions only, and the item's other actions get an
+   entry of their own. A note over several columns that names actions and no player ("A tip
+   for Soil/Kera timing …") is the detail of the entries in its columns and section that
+   press one of them; one that names players by role, slot or job ("Tanks: …, then OT
+   provokes …") is the detail of all their entries. Either reads the same whichever of its
+   columns are imported.
 5. **Mechanic resolution.** Per-fight aliases + phase context + monotonic row order +
    timestamps. Same label in different phases (`Hello World`, `Solar Ray`, `Magic Number`)
    is disambiguated by phase and order.
