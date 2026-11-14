@@ -398,7 +398,7 @@ internal static class LlmPrompt
             if (alias.NoteOnly)
                 sb.Append("a note, not an action").Append(alias.Note is { Length: > 0 } n ? " (" + n + ")" : string.Empty);
             else
-                sb.Append(string.Join(alias.Sequence ? " -> " : " + ", alias.Actions));
+                sb.Append(string.Join(alias.Sequence ? " -> " : " + ", alias.Actions.Select(OptionsText)));
             if (alias.Job is { } job)
                 sb.Append(" (").Append(job).Append(')');
             if (!alias.NoteOnly && alias.Note is { Length: > 0 } note && note.Length <= 160)
@@ -410,6 +410,10 @@ internal static class LlmPrompt
             sb.Append(input.DataNote).Append('\n');
         sb.Append('\n');
     }
+
+    /// <summary>An alias's action name, its options spelled out: "the Arrow|the Bole" → "(the Arrow or the Bole)".</summary>
+    private static string OptionsText(string name) =>
+        AliasExpansion.OptionsOf(name) is { Count: > 1 } options ? "(" + string.Join(" or ", options) + ")" : name;
 
     private static string Quote(string text) => "\"" + text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 

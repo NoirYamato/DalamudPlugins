@@ -108,6 +108,15 @@ public class LlmPromptTests
     }
 
     [Fact]
+    public void AliasOptions_AreSpelledOut()
+    {
+        // aliases.yaml "defensive cards": an action name may list options ("the Arrow|the Bole"), one item done by either.
+        var prompt = LlmPrompt.Build(Input(aliases: [new PromptAlias("defensive cards", Job.AST, ["the Arrow|the Bole", "the Spire|the Ewer"])]));
+
+        Assert.Contains("defensive cards = (the Arrow or the Bole) + (the Spire or the Ewer) (AST)", prompt);
+    }
+
+    [Fact]
     public void TheExampleUsesRealIdsOfTheFight()
     {
         var prompt = LlmPrompt.Build(Input());
