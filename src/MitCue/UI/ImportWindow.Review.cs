@@ -409,7 +409,7 @@ internal sealed partial class ImportWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip(
-                (automatic ? "Automatic timing for this action. " : string.Empty) +
+                (automatic ? "Automatic timing for this entry. " : string.Empty) +
                 "Seconds from the hit (negative = before). Drag, or Ctrl+click to type.\nRight-click: automatic timing or 0 s." +
                 (l.Press is { } press ? $"\nPress at {FormatClock(press)} on the fight timeline." : string.Empty));
         }

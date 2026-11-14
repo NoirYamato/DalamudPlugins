@@ -85,8 +85,8 @@ public sealed class PlanCheckOptions
 /// </summary>
 /// <remarks>
 /// <para>
-/// Press times are the reminder press times (<see cref="ReminderScheduler"/>: hit + offset, or the default offset of
-/// docs/DESIGN.md §5.1) on the timeline's nominal times. Within a phase these are exact: the boss's script does not
+/// Press times are the reminder press times (<see cref="ReminderScheduler"/>: hit + offset, or the automatic press time of
+/// docs/DESIGN.md §5.1, <see cref="TimingRules.ForEntry"/>) on the timeline's nominal times. Within a phase these are exact: the boss's script does not
 /// change. Across a phase transition they are not: a phase that is pushed (killed) early makes everything after it
 /// happen sooner than on the timeline (cactbot timelines place each phase start after the previous phase's enrage),
 /// and a use planned late in a phase does not happen at all when the phase ends before it.
