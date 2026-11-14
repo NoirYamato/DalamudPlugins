@@ -115,10 +115,10 @@ public class TeaP1LivingLiquidLpduAiTests
         new(Cascade2, 18.7f, 23.2f, [MainTank, OffTank, MeleeDpsB, RegenHealer, ShieldHealer, PhysRangedDps, CasterDps]),
         new(Cascade2, 21.3f, 23.2f),
         new(Cascade2, 23.35f, 26.2f),
-        new(Cascade2, 24.25f, 26.25f, [RegenHealer, ShieldHealer, PhysRangedDps, CasterDps]),
+        new(Cascade2, 24.25f, 26.28f, [RegenHealer, ShieldHealer, PhysRangedDps, CasterDps]),
         new(Cascade2, 24.25f, 29.2f),
         new(Cascade2, 27.0f, 29.2f),
-        new(Cascade2, 29.35f, 33.1f),
+        new(Cascade2, 29.35f, 33.4f),
         new(Cascade2, 33.5f, 38.3f),
     ];
 
