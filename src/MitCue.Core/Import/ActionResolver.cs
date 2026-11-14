@@ -112,6 +112,12 @@ internal sealed class ActionResolver
 
     public IActionCatalog Actions => this.actions;
 
+    /// <summary>
+    /// Alias keys that the document means as another key (normalized): a sheet that numbers its Seraph calls means
+    /// "Seraph1" by a plain "Seraph" ("seraph" → "seraph1"). Set by the importer for the document; empty by default.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ReadAs { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>Resolves a token for a job. Each either/or alternative is tried with the token's trailing text.</summary>
     public TokenResolution Resolve(ParsedToken token, Job job)
     {
@@ -175,8 +181,9 @@ internal sealed class ActionResolver
         if (this.aliases.MatchLongest(phrase, job) is { } match)
         {
             var keyWords = match.Key.Split(' ').Length;
-            if (match.Expansions.Count > 0)
-                return this.FromExpansion(match.Expansions[0], match.Key, ImportText.SkipNormalizedWords(phrase, keyWords), job, targeted);
+            var expansions = this.ExpansionsOf(match.Key, match.Expansions, job);
+            if (expansions.Count > 0)
+                return this.FromExpansion(expansions[0], match.Key, ImportText.SkipNormalizedWords(phrase, keyWords), job, targeted);
             if (keyWords >= headWords)
                 otherJobAlias = match;
         }
@@ -225,7 +232,7 @@ internal sealed class ActionResolver
             var rest = ImportText.SkipNormalizedWords(phrase, close.Words);
             if (close.IsAlias)
             {
-                var expansions = this.aliases.Lookup(close.Key, job);
+                var expansions = this.ExpansionsOf(close.Key, this.aliases.Lookup(close.Key, job), job);
                 if (expansions.Count > 0)
                 {
                     var r = this.FromExpansion(expansions[0], close.Key, rest, job, targeted);
@@ -240,6 +247,10 @@ internal sealed class ActionResolver
 
         return new TokenResolution { Kind = TokenKind.Unresolved, Matched = null, Rest = null };
     }
+
+    /// <summary>The expansions of a matched alias key for the job, or those of the key the document means by it (<see cref="ReadAs"/>).</summary>
+    private IReadOnlyList<AliasExpansion> ExpansionsOf(string key, IReadOnlyList<AliasExpansion> expansions, Job job) =>
+        this.ReadAs.TryGetValue(key, out var other) ? this.aliases.Lookup(other, job) : expansions;
 
     private TokenResolution FromExpansion(AliasExpansion e, string key, string? rest, Job job, bool targeted)
     {

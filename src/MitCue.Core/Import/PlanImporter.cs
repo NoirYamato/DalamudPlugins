@@ -319,6 +319,7 @@ public sealed partial class PlanImporter
             this.KeyColumns(tabs);
             this.ChoosePreset();
             this.cells = this.ChooseSlashReading(layout);
+            this.ChooseSeraphReading(layout, tabs);
 
             foreach (var tab in tabs)
             {
@@ -524,6 +525,45 @@ public sealed partial class PlanImporter
             return reading == SlashReading.All ? new CellParser(new CellParserOptions { SlashJoins = true }) : CellParser.Default;
 
             static string Count(int n, string one, string many) => n.ToString(CultureInfo.InvariantCulture) + " " + (n == 1 ? one : many);
+        }
+
+        /// <summary>
+        /// What a plain "Seraph" means in this document. A sheet that numbers its Seraph calls ("Seraph1": Summon Seraph and
+        /// its first Consolation, "Seraph2": the second) means the same by a plain "Seraph" (LPDU's TEA: "Succor/Soil/Seraph"
+        /// at J Wave 5, "Seraph/Fey Illum" at J Wave 7): it is read like "Seraph1", and a second one while Seraph is out is
+        /// the other Consolation (<see cref="MarkStillActive"/>). Otherwise it is Summon Seraph alone (Carry the Clear writes
+        /// its Consolations apart). Every plan tab counts, whichever tabs and columns are imported; a "seraph-reading" info
+        /// names an imported cell that it changes.
+        /// </summary>
+        private void ChooseSeraphReading(DocumentLayout layout, List<TabState> tabs)
+        {
+            string? numbered = null;
+            string? plain = null;
+            foreach (var tab in layout.PlanTabs)
+            {
+                var imported = tabs.FirstOrDefault(t => ReferenceEquals(t.Layout, tab));
+                foreach (var cell in tab.DataRows.SelectMany(r => r.Assignments))
+                {
+                    var parsed = this.cells.Parse(cell.Cell, cell.Src);
+                    foreach (var key in parsed.Tokens.SelectMany(t => t.Alternatives).Select(a => this.options.Aliases.MatchLongest(a)?.Key))
+                    {
+                        if (key is "seraph1" or "seraph 1" or "seraph2" or "seraph 2")
+                            numbered ??= $"{cell.Src} '{Flat(parsed.Text)}'";
+                        else if (key == "seraph" && imported is not null && this.ColumnSelected(imported.Keys.GetValueOrDefault(cell.Column.Index, cell.Assignee.Key), cell.Assignee))
+                            plain ??= $"{cell.Src} '{Flat(parsed.Text)}'";
+                    }
+                }
+            }
+
+            if (numbered is null)
+                return;
+            this.resolver.ReadAs = new Dictionary<string, string>(StringComparer.Ordinal) { ["seraph"] = "seraph1" };
+            if (plain is not null)
+            {
+                this.Diag(DiagnosticSeverity.Info, "seraph-reading",
+                    $"The sheet numbers its Seraph calls (e.g. {numbered}), so a plain 'Seraph' (e.g. {plain}) is read like 'Seraph1': Summon Seraph, then Consolation.",
+                    null);
+            }
         }
 
         // ------------------------------------------------------------------ rows and mechanics

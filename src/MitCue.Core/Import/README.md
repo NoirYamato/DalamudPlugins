@@ -191,6 +191,11 @@ Rules worth knowing:
   (`Benison MT/Co-tank`), and `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an
   `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry
   per choice (`either-or-split`).
+- **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
+  Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
+  J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
+  Otherwise a plain `Seraph` is Summon Seraph alone (Carry the Clear writes its Consolations apart). Every plan tab
+  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one.
 - **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
   `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`), on its own: the calls beside it keep their

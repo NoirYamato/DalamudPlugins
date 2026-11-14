@@ -1136,6 +1136,8 @@ entries:
       - {action: 186, name: Succor}
       - {action: 188, name: Sacred Soil}
       - {action: 16545, name: Summon Seraph}
+      - {action: 16546, name: Consolation}
+    seq: true
     src: "'Alex Prime/PA'!E21"
   - id: e164
     mechanic: p3.j_wave_5
@@ -1249,6 +1251,7 @@ entries:
     do:
       - {action: 16546, name: Consolation}
       - {action: 16538, name: Fey Illumination}
+    seq: true
     src: "'Alex Prime/PA'!E23"
   - id: e182
     mechanic: p3.j_wave_7
@@ -1696,6 +1699,8 @@ entries:
       - {action: 188, name: Sacred Soil}
       - {action: 186, name: Succor}
       - {action: 16545, name: Summon Seraph}
+      - {action: 16546, name: Consolation}
+    seq: true
     src: "'Alex Prime/PA'!E47"
   - id: e248
     mechanic: p4.irresistible_grace_2

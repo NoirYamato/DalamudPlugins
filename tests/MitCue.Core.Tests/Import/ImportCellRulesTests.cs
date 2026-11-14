@@ -272,6 +272,47 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void PlainSeraph_InASheetThatNumbersItsSeraphCalls_IsSummonSeraphThenConsolation()
+    {
+        // LPDU TEA writes "Seraph1" in P1, then a plain "Seraph" at J Wave 5 and again at J Wave 7 ('Alex Prime/PA'!E21, E23)
+        // and a lone one at the last Irresistible Grace (E47): the package "Seraph1" is (Summon Seraph and a Consolation);
+        // the second one while Seraph is out is the other Consolation (still-active).
+        static SheetTab Tab(string name, string tsv) => SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', name);
+        var document = new SheetDocument
+        {
+            Title = "Test sheet",
+            Tabs =
+            [
+                Tab("LL", "P1\tScholar\tSage\nSplashes\tSoil/Illum/Seraph1\tKerachole"),
+                Tab("Prime", "P3\tScholar\nJwaves (4)\tSuccor/Soil/Seraph\nJwaves (6)\tSeraph/Fey Illum"),
+                Tab("PA", "P4\tScholar\nIrresistable Grace 2\tSoil/Succor/Seraph"),
+            ],
+        };
+        var r = Import(document, fight: PlanImports.Tea);
+
+        PlanEntry At(string mechanic) => Assert.Single(r.Plan.Entries, e => e.Mechanic == mechanic && e.Who.Job == Job.SCH);
+        Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph", "Consolation"], At("p3.j_wave_5").Names());
+        Assert.Equal(["Consolation", "Fey Illumination"], At("p3.j_wave_7").Names());
+        Assert.Equal(["Sacred Soil", "Succor", "Summon Seraph", "Consolation"], At("p4.irresistible_grace_2").Names());
+        var d = Assert.Single(r.Diagnostics, d => d.Code == "seraph-reading");
+        Assert.Equal((DiagnosticSeverity.Info, (string?)null), (d.Severity, d.Src));
+        Assert.Contains("'LL'!B2 'Soil/Illum/Seraph1'", d.Message, StringComparison.Ordinal);
+        Assert.Contains("'Prime'!B2 'Succor/Soil/Seraph'", d.Message, StringComparison.Ordinal);
+
+        // Every tab counts, whichever are imported (a re-import of one tab reads the sheet the same way); the info is for an
+        // import that has a plain "Seraph".
+        var prime = new PlanImporter().Import(document, new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, Tabs = ["Prime"] });
+        Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph", "Consolation"], prime.Plan.Entries.Single(e => e.Mechanic == "p3.j_wave_5").Names());
+        Assert.Single(prime.Diagnostics, d => d.Code == "seraph-reading");
+        Assert.DoesNotContain(Import(document, fight: PlanImports.Tea, assignees: ["Sage"]).Diagnostics, d => d.Code == "seraph-reading");
+
+        // Without numbered Seraph calls, a plain "Seraph" is the summon alone (Carry the Clear writes its Consolations apart).
+        var plain = Import(Sheet("P3", "Scholar", "Jwaves (4)\tSuccor/Soil/Seraph"), SlashReading.All, PlanImports.Tea);
+        Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph"], Assert.Single(plain.Plan.Entries).Names());
+        Assert.DoesNotContain(plain.Diagnostics, d => d.Code == "seraph-reading");
+    }
+
+    [Fact]
     public void AnInferredTarget_IsForTheSingleTargetActionsOnly()
     {
         // 'LL/BJCC'!F54 "EukDiag/Kerachole" on Double Rocket Punch, a tankbuster: the tank is Eukrasian Diagnosis's target;
@@ -368,14 +409,14 @@ public class ImportCellRulesTests
     [Theory]
     [InlineData("White Mage", "(Temperance)", "Temperance", "Temperance", SlashReading.Auto)] // in brackets: optional
     [InlineData("Scholar", "Seraph (if needed)", "Seraph", "Summon Seraph", SlashReading.Auto)] // a condition
-    [InlineData("Scholar", "Seraph1/Soil", "Seraph", "Summon Seraph", SlashReading.Either)] // one choice of an either/or
-    public void PartyBuffNamedAgain_AfterAPressThatMayNotHappen_StaysAPress(string column, string first, string again, string action, SlashReading slashes)
+    [InlineData("Scholar", "Seraph1/Soil", "Seraph", "Summon Seraph+Consolation", SlashReading.Either)] // one choice of an either/or (beside "Seraph1", "Seraph" is "Seraph1")
+    public void PartyBuffNamedAgain_AfterAPressThatMayNotHappen_StaysAPress(string column, string first, string again, string actions, SlashReading slashes)
     {
         // A player who skips the earlier press has no buff up: the later call is the one that puts it up (a Consolation
         // needs a Seraph out).
         var r = Import(Sheet("P2", column, "Limitless\t" + first, "Cosmo Memory\t" + again), slashes);
 
-        Assert.Equal([action], r.Plan.Entries.Single(e => e.Mechanic == "p2.cosmo_memory").Names());
+        Assert.Equal(actions.Split('+'), r.Plan.Entries.Single(e => e.Mechanic == "p2.cosmo_memory").Names());
         Assert.All(r.Plan.Entries.Where(e => e.Mechanic == "p2.limitless"), e => Assert.True(e.Optional));
         Assert.DoesNotContain(r.Diagnostics, d => d.Code == "still-active");
     }
