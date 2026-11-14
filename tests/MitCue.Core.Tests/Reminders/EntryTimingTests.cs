@@ -225,6 +225,99 @@ public class EntryTimingTests
         Assert.Equal(-6, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
     }
 
+    // ---- series (a raidwide repeated a few seconds apart) ------------------------------------------------------
+
+    /// <summary>
+    /// Waves 3 s apart at 100, 103, 106 and 109 (a series), wave 1 and wave 3 as mechanics of their own, and a mechanic at
+    /// 103.5 that is not a wave (sync 90).
+    /// </summary>
+    private static FightDefinition SeriesFight() => Kit.Fight(
+        90,
+        new Mechanic { Id = "p1.waves", Name = "waves", Phase = "p1", Hit = 100, Hits = [100, 103, 106, 109], Series = true },
+        Kit.Mech("p1.wave_1", 100),
+        Kit.Mech("p1.wave_3", 106),
+        Kit.Mech("p1.other", 103.5));
+
+    [Theory]
+    [InlineData(16536u, 103.3)]   // Temperance: −6 would be 100, before wave 2 (103): after it + 0.3
+    [InlineData(7432u, 103.3)]    // Divine Benison: an instant shield at −4 would be spent on wave 2
+    [InlineData(185u, 101.5)]     // Adloquium: its 2 s cast from −4.5 lands at 103.5, after wave 2: kept
+    [InlineData(30u, 104.0)]      // Hallowed Ground: −2 is after wave 2 anyway
+    [InlineData(3570u, 107.0)]    // a heal after the hit
+    [InlineData(999999u, 103.3)]  // an unknown action, like a note
+    public void Series_ALaterHitIsPressedAfterTheHitBeforeIt(uint actionId, double press)
+    {
+        var t = Kit.Timing(Kit.Entry("p1.wave_3", null, PlanItem.ForAction(actionId, "x")), SeriesFight());
+        Assert.Equal(press, t.PressAt, Kit.Tolerance);
+        Assert.Equal(press - 106, t.AutomaticOffset, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_TheReminderIsNotDueBeforeTheHitBeforeIt_NorUsedOnTimeBeforeIt()
+    {
+        var fight = SeriesFight();
+        var shield = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.DivineBenison)), fight);
+        Assert.Equal(103.3, shield.DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(103.3, shield.Items[0].Earliest, Kit.Tolerance);   // a Benison before wave 2 is spent on it: early
+
+        var cast = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Adloquium)), fight);
+        Assert.Equal(101.3, cast.DueNotBefore!.Value, Kit.Tolerance);   // the cast lands after wave 2 from 101.3 on
+        Assert.Equal(101.3, cast.Items[0].Earliest, Kit.Tolerance);
+
+        var mitigation = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Temperance), Kit.Do(Kit.Adloquium)), fight);
+        Assert.Equal(103.3, mitigation.DueNotBefore!.Value, Kit.Tolerance); // timed by Temperance: no cast to start early
+        Assert.All(mitigation.Items, i => Assert.Equal(103.3, i.Earliest, Kit.Tolerance));
+    }
+
+    [Fact]
+    public void Series_TheSchedulerTurnsTheReminderDueOnlyAfterTheHitBeforeIt()
+    {
+        // Hallowed Ground on wave 3 (106): pressed at 104 (−2), due from 102.5 by the due lead, but not before 103.3.
+        var s = Kit.Scheduler(SeriesFight(), new ReminderOptions(), Kit.Entry("p1.wave_3", null, Kit.Do(Kit.HallowedGround)));
+        var due = Kit.RecordDue(s);
+        var r = Assert.Single(s.All);
+        Assert.Equal((104.0, 103.3), (r.PressAt, r.DueNotBefore!.Value));
+
+        s.Update(103.2);
+        Assert.Equal(ReminderState.Upcoming, r.State);
+        s.Update(103.3);
+        Assert.Equal(ReminderState.Due, r.State);
+        Assert.Equal([r], due);
+
+        // A rewind to before 103.3 makes it wait again; a press on "NOW" is on time.
+        s.OnTimelineJump(109.0, 103.0);
+        s.Update(103.0);
+        Assert.Equal(ReminderState.Upcoming, r.State);
+        s.Update(103.4);
+        s.OnOwnAction(Kit.HallowedGround.Id, 103.4);
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.False(r.UsedEarly);
+    }
+
+    [Fact]
+    public void Series_OnTheSeriesItself_ByTheHitIndex()
+    {
+        var fight = SeriesFight();
+        Assert.Equal(103.3, Kit.Timing(Kit.Entry("p1.waves", null, Kit.Do(Kit.Temperance)).AtHit(2), fight).PressAt, Kit.Tolerance);
+        Assert.Equal(100.3, Kit.Timing(Kit.Entry("p1.waves", null, Kit.Do(Kit.Temperance)).AtHit(1), fight).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_TheFirstHit_OtherMechanics_AndAWrittenTime_AreNotHeldBack()
+    {
+        var fight = SeriesFight();
+        var first = Kit.Timing(Kit.Entry("p1.wave_1", null, Kit.Do(Kit.Temperance)), fight);
+        Assert.Equal((94.0, (double?)null), (first.PressAt, first.DueNotBefore));
+        Assert.Equal(94, Kit.Timing(Kit.Entry("p1.waves", null, Kit.Do(Kit.Temperance)), fight).PressAt, Kit.Tolerance);
+        Assert.Equal(97.5, Kit.Timing(Kit.Entry("p1.other", null, Kit.Do(Kit.Temperance)), fight).PressAt, Kit.Tolerance);
+
+        var timed = Kit.Timing(Kit.Entry("p1.wave_3", -6, Kit.Do(Kit.Temperance)), fight);
+        Assert.Equal(100, timed.PressAt, Kit.Tolerance);
+        Assert.Null(timed.DueNotBefore);
+        Assert.Equal(87, timed.Items[0].Earliest, Kit.Tolerance);
+        Assert.Equal(-2.7, timed.AutomaticOffset, Kit.Tolerance);      // what the review offers as automatic
+    }
+
     // ---- EarliestPreHitOffset ------------------------------------------------------------------
 
     [Fact]

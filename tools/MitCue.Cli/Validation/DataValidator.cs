@@ -202,6 +202,8 @@ internal sealed class DataValidator(IDataSource data)
             fields.Add("press: after");
         if (m.HealLead is { } lead)
             fields.Add("heal_lead: " + Inv(lead));
+        if (m.Series)
+            fields.Add("series: true");
         return fields;
     }
 

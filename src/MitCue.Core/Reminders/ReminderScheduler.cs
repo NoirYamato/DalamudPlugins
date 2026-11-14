@@ -18,7 +18,8 @@ namespace MitCue.Core.Reminders;
 /// </para>
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or
-/// Passed for notes and optional entries); <see cref="OnOwnAction"/> marks Done and
+/// Passed for notes and optional entries). Due starts at press − due lead, never before
+/// <see cref="Reminder.DueNotBefore"/>. <see cref="OnOwnAction"/> marks Done and
 /// <see cref="OnTimelineJump"/> marks Skipped, or Due for phase-end reminders at the transition that
 /// ends their phase. Only a backward jump of more than 5 s or <see cref="Reset"/> moves reminders back
 /// to Pending.
@@ -170,8 +171,8 @@ public sealed class ReminderScheduler
     /// target) keep their outcome but are no longer listed by <see cref="Update"/>, because their
     /// finished row belongs to the timeline before the rewind. A phase-end reminder made due by a
     /// transition keeps its moved latest, unless the jump goes back before its due time
-    /// (to &lt; press − due lead): then it gets its planned window back, and the next transition can make it
-    /// due again.
+    /// (to &lt; press − due lead, or before <see cref="Reminder.DueNotBefore"/>): then it gets its planned window back, and
+    /// the next transition can make it due again.
     /// Smaller backward corrections change nothing.
     /// </para>
     /// </remarks>
@@ -206,7 +207,7 @@ public sealed class ReminderScheduler
                 var r = track.Reminder;
 
                 // Back before its due time: the transition that made it due has to happen again.
-                if (r.PhaseEndDueAt != null && toTime < r.PressAt - this.Options.DueLead)
+                if (r.PhaseEndDueAt != null && toTime < this.DueAt(r))
                     track.RestorePlannedWindow();
 
                 if (r.State == ReminderState.Done || r.Latest < toTime)
@@ -217,7 +218,7 @@ public sealed class ReminderScheduler
                     continue;
                 }
 
-                if (r.State == ReminderState.Due && toTime >= r.PressAt - this.Options.DueLead)
+                if (r.State == ReminderState.Due && toTime >= this.DueAt(r))
                     track.RestartReadiness(); // still due: keep it (and its sound) as is
                 else if (r.State != ReminderState.Pending)
                     track.Rearm();
@@ -358,6 +359,7 @@ public sealed class ReminderScheduler
                     PressAt = timing.PressAt,
                     Earliest = timing.Items[i].Earliest,
                     Latest = timing.Items[i].Latest,
+                    DueNotBefore = timing.DueNotBefore,
                 };
                 built.Add(new Track(reminder, entryIndex));
             }
@@ -416,6 +418,10 @@ public sealed class ReminderScheduler
         var late = wait - Math.Max(pressAt - t, 0);
         return late > ReadyInThreshold ? late : null;
     }
+
+    /// <summary>When the reminder turns due: press − due lead, but not before <see cref="Reminder.DueNotBefore"/>.</summary>
+    private double DueAt(Reminder r) =>
+        r.DueNotBefore is { } floor ? Math.Max(r.PressAt - this.Options.DueLead, floor) : r.PressAt - this.Options.DueLead;
 
     /// <summary>
     /// Where the use window starts: the earlier of <see cref="Reminder.Earliest"/> and the moment the
@@ -489,10 +495,10 @@ public sealed class ReminderScheduler
             return;
         }
 
-        // Due from press − due lead on, or already (a phase transition makes phase-end reminders due at once and
-        // leaves the announcement to this update). Announced once until the reminder goes back to Pending.
+        // Due from press − due lead on (never before DueNotBefore), or already (a phase transition makes phase-end reminders
+        // due at once and leaves the announcement to this update). Announced once until the reminder goes back to Pending.
         var becameDue = false;
-        if (t >= r.PressAt - options.DueLead || r.State == ReminderState.Due)
+        if (t >= this.DueAt(r) || r.State == ReminderState.Due)
         {
             r.State = ReminderState.Due;
             becameDue = !track.DueRaised;

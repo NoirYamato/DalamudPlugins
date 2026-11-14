@@ -44,6 +44,8 @@ public static class TimingRules
     private const double HealDelay = 1;              // heals go out after the damage
     private const double TankLimitBreakLead = 3;
     private const double HealerLimitBreakDelay = 2;
+    private const double AfterPreviousHit = 0.3;     // a later hit of a series: pressed this long after the hit before it
+    private const double SameHit = 0.001;            // hits this close are one (a series hit and a mechanic of its own)
 
     // §5.2 use window.
     private const double ExpiryMargin = 1;           // an effect must outlast the hit by this much
@@ -80,7 +82,15 @@ public static class TimingRules
     /// a shield, a regen or an invuln keeps its action's lead ("Reprisal/Party Mit": Reprisal's −3 s still covers the
     /// mechanic's second hit).
     /// </para>
-    /// <para>Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time.</para>
+    /// <para>
+    /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): the automatic
+    /// press is never before the hit before it + 0.3 s (for an entry timed by a shield with a cast: minus the cast, so the
+    /// shield lands then), and the reminder does not turn due before that either (<see cref="EntryTiming.DueNotBefore"/>).
+    /// </para>
+    /// <para>
+    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; for an automatic
+    /// press on a later hit of a series, a use before the series' floor is early.
+    /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
     {
@@ -97,13 +107,26 @@ public static class TimingRules
         for (var i = 0; i < items.Count; i++)
             timing[i] = items[i] is { } item ? TimingAction(item, actions) : null;
 
-        var automatic = AutomaticOffset(timing, mechanic, level);
+        var (automatic, timingAction) = AutomaticOffset(timing, mechanic, level);
+
+        // A later hit of a series: not before the hit before it (a cast shield lands then).
+        double? floor = null;
+        if (PreviousSeriesHit(fight, hit) is { } previous)
+        {
+            floor = previous + AfterPreviousHit - (timingAction is { Kind: ActionKind.Shield } shield ? shield.CastTime : 0);
+            automatic = Math.Max(automatic, floor.Value - hit);
+        }
+
+        var isAutomatic = entry.Offset is null;
         var pressAt = hit + (entry.Offset ?? automatic);
+        var notBefore = isAutomatic ? floor : null;
 
         var windows = new ItemTiming[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             var (earliest, latest) = UseWindow(timing[i], level, hit, pressAt, options);
+            if (notBefore is { } f)
+                earliest = Math.Min(Math.Max(earliest, f), pressAt);
             windows[i] = new ItemTiming(timing[i], earliest, latest);
         }
 
@@ -111,8 +134,9 @@ public static class TimingRules
         {
             Hit = hit,
             AutomaticOffset = automatic,
-            IsAutomatic = entry.Offset is null,
+            IsAutomatic = isAutomatic,
             PressAt = pressAt,
+            DueNotBefore = notBefore,
             Items = windows,
         };
     }
@@ -124,17 +148,7 @@ public static class TimingRules
     public static double? EarliestPreHitOffset(IEnumerable<ActionInfo?> actions, int syncLevel)
     {
         ArgumentNullException.ThrowIfNull(actions);
-        double? earliest = null;
-        foreach (var action in actions)
-        {
-            if (action == null || IsUsedAfterHit(action))
-                continue;
-            var offset = DefaultOffset(action, syncLevel);
-            if (offset < 0 && (earliest is not { } e || offset < e))
-                earliest = offset;
-        }
-
-        return earliest;
+        return EarliestPreHit(actions, syncLevel)?.Offset;
     }
 
     /// <summary>Default offset (press − hit) for an action used without an explicit time.</summary>
@@ -212,8 +226,11 @@ public static class TimingRules
             _ => IsAfterHitKind(action),
         };
 
-    /// <summary>The automatic offset of an entry whose items have these timing actions (see <see cref="ForEntry"/>).</summary>
-    private static double AutomaticOffset(IReadOnlyList<ActionInfo?> timing, Mechanic mechanic, int syncLevel)
+    /// <summary>
+    /// The automatic offset of an entry whose items have these timing actions, before a series' floor (see
+    /// <see cref="ForEntry"/>), and the action it is the default of (null for a note or an unknown action).
+    /// </summary>
+    private static (double Offset, ActionInfo? Timing) AutomaticOffset(IReadOnlyList<ActionInfo?> timing, Mechanic mechanic, int syncLevel)
     {
         ActionInfo? first = null;
         foreach (var action in timing)
@@ -229,20 +246,56 @@ public static class TimingRules
 
         // The hit makes what was pressed before it pointless (HP set to 1): the calls are the heal-up after it.
         if (mechanic.PressAfter)
-            return Math.Max(offset, HealDelay);
+            return (Math.Max(offset, HealDelay), first);
 
         // Heals that top the targets up for the hit (the tanks at 1 HP before a tankbuster).
         if (mechanic.HealLead is { } healLead && IsUsedAfterHit(first))
-            return -healLead;
+            return (-healLead, first);
 
         // A heal or a buff gives no lead of its own: an action of the entry that goes before the hit times it.
         if (first != null && (IsUsedAfterHit(first) || first.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other)
-            && EarliestPreHitOffset(timing, syncLevel) is { } earliest && earliest < offset)
+            && EarliestPreHit(timing, syncLevel) is { } earliest && earliest.Offset < offset)
         {
-            return earliest;
+            return (earliest.Offset, earliest.Action);
         }
 
-        return offset;
+        return (offset, first);
+    }
+
+    /// <summary>The first action with the earliest default offset before the hit (see <see cref="EarliestPreHitOffset"/>).</summary>
+    private static (ActionInfo Action, double Offset)? EarliestPreHit(IEnumerable<ActionInfo?> actions, int syncLevel)
+    {
+        (ActionInfo Action, double Offset)? earliest = null;
+        foreach (var action in actions)
+        {
+            if (action == null || IsUsedAfterHit(action))
+                continue;
+            var offset = DefaultOffset(action, syncLevel);
+            if (offset < 0 && (earliest is not { } e || offset < e.Offset))
+                earliest = (action, offset);
+        }
+
+        return earliest;
+    }
+
+    /// <summary>
+    /// The hit before <paramref name="hit"/> in a <see cref="Mechanic.Series"/> of the fight that has it as a later hit, or
+    /// null when no series does.
+    /// </summary>
+    private static double? PreviousSeriesHit(FightDefinition fight, double hit)
+    {
+        foreach (var series in fight.Mechanics)
+        {
+            if (!series.Series)
+                continue;
+            for (var k = 1; k < series.Hits.Count; k++)
+            {
+                if (Math.Abs(series.Hits[k] - hit) <= SameHit)
+                    return series.Hits[k - 1];
+            }
+        }
+
+        return null;
     }
 
     /// <summary>The timing action of an item: its action, or the first option of an either-or item the catalog resolves.</summary>

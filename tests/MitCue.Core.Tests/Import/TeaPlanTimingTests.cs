@@ -97,6 +97,46 @@ public class TeaPlanTimingTests
         Assert.True(reprisal.PressAt >= reprisal.Hit - 3, $"press {reprisal.PressAt}");
     }
 
+    // ---- the J Waves: 3 s apart, a series ------------------------------------------------------------------------
+
+    /// <summary>
+    /// "Jwaves (N)" rows are for wave N+1, at N stacks ('Alex Prime/PA' rows 21, 23, 25: waves 5, 7 and 9 at 722.9, 728.9,
+    /// 734.9). Their calls are pressed after wave N (+0.3 s), and turn due only then: shields are not spent on wave N, 15-20 s
+    /// mitigation keeps its last waves. A Succor's 2 s cast may start 1.7 s before wave N: it lands after it.
+    /// </summary>
+    [Theory]
+    [InlineData("'Alex Prime/PA'!G21", "Temperance", 720.2, 720.2)]          // −6 s would be 716.9, wave 3
+    [InlineData("'Alex Prime/PA'!C21", "Divine Veil", 720.2, 720.2)]         // instant shields
+    [InlineData("'Alex Prime/PA'!F21", "Eukrasian Prognosis", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!E21", "Succor", 718.4, 718.2)]              // its own −4.5 s lands at 720.4
+    [InlineData("'Alex Prime/PA'!E23", "Consolation", 726.2, 726.2)]
+    [InlineData("'Alex Prime/PA'!F23", "Eukrasian Prognosis", 726.2, 726.2)]
+    [InlineData("'Alex Prime/PA'!M23", "Passage of Arms", 726.9, 726.2)]     // its −2 s is after wave 6 anyway
+    [InlineData("'Alex Prime/PA'!F25", "Eukrasian Prognosis", 732.2, 732.2)]
+    [InlineData("'Alex Prime/PA'!E25", "Succor", 730.4, 730.2)]
+    public void JWaves_CallsForAWaveArePressedAfterTheWaveBeforeIt(string cell, string action, double press, double dueFrom)
+    {
+        var s = Scheduler(cell);
+        var r = Assert.Single(s.All, x => x.Item.Name == action);
+        Assert.Equal(press, r.PressAt, 1e-9);
+        Assert.Equal(dueFrom, r.DueNotBefore!.Value, 1e-9);
+
+        s.Update(dueFrom - 0.05);
+        Assert.Equal(ReminderState.Upcoming, r.State);
+        s.Update(Math.Max(dueFrom, press - new ReminderOptions().DueLead));
+        Assert.Equal(ReminderState.Due, r.State);
+    }
+
+    /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>
+    [Fact]
+    public void JWaves_TheFirstWaveKeepsItsLead()
+    {
+        var asylum = Assert.Single(Reminders("'Alex Prime/PA'!G19"));
+        Assert.Equal(710.9 - 7.2, asylum.PressAt, 1e-9);
+        Assert.Null(asylum.DueNotBefore);
+    }
+
     // ---- actions with a lead of their own (actions.yaml) -------------------------------------------------------
 
     /// <summary>

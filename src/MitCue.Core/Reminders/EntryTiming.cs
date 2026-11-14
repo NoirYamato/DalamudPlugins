@@ -23,6 +23,12 @@ public sealed class EntryTiming
     /// <summary>The offset of <see cref="PressAt"/> (press − hit).</summary>
     public double Offset => this.PressAt - this.Hit;
 
+    /// <summary>
+    /// The reminder does not turn due before this (timeline seconds), whatever the due lead: an automatic press for a later
+    /// hit of a series comes after the hit before it (<see cref="Fights.Mechanic.Series"/>). Null otherwise.
+    /// </summary>
+    public double? DueNotBefore { get; init; }
+
     /// <summary>One per item of the entry, at the item's index (an empty timing for a missing item).</summary>
     public required IReadOnlyList<ItemTiming> Items { get; init; }
 }

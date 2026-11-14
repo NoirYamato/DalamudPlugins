@@ -86,6 +86,12 @@ public sealed class Reminder
     /// <summary>Earliest use that still covers the hit.</summary>
     public required double Earliest { get; init; }
 
+    /// <summary>
+    /// Due no earlier than this (timeline seconds), whatever <see cref="ReminderOptions.DueLead"/>: an automatic press for a
+    /// later hit of a series of hits comes after the hit before it (<see cref="TimingRules.ForEntry"/>). Null otherwise.
+    /// </summary>
+    public double? DueNotBefore { get; init; }
+
     /// <summary>Last useful moment; after it the reminder is missed.</summary>
     /// <remarks>
     /// Fixed when the scheduler is built, except for phase-end reminders (<see cref="IsPhaseEnd"/>): the phase

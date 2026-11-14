@@ -67,6 +67,14 @@ public sealed class Mechanic
     /// </summary>
     public double? HealLead { get; init; }
 
+    /// <summary>
+    /// Fight file <c>series: true</c>: the hits are one raidwide repeated a few seconds apart (TEA's J Waves, 3 s apart and
+    /// stronger each time). A call planned without a time for a later hit of the series, on this mechanic or on a mechanic
+    /// whose hit is that hit (p3.j_wave_5), is pressed, and turns due, only after the hit before it: a shield put up
+    /// earlier is spent on that hit, and mitigation started earlier ends before the last hits it should cover.
+    /// </summary>
+    public bool Series { get; init; }
+
     /// <summary>Hit time of the n-th hit (0-based), falling back to the last/first available hit.</summary>
     public double HitAt(int index)
     {

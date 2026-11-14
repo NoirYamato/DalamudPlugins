@@ -33,6 +33,7 @@ public class FightLoaderTests
             entry: "Multi 1"
             kind: multihit
             aliases: ["Multi", "MH"]
+            series: true
           - id: p1.check
             phase: p1
             hit: 30
@@ -105,6 +106,8 @@ public class FightLoaderTests
         Assert.Empty(later.Aliases);
         Assert.True(later.PressAfter);
         Assert.False(multi.PressAfter); // by default calls keep their own side of the hit
+        Assert.True(multi.Series);
+        Assert.False(later.Series);
 
         var check = fight.GetMechanic("p1.check")!;
         Assert.Equal(MechanicKind.LbCheck, check.Kind);
@@ -197,6 +200,8 @@ public class FightLoaderTests
     [InlineData("heal_lead: 3.5", "heal_lead: -2", "p2.buster", "positive")]
     [InlineData("heal_lead: 3.5", "heal_lead: soon", "p2.buster", "'heal_lead'")]
     [InlineData("heal_lead: 3.5", "heal_lead: 3.5\n    press: after", "p2.buster", "contradict")]
+    [InlineData("series: true", "series: maybe", "p1.multi", "'series'")]
+    [InlineData("kind: raidwide\n    press: after", "kind: raidwide\n    press: after\n    series: true", "p2.later", "two hits")]
     public void Load_ReportsTheOffendingItemAndField(string find, string replace, string item, string field)
     {
         Assert.Contains(find, Sample, StringComparison.Ordinal);

@@ -153,7 +153,7 @@ public partial class FightDataTests(ITestOutputHelper output)
         }
     }
 
-    /// <summary>The timing fields (press, heal_lead) time the calls planned on a mechanic against its damage: never on a marker.</summary>
+    /// <summary>The timing fields (press, heal_lead, series) time the calls planned on a mechanic against its damage: never on a marker.</summary>
     [Fact]
     public void TimingFields_AreOnlyOnDamage()
     {
@@ -163,6 +163,7 @@ public partial class FightDataTests(ITestOutputHelper output)
             {
                 Assert.False(m.PressAfter, $"{path}: {m.Id} is a marker with press: after");
                 Assert.Null(m.HealLead);
+                Assert.False(m.Series, $"{path}: {m.Id} is a marker with series: true");
             }
         }
     }
