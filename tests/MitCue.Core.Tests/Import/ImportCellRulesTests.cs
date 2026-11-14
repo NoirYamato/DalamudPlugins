@@ -15,18 +15,22 @@ public class ImportCellRulesTests
 {
     private static readonly CellParser And = new(new CellParserOptions { SlashJoins = true });
 
-    private static ImportResult Import(string tsv, SlashReading slashes = SlashReading.Auto, FightDefinition? fight = null)
+    private static ImportResult Import(string tsv, SlashReading slashes = SlashReading.Auto, FightDefinition? fight = null, IReadOnlyList<string>? assignees = null)
     {
         var tab = SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', "Pasted");
-        return new PlanImporter().Import(new SheetDocument { Title = "Test sheet", Tabs = [tab] }, new ImportOptions
+        return Import(new SheetDocument { Title = "Test sheet", Tabs = [tab] }, slashes, fight, assignees);
+    }
+
+    private static ImportResult Import(SheetDocument document, SlashReading slashes = SlashReading.Auto, FightDefinition? fight = null, IReadOnlyList<string>? assignees = null) =>
+        new PlanImporter().Import(document, new ImportOptions
         {
             Fight = fight ?? PlanImports.Top,
             Actions = RepoFiles.Actions,
             Aliases = RepoFiles.Aliases,
             ImportedDate = PlanImports.Date,
             Slashes = slashes,
+            Assignees = assignees,
         });
-    }
 
     /// <summary>A sheet with a mechanic column and the given player columns; rows are "label\tcell\tcell…".</summary>
     private static string Sheet(string phase, string columns, params string[] rows) => $"{phase}\t{columns}\n" + string.Join("\n", rows);
@@ -370,6 +374,43 @@ public class ImportCellRulesTests
         Assert.All(tanks.Where(e => e.Who.Slot == "OT"), e => Assert.Equal("or Tank 1", e.Note));
         Assert.All(r.Plan.Entries.Where(e => e.Who.Slot == "H1"), e => Assert.False(e.Optional)); // the only healer column
         Assert.Equal(DiagnosticSeverity.Info, Assert.Single(r.Diagnostics, d => d.Code == "shared-limit-break").Severity);
+    }
+
+    [Fact]
+    public void LimitBreakInTwoColumns_OneColumnImported_StaysOptional()
+    {
+        // A tank who imports only their own column reads the sheet as the whole import does.
+        var r = Import(Sheet("P5", "Tank 1\tTank 2\tH1", "Run: Dynamis\tLB3\tLB3\tLB3"), assignees: ["Tank 1"]);
+
+        Assert.Equal(4, r.Plan.Entries.Count);
+        Assert.All(r.Plan.Entries, e => Assert.Equal(("MT", true, "or Tank 2"), (e.Who.Slot, e.Optional, e.Note)));
+        Assert.Equal(DiagnosticSeverity.Info, Assert.Single(r.Diagnostics, d => d.Code == "shared-limit-break").Severity);
+    }
+
+    [Fact]
+    public void LimitBreakInOneColumn_OtherColumnsNotImported_StaysRequired()
+    {
+        // Tank 2 writes Rampart, and H1's LB3 is the healers' limit break.
+        var r = Import(Sheet("P5", "Tank 1\tTank 2\tH1", "Run: Dynamis\tLB3\tRampart\tLB3"), assignees: ["Tank 1"]);
+
+        Assert.Equal(4, r.Plan.Entries.Count);
+        Assert.All(r.Plan.Entries, e => Assert.Equal((false, (string?)null), (e.Optional, e.Note)));
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code == "shared-limit-break");
+    }
+
+    [Theory]
+    [InlineData("Tank 1", "'Alex Prime/PA'!C27")]
+    [InlineData("Tank 2", "'Alex Prime/PA'!D27")]
+    public void LimitBreakInTwoColumns_TeaOneSeatImport_ReadsAsTheWholeSheet(string column, string cell)
+    {
+        // LPDU TEA's transition raidwide: "LB3" in both tank columns, imported one seat at a time.
+        var seat = Import(Fixtures.Doc("lpdu-tea"), fight: PlanImports.Tea, assignees: [column]).Plan.At(cell);
+
+        Assert.Equal(4, seat.Count);
+        Assert.Equal(
+            PlanImports.LpduTea.Plan.At(cell).Select(e => (e.Who.Job, e.Names().Single(), e.Optional, e.Note)),
+            seat.Select(e => (e.Who.Job, e.Names().Single(), e.Optional, e.Note)));
+        Assert.All(seat, e => Assert.True(e.Optional));
     }
 
     // ------------------------------------------------------------------ "(Late)"

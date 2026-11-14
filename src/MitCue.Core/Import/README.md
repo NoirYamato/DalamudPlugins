@@ -200,7 +200,8 @@ Rules worth knowing:
   it covers both, no later than `(Late)` would press it (TEA's Hidden Mines Temperance −3.5 s, through Water 2);
   otherwise both stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in
   brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
-  for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`).
+  for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
+  whichever of those columns are imported: a tank who imports only their own column gets it optional too.
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

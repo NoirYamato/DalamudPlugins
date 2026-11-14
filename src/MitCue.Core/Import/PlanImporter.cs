@@ -267,6 +267,12 @@ public sealed partial class PlanImporter
         private readonly List<(NoteText Note, List<int> Columns, string Text)> columnNoteTexts = [];
         private readonly List<BannerNote> bannerNotes = [];
         private readonly Dictionary<(TabState Tab, int Row, int Column), List<string>> caretRemarks = [];
+
+        /// <summary>
+        /// The limit breaks written in columns that are not imported: a limit break the sheet writes in several columns is
+        /// shared whichever of them are imported (<see cref="MarkSharedLimitBreaks"/>).
+        /// </summary>
+        private readonly List<(string Mechanic, Role Role, string Column, string? Slot)> otherLimitBreaks = [];
         private CellParser cells = CellParser.Default;
         private string? presetKey;
         private IReadOnlyDictionary<string, double> rowOffsets = new Dictionary<string, double>();
@@ -1144,8 +1150,14 @@ public sealed partial class PlanImporter
         {
             var tab = row.Tab;
             var key = tab.Keys.TryGetValue(cell.Column.Index, out var k) ? k : cell.Assignee.Key;
-            if (!this.ColumnSelected(key, cell.Assignee) || CellParser.CaretRemark(cell.Cell.Text) is not null)
-                return; // a column not chosen, or a remark about the cell above (AttachCarets)
+            if (CellParser.CaretRemark(cell.Cell.Text) is not null)
+                return; // a remark about the cell above (AttachCarets)
+            if (!this.ColumnSelected(key, cell.Assignee))
+            {
+                this.NoteOtherLimitBreak(row, cell, key); // a column not chosen
+                return;
+            }
+
             if (row.Mechanic is null)
             {
                 this.Diag(DiagnosticSeverity.Warning, "dropped-cell", $"'{Flat(cell.Cell.Text)}' has no mechanic to anchor to and was not imported.", cell.Src);
@@ -1156,6 +1168,26 @@ public sealed partial class PlanImporter
             var parsed = this.cells.Parse(source, cell.Src);
             foreach (var item in parsed.Items)
                 this.ImportItem(row, cell, key, item);
+        }
+
+        /// <summary>
+        /// A cell of a column that is not imported, when it is only limit breaks ("LB3"), for each role it is a limit break
+        /// of: the imported columns' limit break at the mechanic is shared with it (<see cref="MarkSharedLimitBreaks"/>).
+        /// </summary>
+        private void NoteOtherLimitBreak(RowState row, AssigneeCell cell, string key)
+        {
+            if (row.Mechanic is null || cell.Assignee.Kind == AssigneeKind.Anyone)
+                return;
+            var tokens = this.cells.Parse(cell.Cell, cell.Src).Items.SelectMany(i => i.Tokens).ToList();
+            if (tokens.Count == 0)
+                return;
+            var roles = CandidateJobs(cell.Assignee)
+                .Where(job => tokens.All(t => this.resolver.Resolve(t, job) is { Kind: TokenKind.Actions } r
+                    && r.Alternatives.All(a => a.Actions.Count > 0 && a.Actions.All(x => x.LimitBreakTier is not null))))
+                .Select(Jobs.RoleOf)
+                .Distinct();
+            foreach (var role in roles)
+                this.otherLimitBreaks.Add((row.Mechanic.Id, role, key, cell.Assignee.Slot));
         }
 
         private void ImportItem(RowState row, AssigneeCell cell, string? key, ParsedItem item, NoteStatement? statement = null)
@@ -2269,22 +2301,26 @@ public sealed partial class PlanImporter
         /// <summary>
         /// A limit break written for one role in several columns of different slots at one mechanic ("LB3" in both tank
         /// columns at the P3 transition) is pressed by whoever has the shared gauge: every such entry is optional (never
-        /// counted as missed), with a note naming the other columns ("or Tank 2").
+        /// counted as missed), with a note naming the other columns ("or Tank 2"). The columns that are not imported count
+        /// too (<see cref="NoteOtherLimitBreak"/>), so that a tank who imports only their own column reads the sheet as the
+        /// whole import does.
         /// </summary>
         private void MarkSharedLimitBreaks(List<Draft> ordered)
         {
             bool IsLimitBreak(PlanEntry e) => e.Do.Count > 0 && e.Do.All(i => i.ActionIds().Any() && i.ActionIds().All(id => this.options.Actions.Get(id)?.LimitBreakTier is not null));
             foreach (var group in ordered.Select(d => d.Entry).Where(IsLimitBreak).GroupBy(e => (e.Mechanic, Hit: e.HitIndex ?? 0, Role: e.Who.Job is { } j ? Jobs.RoleOf(j) : Role.None)))
             {
-                // Columns of different slots of one role (Tank 1 and Tank 2), not one slot's job variants (H1 WHM, H1 AST).
-                var columns = group.Select(e => e.Who.Assignee).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-                if (columns.Count < 2 || group.Select(e => e.Who.Slot).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Count() < 2)
+                // Columns of different slots of one role (Tank 1 and Tank 2), not one slot's job variants (H1 WHM, H1 AST);
+                // a column not imported is matched by its mechanic and role.
+                var others = this.otherLimitBreaks.Where(o => o.Mechanic == group.Key.Mechanic && o.Role == group.Key.Role).ToList();
+                var columns = group.Select(e => e.Who.Assignee).Concat(others.Select(o => o.Column)).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                if (columns.Count < 2 || group.Select(e => e.Who.Slot).Concat(others.Select(o => o.Slot)).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).Count() < 2)
                     continue;
                 foreach (var e in group)
                 {
-                    var others = "or " + string.Join(" or ", columns.Where(c => !string.Equals(c, e.Who.Assignee, StringComparison.OrdinalIgnoreCase)));
+                    var alternatives = "or " + string.Join(" or ", columns.Where(c => !string.Equals(c, e.Who.Assignee, StringComparison.OrdinalIgnoreCase)));
                     e.Optional = true;
-                    e.Note = e.Note is null ? others : e.Note + "; " + others;
+                    e.Note = e.Note is null ? alternatives : e.Note + "; " + alternatives;
                 }
 
                 this.Diag(DiagnosticSeverity.Info, "shared-limit-break",
