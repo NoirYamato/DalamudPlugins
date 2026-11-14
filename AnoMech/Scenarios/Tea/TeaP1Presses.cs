@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using FFXIVClientStructs.FFXIV.Client.Game;
@@ -9,12 +7,13 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 namespace AnoMech.Scenarios.Tea;
 
 // The human's own presses a TEA P1 run reads, heard through IUserActions.Acted whether or not the player's actions
-// are resolved in the sim. Construct one per run, as the run starts, and dispose of it with the run.
+// are resolved in the sim. Construct one per run, as the run starts; a scenario has no hook for its run's end, so the
+// next run disposes of the last one's.
 public sealed class TeaP1Presses : IDisposable
 {
     private readonly SimWorld world;
     private readonly IUserActions userActions;
-    private readonly List<float> antiKnockbackPressedAt = [];
+    private float? antiKnockbackPressedAt;
 
     public TeaP1Presses(SimWorld world)
     {
@@ -29,13 +28,12 @@ public sealed class TeaP1Presses : IDisposable
     public bool AntiKnockbackUp(SimCharacter member)
     {
         if (!ReferenceEquals(member, world.Party.Player)) return false;
-        var now = world.Events.Elapsed;
-        return antiKnockbackPressedAt.Any(at => now - at < P1Duration.AntiKnockback);
+        return antiKnockbackPressedAt is { } at && world.Events.Elapsed - at < P1Duration.AntiKnockback;
     }
 
     private void Hear(PlayerAction action)
     {
         if (action is { Step: PlayerActionStep.Resolved, ActionType: ActionType.Action, ActionId: P1PlayerActionId.ArmsLength or P1PlayerActionId.Surecast })
-            antiKnockbackPressedAt.Add(world.Events.Elapsed);
+            antiKnockbackPressedAt = world.Events.Elapsed;
     }
 }
