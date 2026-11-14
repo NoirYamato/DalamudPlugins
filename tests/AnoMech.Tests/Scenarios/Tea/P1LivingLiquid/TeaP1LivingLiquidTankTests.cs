@@ -14,8 +14,8 @@ using Stage = AnoMech.Tests.TeaP1LivingLiquidStage;
 
 namespace AnoMech.Tests;
 
-// What the tanks play: each boss follows the one target the run gives it, the Living Liquid holds its facing through
-// a Protean sequence, and a human tank's own cooldown is asked for under Drainage.
+// What the tanks play: each boss follows the one target the run gives it and cleaves it, the Living Liquid holds its
+// facing through a Protean sequence, and a human tank's own cooldown is asked for under Drainage.
 public class TeaP1LivingLiquidTankTests
 {
     private const string Died = " died: ";
@@ -185,6 +185,50 @@ public class TeaP1LivingLiquidTankTests
         Assert.That(seen[0].Position.Length(), Is.LessThan(0.01f));
         Assert.That(seen[1].Position.Length(), Is.LessThan(0.01f));
         Assert.That(Vector3.Distance(seen[2].Position, new Vector3(-5.4f, 0f, 5.4f)), Is.EqualTo(4.0f).Within(0.1f), $"the Living Liquid at {seen[2].Position}");
+    }
+
+    // -- The cleaves --
+    // No cleave falls in the parts built; the opening schedules them. The main tank stands east of the Living Liquid
+    // and the off tank south-west of the Liquid Hand, each outside the other boss's quarter circle.
+
+    [Test]
+    public void EachBossCleavesTheTargetItWasLastGiven()
+    {
+        Dictionary<string, PartyRole> seats = [];
+        var run = Bosses((world, fight) =>
+        {
+            world.Events.Add(0.4f, () => seats = TimelineRun.Seats(world));
+            world.Events.Add(0.5f, fight.TakeTargets);
+            fight.FluidSwing(2f);
+            fight.FluidStrike(2f);
+            world.Events.Add(4f, () => fight.SetTarget(TeaP1Boss.LivingLiquid, world.Party.Get(OffTank)!));
+            fight.FluidSwing(7f);
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(run.Sent("ability", P1ActionId.FluidSwing).Select(swing => swing.Hits.Select(id => seats[id]).Single()), Is.EqualTo(new[] { MainTank, OffTank }));
+        Assert.That(run.Sent("ability", P1ActionId.FluidSwing).Select(swing => swing.Time), Is.EqualTo(new[] { 2f, 7f }).Within(TimelineRun.FrameLate));
+        Assert.That(run.Sent("ability", P1ActionId.FluidStrike).Select(strike => strike.Hits.Select(id => seats[id]).Single()), Is.EqualTo(new[] { OffTank }));
+    }
+
+    // Neither has a target at 1.0. At 4.0 the off tank, the Hand's, has been dead a second.
+    [Test]
+    public void ABossWithNoTargetOrADeadOneDoesNotCleave()
+    {
+        var run = Bosses((world, fight) =>
+        {
+            fight.FluidSwing(1f);
+            fight.FluidStrike(1f);
+            world.Events.Add(2f, fight.TakeTargets);
+            world.Events.Add(3f, () => world.Party.Get(OffTank)!.Die(P1ActionId.Splash));
+            fight.FluidSwing(4f);
+            fight.FluidStrike(4f);
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { OffTank }), run.ToString);
+        Assert.That(run.Sent("ability", P1ActionId.FluidSwing).Select(swing => swing.Time), Is.EqualTo(new[] { 4f }).Within(TimelineRun.FrameLate));
+        Assert.That(run.Sent("ability", P1ActionId.FluidStrike), Is.Empty);
     }
 
     // -- The Liquid Hand's three distances --

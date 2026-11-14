@@ -494,13 +494,19 @@ public class TeaP1LivingLiquidScenarioTests
         var watch = new Watch();
         TeaP1TornadoLayout? before = null, after = null;
         var tethers = -1;
+        PartyRole[] channelled = [], stillChannelled = [];
         var run = ProteanOne.Run(MainTank, probe: p =>
         {
             watch.See(p);
-            if (p.Crossed(24.5f)) before = Stage.Fight(p).Tornadoes.Standing;
+            if (p.Crossed(24.5f))
+            {
+                before = Stage.Fight(p).Tornadoes.Standing;
+                channelled = PerRole.All.Where(role => p.Member(role)!.HasTetherInSlot0(P1TetherId.Drainage)).ToArray();
+            }
             if (!p.Crossed(24.7f)) return;
             after = Stage.Fight(p).Tornadoes.Standing;
             tethers = Stage.Fight(p).DrainageTethersOut.Count;
+            stillChannelled = PerRole.All.Where(role => p.Member(role)!.HasTetherInSlot0(P1TetherId.Drainage)).ToArray();
         });
 
         Assert.That(run.Passed, run.ToString);
@@ -513,6 +519,8 @@ public class TeaP1LivingLiquidScenarioTests
             Assert.That(before, Is.EqualTo(ProteanOne.Frame1));
             Assert.That(after, Is.Null);
             Assert.That(tethers, Is.Zero);
+            Assert.That(channelled, Is.EquivalentTo(new[] { MainTank, OffTank }));
+            Assert.That(stillChannelled, Is.Empty, "both channels are taken down with the tornadoes");
         });
     }
 
@@ -792,16 +800,22 @@ public class TeaP1LivingLiquidScenarioTests
         });
     }
 
-    // M2 walks into the west puddle once the Liquid is down.
+    // An Embolus only fades as the Liquid falls, and is there for 1.3 s more. The east one has stopped where the
+    // Living Liquid stood at Pressurize; M2 is put on it a tenth of a second after the fall.
     [Test]
     public void TheLiquidFallsOnTheTimelineAndNothingKillsAfterIt()
     {
         var states = new List<(bool LiquidUp, bool HandUp)>();
         var positions = new List<Vector3>();
         var tornadoes = new List<bool>();
-        var run = CascadeTwo.Run(MeleeDpsB, takeovers: new Takeover(40.2f, new Vector2(-12f, 0f)), probe: p =>
+        Vector3 orb = default;
+        float? fromTheOrb = null;
+        var run = new Stage { First = Cascade2, EmbolusSpeed = 6f }.Run(MeleeDpsB, probe: p =>
         {
             var fight = Stage.Fight(p);
+            if (p.Crossed(39.5f)) orb = fight.Emboli[1].Position;
+            if (p.Crossed(39.8f)) p.Member(MeleeDpsB)!.SetPosition(new Placement(orb, 0f));
+            if (p.Crossed(40f) && fight.Emboli[1].IsActive) fromTheOrb = Vector3.Distance(fight.Emboli[1].Position, p.Member(MeleeDpsB)!.Position);
             foreach (var at in new[] { 39.6f, 39.8f, 40.8f, 42.5f })
                 if (p.Crossed(at))
                 {
@@ -812,6 +826,7 @@ public class TeaP1LivingLiquidScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
+        Assert.That(fromTheOrb, Is.Zero.Within(0.01f), "M2 stands on an Embolus that is still there");
         Assert.That(states, Is.EqualTo(new[] { (true, true), (false, true), (false, true), (false, false) }));
         Assert.That(tornadoes, Is.EqualTo(new[] { true, false, false, false }), "the tornadoes and their water go with the Liquid");
         Assert.That(positions[3], Is.EqualTo(positions[2]), "the Hand's last spot is still answered once it has left");
@@ -827,8 +842,10 @@ public class TeaP1LivingLiquidScenarioTests
         float facing = 0f;
         (PartyRole?, PartyRole?) targets = default, targetsBefore = default;
         TeaP1TornadoLayout? standing = null;
+        var watch = new Watch();
         var run = stage.Run(MainTank, stopAt: 1.2f, probe: p =>
         {
+            watch.See(p);
             var fight = Stage.Fight(p);
             if (p.Crossed(0.3f))
             {
@@ -849,6 +866,9 @@ public class TeaP1LivingLiquidScenarioTests
             Assert.That(Vector3.Distance(hand, stage.Frame1.At(225f, 2.1f)), Is.LessThan(0.01f), $"the Liquid Hand at {hand}");
             Assert.That(targetsBefore, Is.EqualTo(((PartyRole?)null, (PartyRole?)null)));
             Assert.That(targets, Is.EqualTo(((PartyRole?)MainTank, (PartyRole?)OffTank)));
+            Assert.That(watch.Targets(P1BNpcBaseId.LivingLiquid).Select(t => t.Target), Is.EqualTo(new[] { MainTank }), "the Living Liquid shows whom it is on");
+            Assert.That(watch.Targets(P1BNpcBaseId.LiquidHand).Select(t => t.Target), Is.EqualTo(new[] { OffTank }), "the Liquid Hand shows whom it is on");
+            Assert.That(watch.Targets(P1BNpcBaseId.LivingLiquid).Concat(watch.Targets(P1BNpcBaseId.LiquidHand)).Select(t => t.At), Is.All.EqualTo(0.5f).Within(0.05f));
             Assert.That(standing, Is.EqualTo(first == Protean1 ? stage.Frame1 : null));
         });
     }
@@ -1073,6 +1093,16 @@ public class TeaP1LivingLiquidScenarioTests
             return fake!.Timeline.Rows
                 .Where(row => row["kind"] == "ac" && row["actor"] == actor && row["id"] == "0x3F")
                 .Select(row => (Float(row["t"]), row["p"].Length == 0 ? (byte)0 : Convert.ToByte(row["p"].Split(',')[0], 16)))
+                .ToList();
+        }
+
+        // Each target the first actor of `bnpcBaseId` was shown turning to, and when.
+        public IReadOnlyList<(float At, PartyRole Target)> Targets(uint bnpcBaseId)
+        {
+            var actor = Spawned(bnpcBaseId).First();
+            return fake!.Timeline.Rows
+                .Where(row => row["kind"] == "ac_target" && row["actor"] == actor && row["id"] == "0x32")
+                .Select(row => (Float(row["t"]), seats[row["target"]]))
                 .ToList();
         }
 

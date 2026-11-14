@@ -28,6 +28,8 @@ public class TeaP1LivingLiquidSecondRunTests
         var first = stay.Play(until: 34f);
         var firstRunsPresses = stay.Scenario.Presses!;
         var second = stay.Play(until: 12f);
+        // Whatever the first run's listener still heard of the second run's press would settle now.
+        firstRunsPresses.CatchUp();
 
         Assert.Multiple(() =>
         {

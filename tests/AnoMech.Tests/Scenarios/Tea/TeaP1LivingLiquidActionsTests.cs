@@ -23,12 +23,13 @@ public class TeaP1LivingLiquidActionsTests
     private static readonly TimelineRunOptions Bots = new() { Phase = TeaZone.P1 };
     private static readonly TimelineRunOptions HumanMainTank = Bots with { HumanPlayer = true };
 
-    // 30 degrees wide and the sheet's 40 y long, from the caster's own spot. The caster stands on the north rim.
-    [Test]
-    public void AProteanWaveIsAThirtyDegreeConeFortyYalmsLong()
+    // 30 degrees wide and 40 y long, from the caster's own spot, every row of it: the sheet gives the two unseen
+    // helper rows no cone, and unshaped each would catch everyone within 40 y. The caster stands on the north rim.
+    [TestCaseSource(nameof(EveryWave))]
+    public void AProteanWaveIsAThirtyDegreeConeFortyYalmsLong(uint actionId)
     {
         var from = new Vector2(0f, -19.5f);
-        var run = Cast(new Placement(new Vector3(from.X, 0f, from.Y), 0f), (world, liquid, _) =>
+        var run = Cast(new Placement(new Vector3(from.X, 0f, from.Y), 0f), (world, liquid, presses) =>
         {
             world.Events.Add(1f, () => TimelineRun.Place(world, new Dictionary<PartyRole, Vector2>
             {
@@ -41,31 +42,11 @@ public class TeaP1LivingLiquidActionsTests
                 [PhysRangedDps] = from + OffAxis(90f, 5f),
                 [CasterDps] = from + new Vector2(0f, 0.5f),
             }));
-            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
+            world.Events.Add(2f, () => liquid.Cast(Wave(actionId, world, presses)));
         }, out var hit);
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(hit(P1ActionId.ProteanWaveStraightAhead).Single(), Is.EquivalentTo(new[] { MainTank, RegenHealer, MeleeDpsA, CasterDps }));
-    }
-
-    // The sheet gives these two rows no cone: unshaped, each would catch everyone within 40 y.
-    [TestCase(false)]
-    [TestCase(true)]
-    public void TheUnseenWavesAreConesToo(bool fromATornado)
-    {
-        var wave = fromATornado ? TeaP1Actions.TornadoWaveUnseen : TeaP1Actions.ProteanWaveAtTheClosest;
-        var run = Cast((world, liquid, _) =>
-        {
-            world.Events.Add(1f, () =>
-            {
-                for (var seat = 0; seat < PerRole.All.Length; seat++)
-                    TimelineRun.Place(world, PerRole.All[seat], OffAxis(45f * seat, 8f).X, OffAxis(45f * seat, 8f).Y);
-            });
-            world.Events.Add(2f, () => liquid.Cast(wave));
-        }, out var hit);
-
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(hit(wave.ActionId).Single(), Is.EqualTo(new[] { MainTank }));
+        Assert.That(hit(actionId).Single(), Is.EquivalentTo(new[] { MainTank, RegenHealer, MeleeDpsA, CasterDps }));
     }
 
     // A telegraphed wave is cast at nobody, along its caster's facing: turned to the main tank as the cast starts, it
