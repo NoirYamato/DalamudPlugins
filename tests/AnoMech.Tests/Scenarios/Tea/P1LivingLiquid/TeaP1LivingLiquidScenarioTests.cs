@@ -318,6 +318,24 @@ public class TeaP1LivingLiquidScenarioTests
         });
     }
 
+    // R2 walks into a puddle at 16.0; the west tornado's tether, rolled onto it, comes out on someone alive at 20.0.
+    [Test]
+    public void ATetherRolledOntoTheDeadStartsOnSomeoneElse()
+    {
+        var stage = new Stage { Last = Protean1, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
+        PartyRole? west = null, east = null;
+        var run = stage.Run(CasterDps, takeovers: new Takeover(16f, new Vector2(-12f, 0f)), probe: p =>
+        {
+            if (!p.Crossed(20.5f)) return;
+            west = Holder(p, TeaP1Tornado.West);
+            east = Holder(p, TeaP1Tornado.East);
+        });
+
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { CasterDps }), run.ToString);
+        Assert.That(east, Is.EqualTo(MainTank));
+        Assert.That(west, Is.Not.Null.And.Not.EqualTo(CasterDps).And.Not.EqualTo(MainTank));
+    }
+
     // R2 starts with the west tornado's tether and keeps it, apart from everyone.
     [Test]
     public void ANonTankThatHoldsATetherDies()

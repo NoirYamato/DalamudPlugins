@@ -31,17 +31,18 @@ public class TeaP1LivingLiquidSecondRunTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(first.AtTheStart, Is.EqualTo(new Seen(Tornadoes: 0, Emboli: 0, Locked: false, Palm: null, Throttled: 0, Cleanses: 0)), "the first run's start");
-            Assert.That(first.AtTheEnd, Is.EqualTo(new Seen(Tornadoes: 3, Emboli: 2, Locked: false, Palm: true, Throttled: 0, Cleanses: 7)), "the first run at 34.0");
-            Assert.That(second.AtTheStart, Is.EqualTo(new Seen(Tornadoes: 0, Emboli: 0, Locked: false, Palm: null, Throttled: 0, Cleanses: 0)), "the second run's start");
-            Assert.That(second.AtTheEnd, Is.EqualTo(new Seen(Tornadoes: 3, Emboli: 0, Locked: false, Palm: null, Throttled: 4, Cleanses: 3)), "the second run at 12.0");
+            Assert.That(first.AtTheStart, Is.EqualTo(new Seen(Tornadoes: 0, Puddles: 0, Emboli: 0, Locked: false, Palm: null, Throttled: 0, Cleanses: 0)), "the first run's start");
+            Assert.That(first.AtTheEnd, Is.EqualTo(new Seen(Tornadoes: 3, Puddles: 3, Emboli: 2, Locked: false, Palm: true, Throttled: 0, Cleanses: 7)), "the first run at 34.0");
+            Assert.That(second.AtTheStart, Is.EqualTo(new Seen(Tornadoes: 0, Puddles: 0, Emboli: 0, Locked: false, Palm: null, Throttled: 0, Cleanses: 0)), "the second run's start");
+            Assert.That(second.AtTheEnd, Is.EqualTo(new Seen(Tornadoes: 3, Puddles: 3, Emboli: 0, Locked: false, Palm: null, Throttled: 4, Cleanses: 3)), "the second run at 12.0");
             Assert.That(firstRunsPresses.Cleanses, Has.Count.EqualTo(7), "the first run's listener heard nothing of the second");
             Assert.That(stay.Scenario.Presses, Is.Not.SameAs(firstRunsPresses));
         });
     }
 
-    // What a run holds: the Liquid Rages standing in the world, the Emboli out, and the boss piece's own state.
-    private sealed record Seen(int Tornadoes, int Emboli, bool Locked, bool? Palm, int Throttled, int Cleanses);
+    // What a run holds: the Liquid Rages standing in the world, the puddles bots walk round, the Emboli out, and the
+    // boss piece's own state.
+    private sealed record Seen(int Tornadoes, int Puddles, int Emboli, bool Locked, bool? Palm, int Throttled, int Cleanses);
 
     // One fake game and one zone-in, as ScenarioRun sets a run up, with the player a human from the first frame.
     private sealed class Stay : IDisposable
@@ -108,6 +109,7 @@ public class TeaP1LivingLiquidSecondRunTests
             var enemies = game.World.Children.OfType<SimEnemy>().Where(enemy => enemy.IsActive).ToList();
             return new Seen(
                 enemies.Count(enemy => enemy.BNpcBaseId == P1BNpcBaseId.LiquidRage),
+                game.World.Obstacles.All.Count,
                 enemies.Count(enemy => enemy.BNpcBaseId == P1BNpcBaseId.Embolus),
                 fight.FacingLocked, fight.HandShowsAPalm, fight.Throttled.Count, Scenario.Presses!.Cleanses.Count);
         }
