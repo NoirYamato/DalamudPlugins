@@ -21,8 +21,8 @@ fixtures and readers in `docs/research/sheets-import.md`.
   - Every hit lies inside its mechanic's phase (`PhaseAt(hit) == phase`).
   - Ids are unique and carry their phase as a prefix, and mechanics are ordered by `hit`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
-    sync_level, timeline, phases, mechanics, calibration` (DMU and TEA also `timeline_additions`); phases `id, name,
-    start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`.
+    sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; DMU and TEA also
+    `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`.
 - **TOP sheet coverage.**
   - All 47 mechanic rows of Carry the Clear map to a TOP mechanic. Their columns A and B are identical in the three
     tabs.

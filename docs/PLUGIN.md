@@ -167,17 +167,19 @@ name, else the player's first own plan for the fight that has a column or entrie
 is *LPDU TEA Heal/Mit*, the only bundled plan, with no `BundledDefaults` entry: the plan of every job it names
 (`PlanStore.JobsOf`, the jobs of its columns and entries), which is every job but the melee jobs other than
 the Monk (the "Melee 1" and "Melee 2" columns name no job; the Monk's Mantra calls under "Extras" do). A TEA
-plan the player imported without making it active gives way to it. DMU ships no plan. A choice of a plan
-that is gone (*Carry the Clear – WHM + SCH*, bundled in 0.1.0.1 only) counts as automatic. An imported plan
-replaces a bundled plan only when chosen: the import window's **Make it my active plan …**, the Plans tab's
-**Make an imported share code my active plan as …** (`PlanStore.ImportShareCode` with the current job; it
-sets the plan only when it has calls for that job, counted by `PlanStore.CallsFor` as the overlay would
-select them; for a sheet whose calls for the job are only in other slots' job-less columns, its message names
-those slots and says to choose the plan and then the slot's column, or, only while **My usual party slot** is
-not set at all, to set it first: the message reads the setting itself, so a usual slot of another role,
-which the column below does not use, also gets the column hint and the player's main job keeps its slot), or
-the **Active plan** combo. A share code of a bundled plan has that plan's id and takes its place, so it stays
-the automatic plan of the job the bundled plan is meant for.
+plan the player imported without making it active gives way to it while it is bundled (see share codes below).
+DMU ships no plan. A choice of a plan that is gone (*Carry the Clear – WHM + SCH*, bundled in 0.1.0.1 only)
+counts as automatic. An imported plan replaces a bundled plan only when chosen: the import window's **Make it
+my active plan …**, the Plans tab's **Make an imported share code my active plan as …**
+(`PlanStore.ImportShareCode` with the current job; it sets the plan only when it has calls for that job,
+counted by `PlanStore.CallsFor` as the overlay would select them; for a sheet whose calls for the job are only
+in other slots' job-less columns, its message names those slots and says to choose the plan and then the
+slot's column, or, only while **My usual party slot** is not set at all, to set it first: the message reads
+the setting itself, so a usual slot of another role, which the column below does not use, also gets the column
+hint and the player's main job keeps its slot), or the **Active plan** combo. A share code of a bundled plan
+has that plan's id and takes its place, so it stays the automatic plan of the job the bundled plan is meant
+for. For the other jobs the copy is one of the player's own plans: with the share code of *LPDU TEA Heal/Mit*
+imported (a plan meant for no job), the player's first TEA plan by name that names the job is automatic.
 
 **The column.** `PlanStore.MappingFor` takes the column chosen for that plan and job. Without a choice it
 uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
@@ -345,8 +347,10 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    between two actions of one job means (`ImportOptions.Slashes`): *(automatic)*, *either one
    (TBN/Oblation)* or *all of them (Soil/Succor)*; the review lists the importer's `slash-reading` note with
    the notes about the whole import. **Import and review** runs the core `PlanImporter` with the chosen
-   fight, tabs, columns, plan name, calibration preset and slash reading; the trial import uses the same
-   options but every tab and column (`ImportWindow.OptionsFor`).
+   fight, tabs, columns, plan name, calibration preset and slash reading; the trial import builds its options
+   the same way, with every tab and column (`ImportWindow.OptionsFor`), from the preset and slash reading of
+   the moment it runs (a new source sets **Slashes** back to automatic). A later change of either applies to
+   **Import and review** only: the lists and their entry counts keep the trial's reading.
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
    checks, which run again after each edit. The player can change the mechanic, hit, offset, flags, target,
    note and items, and delete entries (with undo). Replacing a note with an action offers to remember it:
@@ -538,8 +542,9 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       (Ultimate)*: the column list ends with *Always imported: Extras - N calls for the jobs they name*, and
       **Slashes** shows *(automatic)*. **Import and review**: *Notes about the whole import* says that `/`
       between actions of one job is read as 'and'. Set **Slashes** to *either one (TBN/Oblation)* and import
-      again: the note says 'either one', and the Scholar's `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13) is one
-      call with a choice of four actions instead of four actions. Close the window without saving.
+      again: the note says 'either one', and your column's `Asylum/Plenary` ('LL/BJCC'!G40, as White Mage) or
+      `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13, as Scholar) is one call with a choice of its actions instead
+      of two or four actions. Close the window without saving.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
       **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan

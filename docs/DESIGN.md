@@ -498,21 +498,22 @@ files and links; the plugin's import window adds downloading, the review and the
   name that names the job in a column or entry, else the player's first own plan by name
   that names it. TEA's only bundled plan, *LPDU TEA Heal/Mit*, is thus the automatic one of
   every job it names, with no entry in `PlanStore.BundledDefaults`, and a TEA plan the player
-  imported without choosing it gives way to it; DMU ships no plan. A plan whose calls for the
-  player's seat are only in job-less slot columns (LPDU's M1/M2 for melee jobs, and the TEA
-  plan's "Melee 1"/"Melee 2" for melee jobs other than the Monk, whose Mantra calls name it)
-  is not chosen automatically: the player chooses it in the table. An imported plan or a
-  share code replaces a bundled plan only when the player chooses it: in the table, or with
-  the "make it my active plan" checkbox of the import window (ticked when entries apply to
-  the player) or of the share-code box (unticked each time the plugin loads). The exception
-  is the share code of a bundled plan: it has that plan's id and takes its place until it
-  is deleted. The share-code box sets a plan only when it has calls for the job as the
-  overlay selects them; for a role sheet whose calls for the job are only in other slots'
-  job-less columns, the message names those slots and says to choose the plan and then the
-  slot's column under "My column" (or, only while no usual slot is set at all, to set it
-  first; a usual slot of another role gets the column hint too): one usual slot serves
-  every job of its role, so changing it would take the slot calls of the player's main job
-  away.
+  imported without choosing it gives way to it while it is bundled; DMU ships no plan. A plan
+  whose calls for the player's seat are only in job-less slot columns (LPDU's M1/M2 for melee
+  jobs, and the TEA plan's "Melee 1"/"Melee 2" for melee jobs other than the Monk, whose
+  Mantra calls name it) is not chosen automatically: the player chooses it in the table. An
+  imported plan or a share code replaces a bundled plan only when the player chooses it: in
+  the table, or with the "make it my active plan" checkbox of the import window (ticked when
+  entries apply to the player) or of the share-code box (unticked each time the plugin
+  loads). The exception is the share code of a bundled plan: it has that plan's id and takes
+  its place until it is deleted. For the jobs that plan is not meant for (every job, for the
+  TEA plan), the copy is one of the player's own plans. The share-code box sets a plan only
+  when it has calls for the job as the overlay selects them; for a role sheet whose calls for
+  the job are only in other slots' job-less columns, the message names those slots and says
+  to choose the plan and then the slot's column under "My column" (or, only while no usual
+  slot is set at all, to set it first; a usual slot of another role gets the column hint
+  too): one usual slot serves every job of its role, so changing it would take the slot calls
+  of the player's main job away.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),

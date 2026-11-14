@@ -257,9 +257,11 @@ job (in green).
   White Mage who imports the Scholar's LPDU code with that box unticked (the default), to look at it, keeps
   *NoirMit - WHM*. DMU has no bundled plan, so there your own plan is the automatic one. In TEA it is the
   automatic one only for a job that *LPDU TEA Heal/Mit* does not name: a TEA plan you imported without making
-  it your active plan gives way to the LPDU plan until you choose it here. The share code of a bundled plan
-  takes that plan's place until it is deleted, and so stays the automatic plan of the job the bundled plan is
-  meant for.
+  it your active plan gives way to the bundled LPDU plan until you choose it here. The share code of a bundled
+  plan takes that plan's place until it is deleted, and so stays the automatic plan of the job the bundled
+  plan is meant for. For any other job the copy counts as one of your own plans: once you import the share
+  code of *LPDU TEA Heal/Mit*, which is meant for no job, the first of your TEA plans by name that names your
+  job is the automatic one.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
   calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
   column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,
@@ -307,10 +309,11 @@ steps.
    or *Utility*) is no choice: it is always imported, its calls for the jobs whose action they name (*PLD
    Wings* is the Paladin's), and the window says so (*Always imported: Extras - N calls for the jobs they
    name*). **Slashes** says what `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or
-   *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when the sheet joins actions no
-   other way (no `+`) and lists three or more with `/`, as LPDU's TEA sheet does (`Soil/Reci/Deploy/Whisper`),
-   else either one; the review's notes about the whole import say which. Click **Import and review**. If the
-   result looks wrong, **Not reading it right? Use the AI route**.
+   *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when no cell of the sheet joins
+   actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line break) and at least two cells list
+   several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
+   (`Soil/Reci/Deploy/Whisper`), else either one; the review's notes about the whole import say which. Click
+   **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
    ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
    (right-click for automatic timing), set the flags, change what to press, and delete entries. When you
@@ -329,9 +332,9 @@ steps.
 
 MitCue reads a sheet with a row per mechanic (with or without times) and a column per player: a slot (`MT`,
 `H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
-job of the role). A call that is grey or in brackets (`(Shake)`) is optional, a cell that points up
-(`(^on BJ)`) adds its remark to the call above it, and `(Late)` moves a call meant for before the hit to 1 s
-before it. The full rules: [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
+job of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell
+that points up (`(^on BJ)`) adds its remark to the call above it; and `(Late)` moves a call meant for before
+the hit to 1 s before it. The full rules: [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
@@ -405,8 +408,9 @@ checkbox, or under **Active plan**), when no bundled plan names your job, or whe
 the bundled plan for your job: it takes that plan's place until you delete it (see [Which plan and column
 MitCue uses](#which-plan-and-column-mitcue-uses)). In TEA, *LPDU TEA Heal/Mit* names every job but the melee
 jobs other than the Monk, so a TEA plan you imported without making it your active plan is used only once
-you choose it. Choose your plan under **Active plan**; *(automatic: …)* goes back to the bundled plan for
-your job. If you imported a share code of that plan, delete the copy to get the bundled one back.
+you choose it, or, after you imported the LPDU plan's own share code, when it is the first of your TEA plans
+by name. Choose your plan under **Active plan**; *(automatic: …)* goes back to the bundled plan for your job.
+If you imported a share code of that plan, delete the copy to get the bundled one back.
 
 **Reminders come too early or too late, or the clock jumps**
 
