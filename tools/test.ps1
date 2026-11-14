@@ -70,17 +70,17 @@ $Buckets = @(
     @{ Name = 'p6-human'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~HumanTests'); Seconds = 182; Human = $true; Phase = 'P6' }
     @{ Name = 'p6-margin'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~MarginTests'); Seconds = 43; Phase = 'P6' }
     @{ Name = 'tea-p1-human'; Terms = @('FullyQualifiedName~TeaP1LimitCutLpduHumanTests'); Seconds = 181; Human = $true }
-    @{ Name = 'tea-p1-protean-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidProtean1LpduHumanTests'); Seconds = 62; Human = $true }
-    @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 80; Human = $true }
-    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 46 }
+    @{ Name = 'tea-p1-protean-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidProtean1LpduHumanTests'); Seconds = 55; Human = $true }
+    @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 90; Human = $true }
+    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 42 }
     @{ Name = 'link-interruption'; Terms = @('FullyQualifiedName~LinkInterruptionTests'); Seconds = 89 }
     @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 58 }
     @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 25 }
     @{ Name = 'catalog-black-hole'; Terms = @("$Catalog&Name~Dancing&Name~Black"); Seconds = 15; Seeds = 'SunnySeeds' }
     @{ Name = 'catalog-dancing'; Terms = @("$Catalog&Name~Dancing&Name!~Black"); Seconds = 21; Seeds = 'SunnySeeds' }
     @{ Name = 'catalog-top'; Terms = @("$Catalog&Name~Protocol"); Seconds = 26; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Replay"); Seconds = 14; Seeds = 'SunnySeeds' }
-    @{ Name = 'pause'; Terms = @('FullyQualifiedName~GamePauseTests'); Seconds = 13; Seeds = 'PauseSeeds' }
+    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Replay"); Seconds = 18; Seeds = 'SunnySeeds' }
+    @{ Name = 'pause'; Terms = @('FullyQualifiedName~GamePauseTests'); Seconds = 16; Seeds = 'PauseSeeds' }
     @{ Name = 'rest'; Terms = @(); Seconds = 145; QuickSeconds = 133 }
 )
 
