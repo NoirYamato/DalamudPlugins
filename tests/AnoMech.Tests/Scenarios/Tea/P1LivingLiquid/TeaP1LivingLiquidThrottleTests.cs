@@ -1,6 +1,7 @@
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
@@ -176,6 +177,58 @@ public class TeaP1LivingLiquidThrottleTests
         if (presses) Assert.That(run.Passed, run.ToString);
         else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
+
+    // On a seat with nothing to take off, the Warden's Paean leaves a barrier instead, which stops the next debuff a
+    // cleanse could take off. R1, a bard, presses it at 9.0; the stage's healers would leave that seat's Throttle on.
+    [TestCase(PhysRangedDps, TestName = "{m}(on itself)")]
+    [TestCase(RegenHealer, TestName = "{m}(on H1)")]
+    public void AWardensPaeanBeforeThrottleLandsKeepsItOffThatSeat(PartyRole on)
+    {
+        var stage = new Stage { First = Cascade2, HumanUntil = 60f, NotCleansed = [on] };
+        PartyRole[] carriers = [], withTheStatus = [];
+        var run = stage.Run(PhysRangedDps, stopAt: 21f, probe: p =>
+        {
+            if (p.Crossed(9f)) Paean(p, on);
+            if (!p.Crossed(10.6f)) return;
+            carriers = TeaP1LivingLiquidScenarioTests.Throttled(p);
+            withTheStatus = PerRole.All.Where(role => p.Member(role)!.HasStatus(P1StatusId.Throttle)).ToArray();
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(carriers, Is.EquivalentTo(Stage.DefaultThrottled.Except([on])));
+        Assert.That(withTheStatus, Is.EquivalentTo(Stage.DefaultThrottled.Except([on])));
+    }
+
+    // M2 is not among Throttle's six: the barrier on it stops nothing, and R1's own Throttle is left on.
+    [Test]
+    public void AWardensPaeansBarrierCoversOnlyTheSeatItIsOn()
+    {
+        var stage = new Stage { First = Cascade2, HumanUntil = 60f, NotCleansed = [PhysRangedDps] };
+        var run = stage.Run(PhysRangedDps, stopAt: 21f, probe: p =>
+        {
+            if (p.Crossed(9f)) Paean(p, MeleeDpsB);
+        });
+
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+    }
+
+    // The barrier lasts 30 s. In a run of both parts Throttle lands at 34.3 and runs out at 43.3.
+    [TestCase(3.8f, false)]
+    [TestCase(4.8f, true)]
+    public void AWardensPaeansBarrierLastsThirtySeconds(float pressedAt, bool stillUp)
+    {
+        var stage = new Stage { HumanUntil = 80f, NotCleansed = [PhysRangedDps] };
+        var run = stage.Run(PhysRangedDps, stopAt: Stage.CascadeTwo + 21f, probe: p =>
+        {
+            if (p.Crossed(pressedAt)) Paean(p, PhysRangedDps);
+        });
+
+        if (stillUp) Assert.That(run.Passed, run.ToString);
+        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, Stage.CascadeTwo + 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+    }
+
+    private static void Paean(ScenarioProbe p, PartyRole on)
+        => p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.WardensPaean, (ulong)p.Member(on)!.GameObjectId));
 
     // M2 has no Throttle: nothing kills it, and an Esuna on it is wasted.
     [Test]

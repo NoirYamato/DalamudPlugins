@@ -172,8 +172,10 @@ public class TeaP1PressesTests
     public void ACleanseOnASeatIsReportedOnceTheRunLooks(uint press)
     {
         var raisedInsideThePress = -1;
+        List<TeaP1Cleanse> reported = [];
         var (cleanses, raised) = Cleanses((world, presses, heard) => world.Events.Add(1f, () =>
         {
+            reported = heard;
             Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, (ulong)world.Party.Get(OffTank)!.GameObjectId));
             raisedInsideThePress = heard.Count + presses.Cleanses.Count;
         }));
@@ -182,6 +184,7 @@ public class TeaP1PressesTests
         Assert.That(cleanses.Select(c => (c.By, c.Target, c.ByHuman)), Is.EqualTo(new[] { (MainTank, OffTank, true) }));
         Assert.That(cleanses[0].At, Is.EqualTo(1f).Within(TimelineRun.FrameLate));
         Assert.That(raised, Is.EqualTo(1));
+        Assert.That(reported.Select(c => c.ActionId), Is.EqualTo(new[] { press }), "it says which of the two it was");
     }
 
     [Test]
@@ -281,10 +284,15 @@ public class TeaP1PressesTests
     [Test]
     public void ACleanseTheRunMakesForASeatIsReportedAtOnce()
     {
-        var (cleanses, raised) = Cleanses((world, presses, _) => world.Events.Add(1f, () =>
-            presses.Cleanse(world.Party.Get(RegenHealer)!, world.Party.Get(MeleeDpsA)!)));
+        List<TeaP1Cleanse> reported = [];
+        var (cleanses, raised) = Cleanses((world, presses, heard) => world.Events.Add(1f, () =>
+        {
+            reported = heard;
+            presses.Cleanse(world.Party.Get(RegenHealer)!, world.Party.Get(MeleeDpsA)!);
+        }));
 
         Assert.That(cleanses.Select(c => (c.By, c.Target, c.ByHuman)), Is.EqualTo(new[] { (RegenHealer, MeleeDpsA, false) }));
+        Assert.That(reported.Select(c => c.ActionId), Is.EqualTo(new[] { P1PlayerActionId.Esuna }));
         Assert.That(cleanses[0].At, Is.EqualTo(1f).Within(TimelineRun.FrameLate));
         Assert.That(raised, Is.EqualTo(1));
     }

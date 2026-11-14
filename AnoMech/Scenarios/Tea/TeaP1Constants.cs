@@ -166,6 +166,7 @@ public static class TeaP1Constants
         // UNVERIFIED ("about 9 s"). Six cleanses by two healers, one each per 2.5 s, take 5.7 s.
         public const float Throttle = 9f;
         public const float ThrottleAfterLiquidGaol = 0.4f;
+        public const float WardensPaeanBarrier = 30f;               // on a target it found nothing to take off
         // UNVERIFIED: in the fight a puddle is a damage over time, so here its first second harms nobody.
         public const float PuddleKillsAfter = 1f;
         public const float LiquidHoldsItsFacingAfterTheLastWave = 1f;   // UNVERIFIED when it turns back to its target

@@ -8,8 +8,9 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Scenarios.Tea;
 
-// One Esuna or Warden's Paean that reached `Target`: the human's own, or one the run made for a seat.
-public sealed record TeaP1Cleanse(SimCharacter By, SimCharacter Target, float At, bool ByHuman);
+// One Esuna or Warden's Paean that reached `Target`: the human's own, or one the run made for a seat. `ActionId` says
+// which of the two it was.
+public sealed record TeaP1Cleanse(SimCharacter By, SimCharacter Target, float At, bool ByHuman, uint ActionId);
 
 // The human's own presses a TEA P1 run reads, heard through IUserActions.Acted whether or not the player's actions
 // are resolved in the sim. Construct one per run, as the run starts; a scenario has no hook for its run's end, so the
@@ -23,7 +24,7 @@ public sealed class TeaP1Presses : IDisposable
 
     private readonly SimWorld world;
     private readonly IUserActions userActions;
-    private readonly List<(ulong TargetId, float At)> heard = [];
+    private readonly List<(ulong TargetId, float At, uint ActionId)> heard = [];
     private readonly List<TeaP1Cleanse> cleanses = [];
     private float antiKnockbackUntil = float.NegativeInfinity;
     private bool disposed;
@@ -60,12 +61,12 @@ public sealed class TeaP1Presses : IDisposable
         if (heard.Count == 0) return;
         var pending = heard.ToList();
         heard.Clear();
-        foreach (var (targetId, at) in pending)
+        foreach (var (targetId, at, actionId) in pending)
         {
             if (world.Party.Player is not { } player || !player.IsAlive()) continue;
             // UNVERIFIED: the client turns a cleanse aimed at an enemy, or at nothing, onto its caster.
             var target = world.Party.AllMembers().FirstOrDefault(member => (ulong)member.GameObjectId == targetId) ?? player;
-            Settle(new TeaP1Cleanse(player, target, at, ByHuman: true));
+            Settle(new TeaP1Cleanse(player, target, at, ByHuman: true, actionId));
         }
     }
 
@@ -76,8 +77,8 @@ public sealed class TeaP1Presses : IDisposable
         if (disposed) return;
         (by as SimNpc)?.PlayAction(P1PlayerActionId.Esuna);
         var cast = Natives.Data.Action(P1PlayerActionId.Esuna)?.CastSeconds ?? 0f;
-        if (cast <= 0f) Settle(new TeaP1Cleanse(by, target, world.Events.Elapsed, ByHuman: false));
-        else world.Events.Add(cast, () => Settle(new TeaP1Cleanse(by, target, world.Events.Elapsed, ByHuman: false)));
+        if (cast <= 0f) Settle(new TeaP1Cleanse(by, target, world.Events.Elapsed, ByHuman: false, P1PlayerActionId.Esuna));
+        else world.Events.Add(cast, () => Settle(new TeaP1Cleanse(by, target, world.Events.Elapsed, ByHuman: false, P1PlayerActionId.Esuna)));
     }
 
     private void Settle(TeaP1Cleanse cleanse)
@@ -101,7 +102,7 @@ public sealed class TeaP1Presses : IDisposable
                 Cover(P1Duration.InnerStrength);
                 break;
             case P1PlayerActionId.Esuna or P1PlayerActionId.WardensPaean:
-                heard.Add(((uint)action.TargetId == CurrentTarget ? ClientsTarget() : action.TargetId, world.Events.Elapsed));
+                heard.Add(((uint)action.TargetId == CurrentTarget ? ClientsTarget() : action.TargetId, world.Events.Elapsed, action.ActionId));
                 break;
         }
     }

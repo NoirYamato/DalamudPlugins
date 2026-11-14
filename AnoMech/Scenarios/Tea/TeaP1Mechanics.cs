@@ -476,8 +476,9 @@ public sealed class TeaP1LivingLiquid
             DamageKinds.FromAttackType(Natives.Data.Action(P1ActionId.Drainage)?.AttackType ?? 0), world.Party) is not null;
 
     // -- Throttle --
-    // Liquid Gaol: Throttle lands on the `throttled` seats P1Duration.ThrottleAfterLiquidGaol later and kills whoever
-    // still carries it as it runs out; a cleanse on a carrier takes it off. UNVERIFIED which of the tornadoes cast it.
+    // Liquid Gaol: Throttle lands on the `throttled` seats P1Duration.ThrottleAfterLiquidGaol later, but for one under
+    // the Warden's Paean's barrier, and kills whoever still carries it as it runs out; a cleanse on a carrier takes it
+    // off. UNVERIFIED which of the tornadoes cast it.
     public void LiquidGaol(float at, IReadOnlyList<PartyRole> throttled, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         var landsAt = at + P1Duration.ThrottleAfterLiquidGaol;
@@ -614,34 +615,48 @@ public sealed class TeaP1LivingLiquid
 
     // Who carries Throttle: kept here, since a status that runs out leaves before anything can see it go, a frame
     // early on a long frame.
-    private sealed class ThrottleCarriers(SimWorld world, TeaP1Presses presses)
+    private sealed class ThrottleCarriers
     {
+        private readonly SimWorld world;
+        private readonly TeaP1Presses presses;
         private readonly List<SimCharacter> carriers = [];
+        private readonly Dictionary<SimCharacter, float> barrierUntil = [];
+
+        public ThrottleCarriers(SimWorld world, TeaP1Presses presses)
+        {
+            this.world = world;
+            this.presses = presses;
+            presses.Cleansed += Hear;
+        }
 
         public IReadOnlyCollection<SimCharacter> Carriers => carriers;
 
-        // A cleanse pressed before it lands cleanses nothing.
+        // A seat under the Warden's Paean's barrier gets none, and the barrier is spent.
         public void Land(IReadOnlyList<PartyRole> seats)
         {
             presses.CatchUp();
             foreach (var seat in seats)
             {
                 if (world.Party.Get(seat) is not { } member || !member.IsAlive()) continue;
+                if (barrierUntil.Remove(member, out var until) && world.Events.Elapsed < until) continue;
                 member.AddStatus(P1StatusId.Throttle, P1Duration.Throttle);
                 carriers.Add(member);
             }
-            presses.Cleansed += Lift;
         }
 
-        private void Lift(TeaP1Cleanse cleanse)
+        // A cleanse on a seat that carries no Throttle takes nothing off, one pressed before it lands included. The
+        // Warden's Paean then leaves its barrier on that seat instead, which stops the next debuff a cleanse could
+        // take off. UNVERIFIED: that the barrier stops Throttle.
+        private void Hear(TeaP1Cleanse cleanse)
         {
             if (carriers.Remove(cleanse.Target)) cleanse.Target.RemoveStatus(P1StatusId.Throttle);
+            else if (cleanse.ActionId == P1PlayerActionId.WardensPaean) barrierUntil[cleanse.Target] = cleanse.At + P1Duration.WardensPaeanBarrier;
         }
 
         public void RunOut()
         {
             presses.CatchUp();
-            presses.Cleansed -= Lift;
+            presses.Cleansed -= Hear;
             foreach (var member in carriers.ToList()) RanOutOn(member);
         }
 
