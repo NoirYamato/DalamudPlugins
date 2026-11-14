@@ -158,7 +158,7 @@ Notes:
 | `MitCue.dll` | the plugin | MitCue's own code (no license file yet) |
 | `MitCue.json` | its manifest; Dalamud needs it next to the DLL | |
 | `MitCue.deps.json` | the list of libraries MitCue uses | |
-| `MitCue.Core.dll` | MitCue's core library. The fight data, cactbot timelines, action data, shorthand aliases and the three bundled TOP plans are built into it | MitCue's own code; timelines: Apache License 2.0, cactbot contributors |
+| `MitCue.Core.dll` | MitCue's core library. The fight data, cactbot timelines, action data, shorthand aliases and the bundled plans (three for TOP, one for TEA) are built into it | MitCue's own code; timelines: Apache License 2.0, cactbot contributors |
 | `MitCue.Core.pdb`, `MitCue.Core.xml` | debug symbols and documentation of the core library | |
 | `YamlDotNet.dll` | reads and writes plans and data files (YAML) | MIT |
 | `DocumentFormat.OpenXml.dll`, `DocumentFormat.OpenXml.Framework.dll` | Open XML SDK: reads the `.xlsx` export of a Google Sheets link | MIT, © Microsoft Corporation |

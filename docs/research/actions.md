@@ -1,7 +1,7 @@
 # Action knowledge base: player actions, durations by sync level, shorthand aliases
 
 Research note for MitCue. It is the reference for `data/actions/actions.yaml` (178 actions) and
-`data/actions/aliases.yaml` (341 shorthand keys), and for the `ActionCatalog` / `AliasDictionary` loaders
+`data/actions/aliases.yaml` (363 shorthand keys), and for the `ActionCatalog` / `AliasDictionary` loaders
 in `src/MitCue.Core/Actions/Catalogs.cs`.
 
 Status: **draft data, generated from game data and checked by script** (section 13). Items marked
@@ -35,7 +35,7 @@ Verification (independent re-check, appended at the end)
 | File | Content |
 |---|---|
 | `data/actions/actions.yaml` | 178 actions: all four healers' heals, shields, regens and mitigation (oGCD and the GCDs used in plans), fairy/Seraph commands, all four tanks' party, personal, short-cooldown and invulnerability actions, tank and healer role actions, DPS party mitigation (Troubadour, Tactician, Shield Samba, Dismantle, Magick Barrier, Nature's Minne, Improvisation, Tempera, Mantra, Curing Waltz), DPS personal mitigation, melee/caster role mitigation (Feint, Addle, Second Wind, Bloodbath), tank and healer limit breaks 1-3 per job, Sprint. |
-| `data/actions/aliases.yaml` | 341 normalized shorthand keys: every action token in both example sheets, the typos seen in them, common community abbreviations, per-job role phrases (`party mit`, `short cd`, `invuln`, `30%`, `filler`, `tank lb3`, `healer lb3`, `lb3`) and note-only phrases (`everything`, `kitchen sink`, `personals`). |
+| `data/actions/aliases.yaml` | 363 normalized shorthand keys: every action token in both example TOP sheets and in LPDU's TEA sheet (added 2026-11-14), the typos seen in them, common community abbreviations, per-job role phrases (`party mit`, `short cd`, `invuln`, `30%`, `filler`, `tank lb3`, `healer lb3`, `lb3`) and note-only phrases (`everything`, `kitchen sink`, `personals`). |
 | this file | Sources, encoding, schema, tables, coverage, open items. |
 
 Both YAML files parse with **YamlDotNet 18.1.0** (the version `MitCue.Core` references) into strict typed
@@ -733,6 +733,12 @@ aliases:
   `note_only` plus `note`, and **`targeted`**: a proposed addition to `AliasExpansion` holding the actions to use
   when the item names another player ("Short CD to R1", "Nascant Co-Tank"). Bloodwhetting and Holy Sheltron are
   self-only, so the targeted short cooldowns are Nascent Flash and Intervention.
+- **Options** (added 2026-11-14): an action name may list options separated by `|`, one item that any of them
+  does, such as the card an Astrologian drew: `defensive cards: {actions: ["the Arrow|the Bole", "the Spire|the
+  Ewer"]}` (LPDU TEA "defensive Cards (Tank)", the Play II and Play III cards). Every option must be an action of
+  the jobs the alias is for. The importer makes each such name one plan item, an either/or of its options; the
+  loader, the validator and the alias tests split the options (`AliasExpansion.ActionNames`,
+  `AliasExpansion.OptionsOf`), and the AI prompt writes them as "(the Arrow or the Bole)".
 - Loading with YamlDotNet: deserialize `Dictionary<string, object>`. Each value is a `string`, a
   `Dictionary<object, object>` or a `List<object>`; scalars inside come back as strings (`"true"`).
 - **Normalization** (keys are stored normalized; `AliasDictionary.Normalize` must do the same): lowercase
@@ -752,7 +758,9 @@ aliases:
 - `/` is ambiguous in these sheets. In "Short CD to R1/2" it lists targets; in "Kera/Soil" (LPDU P1/P2 E2, shared H2
   column) it means "whichever your job has" (the job filter handles it); in "TBN/Oblation Co-Tank" (LPDU 'WAR/DRK' C12,
   'DRK/GNB' B13, 'DRK/PLD' B13) the trailing target belongs to both actions, but a plain split gives "TBN" (no target)
-  and "Oblation Co-Tank". The parser should carry a trailing target back over `/`-joined actions.
+  and "Oblation Co-Tank". The parser should carry a trailing target back over `/`-joined actions. LPDU's TEA sheet
+  joins actions with `/` only ("Soil/Reci/Deploy/Whisper": all four), so the importer reads `/` between actions of
+  one job per document, as either one or as all of them (`ImportOptions.Slashes`, `src/MitCue.Core/Import/README.md`).
 - Short keys can swallow targets: `co` (AST Celestial Opposition) would match a bare "Co-Tank" item (normalized
   `co tank`). The sheets never have a bare "Co-Tank" item after splitting, and the AST-only job filter keeps it away
   from tank columns, but a target word must not be resolved as an action for another job.
@@ -766,7 +774,7 @@ aliases:
   Shadowed Vigil, Great Nebula. A name that is not available at the sync level (Expedient, Aquaveil, Liturgy of the
   Bell, Macrocosmos, Magick Barrier, Protraction … in TEA) must produce a diagnostic, not a silent drop.
 
-Meanings that are conventions rather than game data (all taken from the two sheets; confirm with the static):
+Meanings that are conventions rather than game data (all taken from the example sheets; confirm with the static):
 
 | Key | Meaning used | Evidence |
 |---|---|---|
@@ -783,6 +791,9 @@ Meanings that are conventions rather than game data (all taken from the two shee
 | `party mit` | PLD Divine Veil, WAR Shake It Off, DRK Dark Missionary, GNB Heart of Light, BRD Troubadour, MCH Tactician, DNC Shield Samba, RDM Magick Barrier, PCT Tempera Coat → Tempera Grassa | LPDU tank and R1 columns ("Party Mit if MCH"). Melee, BLM, SMN and healers have no mapping (their plans name actions) |
 | `everything`, `kitchen sink`, `personals` | note only | LPDU P1/P2, the tank tabs, the P6 note |
 | typos | `nascant`, `vengance`, `bullwark`, `sentinal`, `super bolide` | LPDU tank tabs |
+| `seraph1` / `seraph2` | SCH: Summon Seraph → Consolation / the second Consolation | LPDU TEA Scholar column: "Soil/Illum/Seraph1" at Splashes, then "Seraph2/Succor" at the next Cascade (also Whirlwind 2 and Water 3) |
+| `defensive cards` | AST: the Arrow or the Bole, and the Spire or the Ewer (Play II and Play III, whichever was drawn) | LPDU TEA Astrologian column, "defensive Cards (Tank)", "Neutral/defensive Cards (Ranged)" |
+| `dm` | DRK: Dark Missionary | LPDU TEA tank columns "Party Mit (DM/HoL)": the Dark Knight's and the Gunbreaker's party mitigation |
 
 ## 12. Token coverage for both example sheets
 

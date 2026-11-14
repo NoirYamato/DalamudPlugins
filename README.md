@@ -14,13 +14,15 @@ sheet) and a Scholar (H2) on the *LPDU* TOP plan. Both plans come with the plugi
 | Fight | Zone id | Sync level | Plans that come with MitCue |
 |-------|---------|------------|-----------------------------|
 | The Omega Protocol (Ultimate), TOP | 1122 | 90 | *NoirMit - WHM*, *Carry the Clear - SCH*, *LPDU TOP Mitigation* |
-| The Epic of Alexander (Ultimate), TEA | 887 | 80 | none: [import](#importing-a-plan) your own |
+| The Epic of Alexander (Ultimate), TEA | 887 | 80 | *LPDU TEA Heal/Mit* |
 | Dancing Mad (Ultimate), DMU | 1363 | 100 | none: [import](#importing-a-plan) your own |
 
-The TEA and DMU fight data is a first draft: no mitigation sheet has been mapped onto it yet. In TEA the
-fight clock follows phase pushes like in TOP. In DMU, cactbot marks the starts of P2 and P4 with an event
-MitCue cannot see, so MitCue uses boss casts there instead; those have not been checked against real pulls
-yet.
+The TEA and DMU fight data is a first draft. TEA's has been mapped onto LPDU's TEA sheet; no mitigation
+sheet has been mapped onto DMU's yet. In TEA the fight clock follows phase pushes like in TOP, and MitCue
+adds the 16 J Waves of the P3 DPS check, which cactbot lists as one entry, so that a call can name a wave;
+their times come from BossMod and have not been checked against real pulls yet. In DMU, cactbot marks the
+starts of P2 and P4 with an event MitCue cannot see, so MitCue uses boss casts there instead; those have not
+been checked against real pulls yet.
 
 More documentation: [docs/INSTALL.md](docs/INSTALL.md) (installing, updating, files),
 [docs/PLUGIN.md](docs/PLUGIN.md) (how the plugin works, in-game test checklist),
@@ -103,7 +105,7 @@ real fight. Use it to place the overlay and to read through a plan before raid n
   or in TOP on a melee job you have chosen no plan for), MitCue takes the first plan for the fight: your own
   plans first, then the bundled ones, each by name. It previews that plan as the job of the column you chose
   for it, or else as the plan's first job. In TOP, while you have no TOP plan of your own, that is *Carry the
-  Clear - SCH* as Scholar. TEA and DMU have no plan until you import one.
+  Clear - SCH* as Scholar; in TEA, *LPDU TEA Heal/Mit* as Scholar. DMU has no plan until you import one.
 - **Timing:** a whole-fight preview begins with a simulated 10-second countdown. A phase preview starts
   2 seconds before a simulated pull and jumps to that phase about 2 seconds after the pull. Tick **Run
   /mitcue preview at 4x speed** in **General** to run it 4 times as fast.
@@ -183,7 +185,7 @@ if no pull starts).
 | Print a done/missed summary after each pull | on | One chat line per pull, listing up to five missed calls. Greyed out while **Track done/missed** is off |
 | Also show my co-healer's calls (the plan's other columns for my role), dimmed | off | Your co-healer's calls (a tank's co-tank, a DPS's other DPS), never your own seat's other columns, nor LPDU's *CM LB Tank* and *CM Rep Tank* (unless you follow one of them in **My column**: then the other one is your co-tank's). In a party, not the columns of jobs nobody in the party plays, nor a job's calls in a slot that the party gives another job (on LPDU next to a Bard, whose calls are all in R1, the Red Mage's R2 calls but not its R1 ones). Shows nothing on a plan without your co-healer's column, such as *NoirMit - WHM* or *Carry the Clear - SCH* (see [What the overlay shows](#what-the-overlay-shows)) |
 | Show reminders skipped by a phase push | off | Keeps skipped calls listed for 3 seconds, marked `skip` |
-| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU misses the calls of its MT or OT slot, and a melee job all of its LPDU calls). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs your column and calls are chosen as if it were not set |
+| My usual party slot | (not set) | MT, OT, H1, H2, M1, M2, R1 or R2. Used to suggest your plan column and to show the calls a plan gives your slot (without it, a tank on LPDU's TOP plan misses the calls of its MT or OT slot and on the TEA plan gets the MT's, and a melee job misses those of its M1 or M2 seat on both). Only on a job of the slot's role (MT/OT tanks, H1/H2 healers, M1/M2 melee, R1/R2 ranged): on your other jobs your column and calls are chosen as if it were not set |
 | Run /mitcue preview at 4x speed | off | Preview speed |
 | *Recording* | | |
 | Record pulls (event log for tuning the sync; no player names) | off | Writes a log of each duty or fight-zone visit (see [Recording pulls](#recording-pulls)). The folder is shown under the checkbox |
@@ -223,14 +225,15 @@ column**, so the whole static can share one plan. The format is described in [do
 
 ### Plans that come with MitCue
 
-Three TOP plans, converted from the original sheets, are listed as *bundled* in the Plans tab. They can't be
-changed or deleted.
+Four plans, converted from the original sheets, are listed as *bundled* in the Plans tab: three for TOP and
+one for TEA. They can't be changed or deleted.
 
 | Plan | From |
 |------|------|
 | *NoirMit - WHM* | *Carry the Clear: TOP Healing Plan*, White Mage tab. The White Mage's automatic plan; called *Carry the Clear – WHM* in 0.1.0.1 |
 | *Carry the Clear - SCH* | the same sheet's Scholar tab. Never automatic: the Scholar's automatic plan is LPDU, so a Scholar chooses it under **Active plan** to follow it. Until you import a TOP plan, the preview also plays it, as SCH, on a job without a TOP plan (see [The preview](#the-preview)) |
 | *LPDU TOP Mitigation* | the *LPDU TOP Mitigation Sheet*: its plan tabs, with all eight seats and the tank pairs |
+| *LPDU TEA Heal/Mit* | the *[LPDU] TEA Heal/Mit* sheet, both tabs: a column per healer job, the tank and melee seats (*Tank 1* = MT, *Tank 2* = OT, *Melee 1*, *Melee 2*), the ranged roles (*Phys Range*, *Caster*) and *Extras*, calls for the jobs they name. The automatic TEA plan of every job but the melee jobs other than the Monk, whose calls are in the melee seats' columns, which name no job (see below) |
 
 *Carry the Clear – WHM + SCH*, the sheet's combined tab, came with 0.1.0.1 only: a choice of it now falls back
 to the automatic plan. Plans you import are listed as *user* plans.
@@ -243,37 +246,43 @@ job (in green).
 - **Active plan:** the plan you choose. On *(automatic: the bundled plan for this job, else my own plan for
   it)*, MitCue takes the bundled plan meant for the job (TOP: White Mage → *NoirMit - WHM*, Scholar →
   *LPDU TOP Mitigation*, never *Carry the Clear - SCH*), else the first bundled plan by name that names the
-  job in a column or entry, else the first of your own plans by name that names it. A plan whose calls for
-  your seat are only in slot columns without a job (LPDU's M1 and M2 for melee jobs) is not chosen
-  automatically: choose it here. *(no plan: no reminders for this job)* switches MitCue off for that job.
+  job in a column or entry (TEA: *LPDU TEA Heal/Mit*), else the first of your own plans by name that names it.
+  A plan whose calls for your seat are only in slot columns without a job (LPDU's M1 and M2 for melee jobs,
+  and the TEA plan's *Melee 1* and *Melee 2* for melee jobs other than the Monk) is not chosen automatically:
+  choose it here. *(no plan: no reminders for this job)* switches MitCue off for that job.
 
   A plan you import or receive as a share code replaces the bundled one only when you choose it: here, with
   **Make it my active plan for … as …** in the import window, or with **Make an imported share code my active
   plan as …** when you import a code (see [Share codes and plan files](#share-codes-and-plan-files)). So a
   White Mage who imports the Scholar's LPDU code with that box unticked (the default), to look at it, keeps
-  *NoirMit - WHM*. TEA and DMU have no bundled plans, so there your own plan is the automatic one. The share
-  code of a bundled plan takes that plan's place until it is deleted, and so stays the automatic plan of the
-  job the bundled plan is meant for.
+  *NoirMit - WHM*. DMU has no bundled plan, so there your own plan is the automatic one. In TEA it is the
+  automatic one only for a job that *LPDU TEA Heal/Mit* does not name: a TEA plan you imported without making
+  it your active plan gives way to the LPDU plan until you choose it here. The share code of a bundled plan
+  takes that plan's place until it is deleted, and so stays the automatic plan of the job the bundled plan is
+  meant for.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
   calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
   column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,
-  *H2 SCH* includes the Scholar's P1/P2 calls of the job-less "H2" column. Without a choice (*suggested*),
-  MitCue takes your job's column (the one in your slot if there are several, else the first), else your
-  slot's column. When your job's calls are in several of its columns (one per phase or tab), it takes the
-  narrowest choice that has them all and no other column's calls, such as *any column for my job in slot
-  H2*. When the plan has no column for your job and **My usual party slot** is not one of your role's, you
-  get the first slot whose calls name your job, passing over a slot that your party gives another job (one
-  whose calls are all in it): on LPDU, whose ranged jobs have their calls in the R1 and R2 columns, a Red
-  Mage gets *any column for my job in slot R1*, or R2 next to a Bard. For the other seat, set **My usual
-  party slot** or choose its column here; *(any column for my job)* shows both. Calls for no job in a
-  slot's column (LPDU's M1 and M2 for melee jobs) give no seat: they are yours when **My usual party slot**
-  is that slot, or when you choose that column here. Columns for team compositions (LPDU's tank pairs) are
-  alternatives, and one composition's columns in several phase tabs count as one: a tank gets the pair with
-  the party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*; without a party, the first:
-  *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank (Reprisal, Rampart), when
-  **My usual party slot** is MT or OT. A party that plays none of your job's compositions gets your job's
-  column that is not for one, if the plan has it. The *CM LB Tank* and *CM Rep Tank* columns are left out:
-  pick one here to follow it instead.
+  *H2 SCH* includes the Scholar's P1/P2 calls of the job-less "H2" column. A column for a role (the TEA
+  plan's *Phys Range* and *Caster*) has calls for each job of the role, and calls in no column (its
+  *Extras*, such as *PLD Wings* or *Dismantle*) are for the jobs they name, whatever your column. Without a
+  choice (*suggested*), MitCue takes your job's column (the one in your slot if there are several, else the
+  first), else your slot's column. When your job's calls are in several of its columns (one per phase or
+  tab), it takes the narrowest choice that has them all and no other column's calls, such as *any column
+  for my job in slot H2*. When the plan has no column for your job and **My usual party slot** is not one
+  of your role's, you get the first slot whose calls name your job, passing over a slot that your party
+  gives another job (one whose calls are all in it): on LPDU, whose ranged jobs have their calls in the R1
+  and R2 columns, a Red Mage gets *any column for my job in slot R1*, or R2 next to a Bard. For the other
+  seat, set **My usual party slot** or choose its column here; *(any column for my job)* shows both. On the
+  TEA plan, whose tank calls are per seat (*Tank 1* = MT, *Tank 2* = OT), a tank without that setting gets
+  the MT's: the off-tank sets it to OT. Calls for no job in a slot's column (LPDU's M1 and M2 for melee
+  jobs) give no seat: they are yours when **My usual party slot** is that slot, or when you choose that
+  column here. Columns for team compositions (LPDU's tank pairs) are alternatives, and one composition's
+  columns in several phase tabs count as one: a tank gets the pair with the party's co-tank (a Warrior next
+  to a Paladin: *WAR/PLD WAR*; without a party, the first: *WAR/DRK WAR*), plus the calls of their MT or OT
+  slot, also those for any tank (Reprisal, Rampart), when **My usual party slot** is MT or OT. A party that
+  plays none of your job's compositions gets your job's column that is not for one, if the plan has it. The
+  *CM LB Tank* and *CM Rep Tank* columns are left out: pick one here to follow it instead.
 
 ### Importing a plan
 
@@ -287,14 +296,21 @@ steps.
      the export's names, such as `P1P2` for `P1/P2`). A doc's tables become tabs.
    - **Paste cells:** select the plan's cells in Google Sheets, including the header row, copy them and click
      **Paste from clipboard**, then **Read the cells**. A plan over several tabs is pasted one tab at a time:
-     **Add as another tab** for each further tab. Pasted cells carry no colours.
+     **Add as another tab** for each further tab. A tab that repeats its header row above each phase (LPDU's
+     TEA tabs) is one tab. Pasted cells carry no colours.
    - **Paste plan YAML (AI route):** for layouts MitCue can't read. Check the fight and the jobs (yours is
      ticked), click **Copy AI prompt** and paste the prompt into any AI chat. If you loaded the sheet first,
      the prompt already holds the plan; otherwise paste the plan after it. Paste the AI's answer back and click
      **Check the YAML and review**. A MitCue plan file (YAML or JSON) can be pasted here too.
 2. **Options:** the fight, the tabs and columns to import (MitCue ticks yours after looking at the tabs), the
-   plan name and the calibration preset. Click **Import and review**. If the result looks wrong, **Not reading
-   it right? Use the AI route**.
+   plan name, the calibration preset and **Slashes**. A column of calls for anyone (*Extras*, *Other*, *Misc*
+   or *Utility*) is no choice: it is always imported, its calls for the jobs whose action they name (*PLD
+   Wings* is the Paladin's), and the window says so (*Always imported: Extras - N calls for the jobs they
+   name*). **Slashes** says what `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or
+   *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when the sheet joins actions no
+   other way (no `+`) and lists three or more with `/`, as LPDU's TEA sheet does (`Soil/Reci/Deploy/Whisper`),
+   else either one; the review's notes about the whole import say which. Click **Import and review**. If the
+   result looks wrong, **Not reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
    ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
    (right-click for automatic timing), set the flags, change what to press, and delete entries. When you
@@ -310,6 +326,12 @@ steps.
    job (one per phase or tab), the plan is saved with the column choice that has them all. When no choice
    has all of your calls without another column's (a general tank column next to several tank-pair
    columns), this step names the columns of the calls left out: check **My column** after saving.
+
+MitCue reads a sheet with a row per mechanic (with or without times) and a column per player: a slot (`MT`,
+`H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
+job of the role). A call that is grey or in brackets (`(Shake)`) is optional, a cell that points up
+(`(^on BJ)`) adds its remark to the call above it, and `(Late)` moves a call meant for before the hit to 1 s
+before it. The full rules: [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
@@ -359,7 +381,9 @@ Read the **Status** line at the top of `/mitcue`:
 - *No supported fight in this zone (…)*: MitCue runs only in TOP, TEA and DMU. Use `/mitcue preview` to see
   the overlay anywhere.
 - *… no plan for SCH. Choose one in /mitcue > Plans.*: no plan applies to your job, or you chose *(no
-  plan)*. In TEA and DMU, import a plan first.
+  plan)*. In DMU, import a plan first. In TEA, a melee job other than the Monk chooses *LPDU TEA Heal/Mit*
+  under **Active plan** and sets **My usual party slot** to M1 or M2: its calls are in the *Melee 1* and
+  *Melee 2* columns, which name no job.
 - *… none of its N entries match …*: the plan is active, but the column chosen in **My column** is not
   yours, or your calls are in a slot's column without a job (LPDU's M1 and M2 for melee jobs) and
   **My usual party slot** is not that slot: set it, or choose that column under **My column**.
@@ -379,9 +403,10 @@ The Status line names the plan in use: `Ready: <plan> (N of M entries are yours)
 as a share code is used when you made it your active plan (in the import window, with the share-code
 checkbox, or under **Active plan**), when no bundled plan names your job, or when it is the share code of
 the bundled plan for your job: it takes that plan's place until you delete it (see [Which plan and column
-MitCue uses](#which-plan-and-column-mitcue-uses)). Choose your plan under **Active plan**; *(automatic: …)*
-goes back to the bundled plan for your job. If you imported a share code of that plan, delete the copy to
-get the bundled one back.
+MitCue uses](#which-plan-and-column-mitcue-uses)). In TEA, *LPDU TEA Heal/Mit* names every job but the melee
+jobs other than the Monk, so a TEA plan you imported without making it your active plan is used only once
+you choose it. Choose your plan under **Active plan**; *(automatic: …)* goes back to the bundled plan for
+your job. If you imported a share code of that plan, delete the copy to get the bundled one back.
 
 **Reminders come too early or too late, or the clock jumps**
 
@@ -485,7 +510,7 @@ Repository layout:
 ```
 src/MitCue.Core/           core library (no Dalamud): fights, timelines, sync engine, plans, reminders, importer
 src/MitCue/                the Dalamud plugin
-tests/MitCue.Core.Tests/   core tests (+ tests/fixtures/sheets: snapshots of the two example sheets)
+tests/MitCue.Core.Tests/   core tests (+ tests/fixtures/sheets: snapshots of the example sheets)
 tests/MitCue.Plugin.Tests/ plugin tests (sessions, plan store, import window logic; built against Dalamud;
                            references tools/MitCue.Cli for the invariant sweep that compares it with the plugin)
 tests/MitCue.Cli.Tests/    CLI tests
@@ -494,7 +519,7 @@ tools/RepoJsonCheck/       checks a repo.json and the plugin zip with Dalamud's 
 tools/make-repo-json.py    writes a repo.json from the plugin manifest (CI uses it for a sample)
 tools/tests/               tests of make-repo-json.py and of the CI workflow's Dalamud step
 data/                      fight catalogs, cactbot timelines, action data, aliases (built into MitCue.Core.dll)
-plans/                     the bundled TOP plans (built into MitCue.Core.dll)
+plans/                     the bundled TOP and TEA plans (built into MitCue.Core.dll)
 assets/                    the icon
 docs/                      design, install guide, plugin internals and test checklist, publishing, research notes
 .github/workflows/ci.yml   CI
@@ -521,8 +546,9 @@ file and its `latest.zip` can disagree; CI then fails at the Dalamud download st
   - **ExcelNumberFormat** (`ExcelNumberFormat.dll`), by the ExcelNumberFormat developers.
 - **Dalamud**, **FFXIVClientStructs** and **Lumina** are provided by Dalamud at run time and are not shipped
   with MitCue.
-- **Plans:** *Carry the Clear: TOP Healing Plan* and the *LPDU TOP Mitigation Sheet*, by their authors. They
-  are converted for the static's own use (the bundled plans) and used as test fixtures.
+- **Plans:** *Carry the Clear: TOP Healing Plan*, the *LPDU TOP Mitigation Sheet* and *[LPDU] TEA Heal/Mit*,
+  by their authors. They are converted for the static's own use (the bundled plans) and used as test
+  fixtures.
 - **MitCue's own code** doesn't have a license file yet. Ask the author, Noir Yamato, before you reuse it.
 
 FINAL FANTASY XIV © SQUARE ENIX CO., LTD. MitCue is a third-party tool and is not affiliated with or endorsed

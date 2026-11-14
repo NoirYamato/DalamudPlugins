@@ -34,6 +34,8 @@ mitcue import tests/fixtures/sheets/carry-the-clear --fight top --tabs "TOP – 
 mitcue check ctc-whm.yaml --job WHM --slot H1
 mitcue simulate ctc-whm.yaml --job WHM --push p2=2:10,p3=5:20 --miss Temperance
 mitcue plan plans/top-lpdu.yaml --job SCH --slot H2      # a bundled plan, as the plugin's H2 Scholar gets it
+mitcue import tests/fixtures/sheets/lpdu-tea --fight tea -o tea.yaml   # LPDU's TEA sheet: "/" read as "and"
+mitcue plan plans/tea-lpdu.yaml --job BRD                 # the "Phys Range" calls for BRD and its "Extras"
 ```
 
 `plans/` holds the plans bundled with the plugin (every `.yaml` there is built into MitCue.Core), so write your own
@@ -64,7 +66,16 @@ Notes:
   (`--job SCH --assignee "H2 SCH"`: slot H2, 31 entries; a `--slot` naming another slot is not used, with a
   note), and other columns' calls apply as above (for that slot, or for the job in the column's composition's
   other tabs); `--assignee "*"` takes every column for the job and slot (the note then lists the columns whose
-  entries apply).
+  entries apply). A column for a role holds calls per job of the role, and calls in no column are for the jobs
+  they name, whatever the column: on `plans/tea-lpdu.yaml`, `--job BRD` (no `--slot` needed) gets the Bard's
+  calls in "Phys Range" ("Caster" for the casters) and in "Extras" (Nature's Minne), and `--job PLD` gets the
+  "Extras" calls "PLD Wings" in either seat. That plan's tank calls are per job in the seats "Tank 1" (MT) and
+  "Tank 2" (OT), so `--job PLD` without `--slot` reads slot MT.
+- `import --slashes auto|or|and` sets what "X/Y" between two actions of one job means: `or` either one (LPDU
+  TOP's "TBN/Oblation"), `and` all of them, like "+" (LPDU TEA's "Soil/Reci/Deploy/Whisper"). `auto`, the
+  default, reads "and" when no cell joins actions another way ("+", ",", "&", an arrow, " / " or a line
+  break) and two or more cells list several actions of one job with "/", three or more in one; the
+  `slash-reading` diagnostic says which reading was used and why.
 - Plans are read as the plugin reads them: slot synonyms (`T1`/`T2`, `ST`, `D1`-`D4`) become the standard slots,
   and an entry with no job in a column with a job gets that job (a job-less call in "H1 AST" is the Astrologian's).
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss

@@ -119,6 +119,9 @@ tests/fixtures/sheets/
   carry-the-clear/<tab>.json            3 tabs, "Carry the Clear: TOP Healing Plan"
   carry-the-clear/export/carry-the-clear.xlsx
   carry-the-clear/export/csv/<tab>.csv
+  lpdu-tea/<tab>.json       2 tabs, "[LPDU] TEA Heal/Mit" (added 2026-11-14, captured the same way)
+  lpdu-tea/export/lpdu-tea.xlsx
+  lpdu-tea/export/csv/<tab>.csv
 ```
 
 `<tab>` = tab name in lower case, with every run of characters outside `[a-z0-9]` replaced by `-` and
@@ -144,10 +147,13 @@ directory holds only tab JSON files plus the `export/` subfolder, so
 | `carry-the-clear/top-white-mage.json` | TOP – White Mage | 777100 | 0 | 68×5 | 8 | 0–4 |
 | `carry-the-clear/top-scholar.json` | TOP – Scholar | 777200 | 1 | 68×5 | 8 | 0–4 |
 | `carry-the-clear/top-whm-sch.json` | TOP – WHM + SCH | 777300 | 2 | 68×5 | 8 | 0–4 |
+| `lpdu-tea/ll-bjcc.json` | LL/BJCC | 1511755464 | 0 | 56×13 | 230 | – |
+| `lpdu-tea/alex-prime-pa.json` | Alex Prime/PA | 1867243471 | 1 | 47×13 | 180 | – |
 
 Totals: LPDU has 1,143 cells (513 with a value, 5 with rich text). Carry the Clear has 1,020 cells
 (676 with a value, 24 with rich text). Neither sheet has notes, strikethrough or formulas.
 LPDU has one numeric cell. Sheet locales are `en_GB` (LPDU) and `en_US` (Carry the Clear).
+LPDU's TEA sheet has 1,339 cells (254 with a value), with no rich text, notes or strikethrough.
 
 ### 2.2 JSON format
 
@@ -261,6 +267,12 @@ and passed to `python3 -I normalize_sheets.py <file> <out-dir>`. The script also
   D = `White Mage` (`#ebd2d3`), E = `Notes` (`#e0cfc1`) and no counts column. Row 16 holds `Damage Events`
   (A16) and the phase title (B16). Header cells C15:C16, D15:D16 and E15:E16 are merged. Rows 1–5 and
   columns I–U are hidden and empty.
+- **LPDU TEA:** each tab holds a table per phase, each under a phase title merged over the player columns
+  (`P2: Brute Justice / Cruise Chaser`, D28:L30) and its own header row, so one tab has two header rows. The
+  player headers are filled by role (tanks `#c9daf8`, healers `#d9ead3`, melee `#f4cccc`, ranged `#b4a7d6`,
+  `Extras` `#f9cb9c`). Label, header and assignment cells are merged with the row below them (most of the 230
+  and 180 merges). There is no grey text: optional calls are in brackets (`(Shake)`), and a remark about a cell is
+  a cell of its own below it (`(^on LL)`). Row labels and their mechanics: `docs/research/mechanics.md` §6.1.
 
 ---
 

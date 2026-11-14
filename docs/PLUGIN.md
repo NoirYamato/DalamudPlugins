@@ -84,7 +84,7 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `ImportPipeline` | `Import/ImportPipeline.cs` | The slow steps: download and read a link, read pasted cells, the trial import, the import, read plan YAML. Every failure becomes a message for the player |
 | `GoogleLinks`, `SheetFetcher` | `Import/` | Parse the Google Sheets and Docs links people paste and download their exports from `docs.google.com`: 20 s time limit, 25 MB cap, cancellable. A sign-in page instead of the file means the file is not shared |
 | `DocHtmlReader`, `DocTextReader` | `Import/` | Google Docs: the web page export (each table becomes a tab, the other paragraphs a "Text" tab), or the plain-text export when the page is too large or too slow |
-| `ImportAnalysis`, `TrialImportTracker` | `Import/` | The Options step's trial import: tabs, columns and entry counts, and the tabs and columns ticked by default |
+| `ImportAnalysis`, `TrialImportTracker` | `Import/` | The Options step's trial import: tabs, columns and entry counts (the calls of a column for anyone, such as "Extras", counted apart: always imported), and the tabs and columns ticked by default |
 | `ReviewModel`, `ReviewValidator` | `Import/` | The review's rows, edits and undo; the checks of each entry (unknown mechanics or actions, actions the job can't use at the sync level, missing who, odd offsets) |
 | `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, how many entries the overlay will show (in the player's party and slot, as the overlay chooses), and which of the player's calls the choice leaves out, by column |
 | `LlmPrompt`, `SheetText` | `Import/` | The AI prompt: the plan format and rules, the fight's mechanics, the chosen jobs' actions and aliases, and the loaded sheet as text. Reads the YAML out of the AI's answer |
@@ -144,12 +144,14 @@ to it, or jumps for phase pushes. In TOP, the phases are entered through these s
 | P6 | `Ability 7F72` (the Blind Faith hit) | 1100.0 |
 
 TEA's phases also start on syncs MitCue sees: `Ability 4830` (Hawk Blaster) at 200.0, `StartsUsing 485A`
-(Temporal Stasis) at 492.0 and `Ability 4A8B` at 900.0. In DMU, cactbot syncs the P2 (297.4) and P4 (1087.7)
-starts only on `ActorControl` lines, which MitCue does not see. `data/fights/dmu.yaml` therefore adds two
-fallback syncs (`timeline_additions`, appended to the timeline when it loads): `StartsUsing C24C` (Ultimate
-Embrace) at 315.1 for P2 and `StartsUsing C2DC` (Kefka Says) at 1095.0 for P4. They are derived from cast
-data and have not been checked against logs yet. DMU's P3 (597.0) and P5 (1355.6) are entered through
-cactbot's own jumps.
+(Temporal Stasis) at 492.0 and `Ability 4A8B` at 900.0. cactbot folds the J Waves of TEA's P3 DPS check into
+one entry, so `data/fights/tea.yaml` adds a sync per wave (`timeline_additions`, appended to the timeline when
+it loads): `Ability 4877` every 3 s from 710.9 to 755.9, each with a window of 1.4 s either way, the anchors
+of LPDU's "Jwaves (N)" rows. They are timed from BossMod and have not been checked against logs yet. In DMU,
+cactbot syncs the P2 (297.4) and P4 (1087.7) starts only on `ActorControl` lines, which MitCue does not see.
+`data/fights/dmu.yaml` therefore adds two fallback syncs: `StartsUsing C24C` (Ultimate Embrace) at 315.1 for
+P2 and `StartsUsing C2DC` (Kefka Says) at 1095.0 for P4. They are derived from cast data and have not been
+checked against logs yet. DMU's P3 (597.0) and P5 (1355.6) are entered through cactbot's own jumps.
 
 ### 1.5 Sessions, pulls and reminders
 
@@ -161,18 +163,21 @@ Status line says what is missing.
 empty value means "no plan"). Without a choice it is automatic: the bundled plan meant for the job
 (`PlanStore.BundledDefaults`, by plan id: `top/WHM` → *NoirMit - WHM*, `top/SCH` → *LPDU TOP Mitigation*, so
 *Carry the Clear - SCH*, first by name, is never automatic), else the first bundled plan for the job by
-name, else the player's first own plan for the fight that has a column or entries for the job (TEA and DMU
-ship no plans). A choice of a plan that is gone (*Carry the Clear – WHM + SCH*, bundled in 0.1.0.1 only)
-counts as automatic. An imported plan replaces a bundled plan only when chosen: the import window's **Make
-it my active plan …**, the Plans tab's **Make an imported share code my active plan as …**
-(`PlanStore.ImportShareCode` with the current job; it sets the plan only when it has calls for that job,
-counted by `PlanStore.CallsFor` as the overlay would select them; for a sheet whose calls for the job are
-only in other slots' job-less columns, its message names those slots and says to choose the plan and then
-the slot's column, or, only while **My usual party slot** is not set at all, to set it first: the message
-reads the setting itself, so a usual slot of another role, which the column below does not use, also gets
-the column hint and the player's main job keeps its slot), or the **Active plan** combo. A
-share code of a bundled plan has that plan's id and takes its place, so it stays the automatic plan of the
-job the bundled plan is meant for.
+name, else the player's first own plan for the fight that has a column or entries for the job. In TEA that
+is *LPDU TEA Heal/Mit*, the only bundled plan, with no `BundledDefaults` entry: the plan of every job it names
+(`PlanStore.JobsOf`, the jobs of its columns and entries), which is every job but the melee jobs other than
+the Monk (the "Melee 1" and "Melee 2" columns name no job; the Monk's Mantra calls under "Extras" do). A TEA
+plan the player imported without making it active gives way to it. DMU ships no plan. A choice of a plan
+that is gone (*Carry the Clear – WHM + SCH*, bundled in 0.1.0.1 only) counts as automatic. An imported plan
+replaces a bundled plan only when chosen: the import window's **Make it my active plan …**, the Plans tab's
+**Make an imported share code my active plan as …** (`PlanStore.ImportShareCode` with the current job; it
+sets the plan only when it has calls for that job, counted by `PlanStore.CallsFor` as the overlay would
+select them; for a sheet whose calls for the job are only in other slots' job-less columns, its message names
+those slots and says to choose the plan and then the slot's column, or, only while **My usual party slot** is
+not set at all, to set it first: the message reads the setting itself, so a usual slot of another role,
+which the column below does not use, also gets the column hint and the player's main job keeps its slot), or
+the **Active plan** combo. A share code of a bundled plan has that plan's id and takes its place, so it stays
+the automatic plan of the job the bundled plan is meant for.
 
 **The column.** `PlanStore.MappingFor` takes the column chosen for that plan and job. Without a choice it
 uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
@@ -185,28 +190,31 @@ job's role that its calls name (`SeatOfCalls`), passing over a slot the party gi
 (`PartySeats`: the one party job whose calls are all in it): a Red Mage gets "any column for my job in slot
 R1", 9 entries, or R2 next to a Bard, 13; *(any column for my job)* still shows both (22). Calls that name
 no job give no slot: LPDU's melee jobs, whose calls are in the job-less "M1" and "M2", get none of them
-without the usual slot (M1 or M2) or a chosen column. Any column, chosen or suggested, also shows other
-columns' calls for the player's slot that are for their job, or for no job when the slot is one of the
-job's role (`PlanSelection.Applies`); an entry with no job in a column with a job is that job's (every plan
-reader gives it the column's job: `PlanNormalizer.JobsFromColumns`). When the job's calls are in several of
-its columns (one per phase or per tab), it suggests the narrowest choice that has them all and no call of
-another column (`Complete`: "any column for my job in my slot", or one of the player's columns). Columns for
-team compositions (keys naming two or more jobs, also the xlsx form "WARDRK WAR": `IsComposition`) are
-alternatives, never combined; one composition split over per-phase tabs ("WHM/SCH P1 WHM" and "WHM/SCH P3
-WHM") is one seat (`SameComposition`). One of them counts with the job's other columns when it adds calls at
-other mechanics (a general tab and one pair tab), not when it repeats them, whichever tab comes first
-(Carry the Clear's combined tab next to its White Mage tab: an import of every tab stays at 57 and 69
-entries; with the combined tab first, the White Mage and the Scholar get its columns, 58 and 69 entries,
-and the job tabs' copies of those calls are not added). Without a saved choice, the live session, the
-preview, the import's Save step and the Plans tab's row for the current job take the alternative with the
-party's co-tank (a Warrior next to a Paladin: "WAR/PLD WAR", a Paladin next to a Dark Knight: "DRK/PLD
-PLD"), or, when the party plays none of them, the job's first column that is no composition (with Carry the
-Clear's combined tab first, "White Mage" for a White Mage next to a Sage); outside a party, and in the CLI,
-which knows none, the first. On the bundled LPDU plan the H2 Scholar gets "H2 SCH": 31 entries, including
-the job-less "H2" calls of P1 and P2 (the H1 White Mage gets "H1 WHM", 11). A Warrior gets "WAR/DRK WAR"
-outside a party, with the "MT" or "OT" calls for WAR and for any tank (Reprisal, Rampart): 35 entries in
-MT, 28 in OT, 9 without a slot (Dark Knight, Gunbreaker, Paladin: 34, 27, 8). The "CM LB Tank" and
-"CM Rep Tank" columns are left out: tanks pick them in the Plans tab.
+without the usual slot (M1 or M2) or a chosen column, and the same goes for the TEA plan's job-less "Melee 1"
+and "Melee 2". On that plan, whose tank calls are per job in the seats "Tank 1" (MT) and "Tank 2" (OT), a
+tank without the usual slot gets MT; the calls of its role columns "Phys Range" and "Caster" name no slot,
+so their jobs get "any column for my job", all of them; and its "Extras" calls, in no column, apply
+whatever the column. Any column, chosen or suggested, also shows other columns' calls for the player's slot
+that are for their job, or for no job when the slot is one of the job's role (`PlanSelection.Applies`); an
+entry with no job in a column with a job is that job's (every plan reader gives it the column's job:
+`PlanNormalizer.JobsFromColumns`). When the job's calls are in several of its columns (one per phase or per
+tab), it suggests the narrowest choice that has them all and no call of another column (`Complete`: "any
+column for my job in my slot", or one of the player's columns). Columns for team compositions (keys naming two
+or more jobs, also the xlsx form "WARDRK WAR": `IsComposition`) are alternatives, never combined; one
+composition split over per-phase tabs ("WHM/SCH P1 WHM" and "WHM/SCH P3 WHM") is one seat (`SameComposition`).
+One of them counts with the job's other columns when it adds calls at other mechanics (a general tab and one
+pair tab), not when it repeats them, whichever tab comes first (Carry the Clear's combined tab next to its
+White Mage tab: an import of every tab stays at 57 and 69 entries; with the combined tab first, the White Mage
+and the Scholar get its columns, 58 and 69 entries, and the job tabs' copies of those calls are not added).
+Without a saved choice, the live session, the preview, the import's Save step and the Plans tab's row for the
+current job take the alternative with the party's co-tank (a Warrior next to a Paladin: "WAR/PLD WAR", a
+Paladin next to a Dark Knight: "DRK/PLD PLD"), or, when the party plays none of them, the job's first column
+that is no composition (with Carry the Clear's combined tab first, "White Mage" for a White Mage next to a
+Sage); outside a party, and in the CLI, which knows none, the first. On the bundled LPDU plan the H2 Scholar
+gets "H2 SCH": 31 entries, including the job-less "H2" calls of P1 and P2 (the H1 White Mage gets "H1 WHM",
+11). A Warrior gets "WAR/DRK WAR" outside a party, with the "MT" or "OT" calls for WAR and for any tank
+(Reprisal, Rampart): 35 entries in MT, 28 in OT, 9 without a slot (Dark Knight, Gunbreaker, Paladin: 34, 27,
+8). The "CM LB Tank" and "CM Rep Tank" columns are left out: tanks pick them in the Plans tab.
 
 **The co-healer's calls.** With **Also show my co-healer's calls** on, `PartnerSelection` adds the entries
 that are not the player's, from the player's role group (tank, healer or DPS), but not those for the player's
@@ -288,11 +296,12 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
 
 - **Plan.** The plan and column the live session would use for the current job in the current party (of a
   job's tank pairs, the one with the party's co-tank; outside a party, the first). Without one (a crafter;
-  in TOP, a melee job without a chosen plan), the first plan for the fight (user plans first, then bundled,
-  each by name), as the job of the column saved for it, else as its first job: in TOP without user plans,
-  *Carry the Clear - SCH* as SCH. The co-healer's calls are chosen as in §1.5; the party is used only when
-  the preview plays the current job, so outside a party, or as another job, no column is left out for a job
-  nobody in the party plays (LPDU's "H1 AST" shows for the Scholar).
+  in TOP, a melee job without a chosen plan; in TEA, such a job other than the Monk), the first plan for the
+  fight (user plans first, then bundled, each by name), as the job of the column saved for it, else as its
+  first job: in TOP without user plans, *Carry the Clear - SCH* as SCH; in TEA, *LPDU TEA Heal/Mit* as SCH.
+  The co-healer's calls are chosen as in §1.5; the party is used only when the preview plays the current
+  job, so outside a party, or as another job, no column is left out for a job nobody in the party plays
+  (LPDU's "H1 AST" shows for the Scholar).
 - **Clock.** The pull happens at simulated clock 1000. A whole-fight preview starts 10 s earlier, with a
   simulated countdown. A phase preview starts 2 s before the pull, without a countdown. It drops the earlier
   phases' events, so P1 starts at the pull and the chosen phase begins 2 s after it, where the phase's own
@@ -319,16 +328,25 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
      the export's names. A doc is read from its web page export, or from its plain-text export when the page
      is too large or too slow (it inlines every image).
    - *Paste cells*: `ImportPipeline.LoadPasted` reads tab- or comma-separated text, one tab per paste; **Add
-     as another tab** adds the next tab to the same document.
+     as another tab** adds the next tab to the same document. A paste with the header rows of several tabs
+     gets a warning to paste one tab at a time (`SeveralTabsWarning`); a header row that names the same
+     columns in the same places as the one before it (LPDU's TEA tabs repeat theirs for each phase) starts no
+     other tab, as the rows below it are read against the same columns.
    - *Paste plan YAML (AI route)*: **Copy AI prompt** puts `LlmPrompt.Build`'s prompt on the clipboard: the
      plan format and rules, the fight's mechanics, the chosen jobs' actions at the sync level and their
      aliases, and, when a sheet is loaded and *Include the text of …* is ticked, its chosen tabs as text
      (`SheetText`). **Check the YAML and review** reads the answer (`ImportPipeline.ParseYaml`: the YAML block
      of the answer, `PlanSerializer.FromYaml`, `ReviewValidator.Repair`) and goes straight to the review.
 2. **Options.** A trial import of every tab and column (`ImportPipeline.Analyze` → `ImportAnalysis`, once per
-   source and fight, `TrialImportTracker`) fills the tab and column lists and ticks the player's. **Import
-   and review** runs the core `PlanImporter` with the chosen fight, tabs, columns, plan name and calibration
-   preset.
+   source and fight, `TrialImportTracker`) fills the tab and column lists and ticks the player's. A column
+   for anyone ("Extras", "Other", "Misc", "Utility": `ImportResult.AnyoneColumns`) is no column to choose:
+   its calls, entries for the jobs they name with no assignee, are counted apart (`TabStats.AnyoneEntries`)
+   and listed as *Always imported: Extras - N calls for the jobs they name*. **Slashes** sets what `X/Y`
+   between two actions of one job means (`ImportOptions.Slashes`): *(automatic)*, *either one
+   (TBN/Oblation)* or *all of them (Soil/Succor)*; the review lists the importer's `slash-reading` note with
+   the notes about the whole import. **Import and review** runs the core `PlanImporter` with the chosen
+   fight, tabs, columns, plan name, calibration preset and slash reading; the trial import uses the same
+   options but every tab and column (`ImportWindow.OptionsFor`).
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
    checks, which run again after each edit. The player can change the mechanic, hit, offset, flags, target,
    note and items, and delete entries (with undo). Replacing a note with an action offers to remember it:
@@ -376,10 +394,10 @@ import, the import, reading YAML) run through `BackgroundJobs`:
 ### 1.9 Data, files and packaging
 
 - **Embedded data.** `MitCue.Core.dll` contains `data/**` (fight catalogs, cactbot timelines, action data,
-  aliases) as `MitCue.data/...`, and `plans/**/*.yaml`, the three bundled TOP plans, as `MitCue.plans/...`.
-  **Reload data** in the Debug tab stops a running preview and drops the fight data, actions and aliases;
-  the next tick loads them again. It does not rebuild the live session (§1.5), so a running pull carries on.
-  It does not touch plans: **Plans** > **Reload plans** re-reads them.
+  aliases) as `MitCue.data/...`, and `plans/**/*.yaml`, the bundled plans (three for TOP, one for TEA), as
+  `MitCue.plans/...`. **Reload data** in the Debug tab stops a running preview and drops the fight data,
+  actions and aliases; the next tick loads them again. It does not rebuild the live session (§1.5), so a
+  running pull carries on. It does not touch plans: **Plans** > **Reload plans** re-reads them.
 - **Files.** Settings are in `pluginConfigs/MitCue.json`. User plans are in `pluginConfigs/MitCue/plans/`.
   Recordings are in `pluginConfigs/MitCue/recordings/`. See [INSTALL.md](INSTALL.md#where-mitcue-keeps-its-files).
 - **Package.** `src/MitCue/MitCue.csproj` uses `Dalamud.NET.Sdk/15.0.0`. DalamudPackager turns the csproj
@@ -415,9 +433,9 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
 - [ ] The **Status** line makes sense for where you are. In town: *No supported fight in this zone (…)*, also
       right after a game start or a plugin reload.
 - [ ] **Debug** > *Data*: `fights: dmu (territory 1363, level 100, 5 phases, 63 mechanics), tea (territory
-      887, level 80, 4 phases, 61 mechanics), top (territory 1122, level 90, 6 phases, 79 mechanics)`,
-      `action catalog: loaded; aliases: loaded` and `plans: 3 (0 user) in …` (before any import).
-- [ ] **Plans** lists the three bundled plans, marked *bundled, google-sheet*. In *Active plan per fight and
+      887, level 80, 4 phases, 83 mechanics), top (territory 1122, level 90, 6 phases, 79 mechanics)`,
+      `action catalog: loaded; aliases: loaded` and `plans: 4 (0 user) in …` (before any import).
+- [ ] **Plans** lists the four bundled plans, marked *bundled, google-sheet*. In *Active plan per fight and
       job*, with **My usual party slot** set to your seat (H1 as White Mage, H2 as Scholar; for the Scholar,
       no slot gives the same result):
   - [ ] as White Mage, the TOP / WHM row: *(automatic) NoirMit - WHM*, column *(suggested) White Mage
@@ -426,7 +444,9 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
         SCH)*. *Carry the Clear - SCH* is in the **Active plan** list but never automatic: choosing it shows
         column *(suggested) Scholar (SCH)*; then set the row back to *(automatic: the bundled plan for this
         job, else my own plan for it)*;
-  - [ ] the TEA and DMU rows for your current job: *(automatic: none)*.
+  - [ ] the TEA rows: as White Mage, *(automatic) LPDU TEA Heal/Mit*, column *(suggested) White Mage (WHM)*;
+        as Scholar, *(automatic) LPDU TEA Heal/Mit*, column *(suggested) Scholar (SCH)*;
+  - [ ] the DMU row for your current job: *(automatic: none)*.
 - [ ] **General** > **Test** plays the sound. Try two different *Sound effect* numbers.
 - [ ] Untick **Track done/missed**: **Print a done/missed summary after each pull** is greyed out. Tick it
       again.
@@ -459,8 +479,11 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       missed …`, then *Preview finished.*
 - [ ] `/mitcue preview` while a preview runs prints *Preview stopped.*, and the overlay goes back to what it
       showed before (usually nothing).
-- [ ] `/mitcue preview tea` says *No plan for The Epic of Alexander (Ultimate). Import one in /mitcue >
-      Plans.*
+- [ ] `/mitcue preview tea` plays *LPDU TEA Heal/Mit*: as White Mage `"LPDU TEA Heal/Mit" as WHM, column
+      "White Mage"`, as Scholar `"LPDU TEA Heal/Mit" as SCH, column "Scholar"`. With `/mitcue preview tea
+      p3`, the DPS check's calls show their J Wave as the mechanic: the sheet's *Jwaves (4)* row is *J Wave 5
+      (Brute Justice at 4 Damage Up stacks)*.
+- [ ] `/mitcue preview dmu` says *No plan for Dancing Mad (Ultimate). Import one in /mitcue > Plans.*
 - [ ] **Overlay** tab:
   - [ ] dragging works and the position is kept after a reload;
   - [ ] **Lock position** stops dragging;
@@ -505,11 +528,18 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       your job.
 - [ ] Import the same sheet again: **Save** offers **Save as** *replace "…"*.
 - [ ] **Paste cells**: copy one tab's cells (with the header row) in Google Sheets, **Paste from clipboard**,
-      **Read the cells**; then another tab and **Add as another tab**. Pasting two tabs at once warns about
-      several header rows.
+      **Read the cells**; then another tab and **Add as another tab**. Pasting two tabs with different
+      header rows at once (LPDU's P1/P2 and P3) warns about several header rows; one tab of LPDU's TEA sheet,
+      which repeats its header for each phase, gives no warning.
 - [ ] **AI route**: choose the fight and your job, **Copy AI prompt**, paste it into an AI chat with the plan,
       paste the answer back, **Check the YAML and review**. Unknown mechanics or actions show as errors in the
       review.
+- [ ] **Link** of LPDU's TEA sheet, **Fetch**, and in **Options** the fight *The Epic of Alexander
+      (Ultimate)*: the column list ends with *Always imported: Extras - N calls for the jobs they name*, and
+      **Slashes** shows *(automatic)*. **Import and review**: *Notes about the whole import* says that `/`
+      between actions of one job is read as 'and'. Set **Slashes** to *either one (TBN/Oblation)* and import
+      again: the note says 'either one', and the Scholar's `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13) is one
+      call with a choice of four actions instead of four actions. Close the window without saving.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
       **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan

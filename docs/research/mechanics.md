@@ -8,20 +8,21 @@ fixtures and readers in `docs/research/sheets-import.md`.
 | File | Content |
 |---|---|
 | `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), and the `carry_the_clear` calibration. Complete and verified. |
-| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 61 mechanics (3 markers), 153 aliases (21 unverified). First draft, no calibration. |
+| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), and 16 `timeline_additions` (the J Waves, §6.2). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
 | `data/fights/dmu.yaml` | Dancing Mad (Ultimate): 63 mechanics (1 marker), 145 aliases (12 unverified). First draft, no calibration. |
 
 ## 0. Results
 
 - **Timeline checks (all three files).**
-  - Every `hit`/`entry` pair is an entry of the cactbot timeline (same name, same time ±0.05 s).
+  - Every `hit`/`entry` pair is an entry of the cactbot timeline (same name, same time ±0.05 s), or of the fight
+    file's `timeline_additions` (TEA's J Waves, §6.2).
   - Every value in `hits` is the time of a timeline entry.
   - `hits[0] == hit`, and `hits` is ascending and has no duplicates.
   - Every hit lies inside its mechanic's phase (`PhaseAt(hit) == phase`).
   - Ids are unique and carry their phase as a prefix, and mechanics are ordered by `hit`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
-    sync_level, timeline, phases, mechanics, calibration`; phases `id, name, start`; mechanics `id, name, phase,
-    hit, hits, entry, kind, aliases`.
+    sync_level, timeline, phases, mechanics, calibration` (DMU and TEA also `timeline_additions`); phases `id, name,
+    start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`.
 - **TOP sheet coverage.**
   - All 47 mechanic rows of Carry the Clear map to a TOP mechanic. Their columns A and B are identical in the three
     tabs.
@@ -32,6 +33,8 @@ fixtures and readers in `docs/research/sheets-import.md`.
   - Every other row is a phase header, a notes row or empty (§4.4).
   - A simulated resolver (phase + alias + row order, §4.5) reproduces the intended mapping for every row of both
     sheets.
+- **TEA sheet coverage (2026-11-14).** All 32 labelled rows of LPDU's TEA sheet (2 tabs) map to a TEA mechanic,
+  each label an alias of it (§6.1); the importer resolves every one of them by phase, alias and row order.
 - **Carry the Clear calibration** (timeline seconds of sheet 0:00): `p1 0.9, p2 201.8, p3 399.4, p4 606.7, p5 714.7, p6 1099.3`.
   - **P1–P4:** the spread is 0.6–0.9 s. That is whole-second quantisation, not disagreement: one zero point fits
     every row of each phase exactly (§4.2).
@@ -67,6 +70,8 @@ fixtures and readers in `docs/research/sheets-import.md`.
 | Game data | xivapi/ffxiv-datamining `Action.csv`, `ContentFinderCondition.csv`, `TerritoryType.csv` (current English export) | action names, `Cast100ms`, `CastType`, `EffectRange`, sync levels |
 | LPDU TOP Mitigation Sheet | `1Dlnye-i7SZ0ZZ7TY7r8SKMu3nMj_PZI45zy2QqDzuCU`, all 13 tabs | row labels (the sheet has no times) |
 | Carry the Clear: TOP Healing Plan | `1chKttd7POMf-aRLMAzQjNHDIgVzOKmLk9igSt-o2X6s`, tabs `TOP – White Mage` (gid 777100), `TOP – Scholar` (777200), `TOP – WHM + SCH` (777300) | row labels and times ("FFLogs phase timer, checked against the #1 log") |
+| [LPDU] TEA Heal/Mit | `1D2AriiqGwEMWV-u_wGPRdeDCOKVO2xYQ_ms70RrJlwM`, tabs `LL/BJCC` and `Alex Prime/PA` (fixture `tests/fixtures/sheets/lpdu-tea`, captured 2026-11-14) | TEA row labels (the sheet has no times), §6.1 |
+| Community TEA guides | cited by name in the comments of `data/fights/tea.yaml` | who takes the player-timed damage of the doll feeds, mine soaks and crystal explosions, and how sheets count the J Waves (§6) |
 
 **How the sheets were read.**
 - Both spreadsheets were read in full with the Google Sheets MCP tools: `get_spreadsheet` for the tab list and
@@ -1001,6 +1006,8 @@ Details and fallbacks are in `docs/research/cactbot-timelines.md` §4.3, §5.2, 
     and it is inert per cactbot-timelines.md §4.3.
   - It is followed by `Ability 4830` (Hawk Blaster) at 200.0, window 200,0, which is enough.
   - P4 is entered by Perfect Alexander's first auto-attack (4A8B = 19083 in `Action.csv`) at 900.0, window 900,0.
+  - The J Waves of the P3 DPS check (4877) are part of one cactbot entry; `tea.yaml` adds an `Ability` sync per
+    wave (§6.2).
 - **TOP**: the `MapEffect` at the P2 start has the fallback above.
 
 ## 6. TEA (first draft)
@@ -1018,15 +1025,22 @@ Living Liquid`, `P2: BJ+CC`, `P3: Alex Prime`, `P4: Perfect Alex`):
 | p3 | P3: Alexander Prime (Temporal Stasis, Inception, Wormhole, DPS check) | 492.0 | StartsUsing 485A Temporal Stasis, window 500,0 |
 | p4 | P4: Perfect Alexander | 900.0 | Ability 4A8B (Perfect Alexander auto-attack), window 900,0 |
 
-Damage events kept: raidwides, tankbusters, multi-hits, stacks, the LB3 check and enrages.
+Damage events kept: raidwides, tankbusters, multi-hits, stacks, the LB3 check and enrages. Added when LPDU's TEA
+sheet was mapped (2026-11-14, §6.1): the untelegraphed Protean Wave sets the sheet numbers (`p1.protean_1/2`), the
+J Waves of the P3 DPS check one by one (`p3.j_wave_1..16`, §6.2), and three kinds of player-timed damage that have
+no timeline entry, each anchored on the fixed entry that marks it: the Jagd Doll feeds (Reducible Complexity, on
+cactbot's ignore line) on the second Exhaust, the Hidden Mine soaks on Enumeration, and the Judgment Crystal
+explosions (Tetrashatter) on the crystal drop.
 
 Left out:
-- **Dodges:** Protean Wave, Sluice, Rage Wave, Exhaust, Hawk Blaster puddles, Chakrams, Spin Crusher, Flarethrower
-  baits, Propeller Wind (line of sight), Judgment Crystal, Sacrament crosses, Radiant Sacrament, Almighty Judgment
-  exatrines.
+- **Dodges:** the telegraphed Protean Wave cones, Sluice, Rage Wave (but for the untelegraphed one at 115.1, a hit
+  of `p1.protean_2`), Exhaust (the second one anchors `p1.doll_feeds`), Hawk Blaster puddles, Chakrams, Spin
+  Crusher, Flarethrower baits, Propeller Wind (line of sight), Judgment Crystal (the drop anchors
+  `p3.inception_crystals`), Sacrament crosses, Radiant Sacrament, Almighty Judgment exatrines.
 - **Casts that apply debuffs or check positions without damage on success:** Throttle (`Liquid Gaol`), Judgment
-  Nisi, Link-Up, Enumeration (BossMod: "does nothing on success"), Plaint of Surety, The Final Word, Ordained
-  Motion/Stillness.
+  Nisi, Link-Up, Enumeration (BossMod: "does nothing on success"; it anchors `p2.hidden_mines`), Plaint of Surety,
+  The Final Word, Ordained Motion/Stillness. Gavel is one too, but stays a mechanic (kind `other`) because LPDU's
+  sheet has a row for it.
 
 | id | kind | hit | hits | entry (sync) | Action.csv: name (cast time, EffectRange) | aliases |
 |---|---|---|---|---|---|---|
@@ -1036,27 +1050,31 @@ Left out:
 | `p1.hand_1` | raidwide | 35.8 | 35.8 | Hand of Prayer/Parting (Ability) | 482B Hand of Prayer (0 s, r80); 482C Hand of Parting (0 s, r80) | Hand of Prayer/Parting, Hand of Parting/Prayer, Hand of Prayer, Hand of Parting |
 | `p1.fluid_swing_2` | tankbuster | 37.7 | 37.7 | Fluid Swing (Ability) | 49B0 Fluid Swing (0 s, r8) | Fluid Swing, Fluid Strike, Fluid Swing 2, Cleaves (unverified) |
 | `p1.hand_of_pain_1` | raidwide | 42.8 | 42.8 | Hand of Pain (Ability) | 482D Hand of Pain (3 s, r80) | Hand of Pain, Hand of Pain 1 |
+| `p1.doll_feeds` | raidwide | 50.3 | 50.3 | Exhaust (Ability) | 481E Exhaust (0 s, r8); the feeds: 4820 Reducible Complexity (0 s, r50) | Doll Feeds, Doll Feed, Feed Dolls, Dolls, Jagd Dolls, Jagd Doll, Reducible Complexity, Feeds (unverified) |
 | `p1.fluid_swing_3` | tankbuster | 56.7 | 56.7 | Fluid Swing (Ability) | 49B0 Fluid Swing (0 s, r8) | Fluid Swing, Fluid Strike, Fluid Swing 3 |
 | `p1.hand_of_pain_2` | raidwide | 70.0 | 70.0 | Hand of Pain (Ability) | 482D Hand of Pain (3 s, r80) | Hand of Pain, Hand of Pain 2 |
-| `p1.splash_1` | multihit | 81.1 | 81.1 | Splash x6 (unsynced) |  | Splash, Splash x6, Splash 1 |
+| `p1.protean_1` | spread | 71.9 | 71.9, 75.0 | Protean Wave 2 (Ability) | 4823 Protean Wave (0 s, r40); 4825 Protean Wave (0 s, r40) | Protean 1, Proteans 1, Protean Waves 1, Protean, Proteans |
+| `p1.splash_1` | multihit | 81.1 | 81.1 | Splash x6 (unsynced) |  | Splash, Splash x6, Splash 1, Splashes |
 | `p1.drainage` | tankbuster | 86.6 | 86.6 | Drainage (Ability) | 4827 Drainage (0 s, r6) | Drainage |
 | `p1.hand_of_pain_3` | raidwide | 89.1 | 89.1 | Hand of Pain (Ability) | 482D Hand of Pain (3 s, r80) | Hand of Pain, Hand of Pain 3 |
 | `p1.cascade_2` | raidwide | 91.7 | 91.7 | Cascade (Ability) | 4826 Cascade (4 s, r80) | Cascade, Cascade 2 |
 | `p1.hand_of_pain_4` | raidwide | 109.0 | 109.0 | Hand of Pain (Ability) | 482D Hand of Pain (3 s, r80) | Hand of Pain, Hand of Pain 4 |
+| `p1.protean_2` | spread | 109.1 | 109.1, 112.1, 115.1 | Protean Wave 2 (Ability) | 4823, 4825 Protean Wave (0 s, r40); 49B6 Protean Wave (0 s, r40) | Protean 2, Proteans 2, Protean Waves 2, Protean, Proteans |
 | `p1.hand_2` | raidwide | 124.2 | 124.2 | Hand of Prayer/Parting (Ability) | 482B Hand of Prayer (0 s, r80); 482C Hand of Parting (0 s, r80) | Hand of Prayer/Parting, Hand of Parting/Prayer, Hand of Prayer, Hand of Parting |
-| `p1.splash_2` | multihit | 127.4 | 127.4 | Splash x6 (unsynced) |  | Splash, Splash x6, Splash 2 |
+| `p1.splash_2` | multihit | 127.4 | 127.4 | Splash x6 (unsynced) |  | Splash, Splash x6, Splash 2, Splashes |
 | `p1.hand_of_pain_5` | raidwide | 129.3 | 129.3 | Hand of Pain (Ability) | 482D Hand of Pain (3 s, r80) | Hand of Pain, Hand of Pain 5 |
 | `p1.fluid_swing_4` | tankbuster | 134.1 | 134.1 | Fluid Swing (Ability) | 49B0 Fluid Swing (0 s, r8) | Fluid Swing, Fluid Swing 4 |
 | `p1.cascade_enrage` | enrage | 142.1 | 142.1 | Cascade Enrage (Ability) | 49B3 Cascade (4 s, r80) | Cascade Enrage, P1 Enrage |
 | `p2.limit_cut` | multihit | 207.4 | 207.4, 208.9, 212.1, 213.6, 216.8, 218.3, 221.4, 222.9 | #1 Alpha Sword (Ability) | 4834 Alpha Sword (0 s, r25) | Limit Cut, LC (unverified) |
-| `p2.j_kick` | raidwide | 226.1 | 226.1 | J Kick (Ability) | 4854 J Kick (0 s, r80) | J Kick |
+| `p2.j_kick` | raidwide | 226.1 | 226.1 | J Kick (Ability) | 4854 J Kick (0 s, r80) | J Kick, JKick |
 | `p2.whirlwind_1` | raidwide | 238.3 | 238.3 | Whirlwind (Ability) | 49C2 Whirlwind (4 s, r50) | Whirlwind, Whirlwind 1 |
 | `p2.photon_1` | raidwide | 262.5 | 262.5 | Photon (Ability) | 4836 Photon (3 s, r0) | Photon, Photon 1 |
-| `p2.water_thunder_1` | stack | 277.3 | 277.3 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 1, Water/Lightning 1 (unverified) |
-| `p2.water_thunder_2` | stack | 306.7 | 306.7 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 2, Water/Lightning 2 (unverified) |
+| `p2.water_thunder_1` | stack | 277.3 | 277.3 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 1, Water/Lightning 1 (unverified), Water 1, Water |
+| `p2.hidden_mines` | tankbuster | 292.7 | 292.7 | Enumeration (Ability) | 4850 Enumeration (0 s, r5); the soaks: 4852 Hidden Mine (0 s, r8) | Mines, Hidden Mines, Hidden Mine, Hidden Minefield, Mine Soaks |
+| `p2.water_thunder_2` | stack | 306.7 | 306.7 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 2, Water/Lightning 2 (unverified), Water 2, Water |
 | `p2.whirlwind_2` | raidwide | 327.6 | 327.6 | Whirlwind (Ability) | 49C2 Whirlwind (4 s, r50) | Whirlwind, Whirlwind 2 |
-| `p2.water_thunder_3` | stack | 336.2 | 336.2 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 3, Water/Lightning 3 (unverified) |
-| `p2.gavel` | raidwide | 356.5 | 356.5 | Gavel (Ability) | 483C Gavel (5 s, r80) | Gavel |
+| `p2.water_thunder_3` | stack | 336.2 | 336.2 | Water and Thunder (Ability) | 4841 Crashing Thunder (0 s, r8) | Water and Thunder, Water and Thunder 3, Water/Lightning 3 (unverified), Water 3, Water |
+| `p2.gavel` | other | 356.5 | 356.5 | Gavel (Ability) | 483C Gavel (5 s, r80) | Gavel, Gavel Lineup |
 | `p2.photon_2` | raidwide | 366.8 | 366.8 | Photon (Ability) | 4836 Photon (3 s, r0) | Photon, Photon 2 |
 | `p2.double_rocket_punch` | tankbuster | 374.8 | 374.8 | Double Rocket Punch (Ability) | 4847 Double Rocket Punch (4 s, r3) | Double Rocket Punch, DRP (unverified) |
 | `p2.super_jump` | other | 382.1 | 382.1, 384.4 | Super Jump (Ability) | 484A Super Jump (0 s, r10) | Super Jump, Apocalyptic Ray |
@@ -1067,29 +1085,47 @@ Left out:
 | `p3.temporal_stasis` | mixed | 503.1 | 503.1, 505.1, 505.2, 506.1, 507.2, 507.4 | Surety and Severity (Ability) | 4861 Plaint of Severity (0 s, r0) | Temporal Stasis, TS (unverified) |
 | `p3.chastening_heat_1` | tankbuster | 521.5 | 521.5 | Chastening Heat (Ability) | 4A80 Chastening Heat (5 s, r5) | Chastening Heat, Chastening Heat 1 |
 | `p3.divine_spear_1` | tankbuster | 524.6 | 524.6, 526.7, 528.8 | Divine Spear 1 (unsynced) | 4A82 Divine Spear (0 s, r17) | Divine Spear, Divine Spear 1 |
+| `p3.inception_crystals` | raidwide | 558.2 | 558.2 | Judgment Crystal + True Heart (Ability) | 485C Judgment Crystal (0 s, r5); the explosions: 4A88 Tetrashatter (0 s, r80) | Inception (Crystals Boom), Crystals Boom, Crystals, Judgment Crystals, Judgment Crystal, Tetrashatter |
 | `p3.inception` | mixed | 589.1 | 589.1, 595.3, 596.4, 597.5, 598.3 | Surety, Solidarity and Severity (Ability) | 4861 Plaint of Severity (0 s, r0) | Inception, Inception Formation |
 | `p3.chastening_heat_2` | tankbuster | 610.9 | 610.9 | Chastening Heat (Ability) | 4A80 Chastening Heat (5 s, r5) | Chastening Heat, Chastening Heat 2 |
 | `p3.divine_spear_2` | tankbuster | 616.0 | 616.0, 618.1, 620.2 | Divine Spear 1 (unsynced) | 4A82 Divine Spear (0 s, r17) | Divine Spear, Divine Spear 2 |
 | `p3.wormhole` | multihit | 650.9 | 650.9, 652.4, 653.3, 655.2, 655.6, 656.7, 659.5, 659.7, 660.8, 663.6, 664.0, 665.1 | Super Jump (Ability) | 484A Super Jump (0 s, r10) | Wormhole, Wormhole Formation, WH (unverified) |
-| `p3.incinerating_heat` | stack | 670.0 | 670.0 | Incinerating Heat (Ability) | 4A51 Incinerating Heat (5 s, r5) | Incinerating Heat |
+| `p3.incinerating_heat` | stack | 670.0 | 670.0 | Incinerating Heat (Ability) | 4A51 Incinerating Heat (5 s, r5) | Incinerating Heat, Post-Wormhole Stack, Wormhole Stack (unverified) |
 | `p3.mega_holy_1` | raidwide | 682.9 | 682.9 | Mega Holy (Ability) | 4A83 Mega Holy (4 s, r80) | Mega Holy, Mega Holy 1 |
 | `p3.mega_holy_2` | raidwide | 690.0 | 690.0 | Mega Holy (Ability) | 4A83 Mega Holy (4 s, r80) | Mega Holy, Mega Holy 2 |
-| `p3.j_storm` | multihit | 705.7 | 705.7 | J Storm + Waves x16 (Ability) | 4876 J Storm (0 s, r80) | J Storm, J Waves, J Storm + Waves, DPS Check (unverified) |
+| `p3.j_storm` | raidwide | 705.7 | 705.7 | J Storm + Waves x16 (Ability) | 4876 J Storm (0 s, r80) | J Storm, JKick, J Kick, J Storm + Waves, DPS Check (unverified) |
+| `p3.j_waves` | multihit | 710.9 | 710.9, 713.9, 716.9, 719.9, 722.9, 725.9, 728.9, 731.9, 734.9, 737.9, 740.9, 743.9, 746.9, 749.9, 752.9, 755.9 | J Wave 1 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Waves, Jwaves, J Wave, Jwave |
+| `p3.j_wave_1` | raidwide | 710.9 | 710.9 | J Wave 1 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 1, Jwaves (0), J Waves (0), J Wave (0), Jwave (0), Jwaves (0-3), J Waves (0-3), J Wave (0-3), Jwave (0-3), J Waves 0-3 |
+| `p3.j_wave_2` | raidwide | 713.9 | 713.9 | J Wave 2 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 2, Jwaves (1), J Waves (1), J Wave (1), Jwave (1) |
+| `p3.j_wave_3` | raidwide | 716.9 | 716.9 | J Wave 3 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 3, Jwaves (2), J Waves (2), J Wave (2), Jwave (2), After 2 stacks |
+| `p3.j_wave_4` | raidwide | 719.9 | 719.9 | J Wave 4 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 4, Jwaves (3), J Waves (3), J Wave (3), Jwave (3), After 3 stacks |
+| `p3.j_wave_5` | raidwide | 722.9 | 722.9 | J Wave 5 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 5, Jwaves (4), J Waves (4), J Wave (4), Jwave (4), After 4 stacks |
+| `p3.j_wave_6` | raidwide | 725.9 | 725.9 | J Wave 6 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 6, Jwaves (5), J Waves (5), J Wave (5), Jwave (5), After 5 stacks |
+| `p3.j_wave_7` | raidwide | 728.9 | 728.9 | J Wave 7 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 7, Jwaves (6), J Waves (6), J Wave (6), Jwave (6), After 6 stacks |
 | `p3.eternal_darkness` | enrage | 731.7 | 731.7 | Eternal Darkness Enrage (Ability) | 4875 Eternal Darkness (25 s, r100) | Eternal Darkness |
+| `p3.j_wave_8` | raidwide | 731.9 | 731.9 | J Wave 8 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 8, Jwaves (7), J Waves (7), J Wave (7), Jwave (7), After 7 stacks |
+| `p3.j_wave_9` | raidwide | 734.9 | 734.9 | J Wave 9 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 9, Jwaves (8), J Waves (8), J Wave (8), Jwave (8), After 8 stacks |
+| `p3.j_wave_10` | raidwide | 737.9 | 737.9 | J Wave 10 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 10, Jwaves (9), J Waves (9), J Wave (9), Jwave (9), After 9 stacks |
+| `p3.j_wave_11` | raidwide | 740.9 | 740.9 | J Wave 11 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 11, Jwaves (10), J Waves (10), J Wave (10), Jwave (10), After 10 stacks |
+| `p3.j_wave_12` | raidwide | 743.9 | 743.9 | J Wave 12 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 12, Jwaves (11), J Waves (11), J Wave (11), Jwave (11), After 11 stacks |
+| `p3.j_wave_13` | raidwide | 746.9 | 746.9 | J Wave 13 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 13, Jwaves (12), J Waves (12), J Wave (12), Jwave (12), After 12 stacks |
+| `p3.j_wave_14` | raidwide | 749.9 | 749.9 | J Wave 14 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 14, Jwaves (13), J Waves (13), J Wave (13), Jwave (13), After 13 stacks |
+| `p3.j_wave_15` | raidwide | 752.9 | 752.9 | J Wave 15 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 15, Jwaves (14), J Waves (14), J Wave (14), Jwave (14), After 14 stacks |
+| `p3.j_wave_16` | raidwide | 755.9 | 755.9 | J Wave 16 (Ability, `timeline_additions`) | 4877 J Wave (0 s, r80) | J Wave 16, Jwaves (15), J Waves (15), J Wave (15), Jwave (15), After 15 stacks |
 | `p3.alexander_down` | marker | 771.9 | 771.9 | Divine Judgment Enrage (Ability) | 4879 Divine Judgment (0 s, r0) | Alexander Prime Down |
-| `p3.divine_judgment` | lb_check | 787.3 | 787.3 | Divine Judgment (Ability) | 487A Divine Judgment (0 s, r80) | Divine Judgment, Tank LB3, DJ (unverified) |
+| `p3.divine_judgment` | lb_check | 787.3 | 787.3 | Divine Judgment (Ability) | 487A Divine Judgment (0 s, r80) | Divine Judgment, Tank LB3, DJ (unverified), Transition Raidwide |
 | `p4.start` | marker | 900.0 | 900.0 | --sync-- (Ability) | 4A8B (no name) (0 s, r0) | P4 Start |
-| `p4.optical_sight` | mixed | 938.6 | 938.6, 944.7 | Individual/Collective Reprobation (Ability) | 488C Individual Reprobation (0 s, r6); 488D Collective Reprobation (0 s, r6) | Optical Sight, Individual/Collective Reprobation, Reprobation |
+| `p4.optical_sight` | mixed | 938.6 | 938.6, 944.7 | Individual/Collective Reprobation (Ability) | 488C Individual Reprobation (0 s, r6); 488D Collective Reprobation (0 s, r6) | Optical Sight, Individual/Collective Reprobation, Reprobation, Optical Sight (Stack/Spread) |
 | `p4.fate_alpha` | mixed | 992.8 | 992.8, 993.8 | Obloquy, Solidarity and 3x Severity (Ability) | 4861 Plaint of Severity (0 s, r0) | Fate Calibration α, Fate Projection α, Fate Calibration Alpha, Fate Projection Alpha, Alpha, Fate Alpha (unverified) |
 | `p4.ocp_1` | tankbuster | 1011.1 | 1011.1, 1012.2, 1013.3 | Ordained Capital Punishment 1 (unsynced) | 4893 Ordained Capital Punishment (0 s, r4) | Ordained Capital Punishment, Ordained Capital Punishment 1, OCP (unverified), OCP 1 (unverified) |
 | `p4.op_1` | tankbuster | 1017.2 | 1017.2 | Ordained Punishment (Ability) | 4891 Ordained Punishment (5 s, r5) | Ordained Punishment, Ordained Punishment 1, OP 1 (unverified) |
 | `p4.fate_beta` | mixed | 1081.5 | 1081.5, 1082.5, 1088.6 | Surety and Solidarity (Ability) | 4863 Plaint of Surety (0 s, r80) | Fate Calibration β, Fate Projection β, Fate Calibration Beta, Fate Projection Beta, Beta, Fate Beta (unverified) |
 | `p4.ocp_2` | tankbuster | 1109.9 | 1109.9, 1111.0, 1112.1 | Ordained Capital Punishment 1 (unsynced) | 4893 Ordained Capital Punishment (0 s, r4) | Ordained Capital Punishment, Ordained Capital Punishment 2, OCP (unverified), OCP 2 (unverified) |
 | `p4.op_2` | tankbuster | 1116.0 | 1116.0 | Ordained Punishment (Ability) | 4891 Ordained Punishment (5 s, r5) | Ordained Punishment, Ordained Punishment 2, OP 2 (unverified) |
-| `p4.irresistible_grace_1` | stack | 1142.5 | 1142.5 | Irresistible Grace (Ability) | 4894 Irresistible Grace (5 s, r6) | Irresistible Grace, Irresistible Grace 1, Almighty Judgment, Almighty Judgment 1 |
+| `p4.irresistible_grace_1` | stack | 1142.5 | 1142.5 | Irresistible Grace (Ability) | 4894 Irresistible Grace (5 s, r6) | Irresistible Grace, Irresistible Grace 1, Almighty Judgment, Almighty Judgment 1, Irresistable Grace 1, Irresistable Grace |
 | `p4.ocp_3` | tankbuster | 1155.7 | 1155.7, 1156.8, 1157.9 | Ordained Capital Punishment 1 (unsynced) | 4893 Ordained Capital Punishment (0 s, r4) | Ordained Capital Punishment, Ordained Capital Punishment 3, OCP (unverified), OCP 3 (unverified) |
 | `p4.op_3` | tankbuster | 1161.8 | 1161.8 | Ordained Punishment (Ability) | 4891 Ordained Punishment (5 s, r5) | Ordained Punishment, Ordained Punishment 3, OP 3 (unverified) |
-| `p4.irresistible_grace_2` | stack | 1187.9 | 1187.9 | Irresistible Grace (Ability) | 4894 Irresistible Grace (5 s, r6) | Irresistible Grace, Irresistible Grace 2, Almighty Judgment, Almighty Judgment 2 |
+| `p4.irresistible_grace_2` | stack | 1187.9 | 1187.9 | Irresistible Grace (Ability) | 4894 Irresistible Grace (5 s, r6) | Irresistible Grace, Irresistible Grace 2, Almighty Judgment, Almighty Judgment 2, Irresistable Grace 2, Irresistable Grace |
 | `p4.temporal_prison` | enrage | 1247.6 | 1247.6 | Temporal Prison Enrage (Ability) | 4897 Temporal Prison (42 s, r100) | Temporal Prison, Temporal Interference, Enrage |
 
 Evidence and **UNVERIFIED** points:
@@ -1104,8 +1140,16 @@ Evidence and **UNVERIFIED** points:
   - BossMod `TEAStates.cs` `Raidwide`/`Tankbuster` hints.
   - `Action.csv` `EffectRange` 80 for Cascade, Hand of Prayer/Parting/Pain, J Kick, J Storm, Mega Holy and Divine
     Judgment.
-- `p2.gavel` as a raidwide is **UNVERIFIED**. BossMod's enum says "??? raidwide, nisi resolve" but its states give
-  no Raidwide hint; `Action.csv` 483C has a 5 s cast and `EffectRange` 80.
+- `p2.gavel` was a raidwide in the first draft and is kind `other` since 2026-11-14: on success Gavel only checks
+  every player's Final Judgment Nisi and clears the debuffs, and a wrong one wipes (community guides; not checked
+  against a log). BossMod's enum says "??? raidwide, nisi resolve" but its states give no Raidwide hint;
+  `Action.csv` 483C has a 5 s cast and `EffectRange` 80.
+- `p1.protean_1/2` are the untelegraphed Protean Waves (4823 from Living Liquid, 4825 baited on the four closest
+  players), twice per set: tanks and melee first, then healers and ranged (BossMod states "Protean 1"/"Protean 2").
+  Set 2 adds the tornadoes' untelegraphed waves (49B6, cactbot "Rage Wave 2", 115.1). cactbot's "Protean Wave
+  1–3" names repeat in both sets, so they are not aliases.
+- The player-timed anchors (`p1.doll_feeds`, `p2.hidden_mines`, `p3.inception_crystals`) and their timing are
+  judgment calls (§6.3); the damage itself has no timeline entry and is **UNVERIFIED** against a log.
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
   is right is **UNVERIFIED**.
 - `p2.photon_1/2` set every player to 1 HP (4837 `PhotonAOE`). Mitigation has no effect; the anchors are for heals.
@@ -1118,7 +1162,115 @@ Evidence and **UNVERIFIED** points:
 - `p2.water_thunder_n` sync on 4841, which `Action.csv` names "Crashing Thunder": BossMod's 2-person lightning
   stack. BossMod's 3+ person water stack 4840 lands at the same time.
 - Community shorthand is marked `# unverified`: `LC`, `TS`, `WH`, `DRP`, `OCP`, `OP`, `DJ`, `Cleaves`,
-  `Water/Lightning n`, `Fate Alpha/Beta`, `DPS Check`.
+  `Water/Lightning n`, `Fate Alpha/Beta`, `DPS Check`, `Feeds`, `Wormhole Stack`.
+
+### 6.1 LPDU's TEA sheet: every labelled row
+
+*[LPDU] TEA Heal/Mit* (§1) has two tabs, `LL/BJCC` (P1 and P2) and `Alex Prime/PA` (P3 and P4), with a table per
+phase:
+- a phase title merged over the player columns: `P1: Living Liquid / Hand` and `P2: Brute Justice / Cruise Chaser`
+  (`LL/BJCC` D4, D28), `P3: Alexander Prime` and `P4: Perfect Alexander` (`Alex Prime/PA` D4, D32);
+- a header row (`LL/BJCC` rows 9 and 34, `Alex Prime/PA` rows 9 and 37): `Tank 1`, `Tank 2`, `Scholar`, `Sage`,
+  `White Mage`, `Astrologian`, `Melee 1`, `Melee 2`, `Phys Range`, `Caster`, `Extras` in columns C–M;
+- the mechanic rows, each merged with the row below it, so the labels are in column B of every other row.
+
+Column A has one remark beside a label (`LL/BJCC` A15, "the one after MT invuln"), and `LL/BJCC` C32 is a note
+merged over the player columns, a tip for Soil/Kera timing. The sheet has no times, so `Timeline time` is the
+anchor's `hit`; "Candidates" counts as in §4.4. Every label is an alias of its mechanic, verbatim (the sheet's
+spelling "Irresistable" included).
+
+| Sheet | Tab | Row | Row label (verbatim) | Sheet time | Mechanic id | Timeline time (hit) | Offset | Candidates in phase |
+|---|---|---|---|---|---|---|---|---|
+| LPDU TEA | LL/BJCC | 11 | `Cascade` | - | `p1.cascade_1` | 19.5 | - | 2 |
+| LPDU TEA | LL/BJCC | 13 | `Doll Feeds` | - | `p1.doll_feeds` | 50.3 | - | 1 |
+| LPDU TEA | LL/BJCC | 15 | `Fluid Swing 3` | - | `p1.fluid_swing_3` | 56.7 | - | 1 |
+| LPDU TEA | LL/BJCC | 17 | `Protean 1` | - | `p1.protean_1` | 71.9 | - | 1 |
+| LPDU TEA | LL/BJCC | 19 | `Splashes` | - | `p1.splash_1` | 81.1 | - | 2 |
+| LPDU TEA | LL/BJCC | 21 | `Cascade` | - | `p1.cascade_2` | 91.7 | - | 2 |
+| LPDU TEA | LL/BJCC | 23 | `Protean 2` | - | `p1.protean_2` | 109.1 | - | 1 |
+| LPDU TEA | LL/BJCC | 36 | `JKick` | - | `p2.j_kick` | 226.1 | - | 1 |
+| LPDU TEA | LL/BJCC | 38 | `Whirlwind` | - | `p2.whirlwind_1` | 238.3 | - | 4 |
+| LPDU TEA | LL/BJCC | 40 | `Photon` | - | `p2.photon_1` | 262.5 | - | 2 |
+| LPDU TEA | LL/BJCC | 42 | `Water 1` | - | `p2.water_thunder_1` | 277.3 | - | 1 |
+| LPDU TEA | LL/BJCC | 44 | `Mines` | - | `p2.hidden_mines` | 292.7 | - | 1 |
+| LPDU TEA | LL/BJCC | 46 | `Water 2` | - | `p2.water_thunder_2` | 306.7 | - | 1 |
+| LPDU TEA | LL/BJCC | 48 | `Whirlwind` | - | `p2.whirlwind_2` | 327.6 | - | 4 |
+| LPDU TEA | LL/BJCC | 50 | `Water 3` | - | `p2.water_thunder_3` | 336.2 | - | 1 |
+| LPDU TEA | LL/BJCC | 52 | `Gavel Lineup` | - | `p2.gavel` | 356.5 | - | 1 |
+| LPDU TEA | LL/BJCC | 54 | `Double Rocket Punch` | - | `p2.double_rocket_punch` | 374.8 | - | 1 |
+| LPDU TEA | LL/BJCC | 56 | `Whirlwind` | - | `p2.whirlwind_3` | 395.0 | - | 4 |
+| LPDU TEA | Alex Prime/PA | 11 | `Inception (Crystals Boom)` | - | `p3.inception_crystals` | 558.2 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 13 | `Post-Wormhole Stack` | - | `p3.incinerating_heat` | 670.0 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 15 | `Mega Holy` | - | `p3.mega_holy_1` | 682.9 | - | 2 |
+| LPDU TEA | Alex Prime/PA | 17 | `JKick` | - | `p3.j_storm` | 705.7 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 19 | `Jwaves (0-3)` | - | `p3.j_wave_1` | 710.9 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 21 | `Jwaves (4)` | - | `p3.j_wave_5` | 722.9 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 23 | `Jwaves (6)` | - | `p3.j_wave_7` | 728.9 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 25 | `Jwaves (8)` | - | `p3.j_wave_9` | 734.9 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 27 | `Transition Raidwide` | - | `p3.divine_judgment` | 787.3 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 39 | `Optical Sight (Stack/Spread)` | - | `p4.optical_sight` | 938.6 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 41 | `Optical Sight (Stack/Spread)` | - | `p4.optical_sight` | 938.6 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 43 | `Fate Calibration Beta` | - | `p4.fate_beta` | 1081.5 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 45 | `Irresistable Grace 1` | - | `p4.irresistible_grace_1` | 1142.5 | - | 1 |
+| LPDU TEA | Alex Prime/PA | 47 | `Irresistable Grace 2` | - | `p4.irresistible_grace_2` | 1187.9 | - | 1 |
+
+**Repeated labels.** Five labels match several mechanics of their phase (8 rows), and row order decides (§4.5), as
+the importer reports with `ambiguous-mechanic`: `Cascade` (rows 11 and 21), `Splashes` (19: the first Splash),
+`Whirlwind` (38, 48 and 56: the first three of P2's four), `Photon` (40: the first) and `Mega Holy` (`Alex
+Prime/PA` 15: the first; its `(Late)` calls are pressed 1 s before it, so that 10 s effects also cover the second,
+7.1 s later). `Optical Sight (Stack/Spread)` is written twice (rows 39 and 41, the second without calls): both rows
+are `p4.optical_sight`, whose two hits are the two Reprobations. `JKick` is a label in P2 and in P3 (§6.3).
+
+### 6.2 J Waves: timeline additions and stack counts
+
+cactbot folds the P3 DPS check into one entry, `705.7 "J Storm + Waves x16" Ability { id: "4876", source: "Brute
+Justice" } duration 50`. The waves (4877 J Wave, a Helper's action without a cast, `EffectRange` 80) are not
+entries, so `tea.yaml` adds them as sync lines (`timeline_additions`, `docs/DESIGN.md` §3.1), one entry per wave to
+anchor on and to sync:
+
+```
+710.9 "J Wave 1" Ability { id: "4877" } window 1.4,1.4
+713.9 "J Wave 2" Ability { id: "4877" } window 1.4,1.4
+…
+755.9 "J Wave 16" Ability { id: "4877" } window 1.4,1.4
+```
+
+- **Times.** BossMod (`TEAStates.cs`, `P3SummonAlexander`): J Storm 0.2 s after Alexander Prime turns
+  untargetable, the Divine Judgment cast 1.3 s after it, "j wave 1" 4.1 s after the cast start, "then every 3s".
+  Wave 1 is J Storm + 5.2 s = 710.9; wave 16 is 755.9, the end of cactbot's 50 s duration. **UNVERIFIED** against a
+  log.
+- **Windows.** 1.4 s either way keeps every event on its own wave (neighbours are 3 s apart; a narrower window only
+  leaves larger errors unsynced). There is no `source`: the Helper's name is not needed.
+- **The end.** Waves after Brute Justice dies never fire; the 4879 sync at 771.9 (`p3.alexander_down`) ends the
+  check.
+- **Stack counts.** Each wave gives Brute Justice a Damage Up stack, so wave n hits at n − 1 stacks, and sheets
+  count by the stacks: LPDU's "Jwaves (N)" is wave N + 1 (`p3.j_wave_5` for "Jwaves (4)"), and "Jwaves (0-3)"
+  (waves 1–4) anchors on wave 1. Cruise Chaser's enrage, Eternal Darkness (731.7), finishes before the 8th stack.
+- **Mechanics.** `p3.j_wave_1` … `p3.j_wave_16`, each with the aliases `J Wave n`, `Jwaves (n−1)`, `J Waves (n−1)`,
+  `J Wave (n−1)`, `Jwave (n−1)` and, from wave 3, `After n−1 stacks`; wave 1 also `Jwaves (0-3)` and the like.
+  `p3.j_waves` is the umbrella of all 16 (`J Waves`, `Jwaves`), for rows that cover the waves as one. `p3.j_storm`
+  is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
+
+### 6.3 Judgment calls (TEA)
+
+1. **`Doll Feeds` → `p1.doll_feeds`**, anchored on the second Exhaust (481E, 50.3). The Reducible Complexity
+   raidwides (4820) come when a Jagd Doll below 25% HP is fed to Living Liquid or the Hand: the melee dolls after
+   the first Exhaust, the ranged ones after the next, all before Fluid Swing 3 (56.7) (community guides). The
+   default press times (about 44–47 s) cover the feeds.
+2. **`Mines` → `p2.hidden_mines`** (kind `tankbuster`), anchored on Enumeration (4850, 292.7), the start of the soak
+   window: once the Enumeration stacks and the ice puddle resolve, the tanks run over the two mines (4852 Hidden
+   Mine, player-timed). An unsoaked mine explodes for the raid about 6.3 s after the ice (4853, ~299.8, BossMod).
+3. **`Inception (Crystals Boom)` → `p3.inception_crystals`**, anchored on the crystal drop (485C, 558.2). Each crystal
+   the True Heart crosses explodes (4A88 Tetrashatter) about 6–10 s later, before the first Flarethrower (569.5).
+   The verbatim label is an alias because its simplified form, "inception", is `p3.inception`'s.
+4. **`JKick` in P3 → `p3.j_storm`.** P3 has no J Kick (4854); Brute Justice's landing there is J Storm (4876,
+   705.7). `JKick` and `J Kick` are aliases of `p2.j_kick` and `p3.j_storm`, and the phase decides.
+5. **`Gavel Lineup` → `p2.gavel`**: the Nisi lineup behind the frozen tornado that blocks Propeller Wind (4832,
+   354.5) until Gavel.
+6. **`Transition Raidwide` → `p3.divine_judgment`**, the tank LB3 raidwide (787.3). Both tank columns write `LB3`;
+   the importer makes each optional (`shared-limit-break`).
+7. **`Whirlwind` (row 56) → `p2.whirlwind_3`** (395.0) by row order. P2's fourth Whirlwind (403.1) has no row, so
+   the 10 s Reprisal of that row covers the third only.
 
 ## 7. DMU (first draft)
 
@@ -1262,7 +1414,9 @@ filled. This is **UNVERIFIED** and irrelevant to the catalog.
    YamlDotNet the real pitfall is `lb_check`, which needs an underscored enum naming convention (§2).
 3. `ActorControl` support for DMU (§5.5), and how to trigger reminders "before the phase ends" (§4.6 item 6).
 4. Why the Carry the Clear P5/P6 times drift against cactbot by 0.5–0.75 s per 100 s (§4.2).
-5. TEA/DMU: confirm the UNVERIFIED damage events with a log or a real plan before shipping plans for them.
+5. TEA/DMU: confirm the UNVERIFIED damage events with a log or a real plan before shipping plans for them. TEA's
+   plan ships since 2026-11-14 (LPDU's sheet, §6.1); its player-timed anchors (§6.3) and the J Wave times (§6.2)
+   are still to be checked against a log.
 
 ## Appendix: TOP mechanics (summary of `top.yaml`)
 

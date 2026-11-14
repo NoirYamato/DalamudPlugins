@@ -27,7 +27,7 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
 | D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. |
-| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). |
+| D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). **Changed (2026-11-14):** TEA's data has been mapped onto LPDU's sheet *[LPDU] TEA Heal/Mit* (mechanics and aliases for its rows, and the 16 J Waves of the P3 DPS check added to the timeline, §3.1), and the sheet ships as *LPDU TEA Heal/Mit*, TEA's only plan and so the automatic one of every job it names (§7). The TEA data is still not checked against logs; DMU has no plan yet. |
 | D8 | BossMod / cactbot as dependencies | **No runtime dependency.** cactbot is a browser overlay inside ACT/IINACT, so a Dalamud plugin cannot read its state; BossMod's IPC only exposes autorotation/AI/config controls, not fight timelines. Instead MitCue **bundles cactbot's timeline files** (Apache-2.0, attributed) and parses them itself. |
 
 ### 1.2 Functional requirements
@@ -130,7 +130,7 @@ tools/tests/               Python tests of make-repo-json.py and of the CI workf
 data/timelines/            cactbot timelines (Apache-2.0, see data/timelines/NOTICE; DSR and FRU only for parser tests)
 data/fights/               fight catalogs (top.yaml, tea.yaml, dmu.yaml)
 data/actions/              action knowledge base + shorthand aliases
-plans/                     converted plans shipped with the plugin (top-noirmit-whm, top-ctc-sch, top-lpdu)
+plans/                     converted plans shipped with the plugin (top-noirmit-whm, top-ctc-sch, top-lpdu, tea-lpdu)
 assets/                    the icon (SVG source, PNG renders)
 docs/                      this design, PLUGIN.md, INSTALL.md, PUBLISHING.md, research notes
 .github/workflows/ci.yml   CI: build, every test project, the tools' tests, plugin zip and repo.json checks
@@ -176,13 +176,27 @@ the importer adds the value to row-relative offsets (§6 step 7).
 Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
 cactbot's). Each line must have a sync and may not jump to a label. Label and hideall statements are refused (they
 would change the cactbot file's): the fight file then does not load. The additions are fallbacks for phase starts
-that cactbot syncs only on event types the plugin does not see (§4). `dmu.yaml` syncs DMU's P2 and P4 starts on
-cast starts, since cactbot uses director updates there:
+that cactbot syncs only on event types the plugin does not see (§4), or entries for hits that cactbot folds into
+one. `dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot uses director updates there:
 
 ```yaml
 timeline_additions: |
   315.1 "--sync--" StartsUsing { id: "C24C", source: "Kefka" } window 320,5
   1095.0 "--sync--" StartsUsing { id: "C2DC", source: "Kefka" } window 1095,14000
+```
+
+`tea.yaml` adds the 16 J Waves of TEA's P3 DPS check (`Ability 4877`, every 3 s from 710.9 to 755.9, timed from
+BossMod and not yet checked against a log), which cactbot folds into one entry, "J Storm + Waves x16" at 705.7. Each
+wave is then an entry that a mechanic anchors on (`p3.j_wave_1` to `p3.j_wave_16`; a mechanic's `entry` is checked
+against the additions too) and a sync within 1.4 s of it. LPDU's TEA sheet names them by Brute Justice's Damage Up
+stacks: "Jwaves (N)" is the (N+1)th wave.
+
+```yaml
+timeline_additions: |
+  710.9 "J Wave 1" Ability { id: "4877" } window 1.4,1.4
+  713.9 "J Wave 2" Ability { id: "4877" } window 1.4,1.4
+  …
+  755.9 "J Wave 16" Ability { id: "4877" } window 1.4,1.4
 ```
 
 ### 3.2 Plan (YAML; stored as JSON, shared as a compressed share code)
@@ -264,7 +278,9 @@ names/icons and ActionManager the real (trait-adjusted) recast and charges.
 per-job expansion ("party mit", "short cd"), and note-only phrases ("everything",
 "kitchen sink"). User corrections made during review are stored as personal aliases
 (**as built:** in the plugin's settings, `MitCue.json`, and added to the dictionary when
-the data loads).
+the data loads). **As built (2026-11-14):** an action name may list options separated by
+`|`, one item that any of them does: LPDU TEA's "defensive Cards" are `the Arrow|the Bole`
+and `the Spire|the Ewer`, whichever was drawn (`AliasExpansion.OptionsOf`).
 
 ---
 
@@ -384,17 +400,40 @@ previews, which have no cooldown provider.
 2. **Layout detection.** Find the header row; classify columns: time, mechanic label,
    assignee (slot/job/name headers such as `MT`, `H2 SCH`, `White Mage`), notes, ignored
    (statistics). Detect phase from tab names (`P3`), section rows (`P2 — Omega-M/F (from
-   phase start)`), or label cells (`P2`).
+   phase start)`), or label cells (`P2`). **As built (2026-11-14), for LPDU's TEA sheet:**
+   `Phys Range` is a role column like `Caster` (calls for each job of the role), and a
+   column headed `Extras`, `Other`, `Misc` or `Utility` holds calls for anyone: each is an
+   entry for the jobs whose own action it names (`PLD Wings`, `Dismantle`), with no
+   assignee, and the column is imported whichever columns are chosen. A phase title over
+   the player columns (`P2: Brute Justice / Cruise Chaser`) starts its phase, and an
+   unlabelled column of prose beside the labels holds the rows' notes.
 3. **Cell parsing.** Split into items: ` / ` separates independent actions (each may have
    its own time), `+` and `,` join simultaneous actions, `→`/`->` make a sequence, `X/Y`
    without spaces means either/or (often across jobs: `Kera/Soil`). Extract `(1:18)`,
    `~1:22`, `≈3:04`, ranges `1:47 – 1:56`, multi-times `0:28 / 0:37`, targets
    (`on MT`, `(your 3rd/4th-in-line player)`), hints (`after 1st Hit`, `on CD`), markers
-   (`*`, `⏱`), and formatting flags (grey = optional).
+   (`*`, `⏱`), and formatting flags (grey = optional). **Changed (2026-11-14):** what `X/Y`
+   between two actions of one job means is read per document. It is either one
+   (`TBN/Oblation`, next to `Living Dead + …` in LPDU's TOP sheet) unless the document joins
+   actions no other way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions
+   of one job with `/` in two or more cells, three or more in one: then it is all of them,
+   like `+` (LPDU's TEA sheet: `Soil/Reci/Deploy/Whisper`). `ImportOptions.Slashes` (the
+   import window's *Slashes*, the CLI's `--slashes auto|or|and`) overrides the reading, and
+   the `slash-reading` info says which was used and why. Also read since then: a cell that
+   is one pair of brackets (`(Shake)`: optional), a cell that points up (`(^on BJ)`: a remark
+   on the cell above) and `(Late)` (an action used before its hit is pressed 1 s before it).
+   The full grammar: `src/MitCue.Core/Import/README.md`.
 4. **Action resolution.** Alias dictionary → exact name → fuzzy match (typos such as
    *Nascant*, *Vengance*), restricted to the assignee's job and the fight's sync level.
    Cross-job alternatives are split per job. Role phrases expand per job. Anything else
-   becomes a note.
+   becomes a note. **As built (2026-11-14):** after the cells, a party buff the same player
+   plans again while it still lasts becomes its follow-up (Summon Seraph → Consolation) or a
+   note ("Temperance (still active)"); a limit break written for one role in several seats'
+   columns at one mechanic is optional in each; a target taken from the row (its notes, or
+   "tank" on a tankbuster) goes to single-target actions only, and the item's other actions
+   get an entry of their own; a note over several columns that names actions ("A tip for
+   Soil/Kera timing …") is the detail of the entries in its columns and section that press
+   one of them.
 5. **Mechanic resolution.** Per-fight aliases + phase context + monotonic row order +
    timestamps. Same label in different phases (`Hello World`, `Solar Ray`, `Magic Number`)
    is disambiguated by phase and order.
@@ -457,19 +496,23 @@ files and links; the plugin's import window adds downloading, the review and the
   bundled plan meant for the job (TOP: WHM → *NoirMit - WHM*, SCH → *LPDU TOP
   Mitigation*; *Carry the Clear - SCH* only when chosen), else the first bundled plan by
   name that names the job in a column or entry, else the player's first own plan by name
-  that names it (TEA and DMU ship no plans). A plan whose calls for the player's seat are
-  only in job-less slot columns (LPDU's M1/M2 for melee jobs) is not chosen automatically:
-  the player chooses it in the table. An imported plan or a share code replaces a bundled
-  plan only when the player chooses it: in the table, or with the "make it my active plan"
-  checkbox of the import window (ticked when entries apply to the player) or of the
-  share-code box (unticked each time the plugin loads). The exception is the share code
-  of a bundled plan: it has that plan's id and takes its place until it is deleted. The
-  share-code box sets a plan only when it has calls for the job as the overlay selects
-  them; for a role sheet whose calls for the job are only in other slots' job-less
-  columns, the message names those slots and says to choose the plan and then the slot's
-  column under "My column" (or, only while no usual slot is set at all, to set it first; a
-  usual slot of another role gets the column hint too): one usual slot serves every job of
-  its role, so changing it would take the slot calls of the player's main job away.
+  that names it. TEA's only bundled plan, *LPDU TEA Heal/Mit*, is thus the automatic one of
+  every job it names, with no entry in `PlanStore.BundledDefaults`, and a TEA plan the player
+  imported without choosing it gives way to it; DMU ships no plan. A plan whose calls for the
+  player's seat are only in job-less slot columns (LPDU's M1/M2 for melee jobs, and the TEA
+  plan's "Melee 1"/"Melee 2" for melee jobs other than the Monk, whose Mantra calls name it)
+  is not chosen automatically: the player chooses it in the table. An imported plan or a
+  share code replaces a bundled plan only when the player chooses it: in the table, or with
+  the "make it my active plan" checkbox of the import window (ticked when entries apply to
+  the player) or of the share-code box (unticked each time the plugin loads). The exception
+  is the share code of a bundled plan: it has that plan's id and takes its place until it
+  is deleted. The share-code box sets a plan only when it has calls for the job as the
+  overlay selects them; for a role sheet whose calls for the job are only in other slots'
+  job-less columns, the message names those slots and says to choose the plan and then the
+  slot's column under "My column" (or, only while no usual slot is set at all, to set it
+  first; a usual slot of another role gets the column hint too): one usual slot serves
+  every job of its role, so changing it would take the slot calls of the player's main job
+  away.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),
@@ -478,15 +521,19 @@ files and links; the plugin's import window adds downloading, the review and the
   job of its role. Without a column for the job and a slot (LPDU's ranged jobs, with calls
   per job in "R1" and "R2"), the job's calls give the seat: the first slot of its role they
   name, passing over a slot the party gives another job, one whose calls are all in it (a
-  Red Mage gets R1, or R2 next to a Bard). Columns for team compositions (keys naming two
-  or more jobs) are alternatives, never combined, and one composition split over per-phase
-  tabs is one seat: a Warrior on LPDU gets the tank pair with the party's co-tank
-  ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none
-  of the job's compositions gets the job's column that is no composition, if there is one
-  (Carry the Clear's White Mage tab for a White Mage next to a Sage). A job's column that
-  repeats the calls of its composition column is the same seat written twice, whichever
-  tab comes first (Carry the Clear's White Mage tab and its combined tab). Plans are
-  exported as share codes, not as files.
+  Red Mage gets R1, or R2 next to a Bard; on the TEA plan, with calls per job in the seats
+  "Tank 1" (MT) and "Tank 2" (OT), every tank gets MT, while the calls of the role columns
+  "Phys Range" and "Caster" name no slot, so their jobs get them all). Columns for team
+  compositions (keys naming two or more jobs) are alternatives, never combined, and one
+  composition split over per-phase tabs is one seat: a Warrior on LPDU gets the tank pair
+  with the party's co-tank ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK
+  WAR"; a party that plays none of the job's compositions gets the job's column that is no
+  composition, if there is one (Carry the Clear's White Mage tab for a White Mage next to a
+  Sage). A job's column that repeats the calls of its composition column is the same seat
+  written twice, whichever tab comes first (Carry the Clear's White Mage tab and its
+  combined tab). Calls in no column (the TEA plan's "Extras": "PLD Wings", "Dismantle")
+  belong to the jobs they name, whatever the column. Plans are exported as share codes, not
+  as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a
@@ -521,8 +568,9 @@ files and links; the plugin's import window adds downloading, the review and the
 
 **As built:**
 
-- `tests/MitCue.Core.Tests`: the above, plus the bundled plans: each is the importer's
-  output for its sheet fixture and valid at level 90.
+- `tests/MitCue.Core.Tests`: the above, with LPDU's TEA sheet as a third fixture (every
+  row mapped to its mechanic), plus the bundled plans: each is the importer's output for
+  its sheet fixture and valid at its fight's sync level (90 for TOP, 80 for TEA).
 - `tests/MitCue.Plugin.Tests`: sessions and pulls, the plan store with the automatic plan
   and column choices on the bundled plans, the co-healer's calls, the import pipeline
   (link parsing, downloads through a fake HTTP handler, pasted cells, the AI prompt and
@@ -553,6 +601,7 @@ files and links; the plugin's import window adds downloading, the review and the
    [PUBLISHING.md](PUBLISHING.md)).
 4. In-game importer/review UI and link download; LLM prompt fallback. **Done.**
 5. TEA and DMU data; plan checks (cooldown conflicts); polish. **Partly done:** TEA and
-   DMU fight data ship as first drafts without plans; the recast and gauge checks are in
+   DMU fight data ship as first drafts; TEA's is mapped onto LPDU's TEA sheet, which ships
+   as *LPDU TEA Heal/Mit* (D7), and DMU has no plan yet; the recast and gauge checks are in
    the CLI (`mitcue check`), and the plugin checks plans that skip the review against the
    fight and the action data.
