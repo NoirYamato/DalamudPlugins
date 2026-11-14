@@ -1,16 +1,19 @@
 using System.Numerics;
+using System.Reflection;
+using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// The human's own Arm's Length, Surecast or Inner Release, as the client reports the press. The player sits in the
-// main tank's seat.
+// The human's own Arm's Length, Surecast or Inner Release, and its Esuna or Warden's Paean, as the client reports the
+// press. The player sits in the main tank's seat.
 public class TeaP1PressesTests
 {
     private const uint Provoke = 7533;
@@ -159,6 +162,186 @@ public class TeaP1PressesTests
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(Vector2.Distance(stands!.Value, from) > 1f, Is.EqualTo(pushed), $"at {stands}");
+    }
+
+    // -- Cleanses --
+    // Each test presses at 1.0 and reads the listener at 2.0; the player sits in the main tank's seat.
+
+    [TestCase(P1PlayerActionId.Esuna)]
+    [TestCase(P1PlayerActionId.WardensPaean)]
+    public void ACleanseOnASeatIsReportedOnceTheRunLooks(uint press)
+    {
+        var raisedInsideThePress = -1;
+        var (cleanses, raised) = Cleanses((world, presses, heard) => world.Events.Add(1f, () =>
+        {
+            Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, (ulong)world.Party.Get(OffTank)!.GameObjectId));
+            raisedInsideThePress = heard.Count + presses.Cleanses.Count;
+        }));
+
+        Assert.That(raisedInsideThePress, Is.Zero, "nothing settles inside the client's own call");
+        Assert.That(cleanses.Select(c => (c.By, c.Target, c.ByHuman)), Is.EqualTo(new[] { (MainTank, OffTank, true) }));
+        Assert.That(cleanses[0].At, Is.EqualTo(1f).Within(TimelineRun.FrameLate));
+        Assert.That(raised, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void ARuleThatDecidesNowHearsACleanseAtOnce()
+    {
+        var settled = 0;
+        Cleanses((world, presses, _) => world.Events.Add(1f, () =>
+        {
+            Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, (ulong)world.Party.Get(OffTank)!.GameObjectId));
+            presses.CatchUp();
+            settled = presses.Cleanses.Count;
+        }));
+
+        Assert.That(settled, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void OnlyAResolvedCleanseCounts()
+    {
+        var (cleanses, raised) = Cleanses((world, _, _) => world.Events.Add(1f, () =>
+        {
+            var offTank = (ulong)world.Party.Get(OffTank)!.GameObjectId;
+            Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, P1PlayerActionId.Esuna, offTank, 1f));
+            Act(new PlayerAction(PlayerActionStep.Interrupted, ActionType.Action, P1PlayerActionId.Esuna, offTank));
+            Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Item, P1PlayerActionId.Esuna, offTank));
+            Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke, offTank));
+        }));
+
+        Assert.That(cleanses, Is.Empty);
+        Assert.That(raised, Is.Zero);
+    }
+
+    // A client that still casts Esuna reports the cast's start, then its resolve.
+    [Test]
+    public void ACastCleanseCountsAsItResolves()
+    {
+        var (cleanses, _) = Cleanses((world, _, _) =>
+        {
+            world.Events.Add(0.5f, () => Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, P1PlayerActionId.Esuna, (ulong)world.Party.Get(OffTank)!.GameObjectId, 1f)));
+            world.Events.Add(1.5f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, (ulong)world.Party.Get(OffTank)!.GameObjectId)));
+        });
+
+        Assert.That(cleanses.Select(c => c.Target), Is.EqualTo(new[] { OffTank }));
+        Assert.That(cleanses[0].At, Is.EqualTo(1.5f).Within(TimelineRun.FrameLate));
+    }
+
+    [TestCase(true, TestName = "{m}(at an enemy)")]
+    [TestCase(false, TestName = "{m}(at nothing)")]
+    public void ACleanseAimedAtNobodyInThePartyIsThePlayersOwn(bool atAnEnemy)
+    {
+        var (cleanses, _) = Cleanses((world, _, _) => world.Events.Add(1f, () =>
+        {
+            var enemy = world.Children.OfType<SimEnemy>().First();
+            Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, atAnEnemy ? (ulong)enemy.GameObjectId : 0ul));
+        }));
+
+        Assert.That(cleanses.Select(c => (c.By, c.Target)), Is.EqualTo(new[] { (MainTank, MainTank) }));
+    }
+
+    // A client may report a press aimed at its "current target" stand-in rather than at the target's own id.
+    [Test]
+    public void ACleanseAimedAtTheClientsCurrentTargetGoesToThePlayersTarget()
+    {
+        const ulong CurrentTarget = 0xE0000000;
+        var leftInstalled = Plugin.TargetManager;
+        var targetManager = DispatchProxy.Create<ITargetManager, TopP6MeleeWindowTests.TargetStandIn>();
+        DalamudServices.Install(nameof(Plugin.TargetManager), targetManager);
+        try
+        {
+            var (cleanses, _) = Cleanses((world, _, _) => world.Events.Add(1f, () =>
+            {
+                ((TopP6MeleeWindowTests.TargetStandIn)(object)targetManager).Target = (ulong)world.Party.Get(RegenHealer)!.GameObjectId;
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, CurrentTarget));
+            }));
+
+            Assert.That(cleanses.Select(c => c.Target), Is.EqualTo(new[] { RegenHealer }));
+        }
+        finally
+        {
+            DalamudServices.Install(nameof(Plugin.TargetManager), leftInstalled);
+        }
+    }
+
+    [Test]
+    public void ACleanseOnTheDeadIsNone()
+    {
+        var (cleanses, raised) = Cleanses((world, _, _) =>
+        {
+            world.Events.Add(0.5f, () => world.Party.Get(OffTank)!.Die(P1ActionId.Splash));
+            world.Events.Add(1f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, (ulong)world.Party.Get(OffTank)!.GameObjectId)));
+        }, expectDeaths: 1);
+
+        Assert.That(cleanses, Is.Empty);
+        Assert.That(raised, Is.Zero);
+    }
+
+    [Test]
+    public void ACleanseTheRunMakesForASeatIsReportedAtOnce()
+    {
+        var (cleanses, raised) = Cleanses((world, presses, _) => world.Events.Add(1f, () =>
+            presses.Cleanse(world.Party.Get(RegenHealer)!, world.Party.Get(MeleeDpsA)!)));
+
+        Assert.That(cleanses.Select(c => (c.By, c.Target, c.ByHuman)), Is.EqualTo(new[] { (RegenHealer, MeleeDpsA, false) }));
+        Assert.That(cleanses[0].At, Is.EqualTo(1f).Within(TimelineRun.FrameLate));
+        Assert.That(raised, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void ADisposedListenerReportsNoCleanse()
+    {
+        var (cleanses, raised) = Cleanses((world, presses, _) =>
+        {
+            world.Events.Add(0.5f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, 0)));
+            world.Events.Add(0.5f, presses.Dispose);
+            world.Events.Add(1f, () =>
+            {
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, 0));
+                presses.Cleanse(world.Party.Get(RegenHealer)!, world.Party.Get(MeleeDpsA)!);
+            });
+        });
+
+        Assert.That(cleanses, Is.Empty);
+        Assert.That(raised, Is.Zero);
+    }
+
+    [TestCase(P1PlayerActionId.Esuna, "Esuna")]
+    [TestCase(P1PlayerActionId.WardensPaean, "the Warden's Paean")]
+    public void EachCleanseIsTheActionItIsNamedFor(uint press, string name)
+    {
+        FakeGame.Install();
+
+        Assert.That(Natives.Data.Action(press)?.Name, Is.EqualTo(name).IgnoreCase);
+    }
+
+    // The cleanses the listener holds at 2.0, the run's own tick having looked, as seats, and how often Cleansed was
+    // raised by then.
+    private static (IReadOnlyList<(PartyRole By, PartyRole Target, float At, bool ByHuman)> Cleanses, int Raised) Cleanses(
+        Action<SimWorld, TeaP1Presses, List<TeaP1Cleanse>> schedule, int expectDeaths = 0)
+    {
+        var heard = new List<TeaP1Cleanse>();
+        TeaP1Presses? listener = null;
+        List<(PartyRole, PartyRole, float, bool)> cleanses = [];
+        var raised = 0;
+        var run = TimelineRun.Execute(world =>
+        {
+            var presses = listener = new TeaP1Presses(world);
+            presses.Cleansed += heard.Add;
+            world.SpawnEnemy(new EnemySpawnConfig(BNpcBaseId: P1BNpcBaseId.CruiseChaser, NameId: P1BNpcNameId.CruiseChaser, Level: Level));
+            schedule(world, presses, heard);
+            world.Events.Add(2f, () =>
+            {
+                cleanses = presses.Cleanses.Select(c => (((ISimPartyMember)c.By).Role, ((ISimPartyMember)c.Target).Role, c.At, c.ByHuman)).ToList();
+                raised = heard.Count;
+            });
+        }, new TimelineRunOptions { Phase = TeaZone.P1, HumanPlayer = true, Tick = () => listener?.Tick() });
+
+        listener?.Dispose();
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths, Has.Count.EqualTo(expectDeaths), run.ToString);
+        return (cleanses, raised);
     }
 
     // Whether the press covers the player at each of `times`.
