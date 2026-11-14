@@ -173,11 +173,38 @@ public class ImportPipelineTests
     }
 
     [Fact]
+    public void AHeaderRepeatedOverTheSameColumnsIsNoOtherTab()
+    {
+        // LPDU's TEA tabs hold a table per phase, each under the same header row: a tab pasted alone was taken for two.
+        var tea = FixtureSheets.Tab("Pasted", FixtureSheets.Rows("lpdu-tea", "ll-bjcc.csv"));
+        Assert.Equal([8, 33], ImportAnalysis.PlanHeaderRows(tea));
+        Assert.Null(ImportPipeline.PastedSource(tea, null).Warning);
+
+        // Two tabs under the same header (LPDU's P3 and P4) are read against their own columns too: the paste gives the
+        // two tabs' entries.
+        var parts = SessionManagerTests.NewManager();
+        parts.Data.EnsureLoaded();
+        var options = new ImportOptions { Fight = parts.Data.GetFight("top")!, Actions = parts.Data.Actions, Aliases = parts.Data.Aliases!, ImportedDate = "2026-11-11" };
+        var p3 = FixtureSheets.Rows("lpdu", "p3.csv");
+        var p4 = FixtureSheets.Rows("lpdu", "p4.csv");
+        var both = FixtureSheets.Tab("Pasted", p3.Concat(p4));
+        Assert.Null(ImportPipeline.PastedSource(both, null).Warning);
+        static List<string> Calls(ImportResult r) =>
+            r.Plan.Entries.Select(e => $"{e.Mechanic} {e.Who.Slot}/{e.Who.Job}: {string.Join("+", e.Do.Select(i => i.Name ?? i.Note))}").Order(StringComparer.Ordinal).ToList();
+        var pasted = Calls(ImportPipeline.Import(new SheetDocument { Title = "Pasted cells", Tabs = [both] }, options));
+        var tabs = Calls(ImportPipeline.Import(new SheetDocument { Title = "LPDU", Tabs = [FixtureSheets.Tab("P3", p3), FixtureSheets.Tab("P4", p4)] }, options));
+        Assert.Equal(tabs, pasted);
+        Assert.Contains(pasted, c => c.StartsWith("p4.", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void OneTabPastedAloneGetsNoWarning()
     {
         foreach (var file in new[] { "p1-p2.csv", "p3.csv", "p6.csv", "war-drk.csv" })
             Assert.Null(ImportPipeline.PastedSource(FixtureSheets.Tab("Pasted", FixtureSheets.Rows("lpdu", file)), null).Warning);
         foreach (var (file, _) in FixtureSheets.CarryTheClearTabs)
             Assert.Null(ImportPipeline.PastedSource(FixtureSheets.Tab("Pasted", FixtureSheets.Rows("carry-the-clear", file)), null).Warning);
+        foreach (var (file, _) in FixtureSheets.LpduTeaTabs)
+            Assert.Null(ImportPipeline.PastedSource(FixtureSheets.Tab("Pasted", FixtureSheets.Rows("lpdu-tea", file)), null).Warning);
     }
 }

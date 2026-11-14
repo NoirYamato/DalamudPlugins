@@ -36,9 +36,18 @@ internal static class FixtureSheets
         ("gnb-pld.csv", "GNBPLD"),
     ];
 
+    /// <summary>LPDU TEA's tabs in workbook order, with the names an xlsx export gives them ("LL/BJCC" is "LLBJCC").</summary>
+    public static readonly (string File, string Tab)[] LpduTeaTabs =
+    [
+        ("ll-bjcc.csv", "LLBJCC"),
+        ("alex-prime-pa.csv", "Alex PrimePA"),
+    ];
+
     public static SheetDocument CarryTheClear() => Document("carry-the-clear", "Carry the Clear: TOP Healing Plan", CarryTheClearTabs);
 
     public static SheetDocument Lpdu() => Document("lpdu", "LPDU TOP Mitigation Sheet", LpduTabs);
+
+    public static SheetDocument LpduTea() => Document("lpdu-tea", "[LPDU] TEA Heal/Mit", LpduTeaTabs);
 
     /// <summary>One CSV export as rows of cell texts.</summary>
     public static List<List<string>> Rows(string sheet, string file) =>

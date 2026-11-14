@@ -148,6 +148,28 @@ public class ImportAnalysisTests
     }
 
     [Fact]
+    public void ColumnsForAnyone_InTheRealTeaSheet()
+    {
+        // LPDU's TEA sheet (its CSV export): ten player columns to choose from in each tab, and the "Extras" calls for the
+        // jobs they name, always imported.
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = FixtureSheets.LpduTea();
+
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight("tea")!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+
+        Assert.True(analysis.Available, analysis.Reason);
+        string[] columns = ["Tank 1", "Tank 2", "Scholar", "Sage", "White Mage", "Astrologian", "Melee 1", "Melee 2", "Phys Range", "Caster"];
+        Assert.Equal(columns, analysis.ColumnsIn(["LLBJCC"]).Select(a => a.Key));
+        Assert.Equal(columns, analysis.ColumnsIn(["Alex PrimePA"]).Select(a => a.Key));
+        Assert.Equal([("Extras", 7)], analysis.AnyoneColumnsIn(["LLBJCC"]));
+        Assert.Equal([("Extras", 10)], analysis.AnyoneColumnsIn(["Alex PrimePA"]));
+        Assert.Equal(255, analysis.Tabs.Sum(t => t.Entries));
+        Assert.Equal(["Tank 2"], analysis.DefaultColumns(["LLBJCC", "Alex PrimePA"], Job.PLD, "OT"));
+        Assert.Equal(["White Mage"], analysis.DefaultColumns(["LLBJCC", "Alex PrimePA"], Job.WHM, "H1"));
+    }
+
+    [Fact]
     public void AWhiteMageGetsTheWhiteMageTabOnly()
     {
         var (doc, result) = CarryTheClear();
