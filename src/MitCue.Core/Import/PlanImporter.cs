@@ -242,6 +242,12 @@ public sealed partial class PlanImporter
             "can", "could", "may", "might", "optional", "optionally",
         };
 
+        /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
+        private static readonly ReminderOptions DefaultReminders = new();
+
+        /// <summary>Half the 0.01 s offsets are written to (<see cref="ImportText.Round"/>): times this close are equal.</summary>
+        private const double OffsetPrecision = 0.005;
+
         private readonly SheetDocument document;
         private readonly ImportOptions options;
         private readonly FightDefinition fight;
@@ -1849,6 +1855,9 @@ public sealed partial class PlanImporter
         /// <summary>The entry's timing as the scheduler gives it (<see cref="TimingRules.ForEntry"/>).</summary>
         private EntryTiming TimingOf(PlanEntry entry, Mechanic anchor) => TimingRules.ForEntry(entry, anchor, this.fight, this.options.Actions);
 
+        /// <summary>The timing of an entry on its mechanic (<see cref="TimingRules.ForEntry"/>).</summary>
+        private EntryTiming TimingOf(PlanEntry entry) => this.TimingOf(entry, this.fight.GetMechanic(entry.Mechanic)!);
+
         /// <summary>
         /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus their longest cast, so that
         /// the cast ends that long before the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s).
@@ -2156,24 +2165,52 @@ public sealed partial class PlanImporter
         /// press one the player makes for sure: an optional entry ("(Temperance)", "Seraph (if needed)", one choice of an
         /// either/or) may not be pressed, so it keeps no buff up.
         /// </summary>
+        /// <remarks>
+        /// The earlier effect must still cover the later call as the reminders time both (<see cref="CoversLaterCall"/>);
+        /// an earlier entry without a time in the sheet is pressed later when that makes it cover both (TEA's Hidden Mines
+        /// Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2). Otherwise the later call stays
+        /// a press, and <c>check</c> reports the recast the sheet asks for.
+        /// </remarks>
         private void MarkStillActive(List<Draft> ordered)
         {
-            var last = new Dictionary<(string? Assignee, string? Slot, Job? Job, uint Action), (double Press, string Mechanic, int Hit, int Tab, int Row)>();
+            // Per player and action: the last entry that presses it for sure, and whether its time is the importer's (no
+            // time in the sheet), so that CoversLaterCall may press it later.
+            var last = new Dictionary<(string? Assignee, string? Slot, Job? Job, uint Action), (Draft Draft, bool Movable)>();
             foreach (var d in ordered.Where(d => d.Confident))
             {
                 var e = d.Entry;
+                var timing = this.TimingOf(e); // as the sheet plans it, before an item of it is read as still active
                 for (var i = 0; i < e.Do.Count; i++)
                 {
                     if (e.Do[i].Action is not { } id || this.options.Actions.Get(id) is not { } action)
                         continue;
                     var key = (e.Who.Assignee, e.Who.Slot, e.Who.Job, id);
                     var duration = action.DurationAt(this.level) ?? 0;
-                    if (!last.TryGetValue(key, out var prev) || (prev.Tab, prev.Row) == (d.Tab, d.Row) || (prev.Mechanic, prev.Hit) == (e.Mechanic, e.HitIndex ?? 0)
+                    var recast = action.RecastAt(this.level);
+                    if (!last.TryGetValue(key, out var prev) || (prev.Draft.Tab, prev.Draft.Row) == (d.Tab, d.Row)
+                        || (prev.Draft.Entry.Mechanic, prev.Draft.Entry.HitIndex ?? 0) == (e.Mechanic, e.HitIndex ?? 0)
                         || e.Optional || e.Target is not null || action.Target is not (ActionTarget.Party or ActionTarget.Ground or ActionTarget.Self)
-                        || action.ChargesAt(this.level) > 1 || duration <= 0 || action.RecastAt(this.level) <= duration || d.Press - prev.Press >= duration)
+                        || action.ChargesAt(this.level) > 1 || duration <= 0 || recast <= duration)
                     {
                         if (!e.Optional)
-                            last[key] = (d.Press, e.Mechanic, e.HitIndex ?? 0, d.Tab, d.Row);
+                            last[key] = (d, e.Offset is null);
+                        continue;
+                    }
+
+                    var earlier = prev.Draft.Entry;
+                    var lasts = $"the {action.Name} at {earlier.Mechanic}, which lasts {ImportText.Seconds(duration)} s (recast {ImportText.Seconds(recast)} s)";
+                    var gap = timing.PressAt - this.TimingOf(earlier).PressAt;
+                    if (gap >= duration || !this.CoversLaterCall(earlier, prev.Movable, timing, duration, out var movedFrom))
+                    {
+                        // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
+                        if (gap < duration)
+                        {
+                            this.Diag(DiagnosticSeverity.Info, "still-active",
+                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but that one does not last through this hit {(prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it")}: both stay presses.",
+                                e.Src);
+                        }
+
+                        last[key] = (d, e.Offset is null);
                         continue;
                     }
 
@@ -2192,11 +2229,41 @@ public sealed partial class PlanImporter
                     }
 
                     e.Seq &= e.Do.Count > 1;
+                    var moved = movedFrom is { } from
+                        ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it lasts through this one."
+                        : string.Empty;
                     this.Diag(DiagnosticSeverity.Info, "still-active",
-                        $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(d.Press - prev.Press)} s after the {action.Name} at {prev.Mechanic}, which lasts {ImportText.Seconds(duration)} s (recast {ImportText.Seconds(action.RecastAt(this.level))} s): it is still active, so it is read as {now}.",
+                        $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(timing.PressAt - this.TimingOf(earlier).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
                         e.Src);
                 }
             }
+        }
+
+        /// <summary>
+        /// Whether the <paramref name="earlier"/> press of an action whose effect lasts <paramref name="duration"/> seconds
+        /// still covers a <paramref name="later"/> call of it, as the reminders time both (<see cref="TimingRules.ForEntry"/>):
+        /// used when its reminder turns due (the default due lead, <see cref="EntryTiming.DueAt"/>), the effect outlasts the
+        /// later hit, or the later press when that comes after the hit, by the expiry margin
+        /// (<see cref="TimingRules.EarliestCoveringUse"/>). When it falls short, an earlier entry the importer times
+        /// (<paramref name="movable"/>: no time in the sheet) is pressed later so that it covers both, if it is then still
+        /// pressed before its own hit, no later than "(Late)" would press it (<see cref="LateOffsetOf"/>);
+        /// <paramref name="movedFrom"/> is then its automatic offset before.
+        /// </summary>
+        private bool CoversLaterCall(PlanEntry earlier, bool movable, EntryTiming later, double duration, out double? movedFrom)
+        {
+            movedFrom = null;
+            var before = this.TimingOf(earlier);
+            var from = TimingRules.EarliestCoveringUse(Math.Max(later.Hit, later.PressAt), duration);
+            if (before.DueAt(DefaultReminders) >= from - OffsetPrecision)
+                return true;
+
+            // Pressed later, with its reminder due at the earliest use that still covers the later call.
+            var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
+            if (!movable || offset > LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
+                return false;
+            movedFrom = before.Offset;
+            earlier.Offset = offset;
+            return true;
         }
 
         /// <summary>
@@ -2240,7 +2307,7 @@ public sealed partial class PlanImporter
 
             // A follow-up or a note that MarkStillActive put in an entry can change its press time: the plan lists its entries
             // in the order the scheduler presses them.
-            ordered = InPressOrder(ordered.Select(d => d with { Press = this.PressEstimate(d.Entry, this.fight.GetMechanic(d.Entry.Mechanic)!) }));
+            ordered = InPressOrder(ordered.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt }));
             var width = Math.Max(3, ordered.Count.ToString(CultureInfo.InvariantCulture).Length);
             for (var i = 0; i < ordered.Count; i++)
                 ordered[i].Entry.Id = "e" + (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');

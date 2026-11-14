@@ -367,6 +367,22 @@ public class EntryTimingTests
     }
 
     [Fact]
+    public void DueAt_IsWhenTheEntrysRemindersTurnDue()
+    {
+        var fight = SeriesFight();
+        var options = new ReminderOptions();
+        Assert.Equal(92.5, Kit.Timing(Kit.Entry("p1.wave_1", null, Kit.Do(Kit.Temperance)), fight).DueAt(options), Kit.Tolerance);       // 94 − 1.5
+        Assert.Equal(103.3, Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.HallowedGround)), fight).DueAt(options), Kit.Tolerance); // not before the floor
+
+        // The scheduler turns the reminder due then.
+        var s = Kit.Scheduler(fight, options, Kit.Entry("p1.wave_3", null, Kit.Do(Kit.HallowedGround)));
+        s.Update(103.29);
+        Assert.Equal(ReminderState.Upcoming, Assert.Single(s.All).State);
+        s.Update(103.3);
+        Assert.Equal(ReminderState.Due, Assert.Single(s.All).State);
+    }
+
+    [Fact]
     public void Series_OnTheSeriesItself_ByTheHitIndex()
     {
         var fight = SeriesFight();

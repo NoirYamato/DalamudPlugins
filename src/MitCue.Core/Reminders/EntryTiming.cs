@@ -31,6 +31,11 @@ public sealed class EntryTiming
 
     /// <summary>One per item of the entry, at the item's index (a missing item is timed like a note).</summary>
     public required IReadOnlyList<ItemTiming> Items { get; init; }
+
+    /// <summary>When the entry's reminders turn due, their "NOW" cue (<see cref="TimingRules.DueAt"/>).</summary>
+    /// <param name="options">The reminder options (the due lead).</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+    public double DueAt(ReminderOptions options) => TimingRules.DueAt(this.PressAt, this.DueNotBefore, options);
 }
 
 /// <summary>The timing of one item of an entry.</summary>

@@ -530,25 +530,19 @@ entries:
     src: "'LL/BJCC'!E44"
   - id: e075
     mechanic: p2.hidden_mines
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 16536, name: Temperance}
-    src: "'LL/BJCC'!G44"
-  - id: e076
-    mechanic: p2.hidden_mines
     who: {job: SGE, assignee: Sage}
     do:
       - {action: 24305, name: Haima}
     target: OT
     src: "'LL/BJCC'!F44"
-  - id: e077
+  - id: e076
     mechanic: p2.hidden_mines
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7432, name: Divine Benison}
     target: OT
     src: "'LL/BJCC'!G44"
-  - id: e078
+  - id: e077
     mechanic: p2.hidden_mines
     who: {job: AST, assignee: Astrologian}
     do:
@@ -557,6 +551,13 @@ entries:
       - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
     target: OT
     src: "'LL/BJCC'!H44"
+  - id: e078
+    mechanic: p2.hidden_mines
+    offset: -3.5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    src: "'LL/BJCC'!G44"
   - id: e079
     mechanic: p2.hidden_mines
     who: {slot: OT, assignee: Tank 2}

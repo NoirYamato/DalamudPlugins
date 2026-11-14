@@ -420,8 +420,7 @@ public sealed class ReminderScheduler
     }
 
     /// <summary>When the reminder turns due: press − due lead, but not before <see cref="Reminder.DueNotBefore"/>.</summary>
-    private double DueAt(Reminder r) =>
-        r.DueNotBefore is { } floor ? Math.Max(r.PressAt - this.Options.DueLead, floor) : r.PressAt - this.Options.DueLead;
+    private double DueAt(Reminder r) => TimingRules.DueAt(r.PressAt, r.DueNotBefore, this.Options);
 
     /// <summary>
     /// Where the use window starts: the earlier of <see cref="Reminder.Earliest"/> and the moment the

@@ -194,9 +194,13 @@ Rules worth knowing:
 - **Notes over several columns** that name actions ("A tip for Soil/Kera timing …") are the detail of the entries in
   their columns and section that press one of them (all their columns' entries when none does).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
-  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`); an optional earlier press (in brackets,
-  with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written for one
-  role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`).
+  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`). "Still lasts" is the reminders' rule
+  (`TimingRules.ForEntry`, `EarliestCoveringUse`): used on its NOW cue (the default due lead), the earlier effect
+  outlasts the later hit by 1 s. An earlier press without a time in the sheet that falls short is pressed later so that
+  it covers both, no later than `(Late)` would press it (TEA's Hidden Mines Temperance −3.5 s, through Water 2);
+  otherwise both stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in
+  brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
+  for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

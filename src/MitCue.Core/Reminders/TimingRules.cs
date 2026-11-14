@@ -227,7 +227,7 @@ public static class TimingRules
 
         var duration = action?.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel);
         var earliest = duration is { } d
-            ? hit - d + ExpiryMargin
+            ? EarliestCoveringUse(hit, d)
             : pressAt - UnknownDurationLead;
         earliest = Math.Min(earliest, pressAt);
 
@@ -236,6 +236,24 @@ public static class TimingRules
             : Math.Max(hit - options.MitigationLatestBeforeHit, pressAt + MinDueAfterPress);
 
         return (earliest, latest);
+    }
+
+    /// <summary>
+    /// The earliest use of an effect of <paramref name="duration"/> seconds that still covers <paramref name="hit"/>: one
+    /// used earlier does not outlast the hit by 1 s (the expiry margin), so <see cref="UseWindow"/> starts here.
+    /// </summary>
+    public static double EarliestCoveringUse(double hit, double duration) => hit - duration + ExpiryMargin;
+
+    /// <summary>
+    /// When a reminder pressed at <paramref name="pressAt"/> turns due (its "NOW" cue): <see cref="ReminderOptions.DueLead"/>
+    /// before the press time, but not before <paramref name="notBefore"/> (<see cref="EntryTiming.DueNotBefore"/>).
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+    public static double DueAt(double pressAt, double? notBefore, ReminderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var due = pressAt - options.DueLead;
+        return notBefore is { } floor ? Math.Max(due, floor) : due;
     }
 
     /// <summary>

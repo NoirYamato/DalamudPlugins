@@ -224,6 +224,24 @@ public class TeaPlanTimingTests
         }
     }
 
+    // ---- a buff the sheet names again while it lasts -----------------------------------------------------------
+
+    /// <summary>
+    /// 'LL/BJCC'!G44 "Benison (OT)/Temperance" on Hidden Mines (292.7) and G46 "Temperance" on Water 2 (306.7): one
+    /// Temperance (20 s, recast 120 s) covers both rows. It is pressed 3.5 s before the mines, not 6 s, so that even used
+    /// on its NOW cue it lasts 1 s past Water 2, where the call is the note "Temperance (still active)".
+    /// </summary>
+    [Fact]
+    public void HiddenMines_TheTemperanceLastsThroughWater2()
+    {
+        var temperance = Assert.Single(Reminders("'LL/BJCC'!G44"), r => r.Item.Name == "Temperance");
+        Assert.Equal(289.2, temperance.PressAt, 1e-9);
+        Assert.True(temperance.PressAt < temperance.Hit - 0.3);
+        var water2 = Assert.Single(Reminders("'LL/BJCC'!G46"));
+        Assert.Equal(("p2.water_thunder_2", "Temperance (still active)"), (water2.Mechanic.Id, water2.Item.Note));
+        Assert.Equal(water2.Hit + 1, temperance.PressAt - new ReminderOptions().DueLead + 20, 9);
+    }
+
     /// <summary>
     /// 'LL/BJCC'!G40 "Asylum/Plenary": Plenary Indulgence (10 s, Confession on the heal-up GCDs) is pressed after the drop
     /// to 1 HP, not 7.2 s before it with Asylum's regen lead.

@@ -119,6 +119,23 @@ public class TimingRulesTests
     }
 
     [Fact]
+    public void EarliestCoveringUse_TheEffectOutlastsTheHitByOneSecond_TheUseWindowStartsThere()
+    {
+        Assert.Equal(81, TimingRules.EarliestCoveringUse(100, 20), Kit.Tolerance);   // used at 81, a 20 s effect lasts to 101
+        Assert.Equal(TimingRules.EarliestCoveringUse(100, 20), TimingRules.UseWindow(Kit.Temperance, 90, 100, 94, Defaults).Earliest, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void DueAt_IsTheDueLeadBeforeThePress_ButNotBeforeItsFloor()
+    {
+        Assert.Equal(98.5, TimingRules.DueAt(100, null, Defaults), Kit.Tolerance);
+        Assert.Equal(98.5, TimingRules.DueAt(100, 97, Defaults), Kit.Tolerance);
+        Assert.Equal(99.2, TimingRules.DueAt(100, 99.2, Defaults), Kit.Tolerance);   // a later hit of a series
+        Assert.Equal(97, TimingRules.DueAt(100, null, new ReminderOptions { DueLead = 3 }), Kit.Tolerance);
+        Assert.Throws<ArgumentNullException>(() => TimingRules.DueAt(100, null, null!));
+    }
+
+    [Fact]
     public void UseWindow_ShortEffect_EarliestIsNeverAfterThePressTime()
     {
         var (earliest, _) = TimingRules.UseWindow(Kit.Act(1, "X", ActionKind.Buff, duration: 2), 90, 100, 97, Defaults);

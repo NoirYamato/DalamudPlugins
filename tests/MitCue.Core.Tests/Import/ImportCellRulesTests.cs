@@ -315,6 +315,50 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void PartyBuffNamedAgain_EndingBeforeTheLaterHit_IsPressedLaterToCoverIt()
+    {
+        // TEA 'LL/BJCC'!G44/G46: Temperance at Hidden Mines (292.7) and at Water 2 (306.7). At its automatic -6 s, used on
+        // the NOW cue (1.5 s before the press), the 20 s effect ends 1.5 s before Water 2. Pressed 3.5 s before the mines
+        // it lasts 1 s past Water 2 (the use window's expiry margin), and still comes before the mines.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P2", "White Mage", "Mines\tTemperance", "Water 2\tTemperance"), fight: tea);
+
+        var mines = r.Plan.Entries.Single(e => e.Mechanic == "p2.hidden_mines");
+        Assert.Equal(-3.5, mines.Offset);
+        var timing = TimingRules.ForEntry(mines, tea.GetMechanic(mines.Mechanic)!, tea, RepoFiles.Actions);
+        Assert.Equal(306.7 + 1, timing.DueAt(new ReminderOptions()) + 20, 3);
+        Assert.Equal(["note:Temperance (still active)"], r.Plan.Entries.Single(e => e.Mechanic == "p2.water_thunder_2").Names());
+        Assert.Contains("pressed 3.5 s before its hit instead of 6.0 s", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PartyBuffNamedAgain_TwiceMore_TheFirstPressCoversThemAll()
+    {
+        // TEA P1: Hand of Prayer/Parting (35.8), Hand of Pain (42.8), Doll Feeds (50.3). The first Temperance covers the
+        // second call as it is, and pressed 3 s before its hit instead of 6 s also the third.
+        var r = Import(Sheet("P1", "White Mage", "Hand of Prayer\tTemperance", "Hand of Pain\tTemperance", "Doll Feeds\tTemperance"), fight: PlanImports.Tea);
+
+        Assert.Equal(-3.0, r.Plan.Entries.Single(e => e.Mechanic == "p1.hand_1").Offset);
+        Assert.Equal(
+            [("p1.hand_of_pain_1", "note:Temperance (still active)"), ("p1.doll_feeds", "note:Temperance (still active)")],
+            r.Plan.Entries.Where(e => e.Mechanic != "p1.hand_1").Select(e => (e.Mechanic, e.Names().Single())));
+    }
+
+    [Theory]
+    [InlineData("P1\tWhite Mage\nDoll Feeds\tTemperance\nHand of Pain\tTemperance", "even pressed just before its own")] // 19.7 s apart
+    [InlineData("Time\tMechanic\tWhite Mage\n\tP2\t\n1:00\tMines\tTemperance (0:54)\n1:14\tWater 2\tTemperance", "at the time the sheet gives it")] // -6 s, written
+    public void PartyBuffNamedAgain_ThatCannotLastThroughTheLaterHit_StaysAPress(string tsv, string why)
+    {
+        // The sheet asks for a second press within the recast: both stay presses, and `check` reports the recast.
+        var r = Import(tsv, fight: PlanImports.Tea);
+
+        Assert.Equal(2, r.Plan.Entries.Count);
+        Assert.All(r.Plan.Entries, e => Assert.Equal(["Temperance"], e.Names()));
+        Assert.Contains("both stay presses", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+        Assert.Contains(why, Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LimitBreakInTwoColumns_IsOptional_ForWhoeverHasIt()
     {
         var r = Import(Sheet("P5", "Tank 1\tTank 2\tH1", "Run: Dynamis\tLB3\tLB3\tLB3"));
