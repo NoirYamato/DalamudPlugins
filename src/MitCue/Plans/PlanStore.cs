@@ -82,6 +82,7 @@ internal sealed class PlanStore
     private readonly Action saveConfig;
     private readonly ErrorReporter errors;
     private readonly List<StoredPlan> plans = [];
+    private readonly HashSet<string> bundledIds = new(StringComparer.OrdinalIgnoreCase); // also those a user copy replaces
     private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
     private int suggestionsRevision = -1;
 
@@ -132,6 +133,7 @@ internal sealed class PlanStore
         this.Loaded = true;
         this.Revision++;
         this.plans.Clear();
+        this.bundledIds.Clear();
         this.errors.ClearPrefix("plans.load");
 
         this.LoadBundled();
@@ -421,9 +423,11 @@ internal sealed class PlanStore
 
     /// <summary>
     /// The active plan for a fight and job: the user's choice when set, otherwise (<paramref name="automatic"/> = true)
-    /// the bundled plan meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan with a column
-    /// or entries for the job, else the first of the user's own plans for it. Null when there is none or the user chose
-    /// "no plan".
+    /// the bundled plan meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan by name with a
+    /// column or entries for the job, else the first of the user's own plans for it. Null when there is none or the user
+    /// chose "no plan". The share code of a bundled plan (a user plan with its id: <see cref="Save"/>) takes that plan's
+    /// place in this order too, so importing LPDU TEA's own share code keeps it the automatic plan, whatever other plans the
+    /// player has for the fight.
     /// </summary>
     /// <remarks>
     /// A plan the user imports (or receives as a share code) replaces a bundled plan only when they choose it: the import
@@ -450,10 +454,12 @@ internal sealed class PlanStore
         automatic = true;
         var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
 
-        // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job.
+        // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job, and
+        // in the bundled plans' place (user plans are listed first, so it is sorted in among them by name).
         if (BundledDefaults.TryGetValue(key, out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
             return recommended;
-        return candidates.FirstOrDefault(p => p.Origin == PlanOrigin.Bundled) ?? candidates.FirstOrDefault();
+        return candidates.Where(p => this.bundledIds.Contains(p.Id)).OrderBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase).FirstOrDefault()
+               ?? candidates.FirstOrDefault();
     }
 
     /// <summary>The active plan for a fight and job (see <see cref="ActivePlanFor(string, Job, out bool)"/>).</summary>
@@ -699,6 +705,7 @@ internal sealed class PlanStore
             {
                 var plan = PlanSerializer.FromYaml(source.ReadText(path));
                 Normalize(plan);
+                this.bundledIds.Add(plan.Id);
                 if (this.Get(plan.Id) == null)
                     this.plans.Add(new StoredPlan(plan, PlanOrigin.Bundled, path));
             }

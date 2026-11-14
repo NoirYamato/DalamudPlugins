@@ -294,6 +294,36 @@ public class BundledPlanTests
         Assert.True(automatic);
     }
 
+    [Theory]
+    [InlineData("tea", Job.SCH, LpduTea, "p1.pull", Kit.SacredSoil, "Sacred Soil")]
+    [InlineData("tea", Job.WAR, LpduTea, "p1.pull", Kit.Reprisal, "Reprisal")]
+    [InlineData("top", Job.WAR, Lpdu, "p1.pantokrator", Kit.Reprisal, "Reprisal")]
+    public void AShareCodeOfABundledPlanKeepsItsPlaceOverThePlayersOwnPlan(string fight, Job job, string bundledId, string mechanic, uint action, string name)
+    {
+        // Review finding (C13): the share code of a bundled plan replaces it with a user plan of the same id. With the box
+        // unticked, the player's own unchosen plan for the fight that sorts first by name became the automatic one where no
+        // BundledDefaults entry names the plan (every TEA job, TOP's Warrior), and the message said the plan stayed.
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        var own = new MitPlan { Id = "own", Name = "Aa my own plan", Fight = fight, Entries = [Kit.Entry(mechanic, 0, action, name, job)] };
+        Assert.True(parts.Plans.Save(own, out var error), error);
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job)?.Id);
+
+        var code = PlanSerializer.ToShareCode(parts.Plans.Get(bundledId)!.Plan);
+        Assert.True(parts.Plans.ImportShareCode(code, job, makeActive: false, out _, out var message), message);
+
+        Assert.Equal(PlanOrigin.User, parts.Plans.Get(bundledId)!.Origin);
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job, out var automatic)?.Id);
+        Assert.True(automatic);
+        Assert.Contains($"It is your active plan for {fight.ToUpperInvariant()} as {job}.", message, StringComparison.Ordinal);
+        parts.Plans.Reload(); // as after a restart
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job)?.Id);
+
+        // Deleting the copy brings the bundled plan back in its place.
+        Assert.True(parts.Plans.Delete(bundledId, out error), error);
+        Assert.Equal((bundledId, PlanOrigin.Bundled), (parts.Plans.ActivePlanFor(fight, job)?.Id, parts.Plans.Get(bundledId)!.Origin));
+    }
+
     [Fact]
     public void AShareCodeWithoutCallsForTheCurrentJobSaysWhereToChooseIt()
     {
