@@ -75,7 +75,9 @@ public static class TeaP1Constants
 
     public static class P1Duration
     {
-        public const float LimitCutIntoTheTrack = 192f;             // UNVERIFIED that the track starts with the pull
+        // The fight's clock 8 s before the first Hawk Blaster. UNVERIFIED: that the track starts with the pull, and
+        // the kill it counts from, the Liquid's 125.5 s in, 5.2 s before that blaster.
+        public const float LimitCutIntoTheTrack = 122.7f;
         public const float NumberSpacing = 0.05f;                   // UNVERIFIED: the eight show over about 0.4 s
         // UNVERIFIED. Over 0.1: his model is turned to its number again 0.1 s before each cleave, which has to come
         // after he lands.
