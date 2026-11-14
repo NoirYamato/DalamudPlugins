@@ -1,0 +1,1744 @@
+format: mitcue-plan/1
+id: a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7
+name: LPDU TEA Heal/Mit
+fight: tea
+source: {kind: google-sheet, url: 'https://docs.google.com/spreadsheets/d/1D2AriiqGwEMWV-u_wGPRdeDCOKVO2xYQ_ms70RrJlwM/edit', tabs: [LL/BJCC, Alex Prime/PA], imported: 2026-11-11}
+assignees:
+  - {key: Tank 1, slot: MT}
+  - {key: Tank 2, slot: OT}
+  - {key: Scholar, job: SCH}
+  - {key: Sage, job: SGE}
+  - {key: White Mage, job: WHM}
+  - {key: Astrologian, job: AST}
+  - {key: Melee 1, slot: M1}
+  - {key: Melee 2, slot: M2}
+  - {key: Phys Range}
+  - {key: Caster}
+entries:
+  - id: e001
+    mechanic: p1.cascade_1
+    who: {job: PLD}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'LL/BJCC'!M11"
+  - id: e002
+    mechanic: p1.cascade_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 3587, name: Dissipation}
+    src: "'LL/BJCC'!E11"
+  - id: e003
+    mechanic: p1.cascade_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+      - {action: 24302, name: Physis II}
+    src: "'LL/BJCC'!F11"
+  - id: e004
+    mechanic: p1.cascade_1
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!C11"
+  - id: e005
+    mechanic: p1.cascade_1
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'LL/BJCC'!H11"
+  - id: e006
+    mechanic: p1.cascade_1
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'LL/BJCC'!I11"
+  - id: e007
+    mechanic: p1.doll_feeds
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G13"
+  - id: e008
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!C13"
+  - id: e009
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!C13"
+  - id: e010
+    mechanic: p1.doll_feeds
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 16537, name: Whispering Dawn}
+    src: "'LL/BJCC'!E13"
+  - id: e011
+    mechanic: p1.doll_feeds
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    note: if MCH
+    optional: true
+    src: "'LL/BJCC'!K13"
+  - id: e012
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'LL/BJCC'!C13"
+  - id: e013
+    mechanic: p1.doll_feeds
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'LL/BJCC'!C13"
+  - id: e014
+    mechanic: p1.doll_feeds
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Range
+    src: "'LL/BJCC'!G13"
+  - id: e015
+    mechanic: p1.doll_feeds
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24300, name: Zoe}
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24310, name: Holos}
+      - {action: 24298, name: Kerachole}
+    seq: true
+    src: "'LL/BJCC'!F13"
+  - id: e016
+    mechanic: p1.doll_feeds
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    src: "'LL/BJCC'!H13"
+  - id: e017
+    mechanic: p1.doll_feeds
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: Ranged
+    src: "'LL/BJCC'!H13"
+  - id: e018
+    mechanic: p1.fluid_swing_3
+    who: {slot: OT, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+    detail: the one after MT invuln
+    src: "'LL/BJCC'!D15"
+  - id: e019
+    mechanic: p1.protean_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+    src: "'LL/BJCC'!E17"
+  - id: e020
+    mechanic: p1.protean_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'LL/BJCC'!F17"
+  - id: e021
+    mechanic: p1.protean_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24305, name: Haima}
+    target: Tank
+    src: "'LL/BJCC'!F17"
+  - id: e022
+    mechanic: p1.protean_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Tank
+    src: "'LL/BJCC'!G17"
+  - id: e023
+    mechanic: p1.protean_1
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+    target: Tank
+    src: "'LL/BJCC'!H17"
+  - id: e024
+    mechanic: p1.splash_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    src: "'LL/BJCC'!G19"
+  - id: e025
+    mechanic: p1.splash_1
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!D19"
+  - id: e026
+    mechanic: p1.splash_1
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!D19"
+  - id: e027
+    mechanic: p1.splash_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 16538, name: Fey Illumination}
+      - {action: 16545, name: Summon Seraph}
+      - {action: 16546, name: Consolation}
+    seq: true
+    src: "'LL/BJCC'!E19"
+  - id: e028
+    mechanic: p1.splash_1
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'LL/BJCC'!K19"
+  - id: e029
+    mechanic: p1.splash_1
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'LL/BJCC'!K19"
+  - id: e030
+    mechanic: p1.splash_1
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'LL/BJCC'!K19"
+  - id: e031
+    mechanic: p1.splash_1
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'LL/BJCC'!D19"
+  - id: e032
+    mechanic: p1.splash_1
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'LL/BJCC'!D19"
+  - id: e033
+    mechanic: p1.splash_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24311, name: Panhaima}
+      - {action: 24298, name: Kerachole}
+      - {action: 24302, name: Physis II}
+    src: "'LL/BJCC'!F19"
+  - id: e034
+    mechanic: p1.splash_1
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!C19"
+  - id: e035
+    mechanic: p1.splash_1
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: Tank
+    src: "'LL/BJCC'!H19"
+  - id: e036
+    mechanic: p1.splash_1
+    who: {slot: M2, assignee: Melee 2}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'LL/BJCC'!J19"
+  - id: e037
+    mechanic: p1.splash_1
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on LL
+    src: "'LL/BJCC'!L19"
+  - id: e038
+    mechanic: p1.splash_1
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on LL
+    src: "'LL/BJCC'!L19"
+  - id: e039
+    mechanic: p1.splash_1
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on LL
+    src: "'LL/BJCC'!L19"
+  - id: e040
+    mechanic: p1.splash_1
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on LL
+    src: "'LL/BJCC'!L19"
+  - id: e041
+    mechanic: p1.splash_1
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    note: on LL
+    src: "'LL/BJCC'!M19"
+  - id: e042
+    mechanic: p1.cascade_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16546, name: Consolation}
+      - {action: 186, name: Succor}
+    src: "'LL/BJCC'!E21"
+  - id: e043
+    mechanic: p1.cascade_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'LL/BJCC'!F21"
+  - id: e044
+    mechanic: p1.cascade_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'LL/BJCC'!H21"
+  - id: e045
+    mechanic: p1.protean_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    target: OT
+    src: "'LL/BJCC'!E23"
+  - id: e046
+    mechanic: p1.protean_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 16543, name: Fey Blessing}
+      - {action: 186, name: Succor}
+    src: "'LL/BJCC'!E23"
+  - id: e047
+    mechanic: p1.protean_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    src: "'LL/BJCC'!F23"
+  - id: e048
+    mechanic: p1.protean_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Tank
+    src: "'LL/BJCC'!G23"
+  - id: e049
+    mechanic: p1.protean_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+    target: Tank
+    src: "'LL/BJCC'!H23"
+  - id: e050
+    mechanic: p1.protean_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G23"
+  - id: e051
+    mechanic: p1.protean_2
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'LL/BJCC'!I23"
+  - id: e052
+    mechanic: p2.j_kick
+    who: {job: PLD}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'LL/BJCC'!M36"
+  - id: e053
+    mechanic: p2.j_kick
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!C36"
+  - id: e054
+    mechanic: p2.j_kick
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!C36"
+  - id: e055
+    mechanic: p2.j_kick
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!D36"
+  - id: e056
+    mechanic: p2.j_kick
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!D36"
+  - id: e057
+    mechanic: p2.j_kick
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 186, name: Succor}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E36"
+  - id: e058
+    mechanic: p2.j_kick
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F36"
+  - id: e059
+    mechanic: p2.j_kick
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'LL/BJCC'!H36"
+  - id: e060
+    mechanic: p2.whirlwind_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Tank
+    src: "'LL/BJCC'!G38"
+  - id: e061
+    mechanic: p2.whirlwind_1
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: Tank
+    src: "'LL/BJCC'!H38"
+  - id: e062
+    mechanic: p2.whirlwind_1
+    who: {slot: OT, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!D38"
+  - id: e063
+    mechanic: p2.whirlwind_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16543, name: Fey Blessing}
+      - {action: 16537, name: Whispering Dawn}
+      - {action: 186, name: Succor}
+    src: "'LL/BJCC'!E38"
+  - id: e064
+    mechanic: p2.photon_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G40"
+  - id: e065
+    mechanic: p2.photon_1
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    optional: true
+    src: "'LL/BJCC'!C40"
+  - id: e066
+    mechanic: p2.photon_1
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    optional: true
+    src: "'LL/BJCC'!D40"
+  - id: e067
+    mechanic: p2.photon_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24300, name: Zoe}
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24302, name: Physis II}
+      - {action: 24298, name: Kerachole}
+      - {action: 24310, name: Holos}
+    seq: true
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F40"
+  - id: e068
+    mechanic: p2.photon_1
+    who: {job: MNK}
+    do:
+      - {action: 65, name: Mantra}
+    optional: true
+    src: "'LL/BJCC'!M40"
+  - id: e069
+    mechanic: p2.photon_1
+    who: {job: BRD}
+    do:
+      - {action: 7408, name: Nature's Minne}
+    optional: true
+    src: "'LL/BJCC'!M40"
+  - id: e070
+    mechanic: p2.photon_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 3583, name: Indomitability}
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 3587, name: Dissipation}
+    src: "'LL/BJCC'!E40"
+  - id: e071
+    mechanic: p2.water_thunder_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 186, name: Succor}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E42"
+  - id: e072
+    mechanic: p2.water_thunder_1
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: On BJ
+    src: "'LL/BJCC'!C42"
+  - id: e073
+    mechanic: p2.water_thunder_1
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    note: on BJ
+    src: "'LL/BJCC'!I42"
+  - id: e074
+    mechanic: p2.hidden_mines
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    target: OT
+    src: "'LL/BJCC'!E44"
+  - id: e075
+    mechanic: p2.hidden_mines
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    src: "'LL/BJCC'!G44"
+  - id: e076
+    mechanic: p2.hidden_mines
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24305, name: Haima}
+    target: OT
+    src: "'LL/BJCC'!F44"
+  - id: e077
+    mechanic: p2.hidden_mines
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: OT
+    src: "'LL/BJCC'!G44"
+  - id: e078
+    mechanic: p2.hidden_mines
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: OT
+    src: "'LL/BJCC'!H44"
+  - id: e079
+    mechanic: p2.hidden_mines
+    who: {slot: OT, assignee: Tank 2}
+    do:
+      - {note: All CD's}
+    src: "'LL/BJCC'!D44"
+  - id: e080
+    mechanic: p2.water_thunder_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {note: Temperance (still active)}
+    src: "'LL/BJCC'!G46"
+  - id: e081
+    mechanic: p2.water_thunder_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E46"
+  - id: e082
+    mechanic: p2.water_thunder_2
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'LL/BJCC'!K46"
+  - id: e083
+    mechanic: p2.water_thunder_2
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'LL/BJCC'!K46"
+  - id: e084
+    mechanic: p2.water_thunder_2
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'LL/BJCC'!K46"
+  - id: e085
+    mechanic: p2.water_thunder_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F46"
+  - id: e086
+    mechanic: p2.water_thunder_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'LL/BJCC'!H46"
+  - id: e087
+    mechanic: p2.water_thunder_2
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on BJ
+    src: "'LL/BJCC'!L46"
+  - id: e088
+    mechanic: p2.water_thunder_2
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on BJ
+    src: "'LL/BJCC'!L46"
+  - id: e089
+    mechanic: p2.water_thunder_2
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on BJ
+    src: "'LL/BJCC'!L46"
+  - id: e090
+    mechanic: p2.water_thunder_2
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: on BJ
+    src: "'LL/BJCC'!L46"
+  - id: e091
+    mechanic: p2.whirlwind_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16538, name: Fey Illumination}
+      - {action: 16537, name: Whispering Dawn}
+      - {action: 16545, name: Summon Seraph}
+      - {action: 16546, name: Consolation}
+      - {action: 188, name: Sacred Soil}
+    seq: true
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E48"
+  - id: e092
+    mechanic: p2.whirlwind_2
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!C48"
+  - id: e093
+    mechanic: p2.whirlwind_2
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!C48"
+  - id: e094
+    mechanic: p2.whirlwind_2
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'LL/BJCC'!D48"
+  - id: e095
+    mechanic: p2.whirlwind_2
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'LL/BJCC'!D48"
+  - id: e096
+    mechanic: p2.whirlwind_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24311, name: Panhaima}
+      - {action: 24302, name: Physis II}
+      - {action: 24298, name: Kerachole}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F48"
+  - id: e097
+    mechanic: p2.whirlwind_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: MT
+    src: "'LL/BJCC'!G48"
+  - id: e098
+    mechanic: p2.whirlwind_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+    target: MT
+    src: "'LL/BJCC'!H48"
+  - id: e099
+    mechanic: p2.whirlwind_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G48"
+  - id: e100
+    mechanic: p2.whirlwind_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    src: "'LL/BJCC'!H48"
+  - id: e101
+    mechanic: p2.water_thunder_3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+      - {action: 16546, name: Consolation}
+    src: "'LL/BJCC'!E50"
+  - id: e102
+    mechanic: p2.water_thunder_3
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    optional: true
+    src: "'LL/BJCC'!C50"
+  - id: e103
+    mechanic: p2.water_thunder_3
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    optional: true
+    src: "'LL/BJCC'!D50"
+  - id: e104
+    mechanic: p2.water_thunder_3
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'LL/BJCC'!F50"
+  - id: e105
+    mechanic: p2.water_thunder_3
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {note: Neutral Sect (still active)}
+    src: "'LL/BJCC'!H50"
+  - id: e106
+    mechanic: p2.water_thunder_3
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {any: [{action: 37024, name: the Arrow}, {action: 37027, name: the Bole}]}
+      - {any: [{action: 37025, name: the Spire}, {action: 37028, name: the Ewer}]}
+    target: MT
+    src: "'LL/BJCC'!H50"
+  - id: e107
+    mechanic: p2.water_thunder_3
+    who: {slot: M2, assignee: Melee 2}
+    do:
+      - {action: 7549, name: Feint}
+    note: on BJ
+    src: "'LL/BJCC'!J50"
+  - id: e108
+    mechanic: p2.water_thunder_3
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    note: on BJ
+    src: "'LL/BJCC'!M50"
+  - id: e109
+    mechanic: p2.gavel
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    src: "'LL/BJCC'!G52"
+  - id: e110
+    mechanic: p2.double_rocket_punch
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 7434, name: Excogitation}
+    target: Tank
+    src: "'LL/BJCC'!E54"
+  - id: e111
+    mechanic: p2.double_rocket_punch
+    who: {job: PLD}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'LL/BJCC'!M54"
+  - id: e112
+    mechanic: p2.double_rocket_punch
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E54"
+  - id: e113
+    mechanic: p2.double_rocket_punch
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24291, name: Eukrasian Diagnosis}
+      - {action: 24298, name: Kerachole}
+    target: tank
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F54"
+  - id: e114
+    mechanic: p2.double_rocket_punch
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7432, name: Divine Benison}
+    target: Tank
+    src: "'LL/BJCC'!G54"
+  - id: e115
+    mechanic: p2.double_rocket_punch
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16556, name: Celestial Intersection}
+    target: Tank
+    src: "'LL/BJCC'!H54"
+  - id: e116
+    mechanic: p2.double_rocket_punch
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!C54"
+  - id: e117
+    mechanic: p2.double_rocket_punch
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'LL/BJCC'!H54"
+  - id: e118
+    mechanic: p2.double_rocket_punch
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    note: on BJ
+    src: "'LL/BJCC'!I54"
+  - id: e119
+    mechanic: p2.double_rocket_punch
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 140, name: Benediction}
+    target: tank
+    src: "'LL/BJCC'!G54"
+  - id: e120
+    mechanic: p2.whirlwind_3
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 186, name: Succor}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E56"
+  - id: e121
+    mechanic: p2.whirlwind_3
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!F56"
+  - id: e122
+    mechanic: p2.whirlwind_3
+    who: {slot: OT, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'LL/BJCC'!D56"
+  - id: e123
+    mechanic: p3.inception_crystals
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!C11"
+  - id: e124
+    mechanic: p3.inception_crystals
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!C11"
+  - id: e125
+    mechanic: p3.inception_crystals
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!D11"
+  - id: e126
+    mechanic: p3.inception_crystals
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!D11"
+  - id: e127
+    mechanic: p3.inception_crystals
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'Alex Prime/PA'!K11"
+  - id: e128
+    mechanic: p3.inception_crystals
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'Alex Prime/PA'!K11"
+  - id: e129
+    mechanic: p3.inception_crystals
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'Alex Prime/PA'!K11"
+  - id: e130
+    mechanic: p3.inception_crystals
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!C11"
+  - id: e131
+    mechanic: p3.inception_crystals
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!C11"
+  - id: e132
+    mechanic: p3.inception_crystals
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!D11"
+  - id: e133
+    mechanic: p3.inception_crystals
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!D11"
+  - id: e134
+    mechanic: p3.inception_crystals
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!E11"
+  - id: e135
+    mechanic: p3.inception_crystals
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!F11"
+  - id: e136
+    mechanic: p3.inception_crystals
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!G11"
+  - id: e137
+    mechanic: p3.inception_crystals
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!H11"
+  - id: e138
+    mechanic: p3.inception_crystals
+    who: {job: MNK}
+    do:
+      - {action: 65, name: Mantra}
+    optional: true
+    src: "'Alex Prime/PA'!M11"
+  - id: e139
+    mechanic: p3.inception_crystals
+    who: {job: BRD}
+    do:
+      - {action: 7408, name: Nature's Minne}
+    optional: true
+    src: "'Alex Prime/PA'!M11"
+  - id: e140
+    mechanic: p3.incinerating_heat
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    note: if 7 people
+    optional: true
+    src: "'Alex Prime/PA'!C13"
+  - id: e141
+    mechanic: p3.incinerating_heat
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    note: if 7 people
+    optional: true
+    src: "'Alex Prime/PA'!C13"
+  - id: e142
+    mechanic: p3.incinerating_heat
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+    src: "'Alex Prime/PA'!E13"
+  - id: e143
+    mechanic: p3.incinerating_heat
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+    note: if 7 people
+    optional: true
+    src: "'Alex Prime/PA'!C13"
+  - id: e144
+    mechanic: p3.incinerating_heat
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    note: if 7 people
+    optional: true
+    src: "'Alex Prime/PA'!C13"
+  - id: e145
+    mechanic: p3.incinerating_heat
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'Alex Prime/PA'!F13"
+  - id: e146
+    mechanic: p3.incinerating_heat
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'Alex Prime/PA'!G13"
+  - id: e147
+    mechanic: p3.incinerating_heat
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'Alex Prime/PA'!H13"
+  - id: e148
+    mechanic: p3.mega_holy_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+      - {action: 188, name: Sacred Soil}
+    src: "'Alex Prime/PA'!E15"
+  - id: e149
+    mechanic: p3.mega_holy_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    src: "'Alex Prime/PA'!F15"
+  - id: e150
+    mechanic: p3.mega_holy_1
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    src: "'Alex Prime/PA'!M15"
+  - id: e151
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: Late
+    src: "'Alex Prime/PA'!C15"
+  - id: e152
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    note: Late
+    src: "'Alex Prime/PA'!I15"
+  - id: e153
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: Late
+    src: "'Alex Prime/PA'!L15"
+  - id: e154
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: Late
+    src: "'Alex Prime/PA'!L15"
+  - id: e155
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: Late
+    src: "'Alex Prime/PA'!L15"
+  - id: e156
+    mechanic: p3.mega_holy_1
+    offset: -1
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    note: Late
+    src: "'Alex Prime/PA'!L15"
+  - id: e157
+    mechanic: p3.j_storm
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 185, name: Adloquium}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 188, name: Sacred Soil}
+    seq: true
+    src: "'Alex Prime/PA'!E17"
+  - id: e158
+    mechanic: p3.j_storm
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24300, name: Zoe}
+      - {action: 24292, name: Eukrasian Prognosis}
+    seq: true
+    src: "'Alex Prime/PA'!F17"
+  - id: e159
+    mechanic: p3.j_wave_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+    src: "'Alex Prime/PA'!G19"
+  - id: e160
+    mechanic: p3.j_wave_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+    src: "'Alex Prime/PA'!E19"
+  - id: e161
+    mechanic: p3.j_wave_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24302, name: Physis II}
+    src: "'Alex Prime/PA'!F19"
+  - id: e162
+    mechanic: p3.j_wave_5
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    src: "'Alex Prime/PA'!G21"
+  - id: e163
+    mechanic: p3.j_wave_5
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!C21"
+  - id: e164
+    mechanic: p3.j_wave_5
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!C21"
+  - id: e165
+    mechanic: p3.j_wave_5
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+      - {action: 188, name: Sacred Soil}
+      - {action: 16545, name: Summon Seraph}
+    src: "'Alex Prime/PA'!E21"
+  - id: e166
+    mechanic: p3.j_wave_5
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'Alex Prime/PA'!K21"
+  - id: e167
+    mechanic: p3.j_wave_5
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'Alex Prime/PA'!K21"
+  - id: e168
+    mechanic: p3.j_wave_5
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'Alex Prime/PA'!K21"
+  - id: e169
+    mechanic: p3.j_wave_5
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!C21"
+  - id: e170
+    mechanic: p3.j_wave_5
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!C21"
+  - id: e171
+    mechanic: p3.j_wave_5
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24311, name: Panhaima}
+      - {action: 24298, name: Kerachole}
+    src: "'Alex Prime/PA'!F21"
+  - id: e172
+    mechanic: p3.j_wave_5
+    who: {slot: OT, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!D21"
+  - id: e173
+    mechanic: p3.j_wave_5
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16559, name: Neutral Sect}
+    src: "'Alex Prime/PA'!H21"
+  - id: e174
+    mechanic: p3.j_wave_5
+    who: {job: MNK}
+    do:
+      - {action: 65, name: Mantra}
+    optional: true
+    src: "'Alex Prime/PA'!M21"
+  - id: e175
+    mechanic: p3.j_wave_5
+    who: {job: BRD}
+    do:
+      - {action: 7408, name: Nature's Minne}
+    optional: true
+    src: "'Alex Prime/PA'!M21"
+  - id: e176
+    mechanic: p3.j_wave_7
+    who: {job: PLD}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'Alex Prime/PA'!M23"
+  - id: e177
+    mechanic: p3.j_wave_7
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!D23"
+  - id: e178
+    mechanic: p3.j_wave_7
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!D23"
+  - id: e179
+    mechanic: p3.j_wave_7
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!D23"
+  - id: e180
+    mechanic: p3.j_wave_7
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!D23"
+  - id: e181
+    mechanic: p3.j_wave_7
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24310, name: Holos}
+    src: "'Alex Prime/PA'!F23"
+  - id: e182
+    mechanic: p3.j_wave_7
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16546, name: Consolation}
+      - {action: 16538, name: Fey Illumination}
+    src: "'Alex Prime/PA'!E23"
+  - id: e183
+    mechanic: p3.j_wave_7
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'Alex Prime/PA'!G23"
+  - id: e184
+    mechanic: p3.j_wave_7
+    who: {slot: M2, assignee: Melee 2}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'Alex Prime/PA'!J23"
+  - id: e185
+    mechanic: p3.j_wave_9
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+    src: "'Alex Prime/PA'!E25"
+  - id: e186
+    mechanic: p3.j_wave_9
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'Alex Prime/PA'!F25"
+  - id: e187
+    mechanic: p3.j_wave_9
+    who: {slot: MT, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!C25"
+  - id: e188
+    mechanic: p3.j_wave_9
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'Alex Prime/PA'!H25"
+  - id: e189
+    mechanic: p3.divine_judgment
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 186, name: Succor}
+    src: "'Alex Prime/PA'!E27"
+  - id: e190
+    mechanic: p3.divine_judgment
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    src: "'Alex Prime/PA'!F27"
+  - id: e191
+    mechanic: p3.divine_judgment
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 199, name: Last Bastion}
+    note: or Tank 2
+    optional: true
+    src: "'Alex Prime/PA'!C27"
+  - id: e192
+    mechanic: p3.divine_judgment
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 4240, name: Land Waker}
+    note: or Tank 2
+    optional: true
+    src: "'Alex Prime/PA'!C27"
+  - id: e193
+    mechanic: p3.divine_judgment
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 4241, name: Dark Force}
+    note: or Tank 2
+    optional: true
+    src: "'Alex Prime/PA'!C27"
+  - id: e194
+    mechanic: p3.divine_judgment
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 17105, name: Gunmetal Soul}
+    note: or Tank 2
+    optional: true
+    src: "'Alex Prime/PA'!C27"
+  - id: e195
+    mechanic: p3.divine_judgment
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 199, name: Last Bastion}
+    note: or Tank 1
+    optional: true
+    src: "'Alex Prime/PA'!D27"
+  - id: e196
+    mechanic: p3.divine_judgment
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 4240, name: Land Waker}
+    note: or Tank 1
+    optional: true
+    src: "'Alex Prime/PA'!D27"
+  - id: e197
+    mechanic: p3.divine_judgment
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 4241, name: Dark Force}
+    note: or Tank 1
+    optional: true
+    src: "'Alex Prime/PA'!D27"
+  - id: e198
+    mechanic: p3.divine_judgment
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 17105, name: Gunmetal Soul}
+    note: or Tank 1
+    optional: true
+    src: "'Alex Prime/PA'!D27"
+  - id: e199
+    mechanic: p4.optical_sight
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'Alex Prime/PA'!K39"
+  - id: e200
+    mechanic: p4.optical_sight
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'Alex Prime/PA'!K39"
+  - id: e201
+    mechanic: p4.optical_sight
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'Alex Prime/PA'!K39"
+  - id: e202
+    mechanic: p4.optical_sight
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!C39"
+  - id: e203
+    mechanic: p4.optical_sight
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!C39"
+  - id: e204
+    mechanic: p4.optical_sight
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!C39"
+  - id: e205
+    mechanic: p4.optical_sight
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!C39"
+  - id: e206
+    mechanic: p4.optical_sight
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 3540, name: Divine Veil}
+    src: "'Alex Prime/PA'!D39"
+  - id: e207
+    mechanic: p4.optical_sight
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 7388, name: Shake It Off}
+    src: "'Alex Prime/PA'!D39"
+  - id: e208
+    mechanic: p4.optical_sight
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16471, name: Dark Missionary}
+    src: "'Alex Prime/PA'!D39"
+  - id: e209
+    mechanic: p4.optical_sight
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16160, name: Heart of Light}
+    src: "'Alex Prime/PA'!D39"
+  - id: e210
+    mechanic: p4.optical_sight
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!E39"
+  - id: e211
+    mechanic: p4.optical_sight
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!F39"
+  - id: e212
+    mechanic: p4.optical_sight
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!G39"
+  - id: e213
+    mechanic: p4.optical_sight
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!H39"
+  - id: e214
+    mechanic: p4.optical_sight
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'Alex Prime/PA'!I39"
+  - id: e215
+    mechanic: p4.optical_sight
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L39"
+  - id: e216
+    mechanic: p4.optical_sight
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L39"
+  - id: e217
+    mechanic: p4.optical_sight
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L39"
+  - id: e218
+    mechanic: p4.optical_sight
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L39"
+  - id: e219
+    mechanic: p4.optical_sight
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    src: "'Alex Prime/PA'!M39"
+  - id: e220
+    mechanic: p4.fate_beta
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    note: End of cast
+    src: "'Alex Prime/PA'!D43"
+  - id: e221
+    mechanic: p4.fate_beta
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+    note: End of cast
+    src: "'Alex Prime/PA'!D43"
+  - id: e222
+    mechanic: p4.fate_beta
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 186, name: Succor}
+    src: "'Alex Prime/PA'!E43"
+  - id: e223
+    mechanic: p4.fate_beta
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24298, name: Kerachole}
+      - {action: 24292, name: Eukrasian Prognosis}
+    src: "'Alex Prime/PA'!F43"
+  - id: e224
+    mechanic: p4.fate_beta
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+    note: End of cast
+    src: "'Alex Prime/PA'!D43"
+  - id: e225
+    mechanic: p4.fate_beta
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7388, name: Shake It Off}
+    note: End of cast
+    src: "'Alex Prime/PA'!D43"
+  - id: e226
+    mechanic: p4.fate_beta
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+      - {action: 3569, name: Asylum}
+    src: "'Alex Prime/PA'!G43"
+  - id: e227
+    mechanic: p4.fate_beta
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    src: "'Alex Prime/PA'!H43"
+  - id: e228
+    mechanic: p4.fate_beta
+    do:
+      - {note: Use Personals}
+    src: "'Alex Prime/PA'!M43"
+  - id: e229
+    mechanic: p4.irresistible_grace_1
+    who: {slot: MT, job: DRK, assignee: Tank 1}
+    do:
+      - {action: 16471, name: Dark Missionary}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!C45"
+  - id: e230
+    mechanic: p4.irresistible_grace_1
+    who: {slot: MT, job: GNB, assignee: Tank 1}
+    do:
+      - {action: 16160, name: Heart of Light}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!C45"
+  - id: e231
+    mechanic: p4.irresistible_grace_1
+    who: {slot: MT, job: PLD, assignee: Tank 1}
+    do:
+      - {action: 3540, name: Divine Veil}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!C45"
+  - id: e232
+    mechanic: p4.irresistible_grace_1
+    who: {slot: MT, job: WAR, assignee: Tank 1}
+    do:
+      - {action: 7388, name: Shake It Off}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!C45"
+  - id: e233
+    mechanic: p4.irresistible_grace_1
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24311, name: Panhaima}
+      - {action: 24298, name: Kerachole}
+      - {action: 24300, name: Zoe}
+      - {action: 24292, name: Eukrasian Prognosis}
+    seq: true
+    src: "'Alex Prime/PA'!F45"
+  - id: e234
+    mechanic: p4.irresistible_grace_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 188, name: Sacred Soil}
+      - {action: 16538, name: Fey Illumination}
+    src: "'Alex Prime/PA'!E45"
+  - id: e235
+    mechanic: p4.irresistible_grace_1
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 3613, name: Collective Unconscious}
+    note: if up
+    optional: true
+    src: "'Alex Prime/PA'!H45"
+  - id: e236
+    mechanic: p4.irresistible_grace_1
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'Alex Prime/PA'!I45"
+  - id: e237
+    mechanic: p4.irresistible_grace_1
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e238
+    mechanic: p4.irresistible_grace_1
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e239
+    mechanic: p4.irresistible_grace_1
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e240
+    mechanic: p4.irresistible_grace_1
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e241
+    mechanic: p4.irresistible_grace_1
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    src: "'Alex Prime/PA'!M45"
+  - id: e242
+    mechanic: p4.irresistible_grace_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24310, name: Holos}
+      - {action: 24298, name: Kerachole}
+      - {action: 24302, name: Physis II}
+    src: "'Alex Prime/PA'!F47"
+  - id: e243
+    mechanic: p4.irresistible_grace_2
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 16536, name: Temperance}
+    src: "'Alex Prime/PA'!G47"
+  - id: e244
+    mechanic: p4.irresistible_grace_2
+    who: {job: PLD}
+    do:
+      - {action: 7385, name: Passage of Arms}
+    src: "'Alex Prime/PA'!M47"
+  - id: e245
+    mechanic: p4.irresistible_grace_2
+    who: {slot: OT, job: DRK, assignee: Tank 2}
+    do:
+      - {action: 16471, name: Dark Missionary}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!D47"
+  - id: e246
+    mechanic: p4.irresistible_grace_2
+    who: {slot: OT, job: GNB, assignee: Tank 2}
+    do:
+      - {action: 16160, name: Heart of Light}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!D47"
+  - id: e247
+    mechanic: p4.irresistible_grace_2
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+      - {action: 186, name: Succor}
+      - {action: 16545, name: Summon Seraph}
+    src: "'Alex Prime/PA'!E47"
+  - id: e248
+    mechanic: p4.irresistible_grace_2
+    who: {job: BRD, assignee: Phys Range}
+    do:
+      - {action: 7405, name: Troubadour}
+    src: "'Alex Prime/PA'!K47"
+  - id: e249
+    mechanic: p4.irresistible_grace_2
+    who: {job: MCH, assignee: Phys Range}
+    do:
+      - {action: 16889, name: Tactician}
+    src: "'Alex Prime/PA'!K47"
+  - id: e250
+    mechanic: p4.irresistible_grace_2
+    who: {job: DNC, assignee: Phys Range}
+    do:
+      - {action: 16012, name: Shield Samba}
+    src: "'Alex Prime/PA'!K47"
+  - id: e251
+    mechanic: p4.irresistible_grace_2
+    who: {slot: OT, job: PLD, assignee: Tank 2}
+    do:
+      - {action: 3540, name: Divine Veil}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!D47"
+  - id: e252
+    mechanic: p4.irresistible_grace_2
+    who: {slot: OT, job: WAR, assignee: Tank 2}
+    do:
+      - {action: 7388, name: Shake It Off}
+      - {action: 7535, name: Reprisal}
+    src: "'Alex Prime/PA'!D47"
+  - id: e253
+    mechanic: p4.irresistible_grace_2
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {action: 16559, name: Neutral Sect}
+      - {action: 3613, name: Collective Unconscious}
+    src: "'Alex Prime/PA'!H47"
+  - id: e254
+    mechanic: p4.irresistible_grace_2
+    who: {slot: M2, assignee: Melee 2}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'Alex Prime/PA'!J47"

@@ -38,6 +38,17 @@ public class SessionManagerTests
         Level = 90,
     };
 
+    /// <summary>A frame in TEA (The Epic of Alexander (Ultimate), synced to level 80) as <paramref name="job"/>.</summary>
+    internal static FrameContext InTea(Job job, double now = 1) => new()
+    {
+        Now = now,
+        LoggedIn = true,
+        Territory = 887,
+        Job = job,
+        ClassJobId = (uint)job,
+        Level = 80,
+    };
+
     [Fact]
     public void AUsualSlotOfAnotherRoleShowsNoneOfThatSlotsCalls()
     {

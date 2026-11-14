@@ -428,8 +428,10 @@ internal sealed class PlanStore
     /// <remarks>
     /// A plan the user imports (or receives as a share code) replaces a bundled plan only when they choose it: the import
     /// window's "Make it my active plan" and the share-code import's checkbox do that, and so does the Plans tab. So a
-    /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. Where no bundled plan
-    /// covers the job (TEA and DMU ship none), the user's own plan is the automatic one.
+    /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. TEA's only bundled plan
+    /// (LPDU's TEA sheet) is the automatic one of every job it names, with no <see cref="BundledDefaults"/> entry. Where no
+    /// bundled plan covers the job (DMU ships none; LPDU's TEA sheet names no melee job but the Monk, as the calls of
+    /// its melee seats are job-less), the user's own plan is the automatic one.
     /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {

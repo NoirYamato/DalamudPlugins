@@ -14,8 +14,6 @@ public class ImportCellRulesTests
 {
     private static readonly CellParser And = new(new CellParserOptions { SlashJoins = true });
 
-    private static readonly Lazy<FightDefinition> LazyTea = new(() => FightLoader.Load(RepoFiles.Data.ReadText("fights/tea.yaml"), "fights/tea.yaml"));
-
     private static ImportResult Import(string tsv, SlashReading slashes = SlashReading.Auto, FightDefinition? fight = null)
     {
         var tab = SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', "Pasted");
@@ -302,7 +300,7 @@ public class ImportCellRulesTests
     public void Late_PressesAMitigationJustBeforeItsHit()
     {
         // TEA Mega Holy: a 10 s Reprisal pressed 1 s before the first Mega Holy (682.9) still covers the second (690.0).
-        var tea = LazyTea.Value;
+        var tea = PlanImports.Tea;
         var r = Import(Sheet("P3", "Tank 1\tMelee 1\tScholar", "Mega Holy\tReprisal (Late)\tFeint (later)\tIndom (Late)"), fight: tea);
 
         var reprisal = Assert.Single(r.Plan.Entries, e => e.Names().Contains("Reprisal"));

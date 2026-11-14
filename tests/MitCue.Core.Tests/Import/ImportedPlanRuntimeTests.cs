@@ -21,17 +21,29 @@ public class ImportedPlanRuntimeTests
         { 2, Job.MCH, "R1" },
         { 3, Job.SCH, null },
         { 3, Job.SCH, "H2" },
+        { 4, Job.WHM, null },
+        { 4, Job.SCH, "H2" },
+        { 4, Job.SGE, null },
+        { 4, Job.AST, "H1" },
+        { 4, Job.WAR, "MT" },
+        { 4, Job.PLD, "OT" },
+        { 4, Job.NIN, "M1" },
+        { 4, Job.BRD, "R1" },
+        { 4, Job.MCH, null },
+        { 4, Job.RDM, "R2" },
     };
 
     [Theory]
     [MemberData(nameof(Players))]
     public void Scheduler_BuildsEveryReminder(int plan, Job job, string? slot)
     {
-        var imported = PlanImports.Import(PlanImports.SheetImports[plan]).Plan;
-        var mine = PlanSelection.For(imported, new PlayerContext(job, 90, slot)).ToList();
+        var bundled = PlanImports.SheetImports[plan];
+        var fight = bundled.Options.Fight;
+        var imported = PlanImports.Import(bundled).Plan;
+        var mine = PlanSelection.For(imported, new PlayerContext(job, fight.SyncLevel, slot)).ToList();
         Assert.NotEmpty(mine);
 
-        var scheduler = new ReminderScheduler(PlanImports.Top, mine, RepoFiles.Actions, new ReminderOptions());
+        var scheduler = new ReminderScheduler(fight, mine, RepoFiles.Actions, new ReminderOptions());
         Assert.Empty(scheduler.Problems);
         Assert.Equal(mine.Sum(e => e.Do.Count), scheduler.All.Count);
         Assert.All(scheduler.All.Where(r => r.Item.Note is null), r => Assert.True(r.Earliest <= r.PressAt && r.PressAt < r.Latest, $"{r.Entry.Id}: {r.Earliest} ≤ {r.PressAt} < {r.Latest}"));

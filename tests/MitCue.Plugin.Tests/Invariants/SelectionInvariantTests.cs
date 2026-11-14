@@ -26,13 +26,18 @@ public class SelectionInvariantTests
     private const string NoirMit = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
     private const string CtcSch = "5b622e32-04ae-53de-a4f8-f66e4c0aae0c";
     private const string Lpdu = "1f75e1e8-7321-566c-ae86-8568019fe914";
+    private const string LpduTea = "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7";
     private const int Level = 90;
 
     private static readonly string?[] UsualSlots = [null, "MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
 
-    /// <summary>Every healer and tank, and the DPS whose calls differ on the plans swept (one melee: LPDU's are job-less).</summary>
+    /// <summary>
+    /// Every healer and tank, and the DPS whose calls differ on the plans swept: a melee job with no calls of its own
+    /// (LPDU's are job-less), the Monk (LPDU TEA's "Extras" name Mantra), and the ranged jobs of LPDU's seats and of LPDU
+    /// TEA's role columns ("Phys Range", "Caster").
+    /// </summary>
     private static readonly Job[] SweptJobs =
-        [Job.WHM, Job.AST, Job.SCH, Job.SGE, Job.WAR, Job.DRK, Job.GNB, Job.PLD, Job.SAM, Job.BRD, Job.MCH, Job.RDM, Job.PCT, Job.BLM, Job.SMN];
+        [Job.WHM, Job.AST, Job.SCH, Job.SGE, Job.WAR, Job.DRK, Job.GNB, Job.PLD, Job.SAM, Job.MNK, Job.BRD, Job.MCH, Job.DNC, Job.RDM, Job.PCT, Job.BLM, Job.SMN];
 
     private static readonly Job[] BaseA = [Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.SAM, Job.RPR, Job.DNC, Job.PCT];
     private static readonly Job[] BaseB = [Job.GNB, Job.PLD, Job.AST, Job.SGE, Job.MNK, Job.DRG, Job.BRD, Job.RDM];
@@ -54,6 +59,9 @@ public class SelectionInvariantTests
 
         /// <summary>A general tank tab next to several pair tabs: the documented one-column limit (I3 and the Save step's warning).</summary>
         public bool GeneralNextToPairs { get; init; }
+
+        /// <summary>The fight's sync level (TOP 90, TEA 80).</summary>
+        public int Level { get; init; } = SelectionInvariantTests.Level;
     }
 
     internal sealed record Surface(PlayerMapping Mapping, PlayerContext Me, List<PlanEntry> Own, List<PlanEntry> Partners);
@@ -121,7 +129,7 @@ public class SelectionInvariantTests
                     foreach (var party in PartiesFor(job))
                     {
                         var where = $"{c.Name} {job} slot={slot ?? "-"} party={party.Name}";
-                        var s = Overlay(store, config, plan, job, party.Jobs);
+                        var s = Overlay(store, config, plan, job, party.Jobs, c.Level);
                         CheckOwn(problems, c, plan, job, slot, party, s, where);
                         CheckPartners(problems, c, plan, job, party, s, where);
 
@@ -132,7 +140,7 @@ public class SelectionInvariantTests
 
                         CheckImport(problems, c, raw, plan, job, slot, party, s, suggestion, where);
                         if (party.Jobs.Count == 0)
-                            CheckCli(problems, cli, file, cliPlan, plan, job, slot, s, where);
+                            CheckCli(problems, cli, file, cliPlan, plan, job, slot, s, c.Level, where);
                     }
                 }
             }
@@ -229,12 +237,12 @@ public class SelectionInvariantTests
     /// <summary>I5: the import window's Save step and review (with the party, as the window passes it) match the overlay after the save.</summary>
     private static void CheckImport(Problems problems, Case c, MitPlan raw, MitPlan plan, Job job, string? slot, Party party, Surface s, PlayerMapping suggestion, string where)
     {
-        var choice = ImportColumns.Choose(raw, job, Level, slot, party: party.Jobs);
+        var choice = ImportColumns.Choose(raw, job, c.Level, slot, party: party.Jobs);
 
         // After the save: the plan normalized, with the choice saved when the import saves one, else the suggestion.
         var mapping = choice.Save ? choice.Mapping : suggestion;
-        var after = PlanSelection.For(plan, ImportColumns.Context(mapping, job, Level, slot)).Select(e => e.Id).ToHashSet();
-        var review = raw.Entries.Where(e => PlanSelection.Applies(e, ImportColumns.Context(choice.Mapping, job, Level, slot))).Select(e => e.Id).ToHashSet();
+        var after = PlanSelection.For(plan, ImportColumns.Context(mapping, job, c.Level, slot)).Select(e => e.Id).ToHashSet();
+        var review = raw.Entries.Where(e => PlanSelection.Applies(e, ImportColumns.Context(choice.Mapping, job, c.Level, slot))).Select(e => e.Id).ToHashSet();
         var overlay = s.Own.Select(e => e.Id).ToHashSet();
         if (choice.Mine != after.Count)
             problems.Add("I5 import Mine != overlay after the save", where, $"Mine={choice.Mine} overlay={after.Count}");
@@ -247,7 +255,7 @@ public class SelectionInvariantTests
     }
 
     /// <summary>I5: the CLI (no party) selects the overlay's calls, and with --assignee what the Plans tab saves for that column.</summary>
-    private static void CheckCli(Problems problems, MitCue.Cli.CliContext cli, string file, MitPlan cliPlan, MitPlan plan, Job job, string? slot, Surface s, string where)
+    private static void CheckCli(Problems problems, MitCue.Cli.CliContext cli, string file, MitPlan cliPlan, MitPlan plan, Job job, string? slot, Surface s, int level, string where)
     {
         var tokens = new List<string> { file, "--job", job.ToString() };
         if (slot != null)
@@ -261,7 +269,7 @@ public class SelectionInvariantTests
             return;
         var column = plan.Assignees.First(a => string.Equals(a.Key, key, StringComparison.OrdinalIgnoreCase));
         var saved = new PlayerMapping { AssigneeKey = column.Key, Slot = Slots.TryNormalize(column.Slot, out var cs) ? cs : null }; // ConfigWindow.DrawColumnCombo
-        var tab = PlanSelection.For(plan, ImportColumns.Context(saved, job, Level, slot)).Select(e => e.Id).ToHashSet();
+        var tab = PlanSelection.For(plan, ImportColumns.Context(saved, job, level, slot)).Select(e => e.Id).ToHashSet();
         var picked = MitCue.Cli.PlayerSelection.Select(cli, MitCue.Cli.ArgParser.Parse(MitCue.Cli.Commands.PlanCommand.Spec, [.. tokens, "--assignee", key]), cliPlan).Entries.Select(e => e.Id).ToHashSet();
         if (!picked.SetEquals(tab))
             problems.Add("I5 CLI --assignee != Plans tab pick", where, $"--assignee \"{key}\": cli {picked.Count} plugin {tab.Count}");
@@ -317,7 +325,11 @@ public class SelectionInvariantTests
             parts.Plans.EnsureLoaded();
             var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
             Job[] jobs = [Job.WHM, Job.SCH, Job.AST, Job.WAR, Job.DRK, Job.PLD, Job.SAM, Job.BRD, Job.RDM, Job.PCT];
-            foreach (var c in Synthetic().Where(c => c.Name is "role-sheet" or "tank-pairs" or "combined-first" or "per-phase").Prepend(BundledCases(parts.Plans).Single(c => c.Name == "lpdu")))
+            var bundled = BundledCases(parts.Plans);
+            var runs = Synthetic().Where(c => c.Name is "role-sheet" or "tank-pairs" or "combined-first" or "per-phase").Prepend(bundled.Single(c => c.Name == "lpdu"))
+                .Select(c => (Case: c, Fight: "top", Territory: (ushort)1122, Jobs: jobs))
+                .Append((Case: bundled.Single(c => c.Name == "lpdu-tea"), Fight: "tea", Territory: (ushort)887, Jobs: [.. jobs, Job.SGE, Job.MNK, Job.MCH, Job.DNC]));
+            foreach (var (c, fight, territory, runJobs) in runs)
             {
                 var plan = parts.Plans.Get(c.Raw.Id)?.Plan;
                 if (plan == null)
@@ -327,19 +339,19 @@ public class SelectionInvariantTests
                     plan = parts.Plans.Get(copy.Id)!.Plan;
                 }
 
-                foreach (var job in jobs)
-                    parts.Plans.SetActive("top", job, plan.Id);
+                foreach (var job in runJobs)
+                    parts.Plans.SetActive(fight, job, plan.Id);
                 foreach (var slot in UsualSlots)
                 {
                     config.DefaultSlot = slot;
                     config.Touch();
-                    foreach (var job in jobs)
+                    foreach (var job in runJobs)
                     {
                         foreach (var party in PartiesFor(job))
                         {
                             var where = $"{c.Name} {job} slot={slot ?? "-"} party={party.Name}";
-                            var f = Overlay(parts.Plans, config, plan, job, party.Jobs);
-                            parts.Manager.Update(Frame(job, now++, party.Jobs));
+                            var f = Overlay(parts.Plans, config, plan, job, party.Jobs, c.Level);
+                            parts.Manager.Update(Frame(job, now++, party.Jobs, territory, c.Level));
                             var session = parts.Manager.Session;
                             var own = session?.Scheduler.All.Select(r => r.Entry).Distinct().ToHashSet() ?? [];
                             var others = session?.Others?.All.Select(r => r.Entry).Distinct().ToHashSet() ?? [];
@@ -348,7 +360,7 @@ public class SelectionInvariantTests
 
                             if (party.Name is "unknown" or "B")
                             {
-                                Assert.True(preview.Start("top", null, 1122, job, party.Jobs, 0, out var message), message);
+                                Assert.True(preview.Start(fight, null, territory, job, party.Jobs, 0, out var message), message);
                                 var previewOwn = preview.Session!.Scheduler.All.Select(r => r.Entry).Distinct().ToHashSet();
                                 var previewOthers = preview.Session.Others?.All.Select(r => r.Entry).Distinct().ToHashSet() ?? [];
                                 if (!previewOwn.SetEquals(f.Own) || !previewOthers.SetEquals(f.Partners))
@@ -367,16 +379,18 @@ public class SelectionInvariantTests
     // ---------------------------------------------------------------- surfaces
 
     /// <summary>The overlay: SessionManager.ComputeShape and Rebuild (PreviewDriver.Start for the current job).</summary>
-    internal static Surface Overlay(PlanStore store, Configuration config, MitPlan plan, Job job, IReadOnlyList<Job> party)
+    internal static Surface Overlay(PlanStore store, Configuration config, MitPlan plan, Job job, IReadOnlyList<Job> party, int level = Level)
     {
         var mapping = store.MappingFor(plan, job, party);
-        var me = new PlayerContext(job, Level, mapping.Slot ?? Slots.ForJob(config.DefaultSlot, job), mapping.AssigneeKey);
+        var me = new PlayerContext(job, level, mapping.Slot ?? Slots.ForJob(config.DefaultSlot, job), mapping.AssigneeKey);
         return new Surface(mapping, me, PlanSelection.For(plan, me).ToList(), PartnerSelection.For(plan, me, party));
     }
 
-    private static FrameContext Frame(Job job, double now, IReadOnlyList<Job> party)
+    private static FrameContext Frame(Job job, double now, IReadOnlyList<Job> party, ushort territory = 1122, int level = Level)
     {
         var frame = SessionManagerTests.InTop(now);
+        frame.Territory = territory;
+        frame.Level = level;
         frame.Job = job;
         frame.ClassJobId = (uint)job;
         frame.PartyJobMask = PartyJobs.Mask(party);
@@ -419,6 +433,10 @@ public class SelectionInvariantTests
         new Case { Name = "noirmit", Raw = Clone(store.Get(NoirMit)!.Plan) },
         new Case { Name = "ctc-sch", Raw = Clone(store.Get(CtcSch)!.Plan) },
         new Case { Name = "lpdu", Raw = Clone(store.Get(Lpdu)!.Plan), RoleOnly = new(["CM LB Tank", "CM Rep Tank"], StringComparer.OrdinalIgnoreCase) },
+
+        // TEA: seats for the tanks and melee, a column per healer job, role columns for the ranged jobs ("Phys Range" and
+        // "Caster", whose calls are per job and so each player's) and "Extras" calls in no column.
+        new Case { Name = "lpdu-tea", Raw = Clone(store.Get(LpduTea)!.Plan), Level = 80 },
     ];
 
     internal static List<Case> Synthetic() =>

@@ -10,9 +10,9 @@ using MitCue.Runtime;
 namespace MitCue.PluginTests.Integration;
 
 /// <summary>
-/// The three bundled TOP plans as the plugin loads them (embedded in MitCue.Core): which plan and column each player
-/// gets without choosing, share codes of bundled plans, and the checks of plans that skip the review. Regression tests
-/// for the final review of the integrated system.
+/// The bundled plans as the plugin loads them (embedded in MitCue.Core; three for TOP, LPDU's for TEA): which plan and
+/// column each player gets without choosing, share codes of bundled plans, and the checks of plans that skip the review.
+/// Regression tests for the final review of the integrated system.
 /// </summary>
 public class BundledPlanTests
 {
@@ -20,6 +20,7 @@ public class BundledPlanTests
     private const string CarryTheClearSch = "5b622e32-04ae-53de-a4f8-f66e4c0aae0c";
     private const string CarryTheClearWhmSch = "ded79070-7479-5023-80ca-5e3ef257c99a"; // shipped in 0.1.0.1 only
     private const string Lpdu = "1f75e1e8-7321-566c-ae86-8568019fe914";
+    private const string LpduTea = "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7";
 
     private static SessionManagerTests.Parts Live(Job job, string? slot, Configuration? config = null)
     {
@@ -42,12 +43,28 @@ public class BundledPlanTests
     private static List<string> OwnEntryIds(SessionManagerTests.Parts parts) =>
         parts.Manager.Session!.Scheduler.All.Select(r => r.Entry.Id).Distinct().ToList();
 
+    /// <summary>The live session in TEA as <paramref name="job"/> with the usual slot <paramref name="slot"/>.</summary>
+    private static SessionManagerTests.Parts LiveInTea(Job job, string? slot, Configuration? config = null)
+    {
+        config ??= new Configuration();
+        config.DefaultSlot = slot;
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Manager.Update(SessionManagerTests.InTea(job));
+        return parts;
+    }
+
+    private static List<PlanEntry> OwnEntries(SessionManagerTests.Parts parts) =>
+        parts.Manager.Session!.Scheduler.All.Select(r => r.Entry).Distinct().ToList();
+
+    /// <summary>An entry's items: action names, notes as "note:text".</summary>
+    private static List<string> Names(PlanEntry e) => e.Do.Select(i => i.Note is { } note ? "note:" + note : i.Name ?? "?").ToList();
+
     [Fact]
-    public void TheThreePlansAreBundled()
+    public void TheFourPlansAreBundled()
     {
         var parts = SessionManagerTests.NewManager();
         parts.Plans.EnsureLoaded();
-        (string, string)[] expected = [(NoirMitWhm, "NoirMit - WHM"), (CarryTheClearSch, "Carry the Clear - SCH"), (Lpdu, "LPDU TOP Mitigation")];
+        (string, string)[] expected = [(NoirMitWhm, "NoirMit - WHM"), (CarryTheClearSch, "Carry the Clear - SCH"), (Lpdu, "LPDU TOP Mitigation"), (LpduTea, "LPDU TEA Heal/Mit")];
         Assert.Equal(expected.Order(), parts.Plans.All.Select(p => (p.Id, p.DisplayName)).Order());
         Assert.All(parts.Plans.All, p => Assert.Equal(PlanOrigin.Bundled, p.Origin));
         Assert.Empty(parts.Errors.Snapshot());
@@ -142,13 +159,116 @@ public class BundledPlanTests
     [Fact]
     public void WhereNoBundledPlanCoversTheJobTheImportedPlanIsTheAutomaticOne()
     {
+        // DMU ships no plan; TEA's bundled plan covers the Scholar, so an imported TEA plan is theirs only when chosen.
         var parts = SessionManagerTests.NewManager();
         parts.Plans.EnsureLoaded();
-        var tea = new MitPlan { Id = "tea-own", Name = "My TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
-        Assert.True(parts.Plans.Save(tea, out var error), error);
+        var dmu = new MitPlan { Id = "dmu-own", Name = "My DMU plan", Fight = "dmu", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
+        var tea = new MitPlan { Id = "tea-own", Name = "Aa my TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH)] };
+        Assert.True(parts.Plans.Save(dmu, out var error), error);
+        Assert.True(parts.Plans.Save(tea, out error), error);
 
-        Assert.Equal("tea-own", parts.Plans.ActivePlanFor("tea", Job.SCH, out var automatic)?.Id);
+        Assert.Equal("dmu-own", parts.Plans.ActivePlanFor("dmu", Job.SCH, out var automatic)?.Id);
         Assert.True(automatic);
+        Assert.Equal(LpduTea, parts.Plans.ActivePlanFor("tea", Job.SCH, out automatic)?.Id);
+        Assert.True(automatic);
+    }
+
+    [Theory]
+    [InlineData(Job.WHM, "H1", "White Mage", "H1", 25)]
+    [InlineData(Job.WHM, null, "White Mage", null, 25)]
+    [InlineData(Job.SCH, "H2", "Scholar", "H2", 32)]
+    [InlineData(Job.SCH, null, "Scholar", null, 32)]
+    [InlineData(Job.SGE, "H2", "Sage", "H2", 29)]
+    [InlineData(Job.AST, "H1", "Astrologian", "H1", 26)]
+    [InlineData(Job.WAR, "MT", "Tank 1", "MT", 16)]
+    [InlineData(Job.PLD, "MT", "Tank 1", "MT", 19)]
+    [InlineData(Job.PLD, "OT", "Tank 2", "OT", 20)]
+    [InlineData(Job.GNB, "OT", "Tank 2", "OT", 15)]
+    [InlineData(Job.MNK, "M1", "Melee 1", "M1", 11)]
+    [InlineData(Job.BRD, "R1", null, "R1", 10)]
+    [InlineData(Job.MCH, null, null, null, 13)]
+    [InlineData(Job.DNC, "R2", null, "R2", 7)]
+    [InlineData(Job.RDM, "R2", null, "R2", 6)]
+    [InlineData(Job.BLM, null, null, null, 6)]
+    public void OnTeaEveryJobWithCallsGetsLpduTeaWithoutChoosing(Job job, string? slot, string? column, string? mappedSlot, int entries)
+    {
+        // LPDU's TEA sheet has a column per healer job, seats for the tanks and melee ("Tank 1" = MT), a column per ranged
+        // role ("Phys Range", "Caster": calls per job) and "Extras" (calls for the jobs they name, in no column). It is
+        // the only TEA plan, so it is the automatic one of every job it names, with no PlanStore.BundledDefaults entry.
+        var parts = LiveInTea(job, slot);
+
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.Equal(LpduTea, parts.Manager.Plan?.Id);
+        var mapping = parts.Manager.Mapping!;
+        Assert.True(mapping.IsSuggestion);
+        Assert.Equal((column, mappedSlot), (mapping.AssigneeKey, mapping.Slot));
+        Assert.Equal(entries, OwnEntryIds(parts).Count);
+        Assert.StartsWith("Ready:", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Empty(parts.Manager.Session!.Scheduler.Problems);
+        Assert.All(OwnEntries(parts), e => Assert.True(e.Who.Job is null || e.Who.Job == job, $"{e.Id} is {e.Who.Job}'s"));
+
+        // The core's suggestion and the import window's choice (an in-game import of the sheet) are the same column.
+        var plan = parts.Manager.Plan!.Plan;
+        var suggestion = ColumnSuggestion.Suggest(plan, job, slot);
+        Assert.Equal((column, mappedSlot), (suggestion.AssigneeKey, suggestion.Slot));
+        var choice = ImportColumns.Choose(plan, job, 80, slot);
+        Assert.Equal((column, mappedSlot), (choice.Mapping.AssigneeKey, choice.Mapping.Slot));
+        Assert.Equal(entries, choice.Mine);
+        Assert.Equal(0, choice.Missed);
+    }
+
+    [Theory]
+    [InlineData(Job.PLD, "MT")]
+    [InlineData(Job.PLD, "OT")]
+    [InlineData(Job.PLD, null)]
+    public void OnTeaThePaladinGetsTheExtrasWingsInEitherTankSeat(Job job, string? slot)
+    {
+        // "PLD Wings" under "Extras" is Passage of Arms for whichever tank plays Paladin: an entry with no column.
+        var wings = OwnEntries(LiveInTea(job, slot)).Where(e => Names(e).SequenceEqual(["Passage of Arms"])).ToList();
+
+        Assert.Equal(["'LL/BJCC'!M11", "'LL/BJCC'!M36", "'LL/BJCC'!M54", "'Alex Prime/PA'!M23", "'Alex Prime/PA'!M47"], wings.Select(e => e.Src));
+        Assert.All(wings, e => Assert.Equal((Job.PLD, (string?)null, (string?)null), (e.Who.Job!.Value, e.Who.Slot, e.Who.Assignee)));
+    }
+
+    [Fact]
+    public void OnTeaTheExtrasCallsReachOnlyTheJobsTheyName()
+    {
+        var mch = OwnEntries(LiveInTea(Job.MCH, "R1"));
+        var dismantle = mch.Where(e => Names(e).SequenceEqual(["Dismantle"])).ToList();
+        Assert.Equal(
+            [("'LL/BJCC'!M19", "on LL"), ("'LL/BJCC'!M50", "on BJ"), ("'Alex Prime/PA'!M15", null), ("'Alex Prime/PA'!M39", null), ("'Alex Prime/PA'!M45", null)],
+            dismantle.Select(e => (e.Src, e.Note)));
+        Assert.Contains(mch, e => Names(e).SequenceEqual(["Tactician"]) && e.Src == "'LL/BJCC'!K13" && e.Optional); // "(Party Mit)" with "(^ if MCH)" below it
+
+        var brd = OwnEntries(LiveInTea(Job.BRD, "R1"));
+        Assert.DoesNotContain(brd, e => Names(e).Contains("Dismantle") || e.Src == "'LL/BJCC'!K13");
+        Assert.Equal(3, brd.Count(e => Names(e).SequenceEqual(["Nature's Minne"]) && e.Optional)); // "(Minne/Mantra)"
+        Assert.Equal(3, OwnEntries(LiveInTea(Job.MNK, "M2")).Count(e => Names(e).SequenceEqual(["Mantra"]) && e.Optional));
+
+        var war = OwnEntries(LiveInTea(Job.WAR, "MT"));
+        Assert.DoesNotContain(war, e => Names(e).Contains("Passage of Arms") || Names(e).Contains("Dismantle"));
+
+        // "Use Personals" is everyone's.
+        foreach (var job in new[] { Job.WAR, Job.SGE, Job.MCH, Job.RDM, Job.MNK })
+            Assert.Single(OwnEntries(LiveInTea(job, null)), e => e.Src == "'Alex Prime/PA'!M43" && Names(e).SequenceEqual(["note:Use Personals"]));
+    }
+
+    [Fact]
+    public void OnTeaAMeleeJobWhoseCallsAreTheSeatsChoosesThePlan()
+    {
+        // DESIGN §7: a plan whose calls for the player's seat are only in job-less slot columns ("Melee 1") is not chosen
+        // automatically. The Ninja chooses it; the seat's calls then come with the usual slot.
+        var parts = LiveInTea(Job.NIN, "M1");
+        Assert.Null(parts.Plans.ActivePlanFor("tea", Job.NIN, out var automatic));
+        Assert.True(automatic);
+
+        parts.Plans.SetActive("tea", Job.NIN, LpduTea);
+        parts.Manager.Update(SessionManagerTests.InTea(Job.NIN, 2));
+        Assert.Equal(LpduTea, parts.Manager.Plan?.Id);
+        Assert.Equal(("Melee 1", "M1"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        var own = OwnEntries(parts);
+        Assert.Equal(8, own.Count); // 7 Feints and "Use Personals"
+        Assert.Equal(7, own.Count(e => Names(e).SequenceEqual(["Feint"]) && e.Who.Slot == "M1" && e.Who.Job is null));
     }
 
     [Fact]
@@ -342,6 +462,7 @@ public class BundledPlanTests
     [InlineData(NoirMitWhm)]
     [InlineData(CarryTheClearSch)]
     [InlineData(Lpdu)]
+    [InlineData(LpduTea)]
     public void TheShareCodeOfABundledPlanReplacesItInTheList(string id)
     {
         // Final review finding: the imported copy and the bundled plan were both listed with the same id (and the same

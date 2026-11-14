@@ -87,6 +87,7 @@ public class PullStartRebuildTests
             ],
         };
         Assert.True(parts.Plans.Save(plan, out var error), error);
+        parts.Plans.SetActive("tea", Job.WHM, plan.Id); // chosen: the bundled LPDU TEA plan is the automatic one
 
         var before = PartyJobs.Mask([Job.WHM, Job.SCH, Job.WAR, Job.PLD, Job.SAM, Job.RPR, Job.DNC, Job.PCT]);
         var after = PartyJobs.Mask([Job.WHM, Job.SGE, Job.WAR, Job.PLD, Job.SAM, Job.RPR, Job.DNC, Job.PCT]);
