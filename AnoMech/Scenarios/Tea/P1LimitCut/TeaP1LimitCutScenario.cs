@@ -40,7 +40,6 @@ public sealed class TeaP1LimitCutScenario : IScenario
     private SimEnemy? bruteJustice;
     private SimCharacter? landedBehind;
     private SimCharacter? aimedAt;
-    private bool cruiseChaserShown;
 
     internal int BusyHelperPeak => helpers.PeakBusy;
 
@@ -54,7 +53,6 @@ public sealed class TeaP1LimitCutScenario : IScenario
         alphaSword = TeaP1Actions.AlphaSword(presses);
         superBlasstyCharge = TeaP1Actions.SuperBlasstyCharge(presses);
         landedBehind = aimedAt = null;
-        cruiseChaserShown = false;
         DiagnosticLog.Info($"[TeaP1LimitCut] Roll: first blasters {state.FirstBlasters}, numbers "
                            + string.Join(" ", state.Numbers.Select((role, k) => $"{k + 1}={role}")) + ".");
         if (selectedAi is { } idx && idx < AiStrats.Count)
@@ -155,17 +153,15 @@ public sealed class TeaP1LimitCutScenario : IScenario
         return alive.Length == 0 ? null : state.PickRandom(alive);
     }
 
-    // Behind is the reverse of the way the player faces as he lands. UNVERIFIED: that his model has the warp-in
-    // this shows him with.
+    // Behind is the reverse of the way the player faces as he lands. In the client he stayed unseen at his later
+    // landings when only the first played a warp-in, so every landing plays one.
     private void LandBehind(int number)
     {
         landedBehind = null;
         if (cruiseChaser is null || Target(number) is not { } target) return;
         cruiseChaser.SetPosition(target.Placement().MoveForward(-state.CruiseChaserLandsBehind));
         landedBehind = target;
-        if (cruiseChaserShown) return;
         cruiseChaser.PlayActionTimeline(ActionTimelineId.WarpEnd);
-        cruiseChaserShown = true;
     }
 
     // UNVERIFIED: he cleaves through that player wherever it has stepped since he landed, not on along the facing

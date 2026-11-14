@@ -333,9 +333,9 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(hit, Is.True, $"#{number} was hit where it stepped to");
     }
 
-    // He is hidden until a warp-in shows him, once, as he first lands.
+    // He is hidden until he first lands, and a warp-in shows him at every landing.
     [Test]
-    public void CruiseChaserAppearsAsHeFirstLands()
+    public void CruiseChaserWarpsInAtEveryLanding()
     {
         var warpIns = new List<float>();
         var run = new Stage().Run(MainTank, probe: p =>
@@ -349,7 +349,7 @@ public class TeaP1LimitCutScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(warpIns, Is.EqualTo(new[] { 14.9f }).Within(0.05f));
+        Assert.That(warpIns, Is.EqualTo(new[] { 14.9f, 19.6f, 24.3f, 28.9f }).Within(0.05f));
     }
 
     // M1 dies to the north blaster at 13.4, 1.5 s before its landing; the run freezes at 18.4.

@@ -785,7 +785,7 @@ multiplayer.
   - Hawk Blasters (r 10, no omen, from 3 invisible 9020 helpers in a `SpawnedHelperPool`) go off in pairs on
     opposite spots at 8.0, 10.2, 12.4, 14.6 and 19.0, 21.2, 23.5, 25.7, each pair 45 degrees clockwise of the last
     and the fifth on the first's spots, and in the middle at 16.8 and 27.9.
-  - Cruise Chaser, hidden until a warp-in shows him as he first lands, cleaves the odd numbers (Alpha Sword at
+  - Cruise Chaser, hidden until he first lands and shown by a warp-in at every landing, cleaves the odd numbers (Alpha Sword at
     15.4, 20.1, 24.8, 29.4) and charges the even ones (Super Blassty Charge at 16.9, 21.6, 26.3, 30.9). He lands
     3 y behind the odd number, by the reverse of that player's facing, 0.5 s before the cleave, and turns to that
     player again 0.1 s before it, so a number can't step out of its own cleave; he charges from the same spot,
