@@ -15,7 +15,7 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 // on its own clock from its start, so a run can start from either; the pull before them isn't played. A mistake kills
 // by the fight's own rule, with the reason.
 //
-// The scenario reads the strat's plan (TeaP1LivingLiquidPlan), its only read of the strat, for the start's chat line
+// The scenario reads the strat's plan (TeaP1LivingLiquidPlan), its only read of the strat, for the start's chat lines
 // naming the human's duties.
 public sealed class TeaP1LivingLiquidScenario : IScenario
 {
@@ -62,7 +62,7 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
         if (selectedAi is { } idx && idx < AiStrats.Count)
             ((IScenarioAi<TeaP1LivingLiquidState>)AiStrats[idx]).Run(state, world);
 
-        if (state.Plan.ChatLine(parts.Plays) is { } duties) world.Events.Add(0f, () => world.Announce(duties));
+        foreach (var duties in state.Plan.ChatLines(parts.Plays)) world.Events.Add(0f, () => world.Announce(duties));
         world.Events.Add(0.5f, fight.TakeTargets);
         if (parts.Plays(Protean1)) ProteanOneIntoDrainage(parts.Start(Protean1));
         if (parts.Plays(Cascade2)) CascadeTwoIntoTheKill(parts.Start(Cascade2));

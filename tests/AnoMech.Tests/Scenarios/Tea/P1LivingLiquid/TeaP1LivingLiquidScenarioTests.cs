@@ -863,22 +863,23 @@ public class TeaP1LivingLiquidScenarioTests
 
     // -- The chat line, the settings, the catalog --
 
-    [TestCase(MainTank, Protean1, "Your Drainage tether: from the tornado right of the open quarter")]
+    [TestCase(MainTank, Protean1, "Your Drainage tether: from the tornado right of the open quarter", "Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle")]
     [TestCase(OffTank, Protean1, "Your Drainage tether: from the tornado left of the open quarter")]
-    [TestCase(MainTank, Cascade2, null)]
+    [TestCase(MainTank, Cascade2, "Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter before Protean 2")]
+    [TestCase(OffTank, Cascade2)]
     [TestCase(RegenHealer, Protean1, "Your Throttle cleanses: yourself first, then MT, OT, H2, M1, M2, R1, R2")]
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
-    [TestCase(MeleeDpsA, Protean1, null)]
-    [TestCase(CasterDps, Cascade2, null)]
-    public void TheStartNamesTheHumansDutiesInThePartsItPlays(PartyRole seat, TeaP1LivingLiquidPart first, string? line)
+    [TestCase(MeleeDpsA, Protean1)]
+    [TestCase(CasterDps, Cascade2)]
+    public void TheStartNamesTheHumansDutiesInThePartsItPlays(PartyRole seat, TeaP1LivingLiquidPart first, params string[] lines)
     {
         IReadOnlyList<string> chat = [];
         var run = new Stage { First = first }.Run(seat, stopAt: 1f, probe: p => chat = p.Chat.ToList());
 
         Assert.That(run.Passed, run.ToString);
         var duties = chat.Where(said => said.Contains("Your ")).ToList();
-        if (line is null) Assert.That(duties, Is.Empty);
-        else Assert.That(duties, Has.Count.EqualTo(1).And.All.Contain(line));
+        Assert.That(duties, Has.Count.EqualTo(lines.Length), () => string.Join(Environment.NewLine, chat));
+        for (var i = 0; i < lines.Length; i++) Assert.That(duties[i], Does.Contain(lines[i]));
     }
 
     [Test]

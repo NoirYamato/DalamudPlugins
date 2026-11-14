@@ -79,6 +79,8 @@ public sealed class TeaP1LivingLiquidSettingsWindow
         SettingsGrid.ItemWidth(140);
         if (ImGui.Combo("##teallldrainage", ref startsOn, DrainageLabels, DrainageLabels.Length))
             Overrides.DrainageStartsOn = startsOn == 0 ? null : (TeaP1DrainageStartsOn)(startsOn - 1);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("The tanks: each tank starts with one, its own or the other's. Two tanks that start with each other's keep them, each on its own spot: a tether's holder can't take the second.\nOthers: both start on the other six.");
     }
 
     private void DrawThrottle()

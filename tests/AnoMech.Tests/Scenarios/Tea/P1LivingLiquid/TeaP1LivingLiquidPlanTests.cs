@@ -60,7 +60,7 @@ public class TeaP1LivingLiquidPlanTests
         var plan = Plan(seat, job);
 
         Assert.That(plan.HumanCleanses, Is.False);
-        Assert.That(plan.ChatLine(_ => true), Does.Contain("none").And.Contain("the run cleanses for your seat"));
+        Assert.That(plan.ChatLines(_ => true).Single(), Does.Contain("none").And.Contain("the run cleanses for your seat"));
     }
 
     [Test]
@@ -68,15 +68,42 @@ public class TeaP1LivingLiquidPlanTests
         => Assert.That(Plan(seat, JobId.WhiteMage).HumanCleanses, Is.False);
 
     [Test]
-    public void TheChatLineNamesADutyOnlyInThePartThatPlaysIt()
+    public void TheChatLinesNameADutyOnlyInThePartThatPlaysIt()
     {
         Assert.Multiple(() =>
         {
-            Assert.That(Plan(MainTank, JobId.Warrior).ChatLine(part => part == TeaP1LivingLiquidPart.Protean1), Does.StartWith("Your Drainage tether:"));
-            Assert.That(Plan(MainTank, JobId.Warrior).ChatLine(part => part == TeaP1LivingLiquidPart.Cascade2), Is.Null);
-            Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLine(part => part == TeaP1LivingLiquidPart.Cascade2), Does.StartWith("Your Throttle cleanses: yourself first, then R2, R1"));
-            Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLine(part => part == TeaP1LivingLiquidPart.Protean1), Is.Null);
-            Assert.That(Plan(CasterDps, JobId.BlackMage).ChatLine(_ => true), Is.Null);
+            Assert.That(Plan(MainTank, JobId.Warrior).ChatLines(ProteanOne).Single(), Does.StartWith("Your Drainage tether: from the tornado right of the open quarter"));
+            Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(ProteanOne).Single(), Does.StartWith("Your Drainage tether: from the tornado left of the open quarter"));
+            Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(CascadeTwo), Is.Empty);
+            Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLines(CascadeTwo).Single(), Does.StartWith("Your Throttle cleanses: yourself first, then R2, R1"));
+            Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLines(ProteanOne), Is.Empty);
+            Assert.That(Plan(CasterDps, JobId.BlackMage).ChatLines(_ => true), Is.Empty);
         });
     }
+
+    // Two tanks that start with each other's tether can't swap: a tether's holder is passed over by the other one.
+    [Test]
+    public void ATankIsToldToKeepTheOtherTanksTetherWhenEachStartsWithTheOthers([Values(MainTank, OffTank)] PartyRole seat)
+        => Assert.That(Plan(seat, JobId.Warrior).ChatLines(ProteanOne).Single(),
+            Does.Contain("If each of you starts with the other's, keep it on your own spot: a tether's holder can't take the second"));
+
+    // No move of the strat's reaches a human, and the Living Liquid follows its tank from 4 y.
+    [Test]
+    public void TheMainTankAloneIsToldToHaveTheLiquidOnTheMiddleForProteanTwo()
+    {
+        var whole = Plan(MainTank, JobId.Warrior).ChatLines(_ => true);
+        var fromCascadeTwo = Plan(MainTank, JobId.Warrior).ChatLines(CascadeTwo);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(whole, Has.Count.EqualTo(2));
+            Assert.That(whole[1], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle, and turn it to the open quarter before Protean 2"));
+            Assert.That(fromCascadeTwo.Single(), Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter before Protean 2"));
+            Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(_ => true).Single(), Does.StartWith("Your Drainage tether:"));
+        });
+    }
+
+    private static bool ProteanOne(TeaP1LivingLiquidPart part) => part == TeaP1LivingLiquidPart.Protean1;
+
+    private static bool CascadeTwo(TeaP1LivingLiquidPart part) => part == TeaP1LivingLiquidPart.Cascade2;
 }
