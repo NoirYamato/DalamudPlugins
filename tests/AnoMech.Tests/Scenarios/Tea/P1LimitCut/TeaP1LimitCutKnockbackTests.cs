@@ -92,6 +92,7 @@ public class TeaP1LimitCutKnockbackTests
 
     [TestCase(P1PlayerActionId.ArmsLength)]
     [TestCase(P1PlayerActionId.Surecast)]
+    [TestCase(P1PlayerActionId.InnerRelease)]
     public void AnAntiKnockbackPressedBeforeTheChargeHoldsTheHumanInPlace(uint press)
     {
         var stage = HumanNumberTwo;
@@ -103,6 +104,7 @@ public class TeaP1LimitCutKnockbackTests
 
     [TestCase(P1PlayerActionId.ArmsLength)]
     [TestCase(P1PlayerActionId.Surecast)]
+    [TestCase(P1PlayerActionId.InnerRelease)]
     public void AnAntiKnockbackPressedBeforeTheCleaveHoldsTheHumanInPlace(uint press)
     {
         var stage = HumanNumberOne;
@@ -112,14 +114,18 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(landed, stage.HitSpot(1)), Is.LessThan(0.05f), $"landed at {landed}");
     }
 
-    // Both last 6 s, and the charge lands at 16.9.
-    [TestCase(11.1f, false)]
-    [TestCase(10.7f, true)]
-    public void AnAntiKnockbackHoldsForSixSeconds(float pressAt, bool thrown)
+    // Arm's Length and Surecast last 6 s and a warrior's Inner Strength 15; the charge lands at 16.9.
+    [TestCase(P1PlayerActionId.ArmsLength, 11.1f, false)]
+    [TestCase(P1PlayerActionId.ArmsLength, 10.7f, true)]
+    [TestCase(P1PlayerActionId.Surecast, 11.1f, false)]
+    [TestCase(P1PlayerActionId.Surecast, 10.7f, true)]
+    [TestCase(P1PlayerActionId.InnerRelease, 2.1f, false)]
+    [TestCase(P1PlayerActionId.InnerRelease, 1.7f, true)]
+    public void AnAntiKnockbackHoldsForAsLongAsItsEffectLasts(uint press, float pressAt, bool thrown)
     {
         var stage = HumanNumberTwo;
 
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f, pressAt: pressAt, press: P1PlayerActionId.ArmsLength);
+        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f, pressAt: pressAt, press: press);
 
         Assert.That(Vector2.Distance(landed, stage.HitSpot(2)) > 1f, Is.EqualTo(thrown), $"landed at {landed}");
     }

@@ -13,7 +13,7 @@ public sealed class TeaP1Presses : IDisposable
 {
     private readonly SimWorld world;
     private readonly IUserActions userActions;
-    private float? antiKnockbackPressedAt;
+    private float antiKnockbackUntil = float.NegativeInfinity;
 
     public TeaP1Presses(SimWorld world)
     {
@@ -24,16 +24,20 @@ public sealed class TeaP1Presses : IDisposable
 
     public void Dispose() => userActions.Acted -= Hear;
 
-    // The sim shows neither status, so the press is timed on the run's clock.
+    // The sim shows none of the statuses, so each press is timed on the run's clock.
     public bool AntiKnockbackUp(SimCharacter member)
-    {
-        if (!ReferenceEquals(member, world.Party.Player)) return false;
-        return antiKnockbackPressedAt is { } at && world.Events.Elapsed - at < P1Duration.AntiKnockback;
-    }
+        => ReferenceEquals(member, world.Party.Player) && world.Events.Elapsed < antiKnockbackUntil;
 
     private void Hear(PlayerAction action)
     {
-        if (action is { Step: PlayerActionStep.Resolved, ActionType: ActionType.Action, ActionId: P1PlayerActionId.ArmsLength or P1PlayerActionId.Surecast })
-            antiKnockbackPressedAt = world.Events.Elapsed;
+        if (action is not { Step: PlayerActionStep.Resolved, ActionType: ActionType.Action }) return;
+        float? holds = action.ActionId switch
+        {
+            P1PlayerActionId.ArmsLength or P1PlayerActionId.Surecast => P1Duration.AntiKnockback,
+            P1PlayerActionId.InnerRelease => P1Duration.InnerStrength,
+            _ => null,
+        };
+        if (holds is { } seconds)
+            antiKnockbackUntil = MathF.Max(antiKnockbackUntil, world.Events.Elapsed + seconds);
     }
 }

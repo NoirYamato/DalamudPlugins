@@ -9,7 +9,8 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// The human's own Arm's Length or Surecast, as the client reports the press. The player sits in the main tank's seat.
+// The human's own Arm's Length, Surecast or Inner Release, as the client reports the press. The player sits in the
+// main tank's seat.
 public class TeaP1PressesTests
 {
     private const uint Provoke = 7533;
@@ -22,6 +23,28 @@ public class TeaP1PressesTests
             world.Events.Add(1f, () => Press(press)));
 
         Assert.That(covered, Is.EqualTo(new[] { false, true, true, false }));
+    }
+
+    [Test]
+    public void AWarriorsInnerReleaseCoversItForFifteenSeconds()
+    {
+        var covered = Covered(new[] { 0.9f, 1.1f, 15.9f, 16.1f }, (world, _) =>
+            world.Events.Add(1f, () => Press(P1PlayerActionId.InnerRelease)));
+
+        Assert.That(covered, Is.EqualTo(new[] { false, true, true, false }));
+    }
+
+    // Inner Strength, from 1.0, outlasts the Arm's Length pressed at 3.0.
+    [Test]
+    public void AShorterPressDoesNotCutALongerOneShort()
+    {
+        var covered = Covered(new[] { 9.5f, 15.9f, 16.1f }, (world, _) =>
+        {
+            world.Events.Add(1f, () => Press(P1PlayerActionId.InnerRelease));
+            world.Events.Add(3f, () => Press(P1PlayerActionId.ArmsLength));
+        });
+
+        Assert.That(covered, Is.EqualTo(new[] { true, true, false }));
     }
 
     [Test]

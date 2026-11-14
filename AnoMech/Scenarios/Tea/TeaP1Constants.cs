@@ -49,6 +49,7 @@ public static class TeaP1Constants
     {
         public const uint ArmsLength = 7548;
         public const uint Surecast = 7559;
+        public const uint InnerRelease = 7389;                      // a warrior's; grants Inner Strength
     }
 
     public static class P1StatusId
@@ -77,8 +78,10 @@ public static class TeaP1Constants
         public const float NumberSpacing = 0.05f;                   // UNVERIFIED: the eight show over about 0.4 s
         public const float CruiseChaserLandsBeforeAlphaSword = 0.5f; // UNVERIFIED
         public const float CruiseChaserVulnerability = 20f;         // UNVERIFIED; long enough that any second hit kills
-        // UNVERIFIED that an Arm's Length or Surecast holds from the press; both last 6 s.
+        // UNVERIFIED that each holds from the press: Arm's Length and Surecast, and the Inner Strength a warrior's
+        // Inner Release grants.
         public const float AntiKnockback = 6f;
+        public const float InnerStrength = 15f;
         // UNVERIFIED, all three: how long after a hit lands its damage shows and whoever it killed falls.
         public const float HawkBlasterDamageDelay = 1f;
         public const float CruiseChaserDamageDelay = 1f;
