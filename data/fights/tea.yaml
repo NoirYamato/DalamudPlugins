@@ -6,7 +6,9 @@
 # so no calibration). Player-timed damage that has no timeline entry (doll feeds, mine soaks, crystal explosions) is
 # anchored on the fixed entry that marks it; see the mechanic comments.
 # kind "marker" = MechanicKind.Marker (no damage). Aliases marked "# unverified" are community shorthand that was
-# not checked against a source; the others are cactbot or BossMod names and plain-text forms.
+# not checked against a source; the others are cactbot or BossMod names and plain-text forms. The timing fields
+# press: after (p2.photon_1/2), heal_lead (p2.double_rocket_punch) and series: true (p3.j_waves) change the automatic
+# press times of the calls planned there (FightLoader, TimingRules.ForEntry); each is commented where it is used.
 fight: tea
 name: The Epic of Alexander (Ultimate)
 territory: 887

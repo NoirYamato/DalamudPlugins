@@ -113,6 +113,10 @@ public class ValidateCommandTests : IDisposable
         Assert.Equal(1, r.ExitCode);
         Assert.Matches(@"FAIL\s+fights/tea\.yaml: .*\(1 problem\)", r.Out);
         Assert.Contains("problem: p1.pull is a marker with press: after: they time the calls planned on it against its damage, and a marker has none", r.Out);
+
+        var lead = this.CopyData("lead");
+        Replace(Path.Combine(lead, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    heal_lead: 2\n    aliases:\n      - \"P4 Start\"");
+        Assert.Contains("problem: p4.start is a marker with heal_lead: 2:", this.kit.Run("validate", "--data", lead).Out);
     }
 
     [Fact]
