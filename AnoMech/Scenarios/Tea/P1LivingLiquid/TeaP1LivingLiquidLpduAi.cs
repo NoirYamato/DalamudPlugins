@@ -276,9 +276,11 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
             (PhysRangedDps, new(1.8f, -1.4f)), (CasterDps, new(-2.2f, -0.8f)));
 
     private IAiMove EachTankCrossesTheMiddleToBringItsBossOntoItOnceThePalmShows()
-        => Turned(state.Tornadoes2,
-            (MainTank, AcrossTheMiddleFrom(TheLiquidIn(state.Tornadoes2), TheLiquidStopsThisFarFromItsTank)),
-            (OffTank, AcrossTheMiddleFrom(TheHandIn(state.Tornadoes2), TheHandStopsThisFarFromItsTank)));
+        => fight.HandShowsAPalm == true
+            ? Turned(state.Tornadoes2,
+                (MainTank, AcrossTheMiddleFrom(TheLiquidIn(state.Tornadoes2), TheLiquidStopsThisFarFromItsTank)),
+                (OffTank, AcrossTheMiddleFrom(TheHandIn(state.Tornadoes2), TheHandStopsThisFarFromItsTank)))
+            : Nobody();
 
     private IAiMove TheDamageDealersCloseInForTheKill()
         => Turned(state.Tornadoes2,
