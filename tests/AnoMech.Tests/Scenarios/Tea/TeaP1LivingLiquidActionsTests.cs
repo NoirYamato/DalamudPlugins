@@ -409,6 +409,22 @@ public class TeaP1LivingLiquidActionsTests
         Assert.That(run.Passed, run.ToString);
     }
 
+    // Camouflage takes a tenth off, half of what a cleave asks.
+    [Test]
+    public void AShortCooldownAloneDoesNotTakeAHumanTankThroughACleave([Values] bool swing)
+    {
+        var up = false;
+        var run = Cleave(swing, HumanTankWithItsOwnActions, (world, _) =>
+        {
+            TopP6HumanMitigation.Press(world, 1.5f, [TopP6HumanMitigation.Camouflage]);
+            world.Events.Add(1.9f, () => up = world.Party.Get(MainTank)!.HasStatus(1832));
+        }, out _, out _, JobId.Gunbreaker);
+
+        Assert.That(up, "Camouflage is up as the cleave goes off");
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain("not enough mitigation"));
+    }
+
     // The Role setting can seat a human on any job in a tank's seat: it has none of a tank's cooldowns, and is asked
     // for none.
     [Test]

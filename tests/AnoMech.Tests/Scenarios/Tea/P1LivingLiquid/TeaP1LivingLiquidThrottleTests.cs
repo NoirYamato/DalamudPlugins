@@ -86,6 +86,62 @@ public class TeaP1LivingLiquidThrottleTests
         else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, OffTank, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
+    // A press is heard from the client's input and waits for the run to look, and an event fires ahead of the
+    // scenario's tick. So an Esuna heard in the last frame before Throttle lands is still waiting as it lands, and
+    // has to be settled first: it found nothing to take off. H1 presses it on the main tank and then nothing more.
+    [Test]
+    public void AnEsunaHeardInTheLastFrameBeforeThrottleLandsCleansesNothing()
+    {
+        var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, Seed = 1 };
+        var lands = FrameIn(stage, p => Stage.Fight(p).Throttled.Count > 0);
+        var counted = false;
+        var run = PressInFrame(stage, lands - 1, MainTank, stopAt: 21f, probe: p =>
+        {
+            if (p.Crossed(10.6f)) counted = Stage.Fight(p).IsThrottled(p.Member(MainTank)!) && p.Member(MainTank)!.HasStatus(P1StatusId.Throttle);
+        });
+
+        Assert.That(counted, "the main tank carries Throttle a moment after it lands");
+        Assert.That(run.Deaths.Select(d => d.Role), Does.Contain(MainTank), run.ToString);
+    }
+
+    // The same wait at the other end: an Esuna heard in the last frame before Throttle runs out was in time. H2
+    // leaves the off tank to the human.
+    [Test]
+    public void AnEsunaHeardInTheLastFrameBeforeThrottleRunsOutSaves()
+    {
+        var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, Seed = 1, NotCleansed = [OffTank] };
+        (float At, PartyRole On)[] itsOthers = [(11.2f, RegenHealer), (13.7f, MainTank)];
+        var runsOut = FrameIn(stage, p => !p.Member(OffTank)!.IsAlive(), itsOthers);
+        var run = PressInFrame(stage, runsOut - 1, OffTank, stopAt: 21f, itsOthers);
+
+        Assert.That(runsOut, Is.GreaterThan(0), "left alone, the off tank dies as Throttle runs out");
+        Assert.That(run.Passed, run.ToString);
+    }
+
+    // The frame, counted from the run's first, in which `happened` first holds with H1 pressing only `esunas`.
+    private static int FrameIn(Stage stage, Func<ScenarioProbe, bool> happened, params (float At, PartyRole On)[] esunas)
+    {
+        var (frame, found) = (0, -1);
+        Play(stage, RegenHealer, esunas, stopAt: 21f, probe: p =>
+        {
+            if (found < 0 && happened(p)) found = frame;
+            frame++;
+        });
+        return found;
+    }
+
+    // The same run, with one more Esuna on `on` heard in that frame.
+    private static ScenarioRun PressInFrame(Stage stage, int inFrame, PartyRole on, float? stopAt, (float At, PartyRole On)[]? esunas = null, Action<ScenarioProbe>? probe = null)
+    {
+        var frame = 0;
+        return Play(stage, RegenHealer, esunas ?? [], stopAt, probe: p =>
+        {
+            if (frame++ == inFrame)
+                p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, (ulong)p.Member(on)!.GameObjectId));
+            probe?.Invoke(p);
+        });
+    }
+
     // The client turns a cleanse aimed at an enemy, or at nothing, onto its caster. H1's own Throttle goes; the stage
     // leaves the tanks' to it.
     [TestCase(true, TestName = "{m}(at the Living Liquid)")]

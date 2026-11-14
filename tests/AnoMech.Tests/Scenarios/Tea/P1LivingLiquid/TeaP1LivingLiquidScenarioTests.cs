@@ -681,6 +681,38 @@ public class TeaP1LivingLiquidScenarioTests
         AssertEveryoneDied(run, P1ActionId.Outburst, 36.2f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
     }
 
+    // M2 stands beside the east orb's way, 3.3 y ahead of it at 35.5 and outside its tornado's puddle: 0.8 y from its
+    // line is touched as the orb passes, 1.2 y is not.
+    [TestCase(0.8f, true)]
+    [TestCase(1.2f, false)]
+    public void AnEmbolusIsTouchedWithinAYalm(float besideItsWay, bool touched)
+    {
+        var stage = new Stage { First = Cascade2, EmbolusSpeed = 3f };
+        Vector2 was = default;
+        var nearest = float.MaxValue;
+        var run = stage.Run(MeleeDpsB, probe: p =>
+        {
+            var fight = Stage.Fight(p);
+            if (fight.Emboli.Count < 2 || !fight.Emboli[1].IsActive) return;
+            var orb = Flat(fight.Emboli[1].Position);
+            if (p.Crossed(35f)) was = orb;
+            if (p.Crossed(35.5f))
+            {
+                var along = Vector2.Normalize(orb - was);
+                var beside = orb + along * 3.3f + new Vector2(along.Y, -along.X) * besideItsWay;
+                p.Member(MeleeDpsB)!.SetPosition(new Placement(new Vector3(beside.X, 0f, beside.Y), 0f));
+            }
+            if (p.Time > 35.5f) nearest = MathF.Min(nearest, Vector2.Distance(orb, Flat(p.Member(MeleeDpsB)!.Position)));
+        });
+
+        if (touched) AssertEveryoneDied(run, P1ActionId.Outburst, 36.4f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
+        else
+        {
+            Assert.That(run.Passed, run.ToString);
+            Assert.That(nearest, Is.EqualTo(besideItsWay).Within(0.1f), "the orb passed it");
+        }
+    }
+
     // The main tank never takes the Living Liquid off the spot it stood on at Pressurize.
     [Test]
     public void ABossAnEmbolusReachesKillsEveryone()

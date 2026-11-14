@@ -273,6 +273,21 @@ public class TeaP1LivingLiquidTankTests
         Assert.That(run.Passed, run.ToString);
     }
 
+    // Camouflage and Oblation each take a tenth off, half of what Drainage asks.
+    [TestCase(JobId.Gunbreaker, TopP6HumanMitigation.Camouflage, (ushort)1832)]
+    [TestCase(JobId.DarkKnight, TopP6HumanMitigation.Oblation, (ushort)2682)]
+    public void AShortCooldownAloneDoesNotTakeAHumanTankThroughDrainage(JobId job, uint shortCooldown, ushort itsStatus)
+    {
+        var up = false;
+        var run = ThroughDrainage(HumanTankThroughDrainage, MainTank, job, shortCooldown, probe: p =>
+        {
+            if (p.Crossed(24.5f)) up = p.Member(MainTank)!.HasStatus(itsStatus);
+        });
+
+        Assert.That(up, "the cooldown is up as Drainage goes off");
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.DrainageWithoutMitigation);
+    }
+
     [Test]
     public void DrainageAsksNoCooldownOfAHumanOnAnotherJobInATankSeat([Values(MainTank, OffTank)] PartyRole seat,
         [Values(JobId.WhiteMage, JobId.Monk, JobId.Machinist, JobId.Summoner)] JobId job)
