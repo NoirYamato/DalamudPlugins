@@ -61,9 +61,14 @@ public static class TimingRules
     /// <remarks>
     /// <para>
     /// The hit is the mechanic's hit at <see cref="PlanEntry.HitIndex"/>. All items share one press time: hit + the entry's
-    /// offset, or without one the automatic offset, <see cref="DefaultOffset"/> of the entry's timing action, the first item
-    /// action the catalog resolves (for an either-or item: its first resolvable option).
+    /// offset, or without one the automatic offset. That is <see cref="DefaultOffset"/> of the entry's timing action, the
+    /// first item action the catalog resolves (for an either-or item: its first resolvable option), with these rules of
+    /// the anchor mechanic (fight file fields, <see cref="Mechanic"/>):
     /// </para>
+    /// <list type="bullet">
+    /// <item><see cref="Mechanic.PressAfter"/>: after the hit, like heals (+1 s, or the action's own later default: +2 s
+    /// for a healer limit break).</item>
+    /// </list>
     /// <para>Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time.</para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -81,7 +86,7 @@ public static class TimingRules
         for (var i = 0; i < items.Count; i++)
             timing[i] = items[i] is { } item ? TimingAction(item, actions) : null;
 
-        var automatic = DefaultOffset(Array.Find(timing, a => a != null), level);
+        var automatic = AutomaticOffset(timing, mechanic, level);
         var pressAt = hit + (entry.Offset ?? automatic);
 
         var windows = new ItemTiming[items.Count];
@@ -195,6 +200,28 @@ public static class TimingRules
             UseTiming.Before => false,
             _ => IsAfterHitKind(action),
         };
+
+    /// <summary>The automatic offset of an entry whose items have these timing actions (see <see cref="ForEntry"/>).</summary>
+    private static double AutomaticOffset(IReadOnlyList<ActionInfo?> timing, Mechanic mechanic, int syncLevel)
+    {
+        ActionInfo? first = null;
+        foreach (var action in timing)
+        {
+            if (action != null)
+            {
+                first = action;
+                break;
+            }
+        }
+
+        var offset = DefaultOffset(first, syncLevel);
+
+        // The hit makes what was pressed before it pointless (HP set to 1): the calls are the heal-up after it.
+        if (mechanic.PressAfter)
+            return Math.Max(offset, HealDelay);
+
+        return offset;
+    }
 
     /// <summary>The timing action of an item: its action, or the first option of an either-or item the catalog resolves.</summary>
     private static ActionInfo? TimingAction(PlanItem item, IActionCatalog actions)

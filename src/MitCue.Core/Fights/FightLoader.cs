@@ -28,6 +28,11 @@ namespace MitCue.Core.Fights;
 /// (<see cref="FightDefinition.TimelineAdditions"/>); every line must be an entry with a sync and no label jump (no label
 /// or hideall statements: they would change the cactbot file's).
 /// </para>
+/// <para>
+/// Optional per mechanic, for the automatic press times of calls planned there without a time
+/// (<see cref="Reminders.TimingRules.ForEntry"/>): <c>press: after</c> (<see cref="Mechanic.PressAfter"/>: pressed after
+/// the hit, like heals).
+/// </para>
 /// </remarks>
 public static class FightLoader
 {
@@ -181,6 +186,10 @@ public static class FightLoader
             if (YamlNodes.GetString(node, "kind", m) is { } kindText && !TryParseKind(kindText, out kind))
                 throw new FormatException($"{m}: unknown kind '{kindText}' (expected {KindNames}).");
 
+            var press = YamlNodes.GetString(node, "press", m)?.Trim();
+            if (press is not null && !string.Equals(press, "after", StringComparison.OrdinalIgnoreCase))
+                throw new FormatException($"{m}: unknown press '{press}' (expected after: calls without a time are pressed after the hit).");
+
             var entry = YamlNodes.GetString(node, "entry", m);
             var name = YamlNodes.GetString(node, "name", m)?.Trim();
             mechanics.Add(new Mechanic
@@ -193,6 +202,7 @@ public static class FightLoader
                 Entry = string.IsNullOrEmpty(entry) ? null : entry,
                 Kind = kind,
                 Aliases = YamlNodes.GetStringList(node, "aliases", m),
+                PressAfter = press is not null,
             });
         }
         return mechanics;

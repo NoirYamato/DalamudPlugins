@@ -53,6 +53,13 @@ public sealed class Mechanic
 
     public IReadOnlyList<string> Aliases { get; init; } = [];
 
+    /// <summary>
+    /// Fight file <c>press: after</c>: calls planned here without a time are pressed after the hit, like heals. For a hit
+    /// that makes mitigation pressed before it pointless (TEA's Photon sets every player to 1 HP): the calls are the
+    /// heal-up (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public bool PressAfter { get; init; }
+
     /// <summary>Hit time of the n-th hit (0-based), falling back to the last/first available hit.</summary>
     public double HitAt(int index)
     {

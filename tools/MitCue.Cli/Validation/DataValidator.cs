@@ -156,6 +156,8 @@ internal sealed class DataValidator(IDataSource data)
                 item.Problems.Add($"{m.Id} has no hits");
             else if (m.Hits[0] != m.Hit || !m.Hits.Zip(m.Hits.Skip(1)).All(p => p.First <= p.Second))
                 item.Problems.Add($"{m.Id}: hits must be in time order and start with hit {Inv(m.Hit)}");
+            if (m.Kind == MechanicKind.Marker && TimingFields(m) is { Count: > 0 } fields)
+                item.Problems.Add($"{m.Id} is a marker with {string.Join(" and ", fields)}: they time the calls planned on it against its damage, and a marker has none");
         }
 
         foreach (var (sheet, zeros) in fight.Calibration)
@@ -190,6 +192,15 @@ internal sealed class DataValidator(IDataSource data)
         }
 
         item.Summary += $"; {checkedEntries} entries checked against {fight.TimelineFile}";
+    }
+
+    /// <summary>The fight file fields of a mechanic that change the automatic press times of the calls planned on it.</summary>
+    private static List<string> TimingFields(Mechanic m)
+    {
+        var fields = new List<string>();
+        if (m.PressAfter)
+            fields.Add("press: after");
+        return fields;
     }
 
     private CheckedSection CheckActions()

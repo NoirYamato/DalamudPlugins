@@ -335,12 +335,15 @@ mechanics:
       - "Whirlwind 1"
   - id: p2.photon_1
     # ids: 4836 Photon (3 s cast, visual) then 4837 PhotonAOE sets every player to 1 HP (BossMod), so mitigation does not matter; heal after
+    # press: after: the row's calls are the heal-up (the sheet's C32 tip: Kerachole "immediately after Photon"), pressed
+    # after the HP drop like heals, also its mitigation and shields; anything pressed before is lost to the drop.
     name: "Photon (everyone to 1 HP)"
     phase: p2
     hit: 262.5
     hits: [262.5]
     entry: "Photon"
     kind: raidwide
+    press: after
     aliases:
       - "Photon"
       - "Photon 1"
@@ -427,12 +430,14 @@ mechanics:
       - "Gavel"
       - "Gavel Lineup"
   - id: p2.photon_2
+    # press: after, as p2.photon_1.
     name: "Photon (everyone to 1 HP)"
     phase: p2
     hit: 366.8
     hits: [366.8]
     entry: "Photon"
     kind: raidwide
+    press: after
     aliases:
       - "Photon"
       - "Photon 2"

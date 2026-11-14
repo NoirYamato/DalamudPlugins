@@ -445,25 +445,27 @@ entries:
     src: "'LL/BJCC'!E38"
   - id: e064
     mechanic: p2.photon_1
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 3569, name: Asylum}
-      - {action: 7433, name: Plenary Indulgence}
-    src: "'LL/BJCC'!G40"
-  - id: e065
-    mechanic: p2.photon_1
     who: {slot: MT, job: WAR, assignee: Tank 1}
     do:
       - {action: 7388, name: Shake It Off}
     optional: true
     src: "'LL/BJCC'!C40"
-  - id: e066
+  - id: e065
     mechanic: p2.photon_1
     who: {slot: OT, job: PLD, assignee: Tank 2}
     do:
       - {action: 3540, name: Divine Veil}
     optional: true
     src: "'LL/BJCC'!D40"
+  - id: e066
+    mechanic: p2.photon_1
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 3583, name: Indomitability}
+      - {action: 16542, name: Recitation}
+      - {action: 3585, name: Deployment Tactics}
+      - {action: 3587, name: Dissipation}
+    src: "'LL/BJCC'!E40"
   - id: e067
     mechanic: p2.photon_1
     who: {job: SGE, assignee: Sage}
@@ -478,27 +480,25 @@ entries:
     src: "'LL/BJCC'!F40"
   - id: e068
     mechanic: p2.photon_1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 3569, name: Asylum}
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'LL/BJCC'!G40"
+  - id: e069
+    mechanic: p2.photon_1
     who: {job: MNK}
     do:
       - {action: 65, name: Mantra}
     optional: true
     src: "'LL/BJCC'!M40"
-  - id: e069
+  - id: e070
     mechanic: p2.photon_1
     who: {job: BRD}
     do:
       - {action: 7408, name: Nature's Minne}
     optional: true
     src: "'LL/BJCC'!M40"
-  - id: e070
-    mechanic: p2.photon_1
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {action: 3583, name: Indomitability}
-      - {action: 16542, name: Recitation}
-      - {action: 3585, name: Deployment Tactics}
-      - {action: 3587, name: Dissipation}
-    src: "'LL/BJCC'!E40"
   - id: e071
     mechanic: p2.water_thunder_1
     who: {job: SCH, assignee: Scholar}

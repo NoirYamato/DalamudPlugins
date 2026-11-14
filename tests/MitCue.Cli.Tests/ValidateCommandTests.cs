@@ -103,6 +103,19 @@ public class ValidateCommandTests : IDisposable
     }
 
     [Fact]
+    public void TimingFieldsOnAMarker_AreAProblem()
+    {
+        // press: after times the calls planned on a mechanic against its hit; a marker (the pull) deals no damage.
+        var data = this.CopyData();
+        Replace(Path.Combine(data, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"Pull\"", "    entry: \"--sync--\"\n    kind: marker\n    press: after\n    aliases:\n      - \"Pull\"");
+
+        var r = this.kit.Run("validate", "--data", data);
+        Assert.Equal(1, r.ExitCode);
+        Assert.Matches(@"FAIL\s+fights/tea\.yaml: .*\(1 problem\)", r.Out);
+        Assert.Contains("problem: p1.pull is a marker with press: after: they time the calls planned on it against its damage, and a marker has none", r.Out);
+    }
+
+    [Fact]
     public void PlansNextToTheData_AreChecked()
     {
         var data = this.CopyData();

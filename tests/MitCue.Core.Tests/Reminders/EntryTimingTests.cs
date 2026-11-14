@@ -1,4 +1,5 @@
 using MitCue.Core.Actions;
+using MitCue.Core.Fights;
 using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
 
@@ -92,6 +93,51 @@ public class EntryTimingTests
         var t = TimingRules.ForEntry(entry, fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog(Kit.Catalogued), new ReminderOptions { MitigationLatestBeforeHit = 1, HealLateWindow = 8 });
         Assert.Equal(99, t.Items[0].Latest, Kit.Tolerance);
         Assert.Equal(102, t.Items[1].Latest, Kit.Tolerance);
+    }
+
+    // ---- press: after (the hit sets HP to 1: the calls are the heal-up) ----------------------------------------
+
+    /// <summary>Phase 1: a raidwide at 100 and an HP-to-1 hit at 130 whose calls are pressed after it (sync 90).</summary>
+    private static FightDefinition PressAfterFight() => Kit.Fight(
+        90,
+        Kit.Mech("p1.raidwide", 100),
+        new Mechanic { Id = "p1.drop", Name = "drop", Phase = "p1", Hit = 130, Hits = [130], PressAfter = true });
+
+    [Theory]
+    [InlineData(16536u, 1.0)]    // Temperance: mitigation before the hit elsewhere
+    [InlineData(7432u, 1.0)]     // Divine Benison: a shield
+    [InlineData(133u, 1.0)]      // Medica II: a regen
+    [InlineData(7434u, 1.0)]     // Excogitation: a heal placed before the damage elsewhere
+    [InlineData(3570u, 1.0)]     // Tetragrammaton: a heal, as anywhere
+    [InlineData(208u, 2.0)]      // Pulse of Life: a healer LB keeps its later +2
+    [InlineData(999999u, 1.0)]   // an action the catalog does not know, like a note
+    public void PressAfter_EveryCallWithoutATimeIsPressedAfterTheHit(uint actionId, double offset)
+    {
+        var t = Kit.Timing(Kit.Entry("p1.drop", null, PlanItem.ForAction(actionId, "x")), PressAfterFight());
+        Assert.Equal(offset, t.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(130 + offset, t.PressAt, Kit.Tolerance);
+        Assert.Equal(130 + offset + 5, t.Items[0].Latest, Kit.Tolerance);  // usable for the heal window after the press
+    }
+
+    [Fact]
+    public void PressAfter_AllItemsOfAnEntry_AndNotes_AreAfterTheHit()
+    {
+        var t = Kit.Timing(Kit.Entry("p1.drop", null, Kit.Do(Kit.MedicaII), Kit.Do(Kit.Temperance), Kit.Note("Heal up")), PressAfterFight());
+        Assert.Equal(131, t.PressAt, Kit.Tolerance);
+        Assert.All(t.Items, i => Assert.Equal(136, i.Latest, Kit.Tolerance));
+
+        Assert.Equal(131, Kit.Timing(Kit.Entry("p1.drop", null, Kit.Note("Heal up")), PressAfterFight()).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void PressAfter_AWrittenTimeStays_OtherMechanicsAreNotAffected()
+    {
+        var fight = PressAfterFight();
+        var timed = Kit.Timing(Kit.Entry("p1.drop", -3, Kit.Do(Kit.Temperance)), fight);
+        Assert.Equal(127, timed.PressAt, Kit.Tolerance);
+        Assert.Equal(1, timed.AutomaticOffset, Kit.Tolerance);
+
+        Assert.Equal(94, Kit.Timing(Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Temperance)), fight).PressAt, Kit.Tolerance);
     }
 
     // ---- EarliestPreHitOffset ------------------------------------------------------------------

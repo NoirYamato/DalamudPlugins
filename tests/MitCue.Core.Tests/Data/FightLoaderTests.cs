@@ -24,6 +24,7 @@ public class FightLoaderTests
             hit: 250.5
             entry: "Later"
             kind: raidwide
+            press: after
             comment: ignored
           - id: p1.multi
             name: Multi
@@ -101,6 +102,8 @@ public class FightLoaderTests
         Assert.Equal([250.5], later.Hits); // hits default to [hit]
         Assert.Equal(MechanicKind.Raidwide, later.Kind);
         Assert.Empty(later.Aliases);
+        Assert.True(later.PressAfter);
+        Assert.False(multi.PressAfter); // by default calls keep their own side of the hit
 
         var check = fight.GetMechanic("p1.check")!;
         Assert.Equal(MechanicKind.LbCheck, check.Kind);
@@ -186,6 +189,7 @@ public class FightLoaderTests
     [InlineData("name: Test Fight (Ultimate)", "title: Test Fight", "test", "'name' is missing")]
     [InlineData("p2: 202.0", "p2: soon", "carry_the_clear", "p2")]
     [InlineData("lpdu: { p1: 0.5, p2: ~ }", "lpdu: [0.5]", "lpdu", "calibration")]
+    [InlineData("press: after", "press: before", "p2.later", "press")]
     public void Load_ReportsTheOffendingItemAndField(string find, string replace, string item, string field)
     {
         Assert.Contains(find, Sample, StringComparison.Ordinal);
