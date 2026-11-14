@@ -318,22 +318,30 @@ public class TeaP1LivingLiquidScenarioTests
         });
     }
 
-    // R2 walks into a puddle at 16.0; the west tornado's tether, rolled onto it, comes out on someone alive at 20.0.
+    // R2 walks into a puddle at 16.0; the west tornado's tether, rolled onto it, comes out at 20.0 on someone alive whom
+    // no roll names, so the east one's still starts on the main tank. The seed picks whom, of six.
     [Test]
-    public void ATetherRolledOntoTheDeadStartsOnSomeoneElse()
+    public void ATetherRolledOntoTheDeadStartsOnSomeoneNoRollNames()
     {
-        var stage = new Stage { Last = Protean1, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
-        PartyRole? west = null, east = null;
-        var run = stage.Run(CasterDps, takeovers: new Takeover(16f, new Vector2(-12f, 0f)), probe: p =>
+        var picked = new HashSet<PartyRole>();
+        for (var seed = 1; seed <= 40; seed++)
         {
-            if (!p.Crossed(20.5f)) return;
-            west = Holder(p, TeaP1Tornado.West);
-            east = Holder(p, TeaP1Tornado.East);
-        });
+            var stage = new Stage { Last = Protean1, Seed = seed, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
+            PartyRole? west = null, east = null;
+            var run = stage.Run(CasterDps, takeovers: new Takeover(16f, new Vector2(-12f, 0f)), probe: p =>
+            {
+                if (!p.Crossed(20.5f)) return;
+                west = Holder(p, TeaP1Tornado.West);
+                east = Holder(p, TeaP1Tornado.East);
+            });
 
-        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { CasterDps }), run.ToString);
-        Assert.That(east, Is.EqualTo(MainTank));
-        Assert.That(west, Is.Not.Null.And.Not.EqualTo(CasterDps).And.Not.EqualTo(MainTank));
+            Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { CasterDps }), $"seed {seed}: {run}");
+            Assert.That(east, Is.EqualTo(MainTank), $"seed {seed}");
+            Assert.That(west, Is.Not.Null.And.Not.EqualTo(CasterDps).And.Not.EqualTo(MainTank), $"seed {seed}");
+            picked.Add(west!.Value);
+        }
+
+        Assert.That(picked, Has.Count.GreaterThan(3), "the seed picks whom");
     }
 
     // R2 starts with the west tornado's tether and keeps it, apart from everyone.

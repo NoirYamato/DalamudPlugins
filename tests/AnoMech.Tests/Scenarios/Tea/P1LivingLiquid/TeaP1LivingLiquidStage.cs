@@ -81,7 +81,7 @@ internal sealed class TeaP1LivingLiquidStage
 
     public Action<Configuration>? Configure { get; init; }
 
-    // Nothing draws from it: every roll is pinned.
+    // Every roll is pinned; only a tether rolled onto a dead seat draws from it.
     public int? Seed { get; init; }
 
     public TeaP1TornadoLayout Frame1 => new(Open1);
@@ -93,9 +93,8 @@ internal sealed class TeaP1LivingLiquidStage
     // A Cascade 2 time on the run's clock.
     public float C2(float time) => time + (First == Protean1 ? CascadeTwo : 0f);
 
-    // A relative spot of the first, or the second, tornadoes' frame as the arena spot a Takeover takes.
+    // A relative spot of the first tornadoes' frame as the arena spot a Takeover takes.
     public Vector2 Arena1(float x, float z) => Frame1.ToArena(new Vector2(x, z));
-    public Vector2 Arena2(float x, float z) => Frame2.ToArena(new Vector2(x, z));
 
     // `radius` from `from` on relative bearing `degrees` (0 relative north, clockwise).
     public static Vector2 Off(Vector2 from, float radius, float degrees)

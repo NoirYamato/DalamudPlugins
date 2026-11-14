@@ -187,6 +187,68 @@ public class TeaP1LivingLiquidTankTests
         Assert.That(Vector3.Distance(seen[2].Position, new Vector3(-5.4f, 0f, 5.4f)), Is.EqualTo(4.0f).Within(0.1f), $"the Living Liquid at {seen[2].Position}");
     }
 
+    // -- The Liquid Hand's three distances --
+    // Neither boss has a target here, so each stays where it is put: the Living Liquid on the centre and the Liquid
+    // Hand that far east of it, centre to centre. The Hand glows at 2.0 and slams at 4.0.
+
+    [TestCase(11.5f, false)]
+    [TestCase(12.5f, true)]
+    public void TheHandShowsAPalmOnlyWithTheBossesMoreThanTwelveYalmsApartAsItGlows(float apart, bool palm)
+    {
+        var (run, shown) = GlowAndSlam(apartAtTheGlow: apart, apartAtTheSlam: palm ? 0.5f : 18f);
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(shown, Is.EqualTo(palm));
+    }
+
+    [TestCase(4.9f, false)]
+    [TestCase(5.3f, true)]
+    public void APalmsSlamNeedsTheBossesWithinFivePointOneYalms(float apart, bool kills)
+    {
+        var (run, shown) = GlowAndSlam(apartAtTheGlow: 18f, apartAtTheSlam: apart);
+
+        Assert.That(shown, Is.True);
+        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfPrayer, TeaP1LivingLiquid.PalmFoundThemApart);
+        else Assert.That(run.Passed, run.ToString);
+    }
+
+    [TestCase(11.5f, true)]
+    [TestCase(12.5f, false)]
+    public void AFistsSlamNeedsTheBossesMoreThanTwelveYalmsApart(float apart, bool kills)
+    {
+        var (run, shown) = GlowAndSlam(apartAtTheGlow: 3f, apartAtTheSlam: apart);
+
+        Assert.That(shown, Is.False);
+        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfParting, TeaP1LivingLiquid.FistFoundThemTogether);
+        else Assert.That(run.Passed, run.ToString);
+    }
+
+    private static (TimelineRunResult Run, bool? Shown) GlowAndSlam(float apartAtTheGlow, float apartAtTheSlam)
+    {
+        bool? shown = null;
+        var run = Bosses((world, fight) =>
+        {
+            world.Events.Add(1f, () => fight.Hand!.SetPosition(new Vector3(apartAtTheGlow, 0f, 0f)));
+            fight.TheHandGlows(2f);
+            world.Events.Add(2.5f, () => shown = fight.HandShowsAPalm);
+            world.Events.Add(3f, () => fight.Hand!.SetPosition(new Vector3(apartAtTheSlam, 0f, 0f)));
+            fight.TheHandSlams(4f);
+        });
+        return (run, shown);
+    }
+
+    private static void AssertTheSlamKilledEveryone(TimelineRunResult run, uint actionId, string because)
+    {
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(PerRole.All), run.ToString);
+            Assert.That(run.Deaths.Select(d => d.ActionId), Is.All.EqualTo((uint?)actionId), run.ToString);
+            Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(4f).Within(0.1f), run.ToString);
+            Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(because), run.ToString);
+        });
+    }
+
     // -- A human tank's own mitigation under Drainage --
     // The human holds its own tether, alone in its circle, with "Resolve your own actions" on.
 
