@@ -56,6 +56,10 @@ NoirMech change:
     `PacketRecorder`, `PeerNatives`, `FakeBattleChara` and `FakeCharacter`;
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
+- TEA P1 (below), the first family NoirMech adds: `Scenarios/Tea/` with `TeaZone` and its `P1` phase,
+  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own Arm's Length and Surecast) and
+  `P1LimitCut/`, the Limit Cut scenario with an `[LPDU] Light PF` strat; in upstream's `ScenarioCatalog.cs`, a `using`
+  and one entry;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
   release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
   `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
@@ -178,12 +182,20 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
   - P6: `TopP6AlphaOmega` spawns its own 36 (`SpawnedHelperPool`), so a Gauntlet run would hold 72. Make its
     `CastFromHelper` body `Enemy?.CastFromHelper(...)` (`HelperCast`'s signature), drop the pool field,
     `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
-    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests then have no user;
-    `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
+    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests stay: TEA's Limit Cut
+    spawns one (below). `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
   - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 14, Blue
     Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
     would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
     tower helpers); that is optional.
+  - TEA: master's `IZone` asks for a `DutyInitData` (the entrance barrier, which gains a rotation, a `HelperPool`,
+    a `MapEffectSnapshot` and the `Rsv` and `Rsf` strings) where v0.5.1.0's asks for an `EntranceBarrier`, so
+    `TeaZone` won't build until it has one. `tools\upstream-check.ps1` doesn't report that (a changed member, not
+    a deleted name), and no trial merge has been built with TEA in it. Upstream generates each zone's from a replay
+    (`tools/replay_export_duty_init.py`); with none of 887 at hand TEA's is written by hand: the barrier as now,
+    `HelperPool(9020, 3)` and the rest empty (UNVERIFIED). Limit Cut can then cast its Hawk Blasters through
+    Cruise Chaser's `CastFromHelper(action, target, at: ...)` and drop its `SpawnedHelperPool`, which then has no
+    user left; that is optional.
 - Master's `SimTether` ends itself when an end dies (`TetherEnded`), without the scenario asking: Hello World's
   ghost tethers then go with a death, as its regressions already do.
 
@@ -757,3 +769,67 @@ multiplayer.
   rows and with a job that can't press. Their scripted presses (`TopP6HumanLimitBreak`) go nowhere while another seat's
   limit break casts, as the client greys the human's out. The soak filter is
   `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
+
+## TEA P1
+`Scenarios/Tea/`: `TeaZone` (The Epic of Alexander, territory 887, one EU waymark preset) with a `P1` phase, and
+`P1LimitCut/`, the intermission that ends the phase. Living Liquid, the phase's fight, isn't built. Ids and tunables
+are in `TeaP1Constants.cs`; what nobody has measured is marked UNVERIFIED there, in `TeaP1Actions.cs` and in the
+scenario.
+- The zone has no arena boundary: the rim (r 20) is taken for a wall (UNVERIFIED), so nobody dies past it. Its
+  weather is left to the territory and its entrance barrier's ids are read from the layout, both UNVERIFIED.
+- Limit Cut starts 8 s before the first Hawk Blaster, the party in the middle and no boss up, and ends after J Kick;
+  Brute Justice and Cruise Chaser turning targetable isn't played. Party-only: no solo, no multiplayer.
+  - The numbers show from 5.9, 0.05 s apart.
+  - Hawk Blasters (r 10, no omen, from 3 invisible 9020 helpers in a `SpawnedHelperPool`) go off in pairs on
+    opposite spots at 8.0, 10.2, 12.4, 14.6 and 19.0, 21.2, 23.5, 25.7, each pair 45 degrees clockwise of the last
+    and the fifth on the first's spots, and in the middle at 16.8 and 27.9.
+  - Cruise Chaser, hidden until a warp-in shows him as he first lands, cleaves the odd numbers (Alpha Sword at
+    15.4, 20.1, 24.8, 29.4) and charges the even ones (Super Blassty Charge at 16.9, 21.6, 26.3, 30.9). He lands
+    3 y behind the odd number, by the reverse of that player's facing, 0.5 s before the cleave, and turns to that
+    player again 0.1 s before it, so a number can't step out of its own cleave; he charges from the same spot,
+    turned to the even number 0.1 s before. A dead number's hit goes to a random living player.
+  - J Kick at 34.1, from an unseen helper under Brute Justice's name, hurts nobody.
+- Rolls: the numbers (a permutation of the party) and the first pair's axis, one of four. The settings pin the
+  axis and the player's number; Automarkers is Off by default here, unlike TOP's, and On has the strat put Attack
+  1-8 on numbers 1-8 at 6.3.
+- A number for another seat needs a host's session, which the scenario doesn't support: a local run shows only
+  "Your number". The per-seat rows, `HasPerPlayerSettings` and the one-seat-per-number conflict are there for that
+  day and are reached only by tests (`PerRole.ForceSeats`).
+- A Hawk Blaster kills. A hit from Cruise Chaser leaves a 20 s vulnerability and a second one kills, so each cleave
+  and charge may catch only its own number. Each death's reason states the fight's rule.
+- Both of his hits knock back straight away from him, the cleave 5 y and the charge 20 y, through a `Push` whose
+  distance `TeaP1Actions.Thrown` caps at the rim, since the engine stops only NPCs at a wall. Bots are taken to be
+  immune and hold their spots, a headless run's debug-driven player among them. A human is thrown unless its own
+  Arm's Length or Surecast was pressed in the 6 s before: `TeaP1Presses` hears the press through
+  `IUserActions.Acted`, with "Resolve your own actions" on or off, and times it on the run's clock, since the sim
+  shows neither status.
+- One scenario instance plays every run of a session. `Run` clears what the last run left on it and replaces the
+  press listener, which a scenario can't dispose of as its run ends (`TeaP1LimitCutSecondRunTests`).
+- One strat, EU `[LPDU] Light PF` (`TeaP1LimitCutLpduAi`). Numbers 1, 2, 5, 6 take the first pair's blaster in the
+  west-to-north-east half and 3, 4, 7, 8 the opposite one, and each group follows the blasts round clockwise, its
+  spot k 45k degrees on from its first. On a spot at bearing b the pair hit next stands 14 y out, the odd at b - 2
+  turned clockwise along the rim and the even at b - 30, and the group's other pair waits 19.3 y out at b - 4 and
+  b - 8. #1 and #2 are hit on their group's spot 2, #5 and #6 on its spot 5, #3 and #4 on their group's spot 3 and
+  #7 and #8 on its spot 6. A cleaved odd walks on at once, onto the outer lane.
+- UNVERIFIED in `TeaP1Constants`: the 3 y landing (at most about 6) and its 0.5 s, the knockback distances and
+  speeds and that both push straight away from him, the vulnerability's status (695) and its 20 s, the numbers'
+  0.05 s, the 1 s after which each hit's damage shows and the 0.6 s a blast keeps its helper (the engine's
+  placeholders), where the track stands as the run starts, and that an anti-knockback holds from the press. In the
+  State and the scenario: how often each axis comes up, that he turns to his number again before the cleave, that
+  he charges from where he cleaved, that a dead number's hit goes to anyone living, his warp-in and J Kick's caster.
+- No source fixes these strat values, so they are UNVERIFIED picks: the run-out from the middle 12 degrees behind
+  the first spot for the odds and 16 for the waiting even, the 1 y ring everyone waits on in the middle and the
+  2.5 y one for J Kick (from 31.0), when each odd turns along the rim (14.6, 19.3, 24.0, 28.6) and every move's
+  time.
+- Change bot movement only with `TeaP1LimitCutLpduHumanTests` and `TeaP1LimitCutLpduMarginTests` green.
+  - The human suite plays every number as a human from the first frame, walking or sprinting, reacting 0, 0.25 or
+    0.5 s late, pressing its anti-knockback or thrown, over every seat. Nobody may die, except with a thrown #2
+    that walks and reacts 0.25 or 0.5 s late: its way out is too narrow, and those cases may lose no more runs on
+    the usual rolls than they do today (0 and 22 of 40).
+  - The margin suite measures the bots' clearance from every blast, cleave and charge on every axis, with him
+    landing 1.5, 3 and 4.5 y behind and the odd number turned 5 degrees either way. Its `Usual` rows hold at
+    `P1Geometry.CruiseChaserLandsBehind` and were measured at 3 y: retune them with it.
+  - The rule tests play no strat (`TeaP1LimitCutStage` puts every seat where the fight asks) and pin the landing
+    at 3 y, whatever the constant says.
+- The gate has no `-Phase` for TEA; its human suite is the `tea-p1-human` bucket. The soak filter is
+  `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Limit&Name~Cut`.
