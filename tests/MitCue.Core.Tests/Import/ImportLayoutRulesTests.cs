@@ -293,6 +293,16 @@ public class ImportLayoutRulesTests
     }
 
     [Fact]
+    public void ExtrasColumn_NoteBesideAJobsOwnCall_IsForEveryone()
+    {
+        var entries = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "PLD Wings + Use Personals"])).Plan.At("'P1'!C2");
+
+        Assert.Equal(
+            [(Job.PLD, "Passage of Arms"), ((Job?)null, "note:Use Personals")],
+            entries.Select(e => (e.Who.Job, e.Names().Single())).OrderBy(x => x.Item1 is null));
+    }
+
+    [Fact]
     public void ExtrasColumn_SequenceWithASharedStep_StaysOneNote()
     {
         // The steps of a sequence are one player's: one that does not say whose makes the whole sequence a note.

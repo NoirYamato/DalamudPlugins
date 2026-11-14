@@ -198,9 +198,11 @@ Rules worth knowing:
   counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one.
 - **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
   `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
-  share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`), on its own: the calls beside it keep their
-  jobs' entries (`Dismantle + Feint`: a Machinist's Dismantle and the note "Feint"). The column is imported whatever
-  columns are chosen, is not in `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
+  share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
+  name a job's own action keep their jobs' entries, the others are one entry for everyone (`Dismantle + Feint`: a
+  Machinist's Dismantle and the note "Feint"; `PLD Wings + Use Personals`: a Paladin's Passage of Arms and the note
+  "Use Personals"). The column is imported whatever columns are chosen, is not in `plan.assignees`, and is listed in
+  `ImportResult.AnyoneColumns`.
 - **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
   column and section, after each of its items, so that it speaks for all of the cell (`Soil / Expedient` with `^ late`
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when

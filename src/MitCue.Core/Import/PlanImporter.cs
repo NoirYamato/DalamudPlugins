@@ -1339,12 +1339,14 @@ public sealed partial class PlanImporter
 
             // Tokens with their own timing, job filter, condition or target ("Kera after 1st Hit" next to "Eprog + Panhaima",
             // "Rep + Short CD to R1") become their own entry; the steps of a sequence stay together. In a column for anyone,
-            // an action several jobs share is a note for everyone apart from the calls beside it that say whose they are
-            // ("Dismantle + Feint": a Machinist's Dismantle, and the note "Feint").
+            // the calls that do not say whose they are (an action several jobs share, a note) are an entry for everyone
+            // apart from those that do ("Dismantle + Feint": a Machinist's Dismantle and the note "Feint"; "PLD Wings + Use
+            // Personals": a Paladin's Passage of Arms and the note "Use Personals").
             var anyone = header.Kind == AssigneeKind.Anyone;
             var groups = item.IsSequence
                 ? [tokens]
-                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value, anyone && t.Timing.JobCondition is null && SharedByJobs(t, candidates)))
+                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value,
+                        anyone && t.Timing.JobCondition is null && (t.Kind != TokenKind.Actions || SharedByJobs(t, candidates))))
                     .Select(g => g.ToList()).ToList();
             var shared = new ItemShared(
                 Times: ItemTimes(item),
@@ -1714,8 +1716,8 @@ public sealed partial class PlanImporter
         /// The entries of a group of tokens that share their timing, condition and target: one for the column, or one per
         /// job when the jobs' actions differ. In a column for anyone ("Extras") a call is for the jobs whose own action it
         /// names, with no assignee; an action several jobs share ("Feint") does not say whose it is and is a note for
-        /// everyone (in a group of its own: <see cref="ImportItem"/>). An either/or with a choice of several actions
-        /// ("Spread-Lo/Soil") gives one optional entry per choice.
+        /// everyone (in a group with the cell's other calls for everyone: <see cref="ImportItem"/>). An either/or with a
+        /// choice of several actions ("Spread-Lo/Soil") gives one optional entry per choice.
         /// </summary>
         private void ImportGroup(RowState row, AssigneeCell cell, string? key, ParsedItem item, List<TokenState> group, int groupIndex, ItemShared shared, IReadOnlyList<Job> candidates, AssigneeHeader header)
         {
