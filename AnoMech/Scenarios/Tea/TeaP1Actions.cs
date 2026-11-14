@@ -21,7 +21,7 @@ public static class TeaP1Actions
         "A second hit from Cruise Chaser: his cleave and his charge each leave a vulnerability, so each may catch only its own number";
 
     public const string SecondWave =
-        "Hit by a second Protean Wave: every wave leaves Water Resistance Down, and the next one within 5 s kills whoever carries it, short of a tank's invulnerability";
+        "Hit by a second Protean Wave: every wave leaves Water Resistance Down, and the next one while it lasts kills whoever carries it, short of a tank's invulnerability";
 
     // Declared ahead of the actions built from it.
     private static readonly VulnSpec WaveOnACarrier = P1StatusId.Invulnerabilities.Aggregate(

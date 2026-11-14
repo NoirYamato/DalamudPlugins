@@ -404,9 +404,9 @@ public sealed class TeaP1LivingLiquid
     // The tethers out now, each with the tornado it comes from.
     public IReadOnlyList<(TeaP1Tornado From, SimTether Tether)> DrainageTethersOut => drainageTethers;
 
-    // A tether is declared from its holder to its tornado: only a tether's source carries it, and a pass skips whoever
-    // carries one already, so nobody can hold both. UNVERIFIED: that the fight refuses a holder the second tether,
-    // and which way it draws the channel.
+    // The fight draws the channel from the tornado to the player. Here a tether is declared from its holder to its
+    // tornado, so the channel shows the other way round: only a tether's source carries it, and a pass skips whoever
+    // carries one already, so nobody can hold both. UNVERIFIED: that the fight refuses a holder the second tether.
     public SimCharacter? Holder(SimTether tether) => tether.A;
 
     // Each tether starts on its roll's seat; a seat that is dead by then, or already holds the other, gives way to a
@@ -436,7 +436,7 @@ public sealed class TeaP1LivingLiquid
     // Drainage on each tether's holder, 6 y round it, and the tornadoes leave with their puddles. A non-tank seat
     // that holds a tether dies; so does anyone but the holder in a holder's circle, and a tank seat in two. A human
     // tank on a tank's job that takes its own needs a cooldown (P1Rules.DrainageMitigation). UNVERIFIED: that a tank
-    // lives through one unmitigated in the fight.
+    // lives through one unmitigated in the fight, and that one circle kills a tank seat that holds no tether.
     public void Drainage(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
@@ -642,7 +642,8 @@ public sealed class TeaP1LivingLiquid
             foreach (var member in carriers.ToList()) RanOutOn(member);
         }
 
-        // Only for someone still counted as carrying it, so a status the client lost some other way kills nobody.
+        // Whoever is still counted dies, whatever became of the status itself: only a cleanse takes a seat off the
+        // count.
         private void RanOutOn(SimCharacter member)
         {
             if (carriers.Remove(member) && member.IsAlive()) member.Die(P1ActionId.LiquidGaol, ThrottleRanOut);
