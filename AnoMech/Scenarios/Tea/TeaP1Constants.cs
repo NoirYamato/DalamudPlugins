@@ -82,7 +82,8 @@ public static class TeaP1Constants
         // Inner Release grants.
         public const float AntiKnockback = 6f;
         public const float InnerStrength = 15f;
-        // UNVERIFIED, all three: how long after a hit lands its damage shows and whoever it killed falls.
+        // UNVERIFIED, all three: how long after a hit lands its damage shows and whoever it killed falls. A number
+        // killed by a blast still draws its own hit until it has fallen, so the blast's delay is also that window.
         public const float HawkBlasterDamageDelay = 1f;
         public const float CruiseChaserDamageDelay = 1f;
         public const float JKickDamageDelay = 1f;

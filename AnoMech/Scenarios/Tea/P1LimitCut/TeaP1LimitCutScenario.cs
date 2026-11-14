@@ -102,7 +102,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
     }
 
     // Casts on an actor spawned the same frame play no animation, so everything that casts exists from the start.
-    // UNVERIFIED: J Kick comes from an unseen helper under Brute Justice's name; he is not drawn.
+    // Brute Justice casts J Kick himself in the fight. He isn't drawn here (where he stands is UNVERIFIED), so an
+    // unseen helper under his name casts it.
     private void SpawnActors()
     {
         cruiseChaser = world.SpawnEnemy(new EnemySpawnConfig(
@@ -144,7 +145,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
     private void HawkBlasterAt(Vector3 centre) => helpers.Cast(TeaP1Actions.HawkBlaster, centre, new Placement(centre, 0f));
 
-    // UNVERIFIED: a dead number's hit goes to any living player, each as likely.
+    // UNVERIFIED: a dead number's hit goes to any living player, each as likely. Dead means fallen: a number a
+    // Hawk Blaster killed less than its damage delay ago still draws its own hit.
     private SimCharacter? Target(int number)
     {
         if (party.Get(state.Numbers[number - 1]) is { } numbered && numbered.IsAlive()) return numbered;
