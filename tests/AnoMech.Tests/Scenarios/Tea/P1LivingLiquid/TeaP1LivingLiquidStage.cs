@@ -155,7 +155,7 @@ internal sealed class TeaP1LivingLiquidStage
 
     private List<Cue>? cues;
 
-    private sealed record Cue(float At, bool SecondFrame, Func<Vector2, Vector2, Dictionary<PartyRole, Vector2>> Spots);
+    internal sealed record Cue(float At, bool SecondFrame, Func<Vector2, Vector2, Dictionary<PartyRole, Vector2>> Spots);
 
     private static readonly Vector2 MainTanksHold = Off(Vector2.Zero, 3.9f, 135f);
 
@@ -166,7 +166,7 @@ internal sealed class TeaP1LivingLiquidStage
     };
 
     // Each takes the Living Liquid's and the Liquid Hand's spots in its frame.
-    private IEnumerable<Cue> Cues()
+    internal IEnumerable<Cue> Cues()
     {
         if (First == Protean1)
         {
@@ -242,15 +242,20 @@ internal sealed class TeaP1LivingLiquidStage
     private static Vector2 AcrossTheMiddleFrom(Vector2 boss, float distance)
         => boss.LengthSquared() < 1e-4f ? new Vector2(0f, distance) : -Vector2.Normalize(boss) * distance;
 
-    private void Put(ScenarioProbe p, Cue cue)
+    // A cue's spots in the arena, with the bosses where they stand now.
+    internal Dictionary<PartyRole, Vector2> ArenaSpots(ScenarioProbe p, Cue cue)
     {
         var frame = cue.SecondFrame ? Frame2 : Frame1;
         var fight = Fight(p);
         var spots = cue.Spots(frame.ToRelative(fight.Position(TeaP1Boss.LivingLiquid)), frame.ToRelative(fight.Position(TeaP1Boss.LiquidHand)));
-        foreach (var (role, relative) in spots)
+        return spots.ToDictionary(spot => spot.Key, spot => frame.ToArena(spot.Value));
+    }
+
+    private void Put(ScenarioProbe p, Cue cue)
+    {
+        foreach (var (role, spot) in ArenaSpots(p, cue))
         {
             if (p.Member(role) is not { } member || !FollowsTheStage(p, member, cue.At)) continue;
-            var spot = frame.ToArena(relative);
             member.StopMoving();
             member.SetPosition(new Placement(new Vector3(spot.X, 0f, spot.Y), 0f).Face(Vector3.Zero));
         }
