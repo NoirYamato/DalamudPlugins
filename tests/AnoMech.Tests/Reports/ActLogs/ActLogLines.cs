@@ -47,11 +47,15 @@ internal static class ActLogLines
         => Line(263, seconds, 9, (2, Hex(source)), (3, Hex(action)), (4, F(at.X)), (5, F(at.Y)), (6, "0.00"), (7, F(heading)));
 
     // A 21 line (22 for an area ability) of the 55 fields a newer plugin writes, rotation (the effect's raw 16-bit heading)
-    // second to last; the sequence names the effect result (37) that lands it, and damage, when given, is its one effect.
+    // second to last; the sequence names the effect result (37) that lands it. Its effects: damage, a status it puts on
+    // its target and the Knockback row it throws it by, each when given.
     public static string Hit(double seconds, uint source, uint action, uint target, Vector2? targetAt = null, Vector2? sourceAt = null,
-                             ushort rotation = 0x7FFF, int index = 0, int count = 1, uint sequence = 0, bool aoe = false, ushort damage = 0)
+                             ushort rotation = 0x7FFF, int index = 0, int count = 1, uint sequence = 0, bool aoe = false, ushort damage = 0,
+                             ushort applies = 0, ushort knockbackRow = 0)
         => Line(aoe ? 22 : 21, seconds, 55, (2, Hex(source)), (3, Name), (4, Hex(action)), (5, "Action"), (6, Hex(target)), (7, Name),
                 (8, damage == 0 ? "" : "750003"), (9, damage == 0 ? "" : $"{damage:X4}0000"),
+                (10, applies == 0 ? "" : "E"), (11, applies == 0 ? "" : $"{applies:X}0000"),
+                (12, knockbackRow == 0 ? "" : "1F"), (13, knockbackRow == 0 ? "" : $"{knockbackRow:X}0000"),
                 (30, targetAt is { } t ? F(t.X) : ""), (31, targetAt is { } t2 ? F(t2.Y) : ""), (33, "0.00"),
                 (40, sourceAt is { } s ? F(s.X) : ""), (41, sourceAt is { } s2 ? F(s2.Y) : ""), (43, "0.00"),
                 (44, Sequence(sequence)), (45, index.ToString(CultureInfo.InvariantCulture)),
@@ -77,7 +81,8 @@ internal static class ActLogLines
 
     public static string Death(double seconds, uint target, uint source) => Line(25, seconds, 7, (2, Hex(target)), (3, Name), (4, Hex(source)), (5, Name));
 
-    public static string Director(double seconds, uint code) => Line(33, seconds, 9, (2, "800375AC"), (3, Hex(code)), (4, "00"));
+    public static string Director(double seconds, uint code, uint data = 0)
+        => Line(33, seconds, 9, (2, "800375AC"), (3, Hex(code)), (4, data.ToString("X2", CultureInfo.InvariantCulture)));
 
     public static string Placed(double seconds, uint actor, Vector2 at, float heading)
         => Line(271, seconds, 10, (2, Hex(actor)), (3, F(heading)), (4, "00"), (5, "00"), (6, F(at.X)), (7, F(at.Y)), (8, "0.0000"));

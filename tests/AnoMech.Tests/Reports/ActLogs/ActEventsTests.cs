@@ -194,5 +194,25 @@ public class ActEventsTests
         Assert.That((ActHit.From(cast), ActStatus.From(cast), ActMove.From(cast), ActDeath.From(cast)), Is.EqualTo(((ActHit?)null, (ActStatus?)null, (ActMove?)null, (ActDeath?)null)));
     }
 
+    [Test]
+    public void AHitNamesTheStatusItPutsOnItsTargetAndTheKnockbackRowItThrowsItBy()
+    {
+        var hit = ActHit.From(Parse(Hit(10, Boss, 0x4834, Player1, applies: 695, knockbackRow: 2)))!.Value;
+        var plain = ActHit.From(Parse(Hit(10, Boss, 0x4834, Player1, damage: 500)))!.Value;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(hit.Applies, Is.EqualTo(new uint[] { 695 }));
+            Assert.That(hit.KnockbackRow, Is.EqualTo(2));
+            Assert.That(plain.Applies, Is.Empty);
+            Assert.That(plain.KnockbackRow, Is.Null);
+        });
+    }
+
+    [Test]
+    public void AChangeOfMusicReadsItsTrack()
+        => Assert.That((ActMusic.From(Parse(Director(10, ActMusic.ChangeMusic, 723))), ActMusic.From(Parse(Director(10, ActLog.DirectorWipe)))),
+                       Is.EqualTo(((ActMusic?)new ActMusic(Origin.AddSeconds(10), 723), (ActMusic?)null)));
+
     private static ActLine Parse(string text) => ActLine.Parse(text)!;
 }

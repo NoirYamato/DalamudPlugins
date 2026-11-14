@@ -5,7 +5,7 @@ namespace AnoMech.Tests;
 // One combat segment in one territory, with the lines logged while it ran (only the types ActLog keeps), the job of
 // every player the log had seen in the territory by then, and Self, the player who logged it. Standing holds what stood
 // there as it opened: the line that added each combatant (03) and each object (261 Add) still present, and the map
-// effects (257) sent since the last pull closed.
+// effects (257) and changes of music (33) sent since the last pull closed.
 internal sealed class ActPull
 {
     public required string File { get; init; }
@@ -184,6 +184,9 @@ internal sealed class ActLog
                 else if (line.Text(2) == "Remove") objects.Remove(id);
                 break;
             case ActLineType.MapEffect when open is null:
+                mapEffects.Add(line);
+                break;
+            case ActLineType.ActorControl when open is null && line.Hex(3) == ActMusic.ChangeMusic:
                 mapEffects.Add(line);
                 break;
         }

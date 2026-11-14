@@ -57,6 +57,9 @@ internal sealed class ActLine
         return new ActLine(type, time, fields);
     }
 
+    // The same line at another time: for the lines whose stamps run on another clock than the rest.
+    public ActLine At(DateTimeOffset time) => new(Type, time, fields);
+
     public int FieldCount => fields.Length;
 
     public string Text(int index) => index < fields.Length ? fields[index] : "";
@@ -118,4 +121,8 @@ internal static class ActLineType
     public const int ActorMove = 270;
     public const int ActorSetPosition = 271;
     public const int ActorControlExtra = 273;
+
+    // Written from the plugin's scan of the client's memory and not from a packet: a combatant joining or leaving, and
+    // every 261 line. The combat flag (260) is one too.
+    public static bool IsFromMemory(int type) => type is AddCombatant or RemoveCombatant or CombatantMemory or InCombat;
 }

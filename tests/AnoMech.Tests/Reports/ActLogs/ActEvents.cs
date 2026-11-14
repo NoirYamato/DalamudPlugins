@@ -24,22 +24,36 @@ internal readonly record struct ActCastAt(DateTimeOffset Time, uint Source, uint
 
 // One target of an ability; an ability that hits nobody logs one line with no target. Rotation is the direction the
 // ability went off in, from the effect packet, where a newer plugin logs it. Sequence ties the hit to the effect result
-// (37) that lands its damage a moment later. Damage is what the hit's damage effect carries, before shields.
+// (37) that lands its damage a moment later. Damage is what the hit's damage effect carries, before shields. Applies
+// holds the statuses the hit itself puts on its target, and KnockbackRow the Knockback sheet's row it throws its
+// target by: a target that holds off the throw carries no such effect.
 internal readonly record struct ActHit(
     DateTimeOffset Time, uint Source, uint Action, uint Target, Vector2? TargetPosition, float? TargetHeading,
-    float? Rotation, int TargetIndex, int TargetCount, uint? Sequence, int? Damage)
+    float? Rotation, int TargetIndex, int TargetCount, uint? Sequence, int? Damage, IReadOnlyList<uint> Applies, uint? KnockbackRow)
 {
     private const int FieldsWithRotation = 55;
     private const int FirstEffect = 8, Effects = 8;
+    private const uint ApplyStatusToTheTarget = 0x0E, Knockback = 0x1F;
 
     public bool HitSomeone => Target != ActorIds.None && Target != 0;
+
+    public bool AppliesStatus(uint status) => Applies.Contains(status);
 
     public static ActHit? From(ActLine line)
         => line.Type is ActLineType.Ability or ActLineType.AoeAbility && line.Hex(2) is { } source && line.Hex(4) is { } action
             ? new ActHit(line.Time, source, action, line.Hex(6) ?? ActorIds.None, line.Point(30), line.Float(33),
                          line.FieldCount >= FieldsWithRotation && line.Hex(line.FieldCount - 2) is { } raw ? Heading(raw) : null,
-                         line.Int(45) ?? 0, line.Int(46) ?? 0, line.Hex(44), DamageOf(line))
+                         line.Int(45) ?? 0, line.Int(46) ?? 0, line.Hex(44), DamageOf(line),
+                         EffectsOf(line, ApplyStatusToTheTarget).ToList(), EffectsOf(line, Knockback).Cast<uint?>().FirstOrDefault())
             : null;
+
+    // The upper two bytes of the value of each of the line's effects of one kind: a status's row or a knockback's.
+    private static IEnumerable<uint> EffectsOf(ActLine line, uint wanted)
+    {
+        for (var at = FirstEffect; at < FirstEffect + 2 * Effects; at += 2)
+            if (line.Hex(at) is { } kind && (kind & 0xFF) == wanted && line.Hex(at + 1) is { } value)
+                yield return value >> 16;
+    }
 
     // The packet's rotation spreads -pi..pi over 0..0xFFFF.
     public static float Heading(uint raw) => raw / 65535f * 2f * MathF.PI - MathF.PI;
@@ -221,5 +235,16 @@ internal readonly record struct ActAbilityAt(DateTimeOffset Time, uint Source, u
         => line.Type == ActLineType.AbilityExtra && line.Hex(2) is { } source && line.Hex(3) is { } action && line.Int(5) == 1
            && line.Point(6) is { } position && line.Float(9) is { } heading
             ? new ActAbilityAt(line.Time, source, action, position, heading)
+            : null;
+}
+
+// The duty changing its music (33 with command 0x80000001): the BGM sheet's row.
+internal readonly record struct ActMusic(DateTimeOffset Time, uint Bgm)
+{
+    public const uint ChangeMusic = 0x80000001;
+
+    public static ActMusic? From(ActLine line)
+        => line.Type == ActLineType.ActorControl && line.Hex(3) == ChangeMusic && line.Hex(4) is { } bgm
+            ? new ActMusic(line.Time, bgm)
             : null;
 }

@@ -57,13 +57,26 @@ internal class PullLog
     private readonly Dictionary<uint, string> actionNames = [];
     private readonly Dictionary<uint, string> statusNames = [];
 
-    // With `standing`, positions also start from where the pull found what already stood in the territory.
-    protected PullLog(ActPull pull, bool standing)
+    // The pull's lines in time order, and what stood as it opened, both on the packets' clock.
+    protected IReadOnlyList<ActLine> Lines { get; }
+    protected IReadOnlyList<ActLine> StandingLines { get; }
+
+    // How far the stamps of the lines written from the client's memory run behind the packets' in this pull; zero
+    // unless the pull was read with `alignMemoryLines`.
+    public TimeSpan MemoryLag { get; }
+
+    // With `standing`, positions also start from where the pull found what already stood in the territory. With
+    // `alignMemoryLines`, the lines written from the client's memory (a combatant joining or leaving, the 261 lines and
+    // the combat flag that opens and closes the pull) are moved onto the packets' clock by MemoryLag.
+    protected PullLog(ActPull pull, bool standing, bool alignMemoryLines = false)
     {
         Name = pull.ToString();
-        Start = pull.Start;
-        End = pull.End;
-        var lines = pull.Lines.OrderBy(l => l.Time).ToList();
+        MemoryLag = alignMemoryLines ? LagOfMemoryLines(pull.Lines) : TimeSpan.Zero;
+        Start = pull.Start + MemoryLag;
+        End = pull.End + MemoryLag;
+        var lines = pull.Lines.Select(Aligned).OrderBy(l => l.Time).ToList();
+        Lines = lines;
+        StandingLines = pull.Standing.Select(Aligned).OrderBy(l => l.Time).ToList();
         Casts = Read(lines, ActCast.From);
         CastsAt = Read(lines, ActCastAt.From);
         Hits = Read(lines, ActHit.From);
@@ -78,7 +91,7 @@ internal class PullLog
         TargetChanges = Read(lines, ActTargetChange.From);
         HeadMarkers = Read(lines, ActHeadMarker.From);
         AbilitiesAt = Read(lines, ActAbilityAt.From);
-        Positions = new ActPositions(standing ? pull.Standing.Concat(lines) : lines);
+        Positions = new ActPositions(standing ? StandingLines.Concat(lines) : lines);
         Jobs = pull.Jobs.ToDictionary(j => j.Key, j => (JobId)j.Value);
         Self = pull.Self;
         HitPoints = Read(lines, ActHp.From);
@@ -97,6 +110,34 @@ internal class PullLog
             else if (line.Type is ActLineType.GainsEffect or ActLineType.LosesEffect && line.Hex(2) is { } status)
                 statusNames.TryAdd(status, line.Text(3));
         }
+    }
+
+    private ActLine Aligned(ActLine line) => MemoryLag != TimeSpan.Zero && ActLineType.IsFromMemory(line.Type) ? line.At(line.Time + MemoryLag) : line;
+
+    // The plugin stamps a line it writes from the client's memory earlier than the packet lines it writes around it,
+    // by a lag steady through a log. Each such line lies between the packet lines before and after it in the file:
+    // where those two are under a tenth of a second apart, their midpoint less the line's own stamp is one reading of
+    // the lag, and the median of a pull's readings is taken. `lines` in file order.
+    internal static TimeSpan LagOfMemoryLines(IReadOnlyList<ActLine> lines)
+    {
+        const double bracket = 0.1;
+        const int enough = 20;
+        var readings = new List<double>();
+        var waiting = new List<DateTimeOffset>();
+        DateTimeOffset? before = null;
+        foreach (var line in lines)
+        {
+            if (ActLineType.IsFromMemory(line.Type))
+            {
+                if (before is not null) waiting.Add(line.Time);
+                continue;
+            }
+            if (before is { } last && Seconds(last, line.Time) is >= 0 and < bracket)
+                readings.AddRange(waiting.Select(stamp => Seconds(stamp, last) + Seconds(last, line.Time) / 2));
+            waiting.Clear();
+            before = line.Time;
+        }
+        return readings.Count < enough ? TimeSpan.Zero : TimeSpan.FromSeconds(new Spread(readings).Median);
     }
 
     public IEnumerable<uint> Players => Jobs.Keys;
