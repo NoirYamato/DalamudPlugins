@@ -34,8 +34,8 @@ public class TeaP1LimitCutLpduAiTests
 
     internal static readonly float[] HawkBlasterPairsAt = [8.0f, 10.2f, 12.4f, 14.6f, 19.0f, 21.2f, 23.5f, 25.7f];
     internal static readonly float[] HawkBlasterMiddlesAt = [16.8f, 27.9f];
-    internal static readonly float[] CruiseChaserLandsAt = [14.9f, 19.6f, 24.3f, 28.9f];
     internal static readonly float[] AlphaSwordsAt = [15.4f, 20.1f, 24.8f, 29.4f];
+    internal static readonly float[] CruiseChaserLandsAt = AlphaSwordsAt.Select(at => at - P1Duration.CruiseChaserLandsBeforeAlphaSword).ToArray();
     internal static readonly float[] SuperBlasstyChargesAt = [16.9f, 21.6f, 26.3f, 30.9f];
 
     internal const float WaitRadius = 1f, JKickRadius = 2.5f;

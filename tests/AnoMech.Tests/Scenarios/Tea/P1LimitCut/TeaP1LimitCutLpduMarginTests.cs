@@ -36,6 +36,7 @@ public class TeaP1LimitCutLpduMarginTests
     private static readonly float[] DegreesOutward = [-5f, 0f, 5f];
     private static readonly float[] DegreesOutwardWellOffTheRim = [-15f, 15f];
     private const float JustBeforeHeLands = 0.05f;
+    private const float OffItsTurnAtMost = 1f;
 
     private const float BlastRadius = 10f, ConeHalfAngle = MathF.PI / 4f, ConeRange = 25f, ChargeLength = 50f, ChargeHalfWidth = 5f;
 
@@ -50,16 +51,21 @@ public class TeaP1LimitCutLpduMarginTests
     // Clearances with every bot exactly on its spot, and what the bots' 0.3 y jitter can take: one bot's from a
     // blast, two bots' from a cleave (it moves with the odd), and the worst of three from a charge, whose line is
     // aimed from a few yalms away by the even, so that its jitter turns it. A bystander is read a frame after the
-    // hit, which costs a walking one another 0.11 y. `Usual` rows hold where he lands the scenario's own distance
-    // behind an odd facing exactly along the rim, and were measured with it at 3 y; the others hold in every case
-    // played.
+    // hit, which costs a walking one another 0.11 y. The cleaved odd is taken 1.4 s into its walk at 6.5 y/s
+    // as its even is charged. `Usual` rows hold where he lands the scenario's own distance behind an odd facing
+    // exactly along the rim, and were measured with it at 3 y; the others hold in every case played.
     private static readonly (string Check, bool Usual, float Exact, float AtLeast)[] Table =
     [
         (PairBlast, false, 1.16f, 0.84f),
         (MiddleBlast, false, 4.0f, 3.68f),
         (ConeOtherOdd, true, 2.09f, 1.47f),
         (ConePartner, false, 2.43f, 1.81f),
+        (ConeOtherEven, false, 1.70f, 1.08f),
+        (ConeOtherEven, true, 2.98f, 2.36f),
         (FiveOnFour, false, 5.79f, 4.8f),
+        (ConeOtherGroup, false, 5.79f, 4.8f),
+        (ChargePartner, false, 9.99f, 8.7f),
+        (ChargePartner, true, 11.03f, 9.7f),
         (ChargeOtherEven, true, 3.06f, 1.9f),
         (ChargeOtherOdd, true, 4.32f, 3.2f),
         (ChargeSeven, true, 4.32f, 3.2f),
@@ -105,6 +111,7 @@ public class TeaP1LimitCutLpduMarginTests
                 Probe = p =>
                 {
                     TurnTheOddJustBeforeHeLands(p, at, numbers);
+                    problems.AddRange(CleavesOffTheTurnItWasGiven(p, at, numbers, player));
                     Measure(p, at, numbers, player, (check, clearance) =>
                     {
                         if (at.WellOffTheRim)
@@ -136,7 +143,8 @@ public class TeaP1LimitCutLpduMarginTests
                             usualOnly ? $"{check}, landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind an odd facing along the rim" : $"{check}, in every case");
             foreach (var (check, clearance) in any)
                 Assert.That(clearance, Is.GreaterThan(0f), $"{check}, in every case ({tightest[check]})");
-            Assert.That(wellOffTheRim, Is.Not.Empty);
+            Assert.That(wellOffTheRim.Keys, Has.Member($"{ConeOtherOdd}, the odd 15 degrees outward"));
+            Assert.That(wellOffTheRim.Keys, Has.Member($"{FiveOnFour}, the odd -15 degrees outward"));
             foreach (var (check, clearance) in wellOffTheRim)
                 Assert.That(clearance, Is.GreaterThan(0f), $"{check}, landing {F(P1Geometry.CruiseChaserLandsBehind)} y behind");
         });
@@ -157,6 +165,22 @@ public class TeaP1LimitCutLpduMarginTests
             if (!p.Crossed(CruiseChaserLandsAt[hit] - JustBeforeHeLands)) continue;
             var odd = 2 * hit + 1;
             p.Member(numbers[odd - 1])!.SetRotation(Stage.ClockwiseAlongTheRim(stage.HitSpot(odd)) + at.DegreesOutward * MathF.PI / 180f);
+        }
+    }
+
+    // A turned case measures nothing of its own unless the turn it gave the odd is the one he cleaves along.
+    private static IEnumerable<string> CleavesOffTheTurnItWasGiven(ScenarioProbe p, Case at, PartyRole[] numbers, PartyRole player)
+    {
+        if (at.DegreesOutward == 0f) yield break;
+        var stage = new Stage(at.Axis);
+        for (var hit = 0; hit < AlphaSwordsAt.Length; hit++)
+        {
+            var odd = 2 * hit + 1;
+            if (numbers[odd - 1] == player || !p.Crossed(AlphaSwordsAt[hit])) continue;
+            var given = Stage.ClockwiseAlongTheRim(stage.HitSpot(odd)) + at.DegreesOutward * MathF.PI / 180f;
+            var off = AngleBetween(CruiseChaser(p).Rotation, given) * 180f / MathF.PI;
+            if (off > OffItsTurnAtMost)
+                yield return $"{at}: he cleaves #{odd} {F(off)} degrees off the facing this case gave it";
         }
     }
 
