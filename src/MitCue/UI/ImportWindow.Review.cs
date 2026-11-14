@@ -95,7 +95,7 @@ internal sealed partial class ImportWindow
         model.Plan.Name = string.IsNullOrWhiteSpace(model.Plan.Name) ? name : model.Plan.Name;
         this.replaceId = DefaultReplacement(this.plugin.Plans, model.Plan);
         var job = this.plugin.Frame.Job;
-        this.setActive = job != Job.None && this.ColumnChoiceFor(model).Mine > 0;
+        this.setActive = job != Job.None && this.ColumnChoiceFor(model).Seat > 0; // notes for everyone alone are no call of the player's
         this.step = Step.Review;
     }
 

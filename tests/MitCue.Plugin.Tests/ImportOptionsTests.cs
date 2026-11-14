@@ -16,6 +16,44 @@ public class ImportOptionsTests
     public void SlashChoices_AreLabelledWithAnExample(SlashReading reading, string label) => Assert.Equal(label, ImportWindow.SlashLabel(reading));
 
     [Fact]
+    public void TheSlashesHelp_StatesTheAutomaticRule()
+    {
+        // The help gave a simplified rule ("no \"+\"", "three or more with \"/\""): every way of joining actions, and the
+        // two cells listing several actions of one job, one of them three or more, decide it (PlanImporter.ChooseSlashReading).
+        Assert.Contains(
+            "all of them when no cell joins actions another way (\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) " +
+            "and at least two cells list several actions of one job with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); else either one",
+            ImportWindow.SlashesHelp,
+            StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor" }, "read as 'and'")]          // the rule's case
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Indom" }, "read as 'either one'")]          // only one cell lists several
+    [InlineData(new[] { "Soil/Succor", "Indom/Succor" }, "read as 'either one'")]                // none lists three or more
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom, Succor" }, "read as 'either one'")] // a comma joins
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom & Succor" }, "read as 'either one'")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom / Succor" }, "read as 'either one'")] // a spaced slash
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom -> Succor" }, "read as 'either one'")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom\nSuccor" }, "read as 'either one'")]
+    public void TheAutomaticReading_IsTheHelpsRule(string[] cells, string reading)
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var top = data.GetFight("top")!;
+        string[] loops = ["Loop 1", "Loop 2", "Loop 3", "Loop 4"];
+        var doc = new SheetDocument
+        {
+            Title = "Test sheet",
+            Tabs = [Tab("P1", [["P1", "Scholar"], .. cells.Select((cell, i) => new[] { loops[i], cell })])],
+        };
+
+        var result = ImportPipeline.Import(doc, ImportWindow.OptionsFor(top, data.Actions, data.Aliases!, null, string.Empty, SlashReading.Auto, "2026-11-11"));
+
+        Assert.Contains(reading, Assert.Single(result.Diagnostics, d => d.Code == "slash-reading").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void TheTrialAndTheRealImport_ReadSlashesTheSameWay()
     {
         var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);

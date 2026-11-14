@@ -101,6 +101,24 @@ public class BundledPlanTests
         Assert.Contains("31 entries are yours", message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(null, " Your slot is a guess: MT (the plan has WAR calls in MT and OT).")]
+    [InlineData("OT", null)]
+    public void ThePreviewSaysWhenTheSlotIsAGuess(string? slot, string? hint)
+    {
+        var config = new Configuration { DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        var preview = new PreviewDriver(config, parts.Data, Kit.GameData(), parts.Plans, parts.Errors, ServiceFake.Of<IChatGui>(), () => { });
+
+        Assert.True(preview.Start("tea", null, 887, Job.WAR, null, 0, out var message), message);
+
+        Assert.Contains("\"LPDU TEA Heal/Mit\" as WAR", message, StringComparison.Ordinal);
+        if (hint != null)
+            Assert.Contains(hint, message, StringComparison.Ordinal);
+        else
+            Assert.DoesNotContain("Your slot", message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void CarryTheClearSchIsBundledButTheScholarKeepsLpduUntilTheyChooseIt()
     {
@@ -171,6 +189,55 @@ public class BundledPlanTests
         Assert.True(automatic);
         Assert.Equal(LpduTea, parts.Plans.ActivePlanFor("tea", Job.SCH, out automatic)?.Id);
         Assert.True(automatic);
+    }
+
+    [Fact]
+    public void AnUpdateKeepsThePlanEachJobHadAutomatically()
+    {
+        // Review finding (C10): settings of MitCue 0.1.0.6 (version 1) with the static's TEA plan, imported by share code
+        // with the box unticked: no TEA plan was bundled, so it was "your active plan for TEA as SCH". After the update LPDU
+        // TEA took its place, unasked, for every job both name. Likewise TOP's Warrior: version 1 ranked a share code of a
+        // bundled plan among the player's own plans, so "Aa my TOP plan" was theirs, not the copy of LPDU TOP.
+        var dir = Kit.TempDirectory();
+        var writer = new PlanStore(dir, new Configuration(), () => { }, Kit.Errors());
+        writer.EnsureLoaded();
+        MitPlan[] own =
+        [
+            new() { Id = "tea-own", Name = "Static TEA", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Temperance, "Temperance", Job.WHM)] },
+            new() { Id = "tea-zz", Name = "Zz other TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Reprisal, "Reprisal", Job.PLD)] },
+            new() { Id = "top-own", Name = "Aa my TOP plan", Fight = "top", Entries = [Kit.Entry("p1.pantokrator", 0, Kit.Reprisal, "Reprisal", Job.WAR)] },
+        ];
+        foreach (var plan in own)
+            Assert.True(writer.Save(plan, out var error), error);
+        Assert.True(writer.ImportShareCode(PlanSerializer.ToShareCode(writer.Get(Lpdu)!.Plan), out _, out var message), message);
+
+        var saves = 0;
+        var config = new Configuration { Version = 1, ActivePlans = { ["tea/WHM"] = string.Empty, ["tea/SGE"] = "deleted-plan" } };
+        var store = new PlanStore(dir, config, () => saves++, Kit.Errors());
+        store.EnsureLoaded();
+
+        Assert.Equal((2, 1), (config.Version, saves));
+        (string Fight, Job Job, string? Plan, bool Automatic)[] expected =
+        [
+            ("tea", Job.SCH, "tea-own", false), // the first own plan by name
+            ("tea", Job.PLD, "tea-zz", false),
+            ("tea", Job.WHM, null, false), // "no plan" stays
+            ("tea", Job.SGE, LpduTea, true), // no own plan names the Sage
+            ("tea", Job.WAR, LpduTea, true),
+            ("top", Job.WAR, "top-own", false),
+            ("top", Job.WHM, NoirMitWhm, true),
+            ("top", Job.SCH, Lpdu, true), // BundledDefaults: the copy of LPDU TOP, as before
+        ];
+        Assert.Equal(expected, expected.Select(e => (e.Fight, e.Job, store.ActivePlanFor(e.Fight, e.Job, out var automatic)?.Id, automatic)));
+
+        // Once: the store saved version 2, so a reload pins nothing more, and new settings never pin (an import saved later
+        // is active only when chosen).
+        store.Reload();
+        Assert.Equal(1, saves);
+        var fresh = new PlanStore(dir, new Configuration(), () => { }, Kit.Errors());
+        fresh.EnsureLoaded();
+        Assert.Equal(LpduTea, fresh.ActivePlanFor("tea", Job.SCH)?.Id);
+        Assert.Equal(Lpdu, fresh.ActivePlanFor("top", Job.WAR)?.Id);
     }
 
     [Theory]
@@ -271,6 +338,105 @@ public class BundledPlanTests
         Assert.Equal(7, own.Count(e => Names(e).SequenceEqual(["Feint"]) && e.Who.Slot == "M1" && e.Who.Job is null));
     }
 
+    /// <summary>A TEA frame as <paramref name="job"/> in a party with both tanks, a Monk and the casters.</summary>
+    private static FrameContext InTeaParty(Job job, double now = 1)
+    {
+        var frame = SessionManagerTests.InTea(job, now);
+        frame.PartyJobMask = PartyJobs.Mask([Job.WAR, Job.DRK, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM]);
+        return frame;
+    }
+
+    [Theory]
+    [InlineData(Job.DRK, null, "set \"My usual party slot\" in /mitcue > General, or choose \"Tank 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData(Job.WAR, null, "set \"My usual party slot\" in /mitcue > General, or choose \"Tank 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData(Job.DRK, "H1", "choose \"Tank 2\" under \"My column\" in /mitcue > Plans")] // a healer main keeps H1
+    public void OnTeaATankWithoutASlotIsToldTank1IsAGuess(Job job, string? slot, string how)
+    {
+        // Review findings B02/C11: every tank job has calls in "Tank 1" (MT) and "Tank 2" (OT), and the party cannot tell
+        // the tanks apart, so two tanks without a usual slot both followed Tank 1 (both the MT's Reprisals, none of Tank
+        // 2's), and nothing said so. The choice stays; the status and, once per plan and job, chat say it is a guess.
+        var config = new Configuration { DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Manager.Update(InTeaParty(job));
+
+        Assert.Equal(((string?)null, "MT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        var own = OwnEntries(parts);
+        Assert.Contains(own, e => e.Who.Assignee == "Tank 1" && e.Who.Job is null && Names(e).SequenceEqual(["Reprisal"])); // the MT's
+        Assert.DoesNotContain(own, e => e.Who.Assignee == "Tank 2");
+        var hint = $"Your slot is a guess: MT (the plan has {job} calls in MT and OT). If you play OT, {how}.";
+        Assert.Equal($"Ready: LPDU TEA Heal/Mit ({own.Count} of {parts.Manager.Plan!.Plan.Entries.Count} entries are yours). {hint}", parts.Manager.Status);
+        Assert.Equal([$"TEA, \"LPDU TEA Heal/Mit\" as {job}: {hint}"], parts.Chat.FirstArgs("Print"));
+
+        // Once: the session built again (Debug > Reload data, a zone change) prints nothing more.
+        parts.Manager.Invalidate();
+        parts.Manager.Update(InTeaParty(job, 2));
+        Assert.Equal(hint, parts.Manager.Status[^hint.Length..]);
+        Assert.Single(parts.Chat.FirstArgs("Print"));
+
+        // The usual slot OT (or "Tank 2" under "My column") gives Tank 2's calls, with no hint.
+        config.DefaultSlot = "OT";
+        config.Touch();
+        parts.Manager.Update(InTeaParty(job, 3));
+        Assert.Equal(("Tank 2", "OT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        Assert.DoesNotContain("Your slot", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Contains(OwnEntries(parts), e => e.Who.Assignee == "Tank 2" && e.Who.Job is null && Names(e).SequenceEqual(["Reprisal"]));
+    }
+
+    [Theory]
+    [InlineData(null, "set \"My usual party slot\" in /mitcue > General, or choose \"Melee 1\" or \"Melee 2\" under \"My column\" in /mitcue > Plans")]
+    [InlineData("H1", "choose \"Melee 1\" or \"Melee 2\" under \"My column\" in /mitcue > Plans")]
+    public void OnTeaAMonkWithoutAMeleeSlotIsToldWhyTheSeatsFeintsAreMissing(string? slot, string how)
+    {
+        // Review finding D11: the plan is the Monk's automatic one (its Mantras), but the Feints are the job-less calls of
+        // "Melee 1" and "Melee 2": without a melee slot the status said only "Ready", with none of them.
+        var parts = LiveInTea(Job.MNK, slot);
+
+        Assert.True(parts.Manager.PlanIsAutomatic);
+        Assert.DoesNotContain(OwnEntries(parts), e => e.Who.Slot != null); // no Feint of a seat
+        var hint = $"Your slot (M1 or M2) is not known, so its calls are not shown: {how}.";
+        Assert.EndsWith(" entries are yours). " + hint, parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Equal([$"TEA, \"LPDU TEA Heal/Mit\" as MNK: {hint}"], parts.Chat.FirstArgs("Print"));
+    }
+
+    [Theory]
+    [InlineData(Job.MNK, "M1")]
+    [InlineData(Job.DRK, "OT")]
+    [InlineData(Job.SCH, null)]
+    [InlineData(Job.BLM, null)]
+    [InlineData(Job.MCH, "H1")]
+    public void OnTeaAKnownSeatGetsNoHint(Job job, string? slot)
+    {
+        var parts = LiveInTea(job, slot);
+
+        Assert.Matches(@"^Ready: LPDU TEA Heal/Mit \(\d+ of \d+ entries are yours\)\.$", parts.Manager.Status);
+        Assert.Empty(parts.Chat.FirstArgs("Print"));
+    }
+
+    [Fact]
+    public void ATankWhoChoseTheirColumnGetsNoHint()
+    {
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        parts.Plans.SetMapping(parts.Plans.Get(LpduTea)!.Plan, Job.WAR, new PlayerMapping { AssigneeKey = "Tank 2", Slot = "OT" }); // as /mitcue > Plans saves it
+
+        parts.Manager.Update(InTeaParty(Job.WAR));
+
+        Assert.Equal(("Tank 2", "OT"), (parts.Manager.Mapping?.AssigneeKey, parts.Manager.Mapping?.Slot));
+        Assert.DoesNotContain("Your slot", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Empty(parts.Chat.FirstArgs("Print"));
+    }
+
+    [Fact]
+    public void OnLpduATankWithoutASlotIsToldTheSlotsCallsAreMissing()
+    {
+        // LPDU TOP's job-less MT and OT calls (Reprisals, Ramparts) need the usual slot: the pair column has only the job's.
+        var parts = Live(Job.WAR, null);
+
+        Assert.Equal("WAR/DRK WAR", parts.Manager.Mapping?.AssigneeKey);
+        Assert.EndsWith(" entries are yours). Your slot (MT or OT) is not known, so its calls are not shown: set \"My usual party slot\" in /mitcue > General.", parts.Manager.Status, StringComparison.Ordinal);
+        Assert.Single(parts.Chat.FirstArgs("Print"));
+    }
+
     [Fact]
     public void AWhiteMageWhoImportsTheCoHealersLpduCodeKeepsCarryTheClearUnlessTheyAskForIt()
     {
@@ -292,6 +458,36 @@ public class BundledPlanTests
         // The Scholar's default is LPDU by id, so the copy of it stays the Scholar's automatic plan.
         Assert.Equal(Lpdu, parts.Plans.ActivePlanFor("top", Job.SCH, out automatic)?.Id);
         Assert.True(automatic);
+    }
+
+    [Theory]
+    [InlineData("tea", Job.SCH, LpduTea, "p1.pull", Kit.SacredSoil, "Sacred Soil")]
+    [InlineData("tea", Job.WAR, LpduTea, "p1.pull", Kit.Reprisal, "Reprisal")]
+    [InlineData("top", Job.WAR, Lpdu, "p1.pantokrator", Kit.Reprisal, "Reprisal")]
+    public void AShareCodeOfABundledPlanKeepsItsPlaceOverThePlayersOwnPlan(string fight, Job job, string bundledId, string mechanic, uint action, string name)
+    {
+        // Review finding (C13): the share code of a bundled plan replaces it with a user plan of the same id. With the box
+        // unticked, the player's own unchosen plan for the fight that sorts first by name became the automatic one where no
+        // BundledDefaults entry names the plan (every TEA job, TOP's Warrior), and the message said the plan stayed.
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+        var own = new MitPlan { Id = "own", Name = "Aa my own plan", Fight = fight, Entries = [Kit.Entry(mechanic, 0, action, name, job)] };
+        Assert.True(parts.Plans.Save(own, out var error), error);
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job)?.Id);
+
+        var code = PlanSerializer.ToShareCode(parts.Plans.Get(bundledId)!.Plan);
+        Assert.True(parts.Plans.ImportShareCode(code, job, makeActive: false, out _, out var message), message);
+
+        Assert.Equal(PlanOrigin.User, parts.Plans.Get(bundledId)!.Origin);
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job, out var automatic)?.Id);
+        Assert.True(automatic);
+        Assert.Contains($"It is your active plan for {fight.ToUpperInvariant()} as {job}.", message, StringComparison.Ordinal);
+        parts.Plans.Reload(); // as after a restart
+        Assert.Equal(bundledId, parts.Plans.ActivePlanFor(fight, job)?.Id);
+
+        // Deleting the copy brings the bundled plan back in its place.
+        Assert.True(parts.Plans.Delete(bundledId, out error), error);
+        Assert.Equal((bundledId, PlanOrigin.Bundled), (parts.Plans.ActivePlanFor(fight, job)?.Id, parts.Plans.Get(bundledId)!.Origin));
     }
 
     [Fact]
@@ -444,6 +640,32 @@ public class BundledPlanTests
         Assert.DoesNotContain(columns, c => c != null && c.Contains('/', StringComparison.Ordinal) && c != pairColumn);
         Assert.Contains(slot == "MT" ? "OT" : "MT", columns); // the co-tank's slot column
         Assert.DoesNotContain(columns, c => c != null && c.StartsWith("CM ", StringComparison.Ordinal)); // their Cosmo Memory role is not known
+    }
+
+    [Theory]
+    [InlineData(Job.BRD, "R1", null)]
+    [InlineData(Job.BRD, "R1", "Phys Range")]
+    [InlineData(Job.MNK, "M1", null)]
+    public void OnTeaTheOtherDpsRowsHaveTheRoleColumnsCallsWhateverColumnThePlayerFollows(Job job, string slot, string? column)
+    {
+        // Review finding C14: the Black Mage's Addles ("Caster") reached a Bard's rows only after the Bard picked "Phys Range"
+        // in /mitcue > Plans, and a Monk in "Melee 1" never saw them.
+        var config = new Configuration { ShowOtherAssignees = true, DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Plans.EnsureLoaded();
+        if (column != null)
+            parts.Plans.SetMapping(parts.Plans.Get(LpduTea)!.Plan, job, new PlayerMapping { AssigneeKey = column });
+        var frame = SessionManagerTests.InTea(job);
+        frame.PartyJobMask = PartyJobs.Mask([Job.PLD, Job.WAR, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM]);
+        parts.Manager.Update(frame);
+
+        var others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
+        var addles = others.Where(e => e.Who.Assignee == "Caster").ToList();
+        Assert.Equal(parts.Manager.Plan!.Plan.Entries.Where(e => e.Who.Assignee == "Caster" && e.Who.Job == Job.BLM).OrderBy(e => e.Id), addles.OrderBy(e => e.Id)); // the Black Mage's
+        Assert.Contains(addles, e => e.Src == "'LL/BJCC'!L19" && Names(e).SequenceEqual(["Addle"]));
+        Assert.DoesNotContain(others, e => e.Who.Job is { } j && j != Job.None && !new[] { Job.MNK, Job.DRG, Job.BRD, Job.BLM }.Contains(j)); // nobody else plays them
+        if (job == Job.MNK)
+            Assert.Contains(others, e => e.Who.Assignee == "Phys Range" && e.Who.Job == Job.BRD);
     }
 
     [Fact]

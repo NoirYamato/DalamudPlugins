@@ -1,5 +1,6 @@
 using MitCue.Core;
 using MitCue.Core.Plans;
+using MitCue.Import;
 using MitCue.PluginTests.Support;
 using MitCue.UI;
 
@@ -13,6 +14,7 @@ public class ShareCodeImportTests
 {
     private const string CarryTheClearWhm = "335b6c4f-3684-55e0-a8d0-3e78724ef200";
     private const string Lpdu = "1f75e1e8-7321-566c-ae86-8568019fe914";
+    private const string LpduTea = "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7";
 
     /// <summary>A role sheet: columns by slot only (no job), as many statics lay out their mit sheet.</summary>
     private static MitPlan RoleSheet() => new()
@@ -153,6 +155,94 @@ public class ShareCodeImportTests
         parts.Manager.Update(frame);
         Assert.Equal("H1 WHM", parts.Manager.Mapping?.AssigneeKey);
         Assert.Equal(["Temperance"], parts.Manager.Session!.Scheduler.All.Select(r => r.Item.Name));
+    }
+
+    /// <summary>LPDU TEA as another plan of the fight (a static's copy: same calls, another id), as a share code.</summary>
+    private static string StaticTeaCode(SessionManagerTests.Parts parts)
+    {
+        var copy = PlanSerializer.FromShareCode(PlanSerializer.ToShareCode(parts.Plans.Get(LpduTea)!.Plan));
+        copy.Id = "static-tea";
+        copy.Name = "Static TEA";
+        return PlanSerializer.ToShareCode(copy);
+    }
+
+    [Theory]
+    [InlineData(null, "It has calls for NIN only in slot M1 or M2: set \"My usual party slot\" in the General tab, then choose it in the table above to use it.")]
+    [InlineData("MT", "It has calls for NIN only in slot M1 or M2: choose it in the table above for NIN, then its column \"Melee 1\" or \"Melee 2\" under \"My column\".")]
+    public void ANoteForEveryoneIsNoCallOfTheJob(string? slot, string guidance)
+    {
+        // Review finding (C12): 'Alex Prime/PA'!M43 "Use Personals" under "Extras" is every player's. A Ninja without a
+        // melee slot was told the TEA plan was their active plan and got only that note, not the guidance to the
+        // "Melee 1" and "Melee 2" Feints; the import window's Save step showed it in green and ticked "Make it my active plan".
+        var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = slot });
+        parts.Plans.EnsureLoaded();
+
+        Assert.True(parts.Plans.ImportShareCode(StaticTeaCode(parts), Job.NIN, makeActive: true, out var imported, out var message), message);
+
+        Assert.Equal(0, parts.Plans.CallsFor(imported!, Job.NIN));
+        Assert.Contains(guidance, message, StringComparison.Ordinal);
+        Assert.Null(parts.Plans.ActivePlanFor("tea", Job.NIN));
+        var notes = imported!.Entries.Count(PlanSelection.ForEveryone);
+        Assert.Contains(imported.Entries, e => e.Src == "'Alex Prime/PA'!M43" && PlanSelection.ForEveryone(e));
+        var choice = ImportColumns.Choose(imported, Job.NIN, 80, slot);
+        Assert.Equal((notes, 0), (choice.Mine, choice.Seat)); // the overlay shows the notes to a player who chooses the plan
+        Assert.True(ImportWindow.AppliesLine(choice, Job.NIN).Warning);
+    }
+
+    [Theory]
+    [InlineData(1, 0, "Only 1 note for everyone applies to you as NIN: check the columns you imported.", true)]
+    [InlineData(2, 0, "Only 2 notes for everyone apply to you as NIN: check the columns you imported.", true)]
+    [InlineData(0, 0, "0 entries apply to you as NIN: check the columns you imported.", true)]
+    [InlineData(8, 7, "8 entries apply to you as NIN.", false)]
+    [InlineData(1, 1, "1 entry applies to you as NIN.", false)]
+    public void TheSaveStepWarnsWhenOnlyNotesForEveryoneApply(int mine, int seat, string text, bool warning) =>
+        Assert.Equal((text, warning), ImportWindow.AppliesLine(new ColumnChoice(new PlayerMapping(), false, false, mine, seat, 0, [], []), Job.NIN));
+
+    [Fact]
+    public void WithItsSlotAMeleeGetsTheTeaPlanAndTheNoteToo()
+    {
+        var parts = SessionManagerTests.NewManager(new Configuration { DefaultSlot = "M1" });
+        parts.Plans.EnsureLoaded();
+
+        Assert.True(parts.Plans.ImportShareCode(StaticTeaCode(parts), Job.NIN, makeActive: true, out var imported, out var message), message);
+
+        var feints = imported!.Entries.Count(e => e.Who.Assignee == "Melee 1" && e.Who.Slot == "M1" && e.Who.Job is null); // the seat's calls
+        var notes = imported.Entries.Count(PlanSelection.ForEveryone);
+        Assert.True(feints > 0 && notes > 0);
+        Assert.Equal(feints, parts.Plans.CallsFor(imported, Job.NIN));
+        Assert.Contains("It is your active plan for TEA as NIN.", message, StringComparison.Ordinal);
+        var choice = ImportColumns.Choose(imported, Job.NIN, 80, "M1");
+        Assert.Equal((feints + notes, feints), (choice.Mine, choice.Seat));
+        Assert.False(ImportWindow.AppliesLine(choice, Job.NIN).Warning);
+    }
+
+    [Fact]
+    public void ANoteForEveryoneGivesNoSlotOfARoleWithoutCalls()
+    {
+        // Review finding (C12): with only the note counted, a White Mage was told to set their usual slot for a tanks' plan.
+        var tanks = new MitPlan
+        {
+            Id = "tanks-and-note",
+            Name = "Tanks and a note",
+            Fight = "top",
+            Assignees = [new Assignee { Key = "MT", Slot = "MT" }, new Assignee { Key = "OT", Slot = "OT" }],
+            Entries =
+            [
+                Kit.Entry("p1.pantokrator", -3, Kit.Reprisal, "Reprisal", job: null, slot: "MT", assignee: "MT"),
+                new PlanEntry { Id = "everyone", Mechanic = "p1.pantokrator", Offset = -3, Who = new WhoSpec(), Do = [PlanItem.ForNote("Use Personals")] },
+            ],
+        };
+        var parts = SessionManagerTests.NewManager();
+        parts.Plans.EnsureLoaded();
+
+        Assert.True(parts.Plans.ImportShareCode(PlanSerializer.ToShareCode(tanks), Job.WHM, makeActive: true, out var imported, out var message), message);
+
+        Assert.Contains("It has no calls for WHM: choose it in the table above for the job it is for.", message, StringComparison.Ordinal);
+        Assert.Equal(CarryTheClearWhm, parts.Plans.ActivePlanFor("top", Job.WHM)?.Id);
+        var choice = ImportColumns.Choose(imported!, Job.WHM, 90, null);
+        Assert.Equal((1, 0), (choice.Mine, choice.Seat));
+        Assert.Equal(("Only 1 note for everyone applies to you as WHM: check the columns you imported.", true), ImportWindow.AppliesLine(choice, Job.WHM));
+        Assert.Equal(("0 entries apply to you as WHM: check the columns you imported.", true), ImportWindow.AppliesLine(choice with { Mine = 0 }, Job.WHM));
     }
 
     [Theory]

@@ -51,6 +51,22 @@ public class PlanSelectionTests
     }
 
     [Theory]
+    [InlineData(null, null, null, true)]      // LPDU TEA's "Use Personals" under "Extras"
+    [InlineData(null, Job.PLD, null, false)]  // "PLD Wings" under "Extras": the Paladin's call
+    [InlineData("Melee 1", null, "M1", false)] // a seat's call
+    [InlineData(null, null, "M1", false)]
+    [InlineData("Caster", null, null, false)] // a column's call
+    public void ANoteForEveryoneNamesNoJobSlotOrColumn(string? column, Job? job, string? slot, bool everyone)
+    {
+        var entry = Entry(column, job, slot);
+        Assert.Equal(everyone, PlanSelection.ForEveryone(entry));
+
+        // Every player gets it, whatever their slot and column; the other entries are not everyone's.
+        PlayerContext[] players = [new(Job.NIN, 80), new(Job.SAM, 80, "M2", "Melee 2"), new(Job.WAR, 80, "MT", "Tank 1"), new(Job.BLM, 80, null, "Caster")];
+        Assert.Equal(everyone, players.All(me => PlanSelection.Applies(entry, me)));
+    }
+
+    [Theory]
     [InlineData("MT", Job.WAR, true)]
     [InlineData("T2", Job.GNB, true)]
     [InlineData("H2", Job.SCH, true)]

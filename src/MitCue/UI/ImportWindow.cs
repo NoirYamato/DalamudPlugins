@@ -789,6 +789,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
             sourceText = SheetText.ForPrompt(this.source.Document, tabs);
         }
 
+        // With the sheet's text, the reading of "/" MitCue's importer uses for it, so the AI reads the sheet the same way.
+        var (slashes, slashesChosen) = sourceText != null ? PromptSlashes(this.slashes, this.analysis) : (null, false);
         var prompt = LlmPrompt.Build(new LlmPromptInput
         {
             Fight = fight,
@@ -800,6 +802,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
             PlanName = this.source != null ? DefaultPlanName(this.source, null) : null,
             Slot = this.plugin.Config.DefaultSlot,
             DataNote = notes.Count > 0 ? string.Join(' ', notes) : null,
+            Slashes = slashes,
+            SlashesChosen = slashesChosen,
         });
 
         ImGui.SetClipboardText(prompt);
@@ -811,6 +815,15 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (notes.Count > 0)
             this.promptMessage += " Some data was missing: " + string.Join(' ', notes);
     }
+
+    /// <summary>
+    /// What MitCue's importer reads "/" between two actions of one job as in the loaded sheet, for the AI prompt
+    /// (<see cref="LlmPromptInput.Slashes"/>): the Options step's Slashes choice, else the sheet's own reading from the
+    /// trial import (every tab counts, so it is the same for the tabs in the prompt); null when neither is known (the trial
+    /// import has not run, or could not).
+    /// </summary>
+    internal static (SlashReading? Reading, bool Chosen) PromptSlashes(SlashReading choice, ImportAnalysis? analysis) =>
+        choice != SlashReading.Auto ? (choice, true) : (analysis is { Available: true } ? analysis.DocumentSlashes : null, false);
 
     private void StartParseYaml()
     {
@@ -963,10 +976,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         }
 
-        HelpMarker(
-            "What \"X/Y\" between two actions of one job means. Automatic: all of them when the sheet joins actions no other way " +
-            "(no \"+\") and lists three or more with \"/\" (Soil/Reci/Deploy/Whisper), else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
-            "The review's notes about the whole import say which reading was used.");
+        HelpMarker(SlashesHelp);
 
         var (canImport, why) = this.CanImport(data);
         using (ImRaii.Disabled(!canImport || this.jobs.Busy))
@@ -1000,6 +1010,17 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The Slashes choice's help: the importer's automatic reading exactly (PlanImporter's "slash-reading" diagnostic says
+    /// the same with the cells it counted).
+    /// </summary>
+    internal const string SlashesHelp =
+        "What \"X/Y\" between two actions of one job means. Automatic: all of them when no cell joins actions another way " +
+        "(\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job " +
+        "with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
+        "The cells of every tab count, whichever tabs and columns you import. The review's notes about the whole import say " +
+        "which reading was used.";
 
     /// <summary>The Slashes choice as the combo shows it.</summary>
     internal static string SlashLabel(SlashReading reading) => reading switch
@@ -1371,7 +1392,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
         {
             // Counted the way the overlay selects them, with the column choice the plan is saved with.
             var choice = this.ColumnChoiceFor(model);
-            ImGui.TextColored(choice.Mine > 0 ? ColorOk : ColorWarning, $"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}" + (choice.Mine == 0 ? ": check the columns you imported." : "."));
+            var (applies, warning) = AppliesLine(choice, job);
+            ImGui.TextColored(warning ? ColorWarning : ColorOk, applies);
             if (choice.Save)
             {
                 ImGui.TextDisabled(
@@ -1447,6 +1469,16 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (this.saveMessage.Length > 0)
             ImGui.TextColoredWrapped(ColorError, this.saveMessage);
     }
+
+    /// <summary>
+    /// The Save step's line about the entries the overlay will show the player, and whether it is a warning: it is when
+    /// none of them is a call of the player's (<see cref="ColumnChoice.Seat"/>), as the imported columns are then not
+    /// theirs. Notes for everyone ("Use Personals") are shown to every player of the plan, so they alone are no such call.
+    /// </summary>
+    internal static (string Text, bool Warning) AppliesLine(ColumnChoice choice, Job job) =>
+        choice.Seat > 0 ? ($"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}.", false)
+        : choice.Mine > 0 ? ($"Only {Plural(choice.Mine, "note for everyone applies", "notes for everyone apply")} to you as {job}: check the columns you imported.", true)
+        : ($"{Plural(0, "entry applies", "entries apply")} to you as {job}: check the columns you imported.", true);
 
     /// <summary>
     /// The column choice the plan gets for the player's job and the entries the overlay will then show, for the party
