@@ -248,6 +248,13 @@ public sealed class ImportResult
     /// <summary>Largest absolute residual of the fit per phase (seconds).</summary>
     public IReadOnlyDictionary<string, double> PhaseSpread { get; init; } = new Dictionary<string, double>();
 
+    /// <summary>
+    /// What "/" between two actions of one job means in the document alone (<see cref="SlashReading.All"/> or
+    /// <see cref="SlashReading.Either"/>): the automatic reading (<see cref="SlashReading.Auto"/>), also when
+    /// <see cref="ImportOptions.Slashes"/> chose the other one. The "slash-reading" diagnostic says which was used.
+    /// </summary>
+    public SlashReading DocumentSlashes { get; init; } = SlashReading.Either;
+
     /// <summary>Every mechanic row of the imported tabs (with or without assignments) and the mechanic it was matched to, for review.</summary>
     public IReadOnlyList<ImportedRow> Rows { get; init; } = [];
 

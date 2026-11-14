@@ -54,12 +54,13 @@ internal sealed class TabStats
 /// </summary>
 internal sealed class ImportAnalysis
 {
-    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason)
+    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason, SlashReading? documentSlashes = null)
     {
         this.Tabs = tabs;
         this.Assignees = assignees;
         this.Available = available;
         this.Reason = reason;
+        this.DocumentSlashes = documentSlashes;
     }
 
     /// <summary>Every tab of the document, in order.</summary>
@@ -73,6 +74,12 @@ internal sealed class ImportAnalysis
 
     /// <summary>Why the trial import did not run (user-facing), when <see cref="Available"/> is false.</summary>
     public string? Reason { get; }
+
+    /// <summary>
+    /// What "/" between two actions of one job means in the sheet alone (<see cref="ImportResult.DocumentSlashes"/>): the
+    /// automatic reading of every import of it, whichever tabs and columns. Null without a trial import.
+    /// </summary>
+    public SlashReading? DocumentSlashes { get; }
 
     /// <summary>Statistics from a trial import result.</summary>
     public static ImportAnalysis FromResult(SheetDocument document, ImportResult result)
@@ -116,7 +123,7 @@ internal sealed class ImportAnalysis
                 assignees.Add(new Assignee { Key = key });
         }
 
-        return new ImportAnalysis(tabs, assignees, true, null);
+        return new ImportAnalysis(tabs, assignees, true, null, result.DocumentSlashes);
     }
 
     /// <summary>Statistics without a trial import (the importer is not available).</summary>

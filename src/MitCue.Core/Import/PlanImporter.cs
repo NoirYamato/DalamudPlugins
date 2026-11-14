@@ -261,6 +261,7 @@ public sealed partial class PlanImporter
         private readonly List<BannerNote> bannerNotes = [];
         private readonly Dictionary<(TabState Tab, int Row, int Column), List<string>> caretRemarks = [];
         private CellParser cells = CellParser.Default;
+        private SlashReading documentSlashes = SlashReading.Either;
         private string? presetKey;
         private IReadOnlyDictionary<string, double> rowOffsets = new Dictionary<string, double>();
         private LayoutDetector detector = null!;
@@ -337,6 +338,7 @@ public sealed partial class PlanImporter
                 Diagnostics = this.diagnostics.ToList(),
                 PhaseZeros = new Dictionary<string, double>(this.zeros, StringComparer.OrdinalIgnoreCase),
                 PhaseSpread = new Dictionary<string, double>(this.spreads, StringComparer.OrdinalIgnoreCase),
+                DocumentSlashes = this.documentSlashes,
                 Rows = rows.Select(r => new ImportedRow(r.Tab.Layout.Name, r.Row.Index + 1, r.Row.Label, r.PhaseId, r.Mechanic?.Id, r.Match, r.Row.Src)).ToList(),
                 AnyoneColumns = tabs.SelectMany(t => t.Layout.AssigneeColumns.Where(c => c.Assignee!.Kind == AssigneeKind.Anyone).Select(c => new AnyoneColumn(t.Layout.Name, c.Index, c.Header ?? c.Assignee!.Key)))
                     .Distinct().ToList(),
@@ -485,6 +487,7 @@ public sealed partial class PlanImporter
 
             var auto = joined == 0 && listed >= 2 && longest >= 3 ? SlashReading.All : SlashReading.Either;
             var reading = this.options.Slashes == SlashReading.Auto ? auto : this.options.Slashes;
+            this.documentSlashes = auto;
             const string Others = "'+', ',', '&', an arrow, ' / ' or a line break";
             var counts = (listed == 0 ? "no cell lists several actions of one job with '/'" : $"{Count(listed, "cell lists", "cells list")} several actions of one job with '/', up to {longest} (e.g. {listExample})")
                 + "; " + (joined == 0 ? $"no cell joins actions another way ({Others})" : $"{Count(joined, "cell joins", "cells join")} actions another way ({Others}; e.g. {joinExample})");

@@ -157,6 +157,17 @@ public class ImportCellRulesTests
     }
 
     [Theory]
+    [InlineData(SlashReading.Auto, SlashReading.All)]
+    [InlineData(SlashReading.Either, SlashReading.All)] // the option chose the other reading; the sheet's own stays known
+    public void SlashReading_TheDocumentsOwnReadingIsInTheResult(SlashReading option, SlashReading document)
+    {
+        // The AI prompt says which reading MitCue's importer used for the sheet it includes (the import window's trial import).
+        var r = Import(Sheet("P1", "Scholar", "Loop 1\tSoil/Reci/Deploy/Whisper", "Loop 2\tSoil/Succor"), option);
+        Assert.Equal(document, r.DocumentSlashes);
+        Assert.Equal(SlashReading.Either, Import(Sheet("P1", "Scholar", "Loop 1\tSoil/Reci/Deploy/Whisper", "Loop 2\tExcog + Succor"), option).DocumentSlashes);
+    }
+
+    [Theory]
     [InlineData(SlashReading.Either)]
     [InlineData(SlashReading.All)]
     public void SlashReading_Option_Overrides(SlashReading slashes)

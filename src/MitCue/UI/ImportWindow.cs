@@ -789,6 +789,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
             sourceText = SheetText.ForPrompt(this.source.Document, tabs);
         }
 
+        // With the sheet's text, the reading of "/" MitCue's importer uses for it, so the AI reads the sheet the same way.
+        var (slashes, slashesChosen) = sourceText != null ? PromptSlashes(this.slashes, this.analysis) : (null, false);
         var prompt = LlmPrompt.Build(new LlmPromptInput
         {
             Fight = fight,
@@ -800,6 +802,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
             PlanName = this.source != null ? DefaultPlanName(this.source, null) : null,
             Slot = this.plugin.Config.DefaultSlot,
             DataNote = notes.Count > 0 ? string.Join(' ', notes) : null,
+            Slashes = slashes,
+            SlashesChosen = slashesChosen,
         });
 
         ImGui.SetClipboardText(prompt);
@@ -811,6 +815,15 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (notes.Count > 0)
             this.promptMessage += " Some data was missing: " + string.Join(' ', notes);
     }
+
+    /// <summary>
+    /// What MitCue's importer reads "/" between two actions of one job as in the loaded sheet, for the AI prompt
+    /// (<see cref="LlmPromptInput.Slashes"/>): the Options step's Slashes choice, else the sheet's own reading from the
+    /// trial import (every tab counts, so it is the same for the tabs in the prompt); null when neither is known (the trial
+    /// import has not run, or could not).
+    /// </summary>
+    internal static (SlashReading? Reading, bool Chosen) PromptSlashes(SlashReading choice, ImportAnalysis? analysis) =>
+        choice != SlashReading.Auto ? (choice, true) : (analysis is { Available: true } ? analysis.DocumentSlashes : null, false);
 
     private void StartParseYaml()
     {

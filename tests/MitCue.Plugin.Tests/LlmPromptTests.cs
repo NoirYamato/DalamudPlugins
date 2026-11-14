@@ -1,7 +1,10 @@
 using MitCue.Core;
 using MitCue.Core.Actions;
+using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
+using MitCue.UI;
 
 namespace MitCue.PluginTests;
 
@@ -139,6 +142,79 @@ public class LlmPromptTests
 
         var without = LlmPrompt.Build(Input());
         Assert.EndsWith(LlmPrompt.PastePlaceholder + "\n", without);
+    }
+
+    /// <summary>The prompt's "X/Y" rule, the line that starts with its number.</summary>
+    private static string SlashRuleLine(string prompt) =>
+        prompt.Split('\n').Single(l => l.Contains("\"X/Y\" between actions of different jobs", StringComparison.Ordinal));
+
+    [Fact]
+    public void TheSlashRuleIsDecidedPerDocument()
+    {
+        // The prompt said that "X/Y" between actions of one job is either/or (`any: [...]`), but the importer reads it per
+        // document (PlanImporter.ChooseSlashReading): LPDU TEA's "Soil/Reci/Deploy/Whisper" is all four actions.
+        var rule = SlashRuleLine(LlmPrompt.Build(Input()));
+
+        Assert.Contains("(\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action.", rule, StringComparison.Ordinal);
+        Assert.Contains("Between actions of one job, \"/\" means the same in the whole sheet: all of them (one entry with every action, as for \"A + B\")", rule, StringComparison.Ordinal);
+        Assert.Contains(
+            "when no cell joins actions another way (\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); otherwise either one (`any: [...]`)",
+            rule,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("For the plan below", rule, StringComparison.Ordinal); // no sheet loaded: the rule alone
+        Assert.DoesNotContain("Alternatives for the same job become", rule, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(SlashReading.All, false, "For the plan below, MitCue's importer reads \"/\" between actions of one job as all of them, by this rule: do the same.")]
+    [InlineData(SlashReading.Either, false, "For the plan below, MitCue's importer reads \"/\" between actions of one job as either one, by this rule: do the same.")]
+    [InlineData(SlashReading.All, true, "For the plan below, the player chose in MitCue's import options to read \"/\" between actions of one job as all of them: do the same.")]
+    [InlineData(SlashReading.Either, true, "For the plan below, the player chose in MitCue's import options to read \"/\" between actions of one job as either one: do the same.")]
+    public void WithALoadedSheetTheRuleSaysWhichReadingTheImporterUsed(SlashReading reading, bool chosen, string sentence)
+    {
+        var input = Input("Source: Plan\n### Tab \"P1\"\nR2 | A: Pantokrator | E: Soil/Reci/Deploy/Whisper\n");
+        var prompt = LlmPrompt.Build(new LlmPromptInput
+        {
+            Fight = input.Fight,
+            Jobs = input.Jobs,
+            Actions = input.Actions,
+            SourceText = input.SourceText,
+            Slashes = reading,
+            SlashesChosen = chosen,
+        });
+
+        Assert.EndsWith(" " + sentence, SlashRuleLine(prompt), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tea", SlashReading.All)]    // LPDU TEA: "Soil/Reci/Deploy/Whisper", nothing joined another way
+    [InlineData("top", SlashReading.Either)] // LPDU TOP: "TBN/Oblation" next to "Living Dead + ..."
+    public void TheImportWindowPassesTheSheetsOwnReadingOrThePlayersChoice(string fight, SlashReading expected)
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = fight == "tea" ? FixtureSheets.LpduTea() : FixtureSheets.Lpdu();
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        Assert.True(analysis.Available, analysis.Reason);
+
+        Assert.Equal(expected, analysis.DocumentSlashes);
+        Assert.Equal(((SlashReading?)expected, false), ImportWindow.PromptSlashes(SlashReading.Auto, analysis));
+        var other = expected == SlashReading.All ? SlashReading.Either : SlashReading.All;
+        Assert.Equal(((SlashReading?)other, true), ImportWindow.PromptSlashes(other, analysis)); // the Options step's choice
+
+        // The trial import chose the other reading: the sheet's own one is still known.
+        var chosen = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11", Slashes = other });
+        Assert.Equal(expected, chosen.DocumentSlashes);
+    }
+
+    [Fact]
+    public void WithoutATrialImportTheReadingIsNotKnown()
+    {
+        var unavailable = ImportAnalysis.Unavailable(new SheetDocument { Title = "x", Tabs = [] }, "no importer");
+
+        Assert.Equal(((SlashReading?)null, false), ImportWindow.PromptSlashes(SlashReading.Auto, unavailable));
+        Assert.Equal(((SlashReading?)null, false), ImportWindow.PromptSlashes(SlashReading.Auto, null));
+        Assert.Equal(((SlashReading?)SlashReading.Either, true), ImportWindow.PromptSlashes(SlashReading.Either, null));
     }
 
     [Fact]
