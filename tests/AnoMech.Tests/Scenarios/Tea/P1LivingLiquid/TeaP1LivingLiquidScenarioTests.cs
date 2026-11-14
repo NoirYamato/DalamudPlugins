@@ -43,7 +43,7 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.Multiple(() =>
         {
             Assert.That(proteanOne.Passed, proteanOne.ToString);
-            Assert.That(proteanOne.Elapsed, Is.InRange(27f, 30f), "Protean 1 ends after its last Hand of Pain");
+            Assert.That(proteanOne.Elapsed, Is.InRange(26f, 28f), "Protean 1 ends after Drainage");
             Assert.That(cascadeTwo.Passed, cascadeTwo.ToString);
             Assert.That(cascadeTwo.Elapsed, Is.InRange(44.2f, 46.2f), "Cascade 2 ends after the Liquid falls");
         });
@@ -870,6 +870,9 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.That(standing, Is.EqualTo(new[] { null, null, stage.Frame2 }));
         Assert.That(watch.Sent("cast", P1ActionId.Cascade).Select(s => s.At), Is.EqualTo(new[] { 1.9f }).Within(0.05f));
         Assert.That(watch.Spawned(P1BNpcBaseId.LiquidRage), Has.Count.EqualTo(3));
+        Assert.That(watch.Sent("cast", P1ActionId.HandOfPain).Select(s => s.At), Is.EqualTo(new[] { 0.3f }).Within(0.05f), "the Hand of Pain a run of both parts casts at 24.1");
+        Assert.That(watch.Sent("ability", P1ActionId.HandOfPain).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (3.3f, 8) }).Within(0.05f));
+        Assert.That(watch.Sent("ability", P1ActionId.Splash, P1ActionId.Drainage), Is.Empty);
     }
 
     // The strat's first move reads where the Living Liquid stands, before any frame has played.

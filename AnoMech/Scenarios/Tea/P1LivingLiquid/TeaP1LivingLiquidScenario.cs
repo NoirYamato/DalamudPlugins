@@ -77,8 +77,9 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
             new Placement(Vector3.Zero, frame.Facing(P1Geometry.LiquidStartsFacing)),
             new Placement(frame.At(P1Geometry.HandStartsOnBearing, P1Geometry.HandStartsFromTheCentre), frame.Facing(P1Geometry.HandStartsOnBearing)));
 
-    // From the fight's clock at 62.0. Hand of Pain's cast and Drainage end a moment after Cascade 2's part begins: they
-    // belong to this one, since a run that starts there has no first tornadoes.
+    // From the fight's clock at 62.0. Drainage and the last Splash come 0.8 s after Cascade 2's part begins: they belong
+    // to this one, since a run that starts there has no first tornadoes to cast Drainage; it goes without that Splash
+    // too.
     private void ProteanOneIntoDrainage(float start)
     {
         fight.ProteanWave(start + 4.8f);
@@ -87,13 +88,13 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
         fight.LastUntelegraphedWaves(start + 13.0f);
         fight.Splashes(start + 19.1f);
         fight.DrainageTethers(start + 20.0f, state.Drainage);       // UNVERIFIED when they show ("about" 4.6 s before Drainage)
-        fight.HandOfPain(start + 24.1f);
         fight.Drainage(start + 24.6f);
     }
 
     // From the fight's clock at 85.8.
     private void CascadeTwoIntoTheKill(float start)
     {
+        fight.HandOfPain(start + 0.3f);
         fight.Cascade(start + 1.9f, state.Tornadoes2);
         fight.LiquidGaol(start + 10.1f, state.Throttled.List);
         fight.ProteanWave(start + 18.2f);
