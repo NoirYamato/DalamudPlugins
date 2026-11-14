@@ -19,7 +19,14 @@ timeline: the_epic_of_alexander.txt
 # 755.9 (cactbot: 705.7 + 50). Windows of 1.4 s keep every event on its own wave (neighbours are 3 s apart; a
 # narrower window only leaves larger errors unsynced). No source: the helper's name is not needed. Not checked
 # against a log. Waves after Brute Justice dies never fire; the 4879 sync (771.9) ends the check.
+# The Inception crystals' explosions (4A88 Tetrashatter, source Judgment Crystal as in cactbot's "Bait Brute's
+# Flarethrower" trigger) have no cactbot entry; 564.5 is the first (p3.inception_crystals). They are player-timed (when
+# the True Heart reaches each crystal), so the sync is only a narrow catch: "window 2,0" is active from 562.5 until
+# 564.5, so an explosion in it moves the timeline forward to 564.5 (at most 2 s), once; after that, and for explosions
+# after 564.5, the window is over, so no crystal moves the timeline back. The next boss sync (485E Inception, 581.0)
+# corrects any error.
 timeline_additions: |
+  564.5 "Tetrashatter" Ability { id: "4A88", source: "Judgment Crystal" } window 2,0
   710.9 "J Wave 1" Ability { id: "4877" } window 1.4,1.4
   713.9 "J Wave 2" Ability { id: "4877" } window 1.4,1.4
   716.9 "J Wave 3" Ability { id: "4877" } window 1.4,1.4
@@ -545,17 +552,18 @@ mechanics:
       - "Divine Spear"
       - "Divine Spear 1"
   - id: p3.inception_crystals
-    # ids: the Judgment Crystal AoEs (485C, synced) drop four crystals as the True Heart spawns; each crystal the Heart
-    # crosses explodes (4A88 Tetrashatter, source Judgment Crystal, proximity raidwide) about 6-10 s later (TEA guide
-    # doc: "0:54-0:57 4x Tetrashatter, time dependent on strategy"), before the first Flarethrower (569.5; cactbot calls
-    # it 1 s after the first 4A88). No timeline entry for 4A88, so anchored on the crystal drop. The Inception debuffs
-    # and cross are p3.inception (589.1). The verbatim LPDU alias is needed: simplified, "Inception (Crystals Boom)" is
-    # "inception".
+    # ids: the Judgment Crystal AoEs (485C, synced at 558.2) drop four crystals as the True Heart spawns; each crystal the
+    # Heart crosses explodes (4A88 Tetrashatter, source Judgment Crystal, proximity raidwide) about 6-10 s later (TEA
+    # guide doc: "0:54-0:57 4x Tetrashatter, time dependent on strategy"; BossmodReborn predicts 5.3 s after the spawn),
+    # before the first Flarethrower (569.5; cactbot calls it 1 s after the first 4A88). Anchored on the first explosion,
+    # a timeline_additions line at 564.5 (~564-568 s), so 15 s mitigation pressed for it lasts through the fourth. The
+    # Inception debuffs and cross are p3.inception (589.1). The verbatim LPDU alias is needed: simplified, "Inception
+    # (Crystals Boom)" is "inception".
     name: "Inception: Judgment Crystals explode (4x Tetrashatter, player-timed ~564-568 s)"
     phase: p3
-    hit: 558.2
-    hits: [558.2]
-    entry: "Judgment Crystal + True Heart"
+    hit: 564.5
+    hits: [564.5]
+    entry: "Tetrashatter"
     kind: raidwide
     aliases:
       - "Inception (Crystals Boom)"

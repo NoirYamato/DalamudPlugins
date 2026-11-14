@@ -137,6 +137,30 @@ public class TeaPlanTimingTests
         Assert.Null(asylum.DueNotBefore);
     }
 
+    // ---- Inception: the crystals explode at ~564.5-568.5 ----------------------------------------------------------
+
+    /// <summary>
+    /// 'Alex Prime/PA' row 11 "Inception (Crystals Boom)": the 15 s party mitigation (C11/D11 Dark Missionary and Heart of
+    /// Light, K11 Troubadour, Tactician, Shield Samba) is pressed for the first explosion (564.5), so even pressed on the
+    /// NOW cue it lasts through the fourth (~568.5), not for the crystal drop at 558.2.
+    /// </summary>
+    [Fact]
+    public void InceptionCrystals_FifteenSecondMitigationLastsThroughTheFourExplosions()
+    {
+        var dueLead = new ReminderOptions().DueLead;
+        var mitigation = Reminders("'Alex Prime/PA'!C11", "'Alex Prime/PA'!D11", "'Alex Prime/PA'!K11")
+            .Where(r => r.Item.Name is "Dark Missionary" or "Heart of Light" or "Troubadour" or "Tactician" or "Shield Samba").ToList();
+        Assert.Equal(7, mitigation.Count);
+        foreach (var r in mitigation)
+        {
+            var duration = RepoFiles.Action(r.Item.Name!).DurationAt(80)!.Value;
+            Assert.Equal(15, duration);
+            Assert.Equal(564.5, r.Hit, 1e-9);
+            Assert.True(r.PressAt < r.Hit);
+            Assert.True(r.PressAt - dueLead + duration >= 568.5, $"{r.Item.Name}: pressed on NOW at {r.PressAt - dueLead}, ends at {r.PressAt - dueLead + duration}");
+        }
+    }
+
     // ---- actions with a lead of their own (actions.yaml) -------------------------------------------------------
 
     /// <summary>

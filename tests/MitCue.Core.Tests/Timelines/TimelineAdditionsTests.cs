@@ -154,6 +154,41 @@ public class TimelineAdditionsTests
         Assert.Single(events, e => e is AbilityResolved);
     }
 
+    /// <summary>
+    /// TEA's Inception crystals explode when players bring the True Heart to them, so the added 4A88 Tetrashatter sync
+    /// (564.5, the first explosion, p3.inception_crystals' anchor) is a narrow catch: an explosion from 562.5 until 564.5
+    /// moves the timeline forward to 564.5, once; no explosion before it, after it or of the other crystals moves it.
+    /// </summary>
+    [Fact]
+    public void Tea_tetrashatter_moves_the_timeline_forward_by_at_most_two_seconds_once()
+    {
+        var library = new FightLibrary(RepoFiles.Data);
+        var tea = library.Get("tea")!;
+        var timeline = library.LoadTimeline(tea);
+        var entry = Assert.Single(timeline.Entries, e => e.Name == "Tetrashatter");
+        Assert.Equal((564.5, 562.5, 564.5), (entry.Time, entry.SyncStart, entry.SyncEnd));
+        Assert.Equal(entry.Time, tea.GetMechanic("p3.inception_crystals")!.Hit);
+        Assert.DoesNotContain(timeline.Warnings, w => !Load(TimelineKit.Tea).Warnings.Contains(w));
+
+        static AbilityResolved Boom(double clock) => Ability(clock, 0x4A88, "Judgment Crystal");
+
+        // Combat at clock 1000: timeline time = clock − 1000 until a sync moves it.
+        var early = new TimelinePlayer(timeline);
+        Assert.True(early.Process(Combat(1000))!.Started);
+        Assert.Null(early.Process(Boom(1562.0)));                          // before the window
+        var synced = early.Process(Boom(1563.0));
+        Assert.Equal((563.0, 564.5), (synced!.FromTime, synced.ToTime));   // forward, 1.5 s
+        Assert.Null(early.Process(Boom(1563.4)));                          // the other crystals: never again
+        Assert.Null(early.Process(Boom(1566.0)));
+        Assert.Equal(568.0, early.TimeAt(1566.5), 1e-9);
+
+        var late = new TimelinePlayer(timeline);
+        Assert.True(late.Process(Combat(1000))!.Started);
+        Assert.Null(late.Process(Boom(1564.5)));                           // from 564.5 on: no sync, nothing moves back
+        Assert.Null(late.Process(Boom(1567.0)));
+        Assert.Equal(567.0, late.TimeAt(1567.0), 1e-9);
+    }
+
     [Fact]
     public void FightLoader_reads_timeline_additions_and_rejects_lines_that_are_not_syncs()
     {
