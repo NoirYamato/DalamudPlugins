@@ -18,10 +18,11 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 // A human in a healer's seat on a job without Esuna is held to no cleanse: the run cleanses for the seat.
 //
 // The one piece of strat the scenario reads, for the start-of-run chat lines naming the human's duties. A human
-// tank's include where it takes its boss, since no move of the strat's reaches a human and each boss follows its tank,
-// the Living Liquid from 4 y and the Liquid Hand from 2.1 y: the main tank turns the Liquid for both Protean Waves
-// and brings it back onto the middle, where the bots' spots round it and beside the tornadoes fit; for the last hand
-// each tank walks on through the middle, since a tank that stops on it leaves its boss short of the other.
+// tank's include where it takes its boss, since no move of the strat's reaches a human and each boss walks after a
+// tank out of its reach, the Living Liquid to 6 y from it and the Liquid Hand to 4 y: the main tank turns the Liquid
+// for both Protean Waves and brings it back onto the middle, where the bots' spots round it and beside the tornadoes
+// fit; for the last hand each tank walks on through the middle, since a tank that stops on it leaves its boss short of
+// the other.
 public sealed class TeaP1LivingLiquidPlan
 {
     // UNVERIFIED: that the client's party list shows the seats in this order; it may sort each role by job.
@@ -76,18 +77,19 @@ public sealed class TeaP1LivingLiquidPlan
         }
         if (HumanSeat == MainTank && plays(TeaP1LivingLiquidPart.Cascade2))
         {
-            lines.Add("Your Living Liquid: it walks after you whenever you are more than 4 y from it"
+            lines.Add("Your Living Liquid: it stays put while you are within 7 y of it, and beyond that walks after you until it is 6 y from you"
                       + (plays(TeaP1LivingLiquidPart.Protean1)
-                          ? ", so fetching your tether drags it off the middle. After Drainage walk it back onto the middle"
+                          ? ", so fetching your tether can drag it off the middle. After Drainage lead it back: stand 6 y past the middle on the far side from it"
                           : ". Keep it on the middle")
                       + ", and turn it to the open quarter 2 s or more before Protean 2's bar shows: the party stacks on the line it stands on then");
         }
         if (HumanSeat.IsTank() && plays(TeaP1LivingLiquidPart.Cascade2))
         {
             lines.Add(HumanSeat == MainTank
-                ? "Your last hand: hold the Living Liquid more than 12 y from the Liquid Hand until the Hand shows its palm, "
-                  + "then walk on through the middle until the Living Liquid stands on the Hand: it stops 4 y behind you"
-                : "Your Liquid Hand: it walks after you and stops 2.1 y behind you. For the last hand hold it more than 12 y from the Living Liquid until it shows its palm, "
+                ? "Your last hand: hold the Living Liquid more than 17 y from the Liquid Hand until the Hand shows its palm, "
+                  + "then walk on through the middle until the Living Liquid stands on the Hand: it stops 6 y behind you"
+                : "Your Liquid Hand: it stays put while you are within 5 y of it, and beyond that walks after you until it is 4 y from you. "
+                  + "For the last hand hold it more than 17 y from the Living Liquid until it shows its palm, "
                   + "then walk on through the middle until it stands on the Living Liquid");
         }
         if (IsHealer(HumanSeat) && plays(TeaP1LivingLiquidPart.Cascade2))

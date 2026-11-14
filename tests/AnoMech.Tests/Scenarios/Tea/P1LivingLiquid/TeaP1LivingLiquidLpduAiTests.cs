@@ -20,15 +20,15 @@ namespace AnoMech.Tests;
 // each in the frame of the tornadoes standing then, and a spot hung off the Living Liquid from where it stands as the
 // move is called. Bots walk there, so each cue is read once they have arrived. Where the strat differs from the stage:
 //
-//   - each tank fetches its own Drainage tether from 20.25 and walks it back to its spot (the main tank's 3.9 y
+//   - each tank fetches its own Drainage tether from 17.75 and walks it back to its spot (the main tank's 3.9 y
 //     south-east of the middle, the off tank's at (-5.4, 5.4)): the east tornado's is the main tank's and the west
 //     one's the off tank's, and the middle one's goes to the tank whose side has none;
-//   - the main tank's fetch drags the Living Liquid off the middle, so at Cascade 2's 6.4 it steps onto the middle,
-//     which the Liquid lets it do without moving, and at 7.2 walks on straight away from the Liquid, 4 y out: the
-//     Liquid follows in a line and stops on the middle;
+//   - where the main tank's fetch has dragged the Living Liquid more than 0.7 y off the middle, at Cascade 2's 6.4
+//     it walks across the middle to the far side from the Liquid, 6 y out or as far as it takes to stand 7.4 y from
+//     it: the Liquid follows in a line and stops on the middle;
 //   - Protean 2's two stacks, taken at 12.0, are taken again until 17.75 whenever the Living Liquid has moved more than
 //     0.25 y since, for a human main tank who is still leading it back: with bots alone it never has;
-//   - the off tank walks to the west tornado from 25.2 with no wait on the way;
+//   - the off tank walks to the west tornado from 25.4 with no wait on the way;
 //   - both healers cleanse at 11.2, 13.7, 16.2 and 18.7, each itself first, then H1 down the party list and H2 up it.
 public class TeaP1LivingLiquidLpduAiTests
 {
@@ -110,7 +110,7 @@ public class TeaP1LivingLiquidLpduAiTests
         new(Protean1, 1.5f, 4.7f),
         new(Protean1, 5.3f, 9.8f),
         new(Protean1, 9.95f, 12.9f),
-        new(Protean1, 13.05f, 19.9f),
+        new(Protean1, 13.05f, 17.4f),
         new(Cascade2, 0.9f, 5.8f),
         new(Cascade2, 9.5f, 11.9f),
         new(Cascade2, 12.0f, 18.1f),
@@ -122,7 +122,7 @@ public class TeaP1LivingLiquidLpduAiTests
         new(Cascade2, 24.25f, 29.2f),
         new(Cascade2, 27.0f, 29.2f),
         new(Cascade2, 29.35f, 33.4f),
-        new(Cascade2, 33.5f, 38.3f),
+        new(Cascade2, 33.5f, 38.2f),
     ];
 
     [Test]
@@ -174,14 +174,15 @@ public class TeaP1LivingLiquidLpduAiTests
     // -- The bosses --
 
     private const float OnTheMiddleWithin = 0.4f;
+    private const float LedBackOntoTheMiddleWithin = 1.0f;
     private const float FacesItsTanksWithinDegrees = 5f;
-    private const float TheLiquidStaysWithinReachOfItsTank = 4.3f;
-    private const float InsideEveryNewPuddlesReach = 6.2f;
+    private const float TheLiquidStaysWithinReachOfItsTank = 6.9f;
+    private const float InsideEveryNewPuddlesReach = 6.9f;
 
     // Protean 1's telegraph is aimed at 4.8 with the Liquid on the middle facing the tanks south of it, and Cascade
-    // 2's at 18.2 with it facing the main tank north of it. While it follows, the main tank stands inside its reach
-    // (4.0 y), so it only turns; the tank lets it walk three times: fetching its tether (until the walks of Cascade 2's
-    // 6.4 and 7.2 have brought it back, by 9.0), backing out north-east at 23.35 and for the last hand.
+    // 2's at 18.15 with it facing the main tank north of it. While it is free, the main tank stands inside its reach
+    // (7.0 y), so it only turns; the tank lets it walk three times: fetching its tether (until Cascade 2's 6.4 walk
+    // has led it back to within a yalm of the middle, by 9.0), backing out north-east at 23.35 and for the last hand.
     [Test]
     public void TheMainTankHoldsTheLiquidOnTheMiddleFacingTheStacks([Values] TeaP1OpenQuarter open1, [Values(0, 3, 5)] int turnsOn,
         [Values(Protean1, Cascade2)] TeaP1LivingLiquidPart first)
@@ -207,7 +208,7 @@ public class TeaP1LivingLiquidLpduAiTests
                     if (off > FacesItsTanksWithinDegrees) problems.Add($"the Liquid {F(off)} degrees off south at Protean 1's aim ({context})");
                     if (!fight.FacingLocked) problems.Add($"the facing is not locked at Protean 1's aim ({context})");
                 }
-                if (p.Crossed(roll.C2(5.9f)))
+                if (p.Crossed(roll.C2(7.3f)))
                 {
                     read++;
                     foreach (var seat in PerRole.All)
@@ -217,12 +218,12 @@ public class TeaP1LivingLiquidLpduAiTests
                 if (p.Crossed(roll.C2(9.5f)))
                 {
                     read++;
-                    if (liquid.Length() > OnTheMiddleWithin) problems.Add($"the Liquid {F(liquid.Length())} y off the middle at 9.5 ({context})");
+                    if (liquid.Length() > LedBackOntoTheMiddleWithin) problems.Add($"the Liquid {F(liquid.Length())} y off the middle at 9.5 ({context})");
                 }
-                if (p.Crossed(roll.C2(18.25f)))
+                if (p.Crossed(roll.C2(18.2f)))
                 {
                     read++;
-                    if (liquid.Length() > OnTheMiddleWithin) problems.Add($"the Liquid {F(liquid.Length())} y off the middle at Protean 2's aim ({context})");
+                    if (liquid.Length() > LedBackOntoTheMiddleWithin) problems.Add($"the Liquid {F(liquid.Length())} y off the middle at Protean 2's aim ({context})");
                     var off = MathF.Abs(Turn(fight.Liquid!.Rotation, roll.Frame2.Facing(0f))) * 180f / MathF.PI;
                     if (off > FacesItsTanksWithinDegrees) problems.Add($"the Liquid {F(off)} degrees off north at Protean 2's aim ({context})");
                 }
@@ -242,12 +243,12 @@ public class TeaP1LivingLiquidLpduAiTests
 
     private static bool HoldsItStill(Roll roll, float time)
     {
-        if (roll.Plays(Protean1) && time >= roll.P1(0.6f) && time <= roll.P1(20.2f)) return true;
+        if (roll.Plays(Protean1) && time >= roll.P1(0.6f) && time <= roll.P1(17.7f)) return true;
         return time >= roll.C2(roll.Plays(Protean1) ? 9.0f : 0.6f) && time <= roll.C2(23.3f);
     }
 
-    // The tanks stand 12 y or more apart at the glow, so the Hand shows a palm, and each then walks through the middle
-    // and stops beyond it, its boss's stopping distance out.
+    // The tanks hold the bosses far apart at the glow, so the Hand shows a palm, and each then walks through the
+    // middle and stops beyond it, its boss's stopping distance out.
     [Test]
     public void TheTanksShowAPalmAndBringBothBossesOntoTheMiddle([Values] TeaP1OpenQuarter open2)
     {
@@ -258,8 +259,8 @@ public class TeaP1LivingLiquidLpduAiTests
         {
             var fight = Stage.Fight(p);
             var (liquid, hand) = (Flat(fight.Position(TeaP1Boss.LivingLiquid)), Flat(fight.Position(TeaP1Boss.LiquidHand)));
-            if (p.Crossed(33.25f)) (palm, apartAtTheGlow) = (fight.HandShowsAPalm, Vector2.Distance(liquid, hand));
-            if (p.Crossed(38.35f)) (liquidOff, handOff) = (liquid.Length(), hand.Length());
+            if (p.Crossed(33.2f)) (palm, apartAtTheGlow) = (fight.HandShowsAPalm, Vector2.Distance(liquid, hand));
+            if (p.Crossed(38.3f)) (liquidOff, handOff) = (liquid.Length(), hand.Length());
         });
 
         Assert.That(run.Passed, run.ToString);

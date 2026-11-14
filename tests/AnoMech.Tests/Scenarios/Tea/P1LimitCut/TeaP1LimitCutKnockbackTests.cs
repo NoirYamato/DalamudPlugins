@@ -13,7 +13,8 @@ namespace AnoMech.Tests;
 // Cruise Chaser's knockbacks on the strat-free stage (TeaP1LimitCutStage), first blasters west and east. The player
 // is a human from the start, one that presses its own buttons, and still stands where the stage puts it until just
 // before its hit: M1 is #1, cleaved at 15.4 on the north spot, and R1 is #2, charged there at 16.9. Cruise Chaser
-// stands 3 y counter-clockwise of #1, so the cleave pushes on clockwise and the charge throws back counter-clockwise.
+// stands 3 y counter-clockwise of #1, so the cleave pushes on clockwise and the charge throws back counter-clockwise,
+// out of the arena unless the human holds it off or stands with 20 y of floor behind it.
 public class TeaP1LimitCutKnockbackTests
 {
     private const float Rim = P1Geometry.ArenaRadius;
@@ -24,19 +25,18 @@ public class TeaP1LimitCutKnockbackTests
     private static Vector2 CruiseChaserSpot(Stage stage)
         => stage.HitSpot(1) - 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(stage.HitSpot(1)));
 
-    // From #2's own spot the rim is 13.5 y on.
+    // From #2's own spot the rim is 13.5 y on, and the charge throws 20: the arena has no wall.
     [Test]
-    public void TheChargeThrowsAHumanAwayFromCruiseChaserAsFarAsTheRim()
+    public void TheChargeThrowsAHumanOnItsOwnSpotOutOfTheArena()
     {
         var stage = HumanNumberTwo;
         var from = stage.HitSpot(2);
         var away = Vector2.Normalize(from - CruiseChaserSpot(stage));
 
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f);
+        var run = stage.Run(PhysRangedDps);
 
         Assert.That(ToTheRim(from, away), Is.EqualTo(13.5f).Within(0.3f));
-        Assert.That(Vector2.Distance(landed, from + ToTheRim(from, away) * away), Is.LessThan(0.05f), $"landed at {landed}");
-        Assert.That(landed.Length(), Is.EqualTo(Rim).Within(0.05f));
+        AssertThrownOut(run, PhysRangedDps);
     }
 
     // Charged toward the south-east from just inside the north spot, #2 has 25 y of floor ahead.
@@ -53,31 +53,18 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(landed, from + 20f * away), Is.LessThan(0.05f), $"landed at {landed}");
     }
 
-    // Half a yalm inside the rim, with the rest of group A behind Cruise Chaser. It stays against the rim, alive,
-    // until the run stops just before the next blast.
+    // Half a yalm inside the rim, with the rest of group A behind Cruise Chaser.
     [Test]
-    public void AThrowStopsAtTheRim()
+    public void AThrowFromBesideTheRimGoesStraightOverIt()
     {
         var stage = HumanNumberTwo;
         var from = Stage.OnRing(300f, Rim - 0.5f);
         var away = Vector2.Normalize(from - CruiseChaserSpot(stage));
 
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 18.8f, new Takeover(16.5f, from));
+        var run = stage.Run(PhysRangedDps, takeovers: new Takeover(16.5f, from));
 
         Assert.That(ToTheRim(from, away), Is.InRange(0.5f, 1f));
-        Assert.That(Vector2.Distance(landed, from + ToTheRim(from, away) * away), Is.LessThan(0.05f), $"landed at {landed}");
-        Assert.That(landed.Length(), Is.EqualTo(Rim).Within(0.05f));
-    }
-
-    // On the rim already, there is nowhere to be thrown to.
-    [Test]
-    public void AHumanOnTheRimIsNotThrownThroughIt()
-    {
-        var from = Stage.OnRing(300f, Rim);
-
-        var landed = WhereThePlayerIs(HumanNumberTwo, PhysRangedDps, at: 17.6f, stopAt: 17.8f, new Takeover(16.5f, from));
-
-        Assert.That(Vector2.Distance(landed, from), Is.LessThan(0.05f), $"landed at {landed}");
+        AssertThrownOut(run, PhysRangedDps);
     }
 
     [Test]
@@ -129,22 +116,15 @@ public class TeaP1LimitCutKnockbackTests
     [TestCase(P1PlayerActionId.Berserk, 1.7f, true)]
     public void AnAntiKnockbackHoldsForAsLongAsItsEffectLasts(uint press, float pressAt, bool thrown)
     {
-        var stage = HumanNumberTwo;
+        var run = Pressing(HumanNumberTwo, PhysRangedDps, stopAt: 17.8f, pressAt, press);
 
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f, pressAt: pressAt, press: press);
-
-        Assert.That(Vector2.Distance(landed, stage.HitSpot(2)) > 1f, Is.EqualTo(thrown), $"landed at {landed}");
+        if (thrown) AssertThrownOut(run, PhysRangedDps);
+        else Assert.That(run.Passed, run.ToString);
     }
 
     [Test]
     public void AnAntiKnockbackPressedAfterTheHitIsTooLate()
-    {
-        var stage = HumanNumberTwo;
-
-        var landed = WhereThePlayerIs(stage, PhysRangedDps, at: 17.6f, stopAt: 17.8f, pressAt: 17.0f, press: P1PlayerActionId.Surecast);
-
-        Assert.That(landed.Length(), Is.EqualTo(Rim).Within(0.05f), $"landed at {landed}");
-    }
+        => AssertThrownOut(Pressing(HumanNumberTwo, PhysRangedDps, stopAt: 17.8f, pressAt: 17.0f, P1PlayerActionId.Surecast), PhysRangedDps);
 
     // The stage moves #1 on at 15.5 and #2 at 17.0.
     [Test]
@@ -180,24 +160,18 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(stands!.Value, stage.HitSpot(number)), Is.LessThan(0.05f), $"#{number} at {stands}");
     }
 
-    // Thrown to the rim 18 degrees past the west spot, 7.9 y from where the fifth pair's west blaster goes off at
-    // 19.0. Dead at 20.0, it is not there for #3's cleave at 20.1.
-    [Test]
-    public void AThrownHumanWhoStaysWhereItLandedDiesToTheSecondRoundsFirstBlast()
+    // The human dies of the rim within a second of its hit, and nobody else dies.
+    private static void AssertThrownOut(ScenarioRun run, PartyRole human)
     {
-        var run = HumanNumberTwo.Run(PhysRangedDps);
-
-        AssertFirstDeath(run, PhysRangedDps, P1ActionId.HawkBlaster, 20.0f, "Hawk Blasters go off unmarked");
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { human }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaZone.WentPastTheRim), run.ToString);
     }
 
-    // 11.2 y from the west blaster, and 25 y ahead of Cruise Chaser as he cleaves #3 on the south-west spot.
-    [Test]
-    public void AThrownHumanThatClearsTheBlastButNotTheCleaveDiesToTheSecondHit()
-    {
-        var run = HumanNumberTwo.Run(PhysRangedDps, takeovers: new Takeover(18.0f, new Vector2(-16f, -11f)));
-
-        AssertFirstDeath(run, PhysRangedDps, P1ActionId.AlphaSword, 21.1f, TeaP1Actions.SecondCruiseChaserHit);
-    }
+    private static ScenarioRun Pressing(Stage stage, PartyRole player, float stopAt, float pressAt, uint press)
+        => stage.Run(player, stopAt, probe: p =>
+        {
+            if (p.Crossed(pressAt)) p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, 0));
+        });
 
     private static Vector2 WhereThePlayerIs(Stage stage, PartyRole player, float at, float stopAt, params Takeover[] takeovers)
         => WhereThePlayerIs(stage, player, at, stopAt, null, 0, takeovers);

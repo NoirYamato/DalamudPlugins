@@ -77,7 +77,7 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
             new Placement(Vector3.Zero, frame.Facing(P1Geometry.LiquidStartsFacing)),
             new Placement(frame.At(P1Geometry.HandStartsOnBearing, P1Geometry.HandStartsFromTheCentre), frame.Facing(P1Geometry.HandStartsOnBearing)));
 
-    // From the fight's clock at 62.0. Drainage and the last Splash come 0.8 s after Cascade 2's part begins: they belong
+    // From the fight's clock at 60.9. Drainage and the last Splash come 0.8 s after Cascade 2's part begins: they belong
     // to this one, since a run that starts there has no first tornadoes to cast Drainage; it goes without that Splash
     // too.
     private void ProteanOneIntoDrainage(float start)
@@ -86,26 +86,27 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
         fight.HandOfPain(start + 5.0f);
         fight.UntelegraphedWaves(start + 9.9f, sluice: true);
         fight.LastUntelegraphedWaves(start + 13.0f);
+        fight.DrainageTethers(start + 17.5f, state.Drainage);
         fight.Splashes(start + 19.1f);
-        fight.DrainageTethers(start + 20.0f, state.Drainage);       // UNVERIFIED when they show ("about" 4.6 s before Drainage)
-        fight.Drainage(start + 24.6f);
+        fight.Drainage(start + 24.7f);
     }
 
-    // From the fight's clock at 85.8.
+    // From the fight's clock at 84.8. When the Living Liquid falls is the party's doing: here after the slam, so a run
+    // plays the slam.
     private void CascadeTwoIntoTheKill(float start)
     {
-        fight.HandOfPain(start + 0.3f);
+        fight.HandOfPain(start + 0.25f);
         fight.Cascade(start + 1.9f, state.Tornadoes2);
-        fight.LiquidGaol(start + 10.1f, state.Throttled.List);
-        fight.ProteanWave(start + 18.2f);
-        fight.HandOfPain(start + 20.2f);
-        fight.UntelegraphedWaves(start + 23.3f, sluice: true);
+        fight.LiquidGaol(start + 10.05f, state.Throttled.List);
+        fight.ProteanWave(start + 18.15f);
+        fight.HandOfPain(start + 20.1f);
+        fight.UntelegraphedWaves(start + 23.25f, sluice: true);
         fight.TornadoWaves(start + 24.2f);
         fight.LastUntelegraphedWaves(start + 26.3f);
-        fight.UntelegraphedTornadoWaves(start + 29.3f);
-        fight.TheHandGlows(start + 33.2f);
-        fight.Pressurize(start + 33.3f, state.Emboli);
-        fight.TheHandSlams(start + 38.4f);
+        fight.UntelegraphedTornadoWaves(start + 29.25f);
+        fight.TheHandGlows(start + 33.15f);
+        fight.Pressurize(start + 33.2f, state.Emboli);
+        fight.TheHandSlams(start + 38.25f);
         fight.TheLiquidFalls(start + 39.7f);
     }
 }

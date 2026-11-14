@@ -53,25 +53,26 @@ public class TeaP1LimitCutLpduAi : IScenarioAi<TeaP1LimitCutState>
             ai.Automarker(6.3f, AttackSignsOnTheNumbers);
         ai.Move(8.1f, BothGroupsRunOutWellBehindTheirFirstBlaster);
         ai.Move(10.3f, () => BothGroupsFollowTheBlastersTheirFirstPairInsideTheirSecondOutside(1));
-        ai.Move(12.5f, () => BothGroupsFollowTheBlastersTheirFirstPairInsideTheirSecondOutside(2));
-        world.Events.Add(14.6f, () => TheOddFacesClockwiseAlongTheRim(1, OneAndTwoAreHitOnSpot));
+        ai.Move(12.5f, OneAndTwoSprintOnToTheirHitSpot, sprint: true);
+        ai.Move(12.5f, TheOthersFollowTheBlastersOn);
+        world.Events.Add(13.95f, () => TheOddFacesClockwiseAlongTheRim(1, OneAndTwoAreHitOnSpot));
         ai.Move(14.7f, ThreeAndFourGoOnToTheirHitSpotWithSevenAndEightOutside);
         ai.Move(15.5f, OneWalksOnOutsideAsSoonAsItIsCleaved);
         ai.Move(17.0f, TwoGoesOutsideOnceChargedAndFiveAndSixComeInside);
+        world.Events.Add(18.6f, () => TheOddFacesClockwiseAlongTheRim(3, ThreeAndFourAreHitOnSpot));
         ai.Move(19.1f, () => OneAndTwoFollowTheBlastersOutsideFiveAndSixInside(4));
-        world.Events.Add(19.3f, () => TheOddFacesClockwiseAlongTheRim(3, ThreeAndFourAreHitOnSpot));
-        ai.Move(20.2f, ThreeWalksOnOutsideAsSoonAsItIsCleavedAndSevenAndEightComeInside);
+        ai.Move(20.15f, ThreeWalksOnOutsideAsSoonAsItIsCleavedAndSevenAndEightComeInside);
         ai.Move(21.3f, () => OneAndTwoFollowTheBlastersOutsideFiveAndSixInside(5));
-        ai.Move(21.7f, FourLeavesOnTheInnerLaneOnceCharged);
+        ai.Move(21.65f, FourLeavesOnTheInnerLaneOnceCharged);
         ai.Move(22.5f, ThreeSevenAndEightFollowTheBlastersOn);
-        ai.Move(23.6f, FourGoesOutsideOnceTheNextSpotHasBlown);
-        world.Events.Add(24.0f, () => TheOddFacesClockwiseAlongTheRim(5, FiveAndSixAreHitOnSpot));
+        world.Events.Add(23.25f, () => TheOddFacesClockwiseAlongTheRim(5, FiveAndSixAreHitOnSpot));
+        ai.Move(23.55f, FourGoesOutsideOnceTheNextSpotHasBlown);
         ai.Move(24.25f, SevenAndEightGoOnToTheirHitSpot);
-        ai.Move(24.9f, FiveWalksOnOutsideAsSoonAsItIsCleavedAndThreeGoesOnToItsLastSpot);
-        ai.Move(26.4f, OneTwoAndSixGoOnToTheirLastSpotOnceSixIsCharged);
+        ai.Move(24.8f, FiveWalksOnOutsideAsSoonAsItIsCleavedAndThreeGoesOnToItsLastSpot);
+        ai.Move(26.3f, OneTwoAndSixGoOnToTheirLastSpotOnceSixIsCharged);
         ai.Move(26.6f, FourGoesOnToItsLastSpot);
-        world.Events.Add(28.6f, () => TheOddFacesClockwiseAlongTheRim(7, SevenAndEightAreHitOnSpot));
-        ai.Move(29.5f, SevenWalksOutsideAsSoonAsItIsCleaved);
+        world.Events.Add(27.9f, () => TheOddFacesClockwiseAlongTheRim(7, SevenAndEightAreHitOnSpot));
+        ai.Move(29.45f, SevenWalksOutsideAsSoonAsItIsCleaved);
         ai.Move(31.0f, () => EveryoneInTheMiddle(JKickRadius));
     }
 
@@ -90,6 +91,12 @@ public class TeaP1LimitCutLpduAi : IScenarioAi<TeaP1LimitCutState>
 
     private IAiMove BothGroupsFollowTheBlastersTheirFirstPairInsideTheirSecondOutside(int spot)
         => ByNumber(n => LaneSpot(n, n <= 4 ? InnerLaneOf(n) : OuterLaneOf(n), spot));
+
+    private IAiMove OneAndTwoSprintOnToTheirHitSpot()
+        => ByNumber(n => n <= 2 ? LaneSpot(n, InnerLaneOf(n), OneAndTwoAreHitOnSpot) : (Vector2?)null);
+
+    private IAiMove TheOthersFollowTheBlastersOn()
+        => ByNumber(n => n <= 2 ? (Vector2?)null : LaneSpot(n, n <= 4 ? InnerLaneOf(n) : OuterLaneOf(n), 2));
 
     private IAiMove ThreeAndFourGoOnToTheirHitSpotWithSevenAndEightOutside()
         => Numbers((3, Lane.InnerOdd, ThreeAndFourAreHitOnSpot), (4, Lane.InnerEven, ThreeAndFourAreHitOnSpot),

@@ -1,5 +1,6 @@
 using System.Numerics;
 using System.Reflection;
+using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
@@ -139,20 +140,21 @@ public class TeaP1PressesTests
         Assert.That((player, bot), Is.EqualTo((true, false)));
     }
 
-    // The human stands 3 y in front of Cruise Chaser; the press is at 1.0.
+    // Cruise Chaser stands by the north rim with the human 3 y in front of him and the rest behind; the press is at 1.0.
     [TestCase(true, 6.9f, false)]
     [TestCase(true, 7.1f, true)]
     [TestCase(false, 6.9f, false)]
     [TestCase(false, 7.1f, true)]
     public void AHitWithinSixSecondsOfThePressDoesNotPushThePlayer(bool cleave, float hitAt, bool pushed)
     {
-        var from = new Vector2(0f, 3f);
+        var from = new Vector2(0f, -15f);
         Vector2? stands = null;
         var run = TeaP1ActionsTests.Cast((world, cruiseChaser, presses) =>
         {
             world.Events.Add(0.5f, () =>
             {
-                TimelineRun.Place(world, PerRole.All.ToDictionary(role => role, _ => new Vector2(0f, -12f)));
+                cruiseChaser.SetPosition(new Placement(new Vector3(0f, 0f, -18f), 0f));
+                TimelineRun.Place(world, PerRole.All.ToDictionary(role => role, _ => new Vector2(0f, -19.5f)));
                 TimelineRun.Place(world, MainTank, from.X, from.Y);
             });
             world.Events.Add(1f, () => Press(P1PlayerActionId.ArmsLength));

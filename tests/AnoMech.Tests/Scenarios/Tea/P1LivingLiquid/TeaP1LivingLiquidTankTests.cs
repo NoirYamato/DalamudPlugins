@@ -14,8 +14,9 @@ using Stage = AnoMech.Tests.TeaP1LivingLiquidStage;
 
 namespace AnoMech.Tests;
 
-// What the tanks play: each boss follows the one target the run gives it and cleaves it, the Living Liquid holds its
-// facing through a Protean sequence, and a human tank's own cooldown is asked for under Drainage.
+// What the tanks play: each boss faces the one target the run gives it, walks after it once it is out of reach and
+// cleaves it, the Living Liquid holds its facing through a Protean sequence, and a human tank's own cooldown is asked
+// for under Drainage.
 public class TeaP1LivingLiquidTankTests
 {
     private const string Died = " died: ";
@@ -23,7 +24,7 @@ public class TeaP1LivingLiquidTankTests
     // The bosses spawned in the middle with nobody near; each tank is put 10 y off at 1.0.
     [TestCase(false)]
     [TestCase(true)]
-    public void EachBossWalksToItsTargetAndStopsAHitboxAndHalfAYalmShort(bool human)
+    public void EachBossWalksAfterATargetOutOfReachAndStopsTwoYalmsPastTheirHitboxes(bool human)
     {
         float liquidStops = 0f, handStops = 0f, liquidLooks = 0f;
         var run = Bosses((world, fight) =>
@@ -44,9 +45,32 @@ public class TeaP1LivingLiquidTankTests
         }, human);
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(liquidStops, Is.EqualTo(4.0f).Within(0.1f), "the Living Liquid, hitbox 3.5");
-        Assert.That(handStops, Is.EqualTo(2.1f).Within(0.1f), "the Liquid Hand, hitbox 1.6");
+        Assert.That(liquidStops, Is.EqualTo(6.0f).Within(0.1f), "the Living Liquid, hitbox 3.5");
+        Assert.That(handStops, Is.EqualTo(4.1f).Within(0.1f), "the Liquid Hand, hitbox 1.6");
         Assert.That(liquidLooks, Is.Zero.Within(0.02f), "it faces its target");
+    }
+
+    // The Living Liquid reaches 7.0 y with its auto-attack, hitbox to hitbox and 3 y on: a tank 6.8 y off is turned to
+    // and left there, and one 7.2 y off is walked after, to 6.0 y.
+    [TestCase(6.8f, 0f)]
+    [TestCase(7.2f, 1.2f)]
+    public void ABossStandsStillWhileItsTargetIsInReach(float tankAt, float walks)
+    {
+        float walked = -1f, looks = 0f;
+        var run = Bosses((world, fight) =>
+        {
+            world.Events.Add(0.5f, fight.TakeTargets);
+            world.Events.Add(1f, () => TimelineRun.Place(world, MainTank, 0f, tankAt));
+            world.Events.Add(4f, () =>
+            {
+                walked = fight.Position(TeaP1Boss.LivingLiquid).Length();
+                looks = TeaP1LivingLiquidScenarioTests.Turn(fight.Liquid!.Rotation, fight.Liquid.Placement().Face(world.Party.Get(MainTank)!.Position).Rotation);
+            });
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(walked, Is.EqualTo(walks).Within(0.1f));
+        Assert.That(looks, Is.Zero.Within(0.02f), "it faces its target either way");
     }
 
     [Test]
@@ -87,7 +111,7 @@ public class TeaP1LivingLiquidTankTests
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(target, Is.EqualTo(OffTank));
-        Assert.That(toTheOffTank, Is.EqualTo(4.0f).Within(0.1f));
+        Assert.That(toTheOffTank, Is.EqualTo(6.0f).Within(0.1f));
     }
 
     // Each boss starts a cast at 2.0 (Cascade, 4 s; Hand of Pain, 3 s) and its tank walks 10 y off at 2.5.
@@ -124,27 +148,27 @@ public class TeaP1LivingLiquidTankTests
         {
             Assert.That(liquid[1], Is.EqualTo(liquid[0]), "the Living Liquid, 2.9 s into Cascade");
             Assert.That(liquid[2], Is.EqualTo(liquid[0]), "the Living Liquid, 3.9 s into Cascade");
-            Assert.That(Vector3.Distance(liquid[3], new Vector3(10f, 0f, 0f)), Is.LessThan(0.1f), $"once it has cast, the Living Liquid at {liquid[3]}");
+            Assert.That(Vector3.Distance(liquid[3], new Vector3(8f, 0f, 0f)), Is.LessThan(0.1f), $"once it has cast, the Living Liquid at {liquid[3]}");
             Assert.That(hand[1], Is.EqualTo(hand[0]), "the Liquid Hand, 2.9 s into Hand of Pain");
-            Assert.That(Vector3.Distance(hand[3], new Vector3(-10f, 0f, 10f)), Is.EqualTo(2.1f).Within(0.1f), $"once it has cast, the Liquid Hand at {hand[3]}");
+            Assert.That(Vector3.Distance(hand[3], new Vector3(-10f, 0f, 10f)), Is.EqualTo(4.1f).Within(0.1f), $"once it has cast, the Liquid Hand at {hand[3]}");
         });
     }
 
     // The main tank walks round to the east-south-east of the Living Liquid during the sequence, 4.3 y from it to bait
     // the first set and 7.4 y for the second. The Liquid faced south as its telegraphed cast started at 4.8; its last
-    // set is at 13.0.
+    // set is at 13.0, and it is released at 16.0.
     [Test]
-    public void TheLiquidNeitherTurnsNorWalksFromItsTelegraphedCastUntilASecondAfterItsLastSet([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
+    public void TheLiquidNeitherTurnsNorWalksFromItsTelegraphedCastUntilThreeSecondsAfterItsLastSet([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
     {
         var stage = new Stage { Open1 = open, Last = Protean1 };
         var watch = new TeaP1LivingLiquidScenarioTests.Watch();
         var seen = new List<(float At, bool Locked, float? LockedFacing, float Rotation, Vector3 Position)>();
         var (bait, backedOut) = (Stage.Off(Vector2.Zero, 4.3f, 125f), Stage.Off(Vector2.Zero, 7.4f, 125f));
-        var run = stage.Run(MainTank, stopAt: 16f, takeovers: [new Takeover(6f, stage.Arena1(bait.X, bait.Y)), new Takeover(10.5f, stage.Arena1(backedOut.X, backedOut.Y))], probe: p =>
+        var run = stage.Run(MainTank, stopAt: 17.6f, takeovers: [new Takeover(6f, stage.Arena1(bait.X, bait.Y)), new Takeover(10.5f, stage.Arena1(backedOut.X, backedOut.Y))], probe: p =>
         {
             watch.See(p);
             var fight = Stage.Fight(p);
-            foreach (var at in new[] { 4.7f, 4.9f, 9.8f, 13.9f, 15.5f })
+            foreach (var at in new[] { 4.7f, 4.9f, 9.8f, 15.9f, 17.5f })
                 if (p.Crossed(at)) seen.Add((at, fight.FacingLocked, fight.LockedFacing, fight.Liquid!.Rotation, fight.Position(TeaP1Boss.LivingLiquid)));
         });
 
@@ -161,22 +185,22 @@ public class TeaP1LivingLiquidTankTests
                 Assert.That(locked.Position.Length(), Is.LessThan(0.01f), $"at {locked.At} it has not walked");
             }
             Assert.That(TeaP1LivingLiquidScenarioTests.Turn(seen[4].Rotation, toItsTank), Is.Zero.Within(0.05f), "released, it turns to its tank");
-            Assert.That(seen[4].Position.Length(), Is.EqualTo(3.4f).Within(0.1f), "and walks up to it");
+            Assert.That(seen[4].Position.Length(), Is.EqualTo(1.4f).Within(0.1f), "and walks after it, 7.4 y off, until it is 6 y from it");
             Assert.That(watch.Sent("ability", P1ActionId.ProteanWaveStraightAhead).Select(w => TeaP1LivingLiquidScenarioTests.Turn(w.Rotation, south)),
                         Is.EqualTo(new[] { 0f, 0f }).Within(0.01f), "both sets' cone straight ahead goes south");
         });
     }
 
-    // Given the off tank at 8.0, the Living Liquid goes to it only once its facing is released, at 14.0.
+    // Given the off tank at 8.0, the Living Liquid goes to it only once its facing is released, at 16.0.
     [Test]
     public void ATargetGivenDuringTheSequenceIsFollowedOnceItEnds()
     {
         var seen = new List<(PartyRole? Target, Vector3 Position)>();
-        var run = new Stage { Last = Protean1 }.Run(MainTank, stopAt: 18f, probe: p =>
+        var run = new Stage { Last = Protean1 }.Run(MainTank, stopAt: 19f, probe: p =>
         {
             var fight = Stage.Fight(p);
             if (p.Crossed(8f)) fight.SetTarget(TeaP1Boss.LivingLiquid, p.Member(OffTank)!);
-            foreach (var at in new[] { 8.1f, 13.9f, 17f })
+            foreach (var at in new[] { 8.1f, 15.9f, 18.5f })
                 if (p.Crossed(at)) seen.Add((TeaP1LivingLiquidScenarioTests.Seat(fight.Target(TeaP1Boss.LivingLiquid)), fight.Position(TeaP1Boss.LivingLiquid)));
         });
 
@@ -184,7 +208,7 @@ public class TeaP1LivingLiquidTankTests
         Assert.That(seen.Select(s => s.Target), Is.All.EqualTo(OffTank));
         Assert.That(seen[0].Position.Length(), Is.LessThan(0.01f));
         Assert.That(seen[1].Position.Length(), Is.LessThan(0.01f));
-        Assert.That(Vector3.Distance(seen[2].Position, new Vector3(-5.4f, 0f, 5.4f)), Is.EqualTo(4.0f).Within(0.1f), $"the Living Liquid at {seen[2].Position}");
+        Assert.That(Vector3.Distance(seen[2].Position, new Vector3(-5.4f, 0f, 5.4f)), Is.EqualTo(6.0f).Within(0.1f), $"the Living Liquid at {seen[2].Position}");
     }
 
     // -- The cleaves --
@@ -235,9 +259,9 @@ public class TeaP1LivingLiquidTankTests
     // Neither boss has a target here, so each stays where it is put: the Living Liquid on the centre and the Liquid
     // Hand that far east of it, centre to centre. The Hand glows at 2.0 and slams at 4.0.
 
-    [TestCase(11.5f, false)]
-    [TestCase(12.5f, true)]
-    public void TheHandShowsAPalmOnlyWithTheBossesMoreThanTwelveYalmsApartAsItGlows(float apart, bool palm)
+    [TestCase(15.1f, false)]
+    [TestCase(16.1f, true)]
+    public void TheHandShowsAPalmOnlyWithTheBossesFarApartAsItGlows(float apart, bool palm)
     {
         var (run, shown) = GlowAndSlam(apartAtTheGlow: apart, apartAtTheSlam: palm ? 0.5f : 18f);
 
@@ -252,7 +276,7 @@ public class TeaP1LivingLiquidTankTests
         var (run, shown) = GlowAndSlam(apartAtTheGlow: 18f, apartAtTheSlam: apart);
 
         Assert.That(shown, Is.True);
-        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfPrayer, TeaP1LivingLiquid.PalmFoundThemApart);
+        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfParting, TeaP1LivingLiquid.PalmFoundThemApart);
         else Assert.That(run.Passed, run.ToString);
     }
 
@@ -263,7 +287,7 @@ public class TeaP1LivingLiquidTankTests
         var (run, shown) = GlowAndSlam(apartAtTheGlow: 3f, apartAtTheSlam: apart);
 
         Assert.That(shown, Is.False);
-        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfParting, TeaP1LivingLiquid.FistFoundThemTogether);
+        if (kills) AssertTheSlamKilledEveryone(run, P1ActionId.HandOfPrayer, TeaP1LivingLiquid.FistFoundThemTogether);
         else Assert.That(run.Passed, run.ToString);
     }
 
@@ -293,6 +317,42 @@ public class TeaP1LivingLiquidTankTests
         });
     }
 
+    // -- An Embolus and a boss --
+    // An orb waits on the east tornado and at 6.67 sets off west along the arena's middle line, through where the
+    // Living Liquid stood at Pressurize, at 20 y/s here. Everyone stands far north, and one boss is moved beside its
+    // way: it bursts on a boss whose hitbox comes within a yalm of it.
+    [TestCase(TeaP1Boss.LivingLiquid, 4.3f, true)]
+    [TestCase(TeaP1Boss.LivingLiquid, 4.8f, false)]
+    [TestCase(TeaP1Boss.LiquidHand, 2.4f, true)]
+    [TestCase(TeaP1Boss.LiquidHand, 2.9f, false)]
+    public void AnEmbolusBurstsOnABossWhoseHitboxItReaches(TeaP1Boss boss, float besideItsWay, bool bursts)
+    {
+        var run = Bosses((world, fight) =>
+        {
+            fight.EmbolusSpeed = 20f;
+            world.Events.Add(0.2f, () => fight.Tornadoes.Appear(new TeaP1TornadoLayout(TeaP1OpenQuarter.North)));
+            fight.Pressurize(1f, [new TeaP1EmbolusRoll(TeaP1Tornado.East, TeaP1Boss.LivingLiquid)]);
+            world.Events.Add(2f, () =>
+            {
+                TimelineRun.Place(world, PerRole.All.ToDictionary(role => role, _ => new Vector2(0f, -18f)));
+                var (beside, farOff) = (new Vector3(0f, 0f, besideItsWay), new Vector3(0f, 0f, -12f));
+                fight.Liquid!.SetPosition(boss == TeaP1Boss.LivingLiquid ? beside : farOff);
+                fight.Hand!.SetPosition(boss == TeaP1Boss.LiquidHand ? beside : farOff);
+            });
+            world.Events.Add(9.5f, () => { });
+        });
+
+        if (!bursts)
+        {
+            Assert.That(run.Passed, run.ToString);
+            return;
+        }
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(PerRole.All), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.EmbolusTouched), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(7.3f).Within(0.3f), run.ToString);
+    }
+
     // -- A human tank's own mitigation under Drainage --
     // The human holds its own tether, alone in its circle, with "Resolve your own actions" on.
 
@@ -306,7 +366,7 @@ public class TeaP1LivingLiquidTankTests
     {
         var run = ThroughDrainage(HumanTankThroughDrainage, seat, job);
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, seat, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.DrainageWithoutMitigation);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, seat, P1ActionId.Drainage, 24.7f, TeaP1LivingLiquid.DrainageWithoutMitigation);
     }
 
     [Test]
@@ -325,11 +385,11 @@ public class TeaP1LivingLiquidTankTests
         var up = false;
         var run = ThroughDrainage(HumanTankThroughDrainage, MainTank, job, shortCooldown, probe: p =>
         {
-            if (p.Crossed(24.5f)) up = p.Member(MainTank)!.HasStatus(itsStatus);
+            if (p.Crossed(24.6f)) up = p.Member(MainTank)!.HasStatus(itsStatus);
         });
 
         Assert.That(up, "the cooldown is up as Drainage goes off");
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.DrainageWithoutMitigation);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.7f, TeaP1LivingLiquid.DrainageWithoutMitigation);
     }
 
     [Test]

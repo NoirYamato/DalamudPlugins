@@ -14,7 +14,7 @@ namespace AnoMech.Tests;
 // frame after each cue. A test then moves one seat into a mistake, or withholds one cleanse.
 //
 // Every spot is written in the relative frame (x east, z south, with the open quarter north; the tornadoes then stand
-// west, south and east, 14.5 y out) of the tornadoes standing at its cue: the first set until Cascade 2 lands, the
+// west, south and east, 15 y out) of the tornadoes standing at its cue: the first set until Cascade 2 lands, the
 // second from then on. Times below are each part's own; in a run of both, Cascade 2's come CascadeTwo later.
 //
 //   Protean 1
@@ -26,19 +26,19 @@ namespace AnoMech.Tests;
 //     9.9   set 1 at the four closest (tanks, melee) and a Sluice under each of the four farthest. 9.95 they trade
 //           places. 12.6 the Sluices go off. 13.0 set 2 at the four closest (healers, ranged).
 //     13.05 the main tank back beside the Liquid, the off tank south-west, the six in a knot 7 to 9.4 y north.
-//     20.0  the tethers, west's on the off tank and east's on the main tank unless a test says otherwise. 24.6 Drainage.
+//     17.5  the tethers, west's on the off tank and east's on the main tank unless a test says otherwise. 24.7 Drainage.
 //   Cascade 2
-//     0.9   (0.05 when the run starts here) everyone within 6 y of the middle. 5.9 the second tornadoes.
+//     0.9   (0.05 when the run starts here) everyone within 6 y of the middle. 7.3 the second tornadoes.
 //     9.5   the main tank north of the Liquid. 10.5 Throttle; the healers cleanse at 11.2, 13.7, 16.2 and 18.7, each
 //           itself first, then H1 down the party list and H2 up it. 12.0 H1 and R2 behind the main tank, the rest south.
-//     18.2  the telegraphed waves, north and south. 18.7 the tanks and M2 round the Liquid, M1 aside, the other four
+//     18.15 the telegraphed waves, north and south. 18.7 the tanks and M2 round the Liquid, M1 aside, the other four
 //           beside their tornadoes: H1 and R2 the west one's, H2 the middle one's, R1 the east one's. 21.3 M1 south.
-//     23.3  set 1 (the tanks, the melee) and the Sluices. 23.35 the main tank backs out north-east. 24.2 each tornado
+//     23.25 set 1 (the tanks, the melee) and the Sluices. 23.35 the main tank backs out north-east. 24.2 each tornado
 //           aims at its closest: H1, H2, R1. 24.25 those four run in and the melee go to the middle and east tornadoes;
 //           25.2 the off tank steps out south-west. 26.3 set 2 (healers, ranged). 26.9 the tornadoes' waves go off down
-//           their aim. 27.0 the off tank beside the west tornado. 29.3 the unseen tornado waves: the off tank, M1, M2.
-//     29.35 the tanks far apart, north-east and south-west, the six in the middle. 33.2 the Hand shows a palm.
-//     33.5  each tank on the far side of the middle from its boss, which brings both onto it. 38.4 the slam.
+//           their aim. 27.0 the off tank beside the west tornado. 29.25 the unseen tornado waves: the off tank, M1, M2.
+//     29.35 the tanks far apart, north-east and south-west, the six in the middle. 33.15 the Hand shows a palm.
+//     33.5  each tank on the far side of the middle from its boss, which brings both onto it. 38.25 the slam.
 //     39.7  the Living Liquid falls.
 internal sealed class TeaP1LivingLiquidStage
 {
@@ -46,7 +46,7 @@ internal sealed class TeaP1LivingLiquidStage
     public const int NoStrat = int.MaxValue;
 
     // When Cascade 2's part starts in a run that plays Protean 1 first.
-    public const float CascadeTwo = 23.8f;
+    public const float CascadeTwo = 23.9f;
 
     public static readonly PartyRole[] DefaultThrottled = [MainTank, OffTank, RegenHealer, ShieldHealer, MeleeDpsA, PhysRangedDps];
 
@@ -103,9 +103,9 @@ internal sealed class TeaP1LivingLiquidStage
         return from + radius * new Vector2(MathF.Sin(radians), -MathF.Cos(radians));
     }
 
-    public static readonly Vector2 West = new(-14.5f, 0f);
-    public static readonly Vector2 South = new(0f, 14.5f);
-    public static readonly Vector2 East = new(14.5f, 0f);
+    public static readonly Vector2 West = new(-TeaP1Constants.P1Geometry.TornadoRingRadius, 0f);
+    public static readonly Vector2 South = new(0f, TeaP1Constants.P1Geometry.TornadoRingRadius);
+    public static readonly Vector2 East = new(TeaP1Constants.P1Geometry.TornadoRingRadius, 0f);
 
     public void Pin(TeaP1LivingLiquidStateOverrides overrides)
     {
@@ -157,6 +157,10 @@ internal sealed class TeaP1LivingLiquidStage
     internal sealed record Cue(float At, bool SecondFrame, Func<Vector2, Vector2, Dictionary<PartyRole, Vector2>> Spots);
 
     private static readonly Vector2 MainTanksHold = Off(Vector2.Zero, 3.9f, 135f);
+
+    // Where each boss stops from its tank: its hitbox, the tank's half yalm and 2 y.
+    public const float LiquidStopsFromItsTank = 6.0f;
+    public const float HandStopsFromItsTank = 4.1f;
 
     private static Dictionary<PartyRole, Vector2> InTheMiddle() => new()
     {
@@ -214,26 +218,26 @@ internal sealed class TeaP1LivingLiquidStage
         yield return new(C2(18.7f), true, (liquid, _) => new()
         {
             [MainTank] = Off(liquid, 4.3f, 40f), [MeleeDpsB] = Off(liquid, 3.4f, 85f), [OffTank] = Off(liquid, 4.0f, 270f), [MeleeDpsA] = Off(liquid, 4.0f, 215f),
-            [RegenHealer] = Off(West, 8.4f, 14f), [CasterDps] = Off(West, 9.9f, 15f), [ShieldHealer] = Off(South, 8.5f, 270f), [PhysRangedDps] = Off(East, 8.4f, 172f),
+            [RegenHealer] = Off(West, 8.5f, 17.3f), [CasterDps] = Off(West, 10.0f, 17.8f), [ShieldHealer] = Off(South, 8.5f, 273.4f), [PhysRangedDps] = Off(East, 8.4f, 175.4f),
         });
         yield return new(C2(21.3f), true, (liquid, _) => new() { [MeleeDpsA] = Off(liquid, 4.0f, 180f) });
         yield return new(C2(23.35f), true, (liquid, _) => new() { [MainTank] = Off(liquid, 8.5f, 43f) });
         yield return new(C2(24.25f), true, (liquid, _) => new()
         {
             [RegenHealer] = Off(liquid, 4.95f, 317f), [CasterDps] = Off(liquid, 4.0f, 275f), [PhysRangedDps] = Off(liquid, 3.2f, 95f), [ShieldHealer] = Off(liquid, 3.8f, 180f),
-            [MeleeDpsA] = Off(South, 8.4f, 90f), [MeleeDpsB] = Off(East, 8.5f, 12f),
+            [MeleeDpsA] = Off(South, 8.4f, 80f), [MeleeDpsB] = Off(East, 8.4f, 8.7f),
         });
         yield return new(C2(25.2f), true, (_, _) => new() { [OffTank] = new(-7.5f, 7.5f) });
-        yield return new(C2(27.0f), true, (_, _) => new() { [OffTank] = Off(West, 8.5f, 191f) });
+        yield return new(C2(27.0f), true, (_, _) => new() { [OffTank] = Off(West, 8.4f, 187.7f) });
         yield return new(C2(29.35f), true, (_, _) => new()
         {
-            [MainTank] = new(8.1f, -9.4f), [OffTank] = new(-13.0f, 10.8f),
+            [MainTank] = new(10.2f, -11.9f), [OffTank] = new(-13.0f, 10.8f),
             [MeleeDpsA] = new(0.8f, -5.7f), [MeleeDpsB] = new(4.5f, -3.7f), [RegenHealer] = new(-0.4f, -2.3f), [ShieldHealer] = new(-0.2f, 0.4f),
             [PhysRangedDps] = new(1.8f, -1.4f), [CasterDps] = new(-2.2f, -0.8f),
         });
         yield return new(C2(33.5f), true, (liquid, hand) => new()
         {
-            [MainTank] = AcrossTheMiddleFrom(liquid, 4.0f), [OffTank] = AcrossTheMiddleFrom(hand, 2.1f),
+            [MainTank] = AcrossTheMiddleFrom(liquid, LiquidStopsFromItsTank), [OffTank] = AcrossTheMiddleFrom(hand, HandStopsFromItsTank),
             [MeleeDpsA] = new(-0.3f, -3.8f), [MeleeDpsB] = new(2.3f, -2.3f), [PhysRangedDps] = new(0.9f, -1.4f), [CasterDps] = new(-0.7f, -1.0f),
         });
     }

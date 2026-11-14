@@ -206,7 +206,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
     {
         var roll = CascadeTwo(Layouts[(int)seat], 17);
         var play = new TeaP1LivingLiquidHumanPlay(seat, TeaP1HumanPace.Walking, 0.25f) { GcdsLate = 3 };
-        var (run, human) = Human.Play(roll, play, 17, mayLose: true, pin: overrides => overrides.Throttle[seat] = hasItItself, stopAt: 21f);
+        var (run, human) = Human.Play(roll, play, 17, mayLose: true, pin: overrides => overrides.Throttle[seat] = hasItItself, stopAt: 22f);
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(human.Cleansed, Has.Count.EqualTo(1));
@@ -219,7 +219,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
     {
         var roll = CascadeTwo(Layouts[(int)seat + 2], 17);
         var play = new TeaP1LivingLiquidHumanPlay(seat, TeaP1HumanPace.Walking, 0.25f) { Cleanses = TeaP1HumanCleanses.Never };
-        var (run, human) = Human.Play(roll, play, 17, mayLose: true, pin: overrides => overrides.Throttle[seat] = hasItItself, stopAt: 21f);
+        var (run, human) = Human.Play(roll, play, 17, mayLose: true, pin: overrides => overrides.Throttle[seat] = hasItItself, stopAt: 22f);
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(human.Cleansed, Is.Empty);
@@ -231,7 +231,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         {
             Assert.That(run.Deaths, Has.Count.EqualTo(deaths), run.ToString);
             Assert.That(run.Deaths.Select(d => d.ActionId), Is.All.EqualTo((uint?)P1ActionId.LiquidGaol), run.ToString);
-            Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(19.5f).Within(0.1f), run.ToString);
+            Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(20.5f).Within(0.1f), run.ToString);
             Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.ThrottleRanOut), run.ToString);
         });
 
@@ -256,7 +256,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
 
     // -- The last hand --
 
-    // The palm shows at 33.2 and slams at 38.4; the off tank has 19.5 y to walk with the Hand 2.1 y behind it.
+    // The palm shows at 33.15 and slams at 38.25; the off tank walks through the middle with the Hand 4.1 y behind it.
     [Test]
     public void AHumanOffTankBringsTheHandInUpToTwoSecondsLate([Values(0f, 1f, 2f)] float setsOffLate, [Values] TeaP1HumanPace pace)
     {
@@ -279,10 +279,10 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         var play = new TeaP1LivingLiquidHumanPlay(OffTank, TeaP1HumanPace.Walking, 0.25f) { BringsTheHandIn = null };
         var (run, _) = Human.Play(roll, play, 68, mayLose: true);
 
-        AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.4f, TeaP1LivingLiquid.PalmFoundThemApart);
+        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.25f, TeaP1LivingLiquid.PalmFoundThemApart);
     }
 
-    // The bot off tank has the Hand on the middle; the Living Liquid stays where its tank held it, 8 y out.
+    // The bot off tank has the Hand on the middle; the Living Liquid stays where its tank held it.
     [Test]
     public void AHumanMainTankWhoNeverBringsTheLiquidInLosesEveryoneToThePalm([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
     {
@@ -290,14 +290,14 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         var play = new TeaP1LivingLiquidHumanPlay(MainTank, TeaP1HumanPace.Walking, 0.25f) { BringsItsBoss = TeaP1HumanBringsItsBoss.Never };
         var (run, _) = Human.Play(roll, play, 68, mayLose: true);
 
-        AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.4f, TeaP1LivingLiquid.PalmFoundThemApart);
+        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.25f, TeaP1LivingLiquid.PalmFoundThemApart);
     }
 
-    // The Living Liquid stops 4 y behind its tank and the Liquid Hand 2.1 y, and a palm needs their centres within
-    // 5.1 y. The other tank's bot has its boss on the middle, so a tank that stops on the middle has its own within
-    // reach, the main tank's by about a yalm.
+    // The Living Liquid stops 6 y behind its tank and the Liquid Hand 4.1 y, and a palm needs their centres within
+    // 5.1 y. The main tank's bot has the Liquid on the middle, so an off tank that stops on the middle has the Hand
+    // within reach, by a yalm.
     [Test]
-    public void AHumanTankWhoStopsOnTheMiddleHasItsBossWithinThePalmsReach([Values(MainTank, OffTank)] PartyRole seat, [Values] TeaP1HumanPace pace)
+    public void AHumanOffTankWhoStopsOnTheMiddleHasTheHandWithinThePalmsReach([Values] TeaP1HumanPace pace)
     {
         var runs = new TeaP1HumanRuns();
         var widest = 0f;
@@ -305,11 +305,11 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         foreach (var late in ReactionTimes)
         {
             var roll = CascadeTwo(open, 238);
-            var play = new TeaP1LivingLiquidHumanPlay(seat, pace, late) { BringsItsBoss = TeaP1HumanBringsItsBoss.OntoTheMiddle };
+            var play = new TeaP1LivingLiquidHumanPlay(OffTank, pace, late) { BringsItsBoss = TeaP1HumanBringsItsBoss.OntoTheMiddle };
             var apart = float.NaN;
             var (run, human) = Human.Play(roll, play, 238, probe: p =>
             {
-                if (p.Crossed(38.35f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
+                if (p.Crossed(38.2f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
             });
             widest = MathF.Max(widest, apart);
             runs.Add($"{roll}, {Secs(late)}s late, the bosses {Secs(apart)} y apart", run, Faults(roll, human, run));
@@ -319,9 +319,28 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         runs.AssertNoneLostBut();
     }
 
+    // A main tank that stops on the middle leaves the Living Liquid 6 y short of it, and of the Hand the off tank's
+    // bot has there. The start's chat line tells it to walk on through until the Liquid stands on the Hand.
+    [Test]
+    public void AHumanMainTankWhoStopsOnTheMiddleLeavesTheLiquidShortAndLosesEveryoneToThePalm(
+        [Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast, TeaP1OpenQuarter.West)] TeaP1OpenQuarter open, [Values] TeaP1HumanPace pace)
+    {
+        var roll = CascadeTwo(open, 238);
+        var play = new TeaP1LivingLiquidHumanPlay(MainTank, pace, 0.25f) { BringsItsBoss = TeaP1HumanBringsItsBoss.OntoTheMiddle };
+        var apart = float.NaN;
+        var (run, _) = Human.Play(roll, play, 238, mayLose: true, probe: p =>
+        {
+            if (p.Crossed(38.2f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
+        });
+
+        TestContext.Out.WriteLine($"The bosses stood {Secs(apart)} y apart as the palm landed");
+        Assert.That(apart, Is.InRange(P1Rules.PalmNeedsThemWithin, 7f));
+        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.25f, TeaP1LivingLiquid.PalmFoundThemApart);
+    }
+
     // The other tank's bot stands its boss's stopping distance past the middle, on the side this tank comes in from.
-    // A tank that stops a yalm beside it is short of the middle, and its boss stops behind it: 6 y from the other.
-    // The start's chat line tells each tank to walk on through.
+    // A tank that stops a yalm beside it is short of the middle, and its boss stops behind it, out of the other's
+    // reach. The start's chat line tells each tank to walk on through.
     [Test]
     public void AHumanTankWhoStopsBesideTheOtherTankLosesEveryoneToThePalm([Values(MainTank, OffTank)] PartyRole seat,
         [Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast, TeaP1OpenQuarter.West)] TeaP1OpenQuarter open)
@@ -331,27 +350,47 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         var apart = float.NaN;
         var (run, _) = Human.Play(roll, play, 255, mayLose: true, probe: p =>
         {
-            if (p.Crossed(38.35f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
+            if (p.Crossed(38.2f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
         });
 
         TestContext.Out.WriteLine($"The bosses stood {Secs(apart)} y apart as the palm landed");
-        AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.4f, TeaP1LivingLiquid.PalmFoundThemApart);
+        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.25f, TeaP1LivingLiquid.PalmFoundThemApart);
     }
 
-    // A fist. The off tank waits for the glow on the middle, the Hand beside it and some 10 y from the Living Liquid,
-    // which the main tank's bot holds north-east: under a fist that bot stays where it is.
+    // A fist. The off tank waits for the glow on the middle, the Hand 4.1 y behind it and less than 15.6 y from the
+    // Living Liquid, which the main tank's bot holds north-east: under a fist that bot stays where it is. The bosses
+    // are still more than the 12 y a fist asks for apart, so an off tank that stays loses nobody.
     [Test]
-    public void AHumanOffTankWhoWaitsInTheMiddleIsShownAFistAndLosesEveryoneIfItStays([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
+    public void AHumanOffTankWhoWaitsInTheMiddleIsShownAFistAndStayingLosesNobody([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
     {
         var roll = CascadeTwo(open, 272);
         var play = new TeaP1LivingLiquidHumanPlay(OffTank, TeaP1HumanPace.Walking, 0.25f) { WaitsForTheGlowInTheMiddle = true };
+        var apart = float.NaN;
+        var (run, human) = Human.Play(roll, play, 272, probe: p =>
+        {
+            if (p.Crossed(38.2f)) apart = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), Stage.Fight(p).Position(TeaP1Boss.LiquidHand));
+        });
+
+        TestContext.Out.WriteLine($"The bosses stood {Secs(apart)} y apart as the fist landed");
+        Assert.That(human.SawAPalm, Is.False);
+        Assert.That(apart, Is.InRange(P1Rules.FistNeedsThemBeyond, P1Rules.HandShowsAPalmBeyond));
+        Assert.That(run.Passed, Is.True, run.ToString);
+    }
+
+    // Shown the fist, it walks on toward the Living Liquid as it would under a palm, and the Hand comes after it,
+    // inside the 12 y.
+    [Test]
+    public void AHumanOffTankShownAFistWhoWalksOnTowardTheLiquidLosesEveryone([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast)] TeaP1OpenQuarter open)
+    {
+        var roll = CascadeTwo(open, 272);
+        var play = new TeaP1LivingLiquidHumanPlay(OffTank, TeaP1HumanPace.Walking, 0.25f) { WaitsForTheGlowInTheMiddle = true, StepsAwayOnAFist = -6f };
         var (run, human) = Human.Play(roll, play, 272, mayLose: true);
 
         Assert.That(human.SawAPalm, Is.False);
-        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.4f, TeaP1LivingLiquid.FistFoundThemTogether);
+        AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.25f, TeaP1LivingLiquid.FistFoundThemTogether);
     }
 
-    // It steps straight away from the Living Liquid, and the Hand follows 2.1 y behind it.
+    // It steps straight away from the Living Liquid, and the Hand follows 4.1 y behind it.
     [Test]
     public void AHumanOffTankShownAFistWhoStepsAwaySavesEveryone([Values(8f, 10f)] float steps, [Values] TeaP1HumanPace pace)
     {
@@ -367,8 +406,8 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             var (run, human) = Human.Play(roll, play, 289, probe: p =>
             {
                 var fight = Stage.Fight(p);
-                if (p.Crossed(33.25f)) liquidAtTheGlow = fight.Position(TeaP1Boss.LivingLiquid);
-                if (!p.Crossed(38.35f)) return;
+                if (p.Crossed(33.2f)) liquidAtTheGlow = fight.Position(TeaP1Boss.LivingLiquid);
+                if (!p.Crossed(38.2f)) return;
                 apart = TeaP1LivingLiquid.Apart(fight.Position(TeaP1Boss.LivingLiquid), fight.Position(TeaP1Boss.LiquidHand));
                 liquidMoved = MathF.Max(liquidMoved, TeaP1LivingLiquid.Apart(fight.Position(TeaP1Boss.LivingLiquid), liquidAtTheGlow));
             });
@@ -383,8 +422,8 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
 
     // -- The main tank at the edge of its reach --
 
-    // It stacks on (-0.8, -7.4), where the guides draw it: the Living Liquid walks 3.4 y north to it, and everyone
-    // else's spots, hung off the Liquid, go north with it.
+    // It stacks on (-0.8, -7.4), where the guides draw it, just past the 7 y the Living Liquid reaches: the Liquid
+    // walks 1.4 y north to it, and everyone else's spots, hung off the Liquid, go north with it.
     [Test]
     public void AHumanMainTankOnTheGuidesStackSpotDragsTheLiquidNorthAndNobodyIsCaught([Values] TeaP1HumanPace pace)
     {
@@ -397,10 +436,10 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             float? draggedNorth = null;
             var (run, human) = Human.Play(roll, play, 85, probe: p =>
             {
-                if (p.Crossed(18.25f)) draggedNorth = -roll.Frame2.ToRelative(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid)).Y;
+                if (p.Crossed(18.2f)) draggedNorth = -roll.Frame2.ToRelative(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid)).Y;
             });
             var faults = Faults(roll, human, run).ToList();
-            if (draggedNorth is not > 3f) faults.Add($"the Living Liquid stood {draggedNorth} y north of the middle at Protean 2's aim");
+            if (draggedNorth is not > 1.2f) faults.Add($"the Living Liquid stood {draggedNorth} y north of the middle at Protean 2's aim");
             runs.Add($"{roll}, {Secs(late)}s late", run, faults);
         }
 
@@ -421,7 +460,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             float? lockedOff = null;
             var (run, human) = Human.Play(roll, play, 136, probe: p =>
             {
-                if (p.Crossed(18.3f)) lockedOff = Turn(Stage.Fight(p).Liquid!.Rotation, roll.Frame2.Facing(0f)) * 180f / MathF.PI;
+                if (p.Crossed(18.2f)) lockedOff = Turn(Stage.Fight(p).Liquid!.Rotation, roll.Frame2.Facing(0f)) * 180f / MathF.PI;
             });
             var faults = Faults(roll, human, run).ToList();
             if (lockedOff is not { } off || MathF.Abs(MathF.Abs(off) - MathF.Abs(degrees)) > 4f)
@@ -436,15 +475,22 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
     // showed. This main tank never turns it: it waits for the bar where the start put it, south-east of the Liquid
     // by the first tornadoes, so the Liquid faces wherever that is among the second, `turned` eighths clockwise of
     // their open quarter, and then plays its spots.
-    [TestCase(0, TestName = "{m}(at the open quarter: nobody)")]
-    [TestCase(1, MainTank, TestName = "{m}(45: itself, on its own bait)")]
-    [TestCase(2, MeleeDpsB, TestName = "{m}(90: M2)")]
-    [TestCase(3, PhysRangedDps, TestName = "{m}(135: R1)")]
-    [TestCase(4, MeleeDpsA, ShieldHealer, TestName = "{m}(180: M1 and H2, to the unseen sets)")]
-    [TestCase(5, MeleeDpsA, ShieldHealer, TestName = "{m}(225: M1 and H2)")]
-    [TestCase(6, OffTank, TestName = "{m}(270: the off tank)")]
-    [TestCase(7, RegenHealer, CasterDps, TestName = "{m}(315: H1 and R2)")]
-    public void AHumanMainTankWhoNeverTurnsTheLiquidForProteanTwoLosesWhoeverStandsInItsFace(int turned, params PartyRole[] inItsFace)
+    //
+    // An unseen set's wave straight ahead kills whoever it hits, so whoever's spot is in the Liquid's face as either
+    // set goes off dies of it. Whoever dies leaves a bait untaken, and the cone or the tornado's wave it would have
+    // drawn goes to someone who still carries the last one: those are the second waves among each case's deaths.
+    // At 135 nobody stands in its face for the first set, and M1 walks through it on the way to its tornado as the
+    // second goes off. At 225 M1, aside for the telegraph, takes the Liquid's own telegraphed wave and then its cone
+    // of the first set, and H2, by its tornado, is on the edge of that set's wave straight ahead.
+    [TestCase(0, 0, TestName = "{m}(at the open quarter: nobody)")]
+    [TestCase(1, 16, MainTank, MeleeDpsB, TestName = "{m}(45: itself on its own bait, then M2)")]
+    [TestCase(2, 16, MeleeDpsB, PhysRangedDps, TestName = "{m}(90: M2, then R1)")]
+    [TestCase(3, 16, MeleeDpsA, RegenHealer, ShieldHealer, PhysRangedDps, CasterDps, TestName = "{m}(135: M1, and its tornado's wave on the four in the middle)")]
+    [TestCase(4, 16, MeleeDpsA, ShieldHealer, TestName = "{m}(180: M1 and H2)")]
+    [TestCase(5, 16, MainTank, MeleeDpsA, ShieldHealer, TestName = "{m}(225: M1, H2 on its edge, then the main tank)")]
+    [TestCase(6, 16, OffTank, CasterDps, TestName = "{m}(270: the off tank, then R2)")]
+    [TestCase(7, 16, MainTank, OffTank, RegenHealer, CasterDps, TestName = "{m}(315: H1 and R2, then both tanks)")]
+    public void AHumanMainTankWhoNeverTurnsTheLiquidForProteanTwoLosesWhoeverStandsInItsFace(int turned, int lost, params PartyRole[] inItsFace)
     {
         var lostRuns = 0;
         var problems = new List<string>();
@@ -459,7 +505,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             float? faces = null;
             var (run, human) = Human.Play(roll, play, 306, mayLose: true, probe: p =>
             {
-                if (p.Crossed(18.3f)) faces = Turn(Stage.Fight(p).Liquid!.Rotation, roll.Frame2.Facing(45f * turned)) * 180f / MathF.PI;
+                if (p.Crossed(18.2f)) faces = Turn(Stage.Fight(p).Liquid!.Rotation, roll.Frame2.Facing(45f * turned)) * 180f / MathF.PI;
             });
             var context = $"{roll}, {Secs(late)}s late";
             if (human.Open2Read != roll.Open2) problems.Add($"{context}: the human read the open quarter as {human.Open2Read}");
@@ -472,23 +518,24 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             if (run.Deaths.Any(death => !inItsFace.Contains(death.Role))) problems.Add($"{context}: someone else died: {run}");
             if (run.Deaths[0] is not { ActionId: P1ActionId.ProteanWaveFromTheLiquid or P1ActionId.ProteanWaveAtAPlayer or P1ActionId.ProteanWaveStraightAhead or P1ActionId.ProteanWaveAtTheClosest })
                 problems.Add($"{context}: the first death was not one of the Living Liquid's waves: {run}");
+
         }
 
         TestContext.Out.WriteLine($"Turned {45 * turned} degrees off the open quarter: {lostRuns} of 16 runs with a death");
         foreach (var death in died) TestContext.Out.WriteLine(death);
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
         Assert.That(whoDied, Is.EquivalentTo(inItsFace));
-        Assert.That(lostRuns, Is.EqualTo(inItsFace.Length == 0 ? 0 : 16), "runs with a death");
+        Assert.That(lostRuns, Is.EqualTo(lost), "runs with a death");
     }
 
     // -- A new puddle --
 
     // It waits out the Cascade where it stood for Drainage: the six 7 to 9.4 y north of the middle in the first
-    // tornadoes' frame, the off tank 7.6 y south-west. A new puddle reaches in to 6.9 y on its tornado's bearing and
-    // kills from a second after it appears.
+    // tornadoes' frame, the off tank 7.6 y south-west. A new puddle reaches in to 7.4 y on its tornado's bearing and
+    // kills from a second after it appears. M1, 7 y out, is inside every new puddle's reach.
     [Test]
     public void AHumanWhoWaitsWhereItStoodForDrainageStepsOutOfANewPuddleInTime(
-        [Values(OffTank, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps)] PartyRole seat)
+        [Values(OffTank, ShieldHealer, MeleeDpsB, PhysRangedDps, CasterDps)] PartyRole seat)
     {
         var runs = new TeaP1HumanRuns();
         var wet = 0;
@@ -499,7 +546,7 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             var play = new TeaP1LivingLiquidHumanPlay(seat, TeaP1HumanPace.Sprinting, late) { StaysOutForTheCascade = true };
             var (run, human) = Human.Play(roll, play, 102, probe: p =>
             {
-                if (!p.Crossed(5.95f)) return;
+                if (!p.Crossed(7.35f)) return;
                 var at = p.Member(seat)!.Position;
                 if (Enum.GetValues<TeaP1Tornado>().Any(tornado => TeaP1LivingLiquid.Apart(at, roll.Frame2.Centre(tornado)) < P1Geometry.PuddleRadius)) wet++;
             });
@@ -559,11 +606,10 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
         runs.AssertNoneLostBut();
     }
 
-    // Its fetch has dragged the Living Liquid off the middle, and it leads it back and turns it north this long after
-    // the strat's beat: from 4.5 s late the Liquid is still on its way as the two stacks are first taken, at 12.0. The
-    // stacks follow it until half a second before Protean 2's bar, so the telegraphs, the spots round the Liquid and
-    // the ones beside the tornadoes still fit. At 7 s late the tank sets off for its last spot 1.2 to 1.7 s before
-    // the bar; a second later the turn itself lands as the bar shows, and half of these runs lose someone.
+    // Its fetch has dragged the Living Liquid off the middle, by up to a yalm and a half, and where that is more than
+    // it lets pass it leads it back and turns it north this long after the strat's beat: from 4.5 s late the Liquid
+    // is still on its way as the two stacks are first taken, at 12.0. The stacks follow it until half a second before
+    // Protean 2's bar, so the telegraphs, the spots round the Liquid and the ones beside the tornadoes still fit.
     [Test]
     public void AHumanMainTankWhoLeadsTheLiquidBackLateStillHasTheStacksOnItsLine([Values(2f, 4f, 4.5f, 6f, 7f)] float leadsItBackLate)
     {
@@ -580,25 +626,27 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
                 if (p.Crossed(roll.C2(12.0f))) asTheStacksWereTaken = Stage.Fight(p).Position(TeaP1Boss.LivingLiquid);
                 if (p.Crossed(roll.C2(18.2f))) atTheAim = Stage.Fight(p).Position(TeaP1Boss.LivingLiquid);
             });
-            if (Vector3.Distance(asTheStacksWereTaken, atTheAim) > 1f) movedAfterTheStacks++;
+            if (Vector3.Distance(asTheStacksWereTaken, atTheAim) > LedBackFromBeyond) movedAfterTheStacks++;
             farthestOff = MathF.Max(farthestOff, atTheAim.Length());
             runs.Add($"seed {seed}, {roll}, the Living Liquid at {asTheStacksWereTaken} as the stacks were taken and {atTheAim} at the aim", run, Faults(roll, human, run));
         }
 
-        TestContext.Out.WriteLine($"the Living Liquid moved more than a yalm after 12.0 in {movedAfterTheStacks} runs and stood up to {Secs(farthestOff)} y off the middle at the aim");
-        if (leadsItBackLate >= 4.5f) Assert.That(movedAfterTheStacks, Is.GreaterThanOrEqualTo(10), "runs in which the Living Liquid was still being led back after 12.0");
-        Assert.That(farthestOff, Is.LessThan(0.6f), "the tank had it back on the middle by the aim");
+        TestContext.Out.WriteLine($"the Living Liquid moved more than {Secs(LedBackFromBeyond)} y after 12.0 in {movedAfterTheStacks} runs and stood up to {Secs(farthestOff)} y off the middle at the aim");
+        if (leadsItBackLate >= 4.5f) Assert.That(movedAfterTheStacks, Is.GreaterThanOrEqualTo(8), "runs in which the Living Liquid was still being led back after 12.0");
+        Assert.That(farthestOff, Is.LessThan(LedBackFromBeyond + 0.1f), "the tank had it back on the middle by the aim, or had let it pass");
         runs.AssertNoneLostBut();
     }
 
-    // No move of the strat's reaches a human, and the Living Liquid walks after its tank from 4 y. This main tank
+    // The human leads back a Living Liquid it sees more than this off the middle, as the strat's own main tank does.
+    private const float LedBackFromBeyond = 0.7f;
+
+    // No move of the strat's reaches a human, and the Living Liquid walks after its tank from 7 y. This main tank
     // fetches its tether, takes it to its spot and later turns the Liquid north where it stands, never leading it
-    // back: it is left up to 2.7 y off the middle for Protean 2, whose spots round it and beside the tornadoes are
-    // spaced for a Liquid on the middle. Within 2 y of the middle nobody dies; farther off, toward anything but the
-    // open quarter, a tornado picks one of the seats round the Liquid. The start's chat line asks the main tank to
-    // lead it back; no more of these 40 runs may lose than do today.
+    // back: it is left up to a yalm and a half off the middle for Protean 2, whose spots round it and beside the
+    // tornadoes are spaced for a Liquid on the middle. That close to the middle nobody dies. The start's chat line
+    // still asks the main tank to lead it back.
     [Test]
-    public void AHumanMainTankWhoLeavesTheLiquidWhereItsFetchPutItLosesRunsToTheTornadoes()
+    public void AHumanMainTankWhoLeavesTheLiquidWhereItsFetchPutItLosesNobody()
     {
         var problems = new List<string>();
         var (lost, farthestOff) = (0, 0f);
@@ -619,14 +667,12 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             if (run.Passed) continue;
             lost++;
             TestContext.Out.WriteLine($"{context}: {string.Join(", ", run.Deaths.Select(d => $"{d.Role} at {Secs(d.Time - Stage.CascadeTwo)}"))}");
-            if (offTheMiddle < 2f) problems.Add($"{context}: lost all the same: {run}");
-            if (run.Deaths.Any(d => d.ActionId is not (P1ActionId.TornadoWave or P1ActionId.TornadoWaveUnseen)))
-                problems.Add($"{context}: a death that was not a tornado's wave: {run}");
+            problems.Add($"{context}: {run}");
         }
 
         TestContext.Out.WriteLine($"{lost} of 40 runs with a death; the Living Liquid stood up to {Secs(farthestOff)} y off the middle at Protean 2's aim");
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
-        Assert.That(farthestOff, Is.GreaterThan(2.3f), "the fetch drags the Living Liquid");
-        Assert.That(lost, Is.InRange(1, 4), "runs with a death");
+        Assert.That(farthestOff, Is.InRange(1f, 2f), "the fetch drags the Living Liquid");
+        Assert.That(lost, Is.Zero, "runs with a death");
     }
 }

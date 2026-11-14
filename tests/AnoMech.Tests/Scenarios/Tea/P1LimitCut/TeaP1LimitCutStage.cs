@@ -21,8 +21,8 @@ internal enum TeaLane { InnerOdd, InnerEven, OuterOdd, OuterEven }
 // bearing b the pair hit next stands 14 y out, the odd at b - 2 and the even at b - 30, and the group's other pair
 // 19.3 y out at b - 4 and b - 8.
 //
-//   group A   spot 2 from 12.5: #1 cleaved 15.4, #2 charged 16.9.   spot 5 from 21.7: #5 at 24.8, #6 at 26.3.
-//   group B   spot 3 from 14.7: #3 cleaved 20.1, #4 charged 21.6.   spot 6 from 24.25: #7 at 29.4, #8 at 30.9.
+//   group A   spot 2 from 12.5: #1 cleaved 15.4, #2 charged 16.9.   spot 5 from 21.7: #5 at 24.7, #6 at 26.2.
+//   group B   spot 3 from 14.7: #3 cleaved 20.05, #4 charged 21.55.   spot 6 from 24.25: #7 at 29.35, #8 at 30.85.
 //
 // Group A leaves its spot 4 only after #4's charge: that charge runs through group A's spot 5 when Cruise Chaser
 // lands 4.5 y behind #3, though not at 3 y.

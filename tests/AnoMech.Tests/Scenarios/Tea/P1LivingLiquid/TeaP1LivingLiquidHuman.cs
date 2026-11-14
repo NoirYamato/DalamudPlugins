@@ -42,8 +42,8 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     public float StacksOffSouth { get; init; }
 
     // The main tank stands where the guides draw it, at the edge of its reach: 7.4 y south-east of the middle from
-    // Protean 1's second set through Drainage, and (-0.8, -7.4) for Protean 2's stack. The Living Liquid walks up to
-    // 4 y from it.
+    // Protean 1's second set through Drainage, and (-0.8, -7.4) for Protean 2's stack. The Living Liquid, which
+    // reaches 7 y, walks up to 6 y from it.
     public bool MaxMelee { get; init; }
 
     // The main tank turns the Living Liquid this many degrees clockwise of north for Protean 2's telegraph.
@@ -117,10 +117,12 @@ internal sealed class TeaP1LivingLiquidHuman
     private const float TetherBeat = 0.25f;
     private const float AheadOfItsHolder = 1.5f;
     private const float PressesBeforeTheTelegraphLands = 2f;
-    private const float TheLiquidLooksOffTheMiddleBeyond = 0.5f;
+    private const float TheLiquidLooksOffTheMiddleBeyond = 0.7f;
+    private const float TheLiquidStopsFromItsTank = 6.0f, FarEnoughToSetTheLiquidOff = 7.4f;
 
     private const string Start = "start", Thrown = "thrown", Telegraph = "telegraph", TelegraphFired = "telegraph fired", Set = "set";
     private const string Tethers = "tethers", Drainage = "drainage", NewTornadoes = "new tornadoes", Throttle = "throttle";
+    private const string CascadeLands = "cascade lands";
     private const string TornadoAim = "tornado aim", UnseenTornadoWaves = "unseen tornado waves", Glow = "glow";
 
     internal static readonly PartyRole[] FarFour = [RegenHealer, ShieldHealer, PhysRangedDps, CasterDps];
@@ -237,11 +239,8 @@ internal sealed class TeaP1LivingLiquidHuman
         else if (!play.NeverTurnsTheLiquid)
         {
             if (!play.LeavesTheLiquidWhereItStands)
-            {
-                yield return new(NewTornadoes, 0.5f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? Vector2.Zero : null);
-                yield return new(NewTornadoes, 1.3f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? -Vector2.Normalize(TheLiquid(p)) * 4f : null, Follows: true);
-            }
-            yield return new(NewTornadoes, 3.6f + play.LeadsItBackLate, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
+                yield return new(CascadeLands, 0.5f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? PastTheMiddleFromTheLiquid(p) : null);
+            yield return new(CascadeLands, 3.6f + play.LeadsItBackLate, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
                 : play.TurnsItOffNorth != 0f ? Frame2.ToArena(Stage.Off(TheLiquidIn(p, Frame2), 3.9f, play.TurnsItOffNorth))
                 : Spot(p, Cascade2, 9.5f), Follows: true);
         }
@@ -314,6 +313,7 @@ internal sealed class TeaP1LivingLiquidHuman
                 ("cast", P1ActionId.ProteanWaveFromTheLiquid) => Telegraph,
                 ("ability", P1ActionId.ProteanWaveFromTheLiquid) => TelegraphFired,
                 ("ability", P1ActionId.ProteanWaveStraightAhead) => Set,
+                ("ability", P1ActionId.Cascade) => CascadeLands,
                 ("cast", P1ActionId.TornadoWave) => TornadoAim,
                 ("ability", P1ActionId.TornadoWaveUnseen) => UnseenTornadoWaves,
                 _ => null,
@@ -363,6 +363,14 @@ internal sealed class TeaP1LivingLiquidHuman
     private static Vector2 TheLiquidIn(ScenarioProbe p, TeaP1TornadoLayout frame) => frame.ToRelative(TheLiquid(p));
 
     private static bool TheLiquidLooksOffTheMiddle(ScenarioProbe p) => TheLiquid(p).Length() > TheLiquidLooksOffTheMiddleBeyond;
+
+    // Where the start's chat line sends a main tank to lead the Living Liquid back: 6 y past the middle on the far
+    // side from it, or far enough from it to set it off.
+    private static Vector2 PastTheMiddleFromTheLiquid(ScenarioProbe p)
+    {
+        var liquid = TheLiquid(p);
+        return -Vector2.Normalize(liquid) * MathF.Max(TheLiquidStopsFromItsTank, FarEnoughToSetTheLiquidOff - liquid.Length());
+    }
 
     private static List<Vector2> TheWater(ScenarioProbe p)
     {

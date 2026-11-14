@@ -43,7 +43,7 @@ public class TeaP1LivingLiquidThrottleTests
     public void AnEsunaOnACarrierTakesItOffAsTheRunNextLooks()
     {
         var seen = new List<(bool Counted, bool Status)>();
-        var run = Play(HumanHealer, RegenHealer, [(12f, MainTank), (14f, RegenHealer), (16f, OffTank)], stopAt: 21f, probe: p =>
+        var run = Play(HumanHealer, RegenHealer, [(12f, MainTank), (14f, RegenHealer), (16f, OffTank)], stopAt: 22f, probe: p =>
         {
             var mainTank = p.Member(MainTank)!;
             foreach (var at in new[] { 11.9f, 12.1f })
@@ -58,10 +58,10 @@ public class TeaP1LivingLiquidThrottleTests
     [Test]
     public void AHumanHealerWhoPressesNothingLeavesItsShareToDie()
     {
-        var run = Play(HumanHealer, RegenHealer, [], stopAt: 21f);
+        var run = Play(HumanHealer, RegenHealer, [], stopAt: 22f);
 
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EquivalentTo(new[] { (MainTank, (uint?)P1ActionId.LiquidGaol), (OffTank, (uint?)P1ActionId.LiquidGaol) }), run.ToString);
-        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(19.5f).Within(0.1f));
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(20.5f).Within(0.1f));
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.ThrottleRanOut));
     }
 
@@ -69,22 +69,22 @@ public class TeaP1LivingLiquidThrottleTests
     [Test]
     public void EsunaOnACleanSeatCleansesNobodyElse()
     {
-        var run = Play(HumanHealer, RegenHealer, [(11.2f, RegenHealer), (13.7f, RegenHealer), (16.2f, RegenHealer)], stopAt: 21f);
+        var run = Play(HumanHealer, RegenHealer, [(11.2f, RegenHealer), (13.7f, RegenHealer), (16.2f, RegenHealer)], stopAt: 22f);
 
         Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
         Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1LivingLiquid.ThrottleRanOut));
     }
 
     // H2 leaves the off tank to the human.
-    [TestCase(19.3f, true)]
-    [TestCase(19.7f, false)]
+    [TestCase(20.3f, true)]
+    [TestCase(20.7f, false)]
     public void TheLastCleanseMustLandBeforeThrottleRunsOut(float lastAt, bool saves)
     {
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, NotCleansed = [OffTank] };
-        var run = Play(stage, RegenHealer, [(11.2f, RegenHealer), (13.7f, MainTank), (lastAt, OffTank)], stopAt: saves ? 21f : null);
+        var run = Play(stage, RegenHealer, [(11.2f, RegenHealer), (13.7f, MainTank), (lastAt, OffTank)], stopAt: saves ? 22f : null);
 
         if (saves) Assert.That(run.Passed, run.ToString);
-        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, OffTank, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, OffTank, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     // A press is heard from the client's input and waits for the run to look, and an event fires ahead of the
@@ -96,7 +96,7 @@ public class TeaP1LivingLiquidThrottleTests
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, Seed = 1 };
         var lands = FrameIn(stage, p => Stage.Fight(p).Throttled.Count > 0);
         var counted = false;
-        var run = PressInFrame(stage, lands - 1, MainTank, stopAt: 21f, probe: p =>
+        var run = PressInFrame(stage, lands - 1, MainTank, stopAt: 22f, probe: p =>
         {
             if (p.Crossed(10.6f)) counted = Stage.Fight(p).IsThrottled(p.Member(MainTank)!) && p.Member(MainTank)!.HasStatus(P1StatusId.Throttle);
         });
@@ -113,7 +113,7 @@ public class TeaP1LivingLiquidThrottleTests
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, Seed = 1, NotCleansed = [OffTank] };
         (float At, PartyRole On)[] itsOthers = [(11.2f, RegenHealer), (13.7f, MainTank)];
         var runsOut = FrameIn(stage, p => !p.Member(OffTank)!.IsAlive(), itsOthers);
-        var run = PressInFrame(stage, runsOut - 1, OffTank, stopAt: 21f, itsOthers);
+        var run = PressInFrame(stage, runsOut - 1, OffTank, stopAt: 22f, itsOthers);
 
         Assert.That(runsOut, Is.GreaterThan(0), "left alone, the off tank dies as Throttle runs out");
         Assert.That(run.Passed, run.ToString);
@@ -123,7 +123,7 @@ public class TeaP1LivingLiquidThrottleTests
     private static int FrameIn(Stage stage, Func<ScenarioProbe, bool> happened, params (float At, PartyRole On)[] esunas)
     {
         var (frame, found) = (0, -1);
-        Play(stage, RegenHealer, esunas, stopAt: 21f, probe: p =>
+        Play(stage, RegenHealer, esunas, stopAt: 22f, probe: p =>
         {
             if (found < 0 && happened(p)) found = frame;
             frame++;
@@ -168,14 +168,14 @@ public class TeaP1LivingLiquidThrottleTests
     public void ABardsWardensPaeanTakesItsOwnThrottleOff(bool presses)
     {
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, NotCleansed = [PhysRangedDps] };
-        var run = stage.Run(PhysRangedDps, stopAt: 21f, probe: p =>
+        var run = stage.Run(PhysRangedDps, stopAt: 22f, probe: p =>
         {
             if (presses && p.Crossed(12f))
                 p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.WardensPaean, (ulong)p.Member(PhysRangedDps)!.GameObjectId));
         });
 
         if (presses) Assert.That(run.Passed, run.ToString);
-        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     // On a seat with nothing to take off, the Warden's Paean leaves a barrier instead, which stops the next debuff a
@@ -186,7 +186,7 @@ public class TeaP1LivingLiquidThrottleTests
     {
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, NotCleansed = [on] };
         PartyRole[] carriers = [], withTheStatus = [];
-        var run = stage.Run(PhysRangedDps, stopAt: 21f, probe: p =>
+        var run = stage.Run(PhysRangedDps, stopAt: 22f, probe: p =>
         {
             if (p.Crossed(9f)) Paean(p, on);
             if (!p.Crossed(10.6f)) return;
@@ -204,27 +204,27 @@ public class TeaP1LivingLiquidThrottleTests
     public void AWardensPaeansBarrierCoversOnlyTheSeatItIsOn()
     {
         var stage = new Stage { First = Cascade2, HumanUntil = 60f, NotCleansed = [PhysRangedDps] };
-        var run = stage.Run(PhysRangedDps, stopAt: 21f, probe: p =>
+        var run = stage.Run(PhysRangedDps, stopAt: 22f, probe: p =>
         {
             if (p.Crossed(9f)) Paean(p, MeleeDpsB);
         });
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
-    // The barrier lasts 30 s. In a run of both parts Throttle lands at 34.3 and runs out at 43.3.
+    // The barrier lasts 30 s. In a run of both parts Throttle lands at 34.4 and runs out at 44.4.
     [TestCase(3.8f, false)]
     [TestCase(4.8f, true)]
     public void AWardensPaeansBarrierLastsThirtySeconds(float pressedAt, bool stillUp)
     {
         var stage = new Stage { HumanUntil = 80f, NotCleansed = [PhysRangedDps] };
-        var run = stage.Run(PhysRangedDps, stopAt: Stage.CascadeTwo + 21f, probe: p =>
+        var run = stage.Run(PhysRangedDps, stopAt: Stage.CascadeTwo + 22f, probe: p =>
         {
             if (p.Crossed(pressedAt)) Paean(p, PhysRangedDps);
         });
 
         if (stillUp) Assert.That(run.Passed, run.ToString);
-        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, Stage.CascadeTwo + 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.LiquidGaol, Stage.CascadeTwo + 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     private static void Paean(ScenarioProbe p, PartyRole on)

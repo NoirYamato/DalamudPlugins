@@ -2,10 +2,12 @@ using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
 using AnoMech.Scenarios.Tea.P1LimitCut;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Tea.TeaP1Constants;
 using static AnoMech.Scenarios.Tea.P1LimitCut.TeaP1FirstBlasters;
@@ -18,13 +20,13 @@ namespace AnoMech.Tests;
 // moves the player's seat into one mistake. The numbers are the stage's (#1 M1, #2 R1, #3 MT, #4 M2, #5 R2, #6 H1,
 // #7 H2, #8 OT) and the first blasters stand west and east unless a test says otherwise (x east, z south):
 //
-//   5.9-6.25  the numbers.
-//   8.0 / 10.2 / 12.4 / 14.6   Hawk Blaster pairs W+E, NW+SE, N+S, NE+SW; again at 19.0 / 21.2 / 23.5 / 25.7.
-//   16.8 / 27.9   the middle blaster. A blast kills at once; the death shows a second later.
-//   15.4 #1 cleaved on the north spot, 16.9 #2 charged there; 20.1 #3 and 21.6 #4 south-west;
-//   24.8 #5 and 26.3 #6 south-east; 29.4 #7 and 30.9 #8 north. Cruise Chaser lands 0.5 s before each cleave and
+//   5.95-6.27  the numbers.
+//   8.0 / 10.2 / 12.4 / 14.6   Hawk Blaster pairs W+E, NW+SE, N+S, NE+SW; again at 19.0 / 21.2 / 23.45 / 25.6.
+//   16.8 / 27.8   the middle blaster. A blast kills at once; the death shows a second later.
+//   15.4 #1 cleaved on the north spot, 16.9 #2 charged there; 20.05 #3 and 21.55 #4 south-west;
+//   24.7 #5 and 26.2 #6 south-east; 29.35 #7 and 30.85 #8 north. Cruise Chaser lands 1.17 s before each cleave and
 //   turns to its number again 0.1 s before it and as it goes off.
-//   34.1  J Kick. The run ends a second after its hit shows.
+//   34.05  J Kick. The run ends a second after its hit shows.
 public class TeaP1LimitCutScenarioTests
 {
     private const string BlastRule = "Hawk Blasters go off unmarked";
@@ -38,19 +40,23 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(run.Elapsed, Is.InRange(35.5f, 37f), "the run ends by itself after J Kick");
     }
 
-    // The rim is a wall in the fight, and the zone has no boundary that kills past it.
+    // The arena has no wall: half a yalm inside the rim is safe, and whoever goes past it dies at once.
     [Test]
-    public void StandingPastTheRimKillsNobody()
+    public void GoingPastTheRimKills()
     {
-        var run = new Stage().Run(MainTank, stopAt: 7.5f, takeovers: new Takeover(1.0f, new Vector2(0f, P1Geometry.ArenaRadius + 1.5f)));
+        var inside = new Stage().Run(MainTank, stopAt: 7.5f, takeovers: new Takeover(1.0f, new Vector2(0f, P1Geometry.ArenaRadius - 0.5f)));
+        var outside = new Stage().Run(MainTank, stopAt: 7.5f, takeovers: new Takeover(1.0f, new Vector2(0f, P1Geometry.ArenaRadius + 0.5f)));
 
-        Assert.That(run.Passed, run.ToString);
+        Assert.That(inside.Passed, inside.ToString);
+        Assert.That(outside.Deaths.Select(death => death.Role), Is.EqualTo(new[] { MainTank }), outside.ToString);
+        Assert.That(outside.Deaths[0].Time, Is.EqualTo(1.0f).Within(0.1f), outside.ToString);
+        Assert.That(outside.Deaths[0].Cause, Does.Contain(TeaZone.WentPastTheRim));
     }
 
     [TestCase(WestEast, -14f, 0f)]
-    [TestCase(NorthwestSoutheast, 10f, 10f)]
+    [TestCase(NorthwestSoutheast, 9.9f, 9.9f)]
     [TestCase(NorthSouth, 0f, -14f)]
-    [TestCase(NortheastSouthwest, -10f, 10f)]
+    [TestCase(NortheastSouthwest, -9.9f, 9.9f)]
     public void StandingOnAFirstBlasterKills(TeaP1FirstBlasters axis, float x, float z)
         => AssertFirstDeath(Mistake(MainTank, 7.5f, new(x, z), axis), MainTank, P1ActionId.HawkBlaster, 9.0f, BlastRule);
 
@@ -65,7 +71,7 @@ public class TeaP1LimitCutScenarioTests
     }
 
     [TestCase(16.5f, 17.8f)]
-    [TestCase(27.5f, 28.9f)]
+    [TestCase(27.4f, 28.8f)]
     public void StandingInTheMiddleAsItsBlasterGoesOffKills(float at, float diesAt)
         => AssertFirstDeath(Mistake(MainTank, at, Vector2.Zero), MainTank, P1ActionId.HawkBlaster, diesAt, BlastRule);
 
@@ -81,11 +87,11 @@ public class TeaP1LimitCutScenarioTests
         (float At, float Bearing)[] pairs =
         [
             (8.0f, first), (10.2f, first + 45f), (12.4f, first + 90f), (14.6f, first + 135f),
-            (19.0f, first), (21.2f, first + 45f), (23.5f, first + 90f), (25.7f, first + 135f),
+            (19.0f, first), (21.2f, first + 45f), (23.45f, first + 90f), (25.6f, first + 135f),
         ];
         var expected = pairs.SelectMany(pair => new (float At, Vector2 Centre)[] { (pair.At, Centre(pair.Bearing)), (pair.At, Centre(pair.Bearing + 180f)) })
                             .Append((At: 16.8f, Centre: Vector2.Zero))
-                            .Append((At: 27.9f, Centre: Vector2.Zero))
+                            .Append((At: 27.8f, Centre: Vector2.Zero))
                             .OrderBy(blast => blast.At)
                             .ToList();
 
@@ -101,12 +107,8 @@ public class TeaP1LimitCutScenarioTests
         });
     }
 
-    // Cardinal centres are 14 y out, diagonal ones on (+-10, +-10).
-    private static Vector2 Centre(float bearing)
-    {
-        var onRing = Stage.OnRing(bearing, 14f);
-        return MathF.Abs(onRing.X) < 0.01f || MathF.Abs(onRing.Y) < 0.01f ? onRing : new Vector2(MathF.Sign(onRing.X) * 10f, MathF.Sign(onRing.Y) * 10f);
-    }
+    // Every centre is 14 y out, on a cardinal or a diagonal.
+    private static Vector2 Centre(float bearing) => Stage.OnRing(bearing, 14f);
 
     [Test]
     public void TheNumbersAppearOnTheirPlayers()
@@ -124,7 +126,7 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(run.Passed, run.ToString);
         Assert.That(markers.Select(m => m.Lockon), Is.EqualTo(new uint[] { 79, 80, 81, 82, 83, 84, 85, 86 }));
         Assert.That(markers.Select(m => m.On), Is.EqualTo(Stage.Numbers));
-        Assert.That(markers.Select(m => m.At), Is.EqualTo(new[] { 5.9f, 5.95f, 6.0f, 6.05f, 6.1f, 6.15f, 6.2f, 6.25f }).Within(0.04f));
+        Assert.That(markers.Select(m => m.At), Is.EqualTo(Enumerable.Range(0, 8).Select(k => 5.95f + 0.045f * k)).Within(0.03f));
     }
 
     // Each cleave catches its odd number alone and each charge its even number alone, so nobody is hit twice.
@@ -144,7 +146,7 @@ public class TeaP1LimitCutScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(hits.Select(h => h.At), Is.EqualTo(new[] { 15.4f, 16.9f, 20.1f, 21.6f, 24.8f, 26.3f, 29.4f, 30.9f }).Within(0.05f));
+        Assert.That(hits.Select(h => h.At), Is.EqualTo(new[] { 15.4f, 16.9f, 20.05f, 21.55f, 24.7f, 26.2f, 29.35f, 30.85f }).Within(0.03f));
         Assert.That(hits.Select(h => h.Action), Is.EqualTo(Enumerable.Range(0, 8).Select(k => k % 2 == 0 ? P1ActionId.AlphaSword : P1ActionId.SuperBlasstyCharge)));
         Assert.That(hits.Select(h => h.Targets.Select(id => seats[id]).ToArray()), Is.EqualTo(Stage.Numbers.Select(role => new[] { role })));
     }
@@ -157,7 +159,7 @@ public class TeaP1LimitCutScenarioTests
         var run = new Stage().Run(OffTank, stopAt: 16.5f, takeovers: new Takeover(15.0f, new Vector2(6f, -14f)), probe: p =>
         {
             if (p.Crossed(16.2f))
-                vulnerable.AddRange(PerRole.All.Where(role => p.Member(role)!.HasStatus(P1StatusId.CruiseChaserVulnerability)));
+                vulnerable.AddRange(PerRole.All.Where(role => p.Member(role)!.HasStatus(P1StatusId.PhysicalVulnerabilityUp)));
         });
 
         Assert.That(run.Passed, run.ToString);
@@ -182,29 +184,29 @@ public class TeaP1LimitCutScenarioTests
         var ahead = stage.HitSpot(3) + 6f * Stage.Facing(Stage.ClockwiseAlongTheRim(stage.HitSpot(3)));
         var run = stage.Run(PhysRangedDps, takeovers: new Takeover(19.3f, ahead));
 
-        AssertFirstDeath(run, PhysRangedDps, P1ActionId.AlphaSword, 21.1f, TeaP1Actions.SecondCruiseChaserHit);
+        AssertFirstDeath(run, PhysRangedDps, P1ActionId.AlphaSword, 21.05f, TeaP1Actions.SecondCruiseChaserHit);
     }
 
     // #5's cleave runs on along the rim from the south-east spot, across the south-west one, where MT was cleaved
-    // 4.7 s before.
+    // 4.65 s before.
     [Test]
     public void APlayerBackOnItsHitSpotIsCaughtByTheOtherGroupsNextCleave()
     {
         var stage = new Stage();
         var run = stage.Run(MainTank, takeovers: new Takeover(23.6f, stage.HitSpot(3)));
 
-        AssertFirstDeath(run, MainTank, P1ActionId.AlphaSword, 25.8f, TeaP1Actions.SecondCruiseChaserHit);
+        AssertFirstDeath(run, MainTank, P1ActionId.AlphaSword, 25.7f, TeaP1Actions.SecondCruiseChaserHit);
     }
 
     [Test]
     public void JKickHitsEveryoneAndHurtsNobody()
     {
-        var kicks = Sent(new Stage(), P1ActionId.JKick, out var everyoneVulnerable, readAt: 34.6f);
+        var kicks = Sent(new Stage(), P1ActionId.JKick, out var vulnerable, readAt: 34.6f);
 
         Assert.That(kicks, Has.Count.EqualTo(1));
-        Assert.That(kicks[0].At, Is.EqualTo(34.1f).Within(0.05f));
+        Assert.That(kicks[0].At, Is.EqualTo(34.05f).Within(0.03f));
         Assert.That(kicks[0].Targets, Has.Length.EqualTo(8));
-        Assert.That(everyoneVulnerable, Is.True, "all eight still carry Cruise Chaser's vulnerability");
+        Assert.That(vulnerable, Is.EquivalentTo(Stage.Numbers.Skip(2)), "the six hit in the 17 s before still carry Cruise Chaser's vulnerability");
     }
 
     [TestCase(1.5f)]
@@ -214,11 +216,11 @@ public class TeaP1LimitCutScenarioTests
     {
         Placement? landed = null;
         Placement? beforeHeLands = null;
-        var run = new Stage(landsBehind: landsBehind).Run(MeleeDpsA, stopAt: 15.3f, takeovers: new Takeover(14.7f, new Vector2(0f, -14f), Facing: 0f),
+        var run = new Stage(landsBehind: landsBehind).Run(MeleeDpsA, stopAt: 15.2f, takeovers: new Takeover(14.0f, new Vector2(0f, -14f), Facing: 0f),
             probe: p =>
             {
-                if (p.Crossed(14.8f)) beforeHeLands = CruiseChaser(p).Placement();
-                if (p.Crossed(15.0f)) landed = CruiseChaser(p).Placement();
+                if (p.Crossed(14.1f)) beforeHeLands = CruiseChaser(p).Placement();
+                if (p.Crossed(14.4f)) landed = CruiseChaser(p).Placement();
             });
 
         Assert.That(run.Passed, run.ToString);
@@ -254,10 +256,10 @@ public class TeaP1LimitCutScenarioTests
     // Once he has landed, the number steps 3 y back and inward: 0.9 y ahead of him and 2.1 y to the side, outside a
     // cone kept on the facing he landed with. Turned after it, the cleave runs on across the arena through others,
     // so the run stops before any of them falls.
-    [TestCase(1, 14.9f, 15.4f)]
-    [TestCase(3, 19.6f, 20.1f)]
-    [TestCase(5, 24.3f, 24.8f)]
-    [TestCase(7, 28.9f, 29.4f)]
+    [TestCase(1, 14.23f, 15.4f)]
+    [TestCase(3, 18.88f, 20.05f)]
+    [TestCase(5, 23.53f, 24.7f)]
+    [TestCase(7, 28.18f, 29.35f)]
     public void ANumberCannotStepOutOfItsOwnCleave(int number, float landsAt, float cleavedAt)
     {
         var seat = Stage.Numbers[number - 1];
@@ -269,7 +271,7 @@ public class TeaP1LimitCutScenarioTests
         var run = stage.Run(seat, stopAt: cleavedAt + 0.9f, takeovers: new Takeover(landsAt + 0.1f, steppedTo), probe: p =>
         {
             if (p.Crossed(cleavedAt - 0.02f)) cleaving = CruiseChaser(p).Placement();
-            if (p.Crossed(cleavedAt + 0.8f)) cleaved = p.Member(seat)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
+            if (p.Crossed(cleavedAt + 0.8f)) cleaved = p.Member(seat)!.HasStatus(P1StatusId.PhysicalVulnerabilityUp);
         });
 
         var behind = odd - 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd));
@@ -283,9 +285,9 @@ public class TeaP1LimitCutScenarioTests
     // his centre, behind the cone that turn aimed. The cleave turned after it runs back through the rest of its
     // group, so the run stops before any of them falls.
     [TestCase(1, 15.4f)]
-    [TestCase(3, 20.1f)]
-    [TestCase(5, 24.8f)]
-    [TestCase(7, 29.4f)]
+    [TestCase(3, 20.05f)]
+    [TestCase(5, 24.7f)]
+    [TestCase(7, 29.35f)]
     public void ANumberCannotStepBehindHimOutOfItsOwnCleave(int number, float cleavedAt)
     {
         var stage = new Stage { HumanUntil = cleavedAt - 0.05f };
@@ -298,9 +300,9 @@ public class TeaP1LimitCutScenarioTests
 
     // The same for the charge, which he aims at the even number 0.1 s before it.
     [TestCase(2, 16.9f)]
-    [TestCase(4, 21.6f)]
-    [TestCase(6, 26.3f)]
-    [TestCase(8, 30.9f)]
+    [TestCase(4, 21.55f)]
+    [TestCase(6, 26.2f)]
+    [TestCase(8, 30.85f)]
     public void ANumberCannotStepBehindHimOutOfItsOwnCharge(int number, float chargedAt)
     {
         var stage = new Stage { HumanUntil = chargedAt - 0.05f };
@@ -310,7 +312,8 @@ public class TeaP1LimitCutScenarioTests
         AssertHitBehindHim(stage, number, chargedAt, behind, turnedTo: Vector2.Normalize(stage.HitSpot(number) - behind));
     }
 
-    // `number` steps 0.3 y behind Cruise Chaser, who stands on `standsAt` turned along `turnedTo`, 0.05 s before its hit.
+    // `number` steps 0.3 y behind Cruise Chaser, who stands on `standsAt` turned along `turnedTo`, 0.05 s before its hit,
+    // with its Arm's Length up: hit from behind, the charge would throw it out of the arena.
     private static void AssertHitBehindHim(Stage stage, int number, float hitAt, Vector2 standsAt, Vector2 turnedTo)
     {
         var seat = Stage.Numbers[number - 1];
@@ -320,9 +323,10 @@ public class TeaP1LimitCutScenarioTests
         Placement? hitting = null;
         var run = stage.Run(seat, stopAt: hitAt + 0.9f, takeovers: new Takeover(hitAt - 0.05f, steppedTo), probe: p =>
         {
+            if (p.Crossed(hitAt - 2f)) p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.ArmsLength, 0));
             if (p.Crossed(hitAt - 0.07f)) before = CruiseChaser(p).Placement();
             if (p.Crossed(hitAt)) hitting = CruiseChaser(p).Placement();
-            if (p.Crossed(hitAt + 0.8f)) hit = p.Member(seat)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
+            if (p.Crossed(hitAt + 0.8f)) hit = p.Member(seat)!.HasStatus(P1StatusId.PhysicalVulnerabilityUp);
         });
 
         Assert.That(run.Passed, run.ToString);
@@ -349,10 +353,10 @@ public class TeaP1LimitCutScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(warpIns, Is.EqualTo(new[] { 14.9f, 19.6f, 24.3f, 28.9f }).Within(0.05f));
+        Assert.That(warpIns, Is.EqualTo(new[] { 14.23f, 18.88f, 23.53f, 28.18f }).Within(0.03f));
     }
 
-    // M1 dies to the north blaster at 13.4, 1.5 s before its landing; the run freezes at 18.4.
+    // M1 dies to the north blaster at 13.4, 0.8 s before its landing; the run freezes at 18.4.
     [Test]
     public void ADeadNumbersCleaveGoesToSomeoneLiving()
     {
@@ -360,7 +364,7 @@ public class TeaP1LimitCutScenarioTests
         var cleaves = 0;
         var run = new Stage().Run(MeleeDpsA, takeovers: new Takeover(12.0f, new Vector2(0f, -14f)), probe: p =>
         {
-            if (p.Crossed(15.0f))
+            if (p.Crossed(14.3f))
             {
                 var landed = CruiseChaser(p).Placement();
                 behindSomeoneLiving = PerRole.All.Except([MeleeDpsA]).Select(role => p.Member(role)!)
@@ -408,9 +412,9 @@ public class TeaP1LimitCutScenarioTests
         var landedBehind = new HashSet<PartyRole>();
         for (var seed = 1; seed <= 40; seed++)
         {
-            var run = new Stage { Seed = seed }.Run(player, stopAt: 15.2f, takeovers: onTheNorthBlaster, probe: p =>
+            var run = new Stage { Seed = seed }.Run(player, stopAt: 14.6f, takeovers: onTheNorthBlaster, probe: p =>
             {
-                if (!p.Crossed(15.0f)) return;
+                if (!p.Crossed(14.3f)) return;
                 var landed = CruiseChaser(p).Placement();
                 landedBehind.UnionWith(PerRole.All.Where(role => Vector3.Distance(landed.Position, p.Member(role)!.Placement().MoveForward(-3f).Position) < 0.01f));
             });
@@ -421,16 +425,16 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(landedBehind, Is.EquivalentTo(PerRole.All.Except([MeleeDpsA])));
     }
 
-    // M1 stands on the north-east blaster as it goes off at 14.6 and falls at 15.6. Until then it is still #1: Cruise
-    // Chaser lands behind it at 14.9 and cleaves it at 15.4.
+    // M1 stands on the north-east blaster, where Cruise Chaser lands behind it at 14.2. The blast goes off at 14.6 and
+    // M1 falls at 15.6: until then it is still #1, and he cleaves it at 15.4.
     [Test]
     public void ANumberABlastHasKilledDrawsItsOwnHitUntilItFalls()
     {
-        var onTheBlaster = new Vector2(10f, -10f);
+        var onTheBlaster = new Vector2(9.9f, -9.9f);
         Placement? landed = null;
         var mine = "";
         string[] cleaved = [];
-        var run = new Stage().Run(MeleeDpsA, takeovers: new Takeover(14.2f, onTheBlaster, Facing: MathF.PI / 2f), probe: p =>
+        var run = new Stage().Run(MeleeDpsA, takeovers: new Takeover(14.0f, onTheBlaster, Facing: MathF.PI / 2f), probe: p =>
         {
             if (p.Crossed(15.0f)) landed = CruiseChaser(p).Placement();
             if (!p.Crossed(15.5f)) return;
@@ -516,23 +520,23 @@ public class TeaP1LimitCutScenarioTests
     private static List<(float At, Vector2 Position, string[] Targets)> Sent(Stage stage, uint actionId)
         => Sent(stage, actionId, out _, readAt: 33f);
 
-    // A clean run's ActionEffects of `actionId`, at scenario-local spots.
-    private static List<(float At, Vector2 Position, string[] Targets)> Sent(Stage stage, uint actionId, out bool everyoneVulnerable, float readAt)
+    // A clean run's ActionEffects of `actionId`, at scenario-local spots, and who carries his vulnerability at `readAt`.
+    private static List<(float At, Vector2 Position, string[] Targets)> Sent(Stage stage, uint actionId, out List<PartyRole> stillVulnerable, float readAt)
     {
         var sent = new List<(float, Vector2, string[])>();
-        var vulnerable = false;
+        var vulnerable = new List<PartyRole>();
         var run = stage.Run(MainTank, probe: p =>
         {
             if (!p.Crossed(readAt)) return;
             var origin = TeaZone.Instance.Origin;
-            vulnerable = PerRole.All.All(role => p.Member(role)!.HasStatus(P1StatusId.CruiseChaserVulnerability));
+            vulnerable.AddRange(PerRole.All.Where(role => p.Member(role)!.HasStatus(P1StatusId.PhysicalVulnerabilityUp)));
             sent.AddRange(p.Fake.Timeline.Rows
                 .Where(row => row["kind"] == "ability" && row["id"] == $"{actionId}")
                 .Select(row => (Float(row["t"]), new Vector2(Float(row["x"]) - origin.X, Float(row["z"]) - origin.Z),
                                 row["targets"].Split(' ', StringSplitOptions.RemoveEmptyEntries))));
         });
         Assert.That(run.Passed, run.ToString);
-        everyoneVulnerable = vulnerable;
+        stillVulnerable = vulnerable;
         return sent;
     }
 

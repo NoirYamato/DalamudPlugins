@@ -87,7 +87,7 @@ public class TeaP1LivingLiquidPlanTests
         => Assert.That(Plan(seat, JobId.Warrior).ChatLines(ProteanOne)[0],
             Does.Contain("If each of you starts with the other's, keep it on your own spot: a tether's holder can't take the second"));
 
-    // No move of the strat's reaches a human, and the Living Liquid follows its tank from 4 y.
+    // No move of the strat's reaches a human, and the Living Liquid walks after a tank more than 7 y off.
     [Test]
     public void TheMainTankAloneIsToldToHaveTheLiquidOnTheMiddleForProteanTwo()
     {
@@ -97,9 +97,9 @@ public class TeaP1LivingLiquidPlanTests
         Assert.Multiple(() =>
         {
             Assert.That(whole, Has.Count.EqualTo(4));
-            Assert.That(whole[2], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
+            Assert.That(whole[2], Does.StartWith("Your Living Liquid: it stays put while you are within 7 y of it, and beyond that walks after you until it is 6 y from you, so fetching your tether can drag it off the middle. After Drainage lead it back: stand 6 y past the middle on the far side from it, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
             Assert.That(fromCascadeTwo, Has.Count.EqualTo(2));
-            Assert.That(fromCascadeTwo[0], Does.StartWith("Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
+            Assert.That(fromCascadeTwo[0], Does.StartWith("Your Living Liquid: it stays put while you are within 7 y of it, and beyond that walks after you until it is 6 y from you. Keep it on the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows"));
             Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(_ => true).Where(line => line.StartsWith("Your Living Liquid")), Is.Empty);
         });
     }
@@ -120,7 +120,7 @@ public class TeaP1LivingLiquidPlanTests
         });
     }
 
-    // The Living Liquid stops 4 y behind its tank and the Liquid Hand 2.1 y: two tanks that stop on the middle leave
+    // The Living Liquid stops 6 y behind its tank and the Liquid Hand 4 y: two tanks that stop on the middle leave
     // them 6.1 y apart, and a palm needs 5.1.
     [Test]
     public void EachTankIsToldToWalkOnThroughTheMiddleForTheLastHand()
@@ -130,12 +130,12 @@ public class TeaP1LivingLiquidPlanTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(mainTanks[1], Does.StartWith("Your last hand: hold the Living Liquid more than 12 y from the Liquid Hand until the Hand shows its palm")
-                .And.Contain("walk on through the middle until the Living Liquid stands on the Hand: it stops 4 y behind you"));
+            Assert.That(mainTanks[1], Does.StartWith("Your last hand: hold the Living Liquid more than 17 y from the Liquid Hand until the Hand shows its palm")
+                .And.Contain("walk on through the middle until the Living Liquid stands on the Hand: it stops 6 y behind you"));
             Assert.That(offTanks, Has.Count.EqualTo(2));
             Assert.That(offTanks[0], Does.StartWith("Your Drainage tether:"));
-            Assert.That(offTanks[1], Does.StartWith("Your Liquid Hand: it walks after you and stops 2.1 y behind you")
-                .And.Contain("hold it more than 12 y from the Living Liquid until it shows its palm")
+            Assert.That(offTanks[1], Does.StartWith("Your Liquid Hand: it stays put while you are within 5 y of it, and beyond that walks after you until it is 4 y from you")
+                .And.Contain("hold it more than 17 y from the Living Liquid until it shows its palm")
                 .And.Contain("walk on through the middle until it stands on the Living Liquid"));
             Assert.That(Plan(MainTank, JobId.Warrior).ChatLines(ProteanOne).Where(line => line.Contains("palm")), Is.Empty);
             Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(ProteanOne).Where(line => line.Contains("palm")), Is.Empty);

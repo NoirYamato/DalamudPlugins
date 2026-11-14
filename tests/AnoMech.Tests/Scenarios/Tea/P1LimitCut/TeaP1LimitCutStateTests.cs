@@ -63,12 +63,12 @@ public class TeaP1LimitCutStateTests
     public void TheFirstBearingIsTheFirstPairsEndInTheWestToNorthEastHalf(TeaP1FirstBlasters axis, float bearing)
         => Assert.That(Roll(1, new TeaP1LimitCutStateOverrides { FirstBlasters = axis }).FirstBearing, Is.EqualTo(bearing));
 
-    // Cardinal centres are 14 y out and diagonal ones on (+-10, +-10); each pair is 45 degrees clockwise of the last,
+    // Every centre is 14 y out; each pair is 45 degrees clockwise of the last,
     // and the fifth lands on the first's spots (x east, z south).
-    [TestCase(WestEast, new float[] { -14, 0, -10, -10, 0, -14, 10, -10 })]
-    [TestCase(NorthwestSoutheast, new float[] { -10, -10, 0, -14, 10, -10, 14, 0 })]
-    [TestCase(NorthSouth, new float[] { 0, -14, 10, -10, 14, 0, 10, 10 })]
-    [TestCase(NortheastSouthwest, new float[] { 10, -10, 14, 0, 10, 10, 0, 14 })]
+    [TestCase(WestEast, new float[] { -14, 0, -9.8995f, -9.8995f, 0, -14, 9.8995f, -9.8995f })]
+    [TestCase(NorthwestSoutheast, new float[] { -9.8995f, -9.8995f, 0, -14, 9.8995f, -9.8995f, 14, 0 })]
+    [TestCase(NorthSouth, new float[] { 0, -14, 9.8995f, -9.8995f, 14, 0, 9.8995f, 9.8995f })]
+    [TestCase(NortheastSouthwest, new float[] { 9.8995f, -9.8995f, 14, 0, 9.8995f, 9.8995f, 0, 14 })]
     public void EachPairBlowsOppositeSpotsFortyFiveDegreesClockwiseOfTheLast(TeaP1FirstBlasters axis, float[] firstFour)
     {
         var state = Roll(1, new TeaP1LimitCutStateOverrides { FirstBlasters = axis });

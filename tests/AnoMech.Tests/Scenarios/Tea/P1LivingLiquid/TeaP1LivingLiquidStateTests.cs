@@ -286,14 +286,14 @@ public class TeaP1LivingLiquidStateTests
     // -- The tornadoes' frame --
 
     // x east, z south: the open quarter, then the west, middle and east tornadoes.
-    [TestCase(TeaP1OpenQuarter.North, new float[] { -14.5f, 0, 0, 14.5f, 14.5f, 0 })]
-    [TestCase(TeaP1OpenQuarter.Northeast, new float[] { -10.253f, -10.253f, -10.253f, 10.253f, 10.253f, 10.253f })]
-    [TestCase(TeaP1OpenQuarter.East, new float[] { 0, -14.5f, -14.5f, 0, 0, 14.5f })]
-    [TestCase(TeaP1OpenQuarter.Southeast, new float[] { 10.253f, -10.253f, -10.253f, -10.253f, -10.253f, 10.253f })]
-    [TestCase(TeaP1OpenQuarter.South, new float[] { 14.5f, 0, 0, -14.5f, -14.5f, 0 })]
-    [TestCase(TeaP1OpenQuarter.Southwest, new float[] { 10.253f, 10.253f, 10.253f, -10.253f, -10.253f, -10.253f })]
-    [TestCase(TeaP1OpenQuarter.West, new float[] { 0, 14.5f, 14.5f, 0, 0, -14.5f })]
-    [TestCase(TeaP1OpenQuarter.Northwest, new float[] { -10.253f, 10.253f, 10.253f, 10.253f, 10.253f, -10.253f })]
+    [TestCase(TeaP1OpenQuarter.North, new float[] { -15f, 0, 0, 15f, 15f, 0 })]
+    [TestCase(TeaP1OpenQuarter.Northeast, new float[] { -10.607f, -10.607f, -10.607f, 10.607f, 10.607f, 10.607f })]
+    [TestCase(TeaP1OpenQuarter.East, new float[] { 0, -15f, -15f, 0, 0, 15f })]
+    [TestCase(TeaP1OpenQuarter.Southeast, new float[] { 10.607f, -10.607f, -10.607f, -10.607f, -10.607f, 10.607f })]
+    [TestCase(TeaP1OpenQuarter.South, new float[] { 15f, 0, 0, -15f, -15f, 0 })]
+    [TestCase(TeaP1OpenQuarter.Southwest, new float[] { 10.607f, 10.607f, 10.607f, -10.607f, -10.607f, -10.607f })]
+    [TestCase(TeaP1OpenQuarter.West, new float[] { 0, 15f, 15f, 0, 0, -15f })]
+    [TestCase(TeaP1OpenQuarter.Northwest, new float[] { -10.607f, 10.607f, 10.607f, 10.607f, 10.607f, -10.607f })]
     public void TheThreeTornadoesStandAQuarterTurnApartLeavingTheOpenQuarter(TeaP1OpenQuarter open, float[] westMiddleEast)
     {
         var layout = new TeaP1TornadoLayout(open);
@@ -321,8 +321,8 @@ public class TeaP1LivingLiquidStateTests
         Assert.Multiple(() =>
         {
             Assert.That(Vector2.Distance(layout.ToArena(new Vector2(0f, -1f)), Flat(layout.At(0f, 1f))), Is.LessThan(0.001f), "relative north");
-            Assert.That(Vector2.Distance(layout.ToArena(new Vector2(-14.5f, 0f)), Flat(layout.Centre(TeaP1Tornado.West))), Is.LessThan(0.001f), "relative west");
-            Assert.That(Vector2.Distance(layout.ToArena(new Vector2(14.5f, 0f)), Flat(layout.Centre(TeaP1Tornado.East))), Is.LessThan(0.001f), "relative east");
+            Assert.That(Vector2.Distance(layout.ToArena(new Vector2(-15f, 0f)), Flat(layout.Centre(TeaP1Tornado.West))), Is.LessThan(0.001f), "relative west");
+            Assert.That(Vector2.Distance(layout.ToArena(new Vector2(15f, 0f)), Flat(layout.Centre(TeaP1Tornado.East))), Is.LessThan(0.001f), "relative east");
             Assert.That(layout.Radians, Is.EqualTo((int)open * MathF.PI / 4f).Within(0.0001f));
             for (var i = 0; i < 50; i++)
             {
@@ -348,11 +348,11 @@ public class TeaP1LivingLiquidStateTests
         {
             Assert.That(whole, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
             Assert.That((whole.Plays(Protean1), whole.Plays(Cascade2)), Is.EqualTo((true, true)));
-            Assert.That((whole.Start(Protean1), whole.Start(Cascade2)), Is.EqualTo((0f, 23.8f)).Within(0.001f));
+            Assert.That((whole.Start(Protean1), whole.Start(Cascade2)), Is.EqualTo((0f, 23.9f)).Within(0.001f));
             Assert.That((later.Plays(Protean1), later.Plays(Cascade2)), Is.EqualTo((false, true)));
             Assert.That(later.Start(Cascade2), Is.Zero);
             Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Protean1 }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
-            Assert.That((TeaP1LivingLiquidParts.FightClock(Protean1), TeaP1LivingLiquidParts.FightClock(Cascade2)), Is.EqualTo((62f, 85.8f)));
+            Assert.That((TeaP1LivingLiquidParts.FightClock(Protean1), TeaP1LivingLiquidParts.FightClock(Cascade2)), Is.EqualTo((60.9f, 84.8f)));
         });
     }
 

@@ -34,7 +34,7 @@ public sealed class TeaP1LivingLiquidState
     // The second pair: the two tornadoes that cast Pressurize, each with the boss whose spot its Embolus heads for.
     public IReadOnlyList<TeaP1EmbolusRoll> Emboli { get; }
 
-    // UNVERIFIED (P1Rules.EmbolusSpeed); headless runs also play faster ones.
+    // P1Rules.EmbolusSpeed; headless runs also play faster ones.
     internal float EmbolusSpeed { get; }
 
     // What the strat asks of the human's seat, from the seats' jobs.

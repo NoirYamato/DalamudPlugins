@@ -23,12 +23,14 @@ public class TeaP1LivingLiquidActionsTests
     private static readonly TimelineRunOptions Bots = new() { Phase = TeaZone.P1 };
     private static readonly TimelineRunOptions HumanMainTank = Bots with { HumanPlayer = true };
 
-    // 30 degrees wide and 40 y long, from the caster's own spot, every row of it: the sheet gives the two unseen
-    // helper rows no cone, and unshaped each would catch everyone within 40 y. The caster stands on the north rim.
+    // 30 degrees wide, from the caster's own spot, every row of it: the sheet gives the two unseen helper rows no cone,
+    // and unshaped each would catch everyone within 40 y. Its 40 y reach from the north rim, where the caster stands,
+    // to the south one. Whoever the Liquid's own untelegraphed cone hits dies of it.
     [TestCaseSource(nameof(EveryWave))]
-    public void AProteanWaveIsAThirtyDegreeConeFortyYalmsLong(uint actionId)
+    public void AProteanWaveIsAThirtyDegreeConeFromRimToRim(uint actionId)
     {
         var from = new Vector2(0f, -19.5f);
+        PartyRole[] inTheCone = [MainTank, RegenHealer, MeleeDpsA, CasterDps];
         var run = Cast(new Placement(new Vector3(from.X, 0f, from.Y), 0f), (world, liquid, presses) =>
         {
             world.Events.Add(1f, () => TimelineRun.Place(world, new Dictionary<PartyRole, Vector2>
@@ -38,15 +40,16 @@ public class TeaP1LivingLiquidActionsTests
                 [RegenHealer] = from + OffAxis(-14f, 30f),
                 [ShieldHealer] = from + OffAxis(-16f, 30f),
                 [MeleeDpsA] = from + new Vector2(0f, 39f),
-                [MeleeDpsB] = from + new Vector2(0f, 41f),
-                [PhysRangedDps] = from + OffAxis(90f, 5f),
+                [MeleeDpsB] = from + OffAxis(-90f, 3f),
+                [PhysRangedDps] = from + OffAxis(90f, 3f),
                 [CasterDps] = from + new Vector2(0f, 0.5f),
             }));
             world.Events.Add(2f, () => liquid.Cast(Wave(actionId, world, presses)));
         }, out var hit);
 
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(hit(actionId).Single(), Is.EquivalentTo(new[] { MainTank, RegenHealer, MeleeDpsA, CasterDps }));
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(actionId == P1ActionId.ProteanWaveStraightAhead ? inTheCone : []), run.ToString);
+        Assert.That(hit(actionId).Single(), Is.EquivalentTo(inTheCone));
     }
 
     // A telegraphed wave is cast at nobody, along its caster's facing: turned to the main tank as the cast starts, it
@@ -77,12 +80,32 @@ public class TeaP1LivingLiquidActionsTests
         var run = Cast((world, liquid, _) =>
         {
             world.Events.Add(1f, () => EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f))));
-            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
             world.Events.Add(2.5f, () => carries = world.Party.Get(MainTank)!.HasStatus(P1StatusId.WaterResistanceDown));
         }, out _);
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(carries, "the main tank carries Water Resistance Down");
+    }
+
+    // The Living Liquid's own cone of an untelegraphed set kills on its own; the off tank beside the main tank lives
+    // through it under its invulnerability.
+    [Test]
+    public void TheConeStraightAheadOfAnUnseenSetKillsWhoeverItHits()
+    {
+        var run = Cast((world, liquid, _) =>
+        {
+            world.Events.Add(1f, () =>
+            {
+                EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f)), (OffTank, new Vector2(0.5f, 6f)));
+                world.Party.Get(OffTank)!.AddStatus(P1StatusId.Invulnerabilities[0], 10f);
+            });
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
+        }, out var hit);
+
+        Assert.That(hit(P1ActionId.ProteanWaveStraightAhead).Single(), Is.EquivalentTo(new[] { MainTank, OffTank }));
+        Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (MainTank, (uint?)P1ActionId.ProteanWaveStraightAhead) }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1Actions.StoodAheadOfTheLiquid));
     }
 
     private static IEnumerable<TestCaseData> EveryWave()
@@ -105,7 +128,7 @@ public class TeaP1LivingLiquidActionsTests
         _ => TeaP1Actions.TornadoWaveUnseen,
     };
 
-    // The first wave is the unseen one straight ahead at 2.0; whichever follows it decides 4 s after it.
+    // The first wave is an unseen one at 2.0; whichever follows it decides 3.5 s after it.
     [TestCaseSource(nameof(EveryWave))]
     public void AnyWaveOnACarrierKills(uint second)
     {
@@ -113,24 +136,25 @@ public class TeaP1LivingLiquidActionsTests
         {
             var wave = Wave(second, world, presses);
             world.Events.Add(1f, () => EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f))));
-            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
-            world.Events.Add(6f - wave.ResolvesAfter(), () => liquid.Cast(wave));
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
+            world.Events.Add(5.5f - wave.ResolvesAfter(), () => liquid.Cast(wave));
         }, out _);
 
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EqualTo(new[] { (MainTank, (uint?)second) }), run.ToString);
-        Assert.That(run.Deaths[0].Time, Is.EqualTo(7f).Within(0.05f));
-        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1Actions.SecondWave).And.Contain("had vuln up debuff"));
+        Assert.That(run.Deaths[0].Time, Is.EqualTo(6.5f).Within(0.05f));
+        if (second == P1ActionId.ProteanWaveStraightAhead) Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1Actions.StoodAheadOfTheLiquid));
+        else Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1Actions.SecondWave).And.Contain("had vuln up debuff"));
     }
 
-    [TestCase(4.5f, true)]
-    [TestCase(5.5f, false)]
-    public void WaterResistanceDownLastsFiveSeconds(float secondWaveAfter, bool kills)
+    [TestCase(3.5f, true)]
+    [TestCase(4.5f, false)]
+    public void WaterResistanceDownLastsFourSeconds(float secondWaveAfter, bool kills)
     {
         var run = Cast((world, liquid, _) =>
         {
             world.Events.Add(1f, () => EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f))));
-            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
-            world.Events.Add(2f + secondWaveAfter, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
+            world.Events.Add(2f + secondWaveAfter, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
         }, out _);
 
         Assert.That(run.Failure, Is.Null, run.ToString);
@@ -147,7 +171,7 @@ public class TeaP1LivingLiquidActionsTests
             world.Events.Add(1f, () => EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f))));
             world.Events.Add(2f, () =>
             {
-                liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead);
+                liquid.Cast(TeaP1Actions.TornadoWaveUnseen);
                 helper.Cast(TeaP1Actions.ProteanWaveAtTheClosest);
             });
         }, out _);
@@ -169,8 +193,8 @@ public class TeaP1LivingLiquidActionsTests
                 EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 5f)), (OffTank, new Vector2(0.5f, 6f)));
                 world.Party.Get(MainTank)!.AddStatus(invulnerability, 10f);
             });
-            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
-            world.Events.Add(3f, () => liquid.Cast(TeaP1Actions.ProteanWaveStraightAhead));
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
+            world.Events.Add(3f, () => liquid.Cast(TeaP1Actions.ProteanWaveAtTheClosest));
         }, out _);
 
         Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { OffTank }), run.ToString);
@@ -182,7 +206,6 @@ public class TeaP1LivingLiquidActionsTests
     [TestCase(P1ActionId.ProteanWaveFromTheLiquid, 5f, 15f, TestName = "{m}(the Liquid's own, 10 y)")]
     [TestCase(P1ActionId.ProteanWaveAtAPlayer, 5f, 15f, TestName = "{m}(at a player, 10 y)")]
     [TestCase(P1ActionId.TornadoWave, 5f, 15f, TestName = "{m}(a tornado's, 10 y)")]
-    [TestCase(P1ActionId.ProteanWaveFromTheLiquid, 14f, 20f, TestName = "{m}(to the rim)")]
     public void ATelegraphedWaveThrowsAHumanAndNoBot(uint actionId, float atZ, float landsZ)
     {
         var (human, bot) = ThrownBy(actionId, atZ, press: null);
@@ -218,22 +241,18 @@ public class TeaP1LivingLiquidActionsTests
         });
     }
 
-    // Hit 14 y out, the human walks 3 y farther before the wave goes out: the rim stops it from where it stands then.
+    // Hit 14 y out, with the rim 6 y on: the wave throws 10, and the arena has no wall.
     [Test]
-    public void TheRimStopsAThrownHumanFromWhereItStandsAsTheWaveGoesOut()
+    public void AHumanAWaveThrowsPastTheRimDies()
     {
-        Vector2? ends = null;
         var run = Cast((world, liquid, presses) =>
         {
-            var wave = TeaP1Actions.ProteanWaveFromTheLiquid(world, presses);
             world.Events.Add(1f, () => EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(0f, 14f))));
-            world.Events.Add(2f, () => liquid.Cast(wave));
-            world.Events.Add(2f + wave.ResolvesAfter() + 0.15f, () => TimelineRun.Place(world, MainTank, 0f, 17f));
-            world.Events.Add(3f + wave.ReleasesAfter(), () => ends = Flat(world.Party.Get(MainTank)!.Position));
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.ProteanWaveFromTheLiquid(world, presses)));
         }, out _, HumanMainTank);
 
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(Vector2.Distance(ends!.Value, new Vector2(0f, 20f)), Is.LessThan(0.05f), $"thrown to {ends}");
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaZone.WentPastTheRim));
     }
 
     // The anti-knockback counts as the bar ends, with the hit.
@@ -264,7 +283,6 @@ public class TeaP1LivingLiquidActionsTests
         Assert.That(Vector2.Distance(human, new Vector2(0f, 5f)), Is.LessThan(0.05f), $"the human at {human}");
     }
 
-    [TestCase(P1ActionId.ProteanWaveStraightAhead)]
     [TestCase(P1ActionId.ProteanWaveAtTheClosest)]
     [TestCase(P1ActionId.TornadoWaveUnseen)]
     public void AnUnseenWaveThrowsNobody(uint actionId)

@@ -104,10 +104,15 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
     }
 
     // It waits for the bar where the start put it, south-east of the Living Liquid, which faces it there: the
-    // Liquid's own wave and the one aimed at the tank go down one line, and its first-set bait, 3 degrees off that
-    // line, is inside both. The start's chat line asks the main tank to stand opposite the open quarter.
+    // Liquid's own wave goes down that line, and its first-set bait, 3 degrees off the line, is inside it. Thrown
+    // 10 y on along the Liquid's facing, it is in front of it as the first unseen set goes off, and that set's cone
+    // straight ahead kills it. The start's chat line asks the main tank to stand opposite the open quarter.
+    //
+    // Thrown out of its bait, it is one of the four farthest as that set goes off, not of the four closest: a Sluice
+    // drops under it, where M2 walks next, and its cone goes to a healer or a ranged, whose next wave is then the
+    // second set's. So the others it costs die of a Sluice or of a second wave, after it.
     [Test]
-    public void AHumanMainTankWhoNeverTurnsTheLiquidSouthIsCaughtByItsOwnTwoWaves([Values] TeaP1HumanPace pace)
+    public void AHumanMainTankWhoNeverTurnsTheLiquidSouthIsThrownDownItsFacingAndDiesInFrontOfIt([Values] TeaP1HumanPace pace)
     {
         var problems = new List<string>();
         foreach (var open in Layouts)
@@ -123,17 +128,20 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
             var context = $"{roll}, {Secs(late)}s late";
             if (human.Open1Read != roll.Open1) problems.Add($"{context}: the human read the open quarter as {human.Open1Read}");
             if (faces is not { } off || MathF.Abs(off) > 4f) problems.Add($"{context}: the Living Liquid faced {faces} degrees off south-east");
-            if (run.Failure is not null || run.Deaths.Count != 1
-                || run.Deaths[0] is not { Role: MainTank, ActionId: P1ActionId.ProteanWaveFromTheLiquid or P1ActionId.ProteanWaveAtAPlayer, Time: > 8.4f and < 8.6f }
-                || !run.Deaths[0].Cause.Contains(TeaP1Actions.SecondWave))
-                problems.Add($"{context}: the main tank alone did not die of a second telegraphed wave: {run}");
+            if (run.Failure is not null || run.Deaths.Count == 0
+                || run.Deaths[0] is not { Role: MainTank, ActionId: P1ActionId.ProteanWaveStraightAhead, Time: > 10.8f and < 11.0f }
+                || !run.Deaths[0].Cause.Contains(TeaP1Actions.StoodAheadOfTheLiquid))
+                problems.Add($"{context}: the main tank did not die first, of the first set's cone straight ahead: {run}");
+            else if (run.Deaths.Skip(1).Any(death => death.Role == MainTank || death.Time < 13f
+                                                     || !(death.ActionId == P1ActionId.Sluice || death.Cause.Contains(TeaP1Actions.SecondWave))))
+                problems.Add($"{context}: a death after the main tank's that is not of a Sluice or of a second wave: {run}");
         }
 
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
     }
 
-    // From the second set on it stands 7.4 y south-east of the middle, as the guides draw it: the Living Liquid, free
-    // again at 14.0, walks 3.4 y toward it, and the tank takes its tether from there.
+    // From the second set on it stands 7.4 y south-east of the middle, as the guides draw it, just past the 7 y the
+    // Living Liquid reaches: free again at 16.0, it walks 1.4 y toward it, and the tank takes its tether from there.
     [Test]
     public void AHumanMainTankAtTheEdgeOfItsReachDragsTheLiquidAndNobodyIsCaught([Values] TeaP1HumanPace pace)
     {
@@ -145,7 +153,7 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
             var play = new TeaP1LivingLiquidHumanPlay(MainTank, pace, late) { MaxMelee = true };
             var (run, human) = Human.Play(roll, play, 34);
             var faults = Faults(roll, human).ToList();
-            if (human.FarthestTheLiquidStoodOffTheMiddle < 3f) faults.Add($"the Living Liquid only went {human.FarthestTheLiquidStoodOffTheMiddle} y off the middle");
+            if (human.FarthestTheLiquidStoodOffTheMiddle < 1.2f) faults.Add($"the Living Liquid only went {human.FarthestTheLiquidStoodOffTheMiddle} y off the middle");
             runs.Add($"{roll}, {Secs(late)}s late", run, faults);
         }
 
@@ -197,7 +205,7 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
         {
             Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(TheSix), run.ToString);
             Assert.That(run.Deaths.Select(d => d.ActionId), Is.All.EqualTo((uint?)P1ActionId.Drainage), run.ToString);
-            Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(24.6f).Within(0.1f), run.ToString);
+            Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(24.7f).Within(0.1f), run.ToString);
             Assert.That(run.Deaths.Count(d => d.Cause.Contains(TeaP1LivingLiquid.NonTankHoldsATether)), Is.EqualTo(1), run.ToString);
             Assert.That(run.Deaths.Count(d => d.Cause.Contains(TeaP1LivingLiquid.InSomeoneElsesDrainage)), Is.EqualTo(5), run.ToString);
         });
@@ -275,8 +283,8 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
             var (run, human) = Human.Play(roll, play, 68, probe: p =>
             {
                 var fight = Stage.Fight(p);
-                if (p.Crossed(20f)) stood = Flat(p.Member(seat)!.Position);
-                if (stood is { } there && p.Time < 24.5f) strayed = MathF.Max(strayed, Vector2.Distance(there, Flat(p.Member(seat)!.Position)));
+                if (p.Crossed(17.4f)) stood = Flat(p.Member(seat)!.Position);
+                if (stood is { } there && p.Time < 24.6f) strayed = MathF.Max(strayed, Vector2.Distance(there, Flat(p.Member(seat)!.Position)));
                 if (Tanks.Any(tank => fight.DrainageTethersOut.Count(tether => Seat(fight.Holder(tether.Tether)) == tank) > 1)) aTankHeldTwo = true;
             });
             var faults = Faults(roll, human).ToList();
@@ -294,11 +302,12 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
 
     // -- The telegraphed waves' knockback --
 
-    // A healer or a ranged goes straight out to where its Sluice will drop and stands there through the telegraph: the
-    // one wave aimed at it goes down its pair's line. Without its anti-knockback it is thrown to the rim and walks
-    // back; either way its next wave is the second set's, 5.2 s on, and so is its pair's bot, caught in the same wave.
+    // A healer or a ranged goes straight out to where its Sluice will drop, 12 to 15 y from the Living Liquid, and
+    // stands there through the telegraph: the one wave aimed at it goes down its pair's line. With its anti-knockback
+    // up it stays, and its next wave is the second set's, 5.2 s on, as is its pair's bot's, caught in the same wave.
+    // Without, it is thrown 10 y on, out of the arena, and dies there alone.
     [Test]
-    public void AHealerOrARangedAloneInItsOwnTelegraphedWaveIsThrownUnlessItPresses(
+    public void AHealerOrARangedAloneInItsOwnTelegraphedWaveIsThrownOutOfTheArenaUnlessItPresses(
         [Values(RegenHealer, ShieldHealer, PhysRangedDps, CasterDps)] PartyRole seat, [Values] bool presses, [Values] TeaP1HumanPace pace)
     {
         var runs = new TeaP1HumanRuns();
@@ -313,12 +322,16 @@ public class TeaP1LivingLiquidProtean1LpduHumanTests
             {
                 if (p.Crossed(9f)) (carried, itsPairCarried) = (p.Member(seat)!.HasStatus(P1StatusId.WaterResistanceDown), p.Member(pair)!.HasStatus(P1StatusId.WaterResistanceDown));
             });
-            var faults = Faults(roll, human, thrown: !presses).ToList();
-            if (!carried) faults.Add("the human was not hit by its wave");
+            var faults = new List<string>();
+            if (human.Open1Read != roll.Open1) faults.Add($"the human read the open quarter as {human.Open1Read}");
+            if (presses) faults.AddRange(Faults(roll, human));
+            if (presses && !carried) faults.Add("the human was not hit by its wave");
             if (!itsPairCarried) faults.Add($"{pair} was not caught in the human's wave");
-            runs.Add($"{roll}, {Secs(late)}s late", run, faults);
+            if (!presses && (run.Deaths.Count != 1 || run.Deaths[0].Role != seat || !run.Deaths[0].Cause.Contains(TeaZone.WentPastTheRim)))
+                faults.Add("the human alone did not die past the rim");
+            runs.Add($"{roll}, {Secs(late)}s late", run, faults, mayLose: !presses);
         }
 
-        runs.AssertNoneLostBut();
+        runs.AssertNoneLostBut(presses ? 0 : runs.Runs);
     }
 }

@@ -22,7 +22,8 @@ namespace AnoMech.Tests;
 // The floors come from the strat's spots, not from what these runs measure: each is the least the spots give with
 // every bot anywhere in its jitter (0.3 y, or 0.15 y on a bait) and the Living Liquid up to half a yalm off the middle; less a
 // frame's walk (0.15 y, or the 1.5 degrees that is from a bait), which the debug-driven player's seat can stop short
-// by. A run that falls under one has a bot off its spot or late to it.
+// by. A run that falls under one has a bot off its spot or late to it. From Cascade 2 on the Liquid can stand up to a
+// yalm off the middle (the ceilings below): Protean 2's spots hang off it, and their floors were held with it there.
 public class TeaP1LivingLiquidLpduMarginTests
 {
     private static int Seeds => Math.Max(2, TestContext.Parameters.Get("MarginSeeds", 2));
@@ -55,10 +56,10 @@ public class TeaP1LivingLiquidLpduMarginTests
     private const string BaiterToItsPuddle = "Protean 2: a tornado's baiter to its puddle's edge as it is picked (y)";
     private const string C2Puddles = "Cascade 2: anyone to a puddle's edge (y)";
     private const string BetweenWaves = "A seat's two waves apart less Water Resistance Down (s)";
-    private const string ApartAtTheGlow = "The last hand: the bosses apart as it glows less a palm's 12 y (y)";
+    private const string ApartAtTheGlow = "The last hand: the bosses apart as it glows less the palm's line (y)";
     private const string TogetherAtTheSlam = "The last hand: a palm's 5.1 y less the bosses apart as it slams (y)";
     private const string EmbolusSpeed = "An Embolus: the speed from which it would touch a bot or a boss (y/s)";
-    private const string EmbolusClear = "An Embolus: the nearest bot or boss as played, less its 1 y (y)";
+    private const string EmbolusClear = "An Embolus: the nearest bot's or boss's hitbox as played, less its 1 y (y)";
 
     private const string FacingOffSouth = "Protean 1: the locked facing off south (deg)";
     private const string FacingOffNorth = "Protean 2: the locked facing off north (deg)";
@@ -91,29 +92,36 @@ public class TeaP1LivingLiquidLpduMarginTests
         (TornadoAim, 0.75f),
         (P2Set2Pick, 2.95f),
         (P2Set2Cones, 9.0f),
-        // The off tank, 1.7 s into its walk round the west tornado's water, is 15.5 degrees outside the middle
-        // tornado's wave at H2 if it hugs the 7.8 y. H2's jitter turns the wave 2 degrees, and a walker steers a little
-        // wider than it must. On its spot the off tank would be 2.9 outside.
+        // The off tank, 1.5 s into its walk round the west tornado's water, is outside the middle tornado's wave at
+        // H2, and on its spot would be 2.9 degrees outside. M1, on its spot east of the middle tornado, is 16 degrees
+        // outside the east tornado's wave at R1. A baiter's jitter turns its wave 2 degrees.
         (TornadoTelegraphs, 11.0f),
         (TornadoWavesPick, 1.0f),
-        (TornadoWavesCones, 35.4f),
+        // M2, north of the east tornado, is 30 degrees outside the middle tornado's wave at M1, less the 2 degrees
+        // M1's jitter turns it.
+        (TornadoWavesCones, 26.0f),
         (BaiterToItsPuddle, 0.35f),
         (C2Puddles, 0.1f),
-        // Set 1 at 23.3, the tornadoes' unseen waves at 29.3.
-        (BetweenWaves, 0.95f),
-        (ApartAtTheGlow, 10.3f),
+        // Set 1 at 23.25, the tornadoes' unseen waves at 29.25, and the debuff lasts 3.96 s.
+        (BetweenWaves, 1.99f),
+        // The tanks' spots leave the Liquid 9.7 y and the Hand 12.8 y or more from the middle, nearly opposite: 22.4 y
+        // apart at the least, less the 0.3 y each tank's jitter moves its boss.
+        (ApartAtTheGlow, 6.2f),
         (TogetherAtTheSlam, 4.0f),
     ];
 
     // The facing: a tank's 0.15 y jitter and a frame's walk, seen from the Liquid 3.3 y (south) or 3.9 y (north) off.
-    // The main tank leaves the Liquid where it stands when within 0.3 y of the middle at Cascade 2's 6.4.
+    // The main tank leaves the Liquid where it stands when within 0.7 y of the middle at Cascade 2's 6.4. Farther
+    // off, it leads it back by standing past the middle: 6 y past brings it onto the middle from 1.4 y and more, and
+    // from nearer the tank stands 7.4 y from it, the least that sets it off, which leaves it up to 0.7 y on the other
+    // side. Either way the tank's 0.15 y jitter and a frame's walk move it as much again.
     private static readonly (string Check, float AtMost)[] Ceilings =
     [
         (FacingOffSouth, 4.5f),
         (FacingOffNorth, 3.8f),
         (LiquidOffAtProteanOne, 0.5f),
-        (LiquidOffAtNinePointFive, 0.35f),
-        (LiquidOffAtProteanTwo, 0.4f),
+        (LiquidOffAtNinePointFive, 1.0f),
+        (LiquidOffAtProteanTwo, 1.0f),
         (RunInArrivesBy, 26.3f),
     ];
 
@@ -195,24 +203,24 @@ public class TeaP1LivingLiquidLpduMarginTests
                     margins.AtMost(FacingOffSouth, DegreesOff(fight, roll.Frame1.Facing(180f)), where);
                     margins.AtMost(LiquidOffAtProteanOne, Flat(fight.Position(TeaP1Boss.LivingLiquid)).Length(), where);
                 }
-                if (p.Time <= roll.P1(24.55f)) Puddles(p, fight, P1Puddles);
-                if (p.Crossed(roll.P1(24.55f))) Drainage(p, fight);
+                if (p.Time <= roll.P1(24.65f)) Puddles(p, fight, P1Puddles);
+                if (p.Crossed(roll.P1(24.65f))) Drainage(p, fight);
             }
             if (!roll.Plays(Cascade2)) return;
 
             ProteanTwo(p, fight);
-            if (p.Time >= roll.C2(5.9f)) Puddles(p, fight, C2Puddles);
+            if (p.Time >= roll.C2(7.3f)) Puddles(p, fight, C2Puddles);
             var liquid = Flat(fight.Position(TeaP1Boss.LivingLiquid));
-            if (p.Crossed(roll.C2(5.9f))) margins.AtMost(LiquidOffAtTheNewTornadoes, liquid.Length(), where);
+            if (p.Crossed(roll.C2(7.3f))) margins.AtMost(LiquidOffAtTheNewTornadoes, liquid.Length(), where);
             if (p.Crossed(roll.C2(9.5f))) margins.AtMost(LiquidOffAtNinePointFive, liquid.Length(), where);
-            if (p.Crossed(roll.C2(18.25f)))
+            if (p.Crossed(roll.C2(18.2f)))
             {
                 margins.AtMost(FacingOffNorth, DegreesOff(fight, roll.Frame2.Facing(0f)), where);
                 margins.AtMost(LiquidOffAtProteanTwo, liquid.Length(), where);
             }
             var apart = Vector2.Distance(liquid, Flat(fight.Position(TeaP1Boss.LiquidHand)));
             if (p.Crossed(roll.C2(33.2f))) margins.AtLeast(ApartAtTheGlow, apart - P1Rules.HandShowsAPalmBeyond, where);
-            if (p.Crossed(roll.C2(38.4f))) margins.AtLeast(TogetherAtTheSlam, P1Rules.PalmNeedsThemWithin - apart, where);
+            if (p.Crossed(roll.C2(38.25f))) margins.AtLeast(TogetherAtTheSlam, P1Rules.PalmNeedsThemWithin - apart, where);
         }
 
         private static float DegreesOff(TeaP1LivingLiquid fight, float facing) => MathF.Abs(Turn(fight.Liquid!.Rotation, facing)) * 180f / MathF.PI;
@@ -224,14 +232,14 @@ public class TeaP1LivingLiquidLpduMarginTests
 
         private void ProteanTwo(ScenarioProbe p, TeaP1LivingLiquid fight)
         {
-            Protean(p, fight, roll.C2(18.2f), roll.C2(23.3f), roll.C2(26.3f), P2Telegraph, P2Set1Pick, P2Set1Cones, P2Sluices, P2Set2Pick, P2Set2Cones);
+            Protean(p, fight, roll.C2(18.15f), roll.C2(23.25f), roll.C2(26.3f), P2Telegraph, P2Set1Pick, P2Set1Cones, P2Sluices, P2Set2Pick, P2Set2Cones);
 
             if (p.Crossed(roll.C2(24.2f))) cones[TornadoTelegraphs] = Tornadoes(p, AimedAt, TornadoAim);
             if (p.Crossed(roll.C2(24.2f + WaveDecidesAfter)) && cones.TryGetValue(TornadoTelegraphs, out var telegraphed))
                 foreach (var (seat, at) in Living(p))
                 foreach (var cone in telegraphed)
                     margins.AtLeast(TornadoTelegraphs, Outside(at, cone), $"{seat}, {where}");
-            if (p.Crossed(roll.C2(29.3f)) && Tornadoes(p, UnseenAt, TornadoWavesPick) is var unseen)
+            if (p.Crossed(roll.C2(29.25f)) && Tornadoes(p, UnseenAt, TornadoWavesPick) is var unseen)
                 foreach (var (seat, at) in Living(p))
                 foreach (var cone in unseen.Where(cone => cone.Baiter != seat))
                     margins.AtLeast(TornadoWavesCones, Outside(at, cone), $"{seat} in the wave at {cone.Baiter}, {where}");
@@ -399,13 +407,13 @@ public class TeaP1LivingLiquidLpduMarginTests
             float? onTheTanks = null;
             Play(roll, PerRole.All[(run + 3 * i) % 8], margins, (p, where) =>
             {
-                if (p.Time < 20f || p.Time > 24.59f) return;
+                if (p.Time < 17.5f || p.Time > 24.69f) return;
                 var fight = Stage.Fight(p);
                 var held = fight.DrainageTethersOut.All(tether => Seat(fight.Holder(tether.Tether)) is { } holder
                                                                  && (startsOn == StartsOn.TheTanksCrossed ? holder.IsTank() : holder.IsTank() && Own(holder, tethering) == tether.From));
                 if (!held) onTheTanks = null;
                 else onTheTanks ??= p.Time;
-                if (!p.Crossed(24.55f)) return;
+                if (!p.Crossed(24.65f)) return;
                 margins.AtMost(TethersOnTheTanksBy, onTheTanks ?? float.PositiveInfinity, where);
                 foreach (var tank in Tanks)
                     margins.AtMost(late && tank == OffTank ? LateOffTankOffItsSpot : TankOffItsSpot,
@@ -435,12 +443,14 @@ public class TeaP1LivingLiquidLpduMarginTests
              (pair.Second, firstAtTheLiquid ? TeaP1Boss.LiquidHand : TeaP1Boss.LivingLiquid),
          }).ToArray();
 
-    private const float EmbolusSpawnsAt = 33.3f + P1Duration.EmbolusAfterPressurize;
+    private const float EmbolusSpawnsAt = 33.2f + P1Duration.EmbolusAfterPressurize;
+    private const float EmbolusSetsOffAt = 33.2f + P1Duration.EmbolusSetsOffAfterPressurize;
     private const float TheLiquidFallsAt = 39.7f;
+    private const float PlayerHitbox = 0.5f;
 
-    // Each Embolus drifts from its tornado toward where its boss stood at 33.3, so the speed nobody has measured
-    // decides how far it gets before the Liquid falls at 39.7. From where everyone walks meanwhile, this works out the
-    // lowest speed at which each orb would have come within its 1 y of a bot or a boss.
+    // Each Embolus waits on its tornado and sets off through where its boss stood at 33.2 less than a second before
+    // the Liquid falls at 39.7. From where everyone walks meanwhile, this works out the lowest speed at which each orb
+    // would have come within its reach of a bot's or a boss's hitbox.
     [Test]
     public void TheEmboliReachNobodyUntilWellAboveTheirSpeed()
     {
@@ -456,19 +466,20 @@ public class TeaP1LivingLiquidLpduMarginTests
             Play(roll, PerRole.All[(run + i) % 8], margins, (p, where) =>
             {
                 var fight = Stage.Fight(p);
-                if (orbs is null && fight.Emboli.Count == emboli.Length)
-                    orbs = fight.Emboli.Select((orb, k) => (Flat(roll.Frame2.Centre(emboli[k].From)), Flat(orb.MoveDestination ?? orb.Position))).ToArray();
-                if (orbs is null || p.Time <= EmbolusSpawnsAt + 0.05f || p.Time > TheLiquidFallsAt) return;
-                var others = PerRole.All.Where(seat => p.Member(seat).IsAlive()).Select(seat => (Who: seat.ToString(), At: Flat(p.Member(seat)!.Position)))
-                    .Append(("the Living Liquid", Flat(fight.Position(TeaP1Boss.LivingLiquid))))
-                    .Append(("the Liquid Hand", Flat(fight.Position(TeaP1Boss.LiquidHand)))).ToList();
-                for (var k = 0; k < orbs.Length; k++)
+                if (fight.Emboli.Count < emboli.Length || p.Time <= EmbolusSpawnsAt + 0.05f || p.Time > TheLiquidFallsAt) return;
+                if (orbs is null && fight.Emboli.All(orb => orb.MoveDestination is not null))
+                    orbs = fight.Emboli.Select((orb, k) => (Flat(roll.Frame2.Centre(emboli[k].From)), Flat(orb.MoveDestination!.Value))).ToArray();
+                var others = PerRole.All.Where(seat => p.Member(seat).IsAlive())
+                    .Select(seat => (Who: seat.ToString(), At: Flat(p.Member(seat)!.Position), Reach: PlayerHitbox + P1Geometry.EmbolusRadius))
+                    .Append(("the Living Liquid", Flat(fight.Position(TeaP1Boss.LivingLiquid)), (fight.Liquid?.HitboxRadius ?? 0f) + P1Geometry.EmbolusRadius))
+                    .Append(("the Liquid Hand", Flat(fight.Position(TeaP1Boss.LiquidHand)), (fight.Hand?.HitboxRadius ?? 0f) + P1Geometry.EmbolusRadius)).ToList();
+                for (var k = 0; k < emboli.Length; k++)
                 {
                     var label = $"from the {emboli[k].From} tornado at the {emboli[k].AimsAt}'s spot";
-                    foreach (var (who, at) in others)
+                    foreach (var (who, at, reach) in others)
                     {
-                        margins.AtLeast(EmbolusClear, Vector2.Distance(Flat(fight.Emboli[k].Position), at) - P1Geometry.EmbolusContact, $"{who}, {label}, {where}");
-                        if (SpeedToTouch(orbs[k].From, orbs[k].To, at, p.Time - EmbolusSpawnsAt) is not { } speed) continue;
+                        margins.AtLeast(EmbolusClear, Vector2.Distance(Flat(fight.Emboli[k].Position), at) - reach, $"{who}, {label}, {where}");
+                        if (orbs is null || SpeedToTouch(orbs[k].From, orbs[k].To, at, reach, p.Time - EmbolusSetsOffAt) is not { } speed) continue;
                         margins.AtLeast(EmbolusSpeed, speed, $"{who} at {F(p.Time)}, {label}, {where}");
                         perRoll[label] = MathF.Min(perRoll.GetValueOrDefault(label, float.MaxValue), speed);
                     }
@@ -488,17 +499,17 @@ public class TeaP1LivingLiquidLpduMarginTests
         });
     }
 
-    // The lowest speed at which an orb that left `from` for `to` `seconds` ago, and stops there, is within its contact
-    // distance of `at`; null when it never is.
-    private static float? SpeedToTouch(Vector2 from, Vector2 to, Vector2 at, float seconds)
+    // The lowest speed at which an orb that left `from` for `to` `seconds` ago is within `reach` of `at`; null when it
+    // never is.
+    private static float? SpeedToTouch(Vector2 from, Vector2 to, Vector2 at, float reach, float seconds)
     {
         var path = to - from;
         var length = path.Length();
         if (length < 0.001f || seconds <= 0f) return null;
         var along = Vector2.Dot(at - from, path / length);
         var across = MathF.Abs((at.X - from.X) * path.Y - (at.Y - from.Y) * path.X) / length;
-        if (across > P1Geometry.EmbolusContact) return null;
-        var half = MathF.Sqrt(P1Geometry.EmbolusContact * P1Geometry.EmbolusContact - across * across);
+        if (across > reach) return null;
+        var half = MathF.Sqrt(reach * reach - across * across);
         if (along + half < 0f || along - half > length) return null;
         return MathF.Max(along - half, 0f) / seconds;
     }

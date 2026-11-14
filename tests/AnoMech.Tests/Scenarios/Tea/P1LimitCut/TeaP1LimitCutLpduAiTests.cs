@@ -32,11 +32,11 @@ public class TeaP1LimitCutLpduAiTests
 
     internal static readonly PartyRole[] ExampleNumbers = Stage.Numbers;
 
-    internal static readonly float[] HawkBlasterPairsAt = [8.0f, 10.2f, 12.4f, 14.6f, 19.0f, 21.2f, 23.5f, 25.7f];
-    internal static readonly float[] HawkBlasterMiddlesAt = [16.8f, 27.9f];
-    internal static readonly float[] AlphaSwordsAt = [15.4f, 20.1f, 24.8f, 29.4f];
+    internal static readonly float[] HawkBlasterPairsAt = [8.0f, 10.2f, 12.4f, 14.6f, 19.0f, 21.2f, 23.45f, 25.6f];
+    internal static readonly float[] HawkBlasterMiddlesAt = [16.8f, 27.8f];
+    internal static readonly float[] AlphaSwordsAt = [15.4f, 20.05f, 24.7f, 29.35f];
     internal static readonly float[] CruiseChaserLandsAt = AlphaSwordsAt.Select(at => at - P1Duration.CruiseChaserLandsBeforeAlphaSword).ToArray();
-    internal static readonly float[] SuperBlasstyChargesAt = [16.9f, 21.6f, 26.3f, 30.9f];
+    internal static readonly float[] SuperBlasstyChargesAt = [16.9f, 21.55f, 26.2f, 30.85f];
 
     internal const float WaitRadius = 1f, JKickRadius = 2.5f;
     private static readonly PartyRole[] ClockwiseFromNorthInTheMiddle =
@@ -84,17 +84,17 @@ public class TeaP1LimitCutLpduAiTests
         (14.5f, 1, InnerOdd, 2), (14.5f, 2, InnerEven, 2), (14.5f, 3, InnerOdd, 2), (14.5f, 4, InnerEven, 2),
         (15.4f, 1, InnerOdd, 2), (15.4f, 2, InnerEven, 2), (15.4f, 5, OuterOdd, 2), (15.4f, 6, OuterEven, 2),
         (16.9f, 2, InnerEven, 2), (16.9f, 5, OuterOdd, 2), (16.9f, 6, OuterEven, 2), (16.9f, 3, InnerOdd, 3), (16.9f, 4, InnerEven, 3),
-        (20.1f, 3, InnerOdd, 3), (20.1f, 4, InnerEven, 3), (20.1f, 7, OuterOdd, 3), (20.1f, 8, OuterEven, 3),
-        (21.6f, 4, InnerEven, 3), (21.6f, 8, InnerEven, 4),
-        (24.8f, 5, InnerOdd, 5), (24.8f, 6, InnerEven, 5), (24.8f, 1, OuterOdd, 5), (24.8f, 2, OuterEven, 5),
-        (26.3f, 6, InnerEven, 5), (26.3f, 1, OuterOdd, 5), (26.3f, 2, OuterEven, 5), (26.3f, 7, InnerOdd, 6), (26.3f, 8, InnerEven, 6),
-        (29.4f, 7, InnerOdd, 6), (29.4f, 8, InnerEven, 6), (29.4f, 3, OuterOdd, 6), (29.4f, 4, OuterEven, 6),
-        (29.4f, 1, OuterOdd, 6), (29.4f, 5, OuterOdd, 6), (29.4f, 2, OuterEven, 6), (29.4f, 6, OuterEven, 6),
-        (30.9f, 7, OuterOdd, 6), (30.9f, 8, InnerEven, 6), (30.9f, 3, OuterOdd, 6), (30.9f, 4, OuterEven, 6),
-        (30.9f, 1, OuterOdd, 6), (30.9f, 5, OuterOdd, 6), (30.9f, 2, OuterEven, 6), (30.9f, 6, OuterEven, 6),
+        (20.05f, 3, InnerOdd, 3), (20.05f, 4, InnerEven, 3), (20.05f, 7, OuterOdd, 3), (20.05f, 8, OuterEven, 3),
+        (21.55f, 4, InnerEven, 3), (21.55f, 8, InnerEven, 4),
+        (24.7f, 5, InnerOdd, 5), (24.7f, 6, InnerEven, 5), (24.7f, 1, OuterOdd, 5), (24.7f, 2, OuterEven, 5),
+        (26.2f, 6, InnerEven, 5), (26.2f, 1, OuterOdd, 5), (26.2f, 2, OuterEven, 5), (26.2f, 7, InnerOdd, 6), (26.2f, 8, InnerEven, 6),
+        (29.35f, 7, InnerOdd, 6), (29.35f, 8, InnerEven, 6), (29.35f, 3, OuterOdd, 6), (29.35f, 4, OuterEven, 6),
+        (29.35f, 1, OuterOdd, 6), (29.35f, 5, OuterOdd, 6), (29.35f, 2, OuterEven, 6), (29.35f, 6, OuterEven, 6),
+        (30.85f, 7, OuterOdd, 6), (30.85f, 8, InnerEven, 6), (30.85f, 3, OuterOdd, 6), (30.85f, 4, OuterEven, 6),
+        (30.85f, 1, OuterOdd, 6), (30.85f, 5, OuterOdd, 6), (30.85f, 2, OuterEven, 6), (30.85f, 6, OuterEven, 6),
     ];
 
-    private const float OnTheWaitRing = 7.9f, RunningOut = 10.0f, JKick = 34.1f, OnTheJKickRing = 34.6f;
+    private const float OnTheWaitRing = 7.9f, RunningOut = 10.0f, JKick = 34.05f, OnTheJKickRing = 34.6f;
 
     private static readonly float[] ReadAt =
         Stands.Select(s => s.At).Append(OnTheWaitRing).Append(JKick).Append(OnTheJKickRing).Distinct().Order().ToArray();

@@ -41,6 +41,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
     private SimCharacter? landedBehind;
     private SimCharacter? aimedAt;
 
+    private static readonly Vector3 BruteJusticeLandsAt = new(-6f, 0f, 0f);
+
     internal int BusyHelperPeak => helpers.PeakBusy;
 
     public void Run(SimWorld worldParam, int? selectedAi)
@@ -63,13 +65,13 @@ public sealed class TeaP1LimitCutScenario : IScenario
         for (var k = 0; k < state.Numbers.Count; k++)
         {
             var number = k + 1;
-            world.Events.Add(5.9f + k * P1Duration.NumberSpacing, () => ShowNumber(number));
+            world.Events.Add(5.95f + k * P1Duration.NumberSpacing, () => ShowNumber(number));
         }
         world.Events.Add(8.0f, () => HawkBlasterPair(0));
         world.Events.Add(10.2f, () => HawkBlasterPair(1));
         world.Events.Add(12.4f, () => HawkBlasterPair(2));
-        world.Events.Add(14.6f, () => HawkBlasterPair(3));
         world.Events.Add(15.4f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(1));
+        world.Events.Add(14.6f, () => HawkBlasterPair(3));
         // The release plays along the model's facing, which a turn only reaches a flush later, so each hit is turned
         // 0.1 s ahead for the model and again as it goes off for its area.
         world.Events.Add(15.3f, FaceWhomHeLandedBehind);
@@ -77,32 +79,32 @@ public sealed class TeaP1LimitCutScenario : IScenario
         world.Events.Add(16.8f, HawkBlasterInTheMiddle);
         world.Events.Add(16.8f, () => AimAt(2));
         world.Events.Add(16.9f, SuperBlasstyCharge);
+        world.Events.Add(20.05f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(3));
         world.Events.Add(19.0f, () => HawkBlasterPair(4));
-        world.Events.Add(20.1f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(3));
-        world.Events.Add(20.0f, FaceWhomHeLandedBehind);
-        world.Events.Add(20.1f, AlphaSword);
+        world.Events.Add(19.95f, FaceWhomHeLandedBehind);
+        world.Events.Add(20.05f, AlphaSword);
         world.Events.Add(21.2f, () => HawkBlasterPair(5));
-        world.Events.Add(21.5f, () => AimAt(4));
-        world.Events.Add(21.6f, SuperBlasstyCharge);
-        world.Events.Add(23.5f, () => HawkBlasterPair(6));
-        world.Events.Add(24.8f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(5));
-        world.Events.Add(24.7f, FaceWhomHeLandedBehind);
-        world.Events.Add(24.8f, AlphaSword);
-        world.Events.Add(25.7f, () => HawkBlasterPair(7));
-        world.Events.Add(26.2f, () => AimAt(6));
-        world.Events.Add(26.3f, SuperBlasstyCharge);
-        world.Events.Add(27.9f, HawkBlasterInTheMiddle);
-        world.Events.Add(29.4f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(7));
-        world.Events.Add(29.3f, FaceWhomHeLandedBehind);
-        world.Events.Add(29.4f, AlphaSword);
-        world.Events.Add(30.8f, () => AimAt(8));
-        world.Events.Add(30.9f, SuperBlasstyCharge);
-        world.Events.Add(34.1f, () => bruteJustice?.Cast(TeaP1Actions.JKick));
+        world.Events.Add(21.45f, () => AimAt(4));
+        world.Events.Add(21.55f, SuperBlasstyCharge);
+        world.Events.Add(23.45f, () => HawkBlasterPair(6));
+        world.Events.Add(24.7f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(5));
+        world.Events.Add(24.6f, FaceWhomHeLandedBehind);
+        world.Events.Add(24.7f, AlphaSword);
+        world.Events.Add(25.6f, () => HawkBlasterPair(7));
+        world.Events.Add(26.1f, () => AimAt(6));
+        world.Events.Add(26.2f, SuperBlasstyCharge);
+        world.Events.Add(27.8f, HawkBlasterInTheMiddle);
+        world.Events.Add(29.35f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(7));
+        world.Events.Add(29.25f, FaceWhomHeLandedBehind);
+        world.Events.Add(29.35f, AlphaSword);
+        world.Events.Add(30.75f, () => AimAt(8));
+        world.Events.Add(30.85f, SuperBlasstyCharge);
+        world.Events.Add(34.05f, () => bruteJustice?.Cast(TeaP1Actions.JKick));
     }
 
     // Casts on an actor spawned the same frame play no animation, so everything that casts exists from the start.
-    // Brute Justice casts J Kick himself in the fight. He isn't drawn here (where he stands is UNVERIFIED), so an
-    // unseen helper under his name casts it.
+    // Brute Justice casts J Kick himself in the fight, from where he lands. He isn't drawn here, so an unseen helper
+    // under his name casts it from there.
     private void SpawnActors()
     {
         cruiseChaser = world.SpawnEnemy(new EnemySpawnConfig(
@@ -113,7 +115,7 @@ public sealed class TeaP1LimitCutScenario : IScenario
             EnemyList: EnemyListMode.Never,
             Visibility: SpawnVisibility.HiddenUntilShown,
             Placement: new Placement(Vector3.Zero, 0f)));
-        bruteJustice = world.SpawnEnemy(Helper(P1BNpcNameId.BruteJustice));
+        bruteJustice = world.SpawnEnemy(Helper(P1BNpcNameId.BruteJustice) with { Placement = new Placement(BruteJusticeLandsAt, 0f) });
         helpers = new SpawnedHelperPool(world, Helper(P1BNpcNameId.CruiseChaser), P1Rules.LimitCutHelpers);
         helpers.Spawn();
     }
@@ -144,8 +146,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
     private void HawkBlasterAt(Vector3 centre) => helpers.Cast(TeaP1Actions.HawkBlaster, centre, new Placement(centre, 0f));
 
-    // UNVERIFIED: a dead number's hit goes to any living player, each as likely. Dead means fallen: a number a
-    // Hawk Blaster killed less than its damage delay ago still draws its own hit.
+    // A dead number's hit goes to another living player: UNVERIFIED that each is as likely. Dead means fallen: a
+    // number a Hawk Blaster killed less than its damage delay ago still draws its own hit.
     private SimCharacter? Target(int number)
     {
         if (party.Get(state.Numbers[number - 1]) is { } numbered && numbered.IsAlive()) return numbered;
@@ -153,9 +155,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
         return alive.Length == 0 ? null : state.PickRandom(alive);
     }
 
-    // Behind is the reverse of the way the player faces as he lands. In the client he stayed unseen at his later
-    // landings when only the first played a warp-in, so every landing plays one. UNVERIFIED: that this shows him at
-    // each.
+    // Behind is the reverse of the way the player faces as he lands. The fight plays the same timeline on him at
+    // every landing.
     private void LandBehind(int number)
     {
         landedBehind = null;
@@ -176,7 +177,7 @@ public sealed class TeaP1LimitCutScenario : IScenario
         cruiseChaser?.Cast(alphaSword);
     }
 
-    // UNVERIFIED: he charges from where he cleaved and stays there.
+    // He charges from where he cleaved and stays there.
     private void AimAt(int number)
     {
         aimedAt = landedBehind is null ? null : Target(number);

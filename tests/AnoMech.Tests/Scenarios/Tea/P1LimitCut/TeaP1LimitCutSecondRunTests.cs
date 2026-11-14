@@ -4,6 +4,7 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Scenarios.Tea;
 using AnoMech.Scenarios.Tea.P1LimitCut;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
@@ -31,10 +32,11 @@ public class TeaP1LimitCutSecondRunTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(pressing.WarpIns, Is.EqualTo(new[] { 14.9f }).Within(0.05f), "the first run's warp-in");
+            Assert.That(pressing.WarpIns, Is.EqualTo(new[] { 14.23f }).Within(0.03f), "the first run's warp-in");
+            Assert.That(pressing.ThrownOut, Is.False, "pressing, the human lives");
             Assert.That(Vector2.Distance(pressing.Stands, stage.HitSpot(2)), Is.LessThan(0.05f), $"pressing, the human stands at {pressing.Stands}");
-            Assert.That(thrown.WarpIns, Is.EqualTo(new[] { 14.9f }).Within(0.05f), "the second run's warp-in");
-            Assert.That(thrown.Stands.Length(), Is.EqualTo(P1Geometry.ArenaRadius).Within(0.05f), $"not pressing, the human stands at {thrown.Stands}");
+            Assert.That(thrown.WarpIns, Is.EqualTo(new[] { 14.23f }).Within(0.03f), "the second run's warp-in");
+            Assert.That(thrown.ThrownOut, Is.True, "not pressing, the human is thrown out of the arena");
         });
     }
 
@@ -71,8 +73,9 @@ public class TeaP1LimitCutSecondRunTests
             game.ZoneIn(scenario.Phase.Zone, SessionMode.Local);
         }
 
-        // Starts the scenario, over the run before it if that is still going, and plays it until ReadAt.
-        public (float[] WarpIns, Vector2 Stands) Play(float? pressAt)
+        // Starts the scenario, over the run before it if that is still going, and plays it until ReadAt or until the
+        // human dies past the rim.
+        public (float[] WarpIns, Vector2 Stands, bool ThrownOut) Play(float? pressAt)
         {
             var rowsBefore = fake.Timeline.Rows.Count;
             game.StartScenario(new RunScenarioParams(scenario, new LocalPartyProvider { RoleOverride = seat }, Stage.NoStrat, 0, ++runs));
@@ -80,7 +83,8 @@ public class TeaP1LimitCutSecondRunTests
             Assert.That(game.Status, Is.EqualTo(SessionStatus.Running), $"run {runs} started");
 
             var probe = new ScenarioProbe(game, fake, log, chat, () => []);
-            while (probe.Time < ReadAt)
+            var warningsBefore = log.Warnings.Count;
+            while (probe.Time < ReadAt && !ThrownOutSince(warningsBefore))
             {
                 Assert.That(game.Status, Is.EqualTo(SessionStatus.Running), $"run {runs} at {probe.Time:F2}: {string.Join("; ", log.Warnings)}");
                 fake.Frame(ScenarioRun.FrameSeconds, game.Tick);
@@ -97,8 +101,10 @@ public class TeaP1LimitCutSecondRunTests
                 .Select(row => float.Parse(row["t"], CultureInfo.InvariantCulture))
                 .ToArray();
             var position = probe.Member(seat)!.Position;
-            return (warpIns, new Vector2(position.X, position.Z));
+            return (warpIns, new Vector2(position.X, position.Z), ThrownOutSince(warningsBefore));
         }
+
+        private bool ThrownOutSince(int warningsBefore) => log.Warnings.Skip(warningsBefore).Any(warning => warning.Contains(TeaZone.WentPastTheRim));
 
         public void Dispose() => game.Dispose();
     }

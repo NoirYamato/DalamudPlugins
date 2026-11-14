@@ -162,9 +162,10 @@ public sealed class TeaP1Tornadoes(SimWorld world)
 //     fight.ProteanWave(4.8f);
 //     fight.HandOfPain(5.0f);
 //
-// No health is played: the raidwides are harmless and the Liquid falls on the timeline. Each boss follows and faces
-// the one target the scenario gives it. A mistake kills by the fight's own rule, with the reason. Every helper cast
-// goes through CastFromHelper.
+// No health is played: the raidwides are harmless and the Liquid falls on the timeline. Each boss faces the one target
+// the scenario gives it and walks after it once it is out of reach. A mistake kills by the fight's own rule, with the
+// reason. Every helper cast goes through CastFromHelper.
+
 public sealed class TeaP1LivingLiquid
 {
     internal const string NonTankHoldsATether =
@@ -183,7 +184,9 @@ public sealed class TeaP1LivingLiquid
     private const int WavesPerSet = 4;
     private const int Sluices = 4;
     private const int SplashCount = 6;
-    private const float SplashSpacing = 1.1f;
+    private const float SplashSpacing = 1.12f;
+    private const float StopsWithin = 0.05f;
+
 
     private readonly SimWorld world;
     private readonly TeaP1Presses presses;
@@ -196,6 +199,8 @@ public sealed class TeaP1LivingLiquid
     private readonly SimEnemy?[] bosses = new SimEnemy?[2];
     private readonly Vector3[] lastSeenAt = new Vector3[2];
     private readonly SimCharacter?[] targets = new SimCharacter?[2];
+    private readonly bool[] walksAfterItsTarget = new bool[2];
+
     private readonly List<(TeaP1Tornado From, SimTether Tether)> drainageTethers = [];
     private readonly List<SimEnemy> emboli = [];
     private bool embolusBurst;
@@ -225,7 +230,7 @@ public sealed class TeaP1LivingLiquid
 
     public TeaP1Tornadoes Tornadoes { get; }
 
-    // UNVERIFIED (P1Rules.EmbolusSpeed); headless runs also play faster ones.
+    // P1Rules.EmbolusSpeed; headless runs also play faster ones.
     internal float EmbolusSpeed { get; set; } = P1Rules.EmbolusSpeed;
 
     // The most helpers this run has kept busy at once; never more than P1Rules.LivingLiquidHelpers.
@@ -264,16 +269,25 @@ public sealed class TeaP1LivingLiquid
         => helpers.Cast(action, target, at ?? Liquid?.Placement() ?? default, animationVariation);
 
     // -- Targets --
-    // No enmity is played: each boss has the one target it was last given, follows it and faces it, and holds still
-    // while it casts.
+    // No enmity is played: each boss has the one target it was last given and faces it. It stands still while that
+    // target is in reach of its auto-attack, walks after it once it is not until it is well inside that reach again
+    // (P1Rules.BossSetsOffPastTheHitboxes, BossStopsPastTheHitboxes), and holds still while it casts.
     public SimCharacter? Target(TeaP1Boss boss) => targets[(int)boss];
 
     public void SetTarget(TeaP1Boss boss, SimCharacter target)
     {
         targets[(int)boss] = target;
         if (boss == TeaP1Boss.LivingLiquid && FacingLocked) return;
-        Chase(boss);
+        TurnTo(boss);
     }
+
+    // How far from its target's centre `boss` comes to rest after a walk, and how far it lets it stand before one.
+    public float StopsFromItsTarget(TeaP1Boss boss) => Reach(boss) + P1Rules.BossStopsPastTheHitboxes;
+
+    public float SetsOffBeyond(TeaP1Boss boss) => Reach(boss) + P1Rules.BossSetsOffPastTheHitboxes;
+
+    private float Reach(TeaP1Boss boss) => (bosses[(int)boss]?.HitboxRadius ?? 0f) + (targets[(int)boss]?.HitboxRadius ?? 0f);
+
 
     // The Living Liquid on the main tank's seat and the Liquid Hand on the off tank's.
     public void TakeTargets()
@@ -282,48 +296,82 @@ public sealed class TeaP1LivingLiquid
         if (world.Party.Get(PartyRole.OffTank) is { } offTank) SetTarget(TeaP1Boss.LiquidHand, offTank);
     }
 
-    private void Chase(TeaP1Boss boss)
+    private void TurnTo(TeaP1Boss boss)
     {
         if (bosses[(int)boss] is not { } enemy || !enemy.IsAlive() || targets[(int)boss] is not { } target || !target.IsAlive()) return;
         enemy.SetTarget(target, follow: false);
-        enemy.Follow(target, P1Rules.BossWalkSpeed);
+        enemy.KeepFacing(target);
     }
 
+    private void EachBossWalksAfterATargetOutOfReach()
+    {
+        foreach (var boss in Enum.GetValues<TeaP1Boss>())
+        {
+            var index = (int)boss;
+            if (bosses[index] is not { } enemy || !enemy.IsAlive()) continue;
+            var held = boss == TeaP1Boss.LivingLiquid && FacingLocked;
+            if (held || targets[index] is not { } target || !target.IsAlive())
+            {
+                if (walksAfterItsTarget[index]) enemy.StopMoving();
+                walksAfterItsTarget[index] = false;
+                continue;
+            }
+            var apart = Apart(enemy.Position, target.Position);
+            if (!walksAfterItsTarget[index] && apart <= SetsOffBeyond(boss)) continue;
+            var stop = StopsFromItsTarget(boss);
+            if (apart <= stop + StopsWithin)
+            {
+                if (walksAfterItsTarget[index]) enemy.StopMoving();
+                walksAfterItsTarget[index] = false;
+                continue;
+            }
+            walksAfterItsTarget[index] = true;
+            var from = Vector3.Normalize(new Vector3(enemy.Position.X - target.Position.X, 0f, enemy.Position.Z - target.Position.Z));
+            enemy.MoveTo(target.Position + from * stop, P1Rules.BossWalkSpeed);
+        }
+    }
+
+
     // -- The Living Liquid's facing through a Protean sequence --
-    // From its telegraphed cast's start until after its second untelegraphed set it keeps the facing it had, whatever
-    // its target does. The engine turns a walking enemy along its path, so it also stands still meanwhile (UNVERIFIED
-    // that the fight's does).
+    // From its telegraphed cast's start until P1Duration.LiquidHoldsItsFacingAfterTheLastWave after its second
+    // untelegraphed set it keeps the facing and the spot it had, whatever its target does.
     public bool FacingLocked { get; private set; }
 
     public float? LockedFacing => FacingLocked ? Liquid?.Rotation : null;
 
     private void LockTheFacing()
     {
-        Liquid?.Follow(null);
+        Liquid?.KeepFacing(null);
+        Liquid?.StopMoving();
+        walksAfterItsTarget[(int)TeaP1Boss.LivingLiquid] = false;
         FacingLocked = true;
     }
 
     private void ReleaseTheFacing()
     {
         FacingLocked = false;
-        Chase(TeaP1Boss.LivingLiquid);
+        TurnTo(TeaP1Boss.LivingLiquid);
     }
 
+
     // -- Protean Wave --
-    // The telegraphed cast: one cone straight ahead of the Living Liquid and one at every player, each aimed as the
-    // cast starts.
+    // The telegraphed cast: as many cones as players, each aimed as the cast starts. The Living Liquid's own goes
+    // straight ahead of it, where its target is taken to stand, and one goes at every other player.
     public void ProteanWave(float castAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(castAt, () =>
         {
             if (Liquid is not { } liquid || !liquid.IsAlive()) return;
             LockTheFacing();
             liquid.Cast(waveFromTheLiquid);
-            foreach (var member in world.Party.ActiveMembers().ToList())
+            var itsOwn = Target(TeaP1Boss.LivingLiquid);
+            foreach (var member in world.Party.ActiveMembers().Where(member => !ReferenceEquals(member, itsOwn)).ToList())
                 CastFromHelper(waveAtAPlayer, at: liquid.Placement().Face(member.Position));
         }, file, line);
 
-    // An untelegraphed set: one cone straight ahead and one at each of the four players closest to the Living Liquid.
-    // With `sluice`, a Sluice also starts under each of the four farthest from it.
+
+    // An untelegraphed set: one cone straight ahead, which kills whoever it hits, and one at each of the four players
+    // closest to the Living Liquid. With `sluice`, a Sluice also starts under each of the four farthest from it.
+
     public void UntelegraphedWaves(float at, bool sluice, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
@@ -370,13 +418,14 @@ public sealed class TeaP1LivingLiquid
     }
 
     // -- The raidwides --
-    // Cascade; `newTornadoes` appear as it lands.
+    // Cascade; `newTornadoes` appear P1Duration.TornadoesAppearAfterCascade after it lands.
     public void Cascade(float castAt, TeaP1TornadoLayout? newTornadoes, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(castAt, () => Liquid?.Cast(Actions.Cascade), file, line);
         if (newTornadoes is not null)
-            At(castAt + Actions.Cascade.ReleasesAfter(), () => Tornadoes.Appear(newTornadoes), file, line);
+            At(castAt + Actions.Cascade.ReleasesAfter() + P1Duration.TornadoesAppearAfterCascade, () => Tornadoes.Appear(newTornadoes), file, line);
     }
+
 
     public void Splashes(float firstAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
@@ -436,8 +485,9 @@ public sealed class TeaP1LivingLiquid
     // Drainage on each tether's holder, 6 y round it, and the tornadoes leave with their puddles. A non-tank seat
     // that holds a tether dies; so does anyone but the holder in a holder's circle, and a tank seat in two, short of
     // a tank's invulnerability. A human tank on a tank's job that takes its own needs a cooldown
-    // (P1Rules.DrainageMitigation). UNVERIFIED: that a tank lives through one unmitigated in the fight, and that one
-    // circle kills a tank seat that holds no tether.
+    // (P1Rules.DrainageMitigation). A non-tank that held one was seen to die of it. UNVERIFIED: that a tank lives
+    // through one unmitigated in the fight, and that one circle kills a tank seat that holds no tether.
+
     public void Drainage(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
@@ -479,7 +529,8 @@ public sealed class TeaP1LivingLiquid
     // -- Throttle --
     // Liquid Gaol: Throttle lands on the `throttled` seats P1Duration.ThrottleAfterLiquidGaol later, but for one under
     // the Warden's Paean's barrier, and kills whoever still carries it as it runs out; a cleanse on a carrier takes it
-    // off. UNVERIFIED which of the tornadoes cast it.
+    // off. All three tornadoes cast it.
+
     public void LiquidGaol(float at, IReadOnlyList<PartyRole> throttled, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         var landsAt = at + P1Duration.ThrottleAfterLiquidGaol;
@@ -499,7 +550,6 @@ public sealed class TeaP1LivingLiquid
 
     // -- The Liquid Hand's slam --
     // The form it shows from its glow to its slam: a palm when the bosses stand far apart as it glows, else a fist.
-    // UNVERIFIED: that the form is chosen at the moment it glows.
     public bool? HandShowsAPalm { get; private set; }
 
     public void TheHandGlows(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
@@ -511,19 +561,20 @@ public sealed class TeaP1LivingLiquid
             hand.SetModelState(palm ? P1ModelState.HandPalm : P1ModelState.HandFist);
         }, file, line);
 
-    // The slam has no cast bar: it goes out and is judged at once. A palm that finds the bosses apart, or a fist that
-    // finds them together, kills everyone. UNVERIFIED: which of the two actions is the palm's, and that the Hand
+    // The slam has no cast bar: it goes out and is judged at once. A palm, which slams with Hand of Parting, kills
+    // everyone when it finds the bosses apart, and a fist, with Hand of Prayer, when it finds them together. The Hand
     // drops its form as it lands.
     public void TheHandSlams(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
             if (Hand is not { } hand || !hand.IsAlive() || HandShowsAPalm is not { } palm) return;
-            hand.Cast(palm ? Actions.HandOfPrayer : Actions.HandOfParting);
+            hand.Cast(palm ? Actions.HandOfParting : Actions.HandOfPrayer);
             var apart = BossesApart();
             if (palm && apart > P1Rules.PalmNeedsThemWithin)
-                world.Party.WipeAllPlayers(P1ActionId.HandOfPrayer, PalmFoundThemApart);
+                world.Party.WipeAllPlayers(P1ActionId.HandOfParting, PalmFoundThemApart);
             else if (!palm && apart <= P1Rules.FistNeedsThemBeyond)
-                world.Party.WipeAllPlayers(P1ActionId.HandOfParting, FistFoundThemTogether);
+                world.Party.WipeAllPlayers(P1ActionId.HandOfPrayer, FistFoundThemTogether);
+
             hand.SetModelState(0);
             HandShowsAPalm = null;
         }, file, line);
@@ -531,9 +582,10 @@ public sealed class TeaP1LivingLiquid
     private float BossesApart() => Apart(Position(TeaP1Boss.LivingLiquid), Position(TeaP1Boss.LiquidHand));
 
     // -- Emboli --
-    // Pressurize from each roll's tornado; P1Duration.EmbolusAfterPressurize later an Embolus leaves it for where its
-    // boss stood at the cast. A player or a boss within P1Geometry.EmbolusContact of one bursts it, and everyone
-    // dies. UNVERIFIED: the speed, that each heads for one boss's spot and stops there, and the contact distance.
+    // Pressurize from each roll's tornado. An Embolus shows on it P1Duration.EmbolusAfterPressurize later, waits there
+    // and, P1Duration.EmbolusSetsOffAfterPressurize after the cast, sets off through where its boss stood at the cast
+    // and on out of the arena. A player or a boss whose hitbox comes within P1Geometry.EmbolusRadius of one bursts
+    // it, and everyone dies.
     public void Pressurize(float at, IReadOnlyList<TeaP1EmbolusRoll> rolls, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         var sent = new List<(Vector3 From, Vector3 To)>();
@@ -558,10 +610,26 @@ public sealed class TeaP1LivingLiquid
                         EnemyList: EnemyListMode.Never,
                         Visibility: SpawnVisibility.Visible,
                         Placement: new Placement(from, 0f).Face(to))) is not { } embolus) continue;
-                embolus.MoveTo(to, EmbolusSpeed);
                 emboli.Add(embolus);
+                var leavesAt = WhereItLeavesTheArena(from, to);
+                At(at + P1Duration.EmbolusSetsOffAfterPressurize, () =>
+                {
+                    if (embolus.IsActive && !fallen) embolus.MoveTo(leavesAt, EmbolusSpeed);
+                }, file, line);
             }
         }, file, line);
+    }
+
+    // Straight on from `from` through `through` to P1Geometry.EmbolusLeavesBeyond from the centre.
+    private static Vector3 WhereItLeavesTheArena(Vector3 from, Vector3 through)
+    {
+        var (start, along) = (new Vector2(from.X, from.Z), new Vector2(through.X - from.X, through.Z - from.Z));
+        if (along.LengthSquared() < 1e-6f) along = -start;
+        along = Vector2.Normalize(along);
+        var toward = Vector2.Dot(start, along);
+        var reach = -toward + MathF.Sqrt(MathF.Max(0f, toward * toward - start.LengthSquared() + P1Geometry.EmbolusLeavesBeyond * P1Geometry.EmbolusLeavesBeyond));
+        var leaves = start + along * reach;
+        return new Vector3(leaves.X, from.Y, leaves.Y);
     }
 
     public IReadOnlyList<SimEnemy> Emboli => emboli;
@@ -572,8 +640,13 @@ public sealed class TeaP1LivingLiquid
         foreach (var embolus in emboli.Where(embolus => embolus.IsActive))
         {
             var at = embolus.Position;
-            var touched = world.Party.ActiveMembers().Any(member => Apart(member.Position, at) <= P1Geometry.EmbolusContact)
-                          || bosses.Any(boss => boss.IsAlive() && Apart(boss!.Position, at) <= P1Geometry.EmbolusContact);
+            if (Apart(at, Vector3.Zero) >= P1Geometry.EmbolusLeavesBeyond - StopsWithin)
+            {
+                embolus.FadeOut();
+                continue;
+            }
+            var touched = world.Party.ActiveMembers().Any(member => Touches(member, at))
+                          || bosses.Any(boss => boss.IsAlive() && Touches(boss!, at));
             if (!touched) continue;
             embolusBurst = true;
             embolus.Cast(Actions.Outburst);
@@ -582,7 +655,10 @@ public sealed class TeaP1LivingLiquid
         }
     }
 
+    private static bool Touches(SimCharacter who, Vector3 embolus) => Apart(who.Position, embolus) <= who.HitboxRadius + P1Geometry.EmbolusRadius;
+
     // -- The end --
+
     // The Living Liquid falls on the timeline, which ends the run; the Liquid Hand leaves
     // P1Duration.HandLeavesAfterTheLiquid later. Nothing kills from here on, so the tornadoes and the Emboli go with
     // the Liquid (UNVERIFIED when the fight's leave).
@@ -610,6 +686,7 @@ public sealed class TeaP1LivingLiquid
         Position(TeaP1Boss.LivingLiquid);
         Position(TeaP1Boss.LiquidHand);
         if (fallen) return;
+        EachBossWalksAfterATargetOutOfReach();
         Tornadoes.KillWhoeverEntersAPuddle();
         BurstATouchedEmbolus();
     }

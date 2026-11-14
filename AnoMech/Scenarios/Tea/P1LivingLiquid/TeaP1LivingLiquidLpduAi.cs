@@ -18,7 +18,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     public string? Group => "EU";
 
     private const float BaitJitter = 0.15f;
-    private const float FirstFetch = 20.25f;
+    private const float FirstFetch = 17.75f;
     private const float LastFetch = 24.5f;
     private const float FetchEvery = 0.25f;
     private static readonly float[] CleansesAt = [11.2f, 13.7f, 16.2f, 18.7f];
@@ -29,10 +29,9 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
 
     private const float WalkSpeed = 6.5f;
     private const float FetchShortOfEitherEnd = 1.5f;
-    private const float TheLiquidStopsThisFarFromItsTank = 4.0f;
-    private const float TheHandStopsThisFarFromItsTank = 2.1f;
-    private const float JustInsideTheLiquidsReach = 3.9f;
-    private const float TheLiquidIsOnTheMiddleWithin = 0.3f;
+    private const float WellInsideTheLiquidsReach = 3.9f;
+    private const float TheLiquidIsOnTheMiddleWithin = 0.7f;
+    private const float FarEnoughToSetTheLiquidOff = 7.4f;
 
     private static readonly PartyRole[] Tanks = [MainTank, OffTank];
     private static readonly PartyRole[] Healers = [RegenHealer, ShieldHealer];
@@ -42,7 +41,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     private static readonly Vector2 MiddleTornado = new(0f, P1Geometry.TornadoRingRadius);
     private static readonly Vector2 EastTornado = new(P1Geometry.TornadoRingRadius, 0f);
 
-    private static readonly Vector2 TheMainTanksHold = Off(Middle, JustInsideTheLiquidsReach, 135f);
+    private static readonly Vector2 TheMainTanksHold = Off(Middle, WellInsideTheLiquidsReach, 135f);
     private static readonly Vector2 TheOffTanksDrainageSpot = new(-5.4f, 5.4f);
 
     private readonly HashSet<PartyRole> walkingItsTetherBack = [];
@@ -85,8 +84,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     private void CascadeTwoIntoTheKill(float start, bool afterDrainage)
     {
         if (afterDrainage) ai.Move(start + 0.9f, EveryoneInsideTheReachOfAnyNewPuddle);
-        ai.Move(start + 6.4f, TheMainTankStepsOntoTheMiddleWhenItsFetchHasDraggedTheLiquidOffIt, BaitJitter);
-        ai.Move(start + 7.2f, TheMainTankWalksOnStraightAwayFromTheLiquidWhichFollowsOntoTheMiddle, BaitJitter);
+        ai.Move(start + 6.4f, TheMainTankWalksPastTheMiddleUntilTheLiquidItsFetchDraggedOffFollowsOntoIt, BaitJitter);
         ai.Move(start + 9.5f, TheMainTankTurnsTheLiquidNorth, BaitJitter);
         foreach (var at in CleansesAt)
             world.Events.Add(start + at, EachHealerCleansesTheNextThrottleInItsOrder);
@@ -99,7 +97,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
         ai.Move(start + 23.35f, TheMainTankBacksOutNorthEastOnceItIsHit);
         ai.Move(start + 24.25f, HealersAndRangedRunInOntoTheSecondSetsBaitsOnceTheirTornadoHasAimed, BaitJitter, sprint: true);
         ai.Move(start + 24.25f, BothMeleeGoToTheFarSideOfTheMiddleAndEastTornadoes);
-        ai.Move(start + 25.2f, TheOffTankFollowsToTheFarSideOfTheWestTornado);
+        ai.Move(start + 25.4f, TheOffTankFollowsToTheFarSideOfTheWestTornado);
         ai.Move(start + 29.35f, TheTanksPullTheBossesFarApartWithTheRestInTheMiddle);
         ai.Move(start + 33.5f, EachTankCrossesTheMiddleToBringItsBossOntoItOnceThePalmShows, BaitJitter);
         ai.Move(start + 33.5f, TheDamageDealersCloseInForTheKill);
@@ -119,7 +117,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     {
         var liquid = TheLiquidIn(state.Tornadoes1);
         return Turned(state.Tornadoes1,
-            (MainTank, Off(liquid, JustInsideTheLiquidsReach, 135f)), (OffTank, new(-3.0f, 3.0f)),
+            (MainTank, Off(liquid, WellInsideTheLiquidsReach, 135f)), (OffTank, new(-3.0f, 3.0f)),
             (RegenHealer, new(-1.1f, -4.2f)), (ShieldHealer, new(1.1f, -5.2f)), (MeleeDpsA, new(-0.3f, -5.6f)), (MeleeDpsB, new(0.4f, -4.3f)),
             (PhysRangedDps, new(11.0f, -7.8f)), (CasterDps, new(-10.3f, -8.1f)));
     }
@@ -165,7 +163,7 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
             (MainTank, new(5.0f, 5.5f)), (OffTank, TheOffTanksDrainageSpot), (MeleeDpsA, new(-6.7f, 7.1f)), (MeleeDpsB, new(6.4f, 7.4f)));
 
     private IAiMove TheMainTankStepsBackOntoItsHoldBesideTheLiquid()
-        => Turned(state.Tornadoes1, (MainTank, Off(TheLiquidIn(state.Tornadoes1), JustInsideTheLiquidsReach, 135f)));
+        => Turned(state.Tornadoes1, (MainTank, Off(TheLiquidIn(state.Tornadoes1), WellInsideTheLiquidsReach, 135f)));
 
     private IAiMove TheSixGatherNorthForDrainage()
         => Turned(state.Tornadoes1,
@@ -201,18 +199,17 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
             (RegenHealer, new(-1.1f, -4.2f)), (ShieldHealer, new(1.1f, -5.2f)), (MeleeDpsA, new(-0.3f, -5.6f)), (MeleeDpsB, new(0.4f, -4.3f)),
             (PhysRangedDps, new(1.6f, -3.4f)), (CasterDps, new(-1.6f, -3.2f)), (OffTank, new(-3.0f, 3.0f)), (MainTank, TheMainTanksHold));
 
-    private IAiMove TheMainTankStepsOntoTheMiddleWhenItsFetchHasDraggedTheLiquidOffIt()
-        => TheLiquidStandsOffTheMiddle() ? Turned(state.Tornadoes1, (MainTank, Middle)) : Nobody();
-
-    private IAiMove TheMainTankWalksOnStraightAwayFromTheLiquidWhichFollowsOntoTheMiddle()
-        => TheLiquidStandsOffTheMiddle()
-            ? Turned(state.Tornadoes1, (MainTank, AcrossTheMiddleFrom(TheLiquidIn(state.Tornadoes1), TheLiquidStopsThisFarFromItsTank)))
-            : Nobody();
+    private IAiMove TheMainTankWalksPastTheMiddleUntilTheLiquidItsFetchDraggedOffFollowsOntoIt()
+    {
+        var liquid = TheLiquidIn(state.Tornadoes1);
+        var pastTheMiddle = MathF.Max(fight.StopsFromItsTarget(TeaP1Boss.LivingLiquid), FarEnoughToSetTheLiquidOff - liquid.Length());
+        return TheLiquidStandsOffTheMiddle() ? Turned(state.Tornadoes1, (MainTank, AcrossTheMiddleFrom(liquid, pastTheMiddle))) : Nobody();
+    }
 
     private bool TheLiquidStandsOffTheMiddle() => TheLiquidIn(state.Tornadoes1).Length() > TheLiquidIsOnTheMiddleWithin;
 
     private IAiMove TheMainTankTurnsTheLiquidNorth()
-        => Turned(state.Tornadoes2, (MainTank, Off(TheLiquidIn(state.Tornadoes2), JustInsideTheLiquidsReach, 0f)));
+        => Turned(state.Tornadoes2, (MainTank, Off(TheLiquidIn(state.Tornadoes2), WellInsideTheLiquidsReach, 0f)));
 
     private void EachHealerCleansesTheNextThrottleInItsOrder()
     {
@@ -260,8 +257,8 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
 
     private IAiMove HealersAndRangedGoOutToTheirTornadoes()
         => Turned(state.Tornadoes2,
-            (RegenHealer, Off(WestTornado, 8.4f, 14f)), (CasterDps, Off(WestTornado, 9.9f, 15f)),
-            (ShieldHealer, Off(MiddleTornado, 8.5f, 270f)), (PhysRangedDps, Off(EastTornado, 8.4f, 172f)));
+            (RegenHealer, Off(WestTornado, 8.5f, 17.3f)), (CasterDps, Off(WestTornado, 10.0f, 17.8f)),
+            (ShieldHealer, Off(MiddleTornado, 8.5f, 273.4f)), (PhysRangedDps, Off(EastTornado, 8.4f, 175.4f)));
 
     private IAiMove TheFirstMeleeStepsOntoItsSouthBaitOnceTheTelegraphsHaveFired()
         => Turned(state.Tornadoes2, (MeleeDpsA, Off(TheLiquidIn(state.Tornadoes2), 4.0f, 180f)));
@@ -278,22 +275,22 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
     }
 
     private IAiMove BothMeleeGoToTheFarSideOfTheMiddleAndEastTornadoes()
-        => Turned(state.Tornadoes2, (MeleeDpsA, Off(MiddleTornado, 8.4f, 90f)), (MeleeDpsB, Off(EastTornado, 8.5f, 12f)));
+        => Turned(state.Tornadoes2, (MeleeDpsA, Off(MiddleTornado, 8.4f, 80f)), (MeleeDpsB, Off(EastTornado, 8.4f, 8.7f)));
 
     private IAiMove TheOffTankFollowsToTheFarSideOfTheWestTornado()
-        => Turned(state.Tornadoes2, (OffTank, Off(WestTornado, 8.5f, 191f)));
+        => Turned(state.Tornadoes2, (OffTank, Off(WestTornado, 8.4f, 187.7f)));
 
     private IAiMove TheTanksPullTheBossesFarApartWithTheRestInTheMiddle()
         => Turned(state.Tornadoes2,
-            (MainTank, new(8.1f, -9.4f)), (OffTank, new(-13.0f, 10.8f)),
+            (MainTank, new(10.2f, -11.9f)), (OffTank, new(-13.0f, 10.8f)),
             (MeleeDpsA, new(0.8f, -5.7f)), (MeleeDpsB, new(4.5f, -3.7f)), (RegenHealer, new(-0.4f, -2.3f)), (ShieldHealer, new(-0.2f, 0.4f)),
             (PhysRangedDps, new(1.8f, -1.4f)), (CasterDps, new(-2.2f, -0.8f)));
 
     private IAiMove EachTankCrossesTheMiddleToBringItsBossOntoItOnceThePalmShows()
         => fight.HandShowsAPalm == true
             ? Turned(state.Tornadoes2,
-                (MainTank, AcrossTheMiddleFrom(TheLiquidIn(state.Tornadoes2), TheLiquidStopsThisFarFromItsTank)),
-                (OffTank, AcrossTheMiddleFrom(TheHandIn(state.Tornadoes2), TheHandStopsThisFarFromItsTank)))
+                (MainTank, AcrossTheMiddleFrom(TheLiquidIn(state.Tornadoes2), fight.StopsFromItsTarget(TeaP1Boss.LivingLiquid))),
+                (OffTank, AcrossTheMiddleFrom(TheHandIn(state.Tornadoes2), fight.StopsFromItsTarget(TeaP1Boss.LiquidHand))))
             : Nobody();
 
     private IAiMove TheDamageDealersCloseInForTheKill()

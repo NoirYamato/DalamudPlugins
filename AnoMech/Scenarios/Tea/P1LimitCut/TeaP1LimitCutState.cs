@@ -37,11 +37,7 @@ public sealed class TeaP1LimitCutState
     public static Vector3 HawkBlasterCentre(float bearingDegrees)
     {
         var radians = bearingDegrees * MathF.PI / 180f;
-        var (east, south) = (MathF.Sin(radians), -MathF.Cos(radians));
-        var onACardinal = MathF.Abs(east) < 0.01f || MathF.Abs(south) < 0.01f;
-        return onACardinal
-            ? new Vector3(east * P1Geometry.HawkBlasterCardinalRadius, 0f, south * P1Geometry.HawkBlasterCardinalRadius)
-            : new Vector3(MathF.Sign(east) * P1Geometry.HawkBlasterDiagonalOffset, 0f, MathF.Sign(south) * P1Geometry.HawkBlasterDiagonalOffset);
+        return new Vector3(MathF.Sin(radians), 0f, -MathF.Cos(radians)) * P1Geometry.HawkBlasterRadius;
     }
 
     // The run's own dice, for the one choice made mid-run: whom a dead number's hit goes to.

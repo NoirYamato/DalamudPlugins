@@ -55,7 +55,7 @@ public class TeaP1LivingLiquidScenarioTests
     [TestCase(7.8f, false)]
     public void APuddleReachesSevenPointSixYalmsFromItsTornado(float fromItsCentre, bool kills)
     {
-        var run = ProteanOne.Run(CasterDps, stopAt: 4.5f, takeovers: new Takeover(3f, ProteanOne.Arena1(-14.5f + fromItsCentre, 0f)));
+        var run = ProteanOne.Run(CasterDps, stopAt: 4.5f, takeovers: new Takeover(3f, ProteanOne.Arena1(Stage.West.X + fromItsCentre, 0f)));
 
         if (kills) TeaP1LimitCutScenarioTests.AssertFirstDeath(run, CasterDps, SimCharacterDeathExtensions.Environment, 3.0f, TeaP1Tornadoes.StoodInThePuddle);
         else Assert.That(run.Passed, run.ToString);
@@ -76,7 +76,7 @@ public class TeaP1LivingLiquidScenarioTests
     public void GodmodeHearsOfAPuddleOnceHoweverLongItIsStoodIn()
     {
         IReadOnlyList<string> chat = [];
-        var run = new Stage { Last = Protean1, GodMode = true }.Run(CasterDps, stopAt: 9f,
+        var run = new Stage { Last = Protean1, GodMode = true }.Run(CasterDps, stopAt: 4.7f,
             probe: p => chat = p.Chat.ToList(), takeovers: new Takeover(3f, new Vector2(-12f, 0f)));
 
         Assert.That(run.Deaths, Is.Empty, run.ToString);
@@ -84,15 +84,16 @@ public class TeaP1LivingLiquidScenarioTests
                     Has.Count.EqualTo(1).And.All.EndsWith(Died + TeaP1Tornadoes.StoodInThePuddle), () => string.Join(Environment.NewLine, chat));
     }
 
-    // Cascade 2 lands at 5.9. Its tornadoes can stand anywhere, so their puddles harm nobody for a second.
-    [TestCase(null, 6.9f)]
-    [TestCase(6.5f, null)]
+    // Cascade 2 lands at 5.9 and its tornadoes show at 7.3. They can stand anywhere, so their puddles harm nobody for
+    // a second.
+    [TestCase(null, 8.3f)]
+    [TestCase(7.9f, null)]
     public void ANewPuddleKillsWhoeverIsStillInItASecondAfterItAppears(float? leavesAt, float? diesAt)
     {
         Takeover[] takeovers = leavesAt is { } at
             ? [new(1f, new Vector2(-12f, 0f)), new(at, new Vector2(0f, -3f))]
             : [new(1f, new Vector2(-12f, 0f))];
-        var run = CascadeTwo.Run(MeleeDpsB, stopAt: 9f, takeovers: takeovers);
+        var run = CascadeTwo.Run(MeleeDpsB, stopAt: 10f, takeovers: takeovers);
 
         if (diesAt is { } dies) TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsB, SimCharacterDeathExtensions.Environment, dies, TeaP1Tornadoes.StoodInThePuddle);
         else Assert.That(run.Passed, run.ToString);
@@ -104,7 +105,7 @@ public class TeaP1LivingLiquidScenarioTests
         var obstacles = new List<(float At, int Count)>();
         var run = new Stage().Run(MainTank, probe: p =>
         {
-            foreach (var at in new[] { 1f, 26f, Stage.CascadeTwo + 5f, Stage.CascadeTwo + 7f })
+            foreach (var at in new[] { 1f, 26f, Stage.CascadeTwo + 7f, Stage.CascadeTwo + 8f })
                 if (p.Crossed(at)) obstacles.Add((at, p.World.Obstacles.All.Count));
         });
 
@@ -123,13 +124,13 @@ public class TeaP1LivingLiquidScenarioTests
         TeaP1LimitCutScenarioTests.AssertFirstDeath(run, ShieldHealer, P1ActionId.ProteanWaveAtAPlayer, 8.5f, TeaP1Actions.SecondWave);
     }
 
-    // R1 stands apart north-east as the cast starts and stays in the one cone aimed at it.
+    // R1 stands apart north-east, 7.1 y out, as the cast starts and stays in the one cone aimed at it.
     [Test]
-    public void ATelegraphedWaveAloneLeavesItsDebuffAndThrowsAHumanToTheRim()
+    public void ATelegraphedWaveAloneLeavesItsDebuffAndThrowsAHumanTenYalms()
     {
         var carries = false;
         Vector3 stands = default;
-        var run = ProteanOne.Run(PhysRangedDps, stopAt: 9.5f, takeovers: new Takeover(4f, new Vector2(8f, -8f)), probe: p =>
+        var run = ProteanOne.Run(PhysRangedDps, stopAt: 9.5f, takeovers: new Takeover(4f, new Vector2(5f, -5f)), probe: p =>
         {
             if (!p.Crossed(9f)) return;
             carries = p.Member(PhysRangedDps)!.HasStatus(P1StatusId.WaterResistanceDown);
@@ -138,7 +139,18 @@ public class TeaP1LivingLiquidScenarioTests
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(carries, "it carries Water Resistance Down");
-        Assert.That(Vector2.Distance(new Vector2(stands.X, stands.Z), new Vector2(14.14f, -14.14f)), Is.LessThan(0.1f), $"thrown to {stands}");
+        Assert.That(Vector2.Distance(new Vector2(stands.X, stands.Z), new Vector2(12.07f, -12.07f)), Is.LessThan(0.1f), $"thrown to {stands}");
+    }
+
+    // The same from 11.3 y out: the throw ends 1.3 y past the rim.
+    [Test]
+    public void ATelegraphedWaveThatThrowsAHumanPastTheRimKillsIt()
+    {
+        var run = ProteanOne.Run(PhysRangedDps, takeovers: new Takeover(4f, new Vector2(8f, -8f)));
+
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { PhysRangedDps }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaZone.WentPastTheRim));
+        Assert.That(run.Deaths[0].Time, Is.EqualTo(8.3f).Within(0.3f));
     }
 
     // M1 baits the first set and never backs out.
@@ -152,25 +164,20 @@ public class TeaP1LivingLiquidScenarioTests
 
     // South of the Liquid, 6.5 y out: in the cone it fires straight ahead, and not among its four closest.
     [Test]
-    public void TheConeStraightAheadAloneLeavesItsDebuffAndKillsNobody()
+    public void TheConeStraightAheadKillsOnItsOwn()
     {
-        var carries = false;
-        var run = ProteanOne.Run(CasterDps, stopAt: 12f, takeovers: new Takeover(9f, new Vector2(0f, 6.5f)), probe: p =>
-        {
-            if (p.Crossed(10.5f)) carries = p.Member(CasterDps)!.HasStatus(P1StatusId.WaterResistanceDown);
-        });
+        var run = ProteanOne.Run(CasterDps, takeovers: new Takeover(9f, new Vector2(0f, 6.5f)));
 
-        Assert.That(run.Passed, run.ToString);
-        Assert.That(carries, "it carries Water Resistance Down");
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, CasterDps, P1ActionId.ProteanWaveStraightAhead, 10.9f, TeaP1Actions.StoodAheadOfTheLiquid);
     }
 
     // M2, one of the four closest, baits its own cone down the one the Liquid fires straight ahead.
     [Test]
-    public void BaitingInFrontOfTheLiquidTakesTwoWaves()
+    public void BaitingInFrontOfTheLiquidDiesToItsOwnCone()
     {
         var run = ProteanOne.Run(MeleeDpsB, takeovers: new Takeover(9f, new Vector2(0f, 4f)));
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsB, P1ActionId.ProteanWaveAtTheClosest, 10.9f, TeaP1Actions.SecondWave);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsB, P1ActionId.ProteanWaveStraightAhead, 10.9f, TeaP1Actions.StoodAheadOfTheLiquid);
     }
 
     // M2 baits 10 degrees from the main tank: each stands in the other's cone.
@@ -184,8 +191,8 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1Actions.SecondWave));
     }
 
-    // Each wave goes where the fight aims it: the telegraphed ones at 4.8 at where everyone stands then, each set
-    // at the four closest as it fires.
+    // Each wave goes where the fight aims it: the telegraphed ones at 4.8, the Liquid's own at its target and a
+    // helper's at where everyone else stands then, each set at the four closest as it fires.
     [Test]
     public void TheWavesAreAimedAtEveryPlayerThenAtTheFourClosest([Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southwest)] TeaP1OpenQuarter open)
     {
@@ -200,8 +207,8 @@ public class TeaP1LivingLiquidScenarioTests
         {
             Assert.That(watch.Sent("cast", P1ActionId.ProteanWaveFromTheLiquid).Select(w => (w.At, Turn(w.Rotation, south))),
                         Is.EqualTo(new[] { (4.8f, 0f) }).Within(0.05f), "the Liquid's own, along its facing");
-            Assert.That(telegraphed.Select(w => w.At), Is.EqualTo(Enumerable.Repeat(4.8f, 8)).Within(0.05f));
-            Assert.That(telegraphed.Count(w => MathF.Abs(Turn(w.Rotation, south)) < 0.01f), Is.EqualTo(2), "two at the tanks, stacked south");
+            Assert.That(telegraphed.Select(w => w.At), Is.EqualTo(Enumerable.Repeat(4.8f, 7)).Within(0.05f), "as many cones as players, the Liquid's own among them");
+            Assert.That(telegraphed.Count(w => MathF.Abs(Turn(w.Rotation, south)) < 0.01f), Is.EqualTo(1), "one at the off tank, stacked south behind the Liquid's target");
             Assert.That(telegraphed.Count(w => MathF.Abs(Turn(w.Rotation, stage.Frame1.Facing(0f))) < 0.3f), Is.EqualTo(6), "six at the line north");
             Assert.That(watch.Sent("ability", P1ActionId.ProteanWaveStraightAhead).Select(w => (w.At, Turn(w.Rotation, south))),
                         Is.EqualTo(new[] { (9.9f, 0f), (13.0f, 0f) }).Within(0.05f));
@@ -254,7 +261,7 @@ public class TeaP1LivingLiquidScenarioTests
         var fromTheWest = casts.Single(c => Vector2.Distance(c.Position, Stage.West) < 0.1f);
         Assert.That(Turn(fromTheWest.Rotation, Facing(Stage.West, offTank)), Is.Zero.Within(0.01f));
         var fromTheMiddle = casts.Single(c => Vector2.Distance(c.Position, Stage.South) < 0.1f);
-        Assert.That(Turn(fromTheMiddle.Rotation, Facing(Stage.South, Stage.Off(Stage.South, 8.5f, 270f))), Is.Zero.Within(0.01f), "at H2");
+        Assert.That(Turn(fromTheMiddle.Rotation, Facing(Stage.South, Stage.Off(Stage.South, 8.5f, 273.4f))), Is.Zero.Within(0.01f), "at H2");
     }
 
     // H1 has taken the second set at 26.3 and steps back into the west tornado's telegraph.
@@ -266,14 +273,14 @@ public class TeaP1LivingLiquidScenarioTests
         TeaP1LimitCutScenarioTests.AssertFirstDeath(run, RegenHealer, P1ActionId.TornadoWave, 27.9f, TeaP1Actions.SecondWave);
     }
 
-    // R1 has taken the second set at 26.3 and stands closer to the east tornado than M2, south-east of it, as the unseen
+    // R1 has taken the second set at 26.3 and stands closer to the east tornado than M2, north-west of it, as the unseen
     // waves go off.
     [Test]
     public void ATornadosUnseenWaveGoesToWhoeverIsClosestThen()
     {
-        var run = CascadeTwo.Run(PhysRangedDps, takeovers: new Takeover(28f, Stage.Off(Stage.East, 8f, 150f)));
+        var run = CascadeTwo.Run(PhysRangedDps, takeovers: new Takeover(28f, Stage.Off(Stage.East, 8f, 340f)));
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.TornadoWaveUnseen, 30.3f, TeaP1Actions.SecondWave);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, PhysRangedDps, P1ActionId.TornadoWaveUnseen, 30.25f, TeaP1Actions.SecondWave);
     }
 
     [Test]
@@ -284,7 +291,7 @@ public class TeaP1LivingLiquidScenarioTests
 
         Assert.That(run.Passed, run.ToString);
         var waves = watch.Sent("ability", P1ActionId.TornadoWaveUnseen);
-        Assert.That(waves.Select(w => w.At), Is.EqualTo(Enumerable.Repeat(29.3f, 3)).Within(0.05f));
+        Assert.That(waves.Select(w => w.At), Is.EqualTo(Enumerable.Repeat(29.25f, 3)).Within(0.05f));
         Assert.That(waves.Select(w => w.Hits.Single()), Is.EquivalentTo(new[] { OffTank, MeleeDpsA, MeleeDpsB }));
         Assert.That(watch.Sent("ability", P1ActionId.TornadoWave).Select(w => w.Hits.Count), Is.EqualTo(new[] { 0, 0, 0 }), "the telegraphed ones are dodged");
     }
@@ -301,15 +308,15 @@ public class TeaP1LivingLiquidScenarioTests
         var run = ProteanOne.Run(MainTank, probe: p =>
         {
             var fight = Stage.Fight(p);
-            if (p.Crossed(19.5f)) none = fight.DrainageTethersOut.Count == 0;
-            if (!p.Crossed(21f)) return;
+            if (p.Crossed(17.4f)) none = fight.DrainageTethersOut.Count == 0;
+            if (!p.Crossed(18f)) return;
             ends = fight.DrainageTethersOut.Select(t => (t.Tether.A, t.Tether.B, t.From)).ToArray();
             tornadoes = ends.Select(end => fight.Tornadoes[end.From]).ToArray();
             carried = PerRole.All.Select(role => p.Member(role)!.HasTetherInSlot0(P1TetherId.Drainage)).ToArray();
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(none, "no tether before 20.0");
+        Assert.That(none, "no tether before 17.5");
         Assert.Multiple(() =>
         {
             Assert.That(ends.Select(end => (Seat(end.A), end.From)), Is.EqualTo(new[] { ((PartyRole?)OffTank, TeaP1Tornado.West), ((PartyRole?)MainTank, TeaP1Tornado.East) }));
@@ -318,7 +325,7 @@ public class TeaP1LivingLiquidScenarioTests
         });
     }
 
-    // R2 walks into a puddle at 16.0; the west tornado's tether, rolled onto it, comes out at 20.0 on someone alive whom
+    // R2 walks into a puddle at 16.0; the west tornado's tether, rolled onto it, comes out at 17.5 on someone alive whom
     // no roll names, so the east one's still starts on the main tank. The seed picks whom, of six.
     [Test]
     public void ATetherRolledOntoTheDeadStartsOnSomeoneNoRollNames()
@@ -349,9 +356,9 @@ public class TeaP1LivingLiquidScenarioTests
     public void ANonTankThatHoldsATetherDies()
     {
         var stage = new Stage { Last = Protean1, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
-        var run = stage.Run(CasterDps, takeovers: new Takeover(19f, new Vector2(-9f, -9.5f)));
+        var run = stage.Run(CasterDps, takeovers: new Takeover(17f, new Vector2(-9f, -9.5f)));
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, CasterDps, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.NonTankHoldsATether);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, CasterDps, P1ActionId.Drainage, 24.7f, TeaP1LivingLiquid.NonTankHoldsATether);
     }
 
     // M1 stands 5 y from the off tank, which holds its tether.
@@ -360,7 +367,7 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var run = ProteanOne.Run(MeleeDpsA, takeovers: new Takeover(23f, new Vector2(-5.4f, 0.4f)));
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.InSomeoneElsesDrainage);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.Drainage, 24.7f, TeaP1LivingLiquid.InSomeoneElsesDrainage);
     }
 
     [TestCase(5.5f, true)]
@@ -375,7 +382,7 @@ public class TeaP1LivingLiquidScenarioTests
             return;
         }
         Assert.That(run.Deaths.Select(d => (d.Role, d.ActionId)), Is.EquivalentTo(new[] { (MainTank, (uint?)P1ActionId.Drainage), (OffTank, (uint?)P1ActionId.Drainage) }), run.ToString);
-        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(24.6f).Within(0.1f));
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(24.7f).Within(0.1f));
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.TwoDrainages));
     }
 
@@ -391,7 +398,7 @@ public class TeaP1LivingLiquidScenarioTests
             if (p.Crossed(23.5f)) p.Member(OffTank)!.AddStatus(invulnerability, 10f);
         });
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.TwoDrainages);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.7f, TeaP1LivingLiquid.TwoDrainages);
         Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
         Assert.That(P1StatusId.Invulnerabilities, Does.Contain(invulnerability));
     }
@@ -404,7 +411,7 @@ public class TeaP1LivingLiquidScenarioTests
         var stage = new Stage { Last = Protean1, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
         var run = stage.Run(OffTank, takeovers: new Takeover(23f, new Vector2(-2.24f, 2.76f)), probe: p =>
         {
-            if (p.Crossed(19f)) p.Member(CasterDps)!.SetPosition(new Placement(new Vector3(-9f, 0f, -9.5f), 0f));
+            if (p.Crossed(17f)) p.Member(CasterDps)!.SetPosition(new Placement(new Vector3(-9f, 0f, -9.5f), 0f));
             if (p.Crossed(23.5f)) p.Member(OffTank)!.AddStatus(82, 10f);
         });
 
@@ -498,12 +505,12 @@ public class TeaP1LivingLiquidScenarioTests
         var run = ProteanOne.Run(MainTank, probe: p =>
         {
             watch.See(p);
-            if (p.Crossed(24.5f))
+            if (p.Crossed(24.6f))
             {
                 before = Stage.Fight(p).Tornadoes.Standing;
                 channelled = PerRole.All.Where(role => p.Member(role)!.HasTetherInSlot0(P1TetherId.Drainage)).ToArray();
             }
-            if (!p.Crossed(24.7f)) return;
+            if (!p.Crossed(24.8f)) return;
             after = Stage.Fight(p).Tornadoes.Standing;
             tethers = Stage.Fight(p).DrainageTethersOut.Count;
             stillChannelled = PerRole.All.Where(role => p.Member(role)!.HasTetherInSlot0(P1TetherId.Drainage)).ToArray();
@@ -513,9 +520,9 @@ public class TeaP1LivingLiquidScenarioTests
         var hits = watch.Sent("ability", P1ActionId.Drainage);
         Assert.Multiple(() =>
         {
-            Assert.That(hits.Select(h => h.At), Is.EqualTo(new[] { 24.6f, 24.6f }).Within(0.05f));
+            Assert.That(hits.Select(h => h.At), Is.EqualTo(new[] { 24.7f, 24.7f }).Within(0.05f));
             Assert.That(hits.Select(h => h.Hits.Single()), Is.EquivalentTo(new[] { MainTank, OffTank }));
-            Assert.That(hits.Select(h => (MathF.Round(h.Position.X, 1), MathF.Round(h.Position.Y, 1))), Is.EquivalentTo(new[] { (-14.5f, 0f), (14.5f, 0f) }));
+            Assert.That(hits.Select(h => (MathF.Round(h.Position.X, 1), MathF.Round(h.Position.Y, 1))), Is.EquivalentTo(new[] { (-15f, 0f), (15f, 0f) }));
             Assert.That(before, Is.EqualTo(ProteanOne.Frame1));
             Assert.That(after, Is.Null);
             Assert.That(tethers, Is.Zero);
@@ -549,7 +556,7 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var run = new Stage { First = Cascade2, NotCleansed = [MeleeDpsA] }.Run(MainTank);
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     [Test]
@@ -572,9 +579,9 @@ public class TeaP1LivingLiquidScenarioTests
     [Test]
     public void ACleanseATenthOfASecondBeforeItRunsOutSaves()
     {
-        var run = new Stage { First = Cascade2, NotCleansed = [MeleeDpsA] }.Run(MainTank, stopAt: 21f, probe: p =>
+        var run = new Stage { First = Cascade2, NotCleansed = [MeleeDpsA] }.Run(MainTank, stopAt: 22f, probe: p =>
         {
-            if (p.Crossed(19.4f)) Stage.Scenario(p).Presses!.Cleanse(p.Member(ShieldHealer)!, p.Member(MeleeDpsA)!);
+            if (p.Crossed(20.4f)) Stage.Scenario(p).Presses!.Cleanse(p.Member(ShieldHealer)!, p.Member(MeleeDpsA)!);
         });
 
         Assert.That(run.Passed, run.ToString);
@@ -586,10 +593,10 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var run = new Stage { First = Cascade2, NotCleansed = [MeleeDpsA] }.Run(MainTank, probe: p =>
         {
-            if (p.Crossed(19.4f)) p.Member(MeleeDpsA)!.RemoveStatus(P1StatusId.Throttle);
+            if (p.Crossed(20.4f)) p.Member(MeleeDpsA)!.RemoveStatus(P1StatusId.Throttle);
         });
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     [Test]
@@ -600,7 +607,7 @@ public class TeaP1LivingLiquidScenarioTests
             if (p.Crossed(10.3f)) Stage.Scenario(p).Presses!.Cleanse(p.Member(RegenHealer)!, p.Member(MeleeDpsA)!);
         });
 
-        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 19.5f, TeaP1LivingLiquid.ThrottleRanOut);
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);
     }
 
     // -- The Liquid Hand's form and slam --
@@ -615,7 +622,7 @@ public class TeaP1LivingLiquidScenarioTests
         {
             watch.See(p);
             var fight = Stage.Fight(p);
-            foreach (var at in new[] { 33.1f, 33.3f, 38.3f, 38.5f })
+            foreach (var at in new[] { 33.05f, 33.25f, 38.15f, 38.35f })
                 if (p.Crossed(at))
                 {
                     forms.Add(fight.HandShowsAPalm);
@@ -629,10 +636,10 @@ public class TeaP1LivingLiquidScenarioTests
             Assert.That(forms, Is.EqualTo(new bool?[] { null, true, true, null }));
             Assert.That(apart[1], Is.GreaterThan(P1Rules.HandShowsAPalmBeyond), "at the glow");
             Assert.That(apart[2], Is.LessThan(P1Rules.PalmNeedsThemWithin), "at the slam");
-            Assert.That(watch.ModelStates(P1BNpcBaseId.LiquidHand), Is.EqualTo(new[] { (33.2f, P1ModelState.HandPalm), (38.4f, (byte)0) }).Within(0.05f));
+            Assert.That(watch.ModelStates(P1BNpcBaseId.LiquidHand), Is.EqualTo(new[] { (33.15f, P1ModelState.HandPalm), (38.25f, (byte)0) }).Within(0.05f));
             Assert.That(watch.Sent("cast", P1ActionId.HandOfPrayer, P1ActionId.HandOfParting), Is.Empty, "the slam has no cast bar");
-            Assert.That(watch.Sent("ability", P1ActionId.HandOfPrayer).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (38.4f, 8) }).Within(0.05f));
-            Assert.That(watch.Sent("ability", P1ActionId.HandOfParting), Is.Empty);
+            Assert.That(watch.Sent("ability", P1ActionId.HandOfParting).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (38.25f, 8) }).Within(0.05f));
+            Assert.That(watch.Sent("ability", P1ActionId.HandOfPrayer), Is.Empty);
         });
     }
 
@@ -642,7 +649,7 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var run = new Stage { First = Cascade2, HumanUntil = 33f }.Run(OffTank);
 
-        AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.4f, TeaP1LivingLiquid.PalmFoundThemApart);
+        AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.25f, TeaP1LivingLiquid.PalmFoundThemApart);
     }
 
     // It is the slam that reads the distance, not its lead-up: the Hand, brought in late, arrives half a second
@@ -650,7 +657,7 @@ public class TeaP1LivingLiquidScenarioTests
     [Test]
     public void APalmOnlyNeedsThemTogetherAsItLands()
     {
-        var run = new Stage { First = Cascade2, HumanUntil = 33f }.Run(OffTank, takeovers: new Takeover(35f, new Vector2(1.5f, -1.5f)));
+        var run = new Stage { First = Cascade2, HumanUntil = 33f }.Run(OffTank, takeovers: new Takeover(36.5f, new Vector2(1.5f, -1.5f)));
 
         Assert.That(run.Passed, run.ToString);
     }
@@ -663,38 +670,40 @@ public class TeaP1LivingLiquidScenarioTests
     {
         var watch = new Watch();
         Takeover[] takeovers = apartAgain
-            ? [new(30f, new Vector2(3f, -4f)), new(34f, new Vector2(-13f, 10.8f))]
+            ? [new(30f, new Vector2(3f, -4f)), new(34f, new Vector2(-14.5f, 12f))]
             : [new(30f, new Vector2(3f, -4f))];
         var run = CascadeTwo.Run(OffTank, probe: watch.See, takeovers: takeovers);
 
-        Assert.That(watch.ModelStates(P1BNpcBaseId.LiquidHand).First(), Is.EqualTo((33.2f, P1ModelState.HandFist)).Within(0.05f));
-        Assert.That(watch.Sent("ability", P1ActionId.HandOfParting).Select(s => s.At), Is.EqualTo(new[] { 38.4f }).Within(0.05f));
+        Assert.That(watch.ModelStates(P1BNpcBaseId.LiquidHand).First(), Is.EqualTo((33.15f, P1ModelState.HandFist)).Within(0.05f));
+        Assert.That(watch.Sent("ability", P1ActionId.HandOfPrayer).Select(s => s.At), Is.EqualTo(new[] { 38.25f }).Within(0.05f));
         if (apartAgain) Assert.That(run.Passed, run.ToString);
-        else AssertEveryoneDied(run, P1ActionId.HandOfParting, 38.4f, TeaP1LivingLiquid.FistFoundThemTogether);
+        else AssertEveryoneDied(run, P1ActionId.HandOfPrayer, 38.25f, TeaP1LivingLiquid.FistFoundThemTogether);
     }
 
     // -- Emboli --
 
-    // Pressurize at 33.3 from the west and east tornadoes; at 33.9 an orb leaves each for where its boss stood at 33.3.
+    // Pressurize at 33.2 from two tornadoes; at 33.9 an orb shows on each and waits there; at 38.87 each sets off
+    // through where its boss stood at 33.2, here at 6 y/s. They go as the Liquid falls.
     [TestCase(TeaP1Tornado.West, TeaP1Boss.LiquidHand, TeaP1Tornado.East, TeaP1Boss.LivingLiquid)]
     [TestCase(TeaP1Tornado.West, TeaP1Boss.LiquidHand, TeaP1Tornado.Middle, TeaP1Boss.LivingLiquid)]
     [TestCase(TeaP1Tornado.Middle, TeaP1Boss.LivingLiquid, TeaP1Tornado.East, TeaP1Boss.LiquidHand)]
-    public void EachEmbolusLeavesItsTornadoForWhereItsBossStoodAtPressurize(TeaP1Tornado first, TeaP1Boss firstAt, TeaP1Tornado second, TeaP1Boss secondAt)
+    public void EachEmbolusWaitsOnItsTornadoThenSetsOffThroughWhereItsBossStoodAtPressurize(TeaP1Tornado first, TeaP1Boss firstAt, TeaP1Tornado second, TeaP1Boss secondAt)
     {
         var stage = new Stage { First = Cascade2, Emboli = [new(first, firstAt), new(second, secondAt)], EmbolusSpeed = 6f };
         var watch = new Watch();
         var bosses = new Dictionary<TeaP1Boss, Vector3>();
-        Vector3[] left = [], reached = [];
+        Vector3[] shown = [], waiting = [], onItsWay = [];
         int before = -1, after = -1;
         var run = stage.Run(MeleeDpsA, probe: p =>
         {
             watch.See(p);
             var fight = Stage.Fight(p);
-            if (p.Crossed(33.3f))
+            if (p.Crossed(33.2f))
                 foreach (var boss in Enum.GetValues<TeaP1Boss>()) bosses[boss] = fight.Position(boss);
             if (p.Crossed(33.8f)) before = fight.Emboli.Count;
-            if (p.Crossed(33.95f)) left = fight.Emboli.Select(e => e.Position).ToArray();
-            if (p.Crossed(39.5f)) reached = fight.Emboli.Select(e => e.Position).ToArray();
+            if (p.Crossed(33.95f)) shown = fight.Emboli.Select(e => e.Position).ToArray();
+            if (p.Crossed(38.8f)) waiting = fight.Emboli.Select(e => e.Position).ToArray();
+            if (p.Crossed(39.5f)) onItsWay = fight.Emboli.Select(e => e.Position).ToArray();
             if (p.Crossed(42f)) after = fight.Emboli.Count(e => e.IsActive);
         });
 
@@ -702,51 +711,57 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.Multiple(() =>
         {
             Assert.That(before, Is.Zero);
-            Assert.That(Vector3.Distance(left[0], stage.Frame2.Centre(first)), Is.LessThan(0.5f), $"the first left from {left[0]}");
-            Assert.That(Vector3.Distance(left[1], stage.Frame2.Centre(second)), Is.LessThan(0.5f), $"the second left from {left[1]}");
-            Assert.That(Vector3.Distance(reached[0], bosses[firstAt]), Is.LessThan(0.2f), $"the first reached {reached[0]}");
-            Assert.That(Vector3.Distance(reached[1], bosses[secondAt]), Is.LessThan(0.2f), $"the second reached {reached[1]}");
+            var (tornadoes, aims) = (new[] { first, second }, new[] { firstAt, secondAt });
+            for (var orb = 0; orb < 2; orb++)
+            {
+                var from = stage.Frame2.Centre(tornadoes[orb]);
+                var toward = Vector3.Normalize(bosses[aims[orb]] - from);
+                Assert.That(Vector3.Distance(shown[orb], from), Is.LessThan(0.01f), $"orb {orb + 1} shows at {shown[orb]}");
+                Assert.That(Vector3.Distance(waiting[orb], from), Is.LessThan(0.01f), $"orb {orb + 1} still waits at {waiting[orb]}");
+                Assert.That(Vector3.Distance(onItsWay[orb], from + toward * 6f * (39.5f - 38.87f)), Is.LessThan(0.3f), $"orb {orb + 1} on its way at {onItsWay[orb]}");
+            }
             Assert.That(after, Is.Zero, "they go as the Liquid falls");
             var pressurizes = watch.Sent("ability", P1ActionId.Pressurize);
-            Assert.That(pressurizes.Select(s => s.At), Is.EqualTo(new[] { 33.3f, 33.3f }).Within(0.05f));
+            Assert.That(pressurizes.Select(s => s.At), Is.EqualTo(new[] { 33.2f, 33.2f }).Within(0.05f));
             Assert.That(pressurizes.Select(s => s.Position), Is.EquivalentTo(new[] { Flat(stage.Frame2.Centre(first)), Flat(stage.Frame2.Centre(second)) }).Using<Vector2>((a, b) => Vector2.Distance(a, b) < 0.1f));
         });
     }
 
-    // M2 stands on the east orb's way, outside its tornado's puddle.
+    // The second pair sets off less than a second before the Liquid falls, so the orbs here are fast ones: 20 y/s.
+    // M2 stands on the east orb's way, 8.5 y from its tornado and outside its puddle.
     [Test]
     public void TouchingAnEmbolusKillsEveryone()
     {
-        var run = new Stage { First = Cascade2, EmbolusSpeed = 3f }.Run(MeleeDpsB, takeovers: new Takeover(35.5f, new Vector2(7.9f, -4.6f)));
+        var run = new Stage { First = Cascade2, EmbolusSpeed = 20f }.Run(MeleeDpsB, takeovers: new Takeover(38f, new Vector2(7.9f, -4.6f)));
 
-        AssertEveryoneDied(run, P1ActionId.Outburst, 36.2f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
+        AssertEveryoneDied(run, P1ActionId.Outburst, 39.2f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
     }
 
-    // M2 stands beside the east orb's way, 3.3 y ahead of it at 35.5 and outside its tornado's puddle: 0.8 y from its
-    // line is touched as the orb passes, 1.2 y is not.
-    [TestCase(0.8f, true)]
-    [TestCase(1.2f, false)]
-    public void AnEmbolusIsTouchedWithinAYalm(float besideItsWay, bool touched)
+    // M2 stands beside the east orb's way, 9 y along it from its tornado and outside the puddle. An orb reaches a
+    // yalm past a player's half-yalm hitbox: 1.3 y from its line is touched as the orb passes, 1.7 y is not.
+    [TestCase(1.3f, true)]
+    [TestCase(1.7f, false)]
+    public void AnEmbolusIsTouchedWithinAYalmOfAHitbox(float besideItsWay, bool touched)
     {
-        var stage = new Stage { First = Cascade2, EmbolusSpeed = 3f };
-        Vector2 was = default;
+        var stage = new Stage { First = Cascade2, EmbolusSpeed = 20f };
+        Vector2 liquidAtPressurize = default;
         var nearest = float.MaxValue;
         var run = stage.Run(MeleeDpsB, probe: p =>
         {
             var fight = Stage.Fight(p);
+            if (p.Crossed(33.2f)) liquidAtPressurize = Flat(fight.Position(TeaP1Boss.LivingLiquid));
             if (fight.Emboli.Count < 2 || !fight.Emboli[1].IsActive) return;
             var orb = Flat(fight.Emboli[1].Position);
-            if (p.Crossed(35f)) was = orb;
-            if (p.Crossed(35.5f))
+            if (p.Crossed(38f))
             {
-                var along = Vector2.Normalize(orb - was);
-                var beside = orb + along * 3.3f + new Vector2(along.Y, -along.X) * besideItsWay;
+                var along = Vector2.Normalize(liquidAtPressurize - orb);
+                var beside = orb + along * 9f + new Vector2(along.Y, -along.X) * besideItsWay;
                 p.Member(MeleeDpsB)!.SetPosition(new Placement(new Vector3(beside.X, 0f, beside.Y), 0f));
             }
-            if (p.Time > 35.5f) nearest = MathF.Min(nearest, Vector2.Distance(orb, Flat(p.Member(MeleeDpsB)!.Position)));
+            if (p.Time > 38f) nearest = MathF.Min(nearest, Vector2.Distance(orb, Flat(p.Member(MeleeDpsB)!.Position)));
         });
 
-        if (touched) AssertEveryoneDied(run, P1ActionId.Outburst, 36.4f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
+        if (touched) AssertEveryoneDied(run, P1ActionId.Outburst, 39.3f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
         else
         {
             Assert.That(run.Passed, run.ToString);
@@ -754,21 +769,12 @@ public class TeaP1LivingLiquidScenarioTests
         }
     }
 
-    // The main tank never takes the Living Liquid off the spot it stood on at Pressurize.
-    [Test]
-    public void ABossAnEmbolusReachesKillsEveryone()
-    {
-        var run = new Stage { First = Cascade2, EmbolusSpeed = 4f, HumanUntil = 33f }.Run(MainTank);
-
-        AssertEveryoneDied(run, P1ActionId.Outburst, 36.4f, TeaP1LivingLiquid.EmbolusTouched, within: 0.3f);
-    }
-
     [Test]
     public void GodmodeHearsOfATouchedEmbolusOncePerPlayer()
     {
         IReadOnlyList<string> chat = [];
-        var run = new Stage { First = Cascade2, EmbolusSpeed = 3f, GodMode = true }.Run(MeleeDpsB,
-            probe: p => chat = p.Chat.ToList(), takeovers: new Takeover(35.5f, new Vector2(7.9f, -4.6f)));
+        var run = new Stage { First = Cascade2, EmbolusSpeed = 20f, GodMode = true }.Run(MeleeDpsB,
+            probe: p => chat = p.Chat.ToList(), takeovers: new Takeover(38f, new Vector2(7.9f, -4.6f)));
 
         Assert.That(run.Deaths, Is.Empty, run.ToString);
         Assert.That(chat.Where(line => line.Contains(TeaP1LivingLiquid.EmbolusTouched)).ToList(), Has.Count.EqualTo(8), () => string.Join(Environment.NewLine, chat));
@@ -786,22 +792,22 @@ public class TeaP1LivingLiquidScenarioTests
         const float c2 = Stage.CascadeTwo;
         Assert.Multiple(() =>
         {
-            Assert.That(watch.Sent("cast", P1ActionId.HandOfPain).Select(s => s.At), Is.EqualTo(new[] { 5.0f, 24.1f, c2 + 20.2f }).Within(0.05f));
+            Assert.That(watch.Sent("cast", P1ActionId.HandOfPain).Select(s => s.At), Is.EqualTo(new[] { 5.0f, c2 + 0.25f, c2 + 20.1f }).Within(0.05f));
             Assert.That(watch.Sent("ability", P1ActionId.HandOfPain).Select(s => (s.At, s.Hits.Count)),
-                        Is.EqualTo(new[] { (8.0f, 8), (27.1f, 8), (c2 + 23.2f, 8) }).Within(0.05f));
+                        Is.EqualTo(new[] { (8.0f, 8), (c2 + 3.25f, 8), (c2 + 23.1f, 8) }).Within(0.05f));
             Assert.That(watch.Sent("ability", P1ActionId.Splash).Select(s => (s.At, s.Hits.Count)),
-                        Is.EqualTo(new[] { (19.1f, 8), (20.2f, 8), (21.3f, 8), (22.4f, 8), (23.5f, 8), (24.6f, 8) }).Within(0.05f));
+                        Is.EqualTo(new[] { (19.1f, 8), (20.22f, 8), (21.34f, 8), (22.46f, 8), (23.58f, 8), (24.7f, 8) }).Within(0.05f));
             Assert.That(watch.Sent("cast", P1ActionId.Cascade).Select(s => s.At), Is.EqualTo(new[] { c2 + 1.9f }).Within(0.05f));
             Assert.That(watch.Sent("ability", P1ActionId.Cascade).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (c2 + 5.9f, 8) }).Within(0.05f));
-            Assert.That(watch.Sent("ability", P1ActionId.LiquidGaol).Select(s => s.At), Is.EqualTo(Enumerable.Repeat(c2 + 10.1f, 3)).Within(0.05f));
-            Assert.That(watch.Sent("cast", P1ActionId.ProteanWaveFromTheLiquid).Select(s => s.At), Is.EqualTo(new[] { 4.8f, c2 + 18.2f }).Within(0.05f));
-            Assert.That(watch.Sent("cast", P1ActionId.Sluice).Select(s => s.At), Is.EqualTo(new[] { 9.9f, 9.9f, 9.9f, 9.9f, c2 + 23.3f, c2 + 23.3f, c2 + 23.3f, c2 + 23.3f }).Within(0.05f));
+            Assert.That(watch.Sent("ability", P1ActionId.LiquidGaol).Select(s => s.At), Is.EqualTo(Enumerable.Repeat(c2 + 10.05f, 3)).Within(0.05f));
+            Assert.That(watch.Sent("cast", P1ActionId.ProteanWaveFromTheLiquid).Select(s => s.At), Is.EqualTo(new[] { 4.8f, c2 + 18.15f }).Within(0.05f));
+            Assert.That(watch.Sent("cast", P1ActionId.Sluice).Select(s => s.At), Is.EqualTo(new[] { 9.9f, 9.9f, 9.9f, 9.9f, c2 + 23.25f, c2 + 23.25f, c2 + 23.25f, c2 + 23.25f }).Within(0.05f));
             Assert.That(watch.Sent("ability", P1ActionId.FluidSwing, P1ActionId.FluidStrike), Is.Empty, "no cleave falls in these two parts");
         });
     }
 
-    // An Embolus only fades as the Liquid falls, and is there for 1.3 s more. The east one has stopped where the
-    // Living Liquid stood at Pressurize; M2 is put on it a tenth of a second after the fall.
+    // An Embolus only fades as the Liquid falls, and is there for 1.3 s more. M2 is put on the east one a tenth of a
+    // second after the fall.
     [Test]
     public void TheLiquidFallsOnTheTimelineAndNothingKillsAfterIt()
     {
@@ -810,11 +816,14 @@ public class TeaP1LivingLiquidScenarioTests
         var tornadoes = new List<bool>();
         Vector3 orb = default;
         float? fromTheOrb = null;
-        var run = new Stage { First = Cascade2, EmbolusSpeed = 6f }.Run(MeleeDpsB, probe: p =>
+        var run = new Stage { First = Cascade2 }.Run(MeleeDpsB, probe: p =>
         {
             var fight = Stage.Fight(p);
-            if (p.Crossed(39.5f)) orb = fight.Emboli[1].Position;
-            if (p.Crossed(39.8f)) p.Member(MeleeDpsB)!.SetPosition(new Placement(orb, 0f));
+            if (p.Crossed(39.8f))
+            {
+                orb = fight.Emboli[1].Position;
+                p.Member(MeleeDpsB)!.SetPosition(new Placement(orb, 0f));
+            }
             if (p.Crossed(40f) && fight.Emboli[1].IsActive) fromTheOrb = Vector3.Distance(fight.Emboli[1].Position, p.Member(MeleeDpsB)!.Position);
             foreach (var at in new[] { 39.6f, 39.8f, 40.8f, 42.5f })
                 if (p.Crossed(at))
@@ -826,7 +835,7 @@ public class TeaP1LivingLiquidScenarioTests
         });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(fromTheOrb, Is.Zero.Within(0.01f), "M2 stands on an Embolus that is still there");
+        Assert.That(fromTheOrb, Is.LessThan(1f), "M2 stands within reach of an Embolus that is still there");
         Assert.That(states, Is.EqualTo(new[] { (true, true), (false, true), (false, true), (false, false) }));
         Assert.That(tornadoes, Is.EqualTo(new[] { true, false, false, false }), "the tornadoes and their water go with the Liquid");
         Assert.That(positions[3], Is.EqualTo(positions[2]), "the Hand's last spot is still answered once it has left");
@@ -874,7 +883,7 @@ public class TeaP1LivingLiquidScenarioTests
     }
 
     [Test]
-    public void ARunFromCascadeTwoHasNoTornadoUntilItLandsAndNoDrainage()
+    public void ARunFromCascadeTwoHasNoTornadoUntilAfterItLandsAndNoDrainage()
     {
         var watch = new Watch();
         var standing = new List<TeaP1TornadoLayout?>();
@@ -882,7 +891,7 @@ public class TeaP1LivingLiquidScenarioTests
         var run = stage.Run(MainTank, stopAt: 8f, probe: p =>
         {
             watch.See(p);
-            foreach (var at in new[] { 3f, 5.8f, 6f })
+            foreach (var at in new[] { 3f, 7.2f, 7.4f })
                 if (p.Crossed(at)) standing.Add(Stage.Fight(p).Tornadoes.Standing);
         });
 
@@ -890,8 +899,8 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.That(standing, Is.EqualTo(new[] { null, null, stage.Frame2 }));
         Assert.That(watch.Sent("cast", P1ActionId.Cascade).Select(s => s.At), Is.EqualTo(new[] { 1.9f }).Within(0.05f));
         Assert.That(watch.Spawned(P1BNpcBaseId.LiquidRage), Has.Count.EqualTo(3));
-        Assert.That(watch.Sent("cast", P1ActionId.HandOfPain).Select(s => s.At), Is.EqualTo(new[] { 0.3f }).Within(0.05f), "the Hand of Pain a run of both parts casts at 24.1");
-        Assert.That(watch.Sent("ability", P1ActionId.HandOfPain).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (3.3f, 8) }).Within(0.05f));
+        Assert.That(watch.Sent("cast", P1ActionId.HandOfPain).Select(s => s.At), Is.EqualTo(new[] { 0.25f }).Within(0.05f), "the Hand of Pain a run of both parts casts at 24.15");
+        Assert.That(watch.Sent("ability", P1ActionId.HandOfPain).Select(s => (s.At, s.Hits.Count)), Is.EqualTo(new[] { (3.25f, 8) }).Within(0.05f));
         Assert.That(watch.Sent("ability", P1ActionId.Splash, P1ActionId.Drainage), Is.Empty);
     }
 
@@ -957,17 +966,17 @@ public class TeaP1LivingLiquidScenarioTests
         overrides.StartFrom = Cascade2;
         var later = asScenario.BgmSecondsAtStart;
 
-        Assert.That((whole, later), Is.EqualTo((62f, 85.8f)));
+        Assert.That((whole, later), Is.EqualTo((60.9f, 84.8f)));
     }
 
     // -- The chat line, the settings, the catalog --
 
     [TestCase(MainTank, Protean1, "Your Drainage tether: from the tornado right of the open quarter", "Your Living Liquid in Protean 1: it faces you until its Protean Wave's bar shows",
-        "Your Living Liquid: it walks after you whenever you are more than 4 y from it, so fetching your tether drags it off the middle. After Drainage walk it back onto the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows",
-        "Your last hand: hold the Living Liquid more than 12 y from the Liquid Hand until the Hand shows its palm, then walk on through the middle")]
-    [TestCase(OffTank, Protean1, "Your Drainage tether: from the tornado left of the open quarter", "Your Liquid Hand: it walks after you and stops 2.1 y behind you")]
-    [TestCase(MainTank, Cascade2, "Your Living Liquid: it walks after you whenever you are more than 4 y from it. Keep it on the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows", "Your last hand:")]
-    [TestCase(OffTank, Cascade2, "Your Liquid Hand: it walks after you and stops 2.1 y behind you. For the last hand hold it more than 12 y from the Living Liquid until it shows its palm, then walk on through the middle")]
+        "Your Living Liquid: it stays put while you are within 7 y of it, and beyond that walks after you until it is 6 y from you, so fetching your tether can drag it off the middle. After Drainage lead it back: stand 6 y past the middle on the far side from it, and turn it to the open quarter 2 s or more before Protean 2's bar shows",
+        "Your last hand: hold the Living Liquid more than 17 y from the Liquid Hand until the Hand shows its palm, then walk on through the middle")]
+    [TestCase(OffTank, Protean1, "Your Drainage tether: from the tornado left of the open quarter", "Your Liquid Hand: it stays put while you are within 5 y of it, and beyond that walks after you until it is 4 y from you")]
+    [TestCase(MainTank, Cascade2, "Your Living Liquid: it stays put while you are within 7 y of it, and beyond that walks after you until it is 6 y from you. Keep it on the middle, and turn it to the open quarter 2 s or more before Protean 2's bar shows", "Your last hand:")]
+    [TestCase(OffTank, Cascade2, "Your Liquid Hand: it stays put while you are within 5 y of it, and beyond that walks after you until it is 4 y from you. For the last hand hold it more than 17 y from the Living Liquid until it shows its palm, then walk on through the middle")]
     [TestCase(RegenHealer, Protean1, "Your Throttle cleanses: yourself first, then MT, OT, H2, M1, M2, R1, R2")]
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
     [TestCase(MeleeDpsA, Protean1)]

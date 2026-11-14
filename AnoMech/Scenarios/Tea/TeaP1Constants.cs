@@ -11,7 +11,7 @@ public static class TeaP1Constants
 {
     public const byte Level = 80;
     public static readonly byte? Weather = null;                    // UNVERIFIED: the zone's own until the phase's is known
-    public const ushort Bgm = 706;                                  // UNVERIFIED when the next phase's track takes over
+    public const ushort Bgm = 706;                                  // the next phase's track, 723, takes over with J Kick
 
     public static IReadOnlyList<Waymark> EuWaymarks =>
     [
@@ -47,7 +47,7 @@ public static class TeaP1Constants
 
     public static class P1EObjId
     {
-        // UNVERIFIED: that this object draws a Liquid Rage's water, and with no spawn arguments.
+        // Added on each Liquid Rage's spot as it appears. UNVERIFIED: that it takes no spawn arguments.
         public const uint LiquidRagePuddle = 2005400;
     }
 
@@ -89,11 +89,11 @@ public static class TeaP1Constants
 
     public static class P1StatusId
     {
-        // UNVERIFIED: which vulnerability Cruise Chaser's hits leave (Physical Vulnerability Up here).
-        public const ushort CruiseChaserVulnerability = 695;
+        // Each of Cruise Chaser's hits leaves both.
+        public const ushort MagicVulnerabilityUp = 1138;
+        public const ushort PhysicalVulnerabilityUp = 695;
         public const ushort Throttle = 700;
-        // UNVERIFIED: which of the sheet's four "Water Resistance Down II" rows (1025, 1157, 2094, 2144) a wave leaves.
-        public const ushort WaterResistanceDown = 2144;
+        public const ushort WaterResistanceDown = 1025;             // Water Resistance Down II
         // Hallowed Ground, Holmgang, Living Dead, Superbolide.
         public static readonly ushort[] Invulnerabilities = [82, 409, 810, 1836];
     }
@@ -103,7 +103,8 @@ public static class TeaP1Constants
         public const ushort Drainage = 3;
     }
 
-    // UNVERIFIED which of the Liquid Hand's two forms is which.
+    // The Liquid Hand shows the first with the bosses close as it glows and the second with them far apart. UNVERIFIED
+    // which of the two looks a fist and which a palm.
     public static class P1ModelState
     {
         public const byte HandFist = 19;
@@ -117,18 +118,26 @@ public static class TeaP1Constants
 
     public static class P1Geometry
     {
-        public const float ArenaRadius = 20f;                       // UNVERIFIED that the rim is a wall and not a death zone
-        public const float HawkBlasterCardinalRadius = 14f;
-        public const float HawkBlasterDiagonalOffset = 10f;         // (+-10, +-10)
-        public const float CruiseChaserLandsBehind = 3f;            // UNVERIFIED; at most about 6 y
+        public const float ArenaRadius = 20f;                       // no wall: whoever goes past it dies
+        public const float HawkBlasterRadius = 14f;                 // on the cardinals and the diagonals alike
+        // UNVERIFIED. He reads a median 1.3 y behind where the logging client shows a running player, and the server has
+        // such a player a yalm or two further on.
+        public const float CruiseChaserLandsBehind = 3f;
         public const float AlphaSwordHalfAngle = MathF.PI / 4f;     // not on the sheet
-        public const float TornadoRingRadius = 14.5f;               // UNVERIFIED; drawn between 14.3 and 15.0
-        // UNVERIFIED; between 7.0 and 7.6. The larger, so a player learns the wider berth.
+        public const float TornadoRingRadius = 15f;
+        // UNVERIFIED; at least about 7.4 y and under 9.0, by the three players seen to step into it.
         public const float PuddleRadius = 7.6f;
-        public const float ProteanWaveHalfAngle = MathF.PI / 12f;   // UNVERIFIED; not on the sheet
-        public const float CleaveHalfAngle = MathF.PI / 4f;         // UNVERIFIED; not on the sheet
+        // UNVERIFIED; not on the sheet. Nearly everyone a wave hit stood within 10 degrees of its axis, and nearly
+        // everyone it missed beyond 30.
+        public const float ProteanWaveHalfAngle = MathF.PI / 12f;
+        // UNVERIFIED; not on the sheet. Whoever a cleave hit stood within 19 degrees of its axis, whoever it missed
+        // beyond 54.
+        public const float CleaveHalfAngle = MathF.PI / 4f;
         public const float DrainageRadius = 6f;
-        public const float EmbolusContact = 1f;                     // UNVERIFIED
+        // An Embolus bursts on whoever's hitbox comes within this of its centre: the Living Liquid, 3.5 y round,
+        // burst them from 3.8 to 4.5 y. UNVERIFIED for the Liquid Hand and for a player, neither seen to touch one.
+        public const float EmbolusRadius = 1f;
+        public const float EmbolusLeavesBeyond = 21.5f;             // it goes on out of the arena and is gone there
 
         // Where a run puts the bosses at its start, on relative bearings (degrees clockwise of the open quarter): the
         // Living Liquid on the centre, turned to its tank; the Liquid Hand beside it, toward its own. UNVERIFIED: the
@@ -140,16 +149,18 @@ public static class TeaP1Constants
 
     public static class P1Duration
     {
-        // The fight's clock 8 s before the first Hawk Blaster. UNVERIFIED: that the track starts with the pull, and
-        // the kill it counts from, the Liquid's 125.5 s in, 5.2 s before that blaster.
-        public const float LimitCutIntoTheTrack = 122.7f;
-        public const float NumberSpacing = 0.05f;                   // UNVERIFIED: the eight show over about 0.4 s
-        // UNVERIFIED. Over 0.1: his model is turned to its number again 0.1 s before each cleave, which has to come
-        // after he lands.
-        public const float CruiseChaserLandsBeforeAlphaSword = 0.5f;
-        public const float CruiseChaserVulnerability = 20f;         // UNVERIFIED; long enough that any second hit kills
-        // UNVERIFIED that each holds from the press: Arm's Length and Surecast, and the Inner Strength a warrior's
-        // Inner Release grants.
+        // The fight's clock 8 s before the first Hawk Blaster, which comes 5.2 s after the Living Liquid falls: here
+        // P1LivingLiquid's own kill, 124.5 s in. The track itself plays on from before the pull, so where it stands
+        // at any point of a pull is the party's doing.
+        public const float LimitCutIntoTheTrack = 121.7f;
+        public const float NumberSpacing = 0.045f;
+        // Over 0.1: his model is turned to its number again 0.1 s before each cleave, which has to come after he
+        // lands.
+        public const float CruiseChaserLandsBeforeAlphaSword = 1.17f;
+        public const float MagicVulnerabilityUp = 9.96f;
+        public const float PhysicalVulnerabilityUp = 16.96f;
+        // Arm's Length and Surecast hold off both of his throws. UNVERIFIED: that each holds from the press, and
+        // that the Inner Strength a warrior's Inner Release grants does too.
         public const float AntiKnockback = 6f;
         public const float InnerStrength = 15f;
         // UNVERIFIED, all three: how long after a hit lands its damage shows and whoever it killed falls. A number
@@ -159,27 +170,30 @@ public static class TeaP1Constants
         public const float JKickDamageDelay = 1f;
         public const float HawkBlasterAnimationLock = 0.6f;         // UNVERIFIED; its helper is busy until then
 
-        // The fight's clock as each Living Liquid part starts. UNVERIFIED as LimitCutIntoTheTrack: that the track
-        // starts with the pull.
-        public const float ProteanOneIntoTheTrack = 62f;
-        public const float CascadeTwoIntoTheTrack = 85.8f;
-        public const float WaterResistanceDown = 5f;                // UNVERIFIED; 3.1 to 6.0 by how the strats space the waves
-        // UNVERIFIED ("about 9 s"). Six cleanses by two healers, one each per 2.5 s, take 5.7 s.
-        public const float Throttle = 9f;
-        public const float ThrottleAfterLiquidGaol = 0.4f;
+        // The fight's clock as each Living Liquid part starts, counted from the first hit on the Living Liquid.
+        public const float ProteanOneIntoTheTrack = 60.9f;
+        public const float CascadeTwoIntoTheTrack = 84.8f;
+        public const float WaterResistanceDown = 3.96f;
+        // Six cleanses by two healers, one each per 2.5 s, take 5.7 s.
+        public const float Throttle = 10f;
+        public const float ThrottleAfterLiquidGaol = 0.45f;
         public const float WardensPaeanBarrier = 30f;               // on a target it found nothing to take off
         // UNVERIFIED: in the fight a puddle is a damage over time, so here its first second harms nobody.
         public const float PuddleKillsAfter = 1f;
-        public const float LiquidHoldsItsFacingAfterTheLastWave = 1f;   // UNVERIFIED when it turns back to its target
-        public const float EmbolusAfterPressurize = 0.6f;
-        public const float HandLeavesAfterTheLiquid = 1.2f;
+        public const float LiquidHoldsItsFacingAfterTheLastWave = 3f;   // it turns back as its next auto-attack goes off
+        // The client is shown a new set of Liquid Rages 1.2 to 1.6 s after the Cascade that brings it lands.
+        public const float TornadoesAppearAfterCascade = 1.4f;
+        public const float EmbolusAfterPressurize = 0.7f;
+        public const float EmbolusSetsOffAfterPressurize = 5.67f;
+        public const float HandLeavesAfterTheLiquid = 1.3f;
         public const float LiquidCorpseFade = 3f;
         public const float LivingLiquidDamageDelay = 1f;            // UNVERIFIED: for the waves, Sluice and Drainage
     }
 
     public static class P1Rules
     {
-        // UNVERIFIED, all four; that both push straight away from Cruise Chaser, and that facing him cancels neither.
+        // The Knockback sheet's rows 2 and 3, which his two hits name: straight away from him. Alpha Sword's 5 y was
+        // seen; the charge threw everyone it threw out of the arena, 15 y and more.
         public const float AlphaSwordKnockback = 5f;
         public const float AlphaSwordKnockbackSpeed = 10f;
         public const float SuperBlasstyChargeKnockback = 20f;
@@ -188,21 +202,29 @@ public static class TeaP1Constants
         // Two blasts go off at once, and their helpers are free again before the next; the third is spare.
         public const int LimitCutHelpers = 3;
 
-        public const float BossWalkSpeed = 6f;                      // UNVERIFIED
-        // UNVERIFIED, both; that a telegraphed wave pushes straight away from where it came from.
+        public const float BossWalkSpeed = 9f;
+        // A boss stands still while its target is within the second of these past their two hitboxes, centre to centre,
+        // and then walks until it is within the first. The Liquid Hand was seen to stop so, 4.1 y from its target.
+        // UNVERIFIED: the Living Liquid's stop, seen twice (6.0 y), and both set-offs, taken for the reach of an
+        // auto-attack: a boss let a target that stood still stay 4.4 and 7.0 y away.
+        public const float BossStopsPastTheHitboxes = 2f;
+        public const float BossSetsOffPastTheHitboxes = 3f;
+        // UNVERIFIED, both; that a telegraphed wave pushes straight away from where it came from. None was seen to hit
+        // anyone.
         public const float ProteanWaveKnockback = 10f;
         public const float ProteanWaveKnockbackSpeed = 20f;
-        // UNVERIFIED, all three, between the bosses' centres. Farther apart than the first as the Hand glows, it shows
-        // a palm, else a fist. A palm's slam needs them within the second (their hitboxes touching), a fist's beyond
-        // the third.
-        public const float HandShowsAPalmBeyond = 12f;
+        // Between the bosses' centres. Farther apart than the first as the Hand glows, it shows a palm, else a fist: it
+        // showed a fist up to 15.15 y and a palm from 16.13 y, UNVERIFIED where between. A palm's slam needs them
+        // within the second (their hitboxes touching): it killed nobody up to 2.87 y and everyone at 7.15 y. A fist's
+        // needs them beyond the third, UNVERIFIED: it killed up to 2.39 y, and nobody was seen to take one apart.
+        public const float HandShowsAPalmBeyond = 15.6f;
         public const float PalmNeedsThemWithin = 5.1f;
         public const float FistNeedsThemBeyond = 12f;
         // UNVERIFIED, all three: one cooldown, in the engine's own terms.
         public const float DrainageMitigation = 0.2f;
         public const float FluidSwingMitigation = 0.2f;
         public const float FluidStrikeMitigation = 0.2f;
-        public const float EmbolusSpeed = 1.5f;                     // UNVERIFIED ("slowly")
-        public const int LivingLiquidHelpers = 17;                  // UNVERIFIED: the fight's own count
+        public const float EmbolusSpeed = 1.92f;
+        public const int LivingLiquidHelpers = 17;                  // the fight's own count
     }
 }

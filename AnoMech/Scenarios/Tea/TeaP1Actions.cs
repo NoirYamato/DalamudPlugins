@@ -12,16 +12,19 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Scenarios.Tea;
 
-// Death reasons describe the fight, never a strat's spots. UNVERIFIED: no damage values are known, so a Hawk
-// Blaster and a Sluice kill on their own, and Cruise Chaser's hits and the Protean Waves kill only through what they
-// leave on whoever they hit.
+// Death reasons describe the fight, never a strat's spots. No health is played: a Hawk Blaster, a Sluice and the
+// Living Liquid's own untelegraphed cone kill on their own, as they did everyone they hit, and Cruise Chaser's hits
+// and the other Protean Waves kill only through what they leave on whoever they hit.
 public static class TeaP1Actions
 {
     public const string SecondCruiseChaserHit =
         "A second hit from Cruise Chaser: his cleave and his charge each leave a vulnerability, so each may catch only its own number";
 
     public const string SecondWave =
-        "Hit by a second Protean Wave: every wave leaves Water Resistance Down, and the next one while it lasts kills whoever carries it, short of a tank's invulnerability";
+        "Hit by a second Protean Wave: every wave leaves Water Resistance Down for 4 s, and the next one while it lasts kills whoever carries it, short of a tank's invulnerability";
+
+    public const string StoodAheadOfTheLiquid =
+        "Stood straight ahead of the Living Liquid as an untelegraphed set went off: besides the cones at the four closest players, each set has one along the Liquid's facing, which kills";
 
     // Declared ahead of the actions built from it.
     private static readonly VulnSpec WaveOnACarrier = P1StatusId.Invulnerabilities.Aggregate(
@@ -59,13 +62,20 @@ public static class TeaP1Actions
     // -- Protean Wave --
     // Each is cast along its caster's facing, so its aim is whatever its caster was turned to as the cast started. A
     // wave on someone who carries the last one's Water Resistance Down kills, bots included; a first one never does.
-    // UNVERIFIED: that the Living Liquid's own telegraphed wave is a cone straight ahead and not one more aimed at a
-    // player.
+    // UNVERIFIED: that the telegraphed rows kill no more than that, since none was seen to hit anyone.
     public static EnemyAction ProteanWaveFromTheLiquid(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveFromTheLiquid, world, presses);
 
     public static EnemyAction ProteanWaveAtAPlayer(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveAtAPlayer, world, presses);
 
-    public static readonly EnemyAction ProteanWaveStraightAhead = Wave(P1ActionId.ProteanWaveStraightAhead);
+    // The Living Liquid's own cone of an untelegraphed set kills whoever it hits, carrier or not. UNVERIFIED: that a
+    // tank's cooldowns do not take one through it; one tank was seen hit, and died.
+    public static readonly EnemyAction ProteanWaveStraightAhead = new(P1ActionId.ProteanWaveStraightAhead)
+    {
+        Area = new() { Size = P1Geometry.ProteanWaveHalfAngle },
+        Effects = [Damage(Lethal, split: new SparesTheInvulnerable()), ApplyStatus(P1StatusId.WaterResistanceDown, P1Duration.WaterResistanceDown)],
+        Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
+        DeathExplanation = StoodAheadOfTheLiquid,
+    };
 
     public static readonly EnemyAction ProteanWaveAtTheClosest = Wave(P1ActionId.ProteanWaveAtTheClosest) with { Area = UnseenWaveCone };
 
@@ -86,9 +96,8 @@ public static class TeaP1Actions
     private static EnemyAction KnockingWave(uint actionId, SimWorld world, TeaP1Presses presses)
         => Wave(actionId, new ThrownAsTheWaveGoesOut(world, presses));
 
-    // The telegraphed rows throw whoever they hit. Whom is decided with the hit, as the bar ends; the client slides
-    // its player once the effect arrives, CastSpec.ActionEffectOffset later. The engine's Push reads its distance at
-    // the resolve, and the rim's cap is only exact from where the target stands as the slide starts.
+    // The telegraphed rows throw whoever they hit, past the rim if it is near. Whom is decided with the hit, as the
+    // bar ends; the client slides its player once the effect arrives, CastSpec.ActionEffectOffset later.
     private sealed class ThrownAsTheWaveGoesOut(SimWorld world, TeaP1Presses presses) : IEnemyActionEffect
     {
         public void Apply(EnemyActionContext ctx, IReadOnlyList<SimCharacter> hits)
@@ -99,9 +108,7 @@ public static class TeaP1Actions
                 if (ctx.IsKilled(target) || !target.IsAlive() || ctx.Party.IsBotDriven(target) || presses.AntiKnockbackUp(target)) continue;
                 world.Events.Add(CastSpec.ActionEffectOffset, () =>
                 {
-                    if (!target.IsAlive()) return;
-                    var capped = CappedAtTheRim(from, target.Position, P1Rules.ProteanWaveKnockback);
-                    if (capped > 0.01f) target.Push(from, capped, capped / P1Rules.ProteanWaveKnockbackSpeed);
+                    if (target.IsAlive()) target.Push(from, P1Rules.ProteanWaveKnockback, P1Rules.ProteanWaveKnockback / P1Rules.ProteanWaveKnockbackSpeed);
                 });
             }
         }
@@ -147,11 +154,16 @@ public static class TeaP1Actions
 
     // -- The cleaves --
     // Each boss's cleave at its target: a non-tank seat in it dies, and a human tank on a tank's job needs a cooldown
-    // (P1Rules.FluidSwingMitigation, FluidStrikeMitigation).
+    // (P1Rules.FluidSwingMitigation, FluidStrikeMitigation). Both leave Water Resistance Down as a wave does, and
+    // neither hits a carrier of it any harder.
     public static readonly EnemyAction FluidSwing = new(P1ActionId.FluidSwing)
     {
         Area = new() { Size = P1Geometry.CleaveHalfAngle },
-        Effects = [Damage(TankBuster.MinMit(P1Rules.FluidSwingMitigation), split: new TankJobsOnly())],
+        Effects =
+        [
+            Damage(TankBuster.MinMit(P1Rules.FluidSwingMitigation), split: new TankJobsOnly()),
+            ApplyStatus(P1StatusId.WaterResistanceDown, P1Duration.WaterResistanceDown),
+        ],
         Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
         DeathExplanation = "Caught in Fluid Swing: the Living Liquid cleaves a quarter circle at its target, 11.5 y deep",
     };
@@ -159,7 +171,11 @@ public static class TeaP1Actions
     public static readonly EnemyAction FluidStrike = new(P1ActionId.FluidStrike)
     {
         Area = new() { Size = P1Geometry.CleaveHalfAngle },
-        Effects = [Damage(TankBuster.MinMit(P1Rules.FluidStrikeMitigation), split: new TankJobsOnly())],
+        Effects =
+        [
+            Damage(TankBuster.MinMit(P1Rules.FluidStrikeMitigation), split: new TankJobsOnly()),
+            ApplyStatus(P1StatusId.WaterResistanceDown, P1Duration.WaterResistanceDown),
+        ],
         Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
         DeathExplanation = "Caught in Fluid Strike: the Liquid Hand cleaves a quarter circle at its target, 11.6 y deep",
     };
@@ -181,35 +197,18 @@ public static class TeaP1Actions
             => (OnATankJob(target) ? null : (Hit)TankBuster, null);
     }
 
-    // The push starts with the hit: the client slides its own player the moment the effect arrives, and the cap is
-    // only exact from where the target stands now.
+    // Each hit leaves both vulnerabilities, and the next one inside the longer of them kills. The push starts with
+    // the hit: the client slides its own player the moment the effect arrives. It goes its full length, past the rim
+    // if that is nearer.
     private static IEnemyActionEffect[] CruiseChaserHit(TeaP1Presses presses, float knockback, float knockbackSpeed) =>
     [
-        Damage(VulnerableTo(P1StatusId.CruiseChaserVulnerability)),
-        ApplyStatus(P1StatusId.CruiseChaserVulnerability, P1Duration.CruiseChaserVulnerability),
+        Damage(VulnerableTo(P1StatusId.PhysicalVulnerabilityUp)),
+        ApplyStatus(P1StatusId.MagicVulnerabilityUp, P1Duration.MagicVulnerabilityUp),
+        ApplyStatus(P1StatusId.PhysicalVulnerabilityUp, P1Duration.PhysicalVulnerabilityUp),
         Push(Thrown(presses, knockback), knockbackSpeed, pushDelay: 0f),
     ];
 
     // Bots are taken to have pressed their own anti-knockback: they hold their spots.
     internal static Func<EnemyActionContext, SimCharacter, float?> Thrown(TeaP1Presses presses, float distance)
-        => (ctx, target) =>
-        {
-            if (ctx.Party.IsBotDriven(target) || presses.AntiKnockbackUp(target)) return null;
-            var capped = CappedAtTheRim(ctx.Caster.Position, target.Position, distance);
-            return capped > 0.01f ? capped : null;
-        };
-
-    // How far `at`, pushed straight away from `from`, goes before it would leave the arena: the engine stops only
-    // NPCs at a wall.
-    internal static float CappedAtTheRim(Vector3 from, Vector3 at, float distance)
-    {
-        var away = new Vector2(at.X - from.X, at.Z - from.Z);
-        if (away.LengthSquared() < 1e-6f) return 0f;
-        away = Vector2.Normalize(away);
-        var spot = new Vector2(at.X, at.Z);
-        var along = Vector2.Dot(spot, away);
-        var discriminant = along * along - (spot.LengthSquared() - P1Geometry.ArenaRadius * P1Geometry.ArenaRadius);
-        if (discriminant <= 0f) return 0f;
-        return MathF.Min(distance, MathF.Max(0f, MathF.Sqrt(discriminant) - along));
-    }
+        => (ctx, target) => ctx.Party.IsBotDriven(target) || presses.AntiKnockbackUp(target) ? null : distance;
 }
