@@ -171,7 +171,8 @@ public sealed partial class PlanImporter
         /// <summary>Hint text kept in the entry note (targets and "on CD" removed).</summary>
         public List<string> Notes { get; } = [];
 
-        public string NoteText => NoteTextOf(this.Token);
+        /// <summary>The text the token keeps as a note: its words and parentheticals, with a target its entry does not carry ("Earthly Star (melee)").</summary>
+        public string NoteText => NoteTextOf(this.Token, this.Target is null ? this.Token.Target : null);
 
         /// <summary>A target written after the action ("Short CD to R1", "Intervention Co-Tank"), as opposed to one in parentheses.</summary>
         public ParsedTarget? InlineTarget =>
@@ -180,7 +181,10 @@ public sealed partial class PlanImporter
         /// <summary>The token's own target: inline, or in parentheses on a token that is not the item's last.</summary>
         public ParsedTarget? OwnTarget => this.InlineTarget ?? (this.IsLast ? null : this.Token.Target);
 
-        /// <summary>The target of the token's entry: its own, else the one in parentheses after the item's last token when it is used on a player.</summary>
+        /// <summary>
+        /// The target of the token's entry: one written after it; one in parentheses (its own, else the one after the item's
+        /// last token) only when an action of it is used on a player.
+        /// </summary>
         public ParsedTarget? Target { get; set; }
 
         /// <summary>Some job's action of the token is used on one player (a target makes sense for it; not Reprisal, Holmgang).</summary>
@@ -1250,7 +1254,21 @@ public sealed partial class PlanImporter
                 t.Timing = (own.IsNone ? itemTiming : own) with { JobCondition = job };
                 if (!t.IsLast)
                     t.Condition ??= t.ParenCondition;
-                t.Target = t.OwnTarget ?? (t.OnAPlayer ? itemTarget : null);
+                t.Target = t.InlineTarget ?? (t.OnAPlayer ? t.OwnTarget ?? itemTarget : null);
+            }
+
+            // A target in parentheses that no action is used on ("Asylum (melee)", "Kera (party)": where to place it, whom
+            // it is for) stays in the note, as any other parenthetical; a sequence keeps it as its target.
+            if (!item.IsSequence)
+            {
+                foreach (var t in tokens)
+                {
+                    if (t.Kind == TokenKind.Actions && t.Target is null && t.OwnTarget is { } unused)
+                        t.Notes.Add(unused.Text);
+                }
+
+                if (itemTarget is not null && last.Kind == TokenKind.Actions && !tokens.Any(t => ReferenceEquals(t.Target, itemTarget)))
+                    last.Notes.Add(itemTarget.Text);
             }
 
             // Tokens with their own timing, job filter, condition or target ("Kera after 1st Hit" next to "Eprog + Panhaima",
@@ -1700,7 +1718,9 @@ public sealed partial class PlanImporter
                         cell.Src);
                 }
 
-                entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(item.IsSequence ? " → " : " + ", group.Select(t => t.NoteText)))], false, []));
+                // The action words; what is written after them or in parentheses is in the entry's note, as for an action.
+                var words = group.Select(t => t.Kind == TokenKind.Actions && t.Token.Head.Length > 0 ? t.Token.Head : t.NoteText);
+                entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(item.IsSequence ? " → " : " + ", words))], false, []));
                 choices.Clear();
             }
             else if (withActions.Count == 0)
@@ -2469,10 +2489,14 @@ public sealed partial class PlanImporter
         private static string Flat(string? text) => Regex.Replace(text ?? string.Empty, @"\s+", " ").Trim();
     }
 
-    /// <summary>The text a token keeps as a note: its words with the parenthetical hints ("Soil (when rots explode)").</summary>
-    private static string NoteTextOf(ParsedToken token)
+    /// <summary>
+    /// The text a token keeps as a note: its words with the parenthetical hints ("Soil (when rots explode)"), and a
+    /// <paramref name="target"/> its words do not name ("Earthly Star (melee)").
+    /// </summary>
+    private static string NoteTextOf(ParsedToken token, ParsedTarget? target)
     {
         var phrase = token.Phrase.Length > 0 ? token.Phrase : token.Text;
-        return token.Hints.Count == 0 ? phrase : phrase + " (" + string.Join("; ", token.Hints) + ")";
+        IReadOnlyList<string> hints = target is not null && !phrase.Contains(target.Text, StringComparison.OrdinalIgnoreCase) ? [target.Text, .. token.Hints] : token.Hints;
+        return hints.Count == 0 ? phrase : phrase + " (" + string.Join("; ", hints) + ")";
     }
 }

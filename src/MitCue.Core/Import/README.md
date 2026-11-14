@@ -144,7 +144,9 @@ Rules worth knowing:
   the note.
 - **Items.** Inline text speaks for its token, parentheses after an item's last token for the whole item: "Kera after
   1st Hit", "Short CD to R1", "Neutralsect if P4 skip" make their token its own entry (same anchor), while "Recit + Adlo
-  (just before P3 ends)" is one entry. A target in parentheses only goes to actions used on a player. Without a written
+  (just before P3 ends)" is one entry. A target in parentheses only goes to actions used on a player; elsewhere it
+  stays in the note like any other parenthetical ("Asylum (melee)", "Kera (party)": where to place it, "Earthly Star
+  (melee)" in a White Mage's column, "Feint (melee)" under "Extras": the note "Feint" with "melee"). Without a written
   target, actions used on a player take one from the row's notes, else "tank" on a tankbuster; the item's other actions
   then get an entry of their own ("EukDiag/Kerachole" on Double Rocket Punch). A condition ("if P4 skip", "no skip",
   "(if needed)") makes the entry optional. Part words after an action ("Succor Proteans + Soil +

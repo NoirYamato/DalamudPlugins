@@ -310,6 +310,37 @@ public class ImportCellRulesTests
         Assert.All(r.Plan.Entries, e => Assert.Equal(note, e.Note));
     }
 
+    [Theory]
+    [InlineData("White Mage", "Asylum (melee)", "Asylum", "melee", null)] // where to place it
+    [InlineData("Sage", "Kera (party)", "Kerachole", "party", null)]
+    [InlineData("White Mage", "Liturgy (ranged)", "Liturgy of the Bell", "ranged", null)]
+    [InlineData("Scholar", "Soil (on melee)", "Sacred Soil", "on melee", null)]
+    [InlineData("MT", "Rampart (self)", "Rampart", "self", null)]
+    [InlineData("White Mage", "Asylum (melee) + Benison", "Asylum+Divine Benison", "Asylum melee", null)] // a token's own
+    [InlineData("White Mage", "Benison (Range)", "Divine Benison", null, "Range")] // used on a player: the target
+    [InlineData("White Mage", "Asylum + Benison (MT)", "Divine Benison", null, "MT")]
+    public void ATargetInParentheses_ThatNoActionIsUsedOn_StaysInTheNote(string column, string cell, string actions, string? note, string? target)
+    {
+        var r = Import(Sheet("P1", column, "Pantokrator\t" + cell));
+
+        var e = Assert.Single(r.Plan.Entries, e => e.Target == target);
+        Assert.Equal((actions, note), (string.Join("+", e.Names()), e.Note));
+        Assert.All(r.Plan.Entries, x => Assert.False(target is not null && x.Note?.Contains(target, StringComparison.Ordinal) == true));
+    }
+
+    [Fact]
+    public void ATargetInParentheses_OnANote_StaysInIt()
+    {
+        // Another job's action keeps its words and parentheses; in a column for anyone, the words are the note item and the
+        // parentheses the entry's note, as for an action.
+        var r = Import(Sheet("P1", "White Mage\tExtras", "Pantokrator\tEarthly Star (melee)\tFeint (melee)"));
+
+        Assert.Equal(["note:Earthly Star (melee)"], Assert.Single(r.Plan.Entries, e => e.Who.Job == Job.WHM).Names());
+        var feint = Assert.Single(r.Plan.Entries, e => e.Who.Job is null);
+        Assert.Equal(["note:Feint"], feint.Names());
+        Assert.Equal("melee", feint.Note);
+    }
+
     // ------------------------------------------------------------------ post-passes
 
     [Fact]
