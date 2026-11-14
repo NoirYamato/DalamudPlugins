@@ -2139,7 +2139,9 @@ public sealed partial class PlanImporter
         /// mechanic: it becomes the action's first follow-up available at the level (a second Seraph while Seraph is out is
         /// Consolation), else a note "Temperance (still active)". Only for an action of one player (column, slot and job)
         /// that is used on the party, an area or themselves, has one charge at the level and is planned again from another
-        /// row, both rows' labels matching their mechanics, and the later entry neither optional nor targeted.
+        /// row, both rows' labels matching their mechanics, the later entry neither optional nor targeted, and the earlier
+        /// press one the player makes for sure: an optional entry ("(Temperance)", "Seraph (if needed)", one choice of an
+        /// either/or) may not be pressed, so it keeps no buff up.
         /// </summary>
         private void MarkStillActive(List<Draft> ordered)
         {
@@ -2157,7 +2159,8 @@ public sealed partial class PlanImporter
                         || e.Optional || e.Target is not null || action.Target is not (ActionTarget.Party or ActionTarget.Ground or ActionTarget.Self)
                         || action.ChargesAt(this.level) > 1 || duration <= 0 || action.RecastAt(this.level) <= duration || d.Press - prev.Press >= duration)
                     {
-                        last[key] = (d.Press, e.Mechanic, e.HitIndex ?? 0, d.Tab, d.Row);
+                        if (!e.Optional)
+                            last[key] = (d.Press, e.Mechanic, e.HitIndex ?? 0, d.Tab, d.Row);
                         continue;
                     }
 

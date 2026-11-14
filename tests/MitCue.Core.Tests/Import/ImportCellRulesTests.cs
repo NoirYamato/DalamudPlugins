@@ -288,6 +288,21 @@ public class ImportCellRulesTests
         Assert.DoesNotContain(r.Diagnostics, d => d.Code == "still-active");
     }
 
+    [Theory]
+    [InlineData("White Mage", "(Temperance)", "Temperance", "Temperance", SlashReading.Auto)] // in brackets: optional
+    [InlineData("Scholar", "Seraph (if needed)", "Seraph", "Summon Seraph", SlashReading.Auto)] // a condition
+    [InlineData("Scholar", "Seraph1/Soil", "Seraph", "Summon Seraph", SlashReading.Either)] // one choice of an either/or
+    public void PartyBuffNamedAgain_AfterAPressThatMayNotHappen_StaysAPress(string column, string first, string again, string action, SlashReading slashes)
+    {
+        // A player who skips the earlier press has no buff up: the later call is the one that puts it up (a Consolation
+        // needs a Seraph out).
+        var r = Import(Sheet("P2", column, "Limitless\t" + first, "Cosmo Memory\t" + again), slashes);
+
+        Assert.Equal([action], r.Plan.Entries.Single(e => e.Mechanic == "p2.cosmo_memory").Names());
+        Assert.All(r.Plan.Entries.Where(e => e.Mechanic == "p2.limitless"), e => Assert.True(e.Optional));
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code == "still-active");
+    }
+
     [Fact]
     public void PartyBuffNamedAgain_AfterItEnds_StaysAPress()
     {
