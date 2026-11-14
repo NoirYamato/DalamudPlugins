@@ -23,7 +23,7 @@ namespace AnoMech.Tests;
 //   16.8 / 27.9   the middle blaster. A blast kills at once; the death shows a second later.
 //   15.4 #1 cleaved on the north spot, 16.9 #2 charged there; 20.1 #3 and 21.6 #4 south-west;
 //   24.8 #5 and 26.3 #6 south-east; 29.4 #7 and 30.9 #8 north. Cruise Chaser lands 0.5 s before each cleave and
-//   turns to its number again 0.1 s before it.
+//   turns to its number again 0.1 s before it and as it goes off.
 //   34.1  J Kick. The run ends a second after its hit shows.
 public class TeaP1LimitCutScenarioTests
 {
@@ -279,6 +279,60 @@ public class TeaP1LimitCutScenarioTests
         {
             if (!p.Crossed(33f)) return;
             var cruiseChaser = CruiseChaser(p).EntityId.ToString("X8");
+    // The number stays on its spot until 0.05 s before the cleave, after his turn to it, and is then 0.3 y behind
+    // his centre, behind the cone that turn aimed. The cleave turned after it runs back through the rest of its
+    // group, so the run stops before any of them falls.
+    [TestCase(1, 15.4f)]
+    [TestCase(3, 20.1f)]
+    [TestCase(5, 24.8f)]
+    [TestCase(7, 29.4f)]
+    public void ANumberCannotStepBehindHimOutOfItsOwnCleave(int number, float cleavedAt)
+    {
+        var stage = new Stage { HumanUntil = cleavedAt - 0.05f };
+        var odd = stage.HitSpot(number);
+        var alongTheRim = Stage.Facing(Stage.ClockwiseAlongTheRim(odd));
+        var behind = odd - 3f * alongTheRim;
+
+        AssertHitBehindHim(stage, number, cleavedAt, behind, turnedTo: alongTheRim);
+    }
+
+    // The same for the charge, which he aims at the even number 0.1 s before it.
+    [TestCase(2, 16.9f)]
+    [TestCase(4, 21.6f)]
+    [TestCase(6, 26.3f)]
+    [TestCase(8, 30.9f)]
+    public void ANumberCannotStepBehindHimOutOfItsOwnCharge(int number, float chargedAt)
+    {
+        var stage = new Stage { HumanUntil = chargedAt - 0.05f };
+        var odd = stage.HitSpot(number - 1);
+        var behind = odd - 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd));
+
+        AssertHitBehindHim(stage, number, chargedAt, behind, turnedTo: Vector2.Normalize(stage.HitSpot(number) - behind));
+    }
+
+    // `number` steps 0.3 y behind Cruise Chaser, who stands on `standsAt` turned along `turnedTo`, 0.05 s before its hit.
+    private static void AssertHitBehindHim(Stage stage, int number, float hitAt, Vector2 standsAt, Vector2 turnedTo)
+    {
+        var seat = Stage.Numbers[number - 1];
+        var steppedTo = standsAt - 0.3f * turnedTo;
+        var hit = false;
+        Placement? before = null;
+        Placement? hitting = null;
+        var run = stage.Run(seat, stopAt: hitAt + 0.9f, takeovers: new Takeover(hitAt - 0.05f, steppedTo), probe: p =>
+        {
+            if (p.Crossed(hitAt - 0.07f)) before = CruiseChaser(p).Placement();
+            if (p.Crossed(hitAt)) hitting = CruiseChaser(p).Placement();
+            if (p.Crossed(hitAt + 0.8f)) hit = p.Member(seat)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(Vector2.Distance(before!.Value.Position2, standsAt), Is.LessThan(0.01f), $"he stands at {before.Value.Position2}");
+        Assert.That(Vector2.Distance(Stage.Facing(before.Value.Rotation), turnedTo), Is.LessThan(0.01f), $"he had turned to #{number} on its spot");
+        Assert.That(Vector2.Distance(hitting!.Value.Position2, standsAt), Is.LessThan(0.01f), "he has not moved");
+        Assert.That(Vector2.Distance(Stage.Facing(hitting.Value.Rotation), -turnedTo), Is.LessThan(0.01f), $"he faces #{number} as he hits");
+        Assert.That(hit, Is.True, $"#{number} was hit where it stepped to");
+    }
+
             warpIns.AddRange(p.Fake.Timeline.Rows
                 .Where(row => row["kind"] == "ac" && row["actor"] == cruiseChaser && row["id"] == "0x197"
                               && Convert.ToUInt32(row["p"].Split(',')[0], 16) == ActionTimelineId.WarpEnd)

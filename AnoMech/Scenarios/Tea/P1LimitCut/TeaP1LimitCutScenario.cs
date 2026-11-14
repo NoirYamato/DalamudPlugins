@@ -39,8 +39,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
     private SimEnemy? cruiseChaser;
     private SimEnemy? bruteJustice;
     private SimCharacter? landedBehind;
+    private SimCharacter? aimedAt;
     private bool cruiseChaserShown;
-    private bool aimed;
 
     internal int BusyHelperPeak => helpers.PeakBusy;
 
@@ -53,8 +53,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
         presses = new TeaP1Presses(world);
         alphaSword = TeaP1Actions.AlphaSword(presses);
         superBlasstyCharge = TeaP1Actions.SuperBlasstyCharge(presses);
-        landedBehind = null;
-        cruiseChaserShown = aimed = false;
+        landedBehind = aimedAt = null;
+        cruiseChaserShown = false;
         DiagnosticLog.Info($"[TeaP1LimitCut] Roll: first blasters {state.FirstBlasters}, numbers "
                            + string.Join(" ", state.Numbers.Select((role, k) => $"{k + 1}={role}")) + ".");
         if (selectedAi is { } idx && idx < AiStrats.Count)
@@ -72,7 +72,8 @@ public sealed class TeaP1LimitCutScenario : IScenario
         world.Events.Add(12.4f, () => HawkBlasterPair(2));
         world.Events.Add(14.6f, () => HawkBlasterPair(3));
         world.Events.Add(15.4f - P1Duration.CruiseChaserLandsBeforeAlphaSword, () => LandBehind(1));
-        // The release plays along the model's facing, which a turn only reaches a flush later.
+        // The release plays along the model's facing, which a turn only reaches a flush later, so each hit is turned
+        // 0.1 s ahead for the model and again as it goes off for its area.
         world.Events.Add(15.3f, FaceWhomHeLandedBehind);
         world.Events.Add(15.4f, AlphaSword);
         world.Events.Add(16.8f, HawkBlasterInTheMiddle);
@@ -169,28 +170,32 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
     // UNVERIFIED: he cleaves through that player wherever it has stepped since he landed, not on along the facing
     // he landed with, so a number can't walk out of its own cleave.
-    private void FaceWhomHeLandedBehind()
-    {
-        if (cruiseChaser is not null && landedBehind is { } target && target.IsAlive())
-            cruiseChaser.SetPosition(cruiseChaser.Placement().Face(target.Position));
-    }
+    private void FaceWhomHeLandedBehind() => Face(landedBehind);
 
     private void AlphaSword()
     {
-        if (landedBehind is not null) cruiseChaser?.Cast(alphaSword);
+        if (landedBehind is null) return;
+        Face(landedBehind);
+        cruiseChaser?.Cast(alphaSword);
     }
 
     // UNVERIFIED: he charges from where he cleaved and stays there.
     private void AimAt(int number)
     {
-        aimed = false;
-        if (landedBehind is null || cruiseChaser is null || Target(number) is not { } target) return;
-        cruiseChaser.SetPosition(cruiseChaser.Placement().Face(target.Position));
-        aimed = true;
+        aimedAt = landedBehind is null ? null : Target(number);
+        Face(aimedAt);
     }
 
     private void SuperBlasstyCharge()
     {
-        if (aimed) cruiseChaser?.Cast(superBlasstyCharge);
+        if (aimedAt is null) return;
+        Face(aimedAt);
+        cruiseChaser?.Cast(superBlasstyCharge);
+    }
+
+    private void Face(SimCharacter? target)
+    {
+        if (cruiseChaser is not null && target is not null && target.IsAlive())
+            cruiseChaser.SetPosition(cruiseChaser.Placement().Face(target.Position));
     }
 }

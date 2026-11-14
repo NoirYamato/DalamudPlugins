@@ -77,7 +77,9 @@ public static class TeaP1Constants
     {
         public const float LimitCutIntoTheTrack = 192f;             // UNVERIFIED that the track starts with the pull
         public const float NumberSpacing = 0.05f;                   // UNVERIFIED: the eight show over about 0.4 s
-        public const float CruiseChaserLandsBeforeAlphaSword = 0.5f; // UNVERIFIED
+        // UNVERIFIED. Over 0.1: his model is turned to its number again 0.1 s before each cleave, which has to come
+        // after he lands.
+        public const float CruiseChaserLandsBeforeAlphaSword = 0.5f;
         public const float CruiseChaserVulnerability = 20f;         // UNVERIFIED; long enough that any second hit kills
         // UNVERIFIED that each holds from the press: Arm's Length and Surecast, and the Inner Strength a warrior's
         // Inner Release grants.
