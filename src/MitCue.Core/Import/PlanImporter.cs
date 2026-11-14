@@ -47,8 +47,9 @@ public sealed partial class PlanImporter
     public const double AfterHitOffset = 0.5;
 
     /// <summary>
-    /// The offset of an action marked "(Late)" that is used before its hit ("Reprisal (Late)"): pressed just before the
-    /// hit, so that a 10 s Reprisal at Mega Holy 1 also covers Mega Holy 2, 7.1 s later.
+    /// The offset of an instant action marked "(Late)" that is pressed before its hit ("Reprisal (Late)"): just before the
+    /// hit, so that a 10 s Reprisal at Mega Holy 1 also covers Mega Holy 2, 7.1 s later. An entry with a cast is pressed
+    /// its longest cast earlier, so that the cast ends this long before the hit ("Succor (Late)": −3 s).
     /// </summary>
     public const double LateOffset = -1.0;
 
@@ -1758,9 +1759,13 @@ public sealed partial class PlanImporter
                             entry.Offset = PreHitLead(actions, this.level);
                     }
 
-                    // "(Late)": an action used before its hit is pressed just before it.
-                    if (timing.Late && press is null && entry.Offset is null && timingAction is not null && !IsAfterHit(timingAction))
-                        entry.Offset = LateOffset;
+                    // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast ending 1 s before
+                    // the hit, but never earlier than without the hint (mitigation timed to also cover a later hit).
+                    if (timing.Late && press is null && entry.Offset is null && actions.Count > 0
+                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && LateOffsetOf(actions) > automatic)
+                    {
+                        entry.Offset = LateOffsetOf(actions);
+                    }
 
                     this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row)));
                     part++;
@@ -1839,8 +1844,16 @@ public sealed partial class PlanImporter
         /// The press time the scheduler will give the entry (<see cref="TimingRules.ForEntry"/>), which orders the plan's
         /// entries.
         /// </summary>
-        private double PressEstimate(PlanEntry entry, Mechanic anchor) =>
-            TimingRules.ForEntry(entry, anchor, this.fight, this.options.Actions).PressAt;
+        private double PressEstimate(PlanEntry entry, Mechanic anchor) => this.TimingOf(entry, anchor).PressAt;
+
+        /// <summary>The entry's timing as the scheduler gives it (<see cref="TimingRules.ForEntry"/>).</summary>
+        private EntryTiming TimingOf(PlanEntry entry, Mechanic anchor) => TimingRules.ForEntry(entry, anchor, this.fight, this.options.Actions);
+
+        /// <summary>
+        /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus their longest cast, so that
+        /// the cast ends that long before the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s).
+        /// </summary>
+        private static double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(a => a.CastTime).DefaultIfEmpty(0).Max();
 
         /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to

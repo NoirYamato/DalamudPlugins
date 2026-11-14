@@ -189,7 +189,8 @@ Rules worth knowing:
 - **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
   column and section (`caret-note` info, a warning when nothing is above); a parenthetical that names the token's own
   per-job actions limits the jobs (`Party Mit (DM/HoL)`: DRK and GNB, `named-actions`); one or two target words in
-  brackets (`(Range)`) are a target; `(Late)` on an action used before its hit presses it 1 s before it.
+  brackets (`(Range)`) are a target; `(Late)` on an entry pressed before its hit presses it just before it, so that its
+  longest cast ends 1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s), but never earlier than without it.
 - **Notes over several columns** that name actions ("A tip for Soil/Kera timing …") are the detail of the entries in
   their columns and section that press one of them (all their columns' entries when none does).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon

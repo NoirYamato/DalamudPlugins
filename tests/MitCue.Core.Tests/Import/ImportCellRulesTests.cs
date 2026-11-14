@@ -1,6 +1,7 @@
 using MitCue.Core.Fights;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
+using MitCue.Core.Reminders;
 using MitCue.Core.Tests.Data;
 
 namespace MitCue.Core.Tests.Import;
@@ -344,6 +345,41 @@ public class ImportCellRulesTests
 
         // A heal is pressed after its hit: "(Late)" changes nothing.
         Assert.Null(Assert.Single(r.Plan.Entries, e => e.Names().Contains("Indomitability")).Offset);
+    }
+
+    [Theory]
+    [InlineData("Scholar", "Succor (Late)", -3.0)] // a 2 s cast
+    [InlineData("White Mage", "Medica II (Late)", -3.0)]
+    [InlineData("Astrologian", "Aspected Helios (Late)", -2.5)] // a 1.5 s cast
+    [InlineData("Scholar", "Indom + Succor (Late)", -3.0)] // pressed before the hit for the Succor
+    public void Late_ACastEndsJustBeforeTheHit(string column, string cell, double offset)
+    {
+        // Pressed 1 s before the hit, a 2 s Succor would land after it: the cast ends 1 s before the hit instead.
+        var entry = Assert.Single(Import(Sheet("P3", column, "Mega Holy\t" + cell), fight: PlanImports.Tea).Plan.Entries);
+
+        Assert.Equal(offset, entry.Offset);
+        var cast = entry.Do.SelectMany(i => i.ActionIds()).Max(id => RepoFiles.Actions.Get(id)!.CastTime);
+        Assert.Equal(PlanImporter.LateOffset, entry.Offset!.Value + cast, 3);
+    }
+
+    [Fact]
+    public void Late_NeverPressesEarlierThanWithoutIt()
+    {
+        // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.9 s before the first hit, so that it
+        // lasts through the spreads at 1342.7; "(Late)" (-1 s) would be earlier.
+        var entry = Assert.Single(Import(Sheet("P6", "MT", "Cosmo Meteor\tReprisal (Late)")).Plan.Entries);
+
+        Assert.Null(entry.Offset);
+        Assert.Equal(-0.9, TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions).Offset, 3);
+    }
+
+    [Fact]
+    public void Late_OnAMechanicWhoseCallsArePressedAfterIt_ChangesNothing()
+    {
+        // TEA's Photon sets everyone to 1 HP: its calls are the heal-up after it (press: after), "(Late)" or not.
+        var entry = Assert.Single(Import(Sheet("P2", "White Mage", "Photon\tTemperance (Late)"), fight: PlanImports.Tea).Plan.Entries);
+
+        Assert.Equal(("p2.photon_1", (double?)null), (entry.Mechanic, entry.Offset));
     }
 
     [Fact]

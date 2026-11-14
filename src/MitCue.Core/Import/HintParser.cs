@@ -31,8 +31,8 @@ internal sealed record HintTiming
     public bool Reanchored { get; init; }
 
     /// <summary>
-    /// A parenthetical that is only "late" or "later" ("Reprisal (Late)"): an action used before its hit is pressed just
-    /// before it (<see cref="PlanImporter.LateOffset"/>), so that it also covers a hit that follows soon after.
+    /// A parenthetical that is only "late" or "later" ("Reprisal (Late)"): an entry pressed before its hit is pressed just
+    /// before it (<see cref="PlanImporter.LateOffset"/>, minus a cast), so that it also covers a hit that follows soon after.
     /// </summary>
     public bool Late { get; init; }
 
