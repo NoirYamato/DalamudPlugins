@@ -52,7 +52,7 @@ public class ReminderTopPhasePushTests
         var shake = Entry("p3.ion_efflux", -2, null, "Shake as P3 dies"); // LPDU P3 note, anchored to the enrage (not flagged): press 585.4
         var soil = Entry("p3.monitors", null, SacredSoil);                 // normal: press 566.9 for the 571.4 monitors
         var expedient = Entry("p3.critical_error", null, Expedient);       // normal, before the push: press 544.1
-        var fey = Entry("p4.wave_cannon", null, FeyIllumination);          // normal, after the push: press 615.4
+        var fey = Entry("p4.wave_cannon", null, FeyIllumination);          // normal, after the push: press 618.8 (20 s: through the 4th hit)
         var options = new SimulationOptions { Seed = seed, Jitter = jitter };
         options.PhaseCutoff["p3"] = 560;
         options.PhaseRealStart["p4"] = 565;
@@ -93,7 +93,7 @@ public class ReminderTopPhasePushTests
         // Normal reminders before and after the push work as usual.
         Assert.Equal(ReminderState.Done, rExpedient.State);
         Assert.InRange(Assert.Single(pull.Due, d => d.Reminder == rExpedient).Time, 542.6, 542.6 + Frame + 0.6);
-        Assert.InRange(Assert.Single(pull.Due, d => d.Reminder == rFey).Time, 613.9, 613.9 + Frame + 0.6);
+        Assert.InRange(Assert.Single(pull.Due, d => d.Reminder == rFey).Time, 617.3, 617.3 + Frame + 0.6);
         Assert.Equal(ReminderState.Missed, rFey.State);
 
         if (pressDeploy)

@@ -225,6 +225,78 @@ public class EntryTimingTests
         Assert.Equal(-6, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
     }
 
+    // ---- several hits: mitigation covers the later hits it can reach ------------------------------------------------
+
+    /// <summary>Two hits 6.1 s apart at 100 (Optical Sight), two 7 s apart at 200, two 12 s apart at 300 (sync 90).</summary>
+    private static FightDefinition MultiHitFight() => Kit.Fight(
+        90,
+        Kit.Mech("p1.two", 100, 100, 106.1),
+        Kit.Mech("p1.seven", 200, 200, 207),
+        Kit.Mech("p1.far", 300, 300, 312),
+        Kit.Mech("p1.one", 400));
+
+    private static EntryTiming Multi(PlanEntry entry) =>
+        TimingRules.ForEntry(entry, MultiHitFight().GetMechanic(entry.Mechanic)!, MultiHitFight(), new FakeCatalog([.. Kit.Catalogued, TenSecondMit]));
+
+    [Fact]
+    public void Coverage_TenSecondMitigation_AlsoCoversTheSecondHit_EvenPressedOnTheNowCue()
+    {
+        var t = Multi(Kit.Entry("p1.two", null, Kit.Do(TenSecondMit)));
+        Assert.Equal(-1.9, t.AutomaticOffset, Kit.Tolerance);      // 106.1 − 10 + 2 − 100: not −3
+        Assert.Equal(96.6, t.Items[0].Earliest, Kit.Tolerance);    // ends 0.5 s after the second hit: the NOW cue (98.1 − 1.5)
+        Assert.Equal(99.7, t.Items[0].Latest, Kit.Tolerance);      // still before the first hit
+    }
+
+    [Fact]
+    public void Coverage_OnlyHitsTheEffectReachesWithTheMargins()
+    {
+        Assert.Equal(-3, Multi(Kit.Entry("p1.far", null, Kit.Do(TenSecondMit))).AutomaticOffset, Kit.Tolerance);  // 12 s: out of reach
+        Assert.Equal(-3, Multi(Kit.Entry("p1.one", null, Kit.Do(TenSecondMit))).AutomaticOffset, Kit.Tolerance);  // one hit
+        Assert.Equal(-6, Multi(Kit.Entry("p1.far", null, Kit.Do(Kit.Temperance))).AutomaticOffset, Kit.Tolerance); // 20 s from −6 reaches it anyway
+        Assert.Equal(-1, Multi(Kit.Entry("p1.seven", null, Kit.Do(Kit.HallowedGround))).AutomaticOffset, Kit.Tolerance); // an invuln: 207 − 10 + 2 − 200
+    }
+
+    [Fact]
+    public void Coverage_TheItemThatNeedsTheLatestPressTimesTheEntry_ShieldsRegensAndHealsDoNotCount()
+    {
+        Assert.Equal(-1.9, Multi(Kit.Entry("p1.two", null, Kit.Do(Kit.Temperance), Kit.Do(TenSecondMit))).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4, Multi(Kit.Entry("p1.two", null, Kit.Do(Kit.DivineBenison))).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Multi(Kit.Entry("p1.two", null, Kit.Do(Kit.MedicaII))).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-6, Multi(Kit.Entry("p1.two", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Temperance))).AutomaticOffset, Kit.Tolerance);
+
+        var mixed = Multi(Kit.Entry("p1.two", null, Kit.Do(TenSecondMit), Kit.Do(Kit.DivineBenison)));
+        Assert.Equal(96.6, mixed.Items[0].Earliest, Kit.Tolerance);
+        Assert.Equal(86, mixed.Items[1].Earliest, Kit.Tolerance);   // the shield's own window: 100 − 15 + 1
+    }
+
+    [Fact]
+    public void Coverage_NotForAHitIndexOrAWrittenTime()
+    {
+        Assert.Equal(-3, Multi(Kit.Entry("p1.two", null, Kit.Do(TenSecondMit)).AtHit(1)).AutomaticOffset, Kit.Tolerance);
+
+        var timed = Multi(Kit.Entry("p1.two", -3, Kit.Do(TenSecondMit)));
+        Assert.Equal(97, timed.PressAt, Kit.Tolerance);
+        Assert.Equal(91, timed.Items[0].Earliest, Kit.Tolerance);  // the plain window: 100 − 10 + 1
+    }
+
+    [Fact]
+    public void Coverage_APressThatEndsBeforeTheSecondHitIsEarly()
+    {
+        var fight = MultiHitFight();
+        var s = new ReminderScheduler(fight, [Kit.Entry("p1.two", null, Kit.Do(TenSecondMit))], new FakeCatalog([TenSecondMit]), new ReminderOptions());
+        var r = Assert.Single(s.All);
+        s.OnOwnAction(TenSecondMit.Id, 96.0);                      // would end at 106.0, before the second hit
+        Assert.True(r.UsedEarly);
+
+        s = new ReminderScheduler(fight, [Kit.Entry("p1.two", null, Kit.Do(TenSecondMit))], new FakeCatalog([TenSecondMit]), new ReminderOptions());
+        r = Assert.Single(s.All);
+        s.Update(96.6);
+        Assert.Equal(ReminderState.Due, r.State);
+        s.OnOwnAction(TenSecondMit.Id, 96.6);                      // on the NOW cue: on time
+        Assert.Equal(ReminderState.Done, r.State);
+        Assert.False(r.UsedEarly);
+    }
+
     // ---- series (a raidwide repeated a few seconds apart) ------------------------------------------------------
 
     /// <summary>

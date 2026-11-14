@@ -1396,84 +1396,84 @@ entries:
     src: "'Alex Prime/PA'!K39"
   - id: e203
     mechanic: p4.optical_sight
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!E39"
+  - id: e204
+    mechanic: p4.optical_sight
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!F39"
+  - id: e205
+    mechanic: p4.optical_sight
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!G39"
+  - id: e206
+    mechanic: p4.optical_sight
+    who: {job: AST, assignee: Astrologian}
+    do:
+      - {note: Everything}
+    src: "'Alex Prime/PA'!H39"
+  - id: e207
+    mechanic: p4.optical_sight
     who: {slot: MT, job: PLD, assignee: Tank 1}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 3540, name: Divine Veil}
     src: "'Alex Prime/PA'!C39"
-  - id: e204
+  - id: e208
     mechanic: p4.optical_sight
     who: {slot: MT, job: WAR, assignee: Tank 1}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 7388, name: Shake It Off}
     src: "'Alex Prime/PA'!C39"
-  - id: e205
+  - id: e209
     mechanic: p4.optical_sight
     who: {slot: MT, job: DRK, assignee: Tank 1}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 16471, name: Dark Missionary}
     src: "'Alex Prime/PA'!C39"
-  - id: e206
+  - id: e210
     mechanic: p4.optical_sight
     who: {slot: MT, job: GNB, assignee: Tank 1}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 16160, name: Heart of Light}
     src: "'Alex Prime/PA'!C39"
-  - id: e207
+  - id: e211
     mechanic: p4.optical_sight
     who: {slot: OT, job: PLD, assignee: Tank 2}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 3540, name: Divine Veil}
     src: "'Alex Prime/PA'!D39"
-  - id: e208
+  - id: e212
     mechanic: p4.optical_sight
     who: {slot: OT, job: WAR, assignee: Tank 2}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 7388, name: Shake It Off}
     src: "'Alex Prime/PA'!D39"
-  - id: e209
+  - id: e213
     mechanic: p4.optical_sight
     who: {slot: OT, job: DRK, assignee: Tank 2}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 16471, name: Dark Missionary}
     src: "'Alex Prime/PA'!D39"
-  - id: e210
+  - id: e214
     mechanic: p4.optical_sight
     who: {slot: OT, job: GNB, assignee: Tank 2}
     do:
       - {action: 7535, name: Reprisal}
       - {action: 16160, name: Heart of Light}
     src: "'Alex Prime/PA'!D39"
-  - id: e211
-    mechanic: p4.optical_sight
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {note: Everything}
-    src: "'Alex Prime/PA'!E39"
-  - id: e212
-    mechanic: p4.optical_sight
-    who: {job: SGE, assignee: Sage}
-    do:
-      - {note: Everything}
-    src: "'Alex Prime/PA'!F39"
-  - id: e213
-    mechanic: p4.optical_sight
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {note: Everything}
-    src: "'Alex Prime/PA'!G39"
-  - id: e214
-    mechanic: p4.optical_sight
-    who: {job: AST, assignee: Astrologian}
-    do:
-      - {note: Everything}
-    src: "'Alex Prime/PA'!H39"
   - id: e215
     mechanic: p4.optical_sight
     who: {slot: M1, assignee: Melee 1}
@@ -1553,22 +1553,22 @@ entries:
     src: "'Alex Prime/PA'!D43"
   - id: e227
     mechanic: p4.fate_beta
+    do:
+      - {note: Use Personals}
+    src: "'Alex Prime/PA'!M43"
+  - id: e228
+    mechanic: p4.fate_beta
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7433, name: Plenary Indulgence}
       - {action: 3569, name: Asylum}
     src: "'Alex Prime/PA'!G43"
-  - id: e228
+  - id: e229
     mechanic: p4.fate_beta
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'Alex Prime/PA'!H43"
-  - id: e229
-    mechanic: p4.fate_beta
-    do:
-      - {note: Use Personals}
-    src: "'Alex Prime/PA'!M43"
   - id: e230
     mechanic: p4.irresistible_grace_1
     who: {job: SCH, assignee: Scholar}

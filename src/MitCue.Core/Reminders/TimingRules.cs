@@ -46,6 +46,9 @@ public static class TimingRules
     private const double HealerLimitBreakDelay = 2;
     private const double AfterPreviousHit = 0.3;     // a later hit of a series: pressed this long after the hit before it
     private const double SameHit = 0.001;            // hits this close are one (a series hit and a mechanic of its own)
+    private const double CoverageMargin = 0.5;       // a later hit is covered when the effect outlasts it by this much...
+    private const double CoverageLead = 2;           // ...also pressed on the NOW cue: the default due lead (1.5 s) + 0.5 s
+    private const double CoverageSpanMargin = 2.5;   // the press is then still 0.5 s before the first hit
 
     // §5.2 use window.
     private const double ExpiryMargin = 1;           // an effect must outlast the hit by this much
@@ -83,13 +86,21 @@ public static class TimingRules
     /// mechanic's second hit).
     /// </para>
     /// <para>
+    /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
+    /// tank mitigation, invulns) also covers the later hits its effect can reach. For each such item with a duration D,
+    /// the last later hit hR with hR − first hit ≤ D − 2.5 s is covered: the press is no earlier than hR − D + 2 s, so even
+    /// pressed on the NOW cue (1.5 s before) the effect outlasts hR by 0.5 s, and the press is still 0.5 s before the first
+    /// hit (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s). A use that would end before hR + 0.5 s
+    /// is early.
+    /// </para>
+    /// <para>
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): the automatic
     /// press is never before the hit before it + 0.3 s (for an entry timed by a shield with a cast: minus the cast, so the
     /// shield lands then), and the reminder does not turn due before that either (<see cref="EntryTiming.DueNotBefore"/>).
     /// </para>
     /// <para>
-    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; for an automatic
-    /// press on a later hit of a series, a use before the series' floor is early.
+    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; with an automatic
+    /// press, a use before the series' floor, or one that ends before a later hit the item covers, is early.
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -109,6 +120,20 @@ public static class TimingRules
 
         var (automatic, timingAction) = AutomaticOffset(timing, mechanic, level);
 
+        // Mitigation for the whole of a multi-hit mechanic also covers the later hits it can reach.
+        var covers = new double?[items.Count];
+        if (automatic < 0 && (entry.HitIndex ?? 0) == 0)
+        {
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (CoveredHit(timing[i], mechanic, hit, level) is { } covered)
+                {
+                    covers[i] = covered.Hit - covered.Duration + CoverageMargin;
+                    automatic = Math.Max(automatic, covered.Hit - covered.Duration + CoverageLead - hit);
+                }
+            }
+        }
+
         // A later hit of a series: not before the hit before it (a cast shield lands then).
         double? floor = null;
         if (PreviousSeriesHit(fight, hit) is { } previous)
@@ -125,8 +150,8 @@ public static class TimingRules
         for (var i = 0; i < items.Count; i++)
         {
             var (earliest, latest) = UseWindow(timing[i], level, hit, pressAt, options);
-            if (notBefore is { } f)
-                earliest = Math.Min(Math.Max(earliest, f), pressAt);
+            if (isAutomatic && Later(covers[i], notBefore) is { } notEarly)
+                earliest = Math.Min(Math.Max(earliest, notEarly), pressAt);
             windows[i] = new ItemTiming(timing[i], earliest, latest);
         }
 
@@ -277,6 +302,32 @@ public static class TimingRules
 
         return earliest;
     }
+
+    /// <summary>
+    /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration: the last later
+    /// hit of the mechanic it covers together with <paramref name="hit"/> (no more than its duration − 2.5 s after it), with
+    /// that duration; else null.
+    /// </summary>
+    private static (double Hit, double Duration)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel)
+    {
+        if (action is not { Kind: ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln } || IsUsedAfterHit(action)
+            || (action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel)) is not { } duration)
+        {
+            return null;
+        }
+
+        (double Hit, double Duration)? covered = null;
+        foreach (var later in mechanic.Hits)
+        {
+            if (later > hit + SameHit && later - hit <= duration - CoverageSpanMargin)
+                covered = (later, duration);
+        }
+
+        return covered;
+    }
+
+    /// <summary>The later of two optional times (null when both are).</summary>
+    private static double? Later(double? a, double? b) => a is { } x && b is { } y ? Math.Max(x, y) : a ?? b;
 
     /// <summary>
     /// The hit before <paramref name="hit"/> in a <see cref="Mechanic.Series"/> of the fight that has it as a later hit, or

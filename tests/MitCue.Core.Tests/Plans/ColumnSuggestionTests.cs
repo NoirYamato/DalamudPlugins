@@ -12,7 +12,7 @@ namespace MitCue.Core.Tests.Plans;
 public class ColumnSuggestionTests
 {
     /// <summary>LPDU's job-less "MT" calls: eight Reprisals and three Ramparts, for whoever tanks in MT.</summary>
-    internal static readonly string[] LpduMtCalls = ["e027", "e044", "e083", "e089", "e115", "e121", "e146", "e172", "e216", "e245", "e279"];
+    internal static readonly string[] LpduMtCalls = ["e018", "e044", "e083", "e089", "e115", "e121", "e146", "e172", "e216", "e244", "e278"];
 
     private static readonly Lazy<MitPlan> LazyLpdu = new(() => PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(RepoFiles.Root, "plans", "top-lpdu.yaml"))));
 
