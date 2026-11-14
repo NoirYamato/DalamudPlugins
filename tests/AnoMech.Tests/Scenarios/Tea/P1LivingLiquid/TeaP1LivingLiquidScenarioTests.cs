@@ -379,6 +379,39 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.TwoDrainages));
     }
 
+    // The off tank stands 5.5 y from the main tank, each holding its tether, under its invulnerability.
+    [TestCase((ushort)82, TestName = "{m}(Hallowed Ground)")]
+    [TestCase((ushort)409, TestName = "{m}(Holmgang)")]
+    [TestCase((ushort)810, TestName = "{m}(Living Dead)")]
+    [TestCase((ushort)1836, TestName = "{m}(Superbolide)")]
+    public void ATanksInvulnerabilityLivesThroughTwoDrainages(ushort invulnerability)
+    {
+        var run = ProteanOne.Run(OffTank, takeovers: new Takeover(23f, new Vector2(2.76f - 5.5f, 2.76f)), probe: p =>
+        {
+            if (p.Crossed(23.5f)) p.Member(OffTank)!.AddStatus(invulnerability, 10f);
+        });
+
+        TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.Drainage, 24.6f, TeaP1LivingLiquid.TwoDrainages);
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
+        Assert.That(P1StatusId.Invulnerabilities, Does.Contain(invulnerability));
+    }
+
+    // R2 keeps the west tornado's tether, apart from everyone; the off tank, holding none, stands 5 y from the main
+    // tank under Hallowed Ground.
+    [Test]
+    public void ATanksInvulnerabilityLivesThroughAnothersDrainage()
+    {
+        var stage = new Stage { Last = Protean1, Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MainTank)] };
+        var run = stage.Run(OffTank, takeovers: new Takeover(23f, new Vector2(-2.24f, 2.76f)), probe: p =>
+        {
+            if (p.Crossed(19f)) p.Member(CasterDps)!.SetPosition(new Placement(new Vector3(-9f, 0f, -9.5f), 0f));
+            if (p.Crossed(23.5f)) p.Member(OffTank)!.AddStatus(82, 10f);
+        });
+
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { CasterDps }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1LivingLiquid.NonTankHoldsATether));
+    }
+
     // The main tank holds one; R2 keeps the other in the knot north; the off tank, holding none, stands 5 y from the
     // main tank. The main tank is in its own circle alone and lives.
     [Test]

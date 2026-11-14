@@ -334,6 +334,29 @@ public class TeaP1LivingLiquidActionsTests
         Assert.That(run.Deaths[0].Cause, Does.Contain("Stood in a Sluice as it went off"));
     }
 
+    // Laid at (8, 0): the main tank 2 y from it under its invulnerability, the off tank beside it without one.
+    [TestCase((ushort)82, TestName = "{m}(Hallowed Ground)")]
+    [TestCase((ushort)409, TestName = "{m}(Holmgang)")]
+    [TestCase((ushort)810, TestName = "{m}(Living Dead)")]
+    [TestCase((ushort)1836, TestName = "{m}(Superbolide)")]
+    public void ATanksInvulnerabilityLivesThroughASluice(ushort invulnerability)
+    {
+        var laidAt = new Vector3(8f, 0f, 0f);
+        var run = Cast((world, liquid, _) =>
+        {
+            world.Events.Add(1f, () =>
+            {
+                EveryoneOutOfTheWayBut(world, (MainTank, new Vector2(10f, 0f)), (OffTank, new Vector2(9f, 1f)));
+                world.Party.Get(MainTank)!.AddStatus(invulnerability, 10f);
+            });
+            world.Events.Add(2f, () => liquid.Cast(TeaP1Actions.Sluice, laidAt));
+        }, out var hit);
+
+        Assert.That(hit(P1ActionId.Sluice).Single(), Is.EquivalentTo(new[] { MainTank, OffTank }));
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { OffTank }), run.ToString);
+        Assert.That(P1StatusId.Invulnerabilities, Does.Contain(invulnerability));
+    }
+
     [TestCase(P1ActionId.Cascade)]
     [TestCase(P1ActionId.Splash)]
     [TestCase(P1ActionId.HandOfPain)]

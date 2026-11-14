@@ -110,10 +110,19 @@ public static class TeaP1Actions
     // -- Sluice --
     public static readonly EnemyAction Sluice = new(P1ActionId.Sluice)
     {
-        Effects = [Damage(Lethal)],
+        Effects = [Damage(Lethal, split: new SparesTheInvulnerable())],
         Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
         DeathExplanation = "Stood in a Sluice as it went off: one drops under each of the four players farthest from the Living Liquid and goes off 3 s later",
     };
+
+    // A tank's invulnerability takes it through a hit that kills on its own, as through a wave.
+    internal static bool Invulnerable(SimCharacter member) => P1StatusId.Invulnerabilities.Any(member.HasStatus);
+
+    private sealed record SparesTheInvulnerable : Distribution
+    {
+        internal override (Hit? Hit, string? Reason) Assign(EnemyActionContext ctx, IReadOnlyList<SimCharacter> hits, int index, SimCharacter target)
+            => (Invulnerable(target) ? (Hit)Normal : null, null);
+    }
 
     // -- The raidwides, harmless here --
     public static readonly EnemyAction Cascade = new(P1ActionId.Cascade) { Effects = [Damage()] };

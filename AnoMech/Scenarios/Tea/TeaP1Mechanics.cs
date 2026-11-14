@@ -434,9 +434,10 @@ public sealed class TeaP1LivingLiquid
         }, file, line);
 
     // Drainage on each tether's holder, 6 y round it, and the tornadoes leave with their puddles. A non-tank seat
-    // that holds a tether dies; so does anyone but the holder in a holder's circle, and a tank seat in two. A human
-    // tank on a tank's job that takes its own needs a cooldown (P1Rules.DrainageMitigation). UNVERIFIED: that a tank
-    // lives through one unmitigated in the fight, and that one circle kills a tank seat that holds no tether.
+    // that holds a tether dies; so does anyone but the holder in a holder's circle, and a tank seat in two, short of
+    // a tank's invulnerability. A human tank on a tank's job that takes its own needs a cooldown
+    // (P1Rules.DrainageMitigation). UNVERIFIED: that a tank lives through one unmitigated in the fight, and that one
+    // circle kills a tank seat that holds no tether.
     public void Drainage(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
         => At(at, () =>
         {
@@ -457,7 +458,7 @@ public sealed class TeaP1LivingLiquid
                     : holds ? NonTankHoldsATether
                     : circles >= 1 ? InSomeoneElsesDrainage
                     : null;
-                if (why is not null) verdicts.Kill(member, P1ActionId.Drainage, why);
+                if (why is not null && !Actions.Invulnerable(member)) verdicts.Kill(member, P1ActionId.Drainage, why);
             }
             foreach (var (from, holder) in holders)
                 Tornadoes[from]?.Cast(Actions.Drainage, holder);
