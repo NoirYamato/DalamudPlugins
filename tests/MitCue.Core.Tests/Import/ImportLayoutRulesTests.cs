@@ -224,6 +224,32 @@ public class ImportLayoutRulesTests
         Assert.Equal((Job.DRK, "Reprisal"), (reprisal.Who.Job!.Value, reprisal.Names().Single()));
     }
 
+    [Theory]
+    [InlineData("PLD Wings + Addle", Job.PLD, "Passage of Arms", "Addle")]
+    [InlineData("Dismantle + Feint", Job.MCH, "Dismantle", "Feint")]
+    [InlineData("Feint + Dismantle", Job.MCH, "Dismantle", "Feint")]
+    [InlineData("Feint + Addle + Dismantle", Job.MCH, "Dismantle", "Feint + Addle")]
+    public void ExtrasColumn_SharedActionBesideAJobsOwnCall_OnlyTheSharedOneIsANote(string cell, Job job, string action, string shared)
+    {
+        // The call that names its job keeps its entry; only the actions several jobs share are a note for everyone.
+        var r = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", cell]));
+
+        var entries = r.Plan.At("'P1'!C2");
+        var own = Assert.Single(entries, e => e.Who.Job is not null);
+        Assert.Equal((job, action), (own.Who.Job!.Value, own.Names().Single()));
+        var note = Assert.Single(entries, e => e.Who.Job is null);
+        Assert.Equal("note:" + shared, note.Names().Single());
+        Assert.Equal(shared.Split(" + ").Select(s => "'" + s + "'"), r.Diagnostics.Where(d => d.Code == "anyone-role-action").Select(d => d.Message.Split(" in ")[0]));
+    }
+
+    [Fact]
+    public void ExtrasColumn_SequenceWithASharedStep_StaysOneNote()
+    {
+        // The steps of a sequence are one player's: one that does not say whose makes the whole sequence a note.
+        var note = Assert.Single(Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "PLD Wings → Addle"])).Plan.At("'P1'!C2"));
+        Assert.Equal(((Job?)null, "note:PLD Wings → Addle"), (note.Who.Job, note.Names().Single()));
+    }
+
     [Fact]
     public void ExtrasColumn_ActionsNamedPerJobInParentheses_SayWhoseTheyAre()
     {

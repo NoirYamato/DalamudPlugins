@@ -1254,10 +1254,14 @@ public sealed partial class PlanImporter
             }
 
             // Tokens with their own timing, job filter, condition or target ("Kera after 1st Hit" next to "Eprog + Panhaima",
-            // "Rep + Short CD to R1") become their own entry; the steps of a sequence stay together.
+            // "Rep + Short CD to R1") become their own entry; the steps of a sequence stay together. In a column for anyone,
+            // an action several jobs share is a note for everyone apart from the calls beside it that say whose they are
+            // ("Dismantle + Feint": a Machinist's Dismantle, and the note "Feint").
+            var anyone = header.Kind == AssigneeKind.Anyone;
             var groups = item.IsSequence
                 ? [tokens]
-                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value)).Select(g => g.ToList()).ToList();
+                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value, anyone && t.Timing.JobCondition is null && SharedByJobs(t, candidates)))
+                    .Select(g => g.ToList()).ToList();
             var shared = new ItemShared(
                 Times: ItemTimes(item),
                 Condition: itemCondition,
@@ -1626,7 +1630,8 @@ public sealed partial class PlanImporter
         /// The entries of a group of tokens that share their timing, condition and target: one for the column, or one per
         /// job when the jobs' actions differ. In a column for anyone ("Extras") a call is for the jobs whose own action it
         /// names, with no assignee; an action several jobs share ("Feint") does not say whose it is and is a note for
-        /// everyone. An either/or with a choice of several actions ("Spread-Lo/Soil") gives one optional entry per choice.
+        /// everyone (in a group of its own: <see cref="ImportItem"/>). An either/or with a choice of several actions
+        /// ("Spread-Lo/Soil") gives one optional entry per choice.
         /// </summary>
         private void ImportGroup(RowState row, AssigneeCell cell, string? key, ParsedItem item, List<TokenState> group, int groupIndex, ItemShared shared, IReadOnlyList<Job> candidates, AssigneeHeader header)
         {
@@ -1685,13 +1690,17 @@ public sealed partial class PlanImporter
 
             var withActions = perJob.Where(p => p.Actions.Count > 0).ToList();
             var entries = new List<EntryParts>();
-            if (header.Kind == AssigneeKind.Anyone && SharedByJobs(group, jobs) is { } common)
+            if (header.Kind == AssigneeKind.Anyone && group.Where(t => SharedByJobs(t, jobs)).ToList() is { Count: > 0 } common)
             {
-                var owners = jobs.Where(j => common.ByJob[j].Kind == TokenKind.Actions);
-                this.Diag(DiagnosticSeverity.Warning, "anyone-role-action",
-                    $"'{common.NoteText}' in the '{header.Key}' column is an action of {string.Join("/", owners)}: it does not say whose, so it is a note for everyone. Name the job (\"DRK Reprisal\") or move it to a player's column.",
-                    cell.Src);
-                entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(" + ", group.Select(t => t.NoteText)))], false, []));
+                foreach (var t in common)
+                {
+                    var owners = jobs.Where(j => t.ByJob[j].Kind == TokenKind.Actions);
+                    this.Diag(DiagnosticSeverity.Warning, "anyone-role-action",
+                        $"'{t.NoteText}' in the '{header.Key}' column is an action of {string.Join("/", owners)}: it does not say whose, so it is a note for everyone. Name the job (\"DRK Reprisal\") or move it to a player's column.",
+                        cell.Src);
+                }
+
+                entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(item.IsSequence ? " → " : " + ", group.Select(t => t.NoteText)))], false, []));
                 choices.Clear();
             }
             else if (withActions.Count == 0)
@@ -1859,15 +1868,15 @@ public sealed partial class PlanImporter
             ItemGroups(alternative).Select(g => g.Count == 1 ? PlanItem.ForAction(g[0].Id, g[0].Name) : PlanItem.AnyOf(g.Select(a => PlanItem.ForAction(a.Id, a.Name))));
 
         /// <summary>
-        /// In a column for anyone ("Extras"): the first token whose words name an action of two or more of the jobs ("Feint",
-        /// "Party Mit"), which does not say whose it is; null when each job's action is named by words of its own ("PLD Wings",
+        /// In a column for anyone ("Extras"): the token's words name an action of two or more of the jobs ("Feint", "Party
+        /// Mit"), so it does not say whose it is; false when each job's action is named by words of its own ("PLD Wings",
         /// "Dismantle", "Minne/Mantra", "Party Mit (DM/HoL)").
         /// </summary>
-        private static TokenState? SharedByJobs(List<TokenState> group, IReadOnlyList<Job> jobs) =>
-            group.FirstOrDefault(t => !t.JobsNamed && jobs.Where(j => t.ByJob[j].Kind == TokenKind.Actions)
-                .SelectMany(j => t.ByJob[j].Alternatives.Select(a => (Job: j, a.Matched)))
+        private static bool SharedByJobs(TokenState token, IEnumerable<Job> jobs) =>
+            !token.JobsNamed && jobs.Where(j => token.ByJob[j].Kind == TokenKind.Actions)
+                .SelectMany(j => token.ByJob[j].Alternatives.Select(a => (Job: j, a.Matched)))
                 .GroupBy(x => x.Matched, StringComparer.OrdinalIgnoreCase)
-                .Any(g => g.Select(x => x.Job).Distinct().Count() > 1));
+                .Any(g => g.Select(x => x.Job).Distinct().Count() > 1);
 
         /// <summary>The row's label matched its mechanic: not a stand-in, the row above's or the next row's, or a guess from its spelling.</summary>
         private static bool IsConfident(RowState row) => !row.Unknown && row.Match is not ("unknown" or "previous" or "next" or "note" or "fuzzy" or "other-phase");
