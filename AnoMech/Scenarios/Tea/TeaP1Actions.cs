@@ -17,22 +17,30 @@ public static class TeaP1Actions
 
     public static readonly EnemyAction HawkBlaster = new(P1ActionId.HawkBlaster)
     {
+        Cast = new() { AnimationLock = P1Duration.HawkBlasterAnimationLock },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = P1Duration.HawkBlasterDamageDelay },
         DeathExplanation = "Caught in the blast: Hawk Blasters go off unmarked, two opposite each other, each pair 45 degrees clockwise of the last, and one in the middle after every fourth pair",
     };
 
-    public static readonly EnemyAction JKick = new(P1ActionId.JKick) { Effects = [Damage()] };
+    public static readonly EnemyAction JKick = new(P1ActionId.JKick)
+    {
+        Effects = [Damage()],
+        Timing = new() { DamageDelay = P1Duration.JKickDamageDelay },
+    };
 
     public static EnemyAction AlphaSword(TeaP1Presses presses) => new(P1ActionId.AlphaSword)
     {
         Area = new() { Size = P1Geometry.AlphaSwordHalfAngle },
         Effects = CruiseChaserHit(presses, P1Rules.AlphaSwordKnockback, P1Rules.AlphaSwordKnockbackSpeed),
+        Timing = new() { DamageDelay = P1Duration.CruiseChaserDamageDelay },
         DeathExplanation = SecondCruiseChaserHit,
     };
 
     public static EnemyAction SuperBlasstyCharge(TeaP1Presses presses) => new(P1ActionId.SuperBlasstyCharge)
     {
         Effects = CruiseChaserHit(presses, P1Rules.SuperBlasstyChargeKnockback, P1Rules.SuperBlasstyChargeKnockbackSpeed),
+        Timing = new() { DamageDelay = P1Duration.CruiseChaserDamageDelay },
         DeathExplanation = SecondCruiseChaserHit,
     };
 

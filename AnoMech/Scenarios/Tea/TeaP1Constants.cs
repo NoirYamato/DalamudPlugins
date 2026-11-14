@@ -79,6 +79,11 @@ public static class TeaP1Constants
         public const float CruiseChaserVulnerability = 20f;         // UNVERIFIED; long enough that any second hit kills
         // UNVERIFIED that an Arm's Length or Surecast holds from the press; both last 6 s.
         public const float AntiKnockback = 6f;
+        // UNVERIFIED, all three: how long after a hit lands its damage shows and whoever it killed falls.
+        public const float HawkBlasterDamageDelay = 1f;
+        public const float CruiseChaserDamageDelay = 1f;
+        public const float JKickDamageDelay = 1f;
+        public const float HawkBlasterAnimationLock = 0.6f;         // UNVERIFIED; its helper is busy until then
     }
 
     public static class P1Rules
@@ -89,7 +94,7 @@ public static class TeaP1Constants
         public const float SuperBlasstyChargeKnockback = 20f;
         public const float SuperBlasstyChargeKnockbackSpeed = 40f;
 
-        // Two blasts at once at most; the fight has 17.
+        // Two blasts go off at once, and their helpers are free again before the next; the third is spare.
         public const int LimitCutHelpers = 3;
     }
 }
