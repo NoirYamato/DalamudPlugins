@@ -642,6 +642,32 @@ public class BundledPlanTests
         Assert.DoesNotContain(columns, c => c != null && c.StartsWith("CM ", StringComparison.Ordinal)); // their Cosmo Memory role is not known
     }
 
+    [Theory]
+    [InlineData(Job.BRD, "R1", null)]
+    [InlineData(Job.BRD, "R1", "Phys Range")]
+    [InlineData(Job.MNK, "M1", null)]
+    public void OnTeaTheOtherDpsRowsHaveTheRoleColumnsCallsWhateverColumnThePlayerFollows(Job job, string slot, string? column)
+    {
+        // Review finding C14: the Black Mage's Addles ("Caster") reached a Bard's rows only after the Bard picked "Phys Range"
+        // in /mitcue > Plans, and a Monk in "Melee 1" never saw them.
+        var config = new Configuration { ShowOtherAssignees = true, DefaultSlot = slot };
+        var parts = SessionManagerTests.NewManager(config);
+        parts.Plans.EnsureLoaded();
+        if (column != null)
+            parts.Plans.SetMapping(parts.Plans.Get(LpduTea)!.Plan, job, new PlayerMapping { AssigneeKey = column });
+        var frame = SessionManagerTests.InTea(job);
+        frame.PartyJobMask = PartyJobs.Mask([Job.PLD, Job.WAR, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM]);
+        parts.Manager.Update(frame);
+
+        var others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
+        var addles = others.Where(e => e.Who.Assignee == "Caster").ToList();
+        Assert.Equal(["'LL/BJCC'!L19", "'LL/BJCC'!L46", "'Alex Prime/PA'!L15", "'Alex Prime/PA'!L39", "'Alex Prime/PA'!L45"], addles.Select(e => e.Src));
+        Assert.All(addles, e => Assert.Equal(Job.BLM, e.Who.Job));
+        Assert.DoesNotContain(others, e => e.Who.Job is { } j && j != Job.None && !new[] { Job.MNK, Job.DRG, Job.BRD, Job.BLM }.Contains(j)); // nobody else plays them
+        if (job == Job.MNK)
+            Assert.Contains(others, e => e.Who.Assignee == "Phys Range" && e.Who.Job == Job.BRD);
+    }
+
     [Fact]
     public void APartyChangeRebuildsNothingWhileTheCoHealersCallsAreHidden()
     {

@@ -16,7 +16,8 @@ namespace MitCue.Runtime;
 /// calls in a slot the party gives another job (<see cref="ColumnSuggestion.PartySeats"/>: LPDU's R1 Red Mage calls next
 /// to a Bard). The partner's columns that are not a team composition (a general "DRK" column next to "WAR/DRK DRK", a
 /// column per phase) are all kept; columns for a role without a seat (LPDU's "CM LB Tank" and "CM Rep Tank") are not,
-/// unless the player follows one of them.
+/// unless the player follows one of them, except for a job with no column of its own: its calls in a role column are its
+/// seat (LPDU TEA's "Phys Range" and "Caster", a call per job: the Black Mage's Addles next to a Bard).
 /// </summary>
 internal static class PartnerSelection
 {
@@ -69,7 +70,7 @@ internal static class PartnerSelection
                 continue; // the partner's job in a team composition without the player's job, or the same seat twice
             if (party != null && job != null && !party.Contains(job.Value))
                 continue; // a job nobody in the party plays
-            if (slot == null && column != null && IsRoleColumn(column) && (!followsRole || ReferenceEquals(column, myColumn)))
+            if (slot == null && column != null && IsRoleColumn(column) && (job == null || HasOwnColumn(plan, job.Value)) && (!followsRole || ReferenceEquals(column, myColumn)))
                 continue; // a role without a seat (LPDU's "CM LB Tank"): which one the partner plays is not known, as for the player
             if (job != null && slot != null && seats.TryGetValue(slot, out var holder) && holder != job)
                 continue; // a slot the party gives another job (LPDU's R1 next to a Bard): not the Red Mage's seat
@@ -83,13 +84,21 @@ internal static class PartnerSelection
     /// <summary>
     /// A column for a role without a seat, such as LPDU's "CM LB Tank" and "CM Rep Tank" (Cosmo Memory's limit break and
     /// Reprisal tank): no job and no slot, and a key that names neither. Its calls are no player's automatically: a tank
-    /// picks one in /mitcue > Plans, and then the other role columns are the partner's.
+    /// picks one in /mitcue > Plans, and then the other role columns are the partner's. A job with no column of its own
+    /// gets its calls there without a choice (<see cref="HasOwnColumn"/>).
     /// </summary>
     private static bool IsRoleColumn(Assignee column) =>
         column.Job is null or Job.None
         && !Slots.TryNormalize(column.Slot, out _)
         && !Slots.TryNormalize(column.Key, out _)
         && !Jobs.TryParse(column.Key, out _);
+
+    /// <summary>
+    /// True when a column of the plan is the job's own (LPDU TOP's "WAR/DRK DRK"): its calls in a role column ("CM LB
+    /// Tank") are then not the job's without a choice, as for the player. A job with no column of its own (LPDU TEA's
+    /// casters, whose Addles are in "Caster") has its calls in role columns as its seat: its own overlay shows them.
+    /// </summary>
+    private static bool HasOwnColumn(MitPlan plan, Job job) => plan.Assignees.Exists(a => a?.Job == job);
 
     /// <summary>The role an entry is meant for, or <see cref="Role.None"/> when unknown.</summary>
     public static Role RoleOf(MitPlan plan, PlanEntry entry)
