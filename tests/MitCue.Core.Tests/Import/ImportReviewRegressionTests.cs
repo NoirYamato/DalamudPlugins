@@ -14,14 +14,8 @@ namespace MitCue.Core.Tests.Import;
 /// </summary>
 public class ImportReviewSheetTests
 {
-    private static double PlannedPress(PlanEntry e)
-    {
-        var hit = PlanImports.Top.GetMechanic(e.Mechanic)!.HitAt(e.HitIndex ?? 0);
-        if (e.Offset is { } o)
-            return hit + o;
-        var first = e.Do.Select(i => i.Action ?? i.Any?.FirstOrDefault()?.Action).FirstOrDefault(a => a is not null);
-        return hit + TimingRules.DefaultOffset(first is { } id ? RepoFiles.Actions.Get(id) : null, 90);
-    }
+    private static double PlannedPress(PlanEntry e) =>
+        TimingRules.ForEntry(e, PlanImports.Top.GetMechanic(e.Mechanic)!, PlanImports.Top, RepoFiles.Actions).PressAt;
 
     private static IReadOnlyList<Reminder> Reminders(MitPlan plan, Job job, string? slot) =>
         new ReminderScheduler(PlanImports.Top, PlanSelection.For(plan, new PlayerContext(job, 90, slot)).ToList(), RepoFiles.Actions, new ReminderOptions()).All;

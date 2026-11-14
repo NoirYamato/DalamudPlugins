@@ -4,6 +4,7 @@ using MitCue.Core.Fights;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
+using MitCue.Data;
 
 namespace MitCue.Import;
 
@@ -346,28 +347,25 @@ internal sealed class ReviewModel
     /// <summary>The hit time the entry is anchored to (timeline seconds), or null.</summary>
     public double? HitOf(ReviewRow row) => this.MechanicOf(row)?.HitAt(row.Entry.HitIndex ?? 0);
 
-    /// <summary>The automatic offset (DESIGN §5.1) from the first action the catalog knows, as the scheduler computes it.</summary>
+    /// <summary>
+    /// The automatic offset (DESIGN §5.1): the offset the scheduler gives the entry when it has none
+    /// (<see cref="TimingRules.ForEntry"/>). Without a known mechanic, the default offset of its first action the catalog knows.
+    /// </summary>
     public double AutoOffset(ReviewRow row)
     {
-        ActionInfo? timing = null;
-        foreach (var item in row.Entry.Do)
-        {
-            foreach (var id in item.ActionIds())
-            {
-                timing = this.actionsLoaded ? this.actions.Get(id) : null;
-                if (timing != null)
-                    break;
-            }
+        if (this.MechanicOf(row) is { } mechanic)
+            return TimingRules.ForEntry(row.Entry, mechanic, this.Fight, this.TimingCatalog).AutomaticOffset;
 
-            if (timing != null)
-                break;
-        }
-
+        var timing = row.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.TimingCatalog.Get).FirstOrDefault(a => a != null);
         return TimingRules.DefaultOffset(timing, this.Fight.SyncLevel);
     }
 
-    /// <summary>The planned press time (timeline seconds), or null when the mechanic is unknown.</summary>
-    public double? PressTime(ReviewRow row) => this.HitOf(row) is { } hit ? hit + (row.Entry.Offset ?? this.AutoOffset(row)) : null;
+    /// <summary>The planned press time (timeline seconds), as the scheduler computes it, or null when the mechanic is unknown.</summary>
+    public double? PressTime(ReviewRow row) =>
+        this.MechanicOf(row) is { } mechanic ? TimingRules.ForEntry(row.Entry, mechanic, this.Fight, this.TimingCatalog).PressAt : null;
+
+    /// <summary>The catalog automatic timing reads: none while the catalog is a stand-in.</summary>
+    private IActionCatalog TimingCatalog => this.actionsLoaded ? this.actions : EmptyActionCatalog.Instance;
 
     /// <summary>Jobs that have entries (by who.job or their column's job).</summary>
     public IReadOnlyList<Job> JobsInPlan()

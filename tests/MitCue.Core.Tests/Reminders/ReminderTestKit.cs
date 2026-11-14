@@ -179,6 +179,13 @@ internal static class Kit
         MechOfKind("p2.enrage", 350, MechanicKind.Enrage),
         Mech("p3.raidwide", 450));
 
+    /// <summary><see cref="TimingRules.ForEntry"/> of an entry of <paramref name="fight"/> (default: <see cref="TestFight"/>) with the test catalog.</summary>
+    public static EntryTiming Timing(PlanEntry entry, FightDefinition? fight = null)
+    {
+        fight ??= TestFight();
+        return TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, new FakeCatalog(Catalogued));
+    }
+
     /// <summary>A scheduler for <see cref="TestFight"/> with default options and the test catalog.</summary>
     public static ReminderScheduler Scheduler(params PlanEntry[] entries) => Scheduler(TestFight(), new ReminderOptions(), entries);
 

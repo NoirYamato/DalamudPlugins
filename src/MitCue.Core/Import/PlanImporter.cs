@@ -750,8 +750,7 @@ public sealed partial class PlanImporter
                     AtPhaseEnd = timing.AtPhaseEnd,
                     Src = note.Text.Src,
                 };
-                var estimate = anchor.HitAt(hit) + (entry.Offset ?? TimingRules.DefaultOffset(null, this.level));
-                this.drafts.Add(new Draft(entry, estimate, note.Tab.Order, note.Row.Index, column, 0, 0));
+                this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), note.Tab.Order, note.Row.Index, column, 0, 0));
             }
 
             return anchor.Id;
@@ -1763,8 +1762,7 @@ public sealed partial class PlanImporter
                     if (timing.Late && press is null && entry.Offset is null && timingAction is not null && !IsAfterHit(timingAction))
                         entry.Offset = LateOffset;
 
-                    var estimate = anchor.HitAt(entry.HitIndex ?? 0) + (entry.Offset ?? TimingRules.DefaultOffset(timingAction, this.level));
-                    this.drafts.Add(new Draft(entry, estimate, row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row)));
+                    this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row)));
                     part++;
                 }
             }
@@ -1835,7 +1833,14 @@ public sealed partial class PlanImporter
 
         /// <summary>The automatic offset of the entry's earliest pre-hit action (a shield's lead), else the default lead.</summary>
         private static double PreHitLead(List<ActionInfo> actions, int level) =>
-            actions.Where(a => !IsAfterHit(a)).Select(a => TimingRules.DefaultOffset(a, level)).Where(o => o < 0).DefaultIfEmpty(TimingRules.DefaultOffset(null, level)).Min();
+            TimingRules.EarliestPreHitOffset(actions, level) ?? TimingRules.DefaultOffset(null, level);
+
+        /// <summary>
+        /// The press time the scheduler will give the entry (<see cref="TimingRules.ForEntry"/>), which orders the plan's
+        /// entries.
+        /// </summary>
+        private double PressEstimate(PlanEntry entry, Mechanic anchor) =>
+            TimingRules.ForEntry(entry, anchor, this.fight, this.options.Actions).PressAt;
 
         /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to

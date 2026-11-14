@@ -1,4 +1,6 @@
 using MitCue.Core.Actions;
+using MitCue.Core.Fights;
+using MitCue.Core.Plans;
 
 namespace MitCue.Core.Reminders;
 
@@ -8,6 +10,11 @@ namespace MitCue.Core.Reminders;
 /// All times are timeline seconds; offsets are relative to the anchor hit (negative = before it).
 /// An action's effect duration D is "known" when the action has a positive duration at the sync
 /// level (a zero or missing duration means "no lasting effect / unknown").
+/// </para>
+/// <para>
+/// <see cref="ForEntry"/> times a whole plan entry: every caller that needs an entry's press time or use windows (the
+/// scheduler, the importer's estimates, the import review) goes through it, so they agree. <see cref="DefaultOffset"/>
+/// and <see cref="UseWindow"/> are its rules for one action.
 /// </para>
 /// <para>
 /// Which side of the hit an action is pressed on comes from <see cref="ActionInfo.When"/> (actions.yaml
@@ -41,6 +48,78 @@ public static class TimingRules
     private const double ExpiryMargin = 1;           // an effect must outlast the hit by this much
     private const double UnknownDurationLead = 10;   // earliest use without a known duration: press − 10
     private const double MinDueAfterPress = 0.5;     // a reminder is always due for a moment after its press time
+
+    /// <summary>The use window settings of <see cref="ForEntry"/> without options (never changed).</summary>
+    private static readonly ReminderOptions DefaultOptions = new();
+
+    /// <summary>The timing of a plan entry: its hit, its press time and each item's use window.</summary>
+    /// <param name="entry">The entry.</param>
+    /// <param name="mechanic">Its anchor mechanic (the fight's mechanic named by <see cref="PlanEntry.Mechanic"/>).</param>
+    /// <param name="fight">The fight (sync level).</param>
+    /// <param name="actions">The catalog the items' actions are resolved in.</param>
+    /// <param name="options">Use window settings (the defaults when null).</param>
+    /// <remarks>
+    /// <para>
+    /// The hit is the mechanic's hit at <see cref="PlanEntry.HitIndex"/>. All items share one press time: hit + the entry's
+    /// offset, or without one the automatic offset, <see cref="DefaultOffset"/> of the entry's timing action, the first item
+    /// action the catalog resolves (for an either-or item: its first resolvable option).
+    /// </para>
+    /// <para>Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time.</para>
+    /// </remarks>
+    public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        ArgumentNullException.ThrowIfNull(mechanic);
+        ArgumentNullException.ThrowIfNull(fight);
+        ArgumentNullException.ThrowIfNull(actions);
+        options ??= DefaultOptions;
+
+        var level = fight.SyncLevel;
+        var hit = mechanic.HitAt(entry.HitIndex ?? 0);
+        var items = entry.Do ?? [];
+        var timing = new ActionInfo?[items.Count];
+        for (var i = 0; i < items.Count; i++)
+            timing[i] = items[i] is { } item ? TimingAction(item, actions) : null;
+
+        var automatic = DefaultOffset(Array.Find(timing, a => a != null), level);
+        var pressAt = hit + (entry.Offset ?? automatic);
+
+        var windows = new ItemTiming[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            var (earliest, latest) = UseWindow(timing[i], level, hit, pressAt, options);
+            windows[i] = new ItemTiming(timing[i], earliest, latest);
+        }
+
+        return new EntryTiming
+        {
+            Hit = hit,
+            AutomaticOffset = automatic,
+            IsAutomatic = entry.Offset is null,
+            PressAt = pressAt,
+            Items = windows,
+        };
+    }
+
+    /// <summary>
+    /// The earliest default offset among the actions pressed before the hit (not <see cref="IsUsedAfterHit"/>), when one
+    /// is before the hit (negative); null when none is. Nulls (notes, unknown actions) are skipped.
+    /// </summary>
+    public static double? EarliestPreHitOffset(IEnumerable<ActionInfo?> actions, int syncLevel)
+    {
+        ArgumentNullException.ThrowIfNull(actions);
+        double? earliest = null;
+        foreach (var action in actions)
+        {
+            if (action == null || IsUsedAfterHit(action))
+                continue;
+            var offset = DefaultOffset(action, syncLevel);
+            if (offset < 0 && (earliest is not { } e || offset < e))
+                earliest = offset;
+        }
+
+        return earliest;
+    }
 
     /// <summary>Default offset (press − hit) for an action used without an explicit time.</summary>
     /// <remarks>
@@ -116,6 +195,18 @@ public static class TimingRules
             UseTiming.Before => false,
             _ => IsAfterHitKind(action),
         };
+
+    /// <summary>The timing action of an item: its action, or the first option of an either-or item the catalog resolves.</summary>
+    private static ActionInfo? TimingAction(PlanItem item, IActionCatalog actions)
+    {
+        foreach (var id in item.ActionIds())
+        {
+            if (actions.Get(id) is { } action)
+                return action;
+        }
+
+        return null;
+    }
 
     /// <summary>The kind's default offset (<see cref="UseTiming.Default"/>), see <see cref="DefaultOffset"/>.</summary>
     private static double KindOffset(ActionInfo action, int syncLevel) => action.Kind switch

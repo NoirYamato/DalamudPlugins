@@ -13,9 +13,8 @@ namespace MitCue.Core.Reminders;
 /// <para>
 /// Building (docs/DESIGN.md §5.1): one <see cref="Reminder"/> per item of every entry whose
 /// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). All items of
-/// an entry share its press time, hit + offset; without an explicit offset the default comes from
-/// the entry's timing action, i.e. the first item action the catalog resolves (for an either-or
-/// item: its first resolvable option). Each item's use window comes from its own timing action.
+/// an entry share its press time, hit + offset, or the automatic press time without an explicit
+/// offset; each item has its own use window (<see cref="TimingRules.ForEntry"/>).
 /// </para>
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or
@@ -343,34 +342,22 @@ public sealed class ReminderScheduler
             if (entry.Do is not { Count: > 0 } items)
                 continue;
 
-            var hit = mechanic.HitAt(entry.HitIndex ?? 0);
-
-            // Items of one entry share the press time; without an explicit offset it follows the
-            // first item whose action the catalog knows.
-            var timing = new ActionInfo?[items.Count];
-            ActionInfo? entryTiming = null;
-            for (var i = 0; i < items.Count; i++)
-            {
-                timing[i] = items[i] is { } item ? FirstResolvable(item, actions) : null;
-                entryTiming ??= timing[i];
-            }
-            var pressAt = hit + (entry.Offset ?? TimingRules.DefaultOffset(entryTiming, fight.SyncLevel));
-
+            // Items of one entry share the press time; each has its own use window (TimingRules.ForEntry).
+            var timing = TimingRules.ForEntry(entry, mechanic, fight, actions, options);
             for (var i = 0; i < items.Count; i++)
             {
                 if (items[i] is not { } item)
                     continue;
-                var (earliest, latest) = TimingRules.UseWindow(timing[i], fight.SyncLevel, hit, pressAt, options);
                 var reminder = new Reminder
                 {
                     Entry = entry,
                     Item = item,
                     ItemIndex = i,
                     Mechanic = mechanic,
-                    Hit = hit,
-                    PressAt = pressAt,
-                    Earliest = earliest,
-                    Latest = latest,
+                    Hit = timing.Hit,
+                    PressAt = timing.PressAt,
+                    Earliest = timing.Items[i].Earliest,
+                    Latest = timing.Items[i].Latest,
                 };
                 built.Add(new Track(reminder, entryIndex));
             }
@@ -379,17 +366,6 @@ public sealed class ReminderScheduler
         // (press time, entry order, item index) is a total order, so the unstable sort is deterministic.
         built.Sort(CompareTracks);
         return built.ToArray();
-    }
-
-    /// <summary>The timing action of an item: its action, or the first option of an either-or item the catalog resolves.</summary>
-    private static ActionInfo? FirstResolvable(PlanItem item, IActionCatalog actions)
-    {
-        foreach (var id in item.ActionIds())
-        {
-            if (actions.Get(id) is { } action)
-                return action;
-        }
-        return null;
     }
 
     private static string DescribeUnknownMechanic(FightDefinition fight, PlanEntry entry, int entryIndex)

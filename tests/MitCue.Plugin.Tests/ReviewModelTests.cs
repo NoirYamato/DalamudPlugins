@@ -1,8 +1,12 @@
 using MitCue.Core;
+using MitCue.Core.Actions;
+using MitCue.Core.Data;
+using MitCue.Core.Fights;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
 using static MitCue.PluginTests.TestData;
 
 namespace MitCue.PluginTests;
@@ -123,6 +127,33 @@ public class ReviewModelTests
         Assert.Equal(28.2 + model.AutoOffset(row), model.PressTime(row)!.Value, 6);
         Assert.Equal(81.2 - 3, model.PressTime(model.Rows[1])!.Value, 6);
         Assert.Null(model.PressTime(model.Rows[2]));
+    }
+
+    /// <summary>
+    /// The review shows the press time the overlay will use (<see cref="TimingRules.ForEntry"/>): for every entry of the
+    /// bundled TEA plan, the planned press time (and for an entry without an offset, the automatic offset) is the scheduler's.
+    /// </summary>
+    [CoreFact]
+    public void OnTheBundledTeaPlanTheReviewTimesEveryEntryLikeTheScheduler()
+    {
+        var data = new EmbeddedDataSource();
+        var tea = new FightLibrary(data).Get("tea")!;
+        var actions = ActionCatalog.Load(data.ReadText("actions/actions.yaml"));
+        var plan = PlanSerializer.FromYaml(EmbeddedDataSource.Plans().ReadText("tea-lpdu.yaml"));
+        var model = new ReviewModel(plan, tea, actions, true, ReviewOrigin.Yaml);
+        var scheduled = new ReminderScheduler(tea, plan.Entries, actions, new ReminderOptions()).All
+            .GroupBy(r => r.Entry).ToDictionary(g => g.Key, g => g.First());
+
+        Assert.Equal(plan.Entries.Count, model.Rows.Count);
+        foreach (var row in model.Rows)
+        {
+            var reminder = scheduled[row.Entry];
+            Assert.Equal(reminder.PressAt, model.PressTime(row)!.Value, 6);
+            if (row.Entry.Offset is null)
+                Assert.Equal(reminder.PressAt - reminder.Hit, model.AutoOffset(row), 6);
+        }
+
+        Assert.Contains(model.Rows, r => r.Entry.Offset is null);
     }
 
     [Fact]
