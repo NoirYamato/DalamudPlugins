@@ -123,9 +123,12 @@ mechanics:
   - id: p1.doll_feeds
     # ids: 4820 Reducible Complexity (a Jagd Doll under 25% HP brought into Living Liquid's or the Hand's hitbox: a
     # raidwide per doll; 4821 when fed too high or killed: wipe). Player-timed and on cactbot's ignore line (-ii ...
-    # 4820), so no timeline entry. Materia Raiding TEA guide: the melee dolls are fed after the first Exhaust as the
-    # tanks centre the bosses, the ranged dolls after the next Exhaust, all before Fluid Swing 3 (56.7). Anchored on
-    # that second Exhaust (481E, 50.3): default presses (~44-47) cover the feeds.
+    # 4820), so no timeline entry. The feed order varies: Materia Raiding and Eiryla feed the melee dolls as the tanks
+    # centre the bosses after the first Exhaust (39.7; ~41-45 s) and the ranged dolls after the second; Tuufless feeds
+    # D1 at ~43-48 s, D2 after the second Exhaust, D3/D4 after Fluid Swing 3 (56.7). Anchored on the second Exhaust
+    # (481E, 50.3): the entry before it, Hand of Pain 1 (42.8), would press the row's Sacred Soil and Kerachole within
+    # their 30 s recast of the Cascade row's (~15 s). The row's presses (~44-47 s) cover the feeds from ~45 s on; an
+    # early melee pair lands before most of them.
     name: "Jagd Doll feeds (Reducible Complexity raidwides, player-timed ~43-56 s)"
     phase: p1
     hit: 50.3
