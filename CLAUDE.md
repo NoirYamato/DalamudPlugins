@@ -963,6 +963,12 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
   bosses stood at the cast, at 1.5 y/s; a player or a boss within 1 y of one kills everyone. At that speed an orb is
   still inside its own tornado's puddle until 0.7 s before the Liquid falls, so it can hardly be touched: the rule
   tests pin faster ones. The first pair belongs to the opening, which decides whether it outlives the fight's 62.0.
+- Each death's reason states its rule: a second Protean Wave on a carrier of Water Resistance Down; a Sluice going off;
+  a Liquid Rage's water; a Drainage tether held by a non-tank, a Drainage aimed at someone else, two Drainages, and
+  Drainage without a tank's cooldown; Throttle running out; the palm's slam with the bosses apart and the fist's with
+  them together; a touched Embolus. A wave's or a Sluice's death shows a second after the hit, as its damage does; what
+  the piece decides itself (a puddle, Drainage, Throttle, the slam, an Embolus) kills at once. Nothing kills once the
+  Liquid has fallen.
 - Rolls, each drawn whether or not it is forced: both tornado layouts (8 each; the second may repeat the first), the
   tornado without a tether and the two seats the tethers start on, Throttle's six, the tornado without an Embolus
   and which orb heads for which boss. Settings: Start from; each part's Tornadoes (Auto or the open quarter);
@@ -1012,8 +1018,9 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
 - UNVERIFIED in `TeaP1Constants`: the ring's 14.5 y and the puddle's 7.6 y and its object, the waves' and cleaves'
   half-angles, Water Resistance Down's row (2144) and its 5 s, the knockback's 10 y and speed, Throttle's 9 s, the
   puddle's first harmless second, the 1 s the Liquid holds its facing after its last set, the bosses' walk speed, the
-  Hand's three distances and which model state and which action is the palm's, Drainage's 0.2 mitigation, the Embolus's
-  speed and 1 y, the 17 helpers, and where a start puts the bosses. In the State and the mechanics: the odds of every
+  Hand's three distances and which model state and which action is the palm's, Drainage's 0.2 mitigation and the two
+  cleaves', the second after which a wave's, a Sluice's and Drainage's damage shows, the Embolus's speed and 1 y, the 17
+  helpers, and where a start puts the bosses. In the State and the mechanics: the odds of every
   roll, 20.0 for the tethers (marked on the scenario's line) and whom they pick, that a holder can't take the second
   tether, that one Drainage circle kills a tank that holds no tether, that the Liquid's own telegraphed wave is a fixed
   cone ahead, which tornado casts Liquid Gaol, that the Hand's form is chosen at the moment it glows, that each Embolus
@@ -1077,6 +1084,13 @@ third, earlier part, and the part enum keeps 0 for it, since kept setups hold a 
       to 1.7 y farther from the Liquid than the main tank as the second set goes off (the main tank dies; 0.25 s
       late they are in time); R1 from a yalm aside is in time on 6 of 24 rolls; and R2 from a yalm aside is still
       on its way in, along H1's wave, on 2 of 24 rolls (both die).
+- Change a rule, a roll or a press only with the strat-free tests green: `TeaP1LivingLiquidScenarioTests` (each rule,
+  one mistake at a time, and each part on its own), `TeaP1LivingLiquidTankTests` (the bosses' follow, the facing lock,
+  the cleaves, a tank's cooldown under Drainage), `TeaP1LivingLiquidThrottleTests` (a human's cleanses),
+  `TeaP1LivingLiquidStateTests` (the rolls and the settings), `TeaP1LivingLiquidActionsTests` (each attack alone),
+  `TeaP1PressesTests`, `TeaP1LivingLiquidSecondRunTests` (one scenario instance plays every run of a session, and `Run`
+  replaces the listener and the piece) and `TeaP1LivingLiquidHelperBudgetTests`; `TeaP1LivingLiquidPlanTests` for the
+  plan and its chat lines.
 - The gate's buckets are `tea-p1-protean-human`, `tea-p1-cascade-human` and `tea-p1-liquid` (the rest of the
   scenario's tests). The soak filter is
   `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Living&Name~Liquid`.
