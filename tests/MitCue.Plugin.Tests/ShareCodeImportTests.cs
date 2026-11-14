@@ -182,10 +182,21 @@ public class ShareCodeImportTests
         Assert.Equal(0, parts.Plans.CallsFor(imported!, Job.NIN));
         Assert.Contains(guidance, message, StringComparison.Ordinal);
         Assert.Null(parts.Plans.ActivePlanFor("tea", Job.NIN));
-        var choice = ImportColumns.Choose(imported!, Job.NIN, 80, slot);
-        Assert.Equal((1, 0), (choice.Mine, choice.Seat)); // the overlay shows the note to a player who chooses the plan
-        Assert.Equal(("Only 1 note for everyone applies to you as NIN: check the columns you imported.", true), ImportWindow.AppliesLine(choice, Job.NIN));
+        var notes = imported!.Entries.Count(PlanSelection.ForEveryone);
+        Assert.Contains(imported.Entries, e => e.Src == "'Alex Prime/PA'!M43" && PlanSelection.ForEveryone(e));
+        var choice = ImportColumns.Choose(imported, Job.NIN, 80, slot);
+        Assert.Equal((notes, 0), (choice.Mine, choice.Seat)); // the overlay shows the notes to a player who chooses the plan
+        Assert.True(ImportWindow.AppliesLine(choice, Job.NIN).Warning);
     }
+
+    [Theory]
+    [InlineData(1, 0, "Only 1 note for everyone applies to you as NIN: check the columns you imported.", true)]
+    [InlineData(2, 0, "Only 2 notes for everyone apply to you as NIN: check the columns you imported.", true)]
+    [InlineData(0, 0, "0 entries apply to you as NIN: check the columns you imported.", true)]
+    [InlineData(8, 7, "8 entries apply to you as NIN.", false)]
+    [InlineData(1, 1, "1 entry applies to you as NIN.", false)]
+    public void TheSaveStepWarnsWhenOnlyNotesForEveryoneApply(int mine, int seat, string text, bool warning) =>
+        Assert.Equal((text, warning), ImportWindow.AppliesLine(new ColumnChoice(new PlayerMapping(), false, false, mine, seat, 0, [], []), Job.NIN));
 
     [Fact]
     public void WithItsSlotAMeleeGetsTheTeaPlanAndTheNoteToo()
@@ -195,11 +206,14 @@ public class ShareCodeImportTests
 
         Assert.True(parts.Plans.ImportShareCode(StaticTeaCode(parts), Job.NIN, makeActive: true, out var imported, out var message), message);
 
-        Assert.Equal(7, parts.Plans.CallsFor(imported!, Job.NIN)); // the Feints of "Melee 1"
+        var feints = imported!.Entries.Count(e => e.Who.Assignee == "Melee 1" && e.Who.Slot == "M1" && e.Who.Job is null); // the seat's calls
+        var notes = imported.Entries.Count(PlanSelection.ForEveryone);
+        Assert.True(feints > 0 && notes > 0);
+        Assert.Equal(feints, parts.Plans.CallsFor(imported, Job.NIN));
         Assert.Contains("It is your active plan for TEA as NIN.", message, StringComparison.Ordinal);
-        var choice = ImportColumns.Choose(imported!, Job.NIN, 80, "M1");
-        Assert.Equal((8, 7), (choice.Mine, choice.Seat));
-        Assert.Equal(("8 entries apply to you as NIN.", false), ImportWindow.AppliesLine(choice, Job.NIN));
+        var choice = ImportColumns.Choose(imported, Job.NIN, 80, "M1");
+        Assert.Equal((feints + notes, feints), (choice.Mine, choice.Seat));
+        Assert.False(ImportWindow.AppliesLine(choice, Job.NIN).Warning);
     }
 
     [Fact]

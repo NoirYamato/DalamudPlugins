@@ -392,7 +392,7 @@ public class BundledPlanTests
         var parts = LiveInTea(Job.MNK, slot);
 
         Assert.True(parts.Manager.PlanIsAutomatic);
-        Assert.DoesNotContain(OwnEntries(parts), e => Names(e).Contains("Feint"));
+        Assert.DoesNotContain(OwnEntries(parts), e => e.Who.Slot != null); // no Feint of a seat
         var hint = $"Your slot (M1 or M2) is not known, so its calls are not shown: {how}.";
         Assert.EndsWith(" entries are yours). " + hint, parts.Manager.Status, StringComparison.Ordinal);
         Assert.Equal([$"TEA, \"LPDU TEA Heal/Mit\" as MNK: {hint}"], parts.Chat.FirstArgs("Print"));
@@ -661,8 +661,8 @@ public class BundledPlanTests
 
         var others = parts.Manager.Session!.Others!.All.Select(r => r.Entry).Distinct().ToList();
         var addles = others.Where(e => e.Who.Assignee == "Caster").ToList();
-        Assert.Equal(["'LL/BJCC'!L19", "'LL/BJCC'!L46", "'Alex Prime/PA'!L15", "'Alex Prime/PA'!L39", "'Alex Prime/PA'!L45"], addles.Select(e => e.Src));
-        Assert.All(addles, e => Assert.Equal(Job.BLM, e.Who.Job));
+        Assert.Equal(parts.Manager.Plan!.Plan.Entries.Where(e => e.Who.Assignee == "Caster" && e.Who.Job == Job.BLM).OrderBy(e => e.Id), addles.OrderBy(e => e.Id)); // the Black Mage's
+        Assert.Contains(addles, e => e.Src == "'LL/BJCC'!L19" && Names(e).SequenceEqual(["Addle"]));
         Assert.DoesNotContain(others, e => e.Who.Job is { } j && j != Job.None && !new[] { Job.MNK, Job.DRG, Job.BRD, Job.BLM }.Contains(j)); // nobody else plays them
         if (job == Job.MNK)
             Assert.Contains(others, e => e.Who.Assignee == "Phys Range" && e.Who.Job == Job.BRD);
