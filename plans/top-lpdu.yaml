@@ -1569,20 +1569,6 @@ entries:
     src: "'P5'!D7"
   - id: e226
     mechanic: p5.sigma
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 16471, name: Dark Missionary}
-    when_ready: true
-    src: "'P5'!B7"
-  - id: e227
-    mechanic: p5.sigma
-    who: {slot: MT, job: GNB, assignee: MT}
-    do:
-      - {action: 16160, name: Heart of Light}
-    when_ready: true
-    src: "'P5'!B7"
-  - id: e228
-    mechanic: p5.sigma
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
@@ -1590,48 +1576,27 @@ entries:
       - {action: 16538, name: Fey Illumination}
       - {action: 16545, name: Summon Seraph}
     src: "'P5'!F7"
-  - id: e229
+  - id: e227
     mechanic: p5.sigma
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
       - {action: 24298, name: Kerachole}
     src: "'P5'!G7"
-  - id: e230
-    mechanic: p5.sigma
-    who: {slot: R1, job: BRD, assignee: R1}
-    do:
-      - {action: 7405, name: Troubadour}
-    when_ready: true
-    src: "'P5'!J7"
-  - id: e231
-    mechanic: p5.sigma
-    who: {slot: R1, job: MCH, assignee: R1}
-    do:
-      - {action: 16889, name: Tactician}
-    when_ready: true
-    src: "'P5'!J7"
-  - id: e232
-    mechanic: p5.sigma
-    who: {slot: R1, job: DNC, assignee: R1}
-    do:
-      - {action: 16012, name: Shield Samba}
-    when_ready: true
-    src: "'P5'!J7"
-  - id: e233
+  - id: e228
     mechanic: p5.sigma
     who: {slot: MT, job: PLD, assignee: MT}
     do:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!B7"
-  - id: e234
+  - id: e229
     mechanic: p5.sigma
     who: {slot: MT, job: WAR, assignee: MT}
     do:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!B7"
-  - id: e235
+  - id: e230
     mechanic: p5.sigma
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -1640,7 +1605,7 @@ entries:
     seq: true
     when_ready: true
     src: "'P5'!J7"
-  - id: e236
+  - id: e231
     mechanic: p5.sigma
     who: {slot: OT, job: PLD, assignee: OT}
     do:
@@ -1648,7 +1613,7 @@ entries:
       - {action: 3540, name: Divine Veil}
     when_ready: true
     src: "'P5'!C7"
-  - id: e237
+  - id: e232
     mechanic: p5.sigma
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -1656,7 +1621,7 @@ entries:
       - {action: 7388, name: Shake It Off}
     when_ready: true
     src: "'P5'!C7"
-  - id: e238
+  - id: e233
     mechanic: p5.sigma
     who: {slot: OT, job: DRK, assignee: OT}
     do:
@@ -1664,7 +1629,7 @@ entries:
       - {action: 16471, name: Dark Missionary}
     when_ready: true
     src: "'P5'!C7"
-  - id: e239
+  - id: e234
     mechanic: p5.sigma
     who: {slot: OT, job: GNB, assignee: OT}
     do:
@@ -1672,31 +1637,71 @@ entries:
       - {action: 16160, name: Heart of Light}
     when_ready: true
     src: "'P5'!C7"
-  - id: e240
+  - id: e235
     mechanic: p5.sigma
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E7"
-  - id: e241
+  - id: e236
     mechanic: p5.sigma
     who: {slot: M2, assignee: M2}
     do:
       - {action: 7549, name: Feint}
     src: "'P5'!I7"
-  - id: e242
+  - id: e237
     mechanic: p5.sigma
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J7"
-  - id: e243
+  - id: e238
     mechanic: p5.sigma
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 25857, name: Magick Barrier}
     src: "'P5'!K7"
+  - id: e239
+    mechanic: p5.sigma
+    offset: -2.9
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    when_ready: true
+    src: "'P5'!B7"
+  - id: e240
+    mechanic: p5.sigma
+    offset: -2.9
+    who: {slot: MT, job: GNB, assignee: MT}
+    do:
+      - {action: 16160, name: Heart of Light}
+    when_ready: true
+    src: "'P5'!B7"
+  - id: e241
+    mechanic: p5.sigma
+    offset: -2.9
+    who: {slot: R1, job: BRD, assignee: R1}
+    do:
+      - {action: 7405, name: Troubadour}
+    when_ready: true
+    src: "'P5'!J7"
+  - id: e242
+    mechanic: p5.sigma
+    offset: -2.9
+    who: {slot: R1, job: MCH, assignee: R1}
+    do:
+      - {action: 16889, name: Tactician}
+    when_ready: true
+    src: "'P5'!J7"
+  - id: e243
+    mechanic: p5.sigma
+    offset: -2.9
+    who: {slot: R1, job: DNC, assignee: R1}
+    do:
+      - {action: 16012, name: Shield Samba}
+    when_ready: true
+    src: "'P5'!J7"
   - id: e244
     mechanic: p5.solar_ray_3
     who: {slot: MT, assignee: MT}
@@ -1761,20 +1766,6 @@ entries:
     src: "'DRK/PLD'!B6"
   - id: e253
     mechanic: p5.omega
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 16471, name: Dark Missionary}
-    when_ready: true
-    src: "'P5'!B9"
-  - id: e254
-    mechanic: p5.omega
-    who: {slot: MT, job: GNB, assignee: MT}
-    do:
-      - {action: 16160, name: Heart of Light}
-    when_ready: true
-    src: "'P5'!B9"
-  - id: e255
-    mechanic: p5.omega
     who: {slot: H2, job: SCH, assignee: H2 SCH}
     do:
       - {action: 188, name: Sacred Soil}
@@ -1783,7 +1774,7 @@ entries:
       - {action: 3585, name: Deployment Tactics}
     seq: true
     src: "'P5'!F9"
-  - id: e256
+  - id: e254
     mechanic: p5.omega
     who: {slot: H2, job: SGE, assignee: H2 SGE}
     do:
@@ -1793,43 +1784,7 @@ entries:
       - {action: 24292, name: Eukrasian Prognosis}
     seq: true
     src: "'P5'!G9"
-  - id: e257
-    mechanic: p5.omega
-    who: {slot: R1, job: BRD, assignee: R1}
-    do:
-      - {action: 7405, name: Troubadour}
-    when_ready: true
-    src: "'P5'!J9"
-  - id: e258
-    mechanic: p5.omega
-    who: {slot: R1, job: MCH, assignee: R1}
-    do:
-      - {action: 16889, name: Tactician}
-      - {action: 2887, name: Dismantle}
-    when_ready: true
-    src: "'P5'!J9"
-  - id: e259
-    mechanic: p5.omega
-    who: {slot: R1, job: DNC, assignee: R1}
-    do:
-      - {action: 16012, name: Shield Samba}
-    when_ready: true
-    src: "'P5'!J9"
-  - id: e260
-    mechanic: p5.omega
-    who: {slot: MT, job: PLD, assignee: MT}
-    do:
-      - {action: 3540, name: Divine Veil}
-    when_ready: true
-    src: "'P5'!B9"
-  - id: e261
-    mechanic: p5.omega
-    who: {slot: MT, job: WAR, assignee: MT}
-    do:
-      - {action: 7388, name: Shake It Off}
-    when_ready: true
-    src: "'P5'!B9"
-  - id: e262
+  - id: e255
     mechanic: p5.omega
     who: {slot: R1, job: PCT, assignee: R1}
     do:
@@ -1838,88 +1793,150 @@ entries:
     seq: true
     when_ready: true
     src: "'P5'!J9"
-  - id: e263
-    mechanic: p5.omega
-    who: {slot: OT, job: PLD, assignee: OT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 3540, name: Divine Veil}
-    when_ready: true
-    src: "'P5'!C9"
-  - id: e264
-    mechanic: p5.omega
-    who: {slot: OT, job: WAR, assignee: OT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 7388, name: Shake It Off}
-    when_ready: true
-    src: "'P5'!C9"
-  - id: e265
-    mechanic: p5.omega
-    who: {slot: OT, job: DRK, assignee: OT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 16471, name: Dark Missionary}
-    when_ready: true
-    src: "'P5'!C9"
-  - id: e266
-    mechanic: p5.omega
-    who: {slot: OT, job: GNB, assignee: OT}
-    do:
-      - {action: 7535, name: Reprisal}
-      - {action: 16160, name: Heart of Light}
-    when_ready: true
-    src: "'P5'!C9"
-  - id: e267
+  - id: e256
     mechanic: p5.omega
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'P5'!E9"
-  - id: e268
+  - id: e257
     mechanic: p5.omega
     who: {slot: M1, assignee: M1}
     do:
       - {action: 7549, name: Feint}
     src: "'P5'!H9"
-  - id: e269
-    mechanic: p5.omega
-    who: {slot: M2, assignee: M2}
-    do:
-      - {action: 7549, name: Feint}
-    note: Autos Omega uptime
-    src: "'P5'!I9"
-  - id: e270
+  - id: e258
     mechanic: p5.omega
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J9"
-  - id: e271
+  - id: e259
     mechanic: p5.omega
     who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e272
+  - id: e260
     mechanic: p5.omega
     who: {slot: R2, job: SMN, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e273
+  - id: e261
     mechanic: p5.omega
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e274
+  - id: e262
     mechanic: p5.omega
     who: {slot: R2, job: PCT, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
+  - id: e263
+    mechanic: p5.omega
+    offset: -1.5
+    who: {slot: MT, job: PLD, assignee: MT}
+    do:
+      - {action: 3540, name: Divine Veil}
+    when_ready: true
+    src: "'P5'!B9"
+  - id: e264
+    mechanic: p5.omega
+    offset: -1.5
+    who: {slot: MT, job: WAR, assignee: MT}
+    do:
+      - {action: 7388, name: Shake It Off}
+    when_ready: true
+    src: "'P5'!B9"
+  - id: e265
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 16471, name: Dark Missionary}
+    when_ready: true
+    src: "'P5'!B9"
+  - id: e266
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: MT, job: GNB, assignee: MT}
+    do:
+      - {action: 16160, name: Heart of Light}
+    when_ready: true
+    src: "'P5'!B9"
+  - id: e267
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: OT, job: PLD, assignee: OT}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 3540, name: Divine Veil}
+    when_ready: true
+    src: "'P5'!C9"
+  - id: e268
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: OT, job: WAR, assignee: OT}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 7388, name: Shake It Off}
+    when_ready: true
+    src: "'P5'!C9"
+  - id: e269
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: OT, job: DRK, assignee: OT}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16471, name: Dark Missionary}
+    when_ready: true
+    src: "'P5'!C9"
+  - id: e270
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: OT, job: GNB, assignee: OT}
+    do:
+      - {action: 7535, name: Reprisal}
+      - {action: 16160, name: Heart of Light}
+    when_ready: true
+    src: "'P5'!C9"
+  - id: e271
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: M2, assignee: M2}
+    do:
+      - {action: 7549, name: Feint}
+    note: Autos Omega uptime
+    src: "'P5'!I9"
+  - id: e272
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: R1, job: BRD, assignee: R1}
+    do:
+      - {action: 7405, name: Troubadour}
+    when_ready: true
+    src: "'P5'!J9"
+  - id: e273
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: R1, job: MCH, assignee: R1}
+    do:
+      - {action: 16889, name: Tactician}
+      - {action: 2887, name: Dismantle}
+    when_ready: true
+    src: "'P5'!J9"
+  - id: e274
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: R1, job: DNC, assignee: R1}
+    do:
+      - {action: 16012, name: Shield Samba}
+    when_ready: true
+    src: "'P5'!J9"
   - id: e275
     mechanic: p5.omega_hello_world_1
     who: {slot: H1, job: WHM, assignee: H1 WHM}

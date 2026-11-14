@@ -180,8 +180,9 @@ Rules worth knowing:
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
   `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
   actions, a mechanic's several hits and the fight file's `press`, `heal_lead` and `series`); the importer writes no
-  offset for them. The plan lists its entries in that press order (ties in sheet order), also when `still-active`
-  changed an entry's action.
+  offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan lists its
+  entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a press
+  moved.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
@@ -226,6 +227,21 @@ Rules worth knowing:
   brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
   for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.
+- **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
+  one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
+  level, one charge recharging at a time, recast groups, recasts under 3 s left out) for any seat (every job, in each
+  slot of its role and in none, with the column the plugin chooses), is pressed when that action is ready again plus
+  the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s: TEA's Gavel Asylum, 85.8 s after
+  the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of 7.2 s. Never later than `(Late)`
+  would press it (1 s before the hit, minus the entry's longest cast): then just after the action is ready (the J Wave
+  7 Plenary, 1 s before its wave, which still turns due only after the wave before it); when the action is ready only
+  after that, the press stays and `check` reports the recast. Only firm presses keep an action on recast: not an
+  optional entry (in brackets, with a condition, one choice of an either/or), an either/or item or a note ("Temperance
+  (still active)"); an optional call itself still waits ("CU (if up)"). A press with a time in the sheet counts but
+  never moves; an offset the importer wrote (`still-active`'s) may move. A sequence moves for its first step only
+  (`check` times every step at its press; in game the later steps follow). An entry several seats see takes the latest
+  press any of them needs; the earliest press without a charge moves first, then the plan is replayed again, until
+  nothing moves.
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

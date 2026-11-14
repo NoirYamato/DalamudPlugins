@@ -5,7 +5,11 @@ namespace MitCue.Core.Plans;
 /// <summary>One planned press of an action in a <see cref="RecastReplay"/>.</summary>
 /// <param name="Time">The press time (timeline seconds).</param>
 /// <param name="Action">The action as the player presses it at the sync level (<see cref="RecastReplay.Tracked"/>).</param>
-public readonly record struct RecastUse(double Time, ActionInfo Action);
+/// <param name="Spends">
+/// False for a press that may not happen (an optional call, for the importer's recast fit): it finds a charge or none,
+/// but takes none from the presses after it.
+/// </param>
+public readonly record struct RecastUse(double Time, ActionInfo Action, bool Spends = true);
 
 /// <summary>What one press of a <see cref="RecastReplay"/> finds.</summary>
 /// <param name="HasCharge">A charge is ready at the press.</param>
@@ -19,10 +23,11 @@ public readonly record struct RecastUse(double Time, ActionInfo Action);
 public readonly record struct RecastState(bool HasCharge, double ReadyAt, int SinceFull);
 
 /// <summary>
-/// The recast model of <c>check</c> (<see cref="PlanChecker"/>: <c>recast-conflict</c>, <c>recast-tight</c>). Planned
-/// presses of an action, or of actions that share a recast (<see cref="ActionInfo.SharesRecastWith"/>), form a chain
-/// (<see cref="Chains{T}"/>), replayed in time order with the action's recast and charges at the sync level
-/// (<see cref="Replay"/>). Pure logic.
+/// The recast model of <c>check</c> (<see cref="PlanChecker"/>: <c>recast-conflict</c>, <c>recast-tight</c>), which the
+/// importer also uses to press an automatic call only once its action is ready again (its recast fit,
+/// src/MitCue.Core/Import/README.md). Planned presses of an action, or of actions that share a recast
+/// (<see cref="ActionInfo.SharesRecastWith"/>), form a chain (<see cref="Chains{T}"/>), replayed in time order with the
+/// action's recast and charges at the sync level (<see cref="Replay"/>). Pure logic.
 /// </summary>
 public static class RecastReplay
 {
@@ -98,7 +103,8 @@ public static class RecastReplay
     /// <summary>
     /// Replays the presses of one chain, in time order: they start with every charge, charges recharge one at a time,
     /// and a press while the timer is idle starts it with that press's recast. A press that finds no charge is assumed to
-    /// happen anyway: it restarts the timer (<c>check</c> reports each press closer than the recast).
+    /// happen anyway: it restarts the timer (<c>check</c> reports each press closer than the recast). A press that does
+    /// not spend (<see cref="RecastUse.Spends"/>) finds a charge or none and changes nothing.
     /// </summary>
     /// <param name="uses">The chain's presses, in time order.</param>
     /// <param name="level">The sync level (recasts and charges).</param>
@@ -139,6 +145,9 @@ public static class RecastReplay
 
             var hasCharge = charges >= 1;
             states[i] = new RecastState(hasCharge, hasCharge ? availableSince ?? use.Time : timerEnd ?? use.Time, sinceFull);
+            if (!use.Spends)
+                continue;
+
             var recast = use.Action.RecastAt(level);
             if (hasCharge)
             {

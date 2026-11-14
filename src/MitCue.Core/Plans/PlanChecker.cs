@@ -94,12 +94,12 @@ public sealed class PlanCheckOptions
 /// <para>
 /// Recast rule: consecutive planned uses of an action, or of actions sharing a recast group
 /// (<see cref="ActionInfo.SharesRecastWith"/>), are replayed with the action's recast and charges at the sync level
-/// (charges recharge one at a time: <see cref="RecastReplay"/>). A use that finds no charge is a
-/// <c>recast-conflict</c>: an error when every use involved belongs to one phase (by its mechanic), otherwise a warning,
-/// since it depends on when the earlier phase ends; also a warning when an optional or when-ready use is involved. A
-/// use whose charge was ready less than <see cref="PlanCheckOptions.TightMargin"/> seconds before is
-/// <c>recast-tight</c> (warning). The conflicting use is assumed to happen anyway, so each consecutive pair closer than
-/// the recast is reported. Either/or groups are left out (the player picks whichever option is ready), as are actions
+/// (charges recharge one at a time: <see cref="RecastReplay"/>, which the importer uses too, to press an automatic call
+/// once its action is ready again). A use that finds no charge is a <c>recast-conflict</c>: an error when every use
+/// involved belongs to one phase (by its mechanic), otherwise a warning, since it depends on when the earlier phase ends;
+/// also a warning when an optional or when-ready use is involved. A use whose charge was ready less than
+/// <see cref="PlanCheckOptions.TightMargin"/> seconds before is <c>recast-tight</c> (warning). The conflicting use is
+/// assumed to happen anyway, so each consecutive pair closer than the recast is reported. Either/or groups are left out (the player picks whichever option is ready), as are actions
 /// with a recast under <see cref="PlanCheckOptions.MinRecast"/>.
 /// </para>
 /// <para>
