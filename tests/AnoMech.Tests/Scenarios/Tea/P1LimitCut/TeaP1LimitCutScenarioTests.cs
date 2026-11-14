@@ -22,7 +22,8 @@ namespace AnoMech.Tests;
 //   8.0 / 10.2 / 12.4 / 14.6   Hawk Blaster pairs W+E, NW+SE, N+S, NE+SW; again at 19.0 / 21.2 / 23.5 / 25.7.
 //   16.8 / 27.9   the middle blaster. A blast kills at once; the death shows a second later.
 //   15.4 #1 cleaved on the north spot, 16.9 #2 charged there; 20.1 #3 and 21.6 #4 south-west;
-//   24.8 #5 and 26.3 #6 south-east; 29.4 #7 and 30.9 #8 north. Cruise Chaser lands 0.5 s before each cleave.
+//   24.8 #5 and 26.3 #6 south-east; 29.4 #7 and 30.9 #8 north. Cruise Chaser lands 0.5 s before each cleave and
+//   turns to its number again 0.1 s before it.
 //   34.1  J Kick. The run ends a second after its hit shows.
 public class TeaP1LimitCutScenarioTests
 {
@@ -239,6 +240,29 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(cleaving.Value.Rotation, Is.EqualTo(Stage.ClockwiseAlongTheRim(odd)).Within(0.001f));
         Assert.That(Vector2.Distance(charging!.Value.Position2, behind), Is.LessThan(0.01f), "he has not moved");
         Assert.That(Vector2.Distance(Stage.Facing(charging.Value.Rotation), Vector2.Normalize(even - behind)), Is.LessThan(0.01f), "he faces #2");
+    }
+
+    // Once he has landed, M1 steps 3 y back and inward: 0.9 y ahead of him and 2.1 y to the side, outside a cone
+    // kept on the facing he landed with.
+    [Test]
+    public void ANumberCannotStepOutOfItsOwnCleave()
+    {
+        var stage = new Stage { HumanUntil = 15.0f };
+        var odd = stage.HitSpot(1);
+        var steppedTo = odd + 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd) - 0.75f * MathF.PI);
+        var cleaved = false;
+        Placement? cleaving = null;
+        var run = stage.Run(MeleeDpsA, stopAt: 16.4f, takeovers: new Takeover(15.0f, steppedTo), probe: p =>
+        {
+            if (p.Crossed(15.38f)) cleaving = CruiseChaser(p).Placement();
+            if (p.Crossed(16.2f)) cleaved = p.Member(MeleeDpsA)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
+        });
+
+        var behind = odd - 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd));
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(Vector2.Distance(cleaving!.Value.Position2, behind), Is.LessThan(0.01f), "he has not moved");
+        Assert.That(Vector2.Distance(Stage.Facing(cleaving.Value.Rotation), Vector2.Normalize(steppedTo - behind)), Is.LessThan(0.01f), "he faces #1");
+        Assert.That(cleaved, Is.True, "#1 was cleaved where it stepped to");
     }
 
     // He is hidden until a warp-in shows him, once, as he first lands.
