@@ -242,27 +242,32 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(Vector2.Distance(Stage.Facing(charging.Value.Rotation), Vector2.Normalize(even - behind)), Is.LessThan(0.01f), "he faces #2");
     }
 
-    // Once he has landed, M1 steps 3 y back and inward: 0.9 y ahead of him and 2.1 y to the side, outside a cone
-    // kept on the facing he landed with.
-    [Test]
-    public void ANumberCannotStepOutOfItsOwnCleave()
+    // Once he has landed, the number steps 3 y back and inward: 0.9 y ahead of him and 2.1 y to the side, outside a
+    // cone kept on the facing he landed with. Turned after it, the cleave runs on across the arena through others,
+    // so the run stops before any of them falls.
+    [TestCase(1, 14.9f, 15.4f)]
+    [TestCase(3, 19.6f, 20.1f)]
+    [TestCase(5, 24.3f, 24.8f)]
+    [TestCase(7, 28.9f, 29.4f)]
+    public void ANumberCannotStepOutOfItsOwnCleave(int number, float landsAt, float cleavedAt)
     {
-        var stage = new Stage { HumanUntil = 15.0f };
-        var odd = stage.HitSpot(1);
+        var seat = Stage.Numbers[number - 1];
+        var stage = new Stage { HumanUntil = landsAt + 0.1f };
+        var odd = stage.HitSpot(number);
         var steppedTo = odd + 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd) - 0.75f * MathF.PI);
         var cleaved = false;
         Placement? cleaving = null;
-        var run = stage.Run(MeleeDpsA, stopAt: 16.4f, takeovers: new Takeover(15.0f, steppedTo), probe: p =>
+        var run = stage.Run(seat, stopAt: cleavedAt + 0.9f, takeovers: new Takeover(landsAt + 0.1f, steppedTo), probe: p =>
         {
-            if (p.Crossed(15.38f)) cleaving = CruiseChaser(p).Placement();
-            if (p.Crossed(16.2f)) cleaved = p.Member(MeleeDpsA)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
+            if (p.Crossed(cleavedAt - 0.02f)) cleaving = CruiseChaser(p).Placement();
+            if (p.Crossed(cleavedAt + 0.8f)) cleaved = p.Member(seat)!.HasStatus(P1StatusId.CruiseChaserVulnerability);
         });
 
         var behind = odd - 3f * Stage.Facing(Stage.ClockwiseAlongTheRim(odd));
         Assert.That(run.Passed, run.ToString);
         Assert.That(Vector2.Distance(cleaving!.Value.Position2, behind), Is.LessThan(0.01f), "he has not moved");
-        Assert.That(Vector2.Distance(Stage.Facing(cleaving.Value.Rotation), Vector2.Normalize(steppedTo - behind)), Is.LessThan(0.01f), "he faces #1");
-        Assert.That(cleaved, Is.True, "#1 was cleaved where it stepped to");
+        Assert.That(Vector2.Distance(Stage.Facing(cleaving.Value.Rotation), Vector2.Normalize(steppedTo - behind)), Is.LessThan(0.01f), $"he faces #{number}");
+        Assert.That(cleaved, Is.True, $"#{number} was cleaved where it stepped to");
     }
 
     // He is hidden until a warp-in shows him, once, as he first lands.
@@ -348,6 +353,29 @@ public class TeaP1LimitCutScenarioTests
 
         Assert.That(landedBehind, Has.No.Member(MeleeDpsA));
         Assert.That(landedBehind, Has.Count.GreaterThanOrEqualTo(5));
+    }
+
+    // M1 stands on the north-east blaster as it goes off at 14.6 and falls at 15.6. Until then it is still #1: Cruise
+    // Chaser lands behind it at 14.9 and cleaves it at 15.4.
+    [Test]
+    public void ANumberABlastHasKilledDrawsItsOwnHitUntilItFalls()
+    {
+        var onTheBlaster = new Vector2(10f, -10f);
+        Placement? landed = null;
+        var mine = "";
+        string[] cleaved = [];
+        var run = new Stage().Run(MeleeDpsA, takeovers: new Takeover(14.2f, onTheBlaster, Facing: MathF.PI / 2f), probe: p =>
+        {
+            if (p.Crossed(15.0f)) landed = CruiseChaser(p).Placement();
+            if (!p.Crossed(15.5f)) return;
+            mine = p.Member(MeleeDpsA)!.EntityId.ToString("X8");
+            cleaved = p.Fake.Timeline.Rows.Where(row => row["kind"] == "ability" && row["id"] == $"{P1ActionId.AlphaSword}")
+                .SelectMany(row => row["targets"].Split(' ', StringSplitOptions.RemoveEmptyEntries)).ToArray();
+        });
+
+        AssertFirstDeath(run, MeleeDpsA, P1ActionId.HawkBlaster, 15.6f, BlastRule);
+        Assert.That(Vector2.Distance(landed!.Value.Position2, onTheBlaster - new Vector2(3f, 0f)), Is.LessThan(0.01f), $"he landed at {landed.Value.Position2}");
+        Assert.That(cleaved, Is.EqualTo(new[] { mine }), "he cleaved #1 alone");
     }
 
     // The pool can't count more busy than it holds, and a blast that finds none free is dropped with only a warning,
