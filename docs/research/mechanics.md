@@ -1154,9 +1154,10 @@ Evidence and **UNVERIFIED** points:
   **UNVERIFIED** against a log.
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
   is right is **UNVERIFIED**.
-- `p2.photon_1` sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` the two tanks only (community guides;
-  BossMod's second Photon state carries a Tankbuster hint, and Double Rocket Punch follows 8 s later). Mitigation has
-  no effect: both have `press: after`, so the calls planned there are the heal-up (§6.3).
+- `p2.photon_1` ("Photon (everyone to 1 HP)") sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` ("Photon
+  (tanks to 1 HP)") the two tanks only (community guides; BossMod's second Photon state carries a Tankbuster hint,
+  and Double Rocket Punch follows 8 s later). Mitigation has no effect: both have `press: after`, so the calls
+  planned there are the heal-up (§6.3).
 - `p2.super_jump` (Super Jump + Apocalyptic Ray): who takes the hits is **UNVERIFIED** (BossMod: the jump is baited
   on the farthest player), so it is kind `other`.
 - `p3.alexander_down` is a marker. cactbot names the line "Divine Judgment Enrage", but it syncs on 4879, which
