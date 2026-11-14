@@ -127,9 +127,6 @@ public sealed class TeaP1LimitCutScenario : IScenario
         Visibility: SpawnVisibility.InvisibleHelper,
         Placement: new Placement(Vector3.Zero, 0f));
 
-    private void CastFromHelper(EnemyAction action, CastTarget target = default, Placement? at = null, byte animationVariation = 0)
-        => helpers.Cast(action, target, at ?? new Placement(Vector3.Zero, 0f), animationVariation);
-
     private void ShowNumber(int number)
     {
         if (party.Get(state.Numbers[number - 1]) is { } member && member.IsAlive())
@@ -145,7 +142,7 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
     private void HawkBlasterInTheMiddle() => HawkBlasterAt(Vector3.Zero);
 
-    private void HawkBlasterAt(Vector3 centre) => CastFromHelper(TeaP1Actions.HawkBlaster, centre, new Placement(centre, 0f));
+    private void HawkBlasterAt(Vector3 centre) => helpers.Cast(TeaP1Actions.HawkBlaster, centre, new Placement(centre, 0f));
 
     // UNVERIFIED: a dead number's hit goes to any living player, each as likely.
     private SimCharacter? Target(int number)

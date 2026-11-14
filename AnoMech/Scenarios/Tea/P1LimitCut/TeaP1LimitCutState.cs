@@ -16,8 +16,6 @@ public enum TeaP1FirstBlasters { WestEast, NorthwestSoutheast, NorthSouth, North
 // how often the game picks each axis.
 public sealed class TeaP1LimitCutState
 {
-    public const int HawkBlasterPairs = 8;
-
     private readonly Rng rng;
 
     // Numbers[k] holds number k + 1.
@@ -28,13 +26,6 @@ public sealed class TeaP1LimitCutState
 
     // Degrees clockwise from north of the first pair's blaster in the west-to-north-east half.
     public float FirstBearing => (270f + 45f * (int)FirstBlasters) % 360f;
-
-    public int NumberOf(PartyRole role)
-    {
-        for (var k = 0; k < Numbers.Count; k++)
-            if (Numbers[k] == role) return k + 1;
-        return 0;
-    }
 
     // Each pair blows 45 degrees clockwise of the last; the fifth lands on the first's spots.
     public (Vector3 A, Vector3 B) HawkBlasterPair(int index)

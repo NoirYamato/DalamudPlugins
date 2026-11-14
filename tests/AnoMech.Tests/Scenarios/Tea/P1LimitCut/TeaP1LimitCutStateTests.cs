@@ -39,8 +39,8 @@ public class TeaP1LimitCutStateTests
                 Assert.That(state.Numbers, Is.EquivalentTo(PerRole.All), $"seed {seed}");
                 foreach (var role in PerRole.All)
                 {
-                    Assert.That(state.Numbers[state.NumberOf(role) - 1], Is.EqualTo(role), $"seed {seed}, {role}");
-                    seen.Add((role, state.NumberOf(role)));
+                    Assert.That(state.Numbers[NumberOf(state, role) - 1], Is.EqualTo(role), $"seed {seed}, {role}");
+                    seen.Add((role, NumberOf(state, role)));
                 }
             }
         });
@@ -75,7 +75,7 @@ public class TeaP1LimitCutStateTests
 
         Assert.Multiple(() =>
         {
-            for (var index = 0; index < TeaP1LimitCutState.HawkBlasterPairs; index++)
+            for (var index = 0; index < 8; index++)
             {
                 var expected = new Vector2(firstFour[index % 4 * 2], firstFour[index % 4 * 2 + 1]);
                 var (a, b) = state.HawkBlasterPair(index);
@@ -102,7 +102,7 @@ public class TeaP1LimitCutStateTests
                     foreach (var seed in Seeds.Take(20))
                     {
                         var state = new TeaP1LimitCutState(new Rng(seed), party, overrides);
-                        Assert.That(state.NumberOf(seat), Is.EqualTo(number), $"{seat}, seed {seed}");
+                        Assert.That(NumberOf(state, seat), Is.EqualTo(number), $"{seat}, seed {seed}");
                         Assert.That(state.Numbers, Is.EquivalentTo(PerRole.All), $"{seat}, seed {seed}");
                     }
                 }
@@ -126,7 +126,7 @@ public class TeaP1LimitCutStateTests
                 foreach (var seed in Seeds)
                 {
                     var state = Roll(seed, overrides);
-                    Assert.That((state.NumberOf(MainTank), state.NumberOf(RegenHealer), state.NumberOf(CasterDps)), Is.EqualTo((8, 1, 4)), $"seed {seed}");
+                    Assert.That((NumberOf(state, MainTank), NumberOf(state, RegenHealer), NumberOf(state, CasterDps)), Is.EqualTo((8, 1, 4)), $"seed {seed}");
                     Assert.That(state.Numbers, Is.EquivalentTo(PerRole.All), $"seed {seed}");
                 }
             });
@@ -150,7 +150,7 @@ public class TeaP1LimitCutStateTests
                 foreach (var seed in Seeds)
                 {
                     var state = Roll(seed, overrides);
-                    Assert.That(state.NumberOf(OffTank), Is.EqualTo(3), $"seed {seed}");
+                    Assert.That(NumberOf(state, OffTank), Is.EqualTo(3), $"seed {seed}");
                     Assert.That(state.Numbers, Is.EquivalentTo(PerRole.All), $"seed {seed}");
                 }
             });
@@ -240,6 +240,8 @@ public class TeaP1LimitCutStateTests
 
     private static TeaP1LimitCutState Roll(int seed, TeaP1LimitCutStateOverrides? overrides = null)
         => new(new Rng(seed), new SimParty(), overrides ?? new TeaP1LimitCutStateOverrides());
+
+    private static int NumberOf(TeaP1LimitCutState state, PartyRole role) => state.Numbers.ToList().IndexOf(role) + 1;
 
     private static void Hosting(Action check)
     {
