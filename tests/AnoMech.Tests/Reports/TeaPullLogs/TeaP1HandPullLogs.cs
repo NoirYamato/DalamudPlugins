@@ -41,7 +41,8 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
     private readonly List<string> cleaves = [], targets = [], shields = [];
     private readonly Dictionary<string, int> cleaveLeaves = [];
     private readonly Dictionary<string, List<double>> provokes = [];
-    private int cleaveVolleys, cleavesOnTheTarget, cleavesHittingOthers, handFirstOnTheOtherTank, handFirstTargets;
+    private int cleaveVolleys, cleavesOnTheTarget, cleavesHittingOthers, handFirstOnTheOtherTank, handFirstTargets, cleavesUnderAnInvulnerability;
+    private readonly Dictionary<string, List<double>> cleaveDamage = [];
 
     public void Observe(TeaPull pull)
     {
@@ -121,11 +122,16 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
             }
             foreach (var one in hit)
             {
-                foreach (var gain in pull.Statuses.Where(s => s.Gained && s.Target == one.Target && pull.IsOfTheFight(s.Source)
-                                                              && PullLog.Seconds(time, s.Time) is >= 0 and < 1.5))
+                foreach (var status in one.Applies)
                 {
-                    var left = $"{name}: {pull.StatusName(gain.Status)} ({gain.Status}) for {Spread.F(gain.Duration)} s";
+                    var left = $"{name}: {pull.StatusName(status)} ({status})";
                     cleaveLeaves[left] = cleaveLeaves.GetValueOrDefault(left) + 1;
+                }
+                if (pull.Invulnerability(one.Target, time) is not null) cleavesUnderAnInvulnerability++;
+                else if (one.Damage is { } damage && pull.Outcome(one) != HitOutcome.AlreadyDead)
+                {
+                    if (!cleaveDamage.TryGetValue(name, out var taken)) cleaveDamage[name] = taken = [];
+                    taken.Add(damage);
                 }
                 cleaves.Add($"{pull.Name} at {Spread.F(pull.Clock(time))} s: {name} on {pull.Who(one.Target)}"
                             + (one.Target == target ? "" : ", not the player its boss is turned to")
@@ -206,10 +212,10 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
         };
 
         var slammed = glows.Where(g => g.Action is not null).ToList();
-        var asTheSim = slammed.Count(g => g.Action == (g.State == P1ModelState.HandPalm ? P1ActionId.HandOfPrayer : P1ActionId.HandOfParting));
+        var asTheSim = slammed.Count(g => g.Action == (g.State == P1ModelState.HandPalm ? P1ActionId.HandOfParting : P1ActionId.HandOfPrayer));
         yield return new LogFinding(Section, "Which action each form slams with",
-            SimSource.Line(TeaSource.Mechanics, "hand.Cast(palm ? Actions.HandOfPrayer : Actions.HandOfParting);"),
-            $"state {P1ModelState.HandPalm} slams with Hand of Prayer ({P1ActionId.HandOfPrayer}), state {P1ModelState.HandFist} with Hand of Parting ({P1ActionId.HandOfParting})",
+            SimSource.Line(TeaSource.Mechanics, "hand.Cast(palm ? Actions.HandOfParting : Actions.HandOfPrayer);"),
+            $"state {P1ModelState.HandPalm} slams with Hand of Parting ({P1ActionId.HandOfParting}), state {P1ModelState.HandFist} with Hand of Prayer ({P1ActionId.HandOfPrayer})",
             slammed.Count == 0 ? "no slam"
                 : TeaP1ActorsPullLogs.Tally(slammed.Select(g => $"state {g.State} with {(g.Action == P1ActionId.HandOfPrayer ? "Hand of Prayer" : "Hand of Parting")} ({g.Action})")),
             slammed.Count == 0 ? Verdict.NotInTheseLogs : asTheSim == slammed.Count ? Verdict.Matches : Verdict.Differs);
@@ -272,16 +278,19 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
             : Verdict.Inconclusive);
 
         yield return new LogFinding(Section, "What a cleave leaves on whoever it hits",
-            SimSource.Line(TeaSource.Actions, "public static readonly EnemyAction FluidSwing ="), "nothing",
+            SimSource.Line(TeaSource.Actions, "public static readonly EnemyAction FluidSwing ="), $"the wave debuff, status {P1StatusId.WaterResistanceDown}",
             cleaveVolleys == 0 ? "no cleave"
-                : cleaveLeaves.Count == 0 ? "no status from the fight within 1.5 s of a cleave's hit"
+                : cleaveLeaves.Count == 0 ? "no cleave's hit names a status among its own effects"
                 : string.Join("; ", cleaveLeaves.OrderByDescending(l => l.Value).Select(l => $"{l.Key} x{l.Value}")),
-            cleaveVolleys == 0 ? Verdict.NotInTheseLogs : cleaveLeaves.Count == 0 ? Verdict.Matches : Verdict.Differs);
+            cleaveVolleys == 0 ? Verdict.NotInTheseLogs
+            : cleaveLeaves.Count > 0 && cleaveLeaves.Keys.All(k => k.Contains($"({P1StatusId.WaterResistanceDown})", StringComparison.Ordinal)) ? Verdict.Matches : Verdict.Differs);
 
         yield return new LogFinding(Section, "The cleaves' damage and what covered it",
             SimSource.Line(TeaSource.Constants, "float FluidSwingMitigation ="),
             $"a human tank on a tank's job needs {P1Rules.FluidSwingMitigation} of mitigation under Fluid Swing and {P1Rules.FluidStrikeMitigation} under Fluid Strike",
-            cleaves.Count == 0 ? "no cleave hit anyone" : $"{cleaves.Count} hits, each below with the hit points it took and the statuses that covered it",
+            cleaves.Count == 0 ? "no cleave hit anyone"
+                : $"{cleaves.Count} hits: " + string.Join("; ", cleaveDamage.OrderBy(d => d.Key).Select(d => $"{d.Key} {new Spread(d.Value).Describe("", "0")}"))
+                  + $"; {cleavesUnderAnInvulnerability} under an invulnerability left out. Each is below with the hit points it took and the statuses that covered it",
             cleaves.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
         {
             Details = cleaves,

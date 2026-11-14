@@ -1,8 +1,9 @@
+using System.Numerics;
 using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// Every death and the hit that left its player at 0 HP.
+// Every death and what left its player at 0 HP: a hit, Throttle running out, or the rim.
 internal sealed class TeaP1DeathsPullLogs : ITeaPullLogMeasures
 {
     private const string Section = "P1 deaths";
@@ -20,9 +21,16 @@ internal sealed class TeaP1DeathsPullLogs : ITeaPullLogMeasures
         {
             var recent = pull.Hits.Where(h => h.Target == death.Player && pull.IsOfTheFight(h.Source) && PullLog.Seconds(h.Time, death.Died) is >= -0.05 and < Before)
                              .ToList();
-            var fatal = recent.Where(h => pull.HpAfter(h) == 0).Cast<ActHit?>().FirstOrDefault();
-            var blamed = fatal ?? recent.Cast<ActHit?>().LastOrDefault();
-            var cause = blamed is { } hit ? $"{pull.ActionName(hit.Action)} ({hit.Action}) from {Kind(pull, hit.Source)}" : "no hit of the fight's";
+            // Two hits of one second both read 0 HP on their effect results: the harder one is the kill.
+            var fatal = recent.Where(h => pull.HpAfter(h) == 0).OrderByDescending(h => h.Damage ?? 0).Cast<ActHit?>().FirstOrDefault();
+            var unhit = fatal is not null ? null
+                : pull.Statuses.Any(s => s.Gained && s.Status == P1StatusId.Throttle && s.Target == death.Player
+                                         && Math.Abs(PullLog.Seconds(s.Time.AddSeconds(s.Duration), death.Died)) < 0.5) ? "Throttle running out"
+                : new[] { 0.0, 0.2, 0.4, 0.6, 0.8, 1.0 }.Select(before => pull.Positions.At(death.Player, death.Died.AddSeconds(-before)))
+                      .Any(pose => pose is { Gap.TotalSeconds: < 0.5 } at && Vector2.Distance(at.Position, TeaPull.Centre) > P1Geometry.ArenaRadius) ? "going past the rim"
+                : null;
+            var blamed = fatal ?? (unhit is null ? recent.Cast<ActHit?>().LastOrDefault() : null);
+            var cause = unhit ?? (blamed is { } hit ? $"{pull.ActionName(hit.Action)} ({hit.Action}) from {Kind(pull, hit.Source)}" : "no hit of the fight's");
             causes[cause] = causes.GetValueOrDefault(cause) + 1;
             inThisPull[cause] = inThisPull.GetValueOrDefault(cause) + 1;
             deaths.Add($"{pull.Name} at {Spread.F(pull.Clock(death.Died))} s: {pull.Who(death.Player)} dies to {cause}"
@@ -56,9 +64,10 @@ internal sealed class TeaP1DeathsPullLogs : ITeaPullLogMeasures
             Details = ends,
         };
 
-        yield return new LogFinding(Section, "What killed: the hit whose effect result left each player at 0 HP, else the fight's last hit on it",
+        yield return new LogFinding(Section, "What killed: the hit whose effect result left each player at 0 HP; with none, Throttle running out or the rim; else the fight's last hit on it",
             SimSource.Line(TeaSource.Actions, "Death reasons describe the fight, never a strat's spots"),
-            "a second Protean Wave, a Sluice, a Liquid Rage's water, Drainage's rules, Throttle running out, the wrong slam, a touched Embolus",
+            "a second Protean Wave, the Living Liquid's own untelegraphed cone, a Sluice, a Liquid Rage's water, Drainage's rules, Throttle running out, the wrong "
+            + "slam, a touched Embolus, a Hawk Blaster, a second hit of Cruise Chaser's, going past the rim",
             causes.Count == 0 ? "no deaths" : string.Join("; ", causes.OrderByDescending(c => c.Value).Select(c => $"{c.Key} x{c.Value}")),
             causes.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
         {

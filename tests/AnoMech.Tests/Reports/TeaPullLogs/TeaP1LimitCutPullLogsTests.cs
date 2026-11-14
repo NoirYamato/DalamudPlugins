@@ -31,7 +31,7 @@ public class TeaP1LimitCutPullLogsTests
             Assert.That(findings.Named("The Hawk Blasters in the middle").Measured, Does.StartWith("8.80, none"));
             Assert.That(findings.Named("The numbers show").Measured, Does.StartWith("-2.10 s"));
             Assert.That(findings.Named("A Hawk Blaster's spot on a cardinal").Measured, Does.StartWith("14.00 y (n=2"));
-            Assert.That(findings.Named("A Hawk Blaster's spot on a diagonal").Verdict, Is.EqualTo(Verdict.Differs));
+            Assert.That(findings.Named("A Hawk Blaster's spot on a diagonal").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("Each pair stands an eighth of a turn").Measured, Is.EqualTo("45.0 degrees (n=1)"));
             Assert.That(findings.Named("The first pair's spots").Measured, Does.StartWith("north and south"));
             Assert.That(findings.Named("The numbers' spacing").Details.Single(), Does.EndWith("1 Gunbreaker, 2 DarkKnight"));
@@ -52,12 +52,12 @@ public class TeaP1LimitCutPullLogsTests
             Hit(137.2, Chaser, P1ActionId.SuperBlasstyCharge, Player(1), east, Centre, Raw(Math.PI / 2), sequence: 8),
             EffectResult(137.7, Player(1), 8, 40000, east), UpdateHp(138.1, Player(1), 0, east),
         ], [LiquidStands(), Enemy(-10, Chaser, P1BNpcBaseId.CruiseChaser, new Vector2(103f, 100f), 0f, 2168926, 2168926)], players: 2))
-            .Named("The rim: a player one of his hits throws at it");
+            .Named("The rim: a player one of his hits throws past it");
 
         Assert.Multiple(() =>
         {
             Assert.That(rim.Measured, Does.EndWith("the rim lay 3.00 y (n=1) on along the line from him"));
-            Assert.That(rim.Verdict, Is.EqualTo(Verdict.Differs));
+            Assert.That(rim.Verdict, Is.EqualTo(Verdict.Matches));
         });
     }
 }

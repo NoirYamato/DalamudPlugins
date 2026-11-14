@@ -22,6 +22,11 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
     private readonly List<double> embolusAppears = [], embolusOffItsTornado = [], embolusSetsOff = [], embolusSetsOffAfterPressurize = [], embolusSpeeds = [], embolusAim = [], embolusPastItsSpot = [];
     private readonly List<double> burstNearestPlayer = [], burstFromTheLiquid = [], burstFromTheHand = [], embolusStopsOut = [], embolusLasts = [];
     private int pressurizeVolleys, pressurizesOfTwo, pairs, pairsOneForEachBoss;
+
+    // Each fed doll's share of its hit points with the hardest hit of its Reducible Complexity. Two hits of one second
+    // both read as the kill, so what a feed did is told by its damage.
+    private readonly List<(double Share, int Hardest)> fedHardest = [];
+    private const int AHeavyHit = 20000;
     private readonly LethalHits outbursts = new();
 
     public void Observe(TeaPull pull)
@@ -102,7 +107,11 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         var killed = living.Count(h => pull.Outcome(h) == HitOutcome.Killed);
         if (burst.Count > 0) fedAfterTether.Add(PullLog.Seconds(feed.Time, burst[0].Time));
         if (!float.IsNaN(apart)) fedApart.Add(apart);
-        if (!double.IsNaN(share) && burst.Count > 0 && burst[0].Action == TeaLogIds.ReducibleComplexityFed && living.Count > 0) fed.Add((share, living.Count, killed));
+        if (!double.IsNaN(share) && burst.Count > 0 && burst[0].Action == TeaLogIds.ReducibleComplexityFed && living.Count > 0)
+        {
+            fed.Add((share, living.Count, killed));
+            fedHardest.Add((share, living.Max(h => h.Damage ?? 0)));
+        }
         var eater = pull.BaseOf(feed.Target) switch
         {
             P1BNpcBaseId.LivingLiquid => "the Living Liquid", P1BNpcBaseId.LiquidHand => "the Liquid Hand", P1BNpcBaseId.LiquidRage => "a Liquid Rage",
@@ -247,14 +256,17 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         yield return Unplayed(exploded.Finding(Section, "A player's explosion (Exhaust from the player) kills whoever it hits",
                                                TeaSource.OpeningNotPlayed, "not played"));
 
-        var survived = fed.Where(f => f.Killed == 0).Select(f => f.Share).ToList();
-        var wiped = fed.Where(f => f.Killed == f.Hit).Select(f => f.Share).ToList();
+        var light = fedHardest.Where(f => f.Hardest < AHeavyHit).ToList();
+        var heavy = fedHardest.Where(f => f.Hardest >= AHeavyHit).ToList();
         yield return new LogFinding(Section, "Feeding a doll: its hit points as its tether goes to a boss, and what its Reducible Complexity does",
             TeaSource.OpeningNotPlayed, "not played; a doll fed under a quarter of its hit points is said to be survived",
             feeds.Count == 0 ? "no doll fed"
                 : $"{feeds.Count} dolls fed, {new Spread(fedApart).Describe(" y")} from the boss's centre as the tether goes out; Reducible Complexity "
-                  + $"{new Spread(fedAfterTether).Describe(" s")} later. Survived by all at {(survived.Count == 0 ? "no share" : $"up to {Spread.F(survived.Max(), "0.0")} %")} "
-                  + $"(n={survived.Count}); killed everyone at {(wiped.Count == 0 ? "no share" : $"{Spread.F(wiped.Min(), "0.0")} % and over")} (n={wiped.Count})",
+                  + $"{new Spread(fedAfterTether).Describe(" s")} later. "
+                  + (light.Count == 0 ? "None hit lightly" : $"With the doll at {Spread.F(light.Min(f => f.Share), "0.0")} to {Spread.F(light.Max(f => f.Share), "0.0")} % "
+                                                             + $"its hardest hit was {light.Max(f => f.Hardest)} at the most (n={light.Count})")
+                  + (heavy.Count == 0 ? "; none hit hard" : $"; at {Spread.F(heavy.Min(f => f.Share), "0.0")} % and over it was {heavy.Min(f => f.Hardest)} at the least "
+                                                            + $"(n={heavy.Count})"),
             LogFinding.Unplayed(feeds.Count))
         {
             Details = feeds,
@@ -285,10 +297,11 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             LogFinding.Compare(appears, P1Duration.EmbolusAfterPressurize, 0.3));
 
         var setsOff = new Spread(embolusSetsOff);
-        yield return new LogFinding(Section, "An Embolus sets off, after it appears",
-            SimSource.Line(TeaSource.Mechanics, "embolus.MoveTo(to, EmbolusSpeed);"), "0 s: it leaves as it appears",
-            setsOff.Count == 0 ? "no Embolus seen to move" : $"{setsOff.Describe(" s")}; after Pressurize: {new Spread(embolusSetsOffAfterPressurize).Describe(" s")}",
-            LogFinding.Compare(setsOff, 0, 0.5));
+        var afterPressurize = new Spread(embolusSetsOffAfterPressurize);
+        yield return new LogFinding(Section, "An Embolus sets off, after Pressurize",
+            SimSource.Line(TeaSource.Constants, "float EmbolusSetsOffAfterPressurize ="), $"{P1Duration.EmbolusSetsOffAfterPressurize} s",
+            setsOff.Count == 0 ? "no Embolus seen to move" : $"{afterPressurize.Describe(" s")}; after it appears: {setsOff.Describe(" s")}",
+            LogFinding.Compare(afterPressurize, P1Duration.EmbolusSetsOffAfterPressurize, 0.1));
 
         var speed = new Spread(embolusSpeeds);
         yield return new LogFinding(Section, "An Embolus's speed, from its first move line to its last",
@@ -304,32 +317,37 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             aim.Count == 0 ? Verdict.NotInTheseLogs : aim.Median < 3 ? Verdict.Matches : Verdict.Differs);
 
         var past = new Spread(embolusPastItsSpot);
-        yield return new LogFinding(Section, "An Embolus stops on the spot it left for: how far past it its last move line lies",
-            SimSource.Line(TeaSource.Mechanics, "UNVERIFIED: the speed, that each heads for one boss's spot and stops there"), "0 y: it stops there",
+        yield return new LogFinding(Section, "An Embolus goes on past the spot it left for: how far past it its last move line lies",
+            SimSource.Line(TeaSource.Mechanics, "private static Vector3 WhereItLeavesTheArena(Vector3 from, Vector3 through)"),
+            "straight on through the spot and out of the arena",
             past.Count == 0 ? "no Embolus seen to stop or to pass its spot"
                 : $"{past.Describe(" y")} past the spot (an Embolus still short of its spot as its pull ended is left out)",
-            past.Count == 0 ? Verdict.NotInTheseLogs : past.Max > 1 ? Verdict.Differs : Verdict.Matches)
+            past.Count == 0 ? Verdict.NotInTheseLogs : past.Median > 1 ? Verdict.Matches : Verdict.Differs)
         {
             Details = emboli,
         };
 
         var stops = new Spread(embolusStopsOut);
         var lasts = new Spread(embolusLasts);
-        yield return new LogFinding(Section, "Where an Embolus comes to rest, and when it goes",
-            SimSource.Line(TeaSource.Mechanics, "foreach (var embolus in emboli.Where(embolus => embolus.IsActive)) embolus.FadeOut();"),
-            "on its spot, until the Living Liquid falls",
+        yield return new LogFinding(Section, "Where an Embolus's walk ends, and when it goes",
+            SimSource.Line(TeaSource.Constants, "float EmbolusLeavesBeyond ="), $"{P1Geometry.EmbolusLeavesBeyond} y from the centre, where it is gone",
             stops.Count == 0 ? "no Embolus seen to come to rest"
-                : $"its last move line lies {stops.Describe(" y")} from the centre; removed {(lasts.Count == 0 ? "in no pull before its end" : lasts.Describe(" s") + " after appearing")}",
-            stops.Count == 0 ? Verdict.NotInTheseLogs : stops.Min > P1Geometry.ArenaRadius - 1 ? Verdict.Differs : Verdict.Inconclusive);
+                : $"its last move line lies {stops.Describe(" y")} from the centre; removed {(lasts.Count == 0 ? "in no pull before its end" : lasts.Describe(" s") + " after appearing")}"
+                  + " (how long it lasts is its path's length, and one its pull's end removed reads short)",
+            LogFinding.Compare(stops, P1Geometry.EmbolusLeavesBeyond, 0.5));
 
+        const float liquidHitbox = 3.5f, handHitbox = 1.6f;
+        var bossTouched = burstFromTheLiquid.Count(d => d <= liquidHitbox + P1Geometry.EmbolusRadius + 0.1)
+                          + burstFromTheHand.Count(d => d <= handHitbox + P1Geometry.EmbolusRadius + 0.1);
         yield return new LogFinding(Section, "A touched Embolus bursts: how close the nearest player and boss stood as Outburst went off",
-            SimSource.Line(TeaSource.Constants, "float EmbolusContact ="), $"a player or a boss within {P1Geometry.EmbolusContact} y of it bursts it, and everyone dies",
+            SimSource.Line(TeaSource.Constants, "float EmbolusRadius ="),
+            $"a player or a boss whose hitbox comes within {P1Geometry.EmbolusRadius} y of its centre bursts it: the Living Liquid's centre within "
+            + $"{liquidHitbox + P1Geometry.EmbolusRadius} y, the Liquid Hand's within {handHitbox + P1Geometry.EmbolusRadius} y, a player's within {0.5f + P1Geometry.EmbolusRadius} y",
             bursts.Count == 0 ? "no Outburst"
                 : $"the nearest living player {new Spread(burstNearestPlayer).Describe(" y")} from the Embolus, the Living Liquid's centre "
-                  + $"{new Spread(burstFromTheLiquid).Describe(" y")}, the Liquid Hand's {new Spread(burstFromTheHand).Describe(" y")}; the Liquid's hitbox and "
-                  + "the Embolus's own reach 4.5 y between their centres, the Hand's 2.6 y",
-            bursts.Count == 0 ? Verdict.NotInTheseLogs
-            : burstNearestPlayer.Concat(burstFromTheLiquid).Concat(burstFromTheHand).Min() > P1Geometry.EmbolusContact + 1 ? Verdict.Differs : Verdict.Inconclusive)
+                  + $"{new Spread(burstFromTheLiquid).Describe(" y")}, the Liquid Hand's {new Spread(burstFromTheHand).Describe(" y")}",
+            bursts.Count == 0 ? Verdict.NotInTheseLogs : bossTouched == bursts.Count ? Verdict.Matches
+            : burstNearestPlayer.Any(d => d <= 0.5f + P1Geometry.EmbolusRadius + 1) ? Verdict.Inconclusive : Verdict.Differs)
         {
             Details = bursts,
         };

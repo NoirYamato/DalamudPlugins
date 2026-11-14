@@ -11,7 +11,7 @@ public class TeaP1HandPullLogsTests
     private static readonly Vector2 Far = new(118f, 100f), BesideTheLiquid = new(117f, 100f);
 
     [Test]
-    public void AFormShownApartThatSlamsWithHandOfPartingFitsTheRuleAndNotTheAction()
+    public void AFormShownApartSlamsWithHandOfParting()
     {
         var findings = Findings(new TeaP1HandPullLogs(), Of(
         [
@@ -27,7 +27,7 @@ public class TeaP1HandPullLogsTests
             Assert.That(findings.Named("The Hand's form as it glows").Measured, Does.StartWith("1 of 1 glows fit: state 20 shown with the bosses 18.00 to 18.00 y apart (n=1); state 19 never shown"));
             Assert.That(findings.Named("The Hand's form as it glows").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("Which action each form slams with").Measured, Is.EqualTo("state 20 with Hand of Parting (18476)"));
-            Assert.That(findings.Named("Which action each form slams with").Verdict, Is.EqualTo(Verdict.Differs));
+            Assert.That(findings.Named("Which action each form slams with").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("The slam of state 20").Measured, Is.EqualTo("1.00 y apart: killed 0 of 1"));
             Assert.That(findings.Named("The slam of state 20").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("From the glow to the slam").Measured, Is.EqualTo("5.10 s (n=1)"));
@@ -54,15 +54,15 @@ public class TeaP1HandPullLogsTests
 
     // The second status comes from another player and is none of the cleave's.
     [Test]
-    public void ACleaveLeavesWhatItsTargetGainsFromTheFight()
+    public void ACleaveLeavesTheStatusItsOwnEffectsName()
     {
         var leaves = Findings(new TeaP1HandPullLogs(), Of(
         [
             StatusList(9, Player(1), 40000, new Vector2(100f, 90f)),
-            Hit(10.5, Liquid, P1ActionId.FluidSwing, Player(1), new Vector2(100f, 90f), new Vector2(100f, 85f), Raw(0)),
+            Hit(10.5, Liquid, P1ActionId.FluidSwing, Player(1), new Vector2(100f, 90f), new Vector2(100f, 85f), Raw(0), applies: 1025),
             Gains(10.6, 1025, 3.96f, Liquid, Player(1)), Gains(10.6, 1917, 30f, Player(4), Player(1)),
         ])).Named("What a cleave leaves");
 
-        Assert.That((leaves.Measured, leaves.Verdict), Is.EqualTo(("Fluid Swing: Status (1025) for 3.96 s x1", Verdict.Differs)));
+        Assert.That((leaves.Measured, leaves.Verdict), Is.EqualTo(("Fluid Swing: Status (1025) x1", Verdict.Matches)));
     }
 }

@@ -10,6 +10,7 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
 {
     private const string Section = "P1 Limit Cut";
     private const int Rounds = 4;
+    private const uint NextTrack = 723;
     private const double Tolerance = 0.25;
 
     private static readonly string[] Anchors = ["Arm's Length", "Surecast", "Inner Strength"];
@@ -23,7 +24,15 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
     private readonly List<string> axes = [], numbers = [], landings = [], strikes = [], warps = [], kicks = [], seconds = [], thrown = [];
     private readonly Dictionary<string, int> leaves = [];
     private readonly LethalHits blasts = new();
-    private int swords, swordsOnTheirNumber, charges, chargesOnTheirNumber, anchored, laterHits, laterHitsKilled;
+    private int swords, swordsOnTheirNumber, charges, chargesOnTheirNumber, anchored, laterHits, laterHitsKilled, landingsOnASubstitute;
+
+    // The Knockback sheet's rows his hits name, as distance and speed.
+    private static readonly Dictionary<uint, (float Distance, float Speed)> KnockbackRows = new() { [2] = (5f, 10f), [3] = (20f, 40f) };
+
+    // Per action: the row each hit names, or what the hit's target held when it named none.
+    private readonly Dictionary<uint, List<string>> throwsNamed = new() { [P1ActionId.AlphaSword] = [], [P1ActionId.SuperBlasstyCharge] = [] };
+    private readonly List<string> kickSpots = [];
+    private int kicksWithTheNextTrack;
 
     public void Observe(TeaPull pull)
     {
@@ -103,10 +112,19 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         var chaser = swings[0][0].Source;
         var numbered = Numbered(pull, swings[0][0].Time);
         var placed = pull.Moves.Where(m => m.Actor == chaser && m.Placed).ToList();
-        foreach (var gain in pull.Statuses.Where(s => s.Gained && s.Source == chaser && ActorIds.IsPlayer(s.Target)))
+        foreach (var hit in pull.Hits.Where(h => h.Source == chaser && h.HitSomeone && h.Action is P1ActionId.AlphaSword or P1ActionId.SuperBlasstyCharge))
         {
-            var left = $"{pull.StatusName(gain.Status)} ({gain.Status}) for {Spread.F(gain.Duration)} s";
-            leaves[left] = leaves.GetValueOrDefault(left) + 1;
+            foreach (var status in hit.Applies)
+            {
+                var seconds = pull.Statuses.Where(s => s.Gained && s.Status == status && s.Target == hit.Target && Math.Abs(PullLog.Seconds(hit.Time, s.Time)) < 0.2)
+                                  .Select(s => (float?)s.Duration).FirstOrDefault();
+                var left = $"{pull.StatusName(status)} ({status})" + (seconds is { } lasts ? $" for {Spread.F(lasts)} s" : "");
+                leaves[left] = leaves.GetValueOrDefault(left) + 1;
+            }
+            if (pull.Outcome(hit) is HitOutcome.AlreadyDead) continue;
+            var held = pull.Statuses.Where(s => s.Gained && s.Target == hit.Target && Anchors.Contains(pull.StatusName(s.Status)) && s.Time <= hit.Time
+                                                && s.Time.AddSeconds(s.Duration) > hit.Time).Select(s => pull.StatusName(s.Status)).FirstOrDefault();
+            throwsNamed[hit.Action].Add(hit.KnockbackRow is { } row ? $"row {row}" + (held is null ? "" : $" under {held}") : $"no throw, under {held ?? "nothing"}");
         }
         for (var round = 0; round < Math.Max(swings.Count, dashes.Count); round++)
         {
@@ -130,7 +148,8 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
                     if (faced.Time > landed.Time) turnsBeforeTheSword.Add(PullLog.Seconds(faced.Time, time));
                     if (pull.Timelines.Where(t => t.Actor == chaser && Math.Abs(PullLog.Seconds(landed.Time, t.Time)) < 0.5).Cast<ActTimeline?>().FirstOrDefault() is { } warp)
                         warps.Add($"timeline {warp.Timeline}");
-                    if (aimed is { } odd && pull.Positions.At(odd.Player, landed.Time) is { } pose)
+                    if (aimed is not null && itsNumber != 2 * round + 1) landingsOnASubstitute++;
+                    if (aimed is { } odd && itsNumber == 2 * round + 1 && pull.Positions.At(odd.Player, landed.Time) is { } pose)
                     {
                         landsBehind.Add(Vector2.Distance(landed.Position, pose.Position));
                         landsFacing.Add(TeaPull.Degrees(PullLog.AngleBetween(landed.Heading, PullLog.HeadingTo(landed.Position, pose.Position))));
@@ -248,6 +267,8 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
                       + $", facing {Spread.F(pull.Positions.At(kick[0].Source, kick[0].Time)?.Heading ?? float.NaN)} rad; Cruise Chaser then at "
                       + (chaser is { } c && pull.Where(c, kick[0].Time) is { } cc ? TeaPull.Spot(cc) : "an unknown spot")
                       + $"; it hits {kick.Count(h => h.HitSomeone)} players and kills {kick.Count(h => h.HitSomeone && pull.Outcome(h) == HitOutcome.Killed)}");
+            if (pull.Where(kick[0].Source, kick[0].Time) is { } lands) kickSpots.Add(TeaPull.Spot(lands));
+            if (pull.Music.Any(m => Math.Abs(PullLog.Seconds(kick[0].Time, m.Time)) < 0.1 && m.Bgm == NextTrack)) kicksWithTheNextTrack++;
             if (pull.Hits.Where(h => LaterAutoAttacks.Contains(h.Action) && h.Time > kick[0].Time).Select(h => (DateTimeOffset?)h.Time).FirstOrDefault() is { } attack)
                 firstAttacks.Add(PullLog.Seconds(first, attack));
         }
@@ -277,9 +298,13 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         };
 
         var fell = new Spread(liquidToBlaster);
+        var kill = P1Duration.CascadeTwoIntoTheTrack + SimSource.PartTime(TeaSource.Scenario, "fight.TheLiquidFalls(start + ").Seconds;
+        var blaster = P1Duration.LimitCutIntoTheTrack + firstPair.Seconds;
         yield return new LogFinding(Section, "The first Hawk Blaster, after the Living Liquid falls",
-            SimSource.Line(TeaSource.Constants, "float LimitCutIntoTheTrack ="), "5.2 s: the track counts the kill 125.5 s in and the blaster 130.7 s in",
-            fell.Describe(" s"), LogFinding.Compare(fell, 5.2, Tolerance));
+            SimSource.Line(TeaSource.Constants, "float LimitCutIntoTheTrack ="),
+            blaster - kill is { } after ? $"{Spread.F(after, "0.0")} s: the fight's clock has the kill {Spread.F(kill!.Value, "0.0")} s in and the blaster {Spread.F(blaster!.Value, "0.0")} s in"
+                : "not found in the scenarios",
+            fell.Describe(" s"), blaster - kill is { } sim ? LogFinding.Compare(fell, sim, Tolerance) : Verdict.Inconclusive);
         var hand = new Spread(handAfterLiquid);
         yield return new LogFinding(Section, "The Liquid Hand is removed, after the Living Liquid falls",
             SimSource.Line(TeaSource.Constants, "float HandLeavesAfterTheLiquid ="), $"{P1Duration.HandLeavesAfterTheLiquid} s",
@@ -288,20 +313,18 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
 
         var (cardinals, diagonals) = (new Spread(cardinalRadii), new Spread(diagonalRadii));
         yield return new LogFinding(Section, "A Hawk Blaster's spot on a cardinal: its distance from the centre",
-            SimSource.Line(TeaSource.Constants, "float HawkBlasterCardinalRadius ="), $"{P1Geometry.HawkBlasterCardinalRadius} y", cardinals.Describe(" y"),
-            LogFinding.Compare(cardinals, P1Geometry.HawkBlasterCardinalRadius, 0.1));
-        var diagonal = Math.Sqrt(2) * P1Geometry.HawkBlasterDiagonalOffset;
+            SimSource.Line(TeaSource.Constants, "float HawkBlasterRadius ="), $"{P1Geometry.HawkBlasterRadius} y", cardinals.Describe(" y"),
+            LogFinding.Compare(cardinals, P1Geometry.HawkBlasterRadius, 0.1));
         yield return new LogFinding(Section, "A Hawk Blaster's spot on a diagonal: its distance from the centre",
-            SimSource.Line(TeaSource.Constants, "float HawkBlasterDiagonalOffset ="),
-            $"{Spread.F(diagonal)} y: {P1Geometry.HawkBlasterDiagonalOffset} y east or west and as far north or south", diagonals.Describe(" y"),
-            LogFinding.Compare(diagonals, diagonal, 0.1));
+            SimSource.Line(TeaSource.Constants, "float HawkBlasterRadius ="), $"{P1Geometry.HawkBlasterRadius} y, as on a cardinal", diagonals.Describe(" y"),
+            LogFinding.Compare(diagonals, P1Geometry.HawkBlasterRadius, 0.1));
         var middles = new Spread(middleOff);
         yield return new LogFinding(Section, "The middle Hawk Blaster's spot: its distance from the centre",
             SimSource.Line(TeaSource.LimitCut, "private void HawkBlasterInTheMiddle()"), "0 y", middles.Describe(" y"), LogFinding.Compare(middles, 0, 0.1));
 
         var turn = new Spread(turns);
         yield return new LogFinding(Section, "Each pair stands an eighth of a turn clockwise of the last, the fifth on the first's spots",
-            SimSource.Line(TeaSource.Constants, "float HawkBlasterCardinalRadius ="), "45 degrees", turn.Describe(" degrees", "0.0"),
+            SimSource.Line(TeaSource.LimitCutState, "var bearing = FirstBearing + 45f * (index % 4);"), "45 degrees", turn.Describe(" degrees", "0.0"),
             turn.Count == 0 ? Verdict.NotInTheseLogs : turn.Min > 44 && turn.Max < 46 ? Verdict.Matches : Verdict.Differs);
         yield return new LogFinding(Section, "The first pair's spots",
             SimSource.Line(TeaSource.LimitCutState, "var axis = (TeaP1FirstBlasters)rng.NextInt(4);"), "one of four axes, each as likely",
@@ -330,9 +353,11 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         yield return new LogFinding(Section, "How far from its odd number he lands, and how far off straight behind it",
             SimSource.Line(TeaSource.Constants, "float CruiseChaserLandsBehind ="), $"{P1Geometry.CruiseChaserLandsBehind} y, straight behind by the player's facing",
             behind.Count == 0 ? "no landing with its number's position"
-                : $"{behind.Describe(" y")} from the player, {straight.Describe(" degrees", "0")} off the reverse of the player's facing (client positions and the "
-                  + "facing its last line carried)",
-            behind.Count == 0 ? Verdict.NotInTheseLogs : behind.Min > P1Geometry.CruiseChaserLandsBehind + 2 ? Verdict.Differs : Verdict.Inconclusive);
+                : $"{behind.Describe(" y")} from the player (median {Spread.F(behind.Median)}), a median {Spread.F(straight.Median, "0")} degrees off the reverse of the "
+                  + $"player's facing ({straight.Describe(" degrees", "0")}): client positions of a player on the run, and the facing its last line carried. "
+                  + $"{landingsOnASubstitute} landings on a stand-in for a dead number are left out",
+            behind.Count == 0 ? Verdict.NotInTheseLogs
+            : behind.Median > P1Geometry.CruiseChaserLandsBehind + 2 || behind.Median < P1Geometry.CruiseChaserLandsBehind - 2 ? Verdict.Differs : Verdict.Inconclusive);
         var facing = new Spread(landsFacing);
         yield return new LogFinding(Section, "He lands turned to his odd number: his facing off the player's bearing",
             SimSource.Line(TeaSource.LimitCut, "cruiseChaser.SetPosition(target.Placement().MoveForward(-state.CruiseChaserLandsBehind));"),
@@ -358,7 +383,7 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         var stays = new Spread(chargesFrom);
         var chargeAim = new Spread(chargeOff);
         yield return new LogFinding(Section, "He charges from where he cleaved, turned to the even number",
-            SimSource.Line(TeaSource.LimitCut, "UNVERIFIED: he charges from where he cleaved and stays there."),
+            SimSource.Line(TeaSource.LimitCut, "He charges from where he cleaved and stays there."),
             "from the same spot, turned to the even number 0.1 s before the charge and as it goes off",
             charges == 0 ? "no Super Blassty Charge"
                 : $"{stays.Describe(" y")} from where he landed; placed again {chargeTurn.Describe(" s", "0.000")} before the charge; the charge "
@@ -368,12 +393,17 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
             Details = strikes,
         };
 
-        yield return new LogFinding(Section, "What a hit of his leaves",
-            SimSource.Line(TeaSource.Constants, "ushort CruiseChaserVulnerability ="), $"status {P1StatusId.CruiseChaserVulnerability} for {P1Duration.CruiseChaserVulnerability} s",
+        var simLeaves = new[]
+        {
+            $"({P1StatusId.MagicVulnerabilityUp}) for {Spread.F(P1Duration.MagicVulnerabilityUp)} s", $"({P1StatusId.PhysicalVulnerabilityUp}) for {Spread.F(P1Duration.PhysicalVulnerabilityUp)} s",
+        };
+        yield return new LogFinding(Section, "What a hit of his leaves: the statuses its own effects name, with the seconds their gain lines give",
+            SimSource.Line(TeaSource.Constants, "ushort PhysicalVulnerabilityUp ="),
+            $"status {P1StatusId.MagicVulnerabilityUp} for {P1Duration.MagicVulnerabilityUp} s and status {P1StatusId.PhysicalVulnerabilityUp} for {P1Duration.PhysicalVulnerabilityUp} s",
             leaves.Count == 0 ? "no status from him" : string.Join("; ", leaves.OrderByDescending(l => l.Value).Select(l => $"{l.Key} x{l.Value}")),
             leaves.Count == 0 ? Verdict.NotInTheseLogs
-            : leaves.Keys.Any(k => k.Contains($"({P1StatusId.CruiseChaserVulnerability}) for {Spread.F(P1Duration.CruiseChaserVulnerability)} s", StringComparison.Ordinal))
-                ? Verdict.Matches : Verdict.Differs);
+            : simLeaves.All(sim => leaves.Where(l => l.Key.Contains(sim, StringComparison.Ordinal)).Sum(l => l.Value) * 2 > leaves.Values.Sum() / 2) ? Verdict.Matches
+            : Verdict.Differs);
 
         yield return new LogFinding(Section, "A second hit of his kills",
             SimSource.Line(TeaSource.Actions, "public const string SecondCruiseChaserHit ="), "a hit on a player who carries the vulnerability kills",
@@ -384,33 +414,49 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         };
 
         var (swordThrown, chargeThrown) = (new Spread(swordThrows), new Spread(chargeThrows));
-        yield return new LogFinding(Section, "Alpha Sword's knockback: the farthest along the line from him a hit player is seen in the 1.5 s after",
-            SimSource.Line(TeaSource.Constants, "float AlphaSwordKnockback ="), $"{P1Rules.AlphaSwordKnockback} y straight away from him",
-            swordThrown.Count == 0 ? $"no throw to read ({anchored} hits on a player with an anti-knockback up)" : swordThrown.Describe(" y") + " (client positions; a walk adds to it)",
-            swordThrown.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
+        yield return Throw("Alpha Sword", P1ActionId.AlphaSword, "float AlphaSwordKnockback =", P1Rules.AlphaSwordKnockback, P1Rules.AlphaSwordKnockbackSpeed, swordThrown) with
         {
             Details = thrown,
         };
-        yield return new LogFinding(Section, "Super Blassty Charge's knockback: the farthest along the line from him a hit player is seen in the 1.5 s after",
-            SimSource.Line(TeaSource.Constants, "float SuperBlasstyChargeKnockback ="), $"{P1Rules.SuperBlasstyChargeKnockback} y straight away from him, stopped at the rim",
-            chargeThrown.Count == 0 ? $"no throw to read ({anchored} hits on a player with an anti-knockback up)" : chargeThrown.Describe(" y") + " (client positions; a walk adds to it)",
-            chargeThrown.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive);
+        yield return Throw("Super Blassty Charge", P1ActionId.SuperBlasstyCharge, "float SuperBlasstyChargeKnockback =", P1Rules.SuperBlasstyChargeKnockback,
+                           P1Rules.SuperBlasstyChargeKnockbackSpeed, chargeThrown);
 
         var atTheRim = new Spread(thrownOut);
-        yield return new LogFinding(Section, "The rim: a player one of his hits throws at it",
-            SimSource.Line(TeaSource.Constants, "float ArenaRadius ="), $"a wall {P1Geometry.ArenaRadius} y out: a throw stops there and nobody dies past it",
+        yield return new LogFinding(Section, "The rim: a player one of his hits throws past it",
+            SimSource.Line(TeaSource.Zone, "world.EnforceArenaBoundary("), $"no wall: a throw goes its full length, and whoever ends beyond {P1Geometry.ArenaRadius} y dies",
             atTheRim.Count == 0 ? "nobody died of a throw"
                 : $"{atTheRim.Count} players a hit left alive were dead within 2 s with no other hit of the fight's; the rim lay {atTheRim.Describe(" y")} on along the line from him",
-            atTheRim.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Differs);
+            atTheRim.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Matches);
 
         var attacks = new Spread(firstAttacks);
-        yield return new LogFinding(Section, "J Kick: where Brute Justice and Cruise Chaser stand, and when they first attack after it",
-            SimSource.Line(TeaSource.LimitCut, "(where he stands is UNVERIFIED)"), "Brute Justice is not drawn; the run ends with J Kick",
-            kicks.Count == 0 ? "no J Kick" : $"their first auto-attacks {attacks.Describe(" s")} after the first pair",
-            LogFinding.Unplayed(kicks.Count))
+        yield return new LogFinding(Section, "J Kick: where Brute Justice casts it from",
+            SimSource.Line(TeaSource.LimitCut, "private static readonly Vector3 BruteJusticeLandsAt ="), "(-6.00, 0.00), from an unseen helper under his name",
+            kicks.Count == 0 ? "no J Kick" : TeaP1ActorsPullLogs.Tally(kickSpots),
+            kicks.Count == 0 ? Verdict.NotInTheseLogs : kickSpots.All(s => s == "(-6.00, 0.00)") ? Verdict.Matches : Verdict.Differs)
         {
             Details = kicks,
         };
+        yield return new LogFinding(Section, "J Kick: the next phase's track, and the bosses' first auto-attacks",
+            SimSource.Line(TeaSource.Constants, "ushort Bgm ="), "not played: the run ends with J Kick",
+            kicks.Count == 0 ? "no J Kick"
+                : $"track {NextTrack} is set with {kicksWithTheNextTrack} of {kicks.Count} J Kicks; the bosses' first auto-attacks come {attacks.Describe(" s")} after the first pair",
+            LogFinding.Unplayed(kicks.Count));
+    }
+
+    // The Knockback sheet's row an action's hits name, against the sim's push.
+    private LogFinding Throw(string name, uint action, string constant, float distance, float speed, Spread seen)
+    {
+        var named = throwsNamed[action];
+        var rows = named.Where(n => n.StartsWith("row ", StringComparison.Ordinal)).Select(n => uint.Parse(n.Split(' ')[1])).Distinct().ToList();
+        var asTheSim = rows.Count == 1 && KnockbackRows.TryGetValue(rows[0], out var row) && row.Distance == distance && row.Speed == speed;
+        return new LogFinding(Section, $"{name}'s knockback: the Knockback sheet's row its hits name",
+            SimSource.Line(TeaSource.Constants, constant), $"{distance} y at {speed} y/s straight away from him, held off by an anti-knockback",
+            named.Count == 0 ? "no hit on a living player"
+                : TeaP1ActorsPullLogs.Tally(named)
+                  + (rows.Count == 1 && KnockbackRows.TryGetValue(rows[0], out var sheet) ? $": row {rows[0]} is {sheet.Distance} y at {sheet.Speed} y/s" : "")
+                  + (seen.Count == 0 ? "" : $". The farthest along the line from him a thrown player is seen in the 1.5 s after: median {Spread.F(seen.Median)} y "
+                                            + $"({seen.Describe(" y")}; client positions, and a walk adds to it)"),
+            named.Count == 0 ? Verdict.NotInTheseLogs : rows.Count == 0 ? Verdict.Inconclusive : asTheSim ? Verdict.Matches : Verdict.Differs);
     }
 
     // The events of a kind against their literals, each as its time after the first pair's.

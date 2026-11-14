@@ -12,7 +12,7 @@ public class TeaP1DollsPullLogsTests
     // The Liquid stands on the centre and the Hand 10 y south of it. The north tornado's Embolus appears 0.4 s after
     // Pressurize, sets off 5.3 s later at 2 y/s for where the Liquid stood, 15 y away, and goes on 7 y past it.
     [Test]
-    public void AnEmbolusThatSetsOffLateAndGoesOnPastItsSpotDiffers()
+    public void AnEmbolusWaitsThenGoesOnPastItsSpot()
     {
         var north = new Vector2(100f, 85f);
         var findings = Findings(new TeaP1DollsPullLogs(), Of(
@@ -28,11 +28,11 @@ public class TeaP1DollsPullLogsTests
         {
             Assert.That(findings.Named("Pressurize: which tornadoes cast it").Measured, Does.StartWith("1 of 1 come from two tornadoes; left out: East x1"));
             Assert.That(findings.Named("An Embolus appears on its tornado").Measured, Does.StartWith("0.40 s (n=2"));
-            Assert.That((findings.Named("An Embolus sets off").Measured, findings.Named("An Embolus sets off").Verdict), Is.EqualTo(("5.30 s (n=1); after Pressurize: 5.70 s (n=1)", Verdict.Differs)));
-            Assert.That((findings.Named("An Embolus's speed").Measured, findings.Named("An Embolus's speed").Verdict), Is.EqualTo(("2.00 y/s (n=1)", Verdict.Differs)));
+            Assert.That((findings.Named("An Embolus sets off").Measured, findings.Named("An Embolus sets off").Verdict), Is.EqualTo(("5.70 s (n=1); after it appears: 5.30 s (n=1)", Verdict.Matches)));
+            Assert.That((findings.Named("An Embolus's speed").Measured, findings.Named("An Embolus's speed").Verdict), Is.EqualTo(("2.00 y/s (n=1)", Verdict.Matches)));
             Assert.That(findings.Named("Where an Embolus heads").Measured, Does.Contain("in 1 of 1 pairs one heads for each boss"));
-            Assert.That(findings.Named("An Embolus stops on the spot it left for").Measured, Does.StartWith("7.10 y (n=1)"));
-            Assert.That(findings.Named("An Embolus stops on the spot it left for").Verdict, Is.EqualTo(Verdict.Differs));
+            Assert.That(findings.Named("An Embolus goes on past the spot it left for").Measured, Does.StartWith("7.10 y (n=1)"));
+            Assert.That(findings.Named("An Embolus goes on past the spot it left for").Verdict, Is.EqualTo(Verdict.Matches));
         });
     }
 

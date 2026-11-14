@@ -196,21 +196,18 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
         }
     }
 
-    // The debuff is whatever status a wave's targets gain as its damage lands.
+    // The debuff is the status a wave's own effects put on whoever it hits; a hit that kills outright carries none.
     private void ObserveTheDebuff(TeaPull pull)
     {
         foreach (var hit in pull.Hits.Where(h => Waves.Contains(h.Action) && h.HitSomeone))
-            foreach (var gain in pull.Statuses.Where(s => s.Gained && s.Target == hit.Target && pull.IsOfTheFight(s.Source)
-                                                          && s.Status != TeaLogIds.LuminousAetheroplasm && PullLog.Seconds(hit.Time, s.Time) is >= 0 and < 1.5))
-                debuffs[gain.Status] = debuffs.GetValueOrDefault(gain.Status) + 1;
+            foreach (var status in hit.Applies)
+                debuffs[status] = debuffs.GetValueOrDefault(status) + 1;
         if (debuffs.Count == 0) return;
         var debuff = debuffs.MaxBy(d => d.Value).Key;
-        foreach (var gain in pull.Statuses.Where(s => s.Gained && s.Status == debuff))
+        debuffSeconds.AddRange(pull.Statuses.Where(s => s.Gained && s.Status == debuff).Select(s => (double)s.Duration));
+        foreach (var hit in pull.Hits.Where(h => h.HitSomeone && pull.IsOfTheFight(h.Source) && h.AppliesStatus(debuff)))
         {
-            debuffSeconds.Add(gain.Duration);
-            var cause = pull.Hits.Where(h => h.Target == gain.Target && pull.IsOfTheFight(h.Source) && PullLog.Seconds(h.Time, gain.Time) is >= 0 and < 1.5)
-                            .OrderBy(h => TeaPull.IsAnAutoAttack(h.Action) ? 0 : 1).Select(h => (uint?)h.Action).LastOrDefault();
-            var name = cause is { } action ? $"{pull.ActionName(action)} ({action})" : "nothing of the fight's";
+            var name = $"{pull.ActionName(hit.Action)} ({hit.Action})";
             debuffFrom[name] = debuffFrom.GetValueOrDefault(name) + 1;
         }
     }
@@ -259,7 +256,7 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
                     firstWaveDamage.Add(dealt * 100.0 / most);
                 if (!killed) continue;
                 firstWavesKilled++;
-                var fromFull = before is { } full && max is { } whole && full >= 0.9 * whole;
+                var fromFull = before is { } full && max is { } whole && full >= 0.9 * whole && hit.Damage >= full;
                 if (fromFull) firstWavesKilledFromFull++;
                 secondWaves.Add($"{pull.Name} at {Spread.F(pull.Clock(hit.Time))} s: {pull.Who(hit.Target)} takes a first wave: {took}, dies");
             }
@@ -312,22 +309,22 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
     {
         yield return new LogFinding(Section, "The Liquid's telegraphed cast: how many cones",
             SimSource.Line(TeaSource.Mechanics, "CastFromHelper(waveAtAPlayer, at: liquid.Placement().Face(member.Position));"),
-            "the Liquid's own cone along its facing and one more at every living player: one more cone than players",
+            "the Liquid's own cone along its facing and one at every living player but its target: as many cones as players",
             telegraphs == 0 ? "no telegraphed cast"
                 : $"{conesOnePerPlayer} of {telegraphs} casts have as many cones as living players, the Liquid's own among them; "
                   + $"{conesAsTheSim} have one more",
-            telegraphs == 0 ? Verdict.NotInTheseLogs : conesAsTheSim == telegraphs ? Verdict.Matches : Verdict.Differs)
+            telegraphs == 0 ? Verdict.NotInTheseLogs : conesOnePerPlayer >= 0.9 * telegraphs ? Verdict.Matches : Verdict.Differs)
         {
             Details = sequences,
         };
 
         yield return new LogFinding(Section, "The Liquid's telegraphed cast: whom the helpers' cones leave to the Liquid's own",
-            SimSource.Line(TeaSource.Actions, "UNVERIFIED: that the Living Liquid's own telegraphed wave is a cone straight ahead"),
-            "nobody: its own cone goes along its facing, whoever stands there",
+            SimSource.Line(TeaSource.Mechanics, "var itsOwn = Target(TeaP1Boss.LivingLiquid);"),
+            "the Liquid's target: its own cone goes along its facing, where its target is taken to stand",
             leftOutKnown == 0 ? "no cast with one player fewer than cones to place"
                 : $"in {leftOutIsTheTarget} of {leftOutKnown} casts the one player no helper's cone fits is the player the Liquid is turned to "
                   + "(players standing together can stand in for each other here)",
-            leftOutKnown == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
+            leftOutKnown == 0 ? Verdict.NotInTheseLogs : leftOutIsTheTarget >= 0.8 * leftOutKnown ? Verdict.Matches : Verdict.Inconclusive)
         {
             Details = leftOut,
         };
@@ -350,15 +347,19 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
 
         var moved = new Spread(liquidMoved);
         yield return new LogFinding(Section, "The Liquid stands still through the sequence: its spot at each unseen set off its spot at the cast",
-            SimSource.Line(TeaSource.Mechanics, "so it also stands still meanwhile (UNVERIFIED"), "0 y", moved.Describe(" y"),
+            SimSource.Line(TeaSource.Mechanics, "Liquid?.StopMoving();"), "0 y", moved.Describe(" y"),
             moved.Count == 0 ? Verdict.NotInTheseLogs : moved.Max < 0.1 ? Verdict.Matches : Verdict.Differs);
 
         var turned = new Spread(turnsAfter);
         yield return new LogFinding(Section, "The Liquid turns back to its target after its second unseen set",
             SimSource.Line(TeaSource.Constants, "float LiquidHoldsItsFacingAfterTheLastWave ="), $"{P1Duration.LiquidHoldsItsFacingAfterTheLastWave} s after it",
             turned.Count == 0 ? "no sequence with both sets and a later move of the Liquid's"
-                : $"its first turn or step logged after the set: {turned.Describe(" s")}. It moves only when its target does, so this bounds the hold from above",
-            turned.Count == 0 ? Verdict.NotInTheseLogs : turned.Min < P1Duration.LiquidHoldsItsFacingAfterTheLastWave - 0.25 ? Verdict.Differs : Verdict.Inconclusive)
+                : $"its first turn or step logged after the set: median {Spread.F(turned.Median)} s ({turned.Describe(" s")}), "
+                  + $"{turnsAfter.Count(t => t < turned.Min + 0.25)} of {turned.Count} within a quarter second of the earliest. It turns only when its target has moved, so "
+                  + "a late one says nothing",
+            turned.Count == 0 ? Verdict.NotInTheseLogs
+            : turned.Min < P1Duration.LiquidHoldsItsFacingAfterTheLastWave - 0.25 || turned.Median > P1Duration.LiquidHoldsItsFacingAfterTheLastWave + 0.5 ? Verdict.Differs
+            : turned.Count >= 5 ? Verdict.Matches : Verdict.Inconclusive)
         {
             Details = turns,
         };
@@ -379,11 +380,11 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
 
         yield return new LogFinding(Section, "The straight-ahead cone of an unseen set: what it does to whoever it hits",
             SimSource.Line(TeaSource.Actions, "public static readonly EnemyAction ProteanWaveStraightAhead ="),
-            "a wave like the others: it kills only a carrier of the debuff",
+            "it kills whoever it hits, carrier of the debuff or not, short of a tank's invulnerability",
             straightAhead == 0 ? "no unseen set"
                 : aheadHits.Count == 0 ? $"nobody hit by {straightAhead} straight-ahead cones"
                 : $"{aheadKilled} of {aheadHits.Count} players it hit without the debuff died of it, over {straightAhead} cones",
-            aheadHits.Count == 0 ? straightAhead == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive : aheadKilled > 0 ? Verdict.Differs : Verdict.Matches)
+            aheadHits.Count == 0 ? straightAhead == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive : aheadKilled == aheadHits.Count ? Verdict.Matches : Verdict.Differs)
         {
             Details = aheadHits,
         };
@@ -442,7 +443,7 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
         var debuff = debuffs.Count == 0 ? (uint?)null : debuffs.MaxBy(d => d.Value).Key;
         yield return new LogFinding(Section, "The status a wave leaves",
             SimSource.Line(TeaSource.Constants, "ushort WaterResistanceDown ="), $"{P1StatusId.WaterResistanceDown}",
-            debuff is { } found ? $"{found}, gained {debuffs[found]} times as a wave's damage landed"
+            debuff is { } found ? $"{found}, which {debuffs[found]} wave hits name among their own effects"
                                   + (debuffs.Count > 1 ? $" (also {string.Join(", ", debuffs.Where(d => d.Key != found).Select(d => $"{d.Key} x{d.Value}"))})" : "")
                 : "no wave hit anyone",
             debuff is null ? Verdict.NotInTheseLogs : debuff == P1StatusId.WaterResistanceDown ? Verdict.Matches : Verdict.Differs);
@@ -454,12 +455,13 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
                 : $"given for {seconds.Describe(" s")}",
             LogFinding.Compare(seconds, P1Duration.WaterResistanceDown, 0.25));
 
-        yield return new LogFinding(Section, "What leaves the debuff: the fight's last hit on the player as it was gained",
+        yield return new LogFinding(Section, "What leaves the debuff: the hits of the fight's that name it among their own effects",
             SimSource.Line(TeaSource.Actions, "private static EnemyAction Wave(uint actionId, params IEnemyActionEffect[] more)"),
-            "every Protean Wave, and nothing else",
+            "every Protean Wave and both cleaves; a Sluice kills outright",
             debuffFrom.Count == 0 ? "no debuff" : string.Join("; ", debuffFrom.OrderByDescending(d => d.Value).Select(d => $"{d.Key} x{d.Value}")),
             debuffFrom.Count == 0 ? Verdict.NotInTheseLogs
-            : debuffFrom.Keys.All(k => k.StartsWith("Protean Wave", StringComparison.Ordinal)) ? Verdict.Matches : Verdict.Differs);
+            : debuffFrom.Keys.All(k => new[] { "Protean Wave", "Fluid Swing", "Fluid Strike", "Sluice" }.Any(name => k.StartsWith(name, StringComparison.Ordinal)))
+                ? Verdict.Matches : Verdict.Differs);
 
         var firstDamage = new Spread(firstWaveDamage);
         yield return new LogFinding(Section, "A wave on a player who took a wave or a cleave within the debuff's seconds kills; a first wave does not",
@@ -467,7 +469,7 @@ internal sealed class TeaP1ProteanPullLogs : ITeaPullLogMeasures
             "a wave on a carrier of the debuff kills, two of one instant counting as a first and a second; a first never kills",
             firstWaves + laterWaves == 0 ? "no wave hit a living player"
                 : $"{laterWavesKilled} of {laterWaves} later waves killed; {firstWavesKilled} of {firstWaves} first waves did, {firstWavesKilledFromFull} of them "
-                  + $"a player at nine tenths of its health or more. A first wave a player lived through was for {firstDamage.Describe(" %", "0")} of its "
+                  + $"a player at nine tenths of its health or more whom the wave itself took all of. A first wave a player lived through was for {firstDamage.Describe(" %", "0")} of its "
                   + "maximum hit points, before shields"
                   + (shielded == 0 ? "" : $"; {shielded} waves on a player under an invulnerability left out"),
             firstWaves + laterWaves == 0 ? Verdict.NotInTheseLogs

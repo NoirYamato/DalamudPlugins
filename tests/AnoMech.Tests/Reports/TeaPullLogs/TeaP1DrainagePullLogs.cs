@@ -15,7 +15,8 @@ internal sealed class TeaP1DrainagePullLogs : ITeaPullLogMeasures
     private readonly Dictionary<string, int> tornadoWithout = [];
     private readonly List<int> throttled = [], gaolCasters = [];
     private int tetherSets, tetherSetsOfTwo, startOnTanks, starts, passes, drainages, drainagesOnTheHolder, drainagesHittingOthers;
-    private int cleansed, cleansedByAnAction, ranOut, ranOutKilled;
+    private int cleansed, cleansedByAnAction, ranOut, ranOutKilled, othersKilled;
+    private readonly List<double> onTanks = [], onOthers = [];
 
     public void Observe(TeaPull pull)
     {
@@ -57,6 +58,11 @@ internal sealed class TeaP1DrainagePullLogs : ITeaPullLogMeasures
             var others = pull.Living(time).Where(p => p != holder)
                              .Select(p => pull.Distance(p, holder, time)).OfType<double>().DefaultIfEmpty(double.NaN).Min();
             if (!double.IsNaN(others)) nearestOther.Add(others);
+            foreach (var one in struck.Where(h => h.Damage is not null && pull.Outcome(h) is HitOutcome.Killed or HitOutcome.Survived))
+            {
+                (pull.IsTank(one.Target) ? onTanks : onOthers).Add(one.Damage!.Value);
+                if (!pull.IsTank(one.Target) && pull.Outcome(one) == HitOutcome.Killed) othersKilled++;
+            }
             foreach (var one in struck)
                 hits.Add($"{pull.Name} at {Spread.F(pull.Clock(time))} s: Drainage from the {which} tornado on {pull.Who(one.Target)}"
                          + (one.Target == holder ? ", its tether's holder" : ", not its tether's holder")
@@ -155,14 +161,16 @@ internal sealed class TeaP1DrainagePullLogs : ITeaPullLogMeasures
         yield return new LogFinding(Section, "Drainage's damage and what covered it",
             SimSource.Line(TeaSource.Constants, "float DrainageMitigation ="),
             $"a tank seat lives through its own; a human tank on a tank's job needs {P1Rules.DrainageMitigation} of mitigation",
-            hits.Count == 0 ? "no Drainage hit anyone" : $"{hits.Count} hits, each below with the hit points it took and the statuses that covered it",
+            hits.Count == 0 ? "no Drainage hit anyone"
+                : $"{hits.Count} hits: on a tank {new Spread(onTanks).Describe("", "0")}; on anyone else {new Spread(onOthers).Describe("", "0")}, which killed "
+                  + $"{othersKilled} of {onOthers.Count}. Each is below with the hit points it took and the statuses that covered it",
             hits.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive)
         {
             Details = hits,
         };
 
         yield return new LogFinding(Section, "Liquid Gaol: which tornadoes cast it",
-            SimSource.Line(TeaSource.Mechanics, "UNVERIFIED which of the tornadoes cast it"), "all three",
+            SimSource.Line(TeaSource.Mechanics, "All three tornadoes cast it."), "all three",
             gaolCasters.Count == 0 ? "no Liquid Gaol" : string.Join("; ", gaols),
             gaolCasters.Count == 0 ? Verdict.NotInTheseLogs : gaolCasters.All(c => c == 3) ? Verdict.Matches : Verdict.Differs);
 

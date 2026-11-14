@@ -147,4 +147,28 @@ public class TeaPullTests
     [Test]
     public void AnAutoAttackIsNamedForWhatItIs()
         => Assert.That(Of([]).ActionName(TeaLogIds.HandAutoAttack), Is.EqualTo("auto-attack"));
+
+    // Thirty 261 lines, each written between two packet lines stamped 0.40 and 0.42 s after it.
+    [Test]
+    public void TheLinesWrittenFromMemoryAreMovedOntoThePacketsClock()
+    {
+        var pull = Of(Enumerable.Range(0, 30).SelectMany(k => new[]
+        {
+            Placed(10 + k + 0.40, Liquid, new Vector2(100f, 85f), 0f),
+            Memory(10 + k, "Change", Hand, ("PosX", "100.0000"), ("PosY", "100.0000")),
+            Placed(10 + k + 0.42, Liquid, new Vector2(100f, 85f), 0f),
+        }));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(pull.MemoryLag.TotalSeconds, Is.EqualTo(0.41).Within(0.001));
+            Assert.That(pull.Clock(Origin.AddSeconds(0.41)), Is.EqualTo(0).Within(0.001), "the combat flag moves with them");
+            Assert.That(pull.Positions.At(Hand, Origin.AddSeconds(10.41))?.Gap.TotalSeconds, Is.EqualTo(0).Within(0.001));
+        });
+    }
+
+    [Test]
+    public void TooFewLinesFromMemoryMoveNothing()
+        => Assert.That(Of([Placed(10.4, Liquid, new Vector2(100f, 85f), 0f), Memory(10, "Change", Hand, ("PosX", "100.0000"), ("PosY", "100.0000")),
+                           Placed(10.42, Liquid, new Vector2(100f, 85f), 0f)]).MemoryLag, Is.EqualTo(TimeSpan.Zero));
 }

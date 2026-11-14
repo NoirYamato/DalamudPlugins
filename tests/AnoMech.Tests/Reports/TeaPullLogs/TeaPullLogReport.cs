@@ -58,18 +58,22 @@ public class TeaPullLogReport
     private static readonly string[] Notes =
     [
         "Times are seconds from the game's combat flag coming up (the 260 line), or from the cast a row names. A pull the",
-        "log joined late is left out of the times from the flag. A boss's own position and facing on a cast (263 line), an",
-        "ability or a move is the server's, exact to about 0.03 y; so is a server placement (271 line). Positions of the",
-        "players are the logging client's: its own run a little ahead of the server's and the others' trail it by a few",
-        "tenths of a second, so a distance between players, or a player's bearing from a boss a few yalms away, is good to",
-        "about a yalm. Hit points are read from the last line that carries them, up to a second old.",
+        "log joined late is left out of the times from the flag. The lines written from the client's memory (the flag, a",
+        "combatant joining or leaving, every 261 line) are stamped earlier than the packet lines written around them: each",
+        "pull's own lag is measured and those lines moved by it, so every time here is on the packets' clock, and \"appears\"",
+        "is good to about a tenth of a second. The flag comes up as the first action lands on the Living Liquid. A boss's",
+        "own position and facing on a cast (263 line), an ability or a move is the server's, exact to about 0.03 y; so is a",
+        "server placement (271 line). Positions of the players are the logging client's: a distance between players, or a",
+        "player's bearing from a boss a few yalms away, is good to about a yalm, and worse for a player on the run. Hit",
+        "points are read from the last line that carries them, up to a second old.",
     ];
 
     private static IEnumerable<string> PullsFound(List<TeaPull> pulls, List<string> quiet)
     {
         yield return $"TEA pulls: {pulls.Count}.";
         foreach (var pull in pulls)
-            yield return $"  {pull.Name}: {pull.Lasted}{(pull.LoggedFromItsStart ? "" : ", joined after its start")}, reached {pull.Reached}";
+            yield return $"  {pull.Name}: {pull.Lasted}{(pull.LoggedFromItsStart ? "" : ", joined after its start")}, reached {pull.Reached}"
+                         + $"; memory lines {Spread.F(pull.MemoryLag.TotalSeconds)} s behind";
         if (quiet.Count > 0)
             yield return $"Left out, {quiet.Count} combat segments where nothing of the fight cast or used an ability: {string.Join(", ", quiet)}";
     }

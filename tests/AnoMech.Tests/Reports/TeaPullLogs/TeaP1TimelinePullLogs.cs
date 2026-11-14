@@ -9,15 +9,19 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
     private const string Section = "P1 timeline";
     private const string Flag = "flag", Cascade1 = "Cascade cast 1", Wave1 = "Protean Wave cast 1", Cascade2 = "Cascade cast 2";
     private const double Tolerance = 0.25;
+    private const double SplashesApart = 1.2;
 
     // What the opening does, with the second the community timeline gives it on its own clock.
     private static readonly (string Key, string Name, double? Community)[] Opening =
     [
+        ("Liquid auto 1", "the Living Liquid's first auto-attack", null),
         ("Fluid Swing 1", "the first Fluid Swing", 11.4),
         ("Cascade cast 1", "Cascade's cast starts", 15.5),
         ("Cascade lands 1", "Cascade lands", 19.5),
+        ("split 1", "the Living Liquid's hit points halve", null),
         ("Hand appears 1", "the Liquid Hand appears", 19.5),
         ("tornadoes appear 1", "the Liquid Rages appear", 19.5),
+        ("Hand auto 1", "the Liquid Hand's first auto-attack", null),
         ("glow 1", "the Hand glows, its model state set", 30.6),
         ("tornado wave cast 1", "the tornadoes' telegraphed Protean Wave, cast", 33.7),
         ("dolls appear 1", "the Jagd Dolls appear", null),
@@ -57,7 +61,9 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
         }
         foreach (var run in PullLog.Clusters(pull.Volleys(P1ActionId.Splash).Select(v => v[0].Time), t => t, 10))
         {
-            splashCounts.Add(run.Count);
+            // A run the wipe or the pull's end cut short says nothing of how many come.
+            var cutShort = (wiped ?? pull.End) is { } over && PullLog.Seconds(run[^1], over) < 2 * SplashesApart;
+            if (!cutShort) splashCounts.Add(run.Count);
             splashSpacing.AddRange(run.Zip(run.Skip(1), PullLog.Seconds));
         }
         foreach (var cast in pull.CastsOf(P1ActionId.ProteanWaveFromTheLiquid))
@@ -94,6 +100,13 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
         IEnumerable<DateTimeOffset> Appear(uint bnpcBase)
             => PullLog.Clusters(pull.Combatants.Where(c => c.Added && c.BNpcBase == bnpcBase), c => c.Time, 1).Select(c => c[0].Time);
 
+        Number("Liquid auto", Hits(TeaLogIds.LiquidAutoAttack).Take(1));
+        Number("Hand auto", Hits(TeaLogIds.HandAutoAttack).Take(1));
+        if (pull.Liquid is { } splits && Hits(P1ActionId.Cascade).Order().Cast<DateTimeOffset?>().FirstOrDefault() is { } landed
+            && pull.HpAt(splits, landed) is { } whole
+            && pull.HitPoints.Where(h => h.Actor == splits && h.Time > landed && h.Hp <= 0.6 * whole).Select(h => (DateTimeOffset?)h.Time).FirstOrDefault() is { } halved
+            && PullLog.Seconds(landed, halved) < 5)
+            events["split 1"] = halved;
         Number("Fluid Swing", Hits(P1ActionId.FluidSwing));
         Number("Fluid Strike", Hits(P1ActionId.FluidStrike));
         Number("Cascade cast", Starts(P1ActionId.Cascade));
@@ -178,15 +191,15 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
         yield return new LogFinding(Section, "The Splashes' spacing", spacingAt, simSpacing is { } s ? $"{Spread.F(s)} s" : "not found in the mechanics",
             spacing.Describe(" s"), simSpacing is { } sim ? LogFinding.Compare(spacing, sim, 0.05) : Verdict.Inconclusive);
         var (countAt, simCount) = SimSource.Assigned(TeaSource.Mechanics, "private const int SplashCount =");
-        var runs = splashCounts.Where(c => c >= 2).ToList();
+        var runs = splashCounts;
         yield return new LogFinding(Section, "How many Splashes come in a row", countAt, simCount is { } c ? $"{c:0}" : "not found in the mechanics",
-            runs.Count == 0 ? "no run of Splashes" : $"{string.Join(", ", runs)} in the {runs.Count} runs seen (a run the pull's end cut short reads low)",
+            runs.Count == 0 ? "no run of Splashes" : $"{string.Join(", ", runs)} in the {runs.Count} runs the pull outlasted",
             runs.Count == 0 ? Verdict.NotInTheseLogs : simCount is { } wanted && runs.Max() == (int)wanted ? Verdict.Matches : Verdict.Differs);
 
         var bars = new Spread(waveBars);
         var lands = new Spread(waveLands);
         yield return new LogFinding(Section, "The Liquid's telegraphed wave: its bar, and when it lands after the cast starts",
-            SimSource.Line(TeaSource.Actions, "Whom is decided with the hit, as the bar ends"),
+            SimSource.Line(TeaSource.Actions, "private sealed class ThrownAsTheWaveGoesOut"),
             "lands 3.0 s after the cast starts, its bar ending 0.3 s before",
             $"lands {lands.Describe(" s")} after the cast starts; the bar the log gives it: {bars.Describe(" s")}",
             LogFinding.Compare(lands, 3.0, 0.1));
@@ -203,8 +216,8 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
         yield return Row("Cascade 2: Cascade lands, after its cast", Cascade2, "Cascade lands 2", cascade2, cascade2.Seconds, plus: 4,
                          simNote: ", the sheet's cast time");
         yield return Row("Cascade 2: the new Liquid Rages appear, after Cascade 2's cast", Cascade2, "tornadoes appear 2",
-                         (SimSource.Line(TeaSource.Mechanics, "() => Tornadoes.Appear(newTornadoes)"), cascade2.Seconds), cascade2.Seconds, plus: 4,
-                         simNote: ", as Cascade lands");
+                         (SimSource.Line(TeaSource.Constants, "float TornadoesAppearAfterCascade ="), cascade2.Seconds), cascade2.Seconds,
+                         plus: 4 + P1Duration.TornadoesAppearAfterCascade, simNote: $", {P1Duration.TornadoesAppearAfterCascade} s after Cascade lands");
         yield return Row("Cascade 2: Liquid Gaol, after Cascade 2's cast", Cascade2, "Liquid Gaol 1", gaol, cascade2.Seconds);
         yield return Row("Cascade 2: Throttle lands, after Cascade 2's cast", Cascade2, "Throttle 1",
                          (SimSource.Line(TeaSource.Constants, "float ThrottleAfterLiquidGaol ="), gaol.Seconds), cascade2.Seconds,

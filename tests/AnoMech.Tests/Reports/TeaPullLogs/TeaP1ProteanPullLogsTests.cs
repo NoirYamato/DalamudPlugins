@@ -11,7 +11,7 @@ public class TeaP1ProteanPullLogsTests
 
     // Two players, the Liquid turned to the one in the east: its own cone goes east and one helper's goes west.
     [Test]
-    public void OneConeForEachLivingPlayerIsOneFewerThanTheSimCasts()
+    public void TheTelegraphedCastHasOneConeForEachLivingPlayer()
     {
         var findings = Findings(new TeaP1ProteanPullLogs(), Of(
         [
@@ -24,7 +24,7 @@ public class TeaP1ProteanPullLogsTests
         Assert.Multiple(() =>
         {
             Assert.That(findings.Named("The Liquid's telegraphed cast: how many cones").Measured, Does.StartWith("1 of 1 casts have as many cones as living players"));
-            Assert.That(findings.Named("The Liquid's telegraphed cast: how many cones").Verdict, Is.EqualTo(Verdict.Differs));
+            Assert.That(findings.Named("The Liquid's telegraphed cast: how many cones").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("The Liquid's telegraphed cast: whom").Measured, Does.StartWith("in 1 of 1 casts the one player no helper's cone fits"));
         });
     }
@@ -49,18 +49,18 @@ public class TeaP1ProteanPullLogsTests
     }
 
     [Test]
-    public void TheDebuffIsTheStatusAWavesTargetGainsAsItLands()
+    public void TheDebuffIsTheStatusAWavesOwnEffectsName()
     {
         var findings = Findings(new TeaP1ProteanPullLogs(), Of(
         [
-            Hit(37.9, Helper, P1ActionId.TornadoWaveUnseen, Player(1)), Gains(38.0, 1025, 3.96f, Helper, Player(1)),
+            Hit(37.9, Helper, P1ActionId.TornadoWaveUnseen, Player(1), applies: 1025), Gains(37.9, 1025, 3.96f, Helper, Player(1)),
             Gains(38.0, TeaLogIds.LuminousAetheroplasm, 4.96f, Helper, Player(1)),
         ], [LiquidStands(), HelperStands()]));
 
         Assert.Multiple(() =>
         {
             Assert.That((findings.Named("The status a wave leaves").Measured, findings.Named("The status a wave leaves").Verdict),
-                        Is.EqualTo(("1025, gained 1 times as a wave's damage landed", Verdict.Differs)));
+                        Is.EqualTo(("1025, which 1 wave hits name among their own effects", Verdict.Matches)));
             Assert.That(findings.Named("The wave debuff's seconds").Measured, Is.EqualTo("given for 3.96 s (n=1)"));
         });
     }

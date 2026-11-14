@@ -83,6 +83,10 @@ internal sealed class TeaPull : PullLog
     public IReadOnlyList<ActObject> StandingObjects { get; }
     public IReadOnlyList<ActMapEffect> MapEffectsAtReset { get; }
     public IReadOnlyList<ActMapEffect> MapEffects { get; }
+
+    // The changes of music the duty sent since the last pull closed, and those within the pull.
+    public IReadOnlyList<ActMusic> MusicAtReset { get; }
+    public IReadOnlyList<ActMusic> Music { get; }
     public IReadOnlyList<TeaTornadoSet> TornadoSets { get; }
 
     private readonly Dictionary<uint, uint> bases = [];
@@ -91,16 +95,18 @@ internal sealed class TeaPull : PullLog
     private readonly DateTimeOffset lastLine;
     private readonly Dictionary<uint, List<(DateTimeOffset Time, Vector2 Position, bool Walked)>> serverTracks = [];
 
-    public TeaPull(ActPull pull) : base(pull, standing: true)
+    public TeaPull(ActPull pull) : base(pull, standing: true, alignMemoryLines: true)
     {
-        lastLine = pull.Lines.Count == 0 ? pull.Start : pull.Lines.Max(l => l.Time);
-        Standing = Read(pull.Standing, ActCombatant.From);
-        StandingObjects = Read(pull.Standing, ActObject.From);
-        MapEffectsAtReset = Read(pull.Standing, ActMapEffect.From);
-        MapEffects = Read(pull.Lines, ActMapEffect.From);
+        lastLine = Lines.Count == 0 ? Start : Lines[^1].Time;
+        Standing = Read(StandingLines, ActCombatant.From);
+        StandingObjects = Read(StandingLines, ActObject.From);
+        MapEffectsAtReset = Read(StandingLines, ActMapEffect.From);
+        MapEffects = Read(Lines, ActMapEffect.From);
+        MusicAtReset = Read(StandingLines, ActMusic.From);
+        Music = Read(Lines, ActMusic.From);
         foreach (var combatant in Standing.Concat(Combatants).Where(c => c.Added && ActorIds.IsEnemy(c.Actor)))
             bases[combatant.Actor] = combatant.BNpcBase;
-        var health = Read(pull.Standing.Concat(pull.Lines), ActHealth.From);
+        var health = Read(StandingLines.Concat(Lines), ActHealth.From);
         foreach (var sample in health.Where(h => h.MaxHp > 0))
             maxHitPoints.TryAdd(sample.Actor, sample.MaxHp);
         foreach (var (time, actor, hp) in health.Select(h => (h.Time, h.Actor, h.Hp)).Concat(HitPoints.Select(h => (h.Time, h.Actor, h.Hp))).OrderBy(s => s.Time))
@@ -140,7 +146,7 @@ internal sealed class TeaPull : PullLog
         => Casts.Any(c => IsOfTheFight(c.Source)) || Hits.Any(h => IsOfTheFight(h.Source));
 
     // The log holds the pull from its first second: the Living Liquid stood at full health as it opened.
-    public bool LoggedFromItsStart => Liquid is { } liquid && HpAt(liquid, Start) is { } hp && hp == MaxHp(liquid);
+    public bool LoggedFromItsStart => Liquid is { } liquid && HpAt(liquid, Start - MemoryLag) is { } hp && hp == MaxHp(liquid);
 
     // What stood as the pull opened and joined with its Living Liquid, as the reset before it set the arena up.
     public IEnumerable<ActCombatant> SetUpWithTheLiquid(uint bnpcBase)

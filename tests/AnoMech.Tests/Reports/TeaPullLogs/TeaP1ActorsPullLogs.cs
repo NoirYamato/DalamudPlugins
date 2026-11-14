@@ -9,6 +9,14 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
 {
     private const string Section = "P1 actors";
 
+    // How the zone holds the rim.
+    private const string RimInTheZone = "world.EnforceArenaBoundary(";
+    private const bool TheSimsRimKills = true;
+    private static string RimInTheSim => $"no wall: whoever stands beyond {P1Geometry.ArenaRadius} y dies";
+
+    // The two bosses' hitboxes, and a player's.
+    private const float LiquidHitbox = 3.5f, HandHitbox = 1.6f, PlayerHitbox = 0.5f;
+
     private readonly List<string> liquidSpots = [], handSpots = [], parked = [], layouts = [], secondLayouts = [], barriers = [], mapEffects = [];
     private readonly List<double> liquidHeadings = [], handHeadings = [], handAfterCascade = [], handHpShare = [], handHpBesideTheLiquid = [];
     private readonly Dictionary<string, HashSet<int>> maxHp = [];
@@ -17,7 +25,9 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
     private readonly List<double> liquidSpeeds = [], handSpeeds = [], liquidStops = [], handStops = [], liquidAutos = [], handAutos = [];
     private readonly List<double> dropsyDistances = [];
     private readonly List<(double Distance, string Detail)> closest = [];
-    private readonly List<double> farthest = [];
+    private readonly List<double> farthest = [], outsideDied = [], outsideAt = [], halfShare = [];
+    private readonly List<string> outside = [], music = [];
+    private int outsideLived, musicAtAPullsStart;
     private int tornadoes, tornadoesWithWater, sets, setsWithAnOpenQuarter, repeats, barrierPulls, pulls;
     private readonly List<string> mapEffectsInAPull = [];
 
@@ -30,7 +40,9 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
         ObserveTornadoes(pull);
         ObserveWalking(pull, pull.Liquid, TeaLogIds.LiquidAutoAttack, liquidSpeeds, liquidStops, liquidAutos);
         ObserveWalking(pull, pull.Hand, TeaLogIds.HandAutoAttack, handSpeeds, handStops, handAutos);
+        ObserveMusic(pull);
         if (pull.End is not { } end) return;
+        ObserveTheRim(pull, end);
         // A player a throw carried out is at 0 HP a moment later: only those who lived on say where one can stand.
         var reach = Samples(pull.Start, end, 0.25)
                     .SelectMany(t => pull.Living(t).Where(p => pull.DiedWithin(p, t, PullLog.DeathAfterHit) is null).Select(p => pull.Positions.At(p, t)))
@@ -38,6 +50,46 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
                     .Select(p => (double)Vector2.Distance(p!.Value.Position, TeaPull.Centre))
                     .ToList();
         if (reach.Count > 0) farthest.Add(reach.Max());
+    }
+
+    // Each time a living player's position reads beyond the rim: how far out, and how soon it reads 0 HP.
+    private void ObserveTheRim(TeaPull pull, DateTimeOffset end)
+    {
+        foreach (var player in pull.Players)
+        {
+            var beyond = false;
+            foreach (var time in Samples(pull.Start, end, 0.1))
+            {
+                if (!pull.IsAlive(player, time) || pull.Positions.At(player, time) is not { Gap.TotalSeconds: < 0.5 } pose)
+                {
+                    beyond = false;
+                    continue;
+                }
+                var out0 = Vector2.Distance(pose.Position, TeaPull.Centre);
+                if (out0 <= P1Geometry.ArenaRadius)
+                {
+                    beyond = false;
+                    continue;
+                }
+                if (beyond) continue;
+                beyond = true;
+                outsideAt.Add(out0);
+                if (pull.DiedWithin(player, time, PullLog.DeathAfterHit) is { } died) outsideDied.Add(PullLog.Seconds(time, died));
+                else outsideLived++;
+                outside.Add($"{pull.Name} at {Spread.F(pull.Clock(time))} s: {pull.Who(player)} {Spread.F(out0)} y out"
+                            + (pull.DiedWithin(player, time, PullLog.DeathAfterHit) is { } at ? $", at 0 HP {Spread.F(PullLog.Seconds(time, at))} s later" : ", lives on"));
+            }
+        }
+    }
+
+    private void ObserveMusic(TeaPull pull)
+    {
+        if (pull.MusicAtReset.Any(m => PullLog.Seconds(m.Time, pull.Start) < 1)) musicAtAPullsStart++;
+        foreach (var change in pull.MusicAtReset)
+            music.Add($"{pull.Name}: track {change.Bgm} set {Spread.F(PullLog.Seconds(change.Time, pull.Start), "0.0")} s before the pull");
+        foreach (var change in pull.Music)
+            music.Add($"{pull.Name} at {Spread.F(pull.Clock(change.Time))} s: track {change.Bgm}"
+                      + (pull.Hits.Any(h => h.Action == P1ActionId.JKick && Math.Abs(PullLog.Seconds(h.Time, change.Time)) < 0.1) ? ", with J Kick" : ""));
     }
 
     private void ObserveStanding(TeaPull pull)
@@ -73,6 +125,10 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
         if (pull.Liquid is not { } liquid || pull.HpAt(hand.Actor, hand.Time) is not { } handHp) return;
         if (pull.HpAt(liquid, cascade) is { } before && before > 0) handHpShare.Add((double)handHp / before);
         if (pull.HpAt(liquid, hand.Time) is { } beside && beside > 0) handHpBesideTheLiquid.Add((double)handHp / beside);
+        // The Liquid's last reading before its hit points halve, against twice what the Hand appears with.
+        var whole = pull.HitPoints.Where(h => h.Actor == liquid && h.Time > cascade && h.Time <= hand.Time && h.Hp > 1.5 * handHp).Select(h => (int?)h.Hp).LastOrDefault()
+                    ?? pull.HpAt(liquid, cascade);
+        if (whole is { } last && last > 0) halfShare.Add((double)handHp / last);
     }
 
     private void ObserveHitPoints(TeaPull pull)
@@ -134,12 +190,11 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
     // the water from above.
     private void ObserveTheWater(TeaPull pull, TeaTornadoSet set, DateTimeOffset until)
     {
-        // The status comes a tick after the step in, so the nearest the player came in the 3 s before it is what counts.
+
         foreach (var gain in pull.Statuses.Where(s => s.Gained && s.Status == TeaLogIds.Dropsy && s.Time >= set.Appeared && s.Time <= until))
         {
-            var near = Samples(gain.Time.AddSeconds(-3), gain.Time, 0.1).Select(t => pull.Where(gain.Target, t)).OfType<Vector2>()
-                                                                       .Select(at => set.Tornadoes.Min(t => (double)Vector2.Distance(t.Position, at))).ToList();
-            if (near.Count > 0) dropsyDistances.Add(near.Min());
+            if (pull.Positions.At(gain.Target, gain.Time) is { Gap.TotalSeconds: < 0.5 } pose)
+                dropsyDistances.Add(set.Tornadoes.Min(t => (double)Vector2.Distance(t.Position, pose.Position)));
         }
         var dropsy = pull.Holdings(TeaLogIds.Dropsy);
         (double Distance, string Detail)? nearest = null;
@@ -167,8 +222,11 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             var walked = Vector2.Distance(moves[i - 1].Position, moves[i].Position) > 0.3f && PullLog.Seconds(moves[i - 1].Time, moves[i].Time) < 0.45;
             var rests = i + 1 == moves.Count || PullLog.Seconds(moves[i].Time, moves[i + 1].Time) > 1.5
                                              || Vector2.Distance(moves[i].Position, moves[i + 1].Position) < 0.01f;
+            // Only a walk that ends on a target standing still shows where the boss stops.
             if (walked && rests && pull.TargetOf(actor, moves[i].Time) is { } target && pull.IsAlive(target, moves[i].Time)
-                && pull.Positions.At(target, moves[i].Time.AddSeconds(0.5)) is { Gap.TotalSeconds: < 0.5 } pose)
+                && pull.Positions.At(target, moves[i].Time) is { Gap.TotalSeconds: < 0.5 } pose
+                && pull.Positions.At(target, moves[i].Time.AddSeconds(-1.5)) is { } earlier && Vector2.Distance(earlier.Position, pose.Position) < 0.6f
+                && pull.Positions.At(target, moves[i].Time.AddSeconds(0.5)) is { } later && Vector2.Distance(later.Position, pose.Position) < 0.6f)
                 stops.Add(Vector2.Distance(moves[i].Position, pose.Position));
         }
         foreach (var hit in pull.Hits.Where(h => h.Source == actor && h.Action == autoAttack && h.TargetPosition is not null))
@@ -198,7 +256,8 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             handSpots.Count == 0 ? "no Liquid Hand"
                 : $"{Tally(handSpots)}, facing {new Spread(handHeadings).Describe(" rad")}, {after.Describe(" s")} after Cascade lands; its hit points as it "
                   + $"appears over the Liquid's as Cascade landed: {share.Describe("", "0.000")}; over the Liquid's as it appears: "
-                  + new Spread(handHpBesideTheLiquid).Describe("", "0.000"),
+                  + new Spread(handHpBesideTheLiquid).Describe("", "0.000") + "; over the Liquid's last reading before its own halve: "
+                  + new Spread(halfShare).Describe("", "0.0000"),
             LogFinding.Unplayed(handSpots.Count));
 
         yield return new LogFinding(Section, "Maximum hit points", TeaSource.NoHealthPlayed, "no health is played",
@@ -236,7 +295,7 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
         var nearest = closest.Count == 0 ? (double?)null : closest.Min(c => c.Distance);
         yield return new LogFinding(Section, "The water's radius",
             SimSource.Line(TeaSource.Constants, "float PuddleRadius ="), $"{P1Geometry.PuddleRadius} y: kills whoever enters; in the fight it gives Dropsy",
-            dropsy.Count > 0 ? $"{dropsy.Count} gains of Dropsy, their holders within {dropsy.Describe(" y")} of a tornado's centre in the 3 s before (client positions)"
+            dropsy.Count > 0 ? $"{dropsy.Count} gains of Dropsy, their holders {dropsy.Describe(" y")} from a tornado's centre as they gained it (client positions of a player on the move)"
                 : nearest is { } n ? $"nobody gained Dropsy; the closest a living player came to a tornado's centre was {Spread.F(n)} y (client positions, good to about a yalm)"
                 : "no Liquid Rages",
             dropsy.Count > 0 ? dropsy.Max <= P1Geometry.PuddleRadius + 1 ? Verdict.Matches : dropsy.Max > P1Geometry.PuddleRadius + 2.5 ? Verdict.Differs : Verdict.Inconclusive
@@ -267,7 +326,7 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             helpers.Count == 0 ? Verdict.NotInTheseLogs : helpers.All(h => h == P1Rules.LivingLiquidHelpers) ? Verdict.Matches : Verdict.Differs);
 
         yield return new LogFinding(Section, "Cruise Chaser and Brute Justice before the pull",
-            SimSource.Line(TeaSource.LimitCut, "(where he stands is UNVERIFIED)"), "Cruise Chaser hidden until he first lands; Brute Justice not drawn",
+            SimSource.Line(TeaSource.LimitCut, "private static readonly Vector3 BruteJusticeLandsAt ="), "Cruise Chaser hidden until he first lands; Brute Justice not drawn",
             parked.Count == 0 ? "neither stands in a pull" : Tally(parked), LogFinding.Unplayed(parked.Count));
 
         yield return new LogFinding(Section, "The entrance barrier's object and spot",
@@ -285,14 +344,31 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
 
         yield return new LogFinding(Section, "The phase's weather", SimSource.Line(TeaSource.Constants, "byte? Weather ="), "left to the territory",
             "ACT logs no weather", Verdict.NotInTheseLogs);
-        yield return new LogFinding(Section, "The phase's track", SimSource.Line(TeaSource.Constants, "ushort Bgm ="), $"{Bgm}",
-            "ACT logs no music", Verdict.NotInTheseLogs);
+        var tracks = music.Select(m => m[(m.IndexOf("track ", StringComparison.Ordinal) + 6)..].Split(' ', ',')[0]).ToList();
+        yield return new LogFinding(Section, "The phase's track: each change of music the duty sends",
+            SimSource.Line(TeaSource.Constants, "ushort Bgm ="), $"{Bgm} from a run's start, at the fight's own clock into the track",
+            music.Count == 0 ? $"no change of music before or during the {pulls} pulls: the territory's own track plays on through every pull"
+                : $"{music.Count} changes over {pulls} pulls, {musicAtAPullsStart} of them as a pull opens: {Tally(tracks.Select(t => $"track {t}"))}. A pull "
+                  + $"starts no track: track {Bgm} is only set again after a pull that changed it",
+            music.Count == 0 ? Verdict.NotInTheseLogs
+            : tracks.Where((_, i) => music[i].Contains("before the pull", StringComparison.Ordinal)).All(t => t == $"{Bgm}") ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = music,
+        };
 
         var rim = new Spread(farthest);
-        yield return new LogFinding(Section, "The rim: the farthest a player stood from the centre and lived on",
-            SimSource.Line(TeaSource.Constants, "float ArenaRadius ="), $"{P1Geometry.ArenaRadius} y, a wall",
-            rim.Count == 0 ? "no pull" : $"{Spread.F(rim.Max)} y at the most, over {rim.Count} pulls, among players who lived 3 s on (client positions)",
-            rim.Count == 0 ? Verdict.NotInTheseLogs : rim.Max > P1Geometry.ArenaRadius + 1 ? Verdict.Differs : Verdict.Inconclusive);
+        var (died, went) = (new Spread(outsideDied), new Spread(outsideAt));
+        yield return new LogFinding(Section, "The rim: what becomes of a living player whose position reads beyond it",
+            SimSource.Line(TeaSource.Zone, RimInTheZone), RimInTheSim,
+            rim.Count + went.Count == 0 ? "no pull"
+                : $"{died.Count} of {went.Count} times a living player read beyond {P1Geometry.ArenaRadius} y ({went.Describe(" y")}) it was at 0 HP within 3 s "
+                  + $"({died.Describe(" s")}); {outsideLived} lived on"
+                  + (rim.Count == 0 ? "" : $". The farthest a player stood and lived 3 s on: {Spread.F(rim.Max)} y, over {rim.Count} pulls"),
+            rim.Count + went.Count == 0 ? Verdict.NotInTheseLogs : went.Count == 0 ? Verdict.Inconclusive
+            : (outsideLived == 0) == TheSimsRimKills ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = outside,
+        };
 
         var speeds = new Spread(liquidSpeeds.Concat(handSpeeds));
         yield return new LogFinding(Section, "The bosses' walking speed: over the full steps between two of a boss's own move lines",
@@ -302,15 +378,20 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
                   + $"the Liquid Hand median {Spread.F(new Spread(handSpeeds).Median)} y/s ({new Spread(handSpeeds).Describe(" y/s")})",
             speeds.Count == 0 ? Verdict.NotInTheseLogs : Math.Abs(speeds.Median - P1Rules.BossWalkSpeed) <= 0.5 ? Verdict.Matches : Verdict.Differs);
 
-        yield return new LogFinding(Section, "The bosses' stand-off: how far from its target a boss comes to rest, centre to centre",
-            SimSource.Line(TeaSource.Mechanics, "enemy.Follow(target, P1Rules.BossWalkSpeed);"),
-            "the Living Liquid 4.0 y and the Liquid Hand 2.1 y: its hitbox and half a yalm",
+        var (liquidStop, handStop) = (LiquidHitbox + PlayerHitbox + P1Rules.BossStopsPastTheHitboxes, HandHitbox + PlayerHitbox + P1Rules.BossStopsPastTheHitboxes);
+        var (liquidRests, handRests) = (new Spread(liquidStops), new Spread(handStops));
+        yield return new LogFinding(Section, "The bosses' stand-off: how far from a target that stands still a boss's walk ends, centre to centre",
+            SimSource.Line(TeaSource.Constants, "float BossStopsPastTheHitboxes ="),
+            $"the Living Liquid {Spread.F(liquidStop, "0.0")} y and the Liquid Hand {Spread.F(handStop, "0.0")} y: {P1Rules.BossStopsPastTheHitboxes} y past the two hitboxes",
             liquidStops.Count + handStops.Count + liquidAutos.Count + handAutos.Count == 0 ? "no boss walked or attacked"
-                : $"at the end of a walk: the Liquid {new Spread(liquidStops).Describe(" y")}, the Hand {new Spread(handStops).Describe(" y")}; "
-                  + $"as an auto-attack goes off: the Liquid median {Spread.F(new Spread(liquidAutos).Median)} y ({new Spread(liquidAutos).Describe(" y")}), "
-                  + $"the Hand median {Spread.F(new Spread(handAutos).Median)} y ({new Spread(handAutos).Describe(" y")}). The boss's spot is the "
-                  + "server's, its target's the client's",
-            liquidStops.Count + handStops.Count + liquidAutos.Count + handAutos.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive);
+                : $"the Liquid {(liquidRests.Count == 0 ? "no such walk" : $"median {Spread.F(liquidRests.Median)} y ({liquidRests.Describe(" y")})")}, the Hand "
+                  + $"{(handRests.Count == 0 ? "no such walk" : $"median {Spread.F(handRests.Median)} y ({handRests.Describe(" y")})")}; as an auto-attack goes off, "
+                  + $"with tanks who walk in: the Liquid median {Spread.F(new Spread(liquidAutos).Median)} y (n={liquidAutos.Count}), the Hand median "
+                  + $"{Spread.F(new Spread(handAutos).Median)} y (n={handAutos.Count}). The boss's spot is the server's, its target's the client's",
+            liquidStops.Count + handStops.Count == 0 ? liquidAutos.Count + handAutos.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
+            : (handRests.Count == 0 || Math.Abs(handRests.Median - handStop) <= 0.3) && (liquidRests.Count == 0 || Math.Abs(liquidRests.Median - liquidStop) <= 0.3)
+                ? handRests.Count >= 5 ? Verdict.Matches : Verdict.Inconclusive
+                : Verdict.Differs);
     }
 
     // "a x3, b x1"
