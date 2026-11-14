@@ -118,8 +118,9 @@ public sealed partial class PlanImporter
     private sealed record NoteText(TabState Tab, RowLayout Row, RowState? Above, RowText Text);
 
     /// <summary>
-    /// A note merged across several player columns that names actions ("A tip for Soil/Kera timing …" over every column):
-    /// the detail of the entries of those columns, in its section, that press one of <see cref="Actions"/>.
+    /// A note merged across several player columns about using the actions it names: it names actions and no player ("A
+    /// tip for Soil/Kera timing …" over every column). It is the detail of the entries of those columns, in its section,
+    /// that press one of <see cref="Actions"/>.
     /// </summary>
     /// <param name="Note">The note.</param>
     /// <param name="Columns">The player columns it spans.</param>
@@ -244,6 +245,14 @@ public sealed partial class PlanImporter
         private static readonly HashSet<string> OptionalWords = new(StringComparer.OrdinalIgnoreCase)
         {
             "can", "could", "may", "might", "optional", "optionally",
+        };
+
+        /// <summary>Words that name players by role or slot, written alone or in "co-tank", "off-tank", "MT/OT" (<see cref="NamesAPlayer"/>).</summary>
+        private static readonly HashSet<string> PlayerWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "tank", "tanks", "cotank", "cotanks", "offtank", "offtanks", "maintank", "healer", "healers", "cohealer", "melee",
+            "melees", "ranged", "caster", "casters", "dps", "mt", "ot", "st", "t1", "t2", "h1", "h2", "m1", "m2", "r1", "r2", "d1",
+            "d2", "d3", "d4",
         };
 
         /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
@@ -640,9 +649,10 @@ public sealed partial class PlanImporter
         /// under the H2 SCH column, "WAR can use Shake as P3 dies for 1st P4 Proteans."). A footnote ("*…", with its lines
         /// that continue in lower case) belongs to the items marked "*". A note that names an action with a timing hint is
         /// imported as an entry (optional when it says "can"/"may"); any other note becomes the detail of the column's entries
-        /// in its section (of every column it spans when merged). A note merged across several columns that names actions
-        /// ("A tip for Soil/Kera timing …") is the detail of the entries of those columns in its section that press one of
-        /// them (<see cref="BannerNote"/>), and of every entry of those columns when none does.
+        /// in its section (of every column it spans when merged). A note merged across several columns that names actions and
+        /// no player ("A tip for Soil/Kera timing …") is the detail of the entries of those columns in its section that press
+        /// one of them (<see cref="BannerNote"/>), and of every entry of those columns when none does; one that names players
+        /// ("Tanks: Rampart the first tower set, then OT provokes …") is for all of its columns' entries.
         /// </summary>
         private void PrepareNoteRows()
         {
@@ -679,7 +689,10 @@ public sealed partial class PlanImporter
                 var merge = layout.Tab.MergeAt(note.Row.Index, note.Text.Column);
                 var columns = note.Tab.Keys.Keys.Where(c => c == note.Text.Column || (merge is { } m && m.Contains(note.Row.Index, c)))
                     .Where(c => this.ColumnSelected(note.Tab.Keys[c], layout.Columns.First(x => x.Index == c).Assignee!)).Order().ToList();
-                if (columns.Count > 1 && this.NamedActions(text) is { Count: > 0 } named)
+
+                // Over several columns, a note about using the actions it names (it names no player) is for whoever presses
+                // them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
+                if (columns.Count > 1 && !NamesAPlayer(text) && this.NamedActions(text) is { Count: > 0 } named)
                 {
                     this.bannerNotes.Add(new BannerNote(note, columns, text, named));
                     continue;
@@ -2122,6 +2135,13 @@ public sealed partial class PlanImporter
 
             return found;
         }
+
+        /// <summary>
+        /// The text names players: by role or slot ("Tanks: …", "then OT provokes …", "healers") or by job ("WHM covers the
+        /// rest"). A note over several columns that names none is about using the actions it names (<see cref="BannerNote"/>).
+        /// </summary>
+        private static bool NamesAPlayer(string text) =>
+            Regex.Split(text, @"[^\p{L}\p{N}]+").Any(PlayerWords.Contains) || LayoutDetector.JobsFromTabName(text).Count > 0;
 
         // ------------------------------------------------------------------ targets
 

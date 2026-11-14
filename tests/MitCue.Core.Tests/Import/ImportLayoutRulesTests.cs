@@ -437,6 +437,28 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData(2, "Tanks: Rampart the first tower set, then OT provokes and takes the boss after Pantokrator")]
+    [InlineData(3, "Tanks: Rampart the first tower set, then OT provokes and takes the boss after Pantokrator")]
+    [InlineData(3, "Temperance as the first debuff hits 14s, the Scholar covers the rest")]
+    public void NoteMergedAcrossColumns_NamingPlayers_GoesToEveryEntryOfItsColumns(int lastColumn, string note)
+    {
+        // It speaks to players, not only about the actions it names: the OT needs "OT provokes" without a Rampart.
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, lastColumn)],
+            ["P1", "MT", "OT", "H1 WHM"],
+            ["", note, "", ""],
+            ["Program Loop", "Rampart", "Reprisal", "Temperance"],
+            ["Pantokrator", "Reprisal", "Vengeance", "Asylum"]));
+
+        var columns = "BCD"[..lastColumn];
+        Assert.Equal(
+            r.Plan.Entries.Where(e => columns.Contains(e.Src!["'P1'!".Length])).Select(e => e.Src!).Order(),
+            r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
+        Assert.Equal(lastColumn, r.Diagnostics.Count(d => d.Code == "note-row" && d.Message.Contains("kept as the detail of the '", StringComparison.Ordinal)));
+    }
+
+    [Theory]
     [InlineData("Watch the clone positions before you move!!")] // names no action
     [InlineData("Discuss the LB3 order during the cutscene!!")] // names one that no entry of its columns presses
     public void NoteMergedAcrossColumns_ThatNoEntryPresses_GoesToEveryColumn(string note)

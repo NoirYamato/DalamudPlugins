@@ -201,8 +201,11 @@ Rules worth knowing:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
   pressed before its hit presses it just before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)`
   −1 s, `Succor (Late)` −3 s), but never earlier than without it.
-- **Notes over several columns** that name actions ("A tip for Soil/Kera timing …") are the detail of the entries in
-  their columns and section that press one of them (all their columns' entries when none does).
+- **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
+  those actions: the detail of the entries in their columns and section that press one of them (all their columns'
+  entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
+  provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their entries, as a
+  note in each column.
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
   Seraph → Consolation) or a note "Temperance (still active)" (`still-active`). "Still lasts" is the reminders' rule
   (`TimingRules.ForEntry`, `EarliestCoveringUse`): used on its NOW cue (the default due lead), the earlier effect
