@@ -240,8 +240,8 @@ public sealed class TeaP1LivingLiquid
         return lastSeenAt[(int)boss];
     }
 
-    // Called as the run starts and before anything reads a boss's spot, never from an event: a cast on an actor
-    // spawned in its own frame plays no animation.
+    // Called as the run starts, never from an event: a strat's first move may read where a boss stands, and a cast on
+    // an actor spawned in its own frame plays no animation.
     public void Spawn(Placement liquid, Placement hand)
     {
         bosses[(int)TeaP1Boss.LivingLiquid] = SpawnBoss(P1BNpcBaseId.LivingLiquid, P1BNpcNameId.LivingLiquid, liquid);
