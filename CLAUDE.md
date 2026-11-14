@@ -57,9 +57,10 @@ NoirMech change:
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - TEA P1 (below), the first family NoirMech adds: `Scenarios/Tea/` with `TeaZone` and its `P1` phase,
-  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses) and
-  `P1LimitCut/`, the Limit Cut scenario with an `[LPDU] Light PF` strat; in upstream's `ScenarioCatalog.cs`, a `using`
-  and one entry;
+  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses and cleanses),
+  `TeaP1Mechanics.cs` (the Living Liquid, the Liquid Hand, the tornadoes and the attacks they play), and two
+  scenarios, each with an `[LPDU] Light PF` strat: `P1LivingLiquid/`, the fight from Protean 1 to the kill, and
+  `P1LimitCut/`, the intermission; in upstream's `ScenarioCatalog.cs`, a `using` and one entry for each;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
   release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
   `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
@@ -182,8 +183,8 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
   - P6: `TopP6AlphaOmega` spawns its own 36 (`SpawnedHelperPool`), so a Gauntlet run would hold 72. Make its
     `CastFromHelper` body `Enemy?.CastFromHelper(...)` (`HelperCast`'s signature), drop the pool field,
     `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
-    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests stay: TEA's Limit Cut
-    spawns one (below). `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
+    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests stay: TEA's two
+    scenarios each spawn one (below). `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
   - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 14, Blue
     Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
     would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
@@ -193,9 +194,10 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
     `TeaZone` won't build until it has one. `tools\upstream-check.ps1` doesn't report that (a changed member, not
     a deleted name), and no trial merge has been built with TEA in it. Upstream generates each zone's from a replay
     (`tools/replay_export_duty_init.py`); with none of 887 at hand TEA's is written by hand: the barrier as now,
-    `HelperPool(9020, 3)` and the rest empty (UNVERIFIED). Limit Cut can then cast its Hawk Blasters through
-    Cruise Chaser's `CastFromHelper(action, target, at: ...)` and drop its `SpawnedHelperPool`, which then has no
-    user left; that is optional.
+    `HelperPool(9020, 17)` (Living Liquid keeps 11 busy at once, Limit Cut 2) and the rest empty (UNVERIFIED).
+    Limit Cut can then cast its Hawk Blasters through Cruise Chaser's `CastFromHelper(action, target, at: ...)` and
+    `TeaP1LivingLiquid.CastFromHelper` become `Liquid?.CastFromHelper(...)`, each dropping its `SpawnedHelperPool`,
+    which then has no user left; that is optional.
 - Master's `SimTether` ends itself when an end dies (`TetherEnded`), without the scenario asking: Hello World's
   ghost tethers then go with a death, as its regressions already do.
 
@@ -771,10 +773,10 @@ multiplayer.
   `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
 
 ## TEA P1
-`Scenarios/Tea/`: `TeaZone` (The Epic of Alexander, territory 887, one EU waymark preset) with a `P1` phase, and
-`P1LimitCut/`, the intermission that ends the phase. Living Liquid, the phase's fight, isn't built. Ids and tunables
-are in `TeaP1Constants.cs`; what nobody has measured is marked UNVERIFIED there, in `TeaP1Actions.cs` and in the
-scenario.
+`Scenarios/Tea/`: `TeaZone` (The Epic of Alexander, territory 887, one EU waymark preset) with a `P1` phase,
+`P1LivingLiquid/`, the phase's fight from Protean 1 to the kill (next section; its opening isn't built), and
+`P1LimitCut/`, the intermission that ends the phase, which the rest of this section is about. Ids and tunables are in
+`TeaP1Constants.cs`; what nobody has measured is marked UNVERIFIED there, in `TeaP1Actions.cs` and in the scenarios.
 - The zone has no arena boundary: the rim (r 20) is taken for a wall (UNVERIFIED), so nobody dies past it. Its
   weather is left to the territory and its entrance barrier's ids are read from the layout, both UNVERIFIED.
 - Limit Cut starts 8 s before the first Hawk Blaster, the party in the middle and no boss up, and ends after J Kick;
@@ -874,3 +876,126 @@ scenario.
     at 3 y, whatever the constant says.
 - The gate has no `-Phase` for TEA; its human suite is the `tea-p1-human` bucket. The soak filter is
   `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Limit&Name~Cut`.
+
+## TEA P1 Living Liquid
+`Scenarios/Tea/P1LivingLiquid/`, "Living Liquid", listed ahead of Limit Cut: the fight from the Living Liquid's first
+Protean Wave to its death, in two parts with a Start from pick (`TeaP1LivingLiquidParts`), each on its own clock:
+Protean 1 (the fight's clock at 62.0) and Cascade 2 (85.8, so 23.8 s into a run of both). The opening before them
+(the split, Provoke, the invulnerability, the dolls, the first Emboli, the busters at 56.7) isn't built: it comes as a
+third, earlier part, and the part enum keeps 0 for it, since kept setups hold a part as a number. One strat, EU
+`[LPDU] Light PF`; party-only, no solo or multiplayer.
+- Script and check: no enmity and no health are played. The raidwides (Cascade, Splash, both Hands) hurt nobody,
+  Hand of Pain never fails, and the Living Liquid falls on the timeline, 39.7 s into Cascade 2, which ends the run;
+  the enrage isn't played. Positions are played for real and the human's own presses are heard. A mistake kills by
+  the fight's own rule, with the reason, never a strat spot.
+- `TeaP1LivingLiquid` (`TeaP1Mechanics.cs`) is the one piece that plays both bosses and every attack, as
+  `TopP6AlphaOmega` does for P6; the scenario's two methods read as the timeline:
+  - Protean 1: the telegraphed Protean Wave's cast 4.8 (lands 7.8), Hand of Pain 5.0, the first unseen set and the
+    Sluices 9.9 (the Sluices land 12.9), the second set 13.0, six Splashes from 19.1, the Drainage tethers 20.0, Hand
+    of Pain 24.1, Drainage 24.6, with which the first tornadoes leave;
+  - Cascade 2: Cascade 1.9, landing at 5.9 with the second tornadoes; Liquid Gaol 10.1 and Throttle 10.5, running out
+    at 19.5; Protean Wave 18.2 (lands 21.2), Hand of Pain 20.2, the first set and the Sluices 23.3, the tornadoes'
+    telegraphed waves aimed 24.2 (land 27.2), the second set 26.3, the tornadoes' unseen waves 29.3, the Hand's glow
+    33.2, Pressurize 33.3 and two Emboli 33.9, the slam 38.4, the Liquid falls 39.7.
+  - A cast with a bar decides whom it hits as the bar ends, 0.3 s before the time it lands. No Fluid Swing or Fluid
+    Strike falls in these parts (the cleaves are at 11.4, 37.7, 56.7 and 134.1): both actions and their tank-job
+    split are defined and tested for the opening, and scheduled by nothing.
+  - Its 17 invisible 9020 helpers are a `SpawnedHelperPool`, every helper cast going through `CastFromHelper`; the
+    most busy at once is 11, as Cascade 2's Sluices land with its second set (`TeaP1LivingLiquidHelperBudgetTests`).
+  - The bosses, and a Protean 1 start's tornadoes, are spawned in `Run` itself, ahead of the strat's `Run`: the
+    strat's first move reads where the Liquid stands, and events of one time fire in the order they were added.
+- The tornadoes (`TeaP1Tornadoes`, `TeaP1TornadoLayout`): three Liquid Rages 14.5 y out on three quarters, each with
+  a 7.6 y puddle, and the quarter without one names the frame everything is written in (relative north; the
+  tornadoes are then West, Middle and East). A puddle kills whoever enters it, from 1 s after it appears, since
+  Cascade 2's set can land under someone who had no way to know where; bots walk round each as an obstacle.
+- Targets: the Living Liquid on the main tank's seat and the Liquid Hand on the off tank's, from 0.5. Each follows
+  and faces its target through the engine's `Follow`, which stops 4.0 y (the Liquid) and 2.1 y (the Hand) from it
+  and holds still through a cast, so a human tank drags its boss. `SetTarget` is public for the opening's Provoke;
+  nothing here calls it again.
+- The facing lock: from a telegraphed Protean Wave's cast until 1 s after its second unseen set the Liquid keeps its
+  facing whatever its target does. The engine turns a walking enemy along its path, so the lock is the follow
+  released, and the Liquid also stands still meanwhile (UNVERIFIED that the fight's does).
+- Protean Waves (15 degrees either side, 40 y): the telegraphed cast aims one along the Liquid's facing and one at
+  every player as it starts; an unseen set has one straight ahead and one at each of the four closest; the
+  tornadoes aim one each at their closest player, telegraphed at 24.2 and unseen at 29.3. Every wave leaves Water
+  Resistance Down for 5 s, and a wave on someone who carries it kills, bots included, short of a tank's
+  invulnerability; a first wave never does. Two waves that catch one player in one frame are a first and a second.
+  The telegraphed rows also knock back 10 y straight away from their source, through Limit Cut's rim-capped
+  `Thrown`: bots are not pushed, nor is a human whose anti-knockback is up.
+- Sluice: a 5 y circle under each of the four farthest from the Liquid as the first set goes off, lethal 3 s later.
+- Drainage: two of the three tornadoes tether a player each at 20.0. The tethers are passable and declared player
+  first, as P5 Omega's Blaster tethers are: only a tether's source carries it, and a pass skips whoever carries one,
+  so nobody can hold both, a free tank can take a tether from a tank that holds it, and two holding tanks can't
+  swap. At 24.6 a non-tank seat that holds one dies, so does anyone but the holder within 6 y of a holder, and a
+  tank seat in two circles; a human tank on a tank's job needs a cooldown under its own
+  (`P1Rules.DrainageMitigation`, asked through `DamageCheck.LethalCause` only with "Require tank mitigation" and
+  "Resolve your own actions" on, as the Gauntlet asks Cosmo Dive's). In the stack a tether that starts on one of the
+  six passes at once to whoever of them stands in its line.
+- Throttle: Liquid Gaol puts it on six for 9 s, and whoever still carries it then dies. An Esuna or a Warden's Paean
+  heard on a carrier as it resolves takes it off (`TeaP1Presses` reports the cleanse, with "Resolve your own
+  actions" on or off; one aimed at no party member counts for the player). The piece keeps its own list of
+  carriers: a status that runs out is gone before anything scheduled at its end can see it, a frame early on a long
+  frame. The order of the cleanses is nobody's rule.
+- The Hand's last slam: as it glows it shows a palm when the bosses' centres are more than 12 y apart, else a fist.
+  The slam, an instant cast, kills everyone when a palm finds them more than 5.1 y apart or a fist within 12 y.
+- Emboli: only the second pair is played. Two orbs leave two tornadoes 0.6 s after Pressurize for where the two
+  bosses stood at the cast, at 1.5 y/s; a player or a boss within 1 y of one kills everyone. At that speed an orb is
+  still inside its own tornado's puddle until 0.7 s before the Liquid falls, so it can hardly be touched: the rule
+  tests pin faster ones. The first pair belongs to the opening, which decides whether it outlives the fight's 62.0.
+- Rolls, each drawn whether or not it is forced: both tornado layouts (8 each; the second may repeat the first), the
+  tornado without a tether and the two seats the tethers start on, Throttle's six, the tornado without an Embolus
+  and which orb heads for which boss. Settings: Start from; each part's Tornadoes (Auto or the open quarter);
+  Drainage tethers start on (Auto, The tanks, Others); Your Throttle (Auto, Yes, No). The per-seat Throttle rows
+  need a host's session, as Limit Cut's numbers do, and are reached only by tests.
+- A start puts both bosses in the middle, the Liquid turned to relative south-east and the Hand 2.1 y to the
+  south-west, in the first tornadoes' frame, which a run from Cascade 2 never shows; the strat's 0 s teleport places
+  the party, the player's seat included.
+- The strat (`TeaP1LivingLiquidLpduAi`) writes every spot with the open quarter north and turns it with the
+  tornadoes standing then; a bait round the Liquid hangs off where it stands as the move is called.
+  - The main tank holds the Liquid by standing within its 4.0 y, and at the guides' 7.4 y only while the facing is
+    locked. Its Drainage spot is an arena point 3.9 y south-east of the middle, since its own fetch drags the Liquid;
+    at Cascade 2's 6.4 it steps onto the middle and at 7.2 walks on 4 y straight away from the Liquid, which follows
+    onto the middle, and at 9.5 it turns the Liquid north.
+  - Each tank fetches its own tether (`Intercept`, every 0.25 s from 20.25) and walks it to its spot: the east
+    tornado's is the main tank's and the west one's the off tank's, and the middle one's goes to the tank whose side
+    has none. A free tank takes its own even off the other tank; only both tanks crossed from the start stay so.
+  - Before Cascade 2 lands everyone gathers within 6 y of the middle, inside any new puddle's reach.
+  - The healers cleanse at 11.2, 13.7, 16.2 and 18.7, each itself first, then H1 down the party list and H2 up it.
+  - In Protean 2 the healers and ranged bait the tornadoes' aim 8.4 to 8.5 y from a tornado and then sprint in to be
+    the second set's four closest, the tightest move of the strat; the off tank leaves for its tornado a second
+    after the melee, clear of the middle tornado's telegraph.
+  - For the last hand the tanks hold the bosses 24 y apart, and as the palm shows each walks through the middle and
+    stops its boss's stopping distance beyond it.
+- `TeaP1LivingLiquidPlan` is the one piece of strat the scenario reads, for the start's chat line naming a human
+  tank's tether or a human healer's cleanse order. A healer's seat on a job without Esuna is held to no cleanse: the
+  run cleanses for it. In headless runs the debug driver walks the player's seat and presses nothing, so the strat
+  cleanses for it too, unless a test sets the internal `PlayerPressesItsOwnActions`.
+- UNVERIFIED in `TeaP1Constants`: the ring's 14.5 y and the puddle's 7.6 y and its object, the waves' and cleaves'
+  half-angles, Water Resistance Down's row (2144) and its 5 s, the knockback's 10 y and speed, Throttle's 9 s, the
+  puddle's first harmless second, the 1 s the Liquid holds its facing after its last set, the bosses' walk speed,
+  the Hand's three distances and which model state and which action is the palm's, Drainage's 0.2 mitigation, the
+  Embolus's speed and 1 y, the 17 helpers, and where a start puts the bosses. In the State and the mechanics: the
+  odds of every roll, 20.0 for the tethers and whom they pick, that a holder can't take the second tether and which
+  way the channel is drawn, that the Liquid's own telegraphed wave is a fixed cone ahead, which tornado casts
+  Liquid Gaol, and that each Embolus heads for one boss's spot and stops there.
+- Change bot movement only with `TeaP1LivingLiquidLpduMarginTests` and both human suites green.
+  - The rule tests play no strat (`TeaP1LivingLiquidStage` teleports every seat cue by cue; its header has the
+    timeline). `TeaP1LivingLiquidLpduAiTests` reads the strat's spots against the stage's on every layout, and the
+    fetch from all 21 starts.
+  - The margin suite holds every pick by distance, every cone, Sluice and puddle, Drainage and the last hand to
+    floors derived from the spots (`MarginSeeds` asks for more runs). The thinnest is the tornadoes' aim, the next
+    closest 0.94 y behind the baiter. An Embolus would first touch a bot (M1) from 2.33 y/s: move M1's kill spot
+    before raising `P1Rules.EmbolusSpeed` past 2.
+  - The human suites (`TeaP1LivingLiquidProtean1LpduHumanTests`, `...Cascade2LpduHumanTests`, on
+    `TeaP1LivingLiquidHuman`) seat a human from the first frame who reads its north off the tornadoes and sets off
+    from what a player sees (each telegraph's bar, each unseen set landing, the tethers, the Throttle icons, the
+    palm), the strat's beat and 0, 0.25 or 0.5 s later, walking or sprinting, round the water, on every layout. A
+    tank walks into its own tether wherever both start and presses Rampart; a healer presses Esuna every 2.5 s;
+    the main tank also plays the guides' edge-of-reach spots, dragging the Liquid 3.4 y, and stacks up to 20 degrees
+    off south. Nobody may die, but in the cases a rule kills, each its own test: a tank that never takes its tether
+    (the six die), a healer that never cleanses (two die) or starts three GCDs late (one), an off tank that never
+    brings the Hand in (everyone), and R1 walking the run in 0.5 s late, 0.2 to 0.7 y farther out than the main
+    tank as the second set goes off (the main tank dies; 0.25 s late it is in time).
+- The gate's buckets are `tea-p1-protean-human`, `tea-p1-cascade-human` and `tea-p1-liquid` (the rest of the
+  scenario's tests). The soak filter is
+  `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Living&Name~Liquid`.
