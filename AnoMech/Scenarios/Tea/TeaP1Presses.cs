@@ -22,7 +22,8 @@ public sealed record TeaP1Strike(SimCharacter By, ulong TargetId, float At, bool
 
 // The human's own presses a TEA P1 run reads, heard through IUserActions.Acted whether or not the player's actions
 // are resolved in the sim. Construct one per run, as the run starts; a scenario has no hook for its run's end, so the
-// next run disposes of the last one's.
+// next run disposes of the last one's. Acted is raised for every scenario's runs, so one that outlives its run to hear
+// a press of another's, told by the world's Rng, which each run replaces, lets go by itself.
 //
 // It only reports a press; what the press does is its listener's to say. A tank's invulnerability is the one thing it
 // applies itself, there and then: its status is what every rule reads, and the sim's own resolving of the player's
@@ -35,6 +36,7 @@ public sealed class TeaP1Presses : IDisposable
     private enum Kind { Cleanse, Provoke, Strike }
 
     private readonly SimWorld world;
+    private readonly Rng itsRuns;
     private readonly IUserActions userActions;
     private readonly List<(Kind Kind, ulong TargetId, float At, uint ActionId)> heard = [];
     private readonly List<TeaP1Cleanse> cleanses = [];
@@ -45,6 +47,7 @@ public sealed class TeaP1Presses : IDisposable
     public TeaP1Presses(SimWorld world)
     {
         this.world = world;
+        itsRuns = world.Rng;
         userActions = Natives.UserActions;
         userActions.Acted += Hear;
     }
@@ -170,6 +173,11 @@ public sealed class TeaP1Presses : IDisposable
     // cooldown pressed with an enemy targeted is told from a hit on it by what its action can be aimed at.
     private void Hear(PlayerAction action)
     {
+        if (!ReferenceEquals(world.Rng, itsRuns))
+        {
+            Dispose();
+            return;
+        }
         if (action is not { Step: PlayerActionStep.Resolved, ActionType: ActionType.Action }) return;
         var targetId = (uint)action.TargetId == CurrentTarget ? ClientsTarget() : action.TargetId;
         switch (action.ActionId)
@@ -199,13 +207,16 @@ public sealed class TeaP1Presses : IDisposable
                 heard.Add((Kind.Provoke, targetId, world.Events.Elapsed, action.ActionId));
                 break;
         }
-        if (LandsOnAnEnemyOnly(action.ActionId)) heard.Add((Kind.Strike, targetId, world.Events.Elapsed, action.ActionId));
+        if (IsAimedAtOneTarget(action.ActionId)) heard.Add((Kind.Strike, targetId, world.Events.Elapsed, action.ActionId));
     }
 
-    // UNVERIFIED: that every weaponskill or spell aimed at an enemy counts as a hit on it, and that one which only
-    // clips it, laid on the ground or round its user, does not.
-    private static bool LandsOnAnEnemyOnly(uint actionId)
-        => Natives.Data.Action(actionId) is { CanTargetSelf: false, CanTargetParty: false, TargetArea: false };
+    // Aimed at one target that is not its user; CatchUp counts it as a hit when that target is no party member. Some
+    // such buttons can land on a party member or on an enemy (a monk's Thunderclap), and the sheet's columns here do
+    // not say which can land on an enemy. UNVERIFIED: that the client refuses one that cannot before it is heard,
+    // that every weaponskill or spell aimed at an enemy counts as a hit on it, and that one which only clips it, laid
+    // on the ground or round its user, does not. The fight's enemies also count an auto-attack; none is heard here.
+    private static bool IsAimedAtOneTarget(uint actionId)
+        => Natives.Data.Action(actionId) is { CanTargetSelf: false, TargetArea: false };
 
     private void Cover(float seconds) => antiKnockbackUntil = MathF.Max(antiKnockbackUntil, world.Events.Elapsed + seconds);
 

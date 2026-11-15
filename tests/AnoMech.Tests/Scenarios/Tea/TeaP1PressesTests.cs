@@ -134,7 +134,8 @@ public class TeaP1PressesTests
 
     // -- A hit on an enemy --
     // A press comes aimed at the client's target whatever the button is, so what is a hit is read off what the action
-    // can be aimed at: an enemy, and neither its user, a party member nor the ground.
+    // can be aimed at: one target, and neither its user nor the ground. One that can also land on a party member, as a
+    // monk's Thunderclap can, is a hit on the enemy it is pressed at.
 
     [TestCase(31u, "Heavy Swing", true)]
     [TestCase(16u, "Shield Bash", true)]
@@ -147,6 +148,7 @@ public class TeaP1PressesTests
     [TestCase(2866u, "Split Shot", true)]
     [TestCase(7384u, "Holy Spirit", true)]
     [TestCase(16143u, "Lightning Shot", true)]
+    [TestCase(25762u, "Thunderclap", true)]
     [TestCase(7531u, "Rampart", false)]
     [TestCase(7548u, "Arm's Length", false)]
     [TestCase(7568u, "Esuna", false)]
@@ -163,7 +165,7 @@ public class TeaP1PressesTests
     [TestCase(43u, "Holmgang", false)]
     [TestCase(3638u, "Living Dead", false)]
     [TestCase(16152u, "Superbolide", false)]
-    public void OnlyAnActionThatCanOnlyBeAimedAtAnEnemyIsAHitOnTheEnemyItIsPressedAt(uint press, string name, bool hits)
+    public void OnlyAnActionAimedAtOneTargetOtherThanItsUserIsAHitOnTheEnemyItIsPressedAt(uint press, string name, bool hits)
     {
         List<TeaP1Strike> strikes = [];
         ulong enemyId = 0;
@@ -272,6 +274,32 @@ public class TeaP1PressesTests
         });
 
         Assert.That(raised, Is.Zero);
+    }
+
+    // A scenario has no hook for its run's end, so a listener can outlive its run and hear a press made in another
+    // scenario's. Each run replaces the world's Rng, here at 0.5.
+    [Test]
+    public void AListenerWhoseRunHasBeenReplacedHearsNothing()
+    {
+        var raised = 0;
+        var covered = true;
+        Presses((world, presses, enemy) =>
+        {
+            presses.Provoked += _ => raised++;
+            presses.Struck += _ => raised++;
+            var enemyId = (ulong)enemy.GameObjectId;
+            world.Events.Add(0.5f, () => world.Reseed(7));
+            world.Events.Add(1f, () =>
+            {
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Holmgang, 0));
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.ArmsLength, 0));
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke, enemyId));
+                covered = world.Party.Player!.HasStatus(P1StatusId.Holmgang) || presses.AntiKnockbackUp(world.Party.Player!);
+            });
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That((covered, raised), Is.EqualTo((false, 0)));
     }
 
     // -- The run's own presses, for a seat nobody presses for --
