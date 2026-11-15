@@ -334,7 +334,8 @@ public static class TimingRules
     }
 
     /// <summary>
-    /// How long a use of <paramref name="action"/> covers a hit (<see cref="UseWindow"/>): the longest of its effects for a
+    /// How long a use of <paramref name="action"/> covers a hit (<see cref="UseWindow"/>, and in <see cref="ForEntry"/> the
+    /// later hits mitigation reaches and the other items' guard against an own lead): the longest of its effects for a
     /// <see cref="UseTiming.Before"/> action (Neutral Sect's 30 s barrier), else its duration; null when unknown.
     /// </summary>
     public static double? CoverageDuration(ActionInfo? action, int syncLevel) =>
@@ -501,7 +502,7 @@ public static class TimingRules
     private static double? CoveringDuration(ActionInfo? action, int syncLevel) =>
         action is null || IsUsedAfterHit(action) || action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other
             ? null
-            : action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel);
+            : CoverageDuration(action, syncLevel);
 
     /// <summary>The first action with the earliest default offset before the hit (see <see cref="EarliestPreHitOffset"/>).</summary>
     private static (ActionInfo Action, double Offset)? EarliestPreHit(IEnumerable<ActionInfo?> actions, int syncLevel)
@@ -530,8 +531,7 @@ public static class TimingRules
     /// </summary>
     private static (double? EntryPress, double Press, double NotEarly)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset, ReminderOptions options)
     {
-        if (action is null || !IsMitigation(action) || IsUsedAfterHit(action)
-            || (action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel)) is not { } duration)
+        if (action is null || !IsMitigation(action) || IsUsedAfterHit(action) || CoverageDuration(action, syncLevel) is not { } duration)
         {
             return null;
         }
