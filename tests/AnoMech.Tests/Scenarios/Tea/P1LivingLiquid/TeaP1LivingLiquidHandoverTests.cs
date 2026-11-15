@@ -183,34 +183,57 @@ public class TeaP1LivingLiquidHandoverTests
         }
     }
 
-    // A start after the pull plays what it played before the pull existed. Each row was taken from that build, in a
-    // real run of the seed: the run's own stream by its next draw, and where the main tank's bot stands on a spot it
-    // takes with jitter, 9 s into Protean 1 and 11.5 s into Cascade 2. A roll drawn from the run's stream ahead of a
-    // later start's, or a move added to its bots, shows here.
-    [TestCase(Protean1, 1, 701796, "-0.276 4.410")]
-    [TestCase(Protean1, 2, 89001, "3.221 -2.760")]
-    [TestCase(Protean1, 3, 476206, "-3.142 2.862")]
-    [TestCase(Protean1, 7, 25025, "-4.169 -0.221")]
-    [TestCase(Protean1, 1234567, 684645, "3.243 -2.765")]
-    [TestCase(Cascade2, 1, 701796, "-2.666 2.715")]
-    [TestCase(Cascade2, 2, 89001, "-0.017 -3.854")]
-    [TestCase(Cascade2, 3, 476206, "2.862 2.762")]
-    [TestCase(Cascade2, 7, 25025, "-3.808 0.058")]
-    [TestCase(Cascade2, 1234567, 684645, "2.764 -2.676")]
-    public void ALaterStartPlaysASeedAsItDidBeforeThePullWasPlayed(TeaP1LivingLiquidPart from, int seed, int theStreamsNextDraw, string theMainTankStands)
+    // A start after the pull plays what it played before the pull existed. Each row was taken from that build, in
+    // real runs of the seed, read twice: 9 s into Protean 1 or 11.5 s into Cascade 2, and 0.2 s after the Living
+    // Liquid's fall.
+    //
+    // The run's own stream, by its next draw: nothing in a later start draws from it once the State is rolled, so it
+    // reads the same both times, and a roll drawn from it ahead of a later start's, or during one, shows there. The
+    // bots' jitter is drawn from a stream of its own, twice for every seat a jittered move sends: its next draw at the
+    // fall shows a move added to a later start's bots, or taken from them, anywhere in the fight, and so does where
+    // four seats stand then. The main tank's spot at the first read shows one in the part's first seconds.
+    [TestCase(Protean1, 1, 701796, "-0.276 4.410", 624287, "6.066 -0.316; -2.586 2.651; -1.175 2.050; -0.315 1.197")]
+    [TestCase(Protean1, 2, 89001, "3.221 -2.760", 116832, "-3.820 4.535; -0.484 -3.834; -0.251 -2.374; -0.583 -1.257")]
+    [TestCase(Protean1, 3, 476206, "-3.142 2.862", 400409, "-0.471 -5.924; 2.796 2.273; 2.054 1.306; 0.970 0.167")]
+    [TestCase(Protean1, 7, 25025, "-4.169 -0.221", 418527, "4.570 3.931; -3.720 0.254; -2.236 0.681; -1.024 0.403")]
+    [TestCase(Protean1, 1234567, 684645, "3.243 -2.765", 227165, "-6.041 0.363; 2.541 -2.934; 1.622 -2.007; -0.069 -1.172")]
+    [TestCase(Cascade2, 1, 701796, "-2.666 2.715", 500093, "6.102 -0.388; -2.330 2.944; -1.313 2.150; -0.426 1.190")]
+    [TestCase(Cascade2, 2, 89001, "-0.017 -3.854", 888627, "-3.879 4.490; -0.443 -3.897; -0.180 -2.354; -0.656 -1.163")]
+    [TestCase(Cascade2, 3, 476206, "2.862 2.762", 24145, "-0.448 -5.870; 2.974 2.282; 1.680 1.310; 1.094 0.320")]
+    [TestCase(Cascade2, 7, 25025, "-3.808 0.058", 824291, "4.392 3.859; -3.656 0.374; -2.268 0.664; -0.785 0.803")]
+    [TestCase(Cascade2, 1234567, 684645, "2.764 -2.676", 545744, "-5.886 0.332; 2.585 -3.160; 1.223 -1.737; 0.026 -1.066")]
+    public void ALaterStartPlaysASeedAsItDidBeforeThePullWasPlayed(TeaP1LivingLiquidPart from, int seed, int theStreamsNextDraw, string theMainTankStands,
+        int theJitterStreamsNextDrawAtTheFall, string fourSeatsStandAtTheFall)
     {
         var at = from == Protean1 ? 9.0f : 11.5f;
         var (next, stands) = (-1, "");
         var run = Start(from, seed, p =>
         {
             if (!p.Crossed(at)) return;
-            var tank = p.Member(MainTank)!.Position;
-            stands = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{tank.X:F3} {tank.Z:F3}");
+            stands = Stands(p, MainTank);
             next = p.World.Rng.Next(1_000_000);
         }, stopAt: at + 0.1f);
 
+        var atTheFall = (from == Protean1 ? TheLiquidFallsAfter : 39.7f) + 0.2f;
+        var (jitterAtTheFall, nextAtTheFall, standAtTheFall) = (-1, -1, "");
+        var toTheFall = Start(from, seed, p =>
+        {
+            if (!p.Crossed(atTheFall)) return;
+            standAtTheFall = string.Join("; ", new[] { MainTank, MeleeDpsA, RegenHealer, CasterDps }.Select(seat => Stands(p, seat)));
+            jitterAtTheFall = p.World.Stream("ai-jitter").Next(1_000_000);
+            nextAtTheFall = p.World.Rng.Next(1_000_000);
+        }, stopAt: atTheFall + 0.1f);
+
         Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(toTheFall.Passed, toTheFall.ToString);
         Assert.That((next, stands), Is.EqualTo((theStreamsNextDraw, theMainTankStands)));
+        Assert.That((nextAtTheFall, jitterAtTheFall, standAtTheFall), Is.EqualTo((theStreamsNextDraw, theJitterStreamsNextDrawAtTheFall, fourSeatsStandAtTheFall)));
+    }
+
+    private static string Stands(ScenarioProbe p, PartyRole seat)
+    {
+        var at = p.Member(seat)!.Position;
+        return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{at.X:F3} {at.Z:F3}");
     }
 
     [Test]
