@@ -16,8 +16,8 @@ public sealed class CellParserOptions
     /// <summary>
     /// "X/Y" between two words means "and", like "X + Y" ("Soil/Reci/Deploy/Whisper": four tokens), instead of either/or.
     /// The importer decides it per document (<see cref="SlashReading"/>). A "/" between slots, jobs, target or mechanic
-    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), before a digit ("R1/2"), after "w" ("w/"),
-    /// in "and/or" or inside brackets never joins.
+    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), between two single letters ("N/A"), before
+    /// a digit ("R1/2"), after "w" ("w/"), in "and/or" or inside brackets never joins.
     /// </summary>
     public bool SlashJoins { get; init; }
 }
@@ -772,7 +772,8 @@ public sealed partial class CellParser
         /// A "/" that joins two tokens when slashes mean "and" (<see cref="CellParserOptions.SlashJoins"/>): a letter follows
         /// it, a letter, digit or closing bracket precedes it ("Seraph1/Soil", "Excog(OT)/Soil"), and the words around it
         /// (with their hyphens: "Co-tank") are not both slots, jobs, target or mechanic words ("MT/OT", "WAR/DRK",
-        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor "w/" (with) or "and/or".
+        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor single letters ("N/A", <see cref="IsAbbreviation"/>), nor "w/"
+        /// (with) or "and/or".
         /// </summary>
         private bool IsJoinSlash(int j)
         {
@@ -795,7 +796,7 @@ public sealed partial class CellParser
             var right = s[(j + 1)..b];
             var leftPart = left[(left.LastIndexOf('-') + 1)..];
             var rightPart = right.Split('-')[0];
-            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j)
+            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j) && !IsAbbreviation(s, j)
                 && !(NamesNoAction(left, leftPart) && NamesNoAction(right, rightPart));
 
             static bool NamesNoAction(string word, string part) =>
@@ -1209,7 +1210,8 @@ public sealed partial class CellParser
 
         /// <summary>
         /// "Kera/Soil" → [Kera, Soil]; "Seraph1/Soil" → [Seraph1, Soil]; "Kera or Soil" and "Kera and/or Soil" → [Kera, Soil].
-        /// A "/" before a digit ("R1/2", "3rd/4th") or between two slots ("R1/R2") does not split.
+        /// A "/" before a digit ("R1/2", "3rd/4th"), between two slots ("R1/R2") or between two single letters ("N/A",
+        /// <see cref="IsAbbreviation"/>) does not split.
         /// </summary>
         private static IReadOnlyList<string> SplitAlternatives(string head)
         {
@@ -1220,7 +1222,8 @@ public sealed partial class CellParser
             for (var i = 0; i < head.Length; i++)
             {
                 if (head[i] == '/' && i > 0 && i + 1 < head.Length && char.IsLetterOrDigit(head[i - 1]) && char.IsLetter(head[i + 1])
-                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i))
+                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i)
+                    && !IsAbbreviation(head, i))
                 {
                     parts.Add(head[start..i]);
                     start = i + 1;
@@ -1234,6 +1237,13 @@ public sealed partial class CellParser
             result = result.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
             return result.Count == 0 ? [head] : result;
         }
+
+        /// <summary>
+        /// The "/" at <paramref name="i"/> has a single letter or digit on each side ("N/A", "b/c"): an abbreviation, not two
+        /// actions (no action is named by one letter), so it neither joins tokens nor splits an either/or.
+        /// </summary>
+        private static bool IsAbbreviation(string s, int i) =>
+            (i < 2 || !char.IsLetterOrDigit(s[i - 2])) && (i + 2 >= s.Length || !char.IsLetterOrDigit(s[i + 2]));
 
         /// <summary>The "/" at <paramref name="i"/> is the one of "and/or".</summary>
         private static bool IsAndOr(string s, int i) =>

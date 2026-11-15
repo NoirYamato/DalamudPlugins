@@ -40,8 +40,8 @@ public sealed record ParsedToken
     /// <summary>
     /// Either/or alternatives of the head: "Kera/Soil" → [Kera, Soil], "TBN/Oblation" → [TBN, Oblation], "Kera or Soil"
     /// → [Kera, Soil]. A "/" is split when a letter follows it and a letter or digit precedes it ("Seraph1/Soil" →
-    /// [Seraph1, Soil]), but not between two slots ("R1/R2"), so "R1/2" and "3rd/4th" stay whole. [Head] when there is
-    /// no alternative, empty when <see cref="Head"/> is empty.
+    /// [Seraph1, Soil]), but not between two slots ("R1/R2") or two single letters ("N/A"), so "R1/2", "3rd/4th" and
+    /// "N/A" stay whole. [Head] when there is no alternative, empty when <see cref="Head"/> is empty.
     /// </summary>
     public required IReadOnlyList<string> Alternatives { get; init; }
 

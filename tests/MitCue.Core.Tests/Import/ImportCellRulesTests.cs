@@ -70,6 +70,10 @@ public class ImportCellRulesTests
     [InlineData("Intersection Main-tank/OT")]
     [InlineData("Kera after Stack/Spread")] // mechanic words
     [InlineData("Soil and/or Expedient")]
+    [InlineData("N/A")] // one letter on each side: an abbreviation
+    [InlineData("n/a")]
+    [InlineData("Feint N/A")]
+    [InlineData("Kera b/c Stack")]
     public void SlashJoins_DoesNotJoinJobsPlayersOrMechanicWords_NorAndOr(string text) => Assert.Single(And.Parse(text).Tokens);
 
     [Fact]
@@ -78,6 +82,22 @@ public class ImportCellRulesTests
         // TEA 'Alex Prime/PA'!E17: Spreadlo (Adloquium → Deployment Tactics), then Sacred Soil.
         Assert.Equal(["Spread-Lo", "Soil"], And.Parse("Spread-Lo/Soil").Tokens.Select(t => t.Head));
         Assert.Equal(["Kera", "Spread"], And.Parse("Kera/Spread").Tokens.Select(t => t.Head)); // one side an action: joined
+        Assert.Equal(["Kera", "E.Prog"], And.Parse("Kera/E.Prog").Tokens.Select(t => t.Head)); // one letter on one side only: joined
+    }
+
+    [Theory]
+    [InlineData(SlashReading.All)]
+    [InlineData(SlashReading.Either)]
+    public void NotApplicable_IsOneWord_InEitherReading(SlashReading slashes)
+    {
+        // "N/A" (not applicable): no two notes "N" and "A", nor an either/or that keeps "N" and leaves "A" out.
+        var r = Import(Sheet("P3", "Scholar\tWAR", "Hello World\tN/A\tRampart N/A"), slashes);
+
+        Assert.Equal(["note:N/A"], r.Plan.Entries.Single(e => e.Who.Job == Job.SCH).Names());
+        var rampart = r.Plan.Entries.Single(e => e.Who.Job != Job.SCH);
+        Assert.Equal(["Rampart"], rampart.Names());
+        Assert.Equal("N/A", rampart.Note);
+        Assert.Equal(["Kera", "E.Prog"], CellParser.Default.Parse("Kera/E.Prog").Tokens.Single().Alternatives); // one letter on one side only: either one
     }
 
     [Theory]
