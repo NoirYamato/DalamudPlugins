@@ -174,10 +174,19 @@ public class TeaP1LivingLiquidLpduAiTests
     // -- The bosses --
 
     private const float OnTheMiddleWithin = 0.4f;
+
+    // The main tank leaves a Liquid within 0.7 y of the middle where it stands, and one it leads back from nearer
+    // than 1.4 y ends up to 0.7 y on the other side: it has to stand 7.4 y from the Liquid to set it off, and the
+    // Liquid stops 6 y from it. The tank's 0.15 y jitter and a frame's walk move the Liquid as much again.
     private const float LedBackOntoTheMiddleWithin = 1.0f;
     private const float FacesItsTanksWithinDegrees = 5f;
     private const float TheLiquidStaysWithinReachOfItsTank = 6.9f;
-    private const float InsideEveryNewPuddlesReach = 6.9f;
+
+    // A new puddle reaches in to 7.4 y. The seven gather within 6 y. The main tank, leading the Liquid back, stands
+    // up to 6.7 y past the middle (7.4 y from a Liquid 0.7 y off it) until it turns the Liquid at 9.5, with the new
+    // puddles lethal from 8.3; its jitter is 0.15 y.
+    private const float InsideEveryNewPuddlesReach = 6.2f;
+    private const float TheMainTankLeadingTheLiquidBackWithin = 6.9f;
 
     // Protean 1's telegraph is aimed at 4.8 with the Liquid on the middle facing the tanks south of it, and Cascade
     // 2's at 18.15 with it facing the main tank north of it. While it is free, the main tank stands inside its reach
@@ -189,7 +198,7 @@ public class TeaP1LivingLiquidLpduAiTests
     {
         var roll = new Roll { First = first, Open1 = open1, Open2 = (TeaP1OpenQuarter)(((int)open1 + turnsOn) % 8) };
         var problems = new List<string>();
-        var farthestFromItsTank = 0f;
+        var (farthestFromItsTank, farthestLeadingItBack) = (0f, 0f);
         for (var i = 0; i < 4; i++)
         {
             var seed = Random.Shared.Next();
@@ -211,9 +220,16 @@ public class TeaP1LivingLiquidLpduAiTests
                 if (p.Crossed(roll.C2(7.3f)))
                 {
                     read++;
-                    foreach (var seat in PerRole.All)
+                    foreach (var seat in PerRole.All.Where(seat => seat != MainTank))
                         if (Flat(p.Member(seat)!.Position).Length() > InsideEveryNewPuddlesReach)
                             problems.Add($"{seat} {F(Flat(p.Member(seat)!.Position).Length())} y from the middle as the new tornadoes appear ({context})");
+                }
+                if (p.Time >= roll.C2(7.3f) && p.Time <= roll.C2(9.5f))
+                {
+                    var mainTankOut = Flat(p.Member(MainTank)!.Position).Length();
+                    farthestLeadingItBack = MathF.Max(farthestLeadingItBack, mainTankOut);
+                    if (mainTankOut > TheMainTankLeadingTheLiquidBackWithin)
+                        problems.Add($"the main tank {F(mainTankOut)} y from the middle at {F(p.Time)}, under the new tornadoes ({context})");
                 }
                 if (p.Crossed(roll.C2(9.5f)))
                 {
@@ -237,7 +253,7 @@ public class TeaP1LivingLiquidLpduAiTests
             Assert.That(read, Is.EqualTo(roll.Plays(Protean1) ? 4 : 3), context);
         }
 
-        TestContext.Out.WriteLine($"The main tank's farthest from a Liquid it holds still: {F(farthestFromItsTank)} y");
+        TestContext.Out.WriteLine($"The main tank's farthest from a Liquid it holds still: {F(farthestFromItsTank)} y; from the middle under the new tornadoes: {F(farthestLeadingItBack)} y");
         Assert.That(problems.Distinct().Take(12), Is.Empty);
     }
 
@@ -329,15 +345,9 @@ public class TeaP1LivingLiquidLpduAiTests
         return [new(pair.First, first), new(pair.Second, second)];
     }
 
-    // The one start a tank is not back from by Drainage: the main tank takes the middle tether off the off tank first,
-    // and only then is the off tank free to fetch the west one, the far side of its own spot.
-    internal static bool TheOffTankFetchesLate((TeaP1Tornado First, TeaP1Tornado Second) pair, StartsOn startsOn)
-        => pair == (TeaP1Tornado.West, TeaP1Tornado.Middle) && startsOn == StartsOn.TheStackAndTheOffTank;
-
     private const float TanksApartAtLeast = 7.5f;
     private const float ATankFromTheSixAtLeast = 8.5f;
     private const float OnItsDrainageSpotWithin = 0.5f;
-    private const float TheLateOffTankFromItsSpotAtMost = 4.5f;
 
     internal static Vector2 DrainageSpot(Roll roll, PartyRole tank)
         => roll.Frame1.ToArena(tank == MainTank ? Stage.Off(Vector2.Zero, 3.9f, 135f) : new Vector2(-5.4f, 5.4f));
@@ -363,7 +373,7 @@ public class TeaP1LivingLiquidLpduAiTests
                 var holders = fight.DrainageTethersOut.Select(tether => (tether.From, Holder: Seat(fight.Holder(tether.Tether)))).ToList();
                 foreach (var tank in Tanks)
                     if (holders.Count(holder => holder.Holder == tank) > 1) problems.Add($"{tank} holds two tethers at {F(p.Time)} ({context})");
-                if (p.Crossed(24.4f) && !TheOffTankFetchesLate(tethering, startsOn))
+                if (p.Crossed(24.4f))
                 {
                     read++;
                     foreach (var tank in Tanks)
@@ -387,14 +397,9 @@ public class TeaP1LivingLiquidLpduAiTests
                     var apart = Vector2.Distance(Flat(p.Member(tank)!.Position), Flat(p.Member(seat)!.Position));
                     if (apart < ATankFromTheSixAtLeast) problems.Add($"{tank} {F(apart)} y from {seat} at Drainage ({context})");
                 }
-                if (TheOffTankFetchesLate(tethering, startsOn))
-                {
-                    var from = Vector2.Distance(offTank, DrainageSpot(roll, OffTank));
-                    if (from > TheLateOffTankFromItsSpotAtMost) problems.Add($"the off tank {F(from)} y from its spot at Drainage ({context})");
-                }
             });
             if (!run.Passed) problems.Add($"{run} ({context})");
-            if (read != (TheOffTankFetchesLate(tethering, startsOn) ? 1 : 2)) problems.Add($"Drainage was not read ({context})");
+            if (read != 2) problems.Add($"Drainage was not read ({context})");
         }
 
         Assert.That(problems, Is.Empty);

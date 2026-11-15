@@ -69,7 +69,6 @@ public class TeaP1LivingLiquidLpduMarginTests
     private const string LiquidOffAtNinePointFive = "Cascade 2, 9.5: the Liquid off the middle (y)";
     private const string LiquidOffAtProteanTwo = "Protean 2's aim: the Liquid off the middle (y)";
     private const string TankOffItsSpot = "Drainage: a tank off its spot (y)";
-    private const string LateOffTankOffItsSpot = "Drainage: the off tank off its spot after the one late fetch (y)";
     private const string TethersOnTheTanksBy = "Drainage: both tethers on their tanks by (s)";
     private const string RunInArrivesBy = "Protean 2, the run in: the last of the four on its bait by (s)";
 
@@ -403,7 +402,6 @@ public class TeaP1LivingLiquidLpduMarginTests
                 Open1 = open1, Open2 = (TeaP1OpenQuarter)((run * 3) % 8),
                 Drainage = Tethers(tethering, startsOn, TheSix[run % 6], TheSix[(run + 1 + i % 5) % 6]),
             };
-            var late = TheOffTankFetchesLate(tethering, startsOn);
             float? onTheTanks = null;
             Play(roll, PerRole.All[(run + 3 * i) % 8], margins, (p, where) =>
             {
@@ -416,21 +414,23 @@ public class TeaP1LivingLiquidLpduMarginTests
                 if (!p.Crossed(24.65f)) return;
                 margins.AtMost(TethersOnTheTanksBy, onTheTanks ?? float.PositiveInfinity, where);
                 foreach (var tank in Tanks)
-                    margins.AtMost(late && tank == OffTank ? LateOffTankOffItsSpot : TankOffItsSpot,
-                                   Vector2.Distance(Flat(p.Member(tank)!.Position), DrainageSpot(roll, tank)), $"{tank}, {where}");
+                    margins.AtMost(TankOffItsSpot, Vector2.Distance(Flat(p.Member(tank)!.Position), DrainageSpot(roll, tank)), $"{tank}, {where}");
             }, stopAt: roll.C2(18.4f));
         }
 
         margins.Print($"Every start of the tethers, {Seeds * 4} runs each:");
-        margins.AssertHeld(TanksApart, TankToTheSix, TethersOnTheTanksBy, TankOffItsSpot, LateOffTankOffItsSpot, LiquidOffAtNinePointFive, LiquidOffAtProteanTwo);
+        // The slowest start has the main tank take the middle tether off the off tank before the off tank can fetch
+        // the west one: both are on their tanks by about 21, and both tanks back on their spots well before 24.7.
+        // The Liquid walks after a main tank more than 7 y from it and stops 6 y from it, so a fetch drags it by how far
+        // past 6 y from the middle the tank goes: the most where the main tank's own tether is its second to come free.
+        margins.AssertHeld(TanksApart, TankToTheSix, TethersOnTheTanksBy, TankOffItsSpot, LiquidOffAtNinePointFive, LiquidOffAtProteanTwo);
         Assert.Multiple(() =>
         {
             Assert.That(margins.Least[TanksApart].Value, Is.GreaterThanOrEqualTo(2.0f), TanksApart);
             Assert.That(margins.Least[TankToTheSix].Value, Is.GreaterThanOrEqualTo(3.0f), TankToTheSix);
-            Assert.That(margins.Most[TethersOnTheTanksBy].Value, Is.LessThanOrEqualTo(24.5f), TethersOnTheTanksBy);
+            Assert.That(margins.Most[TethersOnTheTanksBy].Value, Is.LessThanOrEqualTo(22.5f), TethersOnTheTanksBy);
             Assert.That(margins.Most[TankOffItsSpot].Value, Is.LessThanOrEqualTo(0.5f), TankOffItsSpot);
-            Assert.That(margins.Most[LateOffTankOffItsSpot].Value, Is.LessThanOrEqualTo(4.5f), LateOffTankOffItsSpot);
-            Assert.That(margins.Most[LiquidOffAtDrainage].Value, Is.LessThanOrEqualTo(5.0f), LiquidOffAtDrainage);
+            Assert.That(margins.Most[LiquidOffAtDrainage].Value, Is.LessThanOrEqualTo(3.5f), LiquidOffAtDrainage);
         });
     }
 
