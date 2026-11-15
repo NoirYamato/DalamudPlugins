@@ -97,6 +97,43 @@ public class TeaP1JagdDollsTests
         Assert.That(run.Elapsed, Is.InRange(25f, 30.5f), "the run ends by itself after its last line");
     }
 
+    // The main tank stands on the middle, 7 y from all four dolls, as they Exhaust at 2.0, under a tank's
+    // invulnerability: it explodes all the same and lives through it. M1 and the off tank stand 8 y from it, each beside
+    // one doll and out of the others' reach: the explosion kills M1, and the off tank, invulnerable too, lives.
+    [TestCase(P1StatusId.HallowedGround, P1StatusId.Holmgang)]
+    [TestCase(P1StatusId.Holmgang, P1StatusId.LivingDead)]
+    [TestCase(P1StatusId.LivingDead, P1StatusId.Superbolide)]
+    [TestCase(P1StatusId.Superbolide, P1StatusId.HallowedGround)]
+    public void ATanksInvulnerabilityTakesItThroughAnExplosionItsOwnIncluded(int theExplodingTanks, int theOtherTanks)
+    {
+        var marked = new List<bool>();
+        var run = Dolls((world, fight, _) =>
+        {
+            fight.JagdDollsAppear(1f);
+            fight.JagdDollsTurnTargetable(1.1f);
+            world.Events.Add(1.5f, () =>
+            {
+                TimelineRun.Place(world, MainTank, 0f, 0f);
+                TimelineRun.Place(world, MeleeDpsA, OnTheBearing(67.5f, 8f).X, OnTheBearing(67.5f, 8f).Y);
+                TimelineRun.Place(world, OffTank, OnTheBearing(247.5f, 8f).X, OnTheBearing(247.5f, 8f).Y);
+                world.Party.Get(MainTank)!.AddStatus((ushort)theExplodingTanks, 10f);
+                world.Party.Get(OffTank)!.AddStatus((ushort)theOtherTanks, 10f);
+            });
+            fight.Exhausts(2f);
+            world.Events.Add(2.2f, () => marked.AddRange(new[] { MainTank, OffTank }.Select(tank => world.Party.Get(tank)!.HasStatus(P1StatusId.LuminousAetheroplasm))));
+            world.Events.Add(3f, () => { });
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths.Select(death => (death.Role, death.ActionId)), Is.EqualTo(new[] { (MeleeDpsA, (uint?)P1ActionId.ExhaustFromAPlayer) }), run.ToString);
+        Assert.That(run.Deaths[0].Cause, Does.Contain(TeaP1JagdDolls.LuminousAetheroplasmBurst).And.Contain("short of a tank's invulnerability"));
+        Assert.That(run.Sent("ability", P1ActionId.ExhaustFromAPlayer), Has.Count.EqualTo(1), "the main tank explodes all the same");
+        Assert.That(marked, Is.EqualTo(new[] { true, true }), "the Exhausts land on both tanks");
+    }
+
+    private static Vector2 OnTheBearing(float degrees, float fromTheMiddle)
+        => new Vector2(MathF.Sin(degrees * MathF.PI / 180f), -MathF.Cos(degrees * MathF.PI / 180f)) * fromTheMiddle;
+
     // M1, 4.0 y from the doll it hits at 1.5, is inside the 4.3 y a doll lets its holder stand: the doll stays. At 3.1
     // M1 steps to 4.6 y, and the doll walks until it is 3.3 y from it.
     [Test]

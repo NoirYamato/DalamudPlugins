@@ -292,7 +292,7 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
 
         var (tethers, afterItsHit) = (new Spread(tetherAfterTargetable), new Spread(tetherAfterItsHit));
         yield return new LogFinding(Section, "Whom a doll tethers", SimSource.Line(TeaSource.Dolls, "doll.Holder = strike.By;"),
-            $"the first player whose weaponskill or spell on it is heard, {P1Duration.DollTethersAfterItsFirstHit} s after the press; an auto-attack is not heard",
+            $"the first player whose action aimed at it alone is heard (a weaponskill, a spell or an ability), {P1Duration.DollTethersAfterItsFirstHit} s after the press; an auto-attack is not heard",
             dollTethers == 0 ? "no doll's tether"
                 : $"{tethersToTheFirstToActOnIt} of {dollTethers} tethers go to the first player whose action hit the doll, {tethers.Describe(" s")} after the dolls "
                   + "turn targetable"
@@ -335,7 +335,7 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         };
         yield return exploded.Finding(Section, "A player's explosion (Exhaust from the player) kills whoever it hits",
                                       SimSource.Line(TeaSource.Dolls, "internal const string LuminousAetheroplasmBurst ="),
-                                      "kills everyone within the sheet's 8 y and a player's hitbox of the exploding player, itself included");
+                                      "kills everyone within the sheet's 8 y and a player's hitbox of the exploding player, itself included, short of a tank's invulnerability");
 
         var light = fedHardest.Where(f => f.Hardest < AHeavyHit).ToList();
         var heavy = fedHardest.Where(f => f.Hardest >= AHeavyHit).ToList();

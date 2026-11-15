@@ -62,7 +62,8 @@ public static class TeaP1Actions
     // -- Protean Wave --
     // Each is cast along its caster's facing, so its aim is whatever its caster was turned to as the cast started. A
     // wave on someone who carries the last one's Water Resistance Down kills, bots included; a first one never does.
-    // UNVERIFIED: that the telegraphed rows kill no more than that.
+    // UNVERIFIED: that the telegraphed rows leave the debuff and kill no more than that, since none was seen to hit
+    // anyone.
     public static EnemyAction ProteanWaveFromTheLiquid(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveFromTheLiquid, world, presses);
 
     public static EnemyAction ProteanWaveAtAPlayer(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveAtAPlayer, world, presses);

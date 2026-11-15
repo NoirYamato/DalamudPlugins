@@ -664,9 +664,10 @@ public class TeaP1LivingLiquidPullTests
         Assert.That(provokes, Is.EqualTo(provoked ? 1 : 0));
     }
 
-    // The human M1 presses one button with its doll targeted at 34.3. Only a weaponskill or a spell that is aimed at
-    // one target other than its user is a hit: a press comes with the client's target whatever the button. A button
-    // that turns into an attack on the target comes with its own id, whose row is aimed at its user, and is a hit too.
+    // The human M1 presses one button with its doll targeted at 34.3. Only an action that is aimed at one target other
+    // than its user is a hit, be it a weaponskill, a spell or an ability such as Provoke: a press comes with the
+    // client's target whatever the button. A button that turns into an attack on the target comes with its own id,
+    // whose row is aimed at its user, and is a hit too.
     [TestCase(31u, true, TestName = "{m}(Heavy Swing)")]
     [TestCase(16u, true, TestName = "{m}(Shield Bash)")]
     [TestCase(7533u, true, TestName = "{m}(Provoke)")]
@@ -694,7 +695,7 @@ public class TeaP1LivingLiquidPullTests
     [TestCase(43u, false, TestName = "{m}(Holmgang)")]
     [TestCase(3638u, false, TestName = "{m}(Living Dead)")]
     [TestCase(16152u, false, TestName = "{m}(Superbolide)")]
-    public void OnlyAWeaponskillOrSpellAimedAtADollIsAHitOnIt(uint press, bool hits)
+    public void OnlyAnActionAimedAtADollAndNotAtItsUserIsAHitOnIt(uint press, bool hits)
     {
         var stage = Human(ThePull);
         bool hit = false;

@@ -64,21 +64,24 @@ public sealed class TeaP1JagdDoll
     }
 }
 
-// The four Jagd Dolls. Each tethers the first player whose weaponskill or spell on it is heard and walks after that
-// player. Each Exhausts on the timeline; two Exhausts on one player at once make that player explode. A doll a player
-// has hit is fed to a boss it comes close to: harmlessly once its health is under a quarter, and killing everyone
-// before.
+// The four Jagd Dolls. Each tethers the first player whose action aimed at it is heard (a weaponskill, a spell or an
+// ability with one target other than its user) and walks after that player. Each Exhausts on the timeline; two
+// Exhausts on one player at once make that player explode, which kills everyone near it short of a tank's
+// invulnerability. A doll a player has hit is fed to a boss it comes close to: harmlessly once its health is under a
+// quarter, and killing everyone before.
 //
 // No damage is played, so a doll's health is scripted from its tether and no doll dies. The fight's doll also tethers
-// whoever's auto-attack lands on it first; the run hears no auto-attack, so here a doll waits for a weaponskill or a
-// spell. UNVERIFIED: that a doll nobody has hit is never fed (seen only in a doll's first 0.75 s), that one can be fed
-// from its first hit, before its tether shows, that a doll fed with a quarter of its health or more kills everyone,
-// where the fight's hits hard enough to kill most of a party, and that an explosion reaches the sheet's 8 y past a
-// player's hitbox.
+// whoever's auto-attack lands on it first; the run hears no auto-attack, so here a doll waits for an action.
+// UNVERIFIED: that a doll nobody has hit is never fed (seen only in a doll's first 0.75 s); that one can be fed from
+// its first hit, before its tether shows, and is fed the moment a boss stands inside the line (the one doll seen fed
+// before a tether had the Living Liquid 3.9 y from it for 1.9 s first); that a doll fed with a quarter of its health
+// or more kills everyone, where the fight's hits hard enough to kill most of a party; that an explosion reaches the
+// sheet's 8 y past a player's hitbox; and that a tank's invulnerability takes it through one, its own included, since
+// nobody was seen to explode under one.
 public sealed class TeaP1JagdDolls
 {
     internal const string LuminousAetheroplasmBurst =
-        "A player hit by two Jagd Dolls' Exhausts at once explodes and kills everyone within 8.5 y: each Exhaust reaches 8.8 y round its doll";
+        "A player hit by two Jagd Dolls' Exhausts at once explodes and kills everyone within 8.5 y, short of a tank's invulnerability: each Exhaust reaches 8.8 y round its doll";
     internal const string ADollWasFedTooSoon =
         "A Jagd Doll reached a boss with a quarter of its health or more left: one that comes within 4.6 y of the Living Liquid or the Liquid Hand is fed to it, and above a quarter that kills everyone";
 
@@ -167,7 +170,7 @@ public sealed class TeaP1JagdDolls
     }
 
     // One Exhaust from every doll that is up. Whoever two or more reach explodes, which kills everyone the explosion
-    // reaches, itself included.
+    // reaches, itself included, but a tank inside its invulnerability.
     internal void Exhaust()
     {
         if (left) return;
@@ -183,7 +186,7 @@ public sealed class TeaP1JagdDolls
         foreach (var member in exploding)
         {
             foreach (var caught in world.Party.ActiveMembers().Where(other => TeaP1LivingLiquid.Apart(other.Position, member.Position) <= blast + member.HitboxRadius))
-                verdicts.Kill(caught, P1ActionId.ExhaustFromAPlayer, LuminousAetheroplasmBurst);
+                if (!Actions.Invulnerable(caught)) verdicts.Kill(caught, P1ActionId.ExhaustFromAPlayer, LuminousAetheroplasmBurst);
             fight.CastFromHelper(Actions.ExhaustFromAPlayer, at: member.Placement());
         }
         verdicts.Deal();

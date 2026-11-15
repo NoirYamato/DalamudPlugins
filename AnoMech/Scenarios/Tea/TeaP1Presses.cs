@@ -17,7 +17,8 @@ public sealed record TeaP1Cleanse(SimCharacter By, SimCharacter Target, float At
 // One Provoke, aimed at whatever carries `TargetId`.
 public sealed record TeaP1Provoke(SimCharacter By, ulong TargetId, float At, bool ByHuman);
 
-// One weaponskill or spell aimed at an enemy, the one that carries `TargetId`.
+// One action aimed at an enemy, the one that carries `TargetId`, and at nothing else: a weaponskill, a spell or an
+// ability with one target other than its user. No auto-attack is heard.
 public sealed record TeaP1Strike(SimCharacter By, ulong TargetId, float At, bool ByHuman);
 
 // The human's own presses a TEA P1 run reads, heard through IUserActions.Acted whether or not the player's actions
@@ -219,11 +220,12 @@ public sealed class TeaP1Presses : IDisposable
         if (IsAimedAtOneTarget(action.ActionId)) heard.Add((Kind.Strike, targetId, world.Events.Elapsed, action.ActionId));
     }
 
-    // Aimed at one target that is not its user; CatchUp counts it as a hit when that target is no party member. Some
-    // such buttons can land on a party member or on an enemy (a monk's Thunderclap), and the sheet's columns here do
-    // not say which can land on an enemy. UNVERIFIED: that the client refuses one that cannot before it is heard,
-    // that every weaponskill or spell aimed at an enemy counts as a hit on it, and that one which only clips it, laid
-    // on the ground or round its user, does not. The fight's enemies also count an auto-attack; none is heard here.
+    // Aimed at one target that is not its user, whatever its kind: a weaponskill, a spell or an ability, Provoke among
+    // them. CatchUp counts it as a hit when that target is no party member. Some such buttons can land on a party
+    // member or on an enemy (a monk's Thunderclap), and the sheet's columns here do not say which can land on an
+    // enemy. UNVERIFIED: that the client refuses one that cannot before it is heard, that every such action aimed at
+    // an enemy counts as a hit on it, and that one which only clips it, laid on the ground or round its user, does
+    // not. The fight's enemies also count an auto-attack; none is heard here.
     //
     // A button that turns into another action comes with its own id, and its own row is aimed at its user (Ninjutsu
     // for Raiton, Iaijutsu for Higanbana): those are let through by id, so one that became something laid round its

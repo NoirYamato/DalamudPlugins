@@ -541,11 +541,13 @@ public class TeaP1LivingLiquidPullLpduHumanTests
 
     // -- The main tank: when it leads the Living Liquid in --
 
-    // It sets off for the middle at 36.6, as soon as both busters have landed, with the melee still by their dolls.
-    // Where the two melee dolls stand either side of its way, both reach it as they first Exhaust: it explodes, and
-    // whoever stands within 8.5 y dies with it. Where they do not, the Living Liquid follows it past M1's doll, which is
-    // fed with more than a quarter of its health left: everyone dies. The start's chat line has it lead the Liquid in
-    // only from 42 s.
+    // It sets off for the middle at 36.6, as soon as both busters have landed, with the melee still by their dolls,
+    // and inside its invulnerability, pressed at 34. Where the two melee dolls stand either side of its way, both reach
+    // it as they first Exhaust: it explodes. Its invulnerability takes it through its own explosion, but both melee,
+    // within 8.5 y of it, die, and at a walk the off tank on the Liquid's flank with them; where a sprint has by then
+    // drawn the Living Liquid on past M1's doll, the rest die of that doll a moment later. Where the dolls do not both
+    // reach it, the Living Liquid follows it past M1's doll, which is fed with more than a quarter of its health left:
+    // everyone dies. The start's chat line has it lead the Liquid in only from 42 s.
     [Test]
     public void AHumanMainTankWhoLeadsTheLiquidInAsSoonAsTheBustersHaveLandedExplodesOrFeedsADollTooSoon([Values] TeaP1HumanPace pace)
     {
@@ -558,12 +560,22 @@ public class TeaP1LivingLiquidPullLpduHumanTests
             var (run, human, _) = Play(roll, play, 510, mayLose: true);
             var context = roll.ToString();
             problems.AddRange(Faults(roll, human, run).Select(fault => $"{context}: {fault}"));
+            if (human.TurnedInvulnerableAt is not < 34.6f) problems.Add($"{context}: the main tank turned invulnerable at {human.TurnedInvulnerableAt}");
             TestContext.Out.WriteLine($"{context}: {string.Join(", ", run.Deaths.Select(death => $"{death.Role} at {Secs(death.Time)}"))}");
+            var ofItsExplosion = run.Deaths.Where(death => MathF.Abs(death.Time - TheFirstExhaust) <= 0.1f && death.Cause.Contains(TeaP1JagdDolls.LuminousAetheroplasmBurst)).ToList();
+            var later = run.Deaths.Except(ofItsExplosion).ToList();
             if (run.Failure is not null) problems.Add($"{context}: {run}");
-            else if (run.Deaths.Count > 0 && run.Deaths.All(death => MathF.Abs(death.Time - TheFirstExhaust) <= 0.1f && death.Cause.Contains(TeaP1JagdDolls.LuminousAetheroplasmBurst))
-                     && run.Deaths.Any(death => death.Role == MainTank))
+            else if (ofItsExplosion.Count > 0)
+            {
                 exploded++;
-            else if (NotEveryoneDied(run, 39.45f, TeaP1JagdDolls.ADollWasFedTooSoon, within: 0.5f).Any())
+                var died = ofItsExplosion.Select(death => death.Role).Order().ToList();
+                var expected = pace == TeaP1HumanPace.Walking ? new[] { OffTank, MeleeDpsA, MeleeDpsB } : [MeleeDpsA, MeleeDpsB];
+                if (!died.SequenceEqual(expected.Order())) problems.Add($"{context}: its explosion killed {string.Join(" ", died)}: {run}");
+                if (later.Count > 0 && (later.Count != 8 - ofItsExplosion.Count
+                                        || later.Any(death => death.Time is < 39f or > 40.3f || !death.Cause.Contains(TeaP1JagdDolls.ADollWasFedTooSoon))))
+                    problems.Add($"{context}: after the explosion not everyone left died of a doll fed too soon: {run}");
+            }
+            else if (NotEveryoneDied(run, 39.4f, TeaP1JagdDolls.ADollWasFedTooSoon, within: 0.4f).Any())
                 problems.Add($"{context}: the main tank did not explode at the first Exhaust, nor did everyone die of a doll fed too soon: {run}");
             else fedTooSoon++;
         }
