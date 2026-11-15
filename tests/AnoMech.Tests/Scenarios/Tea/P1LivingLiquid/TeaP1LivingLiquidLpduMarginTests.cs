@@ -437,7 +437,7 @@ public partial class TeaP1LivingLiquidLpduMarginTests
         });
     }
 
-    private static readonly (TeaP1Tornado From, TeaP1Boss AimsAt)[][] EmbolusRolls =
+    internal static readonly (TeaP1Tornado From, TeaP1Boss AimsAt)[][] EmbolusRolls =
         (from pair in TetheringPairs
          from firstAtTheLiquid in new[] { true, false }
          select new[]

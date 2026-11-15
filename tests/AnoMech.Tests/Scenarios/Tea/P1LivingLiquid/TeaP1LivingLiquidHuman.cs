@@ -158,6 +158,14 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // 11.5 y at 39.
     public (float FromTheMiddle, float Bearing)? SplitsTo { get; init; }
 
+    // At this time on the fight's clock the off tank walks in along that bearing to 3.9 y from the middle, through
+    // the Liquid Hand, which follows it to 4.1 y behind it.
+    public float? DrawsTheHandInAt { get; init; }
+
+    // Once the Hand has left it, the off tank waits here, in the first tornadoes' frame; null: on the Living Liquid's
+    // flank.
+    public Vector2? WaitsHereOnceTheHandHasLeft { get; init; }
+
     // A ranged baits its tornado from 8.4 y on this bearing from it (R2's mirrored), and goes out to the strat's bait
     // once the unseen wave has gone off; null: the strat's bait.
     public float? BaitsItsTornadoFromBearing { get; init; }
@@ -186,9 +194,13 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // The off tank sets off for the middle at this time on the fight's clock; null: as Hand of Pain lands.
     public float? LeadsTheHandInAt { get; init; }
 
+    // The off tank sets off for the middle this long after the strat's beat.
+    public float LeadsTheHandInLate { get; init; }
+
     public TeaP1HumanHits Hits { get; init; }
 
-    // It hits the doll of this seat's quarter first, whatever its own kind; null: as Hits says.
+    // It hits the doll of this seat's quarter first, whatever its own kind, a tank or a healer too, which then holds
+    // a doll it has no part in feeding; null: as Hits says.
     public PartyRole? HitsTheDollOf { get; init; }
 
     // On top of the reaction time, for its first hit on its doll alone.
@@ -224,7 +236,8 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 // leads its boss onto the middle after Hand of Pain and takes its hold once the boss rests there. A damage dealer hits
 // its doll once it is targetable, in reach and no boss stands by it, a caster standing still for its cast, and, once
 // the chat says the doll is under a quarter, draws it through the nearer boss at rest, to a spot clear of the water.
-// A healer waits far out until the first Exhaust.
+// A healer waits far out until the first Exhaust. A tank or a healer hits a doll only where a test has it do so, and
+// then plays its seat on with the doll after it.
 // No buster of the pull asks a tank for a cooldown; one that presses its buttons with a doll targeted presses one ahead
 // of each all the same.
 internal sealed class TeaP1LivingLiquidHuman
@@ -258,7 +271,7 @@ internal sealed class TeaP1LivingLiquidHuman
     private const float AMeleeReaches = 3.5f, ARangedReaches = 25f, NoBossThisCloseToADollBeingHit = 5.2f;
     private const float PastTheBossADollIsDrawnThrough = 2.5f, AFeederKeepsFromEveryTornado = 8.3f, AFeederStaysWithinOfTheMiddle = 19.3f;
     private const float ABossRestsOnTheMiddleWithin = 3f;
-    private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141, PiercingTalon = 90;
+    private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141, PiercingTalon = 90, Tomahawk = 46, Stone = 119;
     private const uint Vengeance = 44, Sentinel = 17, ShadowWall = 3636, Nebula = 16148;
     private const string ItsDollIsReady = "Your Jagd Doll is under a quarter of its health";
 
@@ -387,12 +400,16 @@ internal sealed class TeaP1LivingLiquidHuman
                     When: p => AtRest(Stage.Fight(p).Liquid));
                 break;
             case OffTank:
-                yield return new(HandLeft, 0.05f, _ => Frame1.ToArena(play.WaitsOnTheMiddleOnceTheHandHasLeft ? Vector2.Zero : Stage.OffTanksFlank), IfItComes: true);
+                if (play is { DrawsTheHandInAt: { } drawsItIn, SplitsTo: { } splitTo })
+                    yield return new(Start, drawsItIn, _ => Frame1.ToArena(Stage.Off(Vector2.Zero, 3.9f, splitTo.Bearing)));
+                yield return new(HandLeft, 0.05f, _ => Frame1.ToArena(play.WaitsOnTheMiddleOnceTheHandHasLeft ? Vector2.Zero
+                    : play.WaitsHereOnceTheHandHasLeft ?? Stage.OffTanksFlank), IfItComes: true);
                 if (play.WalksInOnAFist) yield return new(Glow, 0.5f, _ => SawAPalmAtThePull == false ? Frame1.ToArena(Stage.OffTanksFlank) : null);
                 yield return play.LeadsTheHandInAt is { } leadsItIn
                     ? new(Start, leadsItIn, p => Spot(p, Pull, 42.5f))
-                    : new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
-                yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain, p => Spot(p, Pull, 46.6f), Follows: true, When: p => AtRest(Stage.Fight(p).Hand));
+                    : new(HandOfPainLands, LeavesTheRimAfterHandOfPain + play.LeadsTheHandInLate, p => Spot(p, Pull, 42.5f));
+                yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain + play.LeadsTheHandInLate, p => Spot(p, Pull, 46.6f), Follows: true,
+                    When: p => AtRest(Stage.Fight(p).Hand));
                 break;
             case RegenHealer or ShieldHealer:
                 if (play.Waits == TeaP1HumanHealerWaits.InTheMiddle)
@@ -763,7 +780,7 @@ internal sealed class TeaP1LivingLiquidHuman
     {
         if (p.Time >= ThePullLastLooksAt && castResolvesAt is null) return;
         if (seat.IsTank()) PressATanksButtons(p, me, Stage.Fight(p));
-        else if (Melee.Contains(seat) || Ranged.Contains(seat)) HitItsDoll(p, me, Stage.Fight(p));
+        if (Melee.Contains(seat) || Ranged.Contains(seat) || play.HitsTheDollOf is not null) HitItsDoll(p, me, Stage.Fight(p));
     }
 
     // No cleave asks for a cooldown. A tank that presses its buttons with a doll targeted presses one ahead of each
@@ -820,9 +837,17 @@ internal sealed class TeaP1LivingLiquidHuman
         if (cooldowns && theHandIsOnIt && p.Time >= 54.3f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? cooldown : TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
     }
 
-    private uint ItsAttack => seat switch { MeleeDpsA => TrueThrust, MeleeDpsB => Bootshine, PhysRangedDps => HeavyShot, _ => Fire };
+    private uint ItsAttack => seat switch
+    {
+        MainTank or OffTank => Tomahawk,
+        RegenHealer or ShieldHealer => Stone,
+        MeleeDpsA => TrueThrust,
+        MeleeDpsB => Bootshine,
+        PhysRangedDps => HeavyShot,
+        _ => Fire,
+    };
 
-    // Its first weaponskill or spell on the doll it takes, once that is targetable, untouched and in reach with no
+    // Its first action on the doll it takes, once that is targetable, untouched and in reach with no
     // boss beside it: a doll hit beside a boss is fed there and then. A spell is cast standing still.
     private void HitItsDoll(ScenarioProbe p, SimCharacter me, TeaP1LivingLiquid fight)
     {

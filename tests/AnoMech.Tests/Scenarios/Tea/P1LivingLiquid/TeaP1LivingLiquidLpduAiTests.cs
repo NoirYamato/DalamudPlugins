@@ -89,7 +89,8 @@ public partial class TeaP1LivingLiquidLpduAiTests
 
         public override string ToString()
             => $"{First} to {Last}, tornadoes open {Open1} then {Open2}"
-               + (Drainage is null ? "" : $", tethers {string.Join(" and ", Drainage.Select(roll => $"{roll.From} on {roll.FirstTarget}"))}");
+               + (Drainage is null ? "" : $", tethers {string.Join(" and ", Drainage.Select(roll => $"{roll.From} on {roll.FirstTarget}"))}")
+               + (FirstEmboli is null ? "" : $", the pull's Emboli {string.Join(" and ", FirstEmboli.Select(roll => $"{roll.From} to the {roll.AimsAt}"))}");
     }
 
     internal static ScenarioRun Play(Roll roll, PartyRole player, int seed, Action<ScenarioProbe>? probe = null, float? stopAt = null, params Takeover[] takeovers)
