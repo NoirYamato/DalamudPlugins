@@ -12,8 +12,8 @@ public sealed class EntryTiming
     public required double Hit { get; init; }
 
     /// <summary>
-    /// The automatic offset (press − hit): what the entry is pressed at when the plan gives it no offset, its first item's
-    /// press (an item may be pressed later, <see cref="ItemTiming.PressAt"/>).
+    /// The automatic offset (press − hit): what the entry is pressed at when the plan gives it no offset, the earliest of its
+    /// items' presses (an item may be pressed later, <see cref="ItemTiming.PressAt"/>).
     /// </summary>
     public required double AutomaticOffset { get; init; }
 

@@ -141,7 +141,7 @@ public static class TimingRules
     /// Every item is pressed at the entry's press time, except that with an automatic press an item waits for its own
     /// series floor or for a later hit it reaches on its own (<see cref="ItemTiming.PressAt"/>), and that an item pressed
     /// last (<see cref="IsPressedLast"/>: Passage of Arms, a channel any other action ends) comes with the entry's last
-    /// item; the automatic press is then the entry's first item's (<see cref="EntryTiming.AutomaticOffset"/>). Each item's
+    /// item; the automatic press is then the earliest of the items' (<see cref="EntryTiming.AutomaticOffset"/>). Each item's
     /// use window is <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series
     /// floor, when it has one, or with an automatic press one that ends before a later hit the item covers, is early, and
     /// the item's reminder does not turn due before then either. An item pressed last does not turn due before any other
@@ -196,7 +196,7 @@ public static class TimingRules
         // Each item's automatic press: the entry's, or later for an item that waits for the series floor of its own action
         // (never earlier than the entry's: an instant shield beside the cast one that times the entry lands after the hit
         // before it too) or for a later hit it reaches on its own. An item pressed last (Passage of Arms, a channel any other
-        // action ends) comes with the entry's last item. The entry's press is its first item's.
+        // action ends) comes with the entry's last item. The entry's automatic press is the earliest of them.
         var floors = new double?[items.Count];
         var automaticPresses = new double[items.Count];
         for (var i = 0; i < items.Count; i++)
@@ -511,13 +511,13 @@ public static class TimingRules
     }
 
     /// <summary>
-    /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration D: the later hits of
-    /// the mechanic it can cover together with <paramref name="hit"/> (hR − hit ≤ D − 1 s − the latest use before the hit,
-    /// <see cref="ReminderOptions.MitigationLatestBeforeHit"/>, and the earliest use that still reaches hR at least 1 s
-    /// before <paramref name="hit"/>) with a press no later than <paramref name="latestOffset"/> after the hit allows
-    /// (<see cref="LatestCoveringOffset"/>), each pressed hR − D + 2 s but at least 0.5 s before the hit; for the last of
-    /// them its press and that earliest use, hR − D + 0.5 s, and the press for the last one the entry reaches pressed at
-    /// hR − D + 2 s (null when none is that close); else null. A later hit that would need a later press is not covered.
+    /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration D, the later hits hR
+    /// of the mechanic it can cover together with <paramref name="hit"/>: hR − hit ≤ D − 1 s − the latest use before the
+    /// hit (<see cref="ReminderOptions.MitigationLatestBeforeHit"/>), the earliest use that still reaches hR,
+    /// hR − D + 0.5 s, at least 1 s before the hit, and a press no later than <paramref name="latestOffset"/> after the hit
+    /// allows (<see cref="LatestCoveringOffset"/>), the press being hR − D + 2 s but at least 0.5 s before the hit. For the
+    /// last of them: that press and earliest use, and the press for the last one reached at hR − D + 2 s itself, which the
+    /// entry gets (null when none is); else null. A later hit that would need a later press is not covered.
     /// </summary>
     private static (double? EntryPress, double Press, double NotEarly)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset, ReminderOptions options)
     {
