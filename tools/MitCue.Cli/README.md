@@ -15,7 +15,7 @@ without either, the copy built into MitCue.Core is used. Plans can be YAML, JSON
 |---|---|
 | `fights` | The fights: key, name, territory, sync level, phases, mechanics, timeline file. |
 | `mechanics <fight> [--phase p2] [--kind raidwide] [--find text]` | Phases, calibration presets and mechanics (hit as phase m:ss and timeline seconds, kind, cactbot entry, hits, aliases). |
-| `timeline <fight\|file.txt> [--syncs]` | The parsed cactbot timeline: entries with syncs, non-default windows, jumps; labels; parser warnings. |
+| `timeline <fight\|file.txt> [--syncs]` | The parsed cactbot timeline, with a fight's `timeline_additions` appended (TOP: 283 entries, 208 with a sync): entries with syncs, non-default windows, jumps; labels; parser warnings. |
 | `import <source> --fight <key> [...]` | A sheet (.xlsx, fixture folder, .csv/.tsv/.json, or a public Google Sheets link) to plan YAML, with the importer's diagnostics by severity and each phase's fitted zero point and spread. |
 | `plan <plan> --job <job> [--slot] [--assignee]` | The player's checklist in press-time order: phase time, offset from the hit (`*` = no time in the plan: the automatic press time, `docs/DESIGN.md` §5.1; an offset the importer wrote, such as its recast fit's, is a time in the plan), action, mechanic, target and notes, flags. |
 | `simulate <plan> --job <job> [--push p2=110,...] [--seed n] [--miss a,b] [--from p3] [--wipe t]` | A generated pull through the timeline player and the reminder scheduler, set up like the plugin's encounter session; logs every reminder state change and prints the pull summary. |

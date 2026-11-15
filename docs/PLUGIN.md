@@ -143,6 +143,10 @@ to it, or jumps for phase pushes. In TOP, the phases are entered through these s
 | P5 | `Ability 7B7C` (the Blue Screen hit) | 700.0 |
 | P6 | `Ability 7F72` (the Blind Faith hit) | 1100.0 |
 
+`data/fights/top.yaml` adds one sync (`timeline_additions`, appended to the timeline when it loads): the P2 Cosmo
+Memory raidwide, `Ability 7B24` at 320.2 with a window of 1 s either way, which cactbot does not list. It is the
+second hit of LPDU's "Limitless" calls. Its time comes from BossMod and has not been checked against logs yet.
+
 TEA's phases also start on syncs MitCue sees: `Ability 4830` (Hawk Blaster) at 200.0, `StartsUsing 485A`
 (Temporal Stasis) at 492.0 and `Ability 4A8B` at 900.0. cactbot folds the J Waves of TEA's P3 DPS check into
 one entry, so `data/fights/tea.yaml` adds a sync per wave (`timeline_additions`, appended to the timeline when

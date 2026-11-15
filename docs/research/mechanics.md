@@ -7,7 +7,7 @@ fixtures and readers in `docs/research/sheets-import.md`.
 
 | File | Content |
 |---|---|
-| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), and the `carry_the_clear` calibration. Complete and verified. |
+| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), the `carry_the_clear` calibration, and one `timeline_additions` sync, the P2 Cosmo Memory raidwide (7B24 at 320.2, §3; not checked against a log; with it `mitcue timeline top` lists 283 entries, 208 with a sync). Complete and verified. |
 | `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), 17 `timeline_additions` (the J Waves, §6.2, and the first Tetrashatter, §6.3) and timing fields on four mechanics (§6.2, §6.3). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
 | `data/fights/dmu.yaml` | Dancing Mad (Ultimate): 63 mechanics (1 marker), 145 aliases (12 unverified). First draft, no calibration. |
 
@@ -16,12 +16,13 @@ fixtures and readers in `docs/research/sheets-import.md`.
 - **Timeline checks (all three files).**
   - Every `hit`/`entry` pair is an entry of the cactbot timeline (same name, same time ±0.05 s), or of the fight
     file's `timeline_additions` (TEA's J Waves and first Tetrashatter, §6.2, §6.3).
-  - Every value in `hits` is the time of a timeline entry.
+  - Every value in `hits` is the time of a timeline entry, `timeline_additions` included (TOP's Cosmo Memory
+    raidwide, the second hit of `p2.limitless`, §3).
   - `hits[0] == hit`, and `hits` is ascending and has no duplicates.
   - Every hit lies inside its mechanic's phase (`PhaseAt(hit) == phase`).
   - Ids are unique and carry their phase as a prefix, and mechanics are ordered by `hit`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
-    sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; DMU and TEA also
+    sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; all three also
     `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`
     (TEA also the timing fields `press`, `heal_lead` and `series`, `docs/DESIGN.md` §3.1).
 - **TOP sheet coverage.**
@@ -105,7 +106,7 @@ the calibration analysis. They are described precisely enough to become the data
 - **`hits`** lists every damage time that is itself a timeline entry, so "after the n-th hit" hints can use
   `Mechanic.HitAt(n)`. Sub-hits that cactbot does not list are not invented (the Splash sub-hits in TEA, the four
   later Diffuse Wave Cannon Kyrios cleaves in TOP), except as `timeline_additions` entries (TEA's 16 J Waves, the
-  hits of `p3.j_waves`).
+  hits of `p3.j_waves`; TOP's Cosmo Memory raidwide, the second hit of `p2.limitless`).
 - **Umbrella and part mechanics.**
   - Where one sheet row covers several hits that another sheet lists one by one, both exist: an umbrella (for
     example `p1.pantokrator`, all four stacks) and its parts (`p1.panto_stack1..4`).
@@ -213,7 +214,7 @@ where they are anchors.
 | 306.7 | Beyond Defense | 7B27 | Ability | 7B27 Beyond Defense (4.9 s, r0) | jump on one of the two closest players (hit 7B28 on the -ii line); not anchored |
 | 309.7 | Optimized Meteor | 7B31 | Ability | 7B31 Optimized Meteor (8 s, r0) | ANCHOR of `p2.limitless`, `p2.flares` |
 | 310.0 | Pile Pitch | 7B29 | Ability | 7B29 Pile Pitch (0 s, r6) | hit of `p2.flares` |
-| 318.8 | Cosmo Memory | 7B22 | Ability | 7B22 Cosmo Memory (5 s, r0) | ANCHOR of `p2.cosmo_memory` (also a hit of `p2.limitless`) |
+| 318.8 | Cosmo Memory | 7B22 | Ability | 7B22 Cosmo Memory (5 s, r0) | ANCHOR of `p2.cosmo_memory`; the 7B24 raidwide about 1.4 s later is a `timeline_additions` sync at 320.2, the second hit of `p2.limitless` |
 | 347.4 | Laser Shower Enrage | 7B45 | Ability | 7B45 Laser Shower (60 s, r100) | ANCHOR of `p2.laser_shower` |
 | | **P3: Omega Reconfigured** | | | | |
 | 400.0 | --sync-- | 7B13 | Ability | 7B13 (no name) (0 s, r0) | ANCHOR of `p3.start` |
@@ -403,7 +404,7 @@ and Rear Lasers repeats) and fail effects (Unmitigated Explosion, Patch and Hell
 | 7F75 | Optimized Bladedance, EffectRange 100 | `OptimizedBladedanceAOE`, tethered cone | `Optimized Bladedance x2`, same time |
 | 7B28 | Beyond Defense, EffectRange 5 | jump on one of the two closest players | not anchored |
 | 7B32 | Optimized Meteor, EffectRange 100 | flares, raidwide with falloff | `Optimized Meteor`, same time |
-| 7B23/7B24 | Cosmo Memory (7B24: 1.5 s cast, EffectRange 100) | 7B24 = `CosmoMemoryAOE`, raidwide | `Cosmo Memory` 7B22, about 1.4 s earlier |
+| 7B23/7B24 | Cosmo Memory (7B24: 1.5 s cast, EffectRange 100) | 7B24 = `CosmoMemoryAOE`, raidwide | `Cosmo Memory` 7B22, about 1.4 s earlier; `top.yaml` adds `320.2 "Cosmo Memory raidwide" Ability { id: "7B24" } window 1,1` (`timeline_additions`): 7B24 is cast nowhere else (one Optical Unit, BossMod's `P2CosmoMemory` its only use), so the window moves the clock by at most 1 s |
 | 7B56/7B57 | Critical Synchronization Bug / Critical Overflow Bug | Hello World stacks / defamations | `Latent Defect N`, 1.0 s earlier |
 | 7B5A/7B5B | Critical Underflow / Performance Bug | rot explosions | – |
 | 7B5F/7B60 | Cascading Latent Defect / Latent Performance Defect | red/blue towers | `Latent Defect N`, 1.0 s earlier |
@@ -869,11 +870,13 @@ Examples:
 
 ### 4.6 Judgment calls (review with the plan authors if possible)
 
-1. **LPDU `Limitless` → `p2.limitless`** (flares 309.7 + Cosmo Memory 318.8), not the Bladedance tankbusters
-   (295.6).
+1. **LPDU `Limitless` → `p2.limitless`** (flares 309.7 + the 7B24 Cosmo Memory raidwide 320.2), not the Bladedance
+   tankbusters (295.6).
    - The P1/P2 row assigns party mitigation, healer "Everything" and Magick Barrier.
    - Its note row says "15 sec Mit is used as the clone jumps". Beyond Defense is at 306.7, and 15 s from there
-     covers the flares and the 7B24 Cosmo Memory raidwide (~320.2).
+     covers the flares and the 7B24 Cosmo Memory raidwide (~320.2). With that raidwide as the mechanic's second hit,
+     the row's 15 s mitigation without a time is pressed at 307.2, 2.5 s before the flares (`docs/DESIGN.md` §5.1
+     rule 3), and lasts through it.
    - `General Tank Mit til P5` row `Limitless` (Rampart + 30% + Short CD) resolves to the same mechanic. Whether
      LPDU meant Bladedance for the tanks is **UNVERIFIED**.
 2. **`General Tank Mit til P5` row `Pantokrator`** says "Invuln Diffuse Wave Cannon".
@@ -917,7 +920,7 @@ Examples:
 
 | Mechanic | Anchor entry (hit) | Relation to the real damage |
 |---|---|---|
-| `p2.cosmo_memory` | Cosmo Memory (318.8) | 7B22 cast end; the raidwide 7B24 (1.5 s cast) lands about 1.4 s later (BossMod: 10.2 s after Pile Pitch) |
+| `p2.cosmo_memory` | Cosmo Memory (318.8) | 7B22 cast end; the raidwide 7B24 (1.5 s cast) lands about 1.4 s later (BossMod: 10.2 s after Pile Pitch), the second hit of `p2.limitless` (320.2, a `timeline_additions` sync) |
 | `p3.latent_1` | Latent Defect 1 (464.4) | Latent Defect cast end; towers, stacks and defamations land 1.0 s later, rots about 6 s after that |
 | `p3.latent_2` | Latent Defect 2 (485.4) | Latent Defect cast end; the hits land 1.0 s later |
 | `p3.latent_3` | Latent Defect 3 (506.5) | Latent Defect cast end; the hits land 1.0 s later |
@@ -1498,7 +1501,7 @@ filled. This is **UNVERIFIED** and irrelevant to the catalog.
 | `p2.party_synergy_spreads` | p2 | spread | 247.7 | 247.7 | Optimized Fire III | 6 |
 | `p2.party_synergy_stacks` | p2 | stack | 259.1 | 259.1 | Spotlight x2 | 5 |
 | `p2.bladedance` | p2 | mixed | 295.6 | 295.6, 295.7 | Optimized Bladedance x2 | 6 |
-| `p2.limitless` | p2 | multihit | 309.7 | 309.7, 318.8 | Optimized Meteor | 3 |
+| `p2.limitless` | p2 | multihit | 309.7 | 309.7, 320.2 | Optimized Meteor | 3 |
 | `p2.flares` | p2 | mixed | 309.7 | 309.7, 310.0 | Optimized Meteor | 5 |
 | `p2.cosmo_memory` | p2 | raidwide | 318.8 | 318.8 | Cosmo Memory | 4 |
 | `p2.laser_shower` | p2 | enrage | 347.4 | 347.4 | Laser Shower Enrage | 4 |

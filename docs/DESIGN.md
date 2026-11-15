@@ -191,9 +191,9 @@ the importer adds the value to row-relative offsets (§6 step 7).
 Optional `timeline_additions`: cactbot sync lines appended to the timeline when it loads (the bundled file stays
 cactbot's). Each line must have a sync and may not jump to a label. Label and hideall statements are refused (they
 would change the cactbot file's): the fight file then does not load. The additions are fallbacks for phase starts
-that cactbot syncs only on event types the plugin does not see (§4), or entries for damage an anchor needs that
-cactbot folds into one entry or does not list. `dmu.yaml` syncs DMU's P2 and P4 starts on cast starts, since cactbot
-uses director updates there:
+that cactbot syncs only on event types the plugin does not see (§4), or entries for damage an anchor or a later hit
+needs that cactbot folds into one entry or does not list. `dmu.yaml` syncs DMU's P2 and P4 starts on cast starts,
+since cactbot uses director updates there:
 
 ```yaml
 timeline_additions: |
@@ -217,6 +217,18 @@ timeline_additions: |
   713.9 "J Wave 2" Ability { id: "4877" } window 1.4,1.4
   …
   755.9 "J Wave 16" Ability { id: "4877" } window 1.4,1.4
+```
+
+`top.yaml` adds the P2 Cosmo Memory raidwide (`Ability 7B24`, the Optical Unit's 1.5 s cast, at 320.2: 10.2 s after
+Pile Pitch in BossMod's states; not yet checked against a log), which cactbot leaves on its ignore line: its "Cosmo
+Memory" (318.8) is the 7B22 cast end, where `p2.cosmo_memory` stays, the time the sheets give it. The raidwide is the
+second hit of `p2.limitless`, so that 15 s mitigation planned on LPDU's "Limitless" rows without a time is pressed
+2.5 s before the flares and lasts through it (§5.1 rule 3). 7B24 is cast nowhere else in the fight, and its window,
+1 s either way, can move the clock by at most 1 s.
+
+```yaml
+timeline_additions: |
+  320.2 "Cosmo Memory raidwide" Ability { id: "7B24" } window 1,1
 ```
 
 ### 3.2 Plan (YAML; stored as JSON, shared as a compressed share code)
