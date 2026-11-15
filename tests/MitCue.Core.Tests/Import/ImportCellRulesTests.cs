@@ -541,6 +541,23 @@ public class ImportCellRulesTests
         Assert.Null(r.Plan.Entries.Single(e => e.Mechanic != mechanic).Offset);
     }
 
+    [Theory]
+    [InlineData("P2", "PLD", "Mines\tWings", "Water 2\tWings", "Passage of Arms", -2)] // 14.0 s apart
+    [InlineData("P1", "Astrologian", "Fluid Swing 1\tNeutral", "Hand of Prayer\tNeutral + Star", "Neutral Sect", -4.5)] // 24.4 s apart, the later call 10 s early
+    public void PartyBuffNamedAgain_WithALeadOfItsOwn_IsNeverPressedAfterThatLead(string phase, string column, string first, string again, string action, double lead)
+    {
+        // Neutral Sect is pressed 4.5 s before its hit, time to cast the Aspected Helios that puts up its barrier, and Passage
+        // of Arms 2 s before it, the paladin's last press: neither is pressed later to last through the later call.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet(phase, column, first, again), fight: tea);
+
+        var earlier = r.Plan.Entries[0];
+        Assert.Null(earlier.Offset);
+        Assert.Equal(lead, TimingRules.ForEntry(earlier, tea.GetMechanic(earlier.Mechanic)!, tea, RepoFiles.Actions).AutomaticOffset, 3);
+        Assert.All(r.Plan.Entries, e => Assert.Contains(action, e.Names()));
+        Assert.Contains("both stay presses", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void LimitBreakInTwoColumns_IsOptional_ForWhoeverHasIt()
     {

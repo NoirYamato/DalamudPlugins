@@ -2012,6 +2012,17 @@ public sealed partial class PlanImporter
         private static double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(a => a.CastTime).DefaultIfEmpty(0).Max();
 
         /// <summary>
+        /// The latest offset <see cref="CoversLaterCall"/> may press an entry with these actions at: "(Late)"'s
+        /// (<see cref="LateOffsetOf"/>), and never after the lead of an action pressed with a lead of its own for its hit
+        /// (<c>when: before</c>: Neutral Sect's 4.5 s leave time to cast the Aspected Helios that puts up its barrier, Passage
+        /// of Arms' 2 s make it the last press). A pre-placed heal's lead is about when it heals (Earthly Star's 10 s to
+        /// mature), which a still-active follow-up moves to the later call (Stellar Detonation).
+        /// </summary>
+        private static double LatestMoveOffsetOf(IReadOnlyCollection<ActionInfo> actions) => Math.Min(
+            LateOffsetOf(actions),
+            actions.Where(a => a.When == UseTiming.Before && a.Lead is > 0 && a.Kind != ActionKind.Heal).Select(a => -a.Lead!.Value).DefaultIfEmpty(double.PositiveInfinity).Min());
+
+        /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to
         /// the next phase at that hit (Blue Screen, Blind Faith) or earlier (a pushed enrage). docs/research/mechanics.md §5.2:
         /// such actions belong to the next phase's start; the review shows them.
@@ -2427,7 +2438,8 @@ public sealed partial class PlanImporter
         /// longest of the action's effects (Seraph is out for 22 s, for a Consolation pressed 4 s before its hit). When it
         /// falls short, an earlier entry the importer times (<paramref name="movable"/>: no time in the sheet) is pressed
         /// later so that it serves both, if it is then still pressed before its own hit, no later than "(Late)" would press
-        /// it (<see cref="LateOffsetOf"/>); <paramref name="movedFrom"/> is then its automatic offset before.
+        /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>); <paramref name="movedFrom"/> is then its
+        /// automatic offset before.
         /// </summary>
         private bool CoversLaterCall(PlanEntry earlier, bool movable, double from, out double? movedFrom)
         {
@@ -2438,7 +2450,7 @@ public sealed partial class PlanImporter
 
             // Pressed later, with its reminder due at the earliest use that still serves the later call.
             var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
-            if (!movable || offset > LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
+            if (!movable || offset > LatestMoveOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList()))
                 return false;
             movedFrom = before.Offset;
             earlier.Offset = offset;
