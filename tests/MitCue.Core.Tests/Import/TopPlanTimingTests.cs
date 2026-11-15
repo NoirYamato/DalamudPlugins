@@ -80,6 +80,39 @@ public class TopPlanTimingTests
     }
 
     /// <summary>
+    /// 'General Tank Mit til P5'!B2/C2 "Invuln Diffuse Wave Cannon" (P1, 108.0): Omega cleaves the two furthest players five
+    /// times over 8.3 s (BossMod; cactbot shows the cleaves as one entry: the fight file's sub_hits). Every tank's 10 s
+    /// invuln, MT and OT, is pressed 0.5 s before the first cleave and turns due only when a press still lasts 0.5 s past
+    /// the fifth (116.3): a press on the NOW cue is on time, one at the plain NOW cue (1.5 s before the press) early.
+    /// </summary>
+    [Fact]
+    public void DiffuseWaveCannonKyrios_InvulnsLastThroughTheFifthCleave()
+    {
+        Assert.Equal([110.1, 112.1, 114.2, 116.3], PlanImports.Top.GetMechanic("p1.wave_cannon_kyrios")!.SubHits);
+        var invulns = Reminders("'General Tank Mit til P5'!B2", "'General Tank Mit til P5'!C2");
+        Assert.Equal(["Hallowed Ground", "Holmgang", "Living Dead", "Superbolide"], invulns.Select(r => r.Item.Name!).Distinct().Order());
+        Assert.Equal(8, invulns.Count);
+        foreach (var r in invulns)
+        {
+            Assert.Equal(10, RepoFiles.Action(r.Item.Name!).DurationAt(90));
+            Assert.Equal(108.0 - 0.5, r.PressAt, 1e-9);
+            Assert.Equal(116.3 - 10 + 0.5, NowCue(r), 1e-9);
+            Assert.True(r.Latest - NowCue(r) >= 1, $"{r.Entry.Src} {r.Item.Name}: due from {NowCue(r)} to {r.Latest}");
+
+            var s = new ReminderScheduler(PlanImports.Top, [r.Entry], RepoFiles.Actions, new ReminderOptions());
+            var mine = Assert.Single(s.All);
+            s.Update(NowCue(r));
+            Assert.Equal(ReminderState.Due, mine.State);
+            s.OnOwnAction(mine.ActionIds[0], NowCue(r));
+            Assert.Equal((ReminderState.Done, false), (mine.State, mine.UsedEarly));
+
+            s = new ReminderScheduler(PlanImports.Top, [r.Entry], RepoFiles.Actions, new ReminderOptions());
+            s.OnOwnAction(mine.ActionIds[0], r.PressAt - new ReminderOptions().DueLead);
+            Assert.True(Assert.Single(s.All).UsedEarly);
+        }
+    }
+
+    /// <summary>
     /// Cosmo Meteor (hits 1335.6 … 1342.7, 1343.7): the 10 s Reprisals of 'P6'!B7 (beside each tank's party mitigation)
     /// and the Dismantle of 'P6'!J7 (beside Tactician) reach the last spreads only pressed 0.5 s before the first hit, on
     /// their own; the 15 and 30 s calls beside them keep the entry's press, which the 10 s call's reach of the spreads at

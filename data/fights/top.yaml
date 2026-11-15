@@ -2,7 +2,9 @@
 # Timeline: data/timelines/the_omega_protocol.txt = cactbot ui/raidboss/data/06-ew/ultimate/the_omega_protocol.txt @ e79ea7f1.
 # Every hit/entry pair and every value in hits is a timeline entry, timeline_additions included (checked); analysis and
 # sheet mapping: docs/research/mechanics.md. hit = the damage a mitigation must cover; where cactbot has no entry for the
-# damage itself, the "# anchor:" comment gives the delay from the anchor entry to the real hit.
+# damage itself, the "# anchor:" comment gives the delay from the anchor entry to the real hit. sub_hits are damage
+# times that are no timeline entries (p1.wave_cannon_kyrios): only multi-hit coverage counts them (FightLoader,
+# TimingRules.ForEntry); each is commented where it is used.
 # kind "marker" = MechanicKind.Marker in src/MitCue.Core/Fights/FightDefinition.cs: pseudo-mechanics (pull, phase
 # starts, boss targetable) that carry no damage. Aliases marked "# unverified" are community shorthand that appears in
 # neither source sheet; the others are sheet labels (verbatim), cactbot entry names or plain-text forms.
@@ -179,11 +181,16 @@ mechanics:
       - "Pantokrator 4"
       - "Condensed Wave Cannon Kyrios 4"
   - id: p1.wave_cannon_kyrios
-    # ids: 7B11 Wave Cannon Kyrios (spreads, synced: 108.0, 116.8) + 7B10 Diffuse Wave Cannon Kyrios (5 cleaves on the 2 furthest; display entry "x5" at 108.0, duration 8; the other 4 cleaves are not entries)
+    # ids: 7B11 Wave Cannon Kyrios (spreads, synced: 108.0, 116.8) + 7B10 Diffuse Wave Cannon Kyrios (5 cleaves on the 2 furthest; display entry "x5" at 108.0, duration 8; the other 4 cleaves are not entries: sub_hits)
+    # sub_hits: the four later cleaves, which the tanks' invulns ("Invuln Diffuse Wave Cannon") must last through.
+    # BossMod (TOPStates.cs P1WaveCannons, @ 6e410ef8): "Tankbusters (1) + spreads (1)" at 108.0, the 2nd, 3rd and 4th
+    # cleaves 2.1, 4.1 and 6.2 s later, "Tankbusters resolve (5)" (10 casts of 7B10, AID 31504) 8.3 s later and the
+    # 2nd spreads 0.7 s after that (cactbot syncs them at 116.8, 0.2 s earlier); cactbot's "x5" entry lasts 8 s.
     name: "Wave Cannon Kyrios spreads + Diffuse Wave Cannon Kyrios tank cleaves"
     phase: p1
     hit: 108.0
     hits: [108.0, 116.8]
+    sub_hits: [110.1, 112.1, 114.2, 116.3]
     entry: "Wave Cannon Kyrios 1"
     kind: mixed
     aliases:

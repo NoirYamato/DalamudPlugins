@@ -124,6 +124,20 @@ public class ValidateCommandTests : IDisposable
     }
 
     [Fact]
+    public void SubHitsBeforeTheHit_AreAProblem()
+    {
+        // Sub hits are later damage times than the hit (TEA's first Splash: the five after 81.1), in time order.
+        var data = this.CopyData();
+        Replace(Path.Combine(data, "fights", "tea.yaml"), "sub_hits: [82.2, 83.3, 84.4, 85.5, 86.6]", "sub_hits: [80.0, 83.3]");
+
+        var r = this.kit.Run("validate", "--data", data);
+        Assert.Equal(1, r.ExitCode);
+        Assert.Matches(@"FAIL\s+fights/tea\.yaml \(1 problem\)", r.Out);
+        Assert.Contains("p1.splash_1", r.Out);
+        Assert.Contains("'sub_hits' are damage times after 'hit' (81.1), not 80.", r.Out);
+    }
+
+    [Fact]
     public void PlansNextToTheData_AreChecked()
     {
         var data = this.CopyData();

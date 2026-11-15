@@ -220,13 +220,15 @@ public class TeaPlanTimingTests
 
     /// <summary>
     /// 10 s mitigation on rows that cover a mechanic's later hits: 'Alex Prime/PA' row 39 on Optical Sight (938.6, 944.7)
-    /// and row 43 on Fate Calibration β (1081.5, 1082.5, 1088.6), 'LL/BJCC' row 23 on Protean 2 (109.1, 112.1, 115.1).
+    /// and row 43 on Fate Calibration β (1081.5, 1082.5, 1088.6), 'LL/BJCC' row 23 on Protean 2 (109.1, 112.1, 115.1) and
+    /// row 19 on the first Splash (81.1, then five more 1.1 s apart, the fight file's sub_hits: no timeline entries).
     /// Pressed so that even on the NOW cue it lasts 0.5 s past the last hit it can reach, and still before the first.
     /// </summary>
     [Theory]
     [InlineData("p4.optical_sight", 944.7)]
     [InlineData("p4.fate_beta", 1088.6)]
     [InlineData("p1.protean_2", 115.1)]
+    [InlineData("p1.splash_1", 86.6)]
     public void SeveralHits_TenSecondMitigationLastsThroughTheLaterHit(string mechanic, double lastHit)
     {
         var dueLead = new ReminderOptions().DueLead;
@@ -236,6 +238,36 @@ public class TeaPlanTimingTests
         {
             Assert.True(r.PressAt - dueLead + 10 >= lastHit + 0.5 - 1e-9, $"{r.Entry.Src} {r.Item.Name}: from the NOW cue ({r.PressAt - dueLead}) it ends at {r.PressAt - dueLead + 10}");
             Assert.True(r.PressAt <= r.Hit - 0.5 + 1e-9, $"{r.Entry.Src} {r.Item.Name}: press {r.PressAt}, first hit {r.Hit}");
+        });
+    }
+
+    /// <summary>
+    /// 'LL/BJCC' row 19 on the first Splash (six raidwide hits, 81.1 to 86.6): the 10 s Reprisal, Feint, Addle and Dismantle
+    /// are pressed 2.5 s before the first, so that from the NOW cue they last 0.5 s past the sixth, and a use before that
+    /// cue is early; the 15 s calls keep their −4.5 s, which reaches the sixth anyway, and only count as early before
+    /// 86.6 − 15 + 0.5.
+    /// </summary>
+    [Fact]
+    public void Splash1_TheCallsLastThroughTheSixthSplash()
+    {
+        Assert.Equal([82.2, 83.3, 84.4, 85.5, 86.6], PlanImports.Tea.GetMechanic("p1.splash_1")!.SubHits);
+        var options = new ReminderOptions();
+        var row = Reminders("'LL/BJCC'!C19", "'LL/BJCC'!J19", "'LL/BJCC'!L19", "'LL/BJCC'!M19", "'LL/BJCC'!K19", "'LL/BJCC'!D19");
+        var ten = row.Where(r => RepoFiles.Action(r.Item.Name!).DurationAt(80) == 10).ToList();
+        Assert.Equal(["Addle", "Dismantle", "Feint", "Reprisal"], ten.Select(r => r.Item.Name!).Distinct().Order());
+        Assert.All(ten, r =>
+        {
+            Assert.Equal(81.1 - 2.5, r.PressAt, 1e-9);
+            Assert.Equal(77.1, TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 1e-9);
+            Assert.Equal(77.1, r.Earliest, 1e-9);
+        });
+
+        var fifteen = row.Where(r => r.Item.Name is "Troubadour" or "Tactician" or "Dark Missionary" or "Heart of Light").ToList();
+        Assert.Equal(4, fifteen.Count);
+        Assert.All(fifteen, r =>
+        {
+            Assert.Equal(81.1 - 4.5, r.PressAt, 1e-9);
+            Assert.Equal(86.6 - 15 + 0.5, r.Earliest, 1e-9);
         });
     }
 

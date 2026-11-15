@@ -160,15 +160,19 @@ public partial class FightDataTests(ITestOutputHelper output)
     [Fact]
     public void SubHits_AreAfterTheFirstHit_InTimeOrder_AndNoHits()
     {
+        var withSubHits = 0;
         foreach (var (path, fight) in Fights)
         {
             foreach (var m in fight.Mechanics.Where(m => m.SubHits.Count > 0))
             {
+                withSubHits++;
                 Assert.True(m.SubHits[0] > m.Hit, $"{path}: {m.Id} sub hit {m.SubHits[0]} is not after its hit {m.Hit}");
                 Assert.True(m.SubHits.Zip(m.SubHits.Skip(1)).All(p => p.First < p.Second), $"{path}: {m.Id} sub hits are not in time order");
                 Assert.DoesNotContain(m.SubHits, m.Hits.Contains);
             }
         }
+
+        Assert.True(withSubHits >= 2, "TOP's Diffuse Wave Cannon Kyrios and TEA's first Splash have sub hits");
     }
 
     /// <summary>The timing fields (press, heal_lead, series, sub_hits) time the calls planned on a mechanic against its damage: never on a marker.</summary>
