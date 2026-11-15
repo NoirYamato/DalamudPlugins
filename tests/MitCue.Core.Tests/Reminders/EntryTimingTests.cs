@@ -922,6 +922,88 @@ public class EntryTimingTests
         Assert.True(benison.UsedEarly);
     }
 
+    /// <summary>Recitation: a buff (15 s) the next Adloquium or Succor consumes.</summary>
+    private static readonly ActionInfo Recitation = Kit.Act(16542, "Recitation", ActionKind.Buff, duration: 15, jobs: [Job.SCH]);
+
+    /// <summary>Summon Seraph: a buff (22 s) whose follow-up is Consolation.</summary>
+    private static readonly ActionInfo SummonSeraph = Kit.Act(16545, "Summon Seraph", ActionKind.Buff, duration: 22, jobs: [Job.SCH]);
+
+    /// <summary>Consolation: an instant shield, usable while Seraph is out.</summary>
+    private static readonly ActionInfo Consolation = new()
+    {
+        Id = 16546,
+        Name = "Consolation",
+        Kind = ActionKind.Shield,
+        Jobs = [Job.SCH],
+        DurationByLevel = new Dictionary<int, double> { [1] = 30 },
+        FollowUpOf = SummonSeraph.Id,
+    };
+
+    private static EntryTiming Wave3(double? offset, bool seq, params ActionInfo[] actions)
+    {
+        var fight = SeriesFight();
+        var entry = Kit.Entry("p1.wave_3", offset, [.. actions.Select(Kit.Do)]);
+        entry.Seq = seq;
+        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation]));
+    }
+
+    [Fact]
+    public void Series_ABuffKeepsTheEntrysFloor_ATriggerWaitsWithItsFollowUp()
+    {
+        // Wave 3 (106): "Recitation + Adloquium", either way round and as a sequence, is timed by the Adloquium's own −4.5 s
+        // (101.5), its 2 s cast landing after wave 2 (103). The Recitation has nothing wave 2 could spend: it comes with the
+        // Adloquium, due with it at 101.3, not after wave 2 + 0.3 (the Adloquium would be cast without it). So does Swiftcast.
+        var options = new ReminderOptions();
+        foreach (var t in new[] { Wave3(null, false, Recitation, Kit.Adloquium), Wave3(null, true, Recitation, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Recitation), Wave3(null, false, Kit.Swiftcast, Kit.Adloquium) })
+        {
+            Assert.All(t.Items, i => Assert.Equal(101.5, i.PressAt, Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(101.3, i.DueAt(options), Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(101.3, i.Earliest, Kit.Tolerance));
+        }
+
+        // "Summon Seraph + Consolation + Adloquium": the Seraph waits with its Consolation (an instant shield) for wave 2 + 0.3.
+        var seraph = Wave3(null, false, SummonSeraph, Consolation, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3, 101.5], seraph.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 101.3], seraph.Items.Select(i => i.DueAt(options)));
+
+        // Alone, a buff times the entry, and its floor is its own (wave 2 + 0.3).
+        Assert.Equal(103.3, Wave3(null, false, Recitation).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_AStepOfASequenceIsNeitherPressedNorDueBeforeTheStepBeforeIt()
+    {
+        // "Tetragrammaton → Adloquium" on wave 3 (106): timed by the Adloquium (a heal gives no lead), whose cast may start at
+        // 101.5; the heal waits for wave 2 (103) + 0.3, and the Adloquium after it, due with it. Not a sequence, the Adloquium
+        // keeps 101.5.
+        var options = new ReminderOptions();
+        var seq = Wave3(null, true, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3], seq.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3], seq.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(101.3, seq.Items[1].Earliest, Kit.Tolerance);     // used before the heal, it still lands after wave 2
+        Assert.Equal(103.3, seq.PressAt, Kit.Tolerance);               // the automatic press: the earliest item's
+        var plain = Wave3(null, false, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([103.3, 101.5], plain.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 101.3], plain.Items.Select(i => i.DueAt(options)));
+
+        // A written press is every step's: the Adloquium turns due with the heal, not at its own floor.
+        var written = Wave3(-2.7, true, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3], written.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3], written.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.8, 103.3], Wave3(-2.7, false, Kit.Adloquium, Kit.Tetragrammaton).Items.Select(i => i.DueAt(options)));
+
+        // The scheduler: nothing is due before 103.3, and an Adloquium cast before then is still on time.
+        var fight = SeriesFight();
+        var entry = Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Adloquium));
+        entry.Seq = true;
+        var s = new ReminderScheduler(fight, [entry], new FakeCatalog(Kit.Catalogued), options);
+        var adloquium = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(103.2);
+        Assert.All(s.All, r => Assert.Equal(ReminderState.Upcoming, r.State));
+        s.OnOwnAction(Kit.Adloquium.Id, 102.0);
+        Assert.Equal((ReminderState.Done, false), (adloquium.State, adloquium.UsedEarly));
+    }
+
     [Theory]
     [InlineData(-4.0, 101.3, 101.3)]  // after the entry's floor (101.3), before the Benison's (103.3): the entry's for both
     [InlineData(-2.5, 101.3, 103.3)]  // after both: each its own

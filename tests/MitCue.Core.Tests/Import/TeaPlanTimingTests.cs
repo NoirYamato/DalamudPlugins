@@ -183,6 +183,62 @@ public class TeaPlanTimingTests
         Assert.True(consolation.UsedEarly);
     }
 
+    /// <summary>
+    /// A Scholar's buff with the Succor or Adloquium it changes on J Wave 5 (722.9), as a sheet may write it (LPDU's E21 has
+    /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor", "Swiftcast/Succor" and
+    /// "Reci/Adlo/Deploy". The buff has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at
+    /// 718.2, so that the cast starts before wave 4 (719.9) and lands after it; Deployment Tactics, which spreads the
+    /// Adloquium's shield, waits for wave 4 + 0.3 s.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Recitation", "Succor")]
+    [InlineData(true, "Recitation", "Succor")]
+    [InlineData(false, "Succor", "Recitation")]
+    [InlineData(false, "Emergency Tactics", "Succor")]
+    [InlineData(false, "Swiftcast", "Succor")]
+    [InlineData(false, "Recitation", "Adloquium", "Deployment Tactics")]
+    public void JWave5_ABuffIsPressedWithTheCastItChanges(bool seq, params string[] cell)
+    {
+        var options = new ReminderOptions();
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.SCH }, Seq = seq, Do = [.. cell.Select(a => PlanItem.ForAction(RepoFiles.Action(a).Id, a))] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, options);
+        Assert.Equal(cell.Length, s.All.Count);
+        foreach (var r in s.All)
+        {
+            var (press, due) = r.Item.Name == "Deployment Tactics" ? (720.2, 720.2) : (718.4, 718.2);
+            Assert.Equal(press, r.PressAt, 1e-9);
+            Assert.Equal(due, TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 1e-9);
+        }
+
+        s.Update(718.2);
+        Assert.All(s.All.Where(r => r.Item.Name != "Deployment Tactics"), r => Assert.Equal(ReminderState.Due, r.State));
+        var buff = Assert.Single(s.All, r => r.Item.Name is "Recitation" or "Emergency Tactics" or "Swiftcast");
+        var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
+        s.OnOwnAction(buff.ActionIds[0], 718.2);
+        s.OnOwnAction(cast.ActionIds[0], 718.3);
+        Assert.Equal((false, false), (buff.UsedEarly, cast.UsedEarly));
+    }
+
+    /// <summary>
+    /// "Indom → Succor" on J Wave 5, a sequence: the Indomitability heals after wave 4 (720.2); the Succor, which alone could
+    /// be cast from 718.4 on, comes after it and turns due with it, as the cell orders them.
+    /// </summary>
+    [Fact]
+    public void JWave5_TheStepsOfASequenceComeInTheCellsOrder()
+    {
+        var options = new ReminderOptions();
+        var entry = new PlanEntry
+        {
+            Mechanic = "p3.j_wave_5",
+            Who = new WhoSpec { Job = Job.SCH },
+            Seq = true,
+            Do = [PlanItem.ForAction(RepoFiles.Action("Indomitability").Id, "Indomitability"), PlanItem.ForAction(RepoFiles.Action("Succor").Id, "Succor")],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, options);
+        Assert.Equal(["Indomitability", "Succor"], s.All.Select(r => r.Item.Name));
+        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), (Math.Round(r.PressAt, 6), Math.Round(TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 6))));
+    }
+
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>
     [Fact]
     public void JWaves_TheFirstWaveKeepsItsLead()
