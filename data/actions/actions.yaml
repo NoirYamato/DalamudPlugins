@@ -1801,7 +1801,8 @@ actions:
     sync: {80: 18, 90: 18, 100: 18}
     # Pressed last, 2 s before the hit: any other action ends the channel, so it comes after the paladin's Divine Veil
     # (-4 s) and Reprisal (-3 s) for the same hit (its party_mit default would be -5.4 s, before them). Mitigation with a
-    # lead of its own is pressed with the last item of its cell, and turns due no earlier than any of them.
+    # lead of its own is pressed with the last item of its cell, turns due no earlier than any of them, and is listed
+    # after them.
     when: before
     lead: 2
     icon: 2515

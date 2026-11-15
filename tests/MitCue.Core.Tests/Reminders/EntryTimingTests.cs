@@ -510,13 +510,66 @@ public class EntryTimingTests
             Assert.Equal(98.8, passage.Earliest, Kit.Tolerance);
         }
 
-        // The scheduler turns both due at once, so that the Reprisal can go first.
-        var s = new ReminderScheduler(WildChargeFight(), [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit), Kit.Do(PassageOfArms))], ChargeCatalog, options);
-        var due = Kit.RecordDue(s);
-        s.Update(98.75);
-        Assert.Empty(due);
-        s.Update(Math.Max(99.5 - dueLead, 98.8));
-        Assert.Equal(2, due.Count);
+        // The scheduler turns both due at once and lists the Reprisal first, whichever the cell lists first, so that a
+        // player who presses down the list keeps the channel.
+        foreach (var items in new[] { new[] { TenSecondMit, PassageOfArms }, new[] { PassageOfArms, TenSecondMit } })
+        {
+            var s = new ReminderScheduler(WildChargeFight(), [Kit.Entry("p1.charge", null, [.. items.Select(Kit.Do)])], ChargeCatalog, options);
+            Assert.Equal(["Reprisal", "Passage of Arms"], s.All.Select(r => r.Item.Name));
+            var due = Kit.RecordDue(s);
+            s.Update(98.75);
+            Assert.Empty(due);
+            s.Update(Math.Max(99.5 - dueLead, 98.8));
+            Assert.Equal(["Reprisal", "Passage of Arms"], due.Select(r => r.Item.Name));
+        }
+    }
+
+    [Fact]
+    public void PassageOfArms_IsListedAfterTheOtherItemsOfItsEntry_AlsoWithAWrittenPress()
+    {
+        // A single hit: "Passage of Arms + Divine Benison" is timed by Passage of Arms' −2 s (it comes first), a
+        // written "Passage of Arms + Rampart" at −1 s presses both at once; either way Passage of Arms is listed after
+        // the other item, while entries keep the plan's order between them.
+        var fight = Kit.Fight(90, Kit.Mech("p1.raidwide", 100, 100), Kit.Mech("p1.buster", 200, 200));
+        var entries = new[]
+        {
+            Kit.Entry("p1.raidwide", null, Kit.Do(PassageOfArms), Kit.Do(Kit.DivineBenison)),
+            Kit.Entry("p1.raidwide", -2, Kit.Do(Kit.Rampart)),
+            Kit.Entry("p1.buster", -1, Kit.Do(PassageOfArms), Kit.Do(Kit.Rampart)),
+        };
+        var s = new ReminderScheduler(fight, entries, ChargeCatalog, new ReminderOptions());
+        Assert.Equal(
+            [(98.0, "Divine Benison"), (98.0, "Passage of Arms"), (98.0, "Rampart"), (199.0, "Rampart"), (199.0, "Passage of Arms")],
+            s.All.Select(r => (Math.Round(r.PressAt, 3), r.Item.Name)));
+    }
+
+    /// <summary>
+    /// Real cells: "Reprisal + Passage of Arms" either way round on TOP's Wave Cannon 1 and 2 (the Wild Charge 8.3 s after
+    /// the first protean) and Cosmo Meteor (the last spreads 8.1 s after the first hit), and on TEA's Inception (the third
+    /// Alpha Sword 8.4 s after the first hit): the Reprisal is pressed 0.5 s before the first hit, with its NOW cue held
+    /// for the later hit; Passage of Arms comes with it, turns due with it and is listed after it.
+    /// </summary>
+    [Theory]
+    [InlineData("top", "p6.wave_cannon_1")]
+    [InlineData("top", "p6.wave_cannon_2")]
+    [InlineData("top", "p6.cosmo_meteor")]
+    [InlineData("tea", "p3.inception")]
+    public void Coverage_RealCells_PassageOfArmsTurnsDueWithTheReprisal(string fightKey, string mechanic)
+    {
+        var fight = fightKey == "top" ? PlanImports.Top : PlanImports.Tea;
+        var options = new ReminderOptions();
+        foreach (var cell in new[] { new[] { "Reprisal", "Passage of Arms" }, new[] { "Passage of Arms", "Reprisal" } })
+        {
+            var entry = Kit.Entry(mechanic, null, [.. cell.Select(a => Kit.Do(RepoFiles.Action(a)))]);
+            var s = new ReminderScheduler(fight, [entry], RepoFiles.Actions, options);
+            Assert.Equal(["Reprisal", "Passage of Arms"], s.All.Select(r => r.Item.Name));
+            var (reprisal, passage) = (s.All[0], s.All[1]);
+            Assert.Equal(reprisal.Hit - 0.5, reprisal.PressAt, 6);
+            Assert.Equal(reprisal.PressAt, passage.PressAt, 6);
+            var due = TimingRules.DueAt(reprisal.PressAt, reprisal.DueNotBefore, options);
+            Assert.True(due > reprisal.PressAt - options.DueLead, $"{mechanic}: the Reprisal's NOW cue ({due}) is not held");
+            Assert.Equal(due, TimingRules.DueAt(passage.PressAt, passage.DueNotBefore, options), 6);
+        }
     }
 
     [Fact]

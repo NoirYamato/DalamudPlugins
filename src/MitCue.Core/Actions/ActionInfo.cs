@@ -144,8 +144,9 @@ public sealed class ActionInfo
     /// For a <see cref="UseTiming.Before"/> action: seconds between the press and the damage (Earthly Star: 10, the star must
     /// mature; Neutral Sect: 4.5, time to cast the Aspected Helios that puts up its barrier; Passage of Arms: 2, a channel
     /// any other action ends, so it is pressed last), or null. Mitigation, whose effect starts on the press, with a lead of
-    /// its own is pressed last: with the last item of its entry, and due no earlier than any other
-    /// (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// its own is pressed last: with the last item of its entry, due no earlier than any other
+    /// (<see cref="Reminders.TimingRules.ForEntry"/>), and listed after them
+    /// (<see cref="Reminders.ReminderScheduler"/>).
     /// </summary>
     public double? Lead { get; init; }
 

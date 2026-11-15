@@ -145,8 +145,9 @@ public static class TimingRules
     /// use window is <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series
     /// floor, when it has one, or with an automatic press one that ends before a later hit the item covers, is early, and
     /// the item's reminder does not turn due before then either. An item pressed last does not turn due before any other
-    /// item of the entry ("Reprisal + Passage of Arms" on Wave Cannon: both 0.5 s before the first protean, due with the
-    /// Reprisal, whose NOW cue waits for the Wild Charge).
+    /// item of the entry, and the scheduler lists it after them ("Passage of Arms + Reprisal" on Wave Cannon: both
+    /// 0.5 s before the first protean, due with the Reprisal, whose NOW cue waits for the Wild Charge, and listed after
+    /// it).
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -477,9 +478,10 @@ public static class TimingRules
     /// <summary>
     /// True for mitigation with a lead of its own (<see cref="OwnLead"/>): its effect starts on the press, so the lead only
     /// puts it after the entry's other items (Passage of Arms, 2 s: a channel any other action ends). It is pressed with
-    /// the entry's last item and turns due no earlier than any other (<see cref="ForEntry"/>).
+    /// the entry's last item and turns due no earlier than any other (<see cref="ForEntry"/>), and the scheduler lists
+    /// it after them (<see cref="ReminderScheduler"/>).
     /// </summary>
-    private static bool IsPressedLast(ActionInfo? action) => action is not null && OwnLead(action) is not null && IsMitigation(action);
+    internal static bool IsPressedLast(ActionInfo? action) => action is not null && OwnLead(action) is not null && IsMitigation(action);
 
     /// <summary>Party or tank mitigation, or an invuln.</summary>
     private static bool IsMitigation(ActionInfo action) => action.Kind is ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln;
