@@ -979,12 +979,33 @@ public class EntryTimingTests
         FollowUpOf = SummonSeraph.Id,
     };
 
+    /// <summary>Play II: an other action whose follow-up is the Arrow, which it lists as in actions.yaml.</summary>
+    private static readonly ActionInfo PlayII = new()
+    {
+        Id = 37020,
+        Name = "Play II",
+        Kind = ActionKind.Other,
+        Jobs = [Job.AST],
+        FollowUps = [new ActionLink(37024, "the Arrow")],
+    };
+
+    /// <summary>The Arrow: a buff (15 s) on one player, usable after Play II.</summary>
+    private static readonly ActionInfo TheArrow = new()
+    {
+        Id = 37024,
+        Name = "the Arrow",
+        Kind = ActionKind.Buff,
+        Jobs = [Job.AST],
+        DurationByLevel = new Dictionary<int, double> { [1] = 15 },
+        FollowUpOf = PlayII.Id,
+    };
+
     private static EntryTiming Wave3(double? offset, bool seq, params ActionInfo[] actions)
     {
         var fight = SeriesFight();
         var entry = Kit.Entry("p1.wave_3", offset, [.. actions.Select(Kit.Do)]);
         entry.Seq = seq;
-        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation]));
+        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation, PlayII, TheArrow]));
     }
 
     [Fact]
@@ -1016,6 +1037,32 @@ public class EntryTimingTests
 
         // Alone, a buff times the entry, and its floor is its own (wave 2 + 0.3).
         Assert.Equal(103.3, Wave3(null, false, Recitation).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_ABuffThatFollowsATriggerTheEntryLists_HasTheTriggersFloor()
+    {
+        // Wave 3 (106): "Neutral Sect + Play II + the Arrow", either way round. Neutral Sect is pressed at 101.8, time for its
+        // Helios; Play II, a trigger of follow-ups, keeps its own floor, wave 2 + 0.3; the Arrow, a buff that can be used only
+        // after Play II, has Play II's floor: pressed and due at 103.3, early before then, not with Neutral Sect at 101.8.
+        var options = new ReminderOptions();
+        var t = Wave3(null, false, Kit.NeutralSect, PlayII, TheArrow);
+        Assert.Equal([101.8, 103.3, 103.3], t.Items.Select(i => i.PressAt));
+        Assert.Equal([101.8, 103.3, 103.3], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(103.3, t.Items[2].Earliest, Kit.Tolerance);
+        var reversed = Wave3(null, false, TheArrow, PlayII, Kit.NeutralSect);
+        Assert.Equal([103.3, 103.3, 101.8], reversed.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 101.8], reversed.Items.Select(i => i.DueAt(options)));
+
+        // A written press (103.3) turns it due with Play II, not 1.5 s before; as a step after Play II, before Neutral Sect, it
+        // is not lowered to Neutral Sect's floor: still early before 103.3.
+        Assert.Equal([101.8, 103.3, 103.3], Wave3(-2.7, false, Kit.NeutralSect, PlayII, TheArrow).Items.Select(i => i.DueAt(options)));
+        var step = Wave3(null, true, PlayII, TheArrow, Kit.NeutralSect);
+        Assert.Equal([103.3, 103.3, 103.3], step.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(103.3, step.Items[1].Earliest, Kit.Tolerance);
+
+        // Without Play II it keeps the entry's floor, with Neutral Sect.
+        Assert.Equal([101.8, 101.8], Wave3(null, false, Kit.NeutralSect, TheArrow).Items.Select(i => i.PressAt));
     }
 
     [Fact]

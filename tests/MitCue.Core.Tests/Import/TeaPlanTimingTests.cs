@@ -307,6 +307,32 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// An Astrologian's "Neutral + Play II + Arrow" on 'Jwaves (4)' (J Wave 5, 722.9), as a sheet may write it (in game the
+    /// Play II button becomes the Arrow, so few list both), the other way round, as a sequence "Play II → Arrow → Neutral"
+    /// and with a written press: Play II, a trigger of follow-ups, keeps its own floor, wave 4 + 0.3 s (720.2), and the
+    /// Arrow, which can be used only after it, has its floor: pressed and due with Play II, not with Neutral Sect at 718.7
+    /// (time for its Helios), and early before 720.2.
+    /// </summary>
+    [Theory]
+    [InlineData(false, null, 720.2, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    [InlineData(false, null, 720.2, 720.2, "the Arrow", "Play II", "Neutral Sect")]
+    [InlineData(true, null, 720.2, 720.2, "Play II", "the Arrow", "Neutral Sect")]
+    [InlineData(false, -2.7, 720.2, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    [InlineData(false, -1.5, 721.4, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    public void JWave5_TheArrowWaitsForThePlayIIItFollows(bool seq, double? offset, double press, double due, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.AST }, Seq = seq, Offset = offset, Do = [.. cell.Select(Item)] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal((press, due), PressAndDue(Assert.Single(s.All, r => r.Item.Name == "Play II")));
+        var arrow = Assert.Single(s.All, r => r.Item.Name == "the Arrow");
+        Assert.Equal((press, due), PressAndDue(arrow));
+
+        s.Update(719.8);
+        s.OnOwnAction(arrow.ActionIds[0], 719.8);
+        Assert.True(arrow.UsedEarly);
+    }
+
+    /// <summary>
     /// "Stack middle → Succor" on J Wave 5, a sequence: the note has nothing wave 4 could spend, so it comes with the Succor,
     /// both pressed at 718.4 and due at 718.2, and does not hold the Succor back until after wave 4 (720.2), when its 2 s
     /// cast would land 0.7 s before wave 5.
