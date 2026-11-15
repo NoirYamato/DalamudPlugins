@@ -71,13 +71,14 @@ public class TeaP1LivingLiquidScenarioTests
         TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsB, SimCharacterDeathExtensions.Environment, 3.0f, TeaP1Tornadoes.StoodInThePuddle);
     }
 
-    // The death is its own whole message: no action is named.
+    // The death is its own whole message: no action is named. It stands in the west puddle's inner edge, so the
+    // telegraphed wave at 7.8 throws it 10 y on through the same water and not past the rim.
     [Test]
     public void GodmodeHearsOfAPuddleOnceHoweverLongItIsStoodIn()
     {
         IReadOnlyList<string> chat = [];
-        var run = new Stage { Last = Protean1, GodMode = true }.Run(CasterDps, stopAt: 4.7f,
-            probe: p => chat = p.Chat.ToList(), takeovers: new Takeover(3f, new Vector2(-12f, 0f)));
+        var run = new Stage { Last = Protean1, GodMode = true }.Run(CasterDps, stopAt: 9f,
+            probe: p => chat = p.Chat.ToList(), takeovers: new Takeover(3f, new Vector2(-8.5f, 0f)));
 
         Assert.That(run.Deaths, Is.Empty, run.ToString);
         Assert.That(chat.Where(line => line.Contains(Died)).ToList(),
