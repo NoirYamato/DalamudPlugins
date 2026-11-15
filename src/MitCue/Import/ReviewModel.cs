@@ -369,7 +369,7 @@ internal sealed class ReviewModel
 
     /// <summary>
     /// Each item's press time (timeline seconds), as the scheduler computes it: the entry's (<see cref="PressTime"/>), or
-    /// later for an item that waits for a series floor or a later hit of its own, or comes last
+    /// later for an item that waits for a series floor, a later hit of its own or the step before it, or comes last
     /// (<see cref="ItemTiming.PressAt"/>); null when the mechanic is unknown.
     /// </summary>
     public IReadOnlyList<double>? ItemPressTimes(ReviewRow row) =>

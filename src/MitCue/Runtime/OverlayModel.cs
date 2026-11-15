@@ -176,8 +176,10 @@ internal sealed class OverlayModel
         var track = config.TrackDoneMissed;
         var max = Math.Max(1, config.MaxRows);
 
-        // Active rows (Due/Upcoming) always win over finished ones, and own rows over other assignees' rows,
-        // so a burst of just-finished reminders can never push the next call out of a small overlay.
+        // Within each list active rows (Due/Upcoming) win over finished ones, and own rows come first: other
+        // assignees' rows get the room the player's rows leave. So a burst of just-finished reminders never pushes the
+        // player's next call out of a small overlay, while a finished row of the player's can take an active row's place
+        // among theirs.
         var own = Select(session.Visible, track, max, this.ownPick, out var ownHiddenActive);
         var others = Select(session.VisibleOthers, track, max - own.Count, this.otherPick, out _);
         this.MoreCount = ownHiddenActive;

@@ -2760,7 +2760,7 @@ public sealed partial class PlanImporter
         /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>), and no other item of it earlier than
         /// without the move (<see cref="LastOffset"/>: the offset is every item's press, and an item may be pressed later
         /// than the entry, for a later hit or a series floor of its own, or last), and when every seat that sees it keeps
-        /// what it needs (<see cref="KeepsItsSeats"/>: no press after a Passage of Arms of another cell before its hit, no
+        /// what it needs (<see cref="KeepsItsSeats"/>: no press after a Passage of Arms of another call before its hit, no
         /// follow-up out of its trigger's window), else <paramref name="blocked"/> says what the move would break;
         /// <paramref name="movedFrom"/> is then the automatic offset of its item before.
         /// </summary>
@@ -2860,7 +2860,7 @@ public sealed partial class PlanImporter
         /// (<see cref="KeepsItsSeats"/>): a follow-up, the entry's own or one whose trigger it presses, would leave the
         /// window after its trigger (a Consolation, which <see cref="MarkStillActive"/> may have read from a second Seraph,
         /// more than 22 s after the Summon Seraph before it, or before it). Nor is it pressed at or after a Passage of Arms
-        /// of another cell that a seat sees with it, before that one's hit (<see cref="BeforePressedLast"/>: LPDU TEA's "PLD
+        /// of another call that a seat sees with it, before that one's hit (<see cref="BeforePressedLast"/>: LPDU TEA's "PLD
         /// Wings" in Extras, beside the tank column's Reprisal): once nothing else moves (that Passage of Arms may wait for
         /// its own recast first), it is pressed 0.1 s before it, if the action is ready by then, else the entry stays. The
         /// offset is written rounded up to 0.1 s, so the press is never before the action is ready.
@@ -2876,9 +2876,9 @@ public sealed partial class PlanImporter
         /// due while the action is on cooldown), and a move would only push the calls after it later (LPDU TOP's P5 party
         /// mitigation "on CD" at Sigma and Omega, which the Blind Faith calls follow). A sequence moves for its first
         /// step only: its later steps follow it in game, so one that <c>check</c> (which times each step at its item's
-        /// press, the entry's unless the item waits for a series floor or a later hit of its own) finds without a charge
-        /// may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian Prognosis → Holos →
-        /// Kerachole). It moves only when its later steps are woven in right after the first
+        /// press, the entry's unless the item waits for a series floor, a later hit of its own or the step before it)
+        /// finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
+        /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
         /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
         /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
         /// replayed again, until nothing moves: moves only go later, for every item, up to the latest press the entry
@@ -2918,7 +2918,7 @@ public sealed partial class PlanImporter
                 List<RecastMove> Moves(Func<PlanEntry, double, (double Offset, PressedLast? Before)> latest) =>
                     this.seats.Value.SelectMany(s => this.RecastMoves(s.Job, order.Where(s.Entries.Contains).ToList(), movable, Keeps, latest)).ToList();
 
-                // A press that would come after a Passage of Arms of another cell stops just before it only once nothing else
+                // A press that would come after a Passage of Arms of another call stops just before it only once nothing else
                 // moves: that Passage of Arms may wait for its own recast first, and then no longer be in the way.
                 var moves = Moves((_, offset) => (offset, null));
                 if (moves.Count == 0)
@@ -3194,9 +3194,9 @@ public sealed partial class PlanImporter
 
         /// <summary>
         /// True when the reminder's item is pressed when <c>check</c> times it, at its item's press (the entry's, unless the
-        /// item waits for a series floor or a later hit of its own): every item of an entry, except the later steps of a
-        /// sequence, which follow its first step in game, so a step that <c>check</c> finds without a charge at its item's
-        /// press may well have one when its turn comes.
+        /// item waits for a series floor, a later hit of its own or the step before it): every item of an entry, except the
+        /// later steps of a sequence, which follow its first step in game, so a step that <c>check</c> finds without a
+        /// charge at its item's press may well have one when its turn comes.
         /// </summary>
         private static bool IsPressedAtTheEntrysPress(Reminder r) =>
             !r.Entry.Seq || r.ItemIndex == r.Entry.Do.FindIndex(i => i.ActionIds().Any());
