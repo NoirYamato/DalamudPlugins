@@ -126,7 +126,9 @@ public static class TimingRules
     /// pressed before the hit before it + 0.3 s, so that a shield is not spent on that hit and mitigation lasts through the
     /// later ones; an action whose effect lands a while after its press is pressed that much earlier, a shield by its
     /// cast, an action whose barrier comes from a cast after it by that cast (<see cref="ActionInfo.BarrierCast"/>: Neutral
-    /// Sect's 1.5 s Aspected Helios). The timing action's floor is the entry's: the automatic press is never before it,
+    /// Sect's 1.5 s Aspected Helios). The timing action's floor is the entry's, or the earlier floor of an item whose barrier
+    /// comes from a cast after it, as its lead counts wherever the cell lists it (Neutral Sect beside Earthly Star, which
+    /// times the entry; a shield beside the timing action waits for its floor): the automatic press is never before it,
     /// and the entry's reminders do not turn due before it (<see cref="EntryTiming.DueNotBefore"/>). Each item has a floor
     /// of its own action, never earlier than the entry's (<see cref="ItemTiming.DueNotBefore"/>), and an automatic press
     /// presses it no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor's 2 s cast 1.8 s before wave 4 +
@@ -187,7 +189,7 @@ public static class TimingRules
 
         // A later hit of a series: not before the hit before it (a cast shield, or a barrier cast after the press, lands then).
         var previous = PreviousSeriesHit(fight, hit);
-        var floor = previous.HasValue ? SeriesFloor(previous.Value, timingAction) : (double?)null;
+        var floor = previous.HasValue ? EntryFloor(previous.Value, timingAction, timing) : (double?)null;
         if (floor.HasValue)
             automatic = Math.Max(automatic, floor.Value - hit);
 
@@ -575,6 +577,25 @@ public static class TimingRules
     /// to), else null: the floor a press keeps.
     /// </summary>
     private static double? AtOrAfter(double pressAt, double? floor) => floor is { } f && pressAt >= f - WrittenPrecision ? floor : null;
+
+    /// <summary>
+    /// The floor of an entry on a later hit of a series (see <see cref="ForEntry"/>): its timing action's
+    /// (<see cref="SeriesFloor"/>), or the earlier one of an item whose barrier comes from a cast after it
+    /// (<see cref="ActionInfo.BarrierCast"/>), since the lead for that cast counts wherever the cell lists it (Neutral Sect
+    /// beside Earthly Star, which times the entry). A shield's cast does not lower it: a shield beside the timing action
+    /// waits for its floor, and its cast still lands before the next hit.
+    /// </summary>
+    private static double EntryFloor(double previous, ActionInfo? timingAction, IReadOnlyList<ActionInfo?> timing)
+    {
+        var floor = SeriesFloor(previous, timingAction);
+        foreach (var action in timing)
+        {
+            if (action?.BarrierCast is > 0)
+                floor = Math.Min(floor, SeriesFloor(previous, action));
+        }
+
+        return floor;
+    }
 
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the

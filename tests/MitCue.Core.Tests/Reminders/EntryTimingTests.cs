@@ -702,6 +702,28 @@ public class EntryTimingTests
     }
 
     [Fact]
+    public void Series_NeutralSectBesideEarthlyStar_KeepsItsBarrierCast()
+    {
+        // "Earthly Star + Neutral Sect" on wave 3 (106), either way round, is timed by the star (its −10 s; Neutral Sect is
+        // a buff): Neutral Sect still leaves its Helios the cast, pressed and due at wave 2 (103) + 0.3 − 1.5, as alone; the
+        // star waits for wave 2 + 0.3.
+        foreach (var items in new[] { new[] { Kit.EarthlyStar, Kit.NeutralSect }, new[] { Kit.NeutralSect, Kit.EarthlyStar } })
+        {
+            var t = Kit.Timing(Kit.Entry("p1.wave_3", null, [.. items.Select(Kit.Do)]), SeriesFight());
+            var neutral = t.Items[Array.IndexOf(items, Kit.NeutralSect)];
+            var star = t.Items[Array.IndexOf(items, Kit.EarthlyStar)];
+            Assert.Equal((101.8, 101.8), (neutral.PressAt, neutral.DueAt(new ReminderOptions())));
+            Assert.Equal(101.8, neutral.DueNotBefore!.Value, Kit.Tolerance);
+            Assert.Equal((103.3, 103.3), (star.PressAt, star.DueNotBefore!.Value));
+            Assert.Equal(101.8, t.PressAt, Kit.Tolerance);                       // the first item's
+        }
+
+        // A shield's cast does not: beside Temperance, the Adloquium waits for wave 2 + 0.3 (see above).
+        var shield = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Temperance), Kit.Do(Kit.Adloquium)), SeriesFight());
+        Assert.All(shield.Items, i => Assert.Equal(103.3, i.PressAt, Kit.Tolerance));
+    }
+
+    [Fact]
     public void Series_EachItemWaitsForTheFloorOfItsOwnAction()
     {
         // "Adloquium + Divine Benison" on wave 3 (106), timed by the Adloquium: its 2 s cast may start 1.7 s before wave 2

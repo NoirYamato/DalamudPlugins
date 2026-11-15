@@ -135,6 +135,31 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// An Astrologian's "Earthly Star + Neutral Sect" on J Wave 5 (722.9), either way round, as a sheet may write it (LPDU
+    /// has 'Alex Prime/PA'!H21 "Neutral" alone): the star times the cell, but Neutral Sect is still pressed and due at
+    /// 718.7, so that the Helios it gives a barrier lands after wave 4 (719.9) and before wave 5.
+    /// </summary>
+    [Theory]
+    [InlineData("Neutral Sect", "Earthly Star")]
+    [InlineData("Earthly Star", "Neutral Sect")]
+    public void JWave5_NeutralSectBesideEarthlyStar_IsDueAt7187(string first, string second)
+    {
+        var fight = PlanImports.Tea;
+        var entry = new PlanEntry
+        {
+            Mechanic = "p3.j_wave_5",
+            Who = new WhoSpec { Job = Job.AST },
+            Do = [PlanItem.ForAction(RepoFiles.Action(first).Id, first), PlanItem.ForAction(RepoFiles.Action(second).Id, second)],
+        };
+        var s = new ReminderScheduler(fight, [entry], RepoFiles.Actions, new ReminderOptions());
+        var neutral = Assert.Single(s.All, r => r.Item.Name == "Neutral Sect");
+        var star = Assert.Single(s.All, r => r.Item.Name == "Earthly Star");
+        Assert.Equal(718.7, neutral.PressAt, 1e-9);
+        Assert.Equal(718.7, TimingRules.DueAt(neutral.PressAt, neutral.DueNotBefore, new ReminderOptions()), 1e-9);
+        Assert.Equal(720.2, star.PressAt, 1e-9);
+    }
+
+    /// <summary>
     /// 'Alex Prime/PA'!E21 "Succor/Soil/Seraph" ("Seraph" = Summon Seraph → Consolation) on J Wave 5: the Succor's cast may
     /// start before wave 4 (719.9), the instant Soil, Summon Seraph and Consolation may not: a Consolation woven before
     /// wave 4 is spent on it, and is early.
