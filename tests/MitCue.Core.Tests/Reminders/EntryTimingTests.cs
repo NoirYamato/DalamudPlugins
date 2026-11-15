@@ -258,6 +258,59 @@ public class EntryTimingTests
         Assert.Equal(-6, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
     }
 
+    // ---- the NOW cue never comes before the earliest use ------------------------------------------------------------
+
+    /// <summary>The Blackest Night: a 7 s shield (−4 s on its own).</summary>
+    private static readonly ActionInfo SevenSecondShield = Kit.Act(7393, "The Blackest Night", ActionKind.Shield, duration: 7, jobs: [Job.DRK]);
+
+    /// <summary>Heart of Corundum: 8 s tank mitigation (−2.4 s on its own).</summary>
+    private static readonly ActionInfo EightSecondMit = Kit.Act(25758, "Heart of Corundum", ActionKind.TankMit, duration: 8, jobs: [Job.GNB]);
+
+    private static EntryTiming BesideRampart(double? offset, params ActionInfo[] actions)
+    {
+        var fight = Kit.TestFight();
+        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", offset, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog([.. Kit.Catalogued, SevenSecondShield, EightSecondMit]));
+    }
+
+    [Fact]
+    public void NowCue_NeverBeforeTheEarliestUse_WhenThePressIsAtOrAfterIt()
+    {
+        // "Rampart + TBN" on a raidwide at 100: Rampart's −6 s times both. A 7 s shield pressed at 94 is on time from 94
+        // (100 − 7 + 1), so it turns due then, not at 92.5, and a press on its NOW cue lasts 1 s past the hit; Rampart (20 s)
+        // keeps its NOW cue. An 8 s call turns due at 93, 1 s before its press.
+        var options = new ReminderOptions();
+        var t = BesideRampart(null, Kit.Rampart, SevenSecondShield, EightSecondMit);
+        Assert.Equal(-6, t.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal([94.0, 94.0, 94.0], t.Items.Select(i => i.PressAt));
+        Assert.Equal([92.5, 94.0, 93.0], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([81.0, 94.0, 93.0], t.Items.Select(i => i.Earliest));
+        Assert.Null(t.Items[0].DueNotBefore);
+        Assert.All(t.Items, i => Assert.True(i.Earliest <= i.DueAt(options) + Kit.Tolerance));
+
+        // The same for a written press at or after that use; one before it (the sheet asks for an early press) keeps its
+        // plain NOW cue.
+        Assert.Equal(94, BesideRampart(-6, Kit.Rampart, SevenSecondShield).Items[1].DueAt(options), Kit.Tolerance);
+        Assert.Equal(94, BesideRampart(-5.5, Kit.Rampart, SevenSecondShield).Items[1].DueAt(options), Kit.Tolerance);
+        var early = BesideRampart(-8, Kit.Rampart, SevenSecondShield).Items[1];
+        Assert.Null(early.DueNotBefore);
+        Assert.Equal(90.5, early.DueAt(options), Kit.Tolerance);
+
+        // Whatever the player's due lead: a longer one still turns Rampart due earlier, but not the shield.
+        var longLead = new ReminderOptions { DueLead = 3 };
+        Assert.Equal([91.0, 94.0, 93.0], t.Items.Select(i => i.DueAt(longLead)));
+
+        // The scheduler: the shield is due at 94, and a press on that cue is on time.
+        var fight = Kit.TestFight();
+        var s = new ReminderScheduler(fight, [Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Rampart), Kit.Do(SevenSecondShield))], new FakeCatalog([.. Kit.Catalogued, SevenSecondShield]), options);
+        var shield = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(93.9);
+        Assert.Equal(ReminderState.Upcoming, shield.State);
+        s.Update(94);
+        Assert.Equal(ReminderState.Due, shield.State);
+        s.OnOwnAction(SevenSecondShield.Id, 94);
+        Assert.Equal((ReminderState.Done, false), (shield.State, shield.UsedEarly));
+    }
+
     // ---- several hits: mitigation covers the later hits it can reach ------------------------------------------------
 
     /// <summary>Two hits 6.1 s apart at 100 (Optical Sight), two 7 s apart at 200, two 12 s apart at 300 (sync 90).</summary>

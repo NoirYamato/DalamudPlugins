@@ -113,6 +113,73 @@ public class TopPlanTimingTests
     }
 
     /// <summary>
+    /// Cells whose short calls are pressed with Rampart's −6 s: the DRK's "Rampart + Dark Mind + Oblation + TBN" on Cosmo
+    /// Dive 1 and 2 ('WAR/DRK'!C10/C13, the default DRK seat, 'DRK/GNB'!B10, 'DRK/PLD'!B10) and on Wave Cannon 2
+    /// ('DRK/GNB'!B12, 'DRK/PLD'!B12), the other tanks' Bloodwhetting, Heart of Corundum and Holy Sheltron (8 s) beside it
+    /// ('WAR/DRK'!B10, 'WAR/GNB'!C10, 'GNB/PLD'!C13), and Heart of Corundum beside Camouflage on P2's Solar Ray ('General
+    /// Tank Mit til P5'!B5). Every call turns due no earlier than its earliest use, so that pressed on its NOW cue it lasts
+    /// 1 s past the hit, and is done on time; no press moves (The Blackest Night stays at −6 s, due 6 s before the hit).
+    /// </summary>
+    [Theory]
+    [InlineData("'WAR/DRK'!C10")]
+    [InlineData("'WAR/DRK'!C13")]
+    [InlineData("'DRK/GNB'!B10")]
+    [InlineData("'DRK/PLD'!B10")]
+    [InlineData("'DRK/GNB'!B12")]
+    [InlineData("'DRK/PLD'!B12")]
+    [InlineData("'WAR/DRK'!B10")]
+    [InlineData("'WAR/GNB'!C10")]
+    [InlineData("'GNB/PLD'!C13")]
+    [InlineData("'General Tank Mit til P5'!B5")]
+    public void ShortCallsBesideRampart_PressedOnTheNowCue_LastThroughTheHit(string cell)
+    {
+        var calls = Reminders(cell);
+        Assert.NotEmpty(calls);
+        foreach (var r in calls)
+        {
+            var duration = RepoFiles.Action(r.Item.Name!).DurationAt(90)!.Value;
+            Assert.True(NowCue(r) + duration >= r.Hit + 1 - 1e-9, $"{cell} {r.Item.Name}: from the NOW cue ({NowCue(r)}) it ends at {NowCue(r) + duration}");
+            Assert.True(r.Earliest <= NowCue(r) + 1e-9);
+
+            var s = new ReminderScheduler(PlanImports.Top, [r.Entry], RepoFiles.Actions, new ReminderOptions());
+            var mine = Assert.Single(s.All, x => x.ItemIndex == r.ItemIndex);
+            s.Update(NowCue(r));
+            Assert.Equal(ReminderState.Due, mine.State);
+            s.OnOwnAction(mine.ActionIds[0], NowCue(r));
+            Assert.Equal((ReminderState.Done, false), (mine.State, mine.UsedEarly));
+        }
+
+        var tbn = calls.Where(r => r.Item.Name == "The Blackest Night" && r.Entry.Do.Exists(i => i.Name == "Rampart")).ToList();
+        Assert.All(tbn, r => Assert.Equal((r.Hit - 6, r.Hit - 6), (r.PressAt, NowCue(r))));
+    }
+
+    /// <summary>
+    /// Written presses: 'TOP – White Mage'!C47 "Temperance" on Sigma (821.7), 18 s before it: a 20 s Temperance is on time
+    /// from 802.7, so it turns due then, not at 802.2. 'TOP – Scholar'!C18's Recitation (15 s), 14 s before the first line
+    /// stack, is on time from its press, and turns due then. Its Protraction (10 s), like C32's Protraction and Recitation,
+    /// is written earlier than its earliest use (the sheet asks for an early press) and keeps its plain NOW cue.
+    /// </summary>
+    [Fact]
+    public void AWrittenPress_TurnsDueNoEarlierThanItsEarliestUse()
+    {
+        var options = new ReminderOptions();
+        IReadOnlyList<Reminder> At(MitPlan plan, string cell) => new ReminderScheduler(PlanImports.Top, plan.At(cell), RepoFiles.Actions, options).All;
+
+        var temperance = Assert.Single(At(PlanImports.Whm.Plan, "'TOP – White Mage'!C47"), r => r.Item.Name == "Temperance");
+        Assert.Equal((803.7, 802.7, 802.7), (Math.Round(temperance.PressAt, 6), Math.Round(temperance.Earliest, 6), Math.Round(NowCue(temperance), 6)));
+
+        var c18 = At(PlanImports.Sch.Plan, "'TOP – Scholar'!C18");
+        var recitation = Assert.Single(c18, r => r.Item.Name == "Recitation");
+        Assert.Equal((67.3, 67.3), (Math.Round(recitation.Earliest, 6), Math.Round(NowCue(recitation), 6)));
+        var protraction = Assert.Single(c18, r => r.Item.Name == "Protraction");
+        Assert.Equal(protraction.PressAt - options.DueLead, NowCue(protraction), 1e-9);
+
+        var c32 = At(PlanImports.Sch.Plan, "'TOP – Scholar'!C32").Where(r => r.Item.Name is "Protraction" or "Recitation").ToList();
+        Assert.Equal(2, c32.Count);
+        Assert.All(c32, r => Assert.Equal(r.PressAt - options.DueLead, NowCue(r), 1e-9));
+    }
+
+    /// <summary>
     /// Cosmo Meteor (hits 1335.6 … 1342.7, 1343.7): the 10 s Reprisals of 'P6'!B7 (beside each tank's party mitigation)
     /// and the Dismantle of 'P6'!J7 (beside Tactician) reach the last spreads only pressed 0.5 s before the first hit, on
     /// their own; the 15 and 30 s calls beside them keep the entry's press, which the 10 s call's reach of the spreads at

@@ -57,9 +57,10 @@ public sealed class EntryTiming
 /// <param name="Latest">The last useful moment (see <see cref="Reminder.Latest"/>).</param>
 /// <param name="DueNotBefore">
 /// The item's reminder does not turn due before this (timeline seconds), whatever the due lead (see
-/// <see cref="Reminder.DueNotBefore"/>): the later of the item's series floor and, with an automatic press, the earliest
-/// use that still reaches a later hit the item covers; for an item pressed last (Passage of Arms), no earlier than the
-/// entry's other items' (up to its press); null when it has none.
+/// <see cref="Reminder.DueNotBefore"/>): the latest of the item's series floor, with an automatic press the earliest use
+/// that still reaches a later hit the item covers, and its earliest use that is not early when the press is at or after it
+/// but the default due lead would turn it due before (The Blackest Night beside Rampart); for an item pressed last
+/// (Passage of Arms), no earlier than the entry's other items' (up to its press); null when it has none.
 /// </param>
 public readonly record struct ItemTiming(ActionInfo? Action, double PressAt, double Earliest, double Latest, double? DueNotBefore)
 {
