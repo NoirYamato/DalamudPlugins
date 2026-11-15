@@ -29,7 +29,8 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 // tank out of its reach, the Living Liquid to 6 y from it and the Liquid Hand to 4 y: the main tank turns the Liquid
 // for both Protean Waves and brings it back onto the middle, where the bots' spots round it and beside the tornadoes
 // fit; for the last hand each tank walks on through the middle, since a tank that stops on it leaves its boss short of
-// the other.
+// the other. At the pull the tanks and the healers are also told to leave the Jagd Dolls alone: a doll goes to
+// whoever hits it first, whatever the seat, and only a damage dealer's part feeds one.
 public sealed class TeaP1LivingLiquidPlan
 {
     // UNVERIFIED: that the client's party list shows the seats in this order; it may sort each role by job.
@@ -122,6 +123,9 @@ public sealed class TeaP1LivingLiquidPlan
         return lines;
     }
 
+    private const string LeaveTheDollsToTheDamageDealers =
+        "Leave the Jagd Dolls' first hits to the damage dealers, a Provoke included: a doll walks after whoever hits it first";
+
     // Where a tank takes its boss is its seat's to do whatever its job; its presses are its job's.
     private IEnumerable<string> ThePullsLines()
     {
@@ -136,10 +140,12 @@ public sealed class TeaP1LivingLiquidPlan
                          + $"That tornado's telegraphed wave throws you past the rim: step out of it and back, or hold your ground with {(HumanTanks ? "Arm's Length" : "your anti-knockback")}, and be its closest player again by 37 s"
                          + (HumanTanks
                              ? ". Your invulnerability between 28 and 37 s: both busters at 36 s leave Water Resistance Down, and the tornado's unseen wave on it kills at 37.5 s"
-                             : "");
-            yield return "Your Living Liquid from 42 s: lead it onto the middle only then, once the melee have fed their dolls: "
-                         + "until the Jagd Dolls' first Exhaust at 38 s the way in is inside two dolls' reach, a doll the Living Liquid passes is fed to it, "
+                             : "")
+                         + $". {LeaveTheDollsToTheDamageDealers}, and one on its way to you at the rim is fed to the Living Liquid whole, which kills everyone";
+            yield return "Your Living Liquid from 42 s: set off for the middle between 42 and 44 s, once the melee have fed their dolls. "
+                         + "Sooner, the way in is inside two dolls' reach until the Jagd Dolls' first Exhaust at 38 s, a doll the Living Liquid passes is fed to it, "
                          + "and at 40 s an Embolus sets its course for where the Living Liquid stands. "
+                         + "Later, an Embolus from the middle tornado finds the Living Liquid still at the rim at 47 s: it follows you only once you are 7 y past it. "
                          + "Walk through the middle to 6 y past it, so that it stops on the middle, then stand within 4 y of it, "
                          + "between the middle tornado and the one right of the open quarter, for the next busters at 55 s: "
                          + "an Embolus from the tornado right of the open quarter passes 7 y from the middle on that side at about 52 s";
@@ -150,15 +156,18 @@ public sealed class TeaP1LivingLiquidPlan
         }
         if (HumanSeat == OffTank)
         {
-            yield return "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm; the main tank Provokes it then, "
-                         + "from the rim beside the middle tornado, and Provoke reaches 25 y: keep the Hand within about 12 y of the middle. "
+            yield return "Your Liquid Hand at the pull: as it splits off, take it out on the right-hand side of the open quarter until it shows its palm. "
+                         + "Stand 9 to 12 y from the middle yourself: the Hand stops 4 y short of you, more than 17 y from the Living Liquid, "
+                         + "and the main tank Provokes it then from the rim beside the middle tornado, with Provoke's 25 y: with you farther out, the Hand is out of its reach. "
                          + "Once it has left you, wait beside the Living Liquid on the side of the tornado left of the open quarter, not near the middle: "
-                         + "until the Jagd Dolls' first Exhaust at 38 s the middle is inside two dolls' reach, and two Exhausts at once kill";
+                         + "until the Jagd Dolls' first Exhaust at 38 s the middle is inside two dolls' reach, and two Exhausts at once kill. "
+                         + $"{LeaveTheDollsToTheDamageDealers}, and one that comes to you there is fed to the Living Liquid on its way, whole, or is a second Exhaust on you";
             yield return "Your Liquid Hand from 42 s: "
                          + (HumanTanks
-                             ? "Provoke it back after the busters at 36 s and before the next at 55 s, and lead it onto the middle only from 42 s"
-                             : "the run Provokes it back for your seat at 38 s, since your job has no Provoke; lead it onto the middle only from 42 s")
-                         + ", once the melee have fed their dolls: walk through the middle to 4 y past it, so that the Hand stops on the middle, "
+                             ? "Provoke it back after the busters at 36 s and before the next at 55 s, and set off for the middle between 42 and 47 s"
+                             : "the run Provokes it back for your seat at 38 s, since your job has no Provoke; set off for the middle between 42 and 47 s")
+                         + ", once the melee have fed their dolls and before an Embolus from the middle tornado finds the Hand still at the rim at 48 s: "
+                         + "walk through the middle to 4 y past it, so that the Hand stops on the middle, "
                          + "then stand between the middle tornado and the one left of the open quarter";
         }
         if (DollOf(HumanSeat) is { } quarter)
@@ -184,6 +193,7 @@ public sealed class TeaP1LivingLiquidPlan
         {
             var farOut = HumanSeat == RegenHealer ? "in the open quarter" : "between the middle tornado and the one right of the open quarter";
             yield return $"Your wait for the Jagd Dolls: stay far out, {farOut}, until their first Exhaust at 38 s: until then the middle is inside two dolls' reach, and two Exhausts at once kill. "
+                         + "Leave the dolls' first hits to the damage dealers: a doll walks after whoever hits it first, and one that comes to you makes it two where another's Exhaust reaches you. "
                          + "Then come in on the open quarter's side of the middle: the bosses stand on it from 46 s, and their busters at 55 s cleave toward the tanks, on the middle tornado's side";
         }
     }

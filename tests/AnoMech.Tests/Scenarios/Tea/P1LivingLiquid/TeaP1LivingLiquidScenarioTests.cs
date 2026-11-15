@@ -984,7 +984,7 @@ public class TeaP1LivingLiquidScenarioTests
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
     [TestCase(MeleeDpsA, Protean1)]
     [TestCase(CasterDps, Cascade2)]
-    [TestCase(OffTank, Pull, "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter",
+    [TestCase(OffTank, Pull, "Your Liquid Hand at the pull: as it splits off, take it out on the right-hand side of the open quarter until it shows its palm. Stand 9 to 12 y from the middle yourself",
         "Your Liquid Hand from 42 s: Provoke it back after the busters at 36 s and before the next at 55 s", "Your Drainage tether: from the tornado left of the open quarter",
         "Your Liquid Hand: it stays put while you are within 5 y of it")]
     [TestCase(MeleeDpsA, Pull, "Your Jagd Doll: the one south-west of the middle with the open quarter north", "Your spot beside it: on your doll or a step away from the tornado beside it")]
