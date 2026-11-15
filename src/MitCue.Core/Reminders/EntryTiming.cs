@@ -24,8 +24,9 @@ public sealed class EntryTiming
     public double Offset => this.PressAt - this.Hit;
 
     /// <summary>
-    /// The reminder does not turn due before this (timeline seconds), whatever the due lead: an automatic press for a later
-    /// hit of a series comes after the hit before it (<see cref="Fights.Mechanic.Series"/>). Null otherwise.
+    /// The reminder does not turn due before this (timeline seconds), whatever the due lead: a press for a later hit of a
+    /// series comes after the hit before it (<see cref="Fights.Mechanic.Series"/>), the automatic press and a written one
+    /// at or after that floor. Null otherwise (a written press before the floor has none).
     /// </summary>
     public double? DueNotBefore { get; init; }
 

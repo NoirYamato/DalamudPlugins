@@ -1,4 +1,5 @@
 using MitCue.Core.Actions;
+using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
 using MitCue.Core.Tests.Data;
@@ -114,6 +115,7 @@ public class TeaPlanTimingTests
     [InlineData("'Alex Prime/PA'!E23", "Consolation", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!F23", "Eukrasian Prognosis", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!M23", "Passage of Arms", 726.9, 726.2)]     // its −2 s is after wave 6 anyway
+    [InlineData("'Alex Prime/PA'!G23", "Plenary Indulgence", 727.9, 726.2)] // waits for its recast (written -1 s), keeps the floor
     [InlineData("'Alex Prime/PA'!F25", "Eukrasian Prognosis", 732.2, 732.2)]
     [InlineData("'Alex Prime/PA'!E25", "Succor", 730.4, 730.2)]
     public void JWaves_CallsForAWaveArePressedAfterTheWaveBeforeIt(string cell, string action, double press, double dueFrom)
@@ -252,5 +254,47 @@ public class TeaPlanTimingTests
         var plenary = Assert.Single(Reminders("'LL/BJCC'!G40"), r => r.Item.Name == "Plenary Indulgence");
         Assert.Equal(263.5, plenary.PressAt, 1e-9);
         Assert.True(plenary.Latest >= 268.5);
+    }
+
+    // ---- an action planned again before it is ready (the importer's recast fit) --------------------------------
+
+    /// <summary>
+    /// 'LL/BJCC'!G52 "Asylum" on Gavel (356.5), 85.8 s after G40's Asylum pressed after Photon (263.5), recast 90 s: it is
+    /// pressed 1.5 s before Gavel, so that its reminder turns due when Asylum is ready again (353.5), not 7.2 s before
+    /// it. 'Alex Prime/PA'!G23 "Plenary" on J Wave 7 (728.9), 59.2 s after G13's at Incinerating Heat (667.0), recast
+    /// 60 s: ready at 727.0, it is pressed 1 s before the wave, as late as "(Late)" would press it, and still turns due
+    /// only after wave 6 (726.2).
+    /// </summary>
+    [Fact]
+    public void RecastFit_TheGavelAsylumAndTheJWave7PlenaryWaitForTheirRecast()
+    {
+        var options = new ReminderOptions();
+        var photon = Assert.Single(Reminders("'LL/BJCC'!G40"), r => r.Item.Name == "Asylum");
+        var gavel = Assert.Single(Reminders("'LL/BJCC'!G52"), r => r.Item.Name == "Asylum");
+        Assert.Equal(355.0, gavel.PressAt, 1e-9);
+        Assert.Equal(photon.PressAt + 90, gavel.PressAt - options.DueLead, 1e-9);
+
+        var heat = Assert.Single(Reminders("'Alex Prime/PA'!G13"), r => r.Item.Name == "Plenary Indulgence");
+        var wave7 = Assert.Single(Reminders("'Alex Prime/PA'!G23"), r => r.Item.Name == "Plenary Indulgence");
+        Assert.Equal(667.0, heat.PressAt, 1e-9);
+        Assert.Equal((727.9, 728.9 - 1), (wave7.PressAt, wave7.Hit + PlanImporter.LateOffset));
+        Assert.True(wave7.PressAt >= heat.PressAt + 60);
+        Assert.Equal(726.2, wave7.DueNotBefore!.Value, 1e-9);
+    }
+
+    /// <summary>
+    /// <c>check --job WHM --slot H1</c>: no recast conflict for Asylum or Plenary Indulgence. The one left is the sheet's
+    /// Divine Benison at Doll Feeds and Protean 1, 21.6 s apart with one charge at level 80, which is ready again only
+    /// after Protean 1.
+    /// </summary>
+    [Fact]
+    public void RecastFit_TheWhiteMagesCheckReportsNoConflictForThem()
+    {
+        var plan = PlanImports.LpduTea.Plan;
+        var me = ColumnSuggestion.Context(ColumnSuggestion.Suggest(plan, Job.WHM, "H1"), Job.WHM, "H1", 80);
+        var conflicts = PlanChecker.Check(PlanImports.Tea, RepoFiles.Actions, plan, me).Where(f => f.Code == "recast-conflict").ToList();
+
+        Assert.DoesNotContain(conflicts, f => f.ActionId == RepoFiles.Action("Asylum").Id || f.ActionId == RepoFiles.Action("Plenary Indulgence").Id);
+        Assert.Equal(RepoFiles.Action("Divine Benison").Id, Assert.Single(conflicts).ActionId);
     }
 }

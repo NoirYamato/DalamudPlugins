@@ -309,18 +309,23 @@ public class ImportCellRulesTests
         Assert.Equal((DiagnosticSeverity.Info, (string?)null), (d.Severity, d.Src));
         Assert.Contains("'LL'!B2 'Soil/Illum/Seraph1'", d.Message, StringComparison.Ordinal);
         Assert.Contains("'Prime'!B2 'Succor/Soil/Seraph'", d.Message, StringComparison.Ordinal);
+        Assert.True(r.SeraphNumbered); // the AI prompt says so for the sheet it includes (the import window's trial import)
 
         // Every tab counts, whichever are imported (a re-import of one tab reads the sheet the same way); the info is for an
         // import that has a plain "Seraph".
         var prime = new PlanImporter().Import(document, new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, Tabs = ["Prime"] });
         Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph", "Consolation"], prime.Plan.Entries.Single(e => e.Mechanic == "p3.j_wave_5").Names());
         Assert.Single(prime.Diagnostics, d => d.Code == "seraph-reading");
-        Assert.DoesNotContain(Import(document, fight: PlanImports.Tea, assignees: ["Sage"]).Diagnostics, d => d.Code == "seraph-reading");
+        Assert.True(prime.SeraphNumbered);
+        var sage = Import(document, fight: PlanImports.Tea, assignees: ["Sage"]);
+        Assert.DoesNotContain(sage.Diagnostics, d => d.Code == "seraph-reading");
+        Assert.True(sage.SeraphNumbered);
 
         // Without numbered Seraph calls, a plain "Seraph" is the summon alone (Carry the Clear writes its Consolations apart).
         var plain = Import(Sheet("P3", "Scholar", "Jwaves (4)\tSuccor/Soil/Seraph"), SlashReading.All, PlanImports.Tea);
         Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph"], Assert.Single(plain.Plan.Entries).Names());
         Assert.DoesNotContain(plain.Diagnostics, d => d.Code == "seraph-reading");
+        Assert.False(plain.SeraphNumbered);
     }
 
     [Fact]
@@ -569,6 +574,18 @@ public class ImportCellRulesTests
         Assert.Equal(offset, entry.Offset);
         var cast = entry.Do.SelectMany(i => i.ActionIds()).Max(id => RepoFiles.Actions.Get(id)!.CastTime);
         Assert.Equal(PlanImporter.LateOffset, entry.Offset!.Value + cast, 3);
+    }
+
+    [Fact]
+    public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt()
+    {
+        // A Sage's Eukrasian Prognosis (instant) needs Eukrasia first, a GCD of 2.5 s: "(Late)" presses Eukrasia 3.5 s before
+        // the hit, so that the shield is up 1 s before it (at -1 s it would come after the hit).
+        var entry = Assert.Single(Import(Sheet("P3", "Sage", "Mega Holy\tEukProg (Late)"), fight: PlanImports.Tea).Plan.Entries);
+
+        Assert.Equal(["Eukrasian Prognosis"], entry.Names());
+        Assert.Equal(-3.5, entry.Offset);
+        Assert.Equal(PlanImporter.LateOffset, entry.Offset!.Value + RepoFiles.Action("Eukrasia").RecastAt(80), 3);
     }
 
     [Fact]

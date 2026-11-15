@@ -38,7 +38,8 @@ namespace MitCue.Core.Import;
 /// time (<see cref="RowTiming"/>; δ from the fight's <c>row_offsets</c> for the sheet), so no phase zero point is needed;
 /// without a usable row time the fitted (or preset) phase zero point is used. The hit index is the hit the press belongs
 /// to: the first hit at or after it, or for heals the last one before it. Items without a time are automatic unless a
-/// hint applies (<see cref="HintParser"/>).
+/// hint applies (<see cref="HintParser"/>), or their action is not ready again at the automatic press: they are then
+/// pressed when it is (the recast fit, <see cref="Run.FitRecasts"/>).
 /// </para>
 /// </remarks>
 public sealed partial class PlanImporter
@@ -208,7 +209,29 @@ public sealed partial class PlanImporter
     /// <param name="Item">Sort key: the item of the cell.</param>
     /// <param name="Part">Sort key: the entry of the item.</param>
     /// <param name="Confident">The row's label matched its mechanic (not a stand-in, the row above's or a guess from its spelling).</param>
-    private sealed record Draft(PlanEntry Entry, double Press, int Tab, int Row, int Column, int Item, int Part, bool Confident = false);
+    /// <param name="Written">
+    /// The sheet gives the press time: a time written in the cell, or a hint that names it ("after 1st Hit"). The recast
+    /// fit never moves it (<see cref="Run.FitRecasts"/>).
+    /// </param>
+    private sealed record Draft(PlanEntry Entry, double Press, int Tab, int Row, int Column, int Item, int Part, bool Confident = false, bool Written = false);
+
+    /// <summary>An entry the recast fit presses later (<see cref="Run.FitRecasts"/>).</summary>
+    /// <param name="Use">The reminder of the press that finds no charge (its entry, hit and press time).</param>
+    /// <param name="Action">The action that has no charge then.</param>
+    /// <param name="Offset">The entry's new offset.</param>
+    /// <param name="From">The entry's offset before the recast fit moved it.</param>
+    /// <param name="Earlier">The earlier press whose recast it waits for.</param>
+    /// <param name="EarlierAction">That press's action (the same action, or one that shares its recast).</param>
+    /// <param name="Charges">The charges of the action at the sync level.</param>
+    /// <param name="AtLate">
+    /// The new press is the latest the entry allows ("(Late)", or an action's own lead): the action is ready less than the
+    /// due lead before it.
+    /// </param>
+    /// <param name="Lead">The action whose own lead before the hit is that latest press, or null when "(Late)" is.</param>
+    private sealed record RecastMove(Reminder Use, ActionInfo Action, double Offset, double From, Reminder Earlier, ActionInfo EarlierAction, int Charges, bool AtLate, ActionInfo? Lead)
+    {
+        public PlanEntry Entry => this.Use.Entry;
+    }
 
     /// <summary>One entry of a group of tokens, before its timing (<see cref="Run.ImportGroup"/>).</summary>
     /// <param name="Job">The job it is for, or null for every job of the column.</param>
@@ -259,8 +282,19 @@ public sealed partial class PlanImporter
         /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
         private static readonly ReminderOptions DefaultReminders = new();
 
+        /// <summary>The settings of <c>check</c>, whose recast model the recast fit follows (<see cref="PlanCheckOptions.MinRecast"/>).</summary>
+        private static readonly PlanCheckOptions CheckDefaults = new();
+
         /// <summary>Half the 0.01 s offsets are written to (<see cref="ImportText.Round"/>): times this close are equal.</summary>
         private const double OffsetPrecision = 0.005;
+
+        /// <summary>Times this close are one (a press and the moment a charge is ready again).</summary>
+        private const double SameTime = 1e-6;
+
+        /// <summary>
+        /// A guard for <see cref="FitRecasts"/>: every round moves an entry later, up to the latest press it allows.
+        /// </summary>
+        private const int MaxFitRounds = 1000;
 
         private readonly SheetDocument document;
         private readonly ImportOptions options;
@@ -289,6 +323,7 @@ public sealed partial class PlanImporter
         private readonly List<(string Mechanic, Role Role, string Column, string? Slot)> otherLimitBreaks = [];
         private CellParser cells = CellParser.Default;
         private SlashReading documentSlashes = SlashReading.Either;
+        private bool seraphNumbered;
         private string? presetKey;
         private IReadOnlyDictionary<string, double> rowOffsets = new Dictionary<string, double>();
         private LayoutDetector detector = null!;
@@ -367,6 +402,7 @@ public sealed partial class PlanImporter
                 PhaseZeros = new Dictionary<string, double>(this.zeros, StringComparer.OrdinalIgnoreCase),
                 PhaseSpread = new Dictionary<string, double>(this.spreads, StringComparer.OrdinalIgnoreCase),
                 DocumentSlashes = this.documentSlashes,
+                SeraphNumbered = this.seraphNumbered,
                 Rows = rows.Select(r => new ImportedRow(r.Tab.Layout.Name, r.Row.Index + 1, r.Row.Label, r.PhaseId, r.Mechanic?.Id, r.Match, r.Row.Src)).ToList(),
                 AnyoneColumns = tabs.SelectMany(t => t.Layout.AssigneeColumns.Where(c => c.Assignee!.Kind == AssigneeKind.Anyone).Select(c => new AnyoneColumn(t.Layout.Name, c.Index, c.Header ?? c.Assignee!.Key)))
                     .Distinct().ToList(),
@@ -537,7 +573,7 @@ public sealed partial class PlanImporter
         /// at J Wave 5, "Seraph/Fey Illum" at J Wave 7): it is read like "Seraph1", and a second one while Seraph is out is
         /// the other Consolation (<see cref="MarkStillActive"/>). Otherwise it is Summon Seraph alone (Carry the Clear writes
         /// its Consolations apart). Every plan tab counts, whichever tabs and columns are imported; a "seraph-reading" info
-        /// names an imported cell that it changes.
+        /// names an imported cell that it changes, and <see cref="ImportResult.SeraphNumbered"/> says so for the AI prompt.
         /// </summary>
         private void ChooseSeraphReading(DocumentLayout layout, List<TabState> tabs)
         {
@@ -561,6 +597,7 @@ public sealed partial class PlanImporter
 
             if (numbered is null)
                 return;
+            this.seraphNumbered = true;
             this.resolver.ReadAs = new Dictionary<string, string>(StringComparer.Ordinal) { ["seraph"] = "seraph1" };
             if (plain is not null)
             {
@@ -1912,15 +1949,16 @@ public sealed partial class PlanImporter
                             entry.Offset = PreHitLead(actions, this.level);
                     }
 
-                    // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast ending 1 s before
-                    // the hit, but never earlier than without the hint (mitigation timed to also cover a later hit).
+                    // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast (or the GCD a
+                    // follow-up needs first) ending 1 s before the hit, but never earlier than without the hint (mitigation
+                    // timed to also cover a later hit).
                     if (timing.Late && press is null && entry.Offset is null && actions.Count > 0
-                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && LateOffsetOf(actions) > automatic)
+                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && this.LateOffsetOf(actions) > automatic)
                     {
-                        entry.Offset = LateOffsetOf(actions);
+                        entry.Offset = this.LateOffsetOf(actions);
                     }
 
-                    this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row)));
+                    this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row), Written: press is not null));
                     part++;
                 }
             }
@@ -2006,10 +2044,22 @@ public sealed partial class PlanImporter
         private EntryTiming TimingOf(PlanEntry entry) => this.TimingOf(entry, this.fight.GetMechanic(entry.Mechanic)!);
 
         /// <summary>
-        /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus their longest cast, so that
-        /// the cast ends that long before the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s).
+        /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus the longest time one of them
+        /// takes from its press to its effect (<see cref="TimeToEffect"/>), so that each effect is in place that long before
+        /// the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s; "Eukrasian Prognosis (Late)", after Eukrasia's
+        /// 2.5 s: −3.5 s).
         /// </summary>
-        private static double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(a => a.CastTime).DefaultIfEmpty(0).Max();
+        private double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(this.TimeToEffect).DefaultIfEmpty(0).Max();
+
+        /// <summary>
+        /// Seconds from pressing an action to its effect: its cast, plus the recast of a GCD that is pressed right before it
+        /// to make it usable (<see cref="ActionInfo.FollowUpOf"/> a GCD without a cooldown of its own, a recast under
+        /// <see cref="PlanCheckOptions.MinRecast"/>: Eukrasia before Eukrasian Prognosis, not Macrocosmos, pressed long before
+        /// Microcosmos).
+        /// </summary>
+        private double TimeToEffect(ActionInfo action) =>
+            action.CastTime + (action.FollowUpOf is { } id && this.options.Actions.Get(id) is { IsGcd: true } trigger
+                && trigger.RecastAt(this.level) < CheckDefaults.MinRecast ? trigger.RecastAt(this.level) : 0);
 
         /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to
@@ -2425,7 +2475,7 @@ public sealed partial class PlanImporter
 
             // Pressed later, with its reminder due at the earliest use that still covers the later call.
             var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
-            if (!movable || offset > LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
+            if (!movable || offset > this.LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
                 return false;
             movedFrom = before.Offset;
             earlier.Offset = offset;
@@ -2463,6 +2513,226 @@ public sealed partial class PlanImporter
             }
         }
 
+        /// <summary>
+        /// The recast fit: an entry without a time in the sheet that is pressed before its hit, and one of whose actions
+        /// would have no charge at that press for a seat that sees it (<c>check</c>'s <c>recast-conflict</c>), is pressed
+        /// when the action has a charge again plus the default due lead, so that its NOW cue comes when it is ready (TEA's
+        /// Gavel Asylum, 85.8 s after the Asylum pressed after Photon, recast 90 s: 1.5 s before its hit instead of 7.2 s).
+        /// It is never pressed later than "(Late)" would press it, nor than an action's own lead before the hit allows
+        /// (<see cref="LatestFitOf"/>: Neutral Sect, Earthly Star, Passage of Arms): then just after the action is ready;
+        /// when the action is ready only after that, the entry stays, and <c>check</c> reports the recast. The offset is
+        /// written rounded up to 0.1 s, so the press is never before the action is ready.
+        /// </summary>
+        /// <remarks>
+        /// The recast is <c>check</c>'s (<see cref="RecastReplay"/>: recasts and charges at the sync level, one charge
+        /// recharging at a time, recast groups, recasts under <see cref="PlanCheckOptions.MinRecast"/> left out), on the
+        /// reminders' press times, for every seat as <c>check</c> and the plugin read the plan (<see cref="Seats"/>). Only a
+        /// press the player makes for sure keeps an action on recast: not an optional entry (in brackets, with a condition,
+        /// one choice of an either/or), an either/or item or a note ("Temperance (still active)"). An entry with a time in
+        /// the sheet keeps it, and an offset the importer wrote (still-active's) may move. A when-ready call ("on CD") keeps
+        /// its press too, and still keeps its action on recast: its reminder already waits for the action in game (it stays
+        /// due while the action is on cooldown), and a move would only push the calls after it later (LPDU TOP's P5 party
+        /// mitigation "on CD" at Sigma and Omega, which the Blind Faith calls follow). A sequence moves for its first
+        /// step only: its later steps follow it in game, so one that <c>check</c> (which times every step at the entry's
+        /// press) finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
+        /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
+        /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
+        /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
+        /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A press that
+        /// moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW cue: in a chain of
+        /// moves each NOW cue still comes when its action is ready for a player who presses at the press times (each link
+        /// keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before the fit.
+        /// </remarks>
+        private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
+        {
+            var movable = drafts.Where(d => !d.Written && !d.Entry.WhenReady).Select(d => d.Entry).ToHashSet();
+            if (movable.Count == 0)
+                return;
+
+            var seats = this.Seats(new MitPlan { Fight = this.fight.Key, Assignees = assignees, Entries = drafts.Select(d => d.Entry).ToList() });
+
+            // Each press as the plan has it before the fit, for the infos.
+            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry).PressAt);
+            var moved = new Dictionary<PlanEntry, RecastMove>();
+            for (var round = 0; round < MaxFitRounds; round++)
+            {
+                // Every seat's presses in the order the scheduler gives them, as check reads the plan this builds.
+                var order = InPressOrder(drafts.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt })).Select(d => d.Entry).ToList();
+                var moves = seats.SelectMany(s => this.RecastMoves(s.Job, order.Where(s.Entries.Contains).ToList(), movable)).ToList();
+                if (moves.Count == 0)
+                    break;
+
+                // The earliest press that finds no charge first: a later one may wait for it.
+                var first = moves.Min(m => m.Use.PressAt);
+                foreach (var move in moves.Where(m => m.Use.PressAt <= first + SameTime).GroupBy(m => m.Entry).Select(g => g.MaxBy(m => m.Offset)!))
+                {
+                    move.Entry.Offset = move.Offset;
+                    moved[move.Entry] = moved.TryGetValue(move.Entry, out var before) ? move with { From = before.From } : move;
+                }
+            }
+
+            foreach (var d in drafts)
+            {
+                if (moved.TryGetValue(d.Entry, out var move))
+                    this.ReportRecastFit(move, planned[move.Entry] - planned[move.Earlier.Entry], moved.ContainsKey(move.Earlier.Entry));
+            }
+        }
+
+        /// <summary>
+        /// The seats of <paramref name="plan"/> as <c>check</c> and the plugin read it: every job, in each slot of its role
+        /// and in none, with the entries of the automatic column choice (<see cref="ColumnSuggestion.Suggest"/>,
+        /// <see cref="PlanSelection.For"/>), without a party and with each party that can change that choice (the plugin
+        /// passes the player's party): the jobs a team-composition column of the job names (LPDU's "WAR/PLD WAR" for a
+        /// Warrior next to a Paladin), and every two-job party (another job's seat,
+        /// <see cref="ColumnSuggestion.PartySeats"/>; a party that plays none of the compositions). Each job's distinct sets
+        /// of entries once.
+        /// </summary>
+        private List<(Job Job, HashSet<PlanEntry> Entries)> Seats(MitPlan plan)
+        {
+            var jobs = Jobs.All.Where(j => j is not (Job.BLU or Job.BST)).ToList();
+            var seats = new List<(Job Job, HashSet<PlanEntry> Entries)>();
+            foreach (var job in jobs)
+            {
+                var parties = new List<IReadOnlyCollection<Job>?> { null };
+                parties.AddRange(plan.Assignees.Where(a => a.Job == job && ColumnSuggestion.IsComposition(a)).Select(a => LayoutDetector.JobsFromTabName(a.Key)));
+                parties.AddRange(jobs.Where(other => other != job).Select(other => new[] { job, other }));
+                var contexts = new HashSet<PlayerContext>();
+                foreach (var party in parties)
+                {
+                    foreach (var slot in new string?[] { null }.Concat(Slots.Standard.Where(s => Slots.Fits(s, job))))
+                    {
+                        var me = ColumnSuggestion.Context(ColumnSuggestion.Suggest(plan, job, slot, party), job, slot, this.level);
+                        if (!contexts.Add(me))
+                            continue;
+                        var entries = PlanSelection.For(plan, me).ToHashSet();
+                        if (entries.Count > 0 && !seats.Exists(s => s.Job == job && s.Entries.SetEquals(entries)))
+                            seats.Add((job, entries));
+                    }
+                }
+            }
+
+            return seats;
+        }
+
+        /// <summary>
+        /// For one seat (<paramref name="job"/>, its entries in plan order): in each chain of presses that share a recast,
+        /// the first press that finds no charge and can be pressed later (<see cref="MoveFor"/>). The presses after it are
+        /// replayed again once it has moved.
+        /// </summary>
+        private IEnumerable<RecastMove> RecastMoves(Job job, List<PlanEntry> entries, HashSet<PlanEntry> movable)
+        {
+            var uses = new List<(Reminder Reminder, ActionInfo Action)>();
+            foreach (var r in new ReminderScheduler(this.fight, entries, this.options.Actions, DefaultReminders).All)
+            {
+                if (RecastReplay.Tracked(r.Item, this.options.Actions, job, this.level, CheckDefaults.MinRecast) is { } action)
+                    uses.Add((r, action));
+            }
+
+            foreach (var chain in RecastReplay.Chains(uses, u => u.Action))
+            {
+                // A press the player may skip (an optional entry) keeps nothing on recast.
+                var presses = chain.ConvertAll(u => new RecastUse(u.Reminder.PressAt, u.Action, Spends: !u.Reminder.Entry.Optional));
+                var charges = Math.Max(1, chain.Max(u => u.Action.ChargesAt(this.level)));
+                var states = RecastReplay.Replay(presses, this.level, charges);
+                for (var i = 0; i < chain.Count; i++)
+                {
+                    var r = chain[i].Reminder;
+                    if (!states[i].HasCharge && movable.Contains(r.Entry) && IsPressedAtTheEntrysPress(r) && this.MoveFor(chain, presses, i, states[i].ReadyAt, charges) is { } move)
+                    {
+                        yield return move;
+                        break;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// True when the reminder's item is pressed at its entry's press time in game: every item of an entry, except the
+        /// later steps of a sequence, which follow its first step (<c>check</c> times them at the entry's press too, so a
+        /// step it finds without a charge may well have one when its turn comes).
+        /// </summary>
+        private static bool IsPressedAtTheEntrysPress(Reminder r) =>
+            !r.Entry.Seq || r.ItemIndex == r.Entry.Do.FindIndex(i => i.ActionIds().Any());
+
+        /// <summary>
+        /// True when the later steps of a sequence take no time of their own, so that it can wait as long as its first step
+        /// could: each is an instant oGCD, woven right after it (Kerachole → Holos, Summon Seraph → Consolation), as items
+        /// pressed together are. A later GCD or cast comes a GCD or the cast after the first step (the Sage's Zoe →
+        /// Eukrasian Prognosis → Holos → Kerachole, Recitation → Succor), which "(Late)" leaves no time for: such a
+        /// sequence keeps its press. True for an entry that is no sequence.
+        /// </summary>
+        private bool LaterStepsAreWoven(PlanEntry entry) =>
+            !entry.Seq || entry.Do.Skip(entry.Do.FindIndex(i => i.ActionIds().Any()) + 1)
+                .SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()
+                .All(a => !a.IsGcd && a.CastTime <= 0);
+
+        /// <summary>
+        /// The later press of the <paramref name="index"/>th press of <paramref name="chain"/> (replayed as
+        /// <paramref name="presses"/>), which finds no charge before <paramref name="readyAt"/>: then plus the default due
+        /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>). Null when the entry is
+        /// not pressed before its hit, is a sequence whose later steps need time of their own
+        /// (<see cref="LaterStepsAreWoven"/>), or the action is ready only after that.
+        /// </summary>
+        private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges)
+        {
+            var (use, action) = chain[index];
+            var offset = use.PressAt - use.Hit;
+            var (late, lead) = this.LatestFitOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList());
+            if (use.PressAt >= use.Hit || !this.LaterStepsAreWoven(use.Entry) || readyAt - use.Hit > late + SameTime)
+                return null;
+            var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
+            var later = ImportText.Round(Math.Min(due, late));
+            if (later <= offset + OffsetPrecision)
+                return null;
+
+            // The press it waits for: the last one before it that spent a charge, with several charges the one whose charge
+            // comes back first.
+            var spent = Enumerable.Range(0, index).Where(j => presses[j].Spends).ToList();
+            var (earlier, earlierAction) = chain[spent[Math.Max(0, spent.Count - charges)]];
+            return new RecastMove(use, action, later, ImportText.Round(offset), earlier, earlierAction, charges, due > late, lead);
+        }
+
+        /// <summary>
+        /// The latest offset the recast fit gives an entry with these actions: "(Late)"'s (<see cref="LateOffsetOf"/>), but
+        /// never later than an action's own lead before the hit (<see cref="ActionInfo.Lead"/>: Earthly Star's 10 s to
+        /// mature, Neutral Sect's 4.5 s to cast the Aspected Helios that puts up its barrier, Passage of Arms's 2 s, pressed
+        /// last), so that the action still does its job; with the action whose lead that is (null for "(Late)").
+        /// </summary>
+        private (double Offset, ActionInfo? Lead) LatestFitOf(List<ActionInfo> actions)
+        {
+            (double Offset, ActionInfo? Lead) latest = (this.LateOffsetOf(actions), null);
+            foreach (var action in actions)
+            {
+                if (action.When == UseTiming.Before && action.Lead is { } lead && lead > 0 && double.IsFinite(lead) && -lead < latest.Offset)
+                    latest = (-lead, action);
+            }
+
+            return latest;
+        }
+
+        /// <summary>
+        /// The <c>recast-fit</c> info of an entry the recast fit moved (<see cref="FitRecasts"/>): the gap to the press it
+        /// waits for as the sheet plans both (<paramref name="gap"/>), and whether that press moved too
+        /// (<paramref name="earlierMoved"/>: then it waits for it as moved).
+        /// </summary>
+        private void ReportRecastFit(RecastMove move, double gap, bool earlierMoved)
+        {
+            var recast = ImportText.Seconds(move.Action.RecastAt(this.level));
+            var limit = move.Charges == 1 ? $"recast {recast} s" : $"{move.Charges} charges, recast {recast} s";
+            var which = new List<string>();
+            if (move.EarlierAction.Id != move.Action.Id)
+                which.Add("shares its recast");
+            if (earlierMoved)
+                which.Add("is pressed later too");
+            var earlier = $"the {move.EarlierAction.Name} at {move.Earlier.Entry.Mechanic}" + (which.Count > 0 ? ", which " + string.Join(" and ", which) : string.Empty);
+            var when = !move.AtLate ? $"so that its NOW cue comes when {move.Action.Name} is ready again"
+                : move.Lead is { Lead: { } lead } ? $"as late as the {ImportText.Seconds(lead)} s lead of {move.Lead.Name} allows, once {move.Action.Name} is ready again"
+                : $"as late as \"(Late)\" would press it, once {move.Action.Name} is ready again";
+            this.Diag(DiagnosticSeverity.Info, "recast-fit",
+                $"{move.Action.Name} at {move.Entry.Mechanic} is planned {ImportText.Seconds(gap)} s after {earlier} ({limit}): it is pressed {ImportText.Seconds(-move.Offset)} s before its hit instead of {ImportText.Seconds(-move.From)} s, {when}.",
+                move.Entry.Src);
+        }
+
         /// <summary>Drafts in press order, then in sheet order (tab, row, column, item, part).</summary>
         private static List<Draft> InPressOrder(IEnumerable<Draft> drafts) => drafts
             .OrderBy(d => Math.Round(d.Press, 3))
@@ -2471,17 +2741,6 @@ public sealed partial class PlanImporter
 
         private MitPlan BuildPlan(List<TabState> tabs)
         {
-            var ordered = InPressOrder(this.drafts);
-            this.MarkStillActive(ordered);
-            this.MarkSharedLimitBreaks(ordered);
-
-            // A follow-up or a note that MarkStillActive put in an entry can change its press time: the plan lists its entries
-            // in the order the scheduler presses them.
-            ordered = InPressOrder(ordered.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt }));
-            var width = Math.Max(3, ordered.Count.ToString(CultureInfo.InvariantCulture).Length);
-            for (var i = 0; i < ordered.Count; i++)
-                ordered[i].Entry.Id = "e" + (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
-
             var assignees = new List<Assignee>();
             foreach (var tab in tabs)
             {
@@ -2494,6 +2753,18 @@ public sealed partial class PlanImporter
                     assignees.Add(new Assignee { Key = key, Slot = column.Assignee.Slot, Job = column.Assignee.Job });
                 }
             }
+
+            var ordered = InPressOrder(this.drafts);
+            this.MarkStillActive(ordered);
+            this.MarkSharedLimitBreaks(ordered);
+            this.FitRecasts(ordered, assignees);
+
+            // A follow-up or a note that MarkStillActive put in an entry, or a press the recast fit moved, changes its press
+            // time: the plan lists its entries in the order the scheduler presses them.
+            ordered = InPressOrder(ordered.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt }));
+            var width = Math.Max(3, ordered.Count.ToString(CultureInfo.InvariantCulture).Length);
+            for (var i = 0; i < ordered.Count; i++)
+                ordered[i].Entry.Id = "e" + (i + 1).ToString(CultureInfo.InvariantCulture).PadLeft(width, '0');
 
             var tabNames = tabs.Select(t => t.Layout.Name).ToList();
             var allPlanTabs = this.document.Tabs.Count;

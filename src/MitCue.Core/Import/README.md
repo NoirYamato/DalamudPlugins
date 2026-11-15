@@ -113,8 +113,11 @@ after is a connector/target, or a time on the same line ("Soil      0:12"). "and
 # Import — back half
 
 Steps 4–7 (`docs/DESIGN.md` §6; step 8, the review, is the plugin's import window): `new PlanImporter().Import(document,
-options)` → `ImportResult` (`Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`). Check any plan (imported, hand-written,
-LLM) with `PlanValidator.Validate(plan, fight, actions)`.
+options)` → `ImportResult`: `Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`, the document's own readings that the
+plugin's AI prompt states for the sheet it includes (`DocumentSlashes`: "/" between one job's actions, also when
+`ImportOptions.Slashes` overrides it; `SeraphNumbered`: a plain "Seraph" means "Seraph1"), and for the import window
+`Rows` (each row's mechanic) and `AnyoneColumns` ("Extras"). Check any plan (imported, hand-written, LLM) with
+`PlanValidator.Validate(plan, fight, actions)`.
 
 ```
 DocumentLayout ─► rows ─► MechanicResolver (alias in phase; repeated labels by time or row order)
@@ -180,12 +183,14 @@ Rules worth knowing:
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
   `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
   actions, a mechanic's several hits and the fight file's `press`, `heal_lead` and `series`); the importer writes no
-  offset for them. The plan lists its entries in that press order (ties in sheet order), also when `still-active`
-  changed an entry's action.
+  offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan lists its
+  entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a press
+  moved.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
-  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. "All of
+  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why
+  (`ImportResult.DocumentSlashes` is the document's own reading). "All of
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
   `and/or`. In both readings, slots and tank target words joined by `/` after an action are one target, either of them
   (`Benison MT/Co-tank`), and `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an
@@ -195,7 +200,8 @@ Rules worth knowing:
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
   Otherwise a plain `Seraph` is Summon Seraph alone (Carry the Clear writes its Consolations apart). Every plan tab
-  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one.
+  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one, and
+  `ImportResult.SeraphNumbered` says that the document numbers its Seraph calls.
 - **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
   `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
@@ -208,8 +214,9 @@ Rules worth knowing:
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when
   nothing is above); a parenthetical that names the token's own per-job actions limits the jobs (`Party Mit (DM/HoL)`:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
-  pressed before its hit presses it just before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)`
-  −1 s, `Succor (Late)` −3 s), but never earlier than without it.
+  pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
+  1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
+  Eukrasia's 2.5 s), but never earlier than without it.
 - **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
   those actions: the detail of the entries in their columns and section that press one of them (all their columns'
   entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
@@ -226,6 +233,30 @@ Rules worth knowing:
   brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
   for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.
+- **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
+  one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
+  level, one charge recharging at a time, recast groups, recasts under 3 s left out) for any seat (every job, in each
+  slot of its role and in none, with the column the plugin chooses without a party and with any party that changes it:
+  the jobs of a team-composition column, `WAR/PLD WAR` next to a Paladin, and every two-job party), is pressed when
+  that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:
+  TEA's Gavel Asylum, 85.8 s after the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of
+  7.2 s. Never later than `(Late)` would press it (1 s before the hit, minus the entry's longest cast or the GCD a
+  follow-up needs first: a Sage's Eukrasian Prognosis stays 3.5 s before the hit at the latest), nor than an action's
+  own lead before the hit allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does
+  its job: then just after the action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only
+  after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.
+  Only firm presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
+  either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
+  ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote
+  (`still-active`'s) may move. A when-ready call ("on CD") is left to the runtime: it keeps its press and counts,
+  since its reminder already waits for the action in game (LPDU TOP's P5 party mitigation on cooldown, which a move
+  would only push into the Blind Faith calls). A sequence moves for its first step only (`check` times every step at
+  its press; in game the later steps follow), and only when its later steps are instant oGCDs woven in right after it
+  (`Kerachole → Holos`): a later GCD or cast (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the
+  hit, so such a sequence keeps its press. An entry several seats see takes the latest press any of them needs; the
+  earliest press without a charge moves first, then the plan is replayed again, until nothing moves. A press that
+  moved is replayed at its press time, as `check` replays every press: in a chain of moves each NOW cue still comes
+  when the action is ready for a player who presses at the press times (each link keeps its due lead).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

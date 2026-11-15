@@ -248,15 +248,36 @@ public class CellParserTests
     [InlineData("((((", false)]
     public void Parse_LongCells_TakeLinearTime(string unit, bool empty)
     {
-        Parser.Parse(string.Concat(Enumerable.Repeat(unit, 1_000 / unit.Length))); // warm up
-        var text = string.Concat(Enumerable.Repeat(unit, 50_000 / unit.Length)); // Google allows 50,000 characters per cell
-        var sw = Stopwatch.StartNew();
-        var parsed = Parser.Parse(text);
-        sw.Stop();
-
+        // Google allows 50,000 characters per cell.
+        var parsed = Parser.Parse(Repeat(unit, 50_000)); // also the warm-up
         Assert.Equal(empty, parsed.IsEmpty);
-        Assert.True(sw.ElapsedMilliseconds < 1000, $"{sw.ElapsedMilliseconds} ms");
         Assert.True(parsed.Diagnostics.Count <= 1); // one report per cell, not one per bracket
+
+        // A cell four times as long takes about four times as long to parse, not sixteen times (quadratic time). Each
+        // length's fastest of several interleaved runs is compared, so a busy machine (the other tests in parallel) slows
+        // both alike instead of failing a fixed time limit; the 20 ms allow for a pause that every run of the longer cell
+        // still meets. Both stay off the large object heap (25,000 characters are 50 KB), whose collections a busy machine
+        // makes slower for the longer one only.
+        var shorter = Repeat(unit, 6_250);
+        var longer = Repeat(unit, 25_000);
+        var (shorterTime, longerTime) = (double.MaxValue, double.MaxValue);
+        for (var run = 0; run < 7; run++)
+        {
+            shorterTime = Math.Min(shorterTime, Milliseconds(shorter));
+            longerTime = Math.Min(longerTime, Milliseconds(longer));
+        }
+
+        Assert.True(longerTime < (10 * shorterTime) + 20, $"6,250 characters: {shorterTime:0.0} ms, 25,000 characters: {longerTime:0.0} ms");
+
+        static string Repeat(string unit, int length) => string.Concat(Enumerable.Repeat(unit, length / unit.Length));
+
+        static double Milliseconds(string text)
+        {
+            GC.Collect(); // no garbage of the run before
+            var sw = Stopwatch.StartNew();
+            Parser.Parse(text);
+            return sw.Elapsed.TotalMilliseconds;
+        }
     }
 
     [Theory]

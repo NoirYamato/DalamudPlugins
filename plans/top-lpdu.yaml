@@ -1884,42 +1884,43 @@ entries:
     src: "'P5'!H9"
   - id: e269
     mechanic: p5.omega
-    who: {slot: M2, assignee: M2}
-    do:
-      - {action: 7549, name: Feint}
-    note: Autos Omega uptime
-    src: "'P5'!I9"
-  - id: e270
-    mechanic: p5.omega
     who: {slot: R1, job: RDM, assignee: R1}
     do:
       - {action: 25857, name: Magick Barrier}
     when_ready: true
     src: "'P5'!J9"
-  - id: e271
+  - id: e270
     mechanic: p5.omega
     who: {slot: R2, job: BLM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e272
+  - id: e271
     mechanic: p5.omega
     who: {slot: R2, job: SMN, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e273
+  - id: e272
     mechanic: p5.omega
     who: {slot: R2, job: RDM, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
-  - id: e274
+  - id: e273
     mechanic: p5.omega
     who: {slot: R2, job: PCT, assignee: R2}
     do:
       - {action: 7560, name: Addle}
     src: "'P5'!K9"
+  - id: e274
+    mechanic: p5.omega
+    offset: -1
+    who: {slot: M2, assignee: M2}
+    do:
+      - {action: 7549, name: Feint}
+    note: Autos Omega uptime
+    src: "'P5'!I9"
   - id: e275
     mechanic: p5.omega_hello_world_1
     who: {slot: H1, job: WHM, assignee: H1 WHM}

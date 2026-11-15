@@ -566,30 +566,23 @@ entries:
     src: "'LL/BJCC'!D44"
   - id: e080
     mechanic: p2.water_thunder_2
-    who: {job: SCH, assignee: Scholar}
-    do:
-      - {action: 188, name: Sacred Soil}
-    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
-    src: "'LL/BJCC'!E46"
-  - id: e081
-    mechanic: p2.water_thunder_2
     who: {job: BRD, assignee: Phys Range}
     do:
       - {action: 7405, name: Troubadour}
     src: "'LL/BJCC'!K46"
-  - id: e082
+  - id: e081
     mechanic: p2.water_thunder_2
     who: {job: MCH, assignee: Phys Range}
     do:
       - {action: 16889, name: Tactician}
     src: "'LL/BJCC'!K46"
-  - id: e083
+  - id: e082
     mechanic: p2.water_thunder_2
     who: {job: DNC, assignee: Phys Range}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'LL/BJCC'!K46"
-  - id: e084
+  - id: e083
     mechanic: p2.water_thunder_2
     who: {job: SGE, assignee: Sage}
     do:
@@ -597,46 +590,54 @@ entries:
       - {action: 24298, name: Kerachole}
     detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
     src: "'LL/BJCC'!F46"
-  - id: e085
+  - id: e084
     mechanic: p2.water_thunder_2
     who: {job: WHM, assignee: White Mage}
     do:
       - {note: Temperance (still active)}
     src: "'LL/BJCC'!G46"
-  - id: e086
+  - id: e085
     mechanic: p2.water_thunder_2
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 3613, name: Collective Unconscious}
     src: "'LL/BJCC'!H46"
-  - id: e087
+  - id: e086
     mechanic: p2.water_thunder_2
     who: {job: BLM, assignee: Caster}
     do:
       - {action: 7560, name: Addle}
     note: on BJ
     src: "'LL/BJCC'!L46"
-  - id: e088
+  - id: e087
     mechanic: p2.water_thunder_2
     who: {job: SMN, assignee: Caster}
     do:
       - {action: 7560, name: Addle}
     note: on BJ
     src: "'LL/BJCC'!L46"
-  - id: e089
+  - id: e088
     mechanic: p2.water_thunder_2
     who: {job: RDM, assignee: Caster}
     do:
       - {action: 7560, name: Addle}
     note: on BJ
     src: "'LL/BJCC'!L46"
-  - id: e090
+  - id: e089
     mechanic: p2.water_thunder_2
     who: {job: PCT, assignee: Caster}
     do:
       - {action: 7560, name: Addle}
     note: on BJ
     src: "'LL/BJCC'!L46"
+  - id: e090
+    mechanic: p2.water_thunder_2
+    offset: -2.4
+    who: {job: SCH, assignee: Scholar}
+    do:
+      - {action: 188, name: Sacred Soil}
+    detail: A tip for Soil/Kera timing is the Water Debuff-Timer. Once the first one hits 14s press Soil/Kera and from there on CD to cover all. This is immediatly after Photon
+    src: "'LL/BJCC'!E46"
   - id: e091
     mechanic: p2.whirlwind_2
     who: {job: SCH, assignee: Scholar}
@@ -765,6 +766,7 @@ entries:
     src: "'LL/BJCC'!M50"
   - id: e109
     mechanic: p2.gavel
+    offset: -1.5
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 3569, name: Asylum}
@@ -1262,22 +1264,23 @@ entries:
     src: "'Alex Prime/PA'!F23"
   - id: e183
     mechanic: p3.j_wave_7
-    who: {job: WHM, assignee: White Mage}
-    do:
-      - {action: 7433, name: Plenary Indulgence}
-    src: "'Alex Prime/PA'!G23"
-  - id: e184
-    mechanic: p3.j_wave_7
     who: {slot: M2, assignee: Melee 2}
     do:
       - {action: 7549, name: Feint}
     src: "'Alex Prime/PA'!J23"
-  - id: e185
+  - id: e184
     mechanic: p3.j_wave_7
     who: {job: PLD}
     do:
       - {action: 7385, name: Passage of Arms}
     src: "'Alex Prime/PA'!M23"
+  - id: e185
+    mechanic: p3.j_wave_7
+    offset: -1
+    who: {job: WHM, assignee: White Mage}
+    do:
+      - {action: 7433, name: Plenary Indulgence}
+    src: "'Alex Prime/PA'!G23"
   - id: e186
     mechanic: p3.j_wave_9
     who: {job: SCH, assignee: Scholar}
@@ -1622,48 +1625,49 @@ entries:
     src: "'Alex Prime/PA'!F45"
   - id: e236
     mechanic: p4.irresistible_grace_1
+    who: {slot: M1, assignee: Melee 1}
+    do:
+      - {action: 7549, name: Feint}
+    src: "'Alex Prime/PA'!I45"
+  - id: e237
+    mechanic: p4.irresistible_grace_1
+    who: {job: BLM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e238
+    mechanic: p4.irresistible_grace_1
+    who: {job: SMN, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e239
+    mechanic: p4.irresistible_grace_1
+    who: {job: RDM, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e240
+    mechanic: p4.irresistible_grace_1
+    who: {job: PCT, assignee: Caster}
+    do:
+      - {action: 7560, name: Addle}
+    src: "'Alex Prime/PA'!L45"
+  - id: e241
+    mechanic: p4.irresistible_grace_1
+    who: {job: MCH}
+    do:
+      - {action: 2887, name: Dismantle}
+    src: "'Alex Prime/PA'!M45"
+  - id: e242
+    mechanic: p4.irresistible_grace_1
+    offset: -1
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 3613, name: Collective Unconscious}
     note: if up
     optional: true
     src: "'Alex Prime/PA'!H45"
-  - id: e237
-    mechanic: p4.irresistible_grace_1
-    who: {slot: M1, assignee: Melee 1}
-    do:
-      - {action: 7549, name: Feint}
-    src: "'Alex Prime/PA'!I45"
-  - id: e238
-    mechanic: p4.irresistible_grace_1
-    who: {job: BLM, assignee: Caster}
-    do:
-      - {action: 7560, name: Addle}
-    src: "'Alex Prime/PA'!L45"
-  - id: e239
-    mechanic: p4.irresistible_grace_1
-    who: {job: SMN, assignee: Caster}
-    do:
-      - {action: 7560, name: Addle}
-    src: "'Alex Prime/PA'!L45"
-  - id: e240
-    mechanic: p4.irresistible_grace_1
-    who: {job: RDM, assignee: Caster}
-    do:
-      - {action: 7560, name: Addle}
-    src: "'Alex Prime/PA'!L45"
-  - id: e241
-    mechanic: p4.irresistible_grace_1
-    who: {job: PCT, assignee: Caster}
-    do:
-      - {action: 7560, name: Addle}
-    src: "'Alex Prime/PA'!L45"
-  - id: e242
-    mechanic: p4.irresistible_grace_1
-    who: {job: MCH}
-    do:
-      - {action: 2887, name: Dismantle}
-    src: "'Alex Prime/PA'!M45"
   - id: e243
     mechanic: p4.irresistible_grace_2
     who: {job: SGE, assignee: Sage}

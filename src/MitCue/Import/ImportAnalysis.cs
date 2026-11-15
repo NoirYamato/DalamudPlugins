@@ -54,13 +54,14 @@ internal sealed class TabStats
 /// </summary>
 internal sealed class ImportAnalysis
 {
-    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason, SlashReading? documentSlashes = null)
+    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason, SlashReading? documentSlashes = null, bool seraphNumbered = false)
     {
         this.Tabs = tabs;
         this.Assignees = assignees;
         this.Available = available;
         this.Reason = reason;
         this.DocumentSlashes = documentSlashes;
+        this.SeraphNumbered = seraphNumbered;
     }
 
     /// <summary>Every tab of the document, in order.</summary>
@@ -80,6 +81,13 @@ internal sealed class ImportAnalysis
     /// automatic reading of every import of it, whichever tabs and columns. Null without a trial import.
     /// </summary>
     public SlashReading? DocumentSlashes { get; }
+
+    /// <summary>
+    /// True when the sheet numbers its Seraph calls, so that the importer reads a plain "Seraph" as "Seraph1", Summon
+    /// Seraph then Consolation (<see cref="ImportResult.SeraphNumbered"/>), whichever tabs and columns. False without a
+    /// trial import.
+    /// </summary>
+    public bool SeraphNumbered { get; }
 
     /// <summary>Statistics from a trial import result.</summary>
     public static ImportAnalysis FromResult(SheetDocument document, ImportResult result)
@@ -123,7 +131,7 @@ internal sealed class ImportAnalysis
                 assignees.Add(new Assignee { Key = key });
         }
 
-        return new ImportAnalysis(tabs, assignees, true, null, result.DocumentSlashes);
+        return new ImportAnalysis(tabs, assignees, true, null, result.DocumentSlashes, result.SeraphNumbered);
     }
 
     /// <summary>Statistics without a trial import (the importer is not available).</summary>

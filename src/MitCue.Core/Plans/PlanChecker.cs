@@ -94,13 +94,13 @@ public sealed class PlanCheckOptions
 /// <para>
 /// Recast rule: consecutive planned uses of an action, or of actions sharing a recast group
 /// (<see cref="ActionInfo.SharesRecastWith"/>), are replayed with the action's recast and charges at the sync level
-/// (charges recharge one at a time). A use that finds no charge is a <c>recast-conflict</c>: an error when every use
-/// involved belongs to one phase (by its mechanic), otherwise a warning, since it depends on when the earlier phase
-/// ends; also a warning when an optional or when-ready use is involved. A use whose charge was ready less than
+/// (charges recharge one at a time: <see cref="RecastReplay"/>, which the importer uses too, to press an automatic call
+/// once its action is ready again). A use that finds no charge is a <c>recast-conflict</c>: an error when every use
+/// involved belongs to one phase (by its mechanic), otherwise a warning, since it depends on when the earlier phase ends;
+/// also a warning when an optional or when-ready use is involved. A use whose charge was ready less than
 /// <see cref="PlanCheckOptions.TightMargin"/> seconds before is <c>recast-tight</c> (warning). The conflicting use is
-/// assumed to happen anyway, so each consecutive pair closer than the recast is reported. Either/or groups are left
-/// out (the player picks whichever option is ready), as are actions with a recast under
-/// <see cref="PlanCheckOptions.MinRecast"/>.
+/// assumed to happen anyway, so each consecutive pair closer than the recast is reported. Either/or groups are left out (the player picks whichever option is ready), as are actions
+/// with a recast under <see cref="PlanCheckOptions.MinRecast"/>.
 /// </para>
 /// <para>
 /// Gauges (warnings marked <see cref="PlanFinding.Heuristic"/>): Lily (WHM: 3 at most, +1 every 20 s in combat, full at
@@ -364,31 +364,12 @@ public static class PlanChecker
             var uses = new List<Use>();
             foreach (var r in this.reminders)
             {
-                if (r.Item.Action is not { } id || r.Item.Any != null || this.Usable(id) is not { } action)
-                    continue;
-                if (action.RecastAt(this.level) >= this.Options.MinRecast)
+                if (RecastReplay.Tracked(r.Item, this.actions, this.job, this.level, this.Options.MinRecast) is { } action)
                     uses.Add(new Use(r, action, uses.Count));
             }
 
             // Chains of actions that share a recast (the same action, or one recast group of the job).
-            var distinct = uses.Select(u => u.Action).DistinctBy(a => a.Id).ToList();
-            var chainOf = new Dictionary<uint, int>();
-            for (var i = 0; i < distinct.Count; i++)
-            {
-                var chain = i;
-                for (var j = 0; j < i; j++)
-                {
-                    if (distinct[i].SharesRecastWith(distinct[j]))
-                    {
-                        chain = chainOf[distinct[j].Id];
-                        break;
-                    }
-                }
-
-                chainOf[distinct[i].Id] = chain;
-            }
-
-            foreach (var chain in uses.GroupBy(u => chainOf[u.Action.Id]).OrderBy(g => g.Key))
+            foreach (var chain in RecastReplay.Chains(uses, u => u.Action))
                 this.ReplayRecast(chain.OrderBy(u => u.T).ThenBy(u => u.Order).ToList());
         }
 
@@ -445,71 +426,28 @@ public static class PlanChecker
                 .AsReadOnly();
 
         /// <summary>
-        /// Replays the uses of one recast chain in time order: charges recharge one at a time, each use restarts an idle
-        /// timer with its own recast; a use without a charge is reported and assumed to happen anyway (restarting the timer).
+        /// Reports the uses of one recast chain, in time order, as <see cref="RecastReplay.Replay"/> finds them: a use without
+        /// a charge is a conflict (and assumed to happen anyway), a use whose charge was ready only shortly before is tight.
         /// </summary>
         private void ReplayRecast(List<Use> uses)
         {
             var maxCharges = Math.Max(1, uses.Max(u => u.Action.ChargesAt(this.level)));
-            var charges = maxCharges;
-            double? timerEnd = null;
-            double timerRecast = 0;
-            double? availableSince = double.NegativeInfinity; // charges ≥ 1 since then (null: none left)
-            var sinceFull = new List<Use>();
-            Use? previous = null;
-
-            foreach (var use in uses)
+            var states = RecastReplay.Replay(Presses(uses), this.level, maxCharges);
+            for (var i = 0; i < uses.Count; i++)
             {
-                var recast = use.Action.RecastAt(this.level);
-                while (timerEnd is { } end && end <= use.T + Epsilon)
+                var use = uses[i];
+                var state = states[i];
+                List<Use> involved = maxCharges > 1 ? uses[state.SinceFull..(i + 1)] : i > 0 ? [uses[i - 1], use] : [use];
+                if (state.HasCharge)
                 {
-                    charges++;
-                    if (charges == 1)
-                        availableSince = end;
-                    if (charges >= maxCharges)
-                    {
-                        charges = maxCharges;
-                        timerEnd = null;
-                        sinceFull.Clear();
-                    }
-                    else
-                    {
-                        timerEnd = end + timerRecast;
-                    }
-                }
-
-                List<Use> involved;
-                if (maxCharges > 1)
-                    involved = [.. sinceFull, use];
-                else if (previous != null)
-                    involved = [previous, use];
-                else
-                    involved = [use];
-                if (charges >= 1)
-                {
-                    var margin = use.T - (availableSince ?? use.T);
-                    if (margin < this.Options.TightMargin && previous != null && involved.Count > 1)
+                    var margin = use.T - state.ReadyAt;
+                    if (margin < this.Options.TightMargin && i > 0 && involved.Count > 1)
                         this.ReportRecast(maxCharges > 1 ? involved[Math.Max(0, involved.Count - maxCharges - 1)..] : involved, maxCharges, recastConflict: false, margin);
-                    charges--;
-                    if (timerEnd == null)
-                    {
-                        timerEnd = use.T + recast;
-                        timerRecast = recast;
-                    }
-
-                    if (charges == 0)
-                        availableSince = null;
                 }
                 else
                 {
-                    this.ReportRecast(maxCharges > 1 ? this.ShortestInfeasibleTail(involved, maxCharges) : involved, maxCharges, recastConflict: true, (timerEnd ?? use.T) - use.T);
-                    timerEnd = use.T + recast;
-                    timerRecast = recast;
-                    availableSince = null;
+                    this.ReportRecast(maxCharges > 1 ? this.ShortestInfeasibleTail(involved, maxCharges) : involved, maxCharges, recastConflict: true, state.ReadyAt - use.T);
                 }
-
-                sinceFull.Add(use);
-                previous = use;
             }
         }
 
@@ -522,47 +460,14 @@ public static class PlanChecker
             for (var start = Math.Max(0, uses.Count - maxCharges - 1); start >= 0; start--)
             {
                 var tail = uses.GetRange(start, uses.Count - start);
-                if (!this.FeasibleFromFull(tail, maxCharges))
+                if (!RecastReplay.Replay(Presses(tail), this.level, maxCharges).All(s => s.HasCharge))
                     return tail;
             }
 
             return uses;
         }
 
-        /// <summary>True when every use finds a charge, starting with full charges (one-at-a-time recharge).</summary>
-        private bool FeasibleFromFull(List<Use> uses, int maxCharges)
-        {
-            var charges = maxCharges;
-            double? timerEnd = null;
-            double timerRecast = 0;
-            foreach (var use in uses)
-            {
-                while (timerEnd is { } end && end <= use.T + Epsilon)
-                {
-                    charges++;
-                    if (charges >= maxCharges)
-                    {
-                        charges = maxCharges;
-                        timerEnd = null;
-                    }
-                    else
-                    {
-                        timerEnd = end + timerRecast;
-                    }
-                }
-
-                if (charges == 0)
-                    return false;
-                charges--;
-                if (timerEnd == null)
-                {
-                    timerRecast = use.Action.RecastAt(this.level);
-                    timerEnd = use.T + timerRecast;
-                }
-            }
-
-            return true;
-        }
+        private static List<RecastUse> Presses(List<Use> uses) => uses.ConvertAll(u => new RecastUse(u.T, u.Action));
 
         /// <param name="involved">The uses that explain the finding (the previous use for single-charge actions), ending with the use reported.</param>
         /// <param name="charges">Max charges at the level.</param>
@@ -893,15 +798,7 @@ public static class PlanChecker
         }
 
         /// <summary>The catalog action for <paramref name="id"/> as pressed at the level, when the job can use it there; else null.</summary>
-        private ActionInfo? Usable(uint id)
-        {
-            if (this.actions.Get(id) is not { } action)
-                return null;
-            var resolved = this.actions.ResolveAt(action, this.level);
-            if (!resolved.AvailableAt(this.level) || (this.job != Job.None && !resolved.UsableBy(this.job)))
-                return null;
-            return resolved;
-        }
+        private ActionInfo? Usable(uint id) => RecastReplay.Usable(this.actions, id, this.job, this.level);
 
         /// <summary>The ids an item is satisfied by, resolved at the level (unknown ids as they are).</summary>
         private HashSet<uint> ResolvedIds(PlanItem item)

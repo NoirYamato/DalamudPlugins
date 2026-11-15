@@ -1,3 +1,4 @@
+using System.Globalization;
 using MitCue.Core;
 using MitCue.Core.Actions;
 using MitCue.Core.Import;
@@ -205,6 +206,74 @@ public class LlmPromptTests
         // The trial import chose the other reading: the sheet's own one is still known.
         var chosen = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11", Slashes = other });
         Assert.Equal(expected, chosen.DocumentSlashes);
+    }
+
+    /// <summary>The prompt's rule for a plain "Seraph", when it has one.</summary>
+    private static string? SeraphRuleLine(string prompt) =>
+        prompt.Split('\n').SingleOrDefault(l => l.Contains("numbers its Seraph calls", StringComparison.Ordinal));
+
+    [Fact]
+    public void WithALoadedSheetThatNumbersItsSeraphCalls_APlainSeraphIsSeraph1()
+    {
+        // LPDU TEA writes "Seraph1" and "Seraph2", and a plain "Seraph" at J Wave 5 and 7: MitCue's importer reads that as
+        // "Seraph1" (PlanImporter.ChooseSeraphReading), while the alias list says Summon Seraph alone.
+        var input = Input("Source: Plan\n### Tab \"Alex Prime/PA\"\nR21 | B: Jwaves (4) | E: Succor/Soil/Seraph\n");
+        LlmPromptInput With(bool numbered, params Job[] jobs) =>
+            new() { Fight = input.Fight, Jobs = jobs, Actions = input.Actions, SourceText = input.SourceText, SeraphNumbered = numbered };
+
+        var prompt = LlmPrompt.Build(With(true, Job.WHM, Job.SCH));
+        var rule = SeraphRuleLine(prompt);
+        Assert.NotNull(rule);
+
+        // The rule right after the "X/Y" one, numbered as the next.
+        var lines = prompt.Split('\n').ToList();
+        var slashRule = SlashRuleLine(prompt);
+        Assert.Equal(lines.IndexOf(slashRule) + 1, lines.IndexOf(rule));
+        Assert.StartsWith((int.Parse(slashRule[..slashRule.IndexOf('.', StringComparison.Ordinal)], CultureInfo.InvariantCulture) + 1) + ". ", rule, StringComparison.Ordinal);
+        Assert.EndsWith(
+            "This sheet numbers its Seraph calls (\"Seraph1\" = Summon Seraph -> Consolation, \"Seraph2\" = the second Consolation): a plain \"Seraph\" in it means \"Seraph1\" too, Summon Seraph then Consolation (`seq: true`); " +
+            "but a plain \"Seraph\" while the Seraph summoned by the one before is still out (it stays 22 s) means \"Seraph2\", the other Consolation (\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination). " +
+            "MitCue's importer reads them so: do the same.",
+            rule,
+            StringComparison.Ordinal);
+
+        Assert.Null(SeraphRuleLine(LlmPrompt.Build(With(false, Job.WHM, Job.SCH)))); // a sheet that does not
+        Assert.Null(SeraphRuleLine(LlmPrompt.Build(With(true, Job.WHM))));           // no Scholar calls to convert
+    }
+
+    [Fact]
+    public void TheSeraphRulesExample_IsHowTheImporterReadsTheSheet()
+    {
+        // LPDU TEA 'Alex Prime/PA'!E21 "Succor/Soil/Seraph" at J Wave 5 summons Seraph and uses Consolation; E23 "Seraph/Fey
+        // Illum" at J Wave 7, while that Seraph (22 s) is still out, is the other Consolation (PlanImporter's still-active
+        // reading), not a second Summon Seraph: as the rule tells the AI. (The CSV export names the tab "Alex PrimePA".)
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var result = new PlanImporter().Import(FixtureSheets.LpduTea(), new ImportOptions { Fight = data.GetFight("tea")!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        List<string?> Names(string src) => Assert.Single(result.Plan.Entries, e => e.Src == src).Do.Select(i => i.Name).ToList();
+
+        Assert.True(result.SeraphNumbered);
+        Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph", "Consolation"], Names("'Alex PrimePA'!E21"));
+        Assert.Equal(["Consolation", "Fey Illumination"], Names("'Alex PrimePA'!E23"));
+        var prompt = LlmPrompt.Build(new LlmPromptInput { Fight = data.GetFight("tea")!, Jobs = [Job.SCH], Actions = LlmPrompt.ActionsFor(data.Actions, [Job.SCH], 80), SourceText = "R21 | E: Succor/Soil/Seraph\n", SeraphNumbered = true });
+        Assert.Contains("(\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination)", SeraphRuleLine(prompt), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tea", true)]  // LPDU TEA: "Soil/Illum/Seraph1", "Seraph2/Succor"
+    [InlineData("top", false)] // LPDU TOP: no numbered Seraph call
+    public void TheImportWindowPassesTheSheetsSeraphReading(string fight, bool numbered)
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = fight == "tea" ? FixtureSheets.LpduTea() : FixtureSheets.Lpdu();
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        Assert.True(analysis.Available, analysis.Reason);
+
+        Assert.Equal(numbered, analysis.SeraphNumbered);
+        Assert.Equal(numbered, ImportWindow.PromptSeraph(analysis));
+        Assert.False(ImportWindow.PromptSeraph(ImportAnalysis.Unavailable(new SheetDocument { Title = "x", Tabs = [] }, "no importer")));
+        Assert.False(ImportWindow.PromptSeraph(null));
     }
 
     [Fact]
