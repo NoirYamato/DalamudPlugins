@@ -841,8 +841,9 @@ files and links; the plugin's import window adds downloading, the review and the
 - `tests/MitCue.Core.Tests`: the above, with LPDU's TEA sheet as a third fixture (every
   row mapped to its mechanic), plus the bundled plans: each is the importer's output for
   its sheet fixture, lists its entries in the scheduler's press order and is valid at its
-  fight's sync level (90 for TOP, 80 for TEA); the TEA plan's timing rules (§5.1) are
-  checked at their mechanics.
+  fight's sync level (90 for TOP, 80 for TEA); the timing rules (§5.1) are checked at the
+  TEA and LPDU TOP plans' mechanics, and the recast fit (§6 step 7) and its replay of
+  `check` (`RecastReplay`) on test cases and on the bundled plans' moves.
 - `tests/MitCue.Plugin.Tests`: sessions and pulls, the plan store with the automatic plan
   and column choices on the bundled plans, the co-healer's calls, the import pipeline
   (link parsing, downloads through a fake HTTP handler, pasted cells, the AI prompt and

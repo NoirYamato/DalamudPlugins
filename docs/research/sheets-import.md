@@ -288,8 +288,8 @@ calls come before their action is ready again after the same player's call befor
   the plugin and `check` read: every job, in each slot of its role and in none, with the column suggested without a
   party and with each party that changes it (the jobs of a team-composition column, every two-job party). Only firm
   presses keep an action on recast: not an optional entry (grey, in brackets, with a condition, one choice of an
-  either/or), an either/or item or a note. A press with a time in the sheet counts but never moves; an offset the
-  importer wrote itself (`still-active`'s) may move.
+  either/or), an either/or item or a note. A press with a time in the sheet, or a when-ready one, counts but never
+  moves; an offset the importer wrote itself (`still-active`'s) may move.
 - **The move.** The press becomes the moment the action is ready again plus the default due lead (1.5 s), rounded up
   to 0.1 s, so that the NOW cue comes when the action is ready. It is never later than `(Late)` would press the entry
   (1 s before the hit, minus its longest cast or the GCD a follow-up needs first) nor than an action's own lead
