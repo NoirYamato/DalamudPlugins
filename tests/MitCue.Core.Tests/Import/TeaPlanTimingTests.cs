@@ -112,6 +112,9 @@ public class TeaPlanTimingTests
     [InlineData("'Alex Prime/PA'!F21", "Eukrasian Prognosis", 720.2, 720.2)]
     [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 718.7, 718.7)]          // its Helios (1.5 s) lands at 720.2
     [InlineData("'Alex Prime/PA'!E21", "Succor", 718.4, 718.2)]              // its own −4.5 s lands at 720.4
+    [InlineData("'Alex Prime/PA'!E21", "Sacred Soil", 720.2, 720.2)]         // instant: not with the Succor's cast lead
+    [InlineData("'Alex Prime/PA'!E21", "Summon Seraph", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!E21", "Consolation", 720.2, 720.2)]
     [InlineData("'Alex Prime/PA'!E23", "Consolation", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!F23", "Eukrasian Prognosis", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!M23", "Passage of Arms", 726.9, 726.2)]     // its −2 s is after wave 6 anyway
@@ -129,6 +132,25 @@ public class TeaPlanTimingTests
         Assert.Equal(ReminderState.Upcoming, r.State);
         s.Update(Math.Max(dueFrom, press - new ReminderOptions().DueLead));
         Assert.Equal(ReminderState.Due, r.State);
+    }
+
+    /// <summary>
+    /// 'Alex Prime/PA'!E21 "Succor/Soil/Seraph" ("Seraph" = Summon Seraph → Consolation) on J Wave 5: the Succor's cast may
+    /// start before wave 4 (719.9), the instant Soil, Summon Seraph and Consolation may not: a Consolation woven before
+    /// wave 4 is spent on it, and is early.
+    /// </summary>
+    [Fact]
+    public void JWaves_TheInstantItemsBesideACastShieldWaitForTheWaveBeforeIt()
+    {
+        var s = Scheduler("'Alex Prime/PA'!E21");
+        var succor = Assert.Single(s.All, r => r.Item.Name == "Succor");
+        var consolation = Assert.Single(s.All, r => r.Item.Name == "Consolation");
+        s.Update(718.4);
+        Assert.Equal((ReminderState.Due, ReminderState.Upcoming), (succor.State, consolation.State));
+        s.OnOwnAction(succor.ActionIds[0], 718.4);
+        s.OnOwnAction(consolation.ActionIds[0], 718.9);
+        Assert.False(succor.UsedEarly);
+        Assert.True(consolation.UsedEarly);
     }
 
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>

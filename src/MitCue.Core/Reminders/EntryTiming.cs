@@ -24,26 +24,41 @@ public sealed class EntryTiming
     public double Offset => this.PressAt - this.Hit;
 
     /// <summary>
-    /// The reminder does not turn due before this (timeline seconds), whatever the due lead: a press for a later hit of a
-    /// series comes after the hit before it (<see cref="Fights.Mechanic.Series"/>), the automatic press and a written one
-    /// at or after that floor. Null otherwise (a written press before the floor has none).
+    /// The entry's press does not turn due before this (timeline seconds), whatever the due lead: a press for a later hit of
+    /// a series comes after the hit before it (<see cref="Fights.Mechanic.Series"/>), the automatic press and a written one
+    /// at or after that floor. Null otherwise (a written press before the floor has none). An item may have a later one
+    /// (<see cref="ItemTiming.DueNotBefore"/>).
     /// </summary>
     public double? DueNotBefore { get; init; }
 
     /// <summary>One per item of the entry, at the item's index (a missing item is timed like a note).</summary>
     public required IReadOnlyList<ItemTiming> Items { get; init; }
 
-    /// <summary>When the entry's reminders turn due, their "NOW" cue (<see cref="TimingRules.DueAt"/>).</summary>
+    /// <summary>When the entry's press turns due, its "NOW" cue (<see cref="TimingRules.DueAt"/>); an item may turn due later.</summary>
     /// <param name="options">The reminder options (the due lead).</param>
     /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
     public double DueAt(ReminderOptions options) => TimingRules.DueAt(this.PressAt, this.DueNotBefore, options);
 }
 
-/// <summary>The timing of one item of an entry.</summary>
+/// <summary>The timing of one item of an entry: its reminder's press time, NOW cue floor and use window.</summary>
 /// <param name="Action">
 /// The item's timing action: its action, or the first option of an either-or item, that the catalog knows; null for notes
 /// and actions the catalog does not know.
 /// </param>
+/// <param name="PressAt">
+/// The item's press time (timeline seconds): the entry's (<see cref="EntryTiming.PressAt"/>), or for an automatic press for
+/// a later hit of a series, the item's own floor when that is later (see <see cref="TimingRules.ForEntry"/>).
+/// </param>
 /// <param name="Earliest">The earliest use that still covers the hit (see <see cref="Reminder.Earliest"/>).</param>
 /// <param name="Latest">The last useful moment (see <see cref="Reminder.Latest"/>).</param>
-public readonly record struct ItemTiming(ActionInfo? Action, double Earliest, double Latest);
+/// <param name="DueNotBefore">
+/// The item's reminder does not turn due before this (timeline seconds), whatever the due lead (see
+/// <see cref="Reminder.DueNotBefore"/>): the item's series floor; null when it has none.
+/// </param>
+public readonly record struct ItemTiming(ActionInfo? Action, double PressAt, double Earliest, double Latest, double? DueNotBefore)
+{
+    /// <summary>When the item's reminder turns due, its "NOW" cue (<see cref="TimingRules.DueAt"/>).</summary>
+    /// <param name="options">The reminder options (the due lead).</param>
+    /// <exception cref="ArgumentNullException"><paramref name="options"/> is null.</exception>
+    public double DueAt(ReminderOptions options) => TimingRules.DueAt(this.PressAt, this.DueNotBefore, options);
+}

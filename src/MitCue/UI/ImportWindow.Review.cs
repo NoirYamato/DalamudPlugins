@@ -583,6 +583,9 @@ internal sealed partial class ImportWindow
                     }
                 }
             }
+
+            if (l.LaterItems.Length > 0)
+                ImGui.TextUnformatted("After the hit before it in the series: " + l.LaterItems);
         }
         else
         {
@@ -770,6 +773,17 @@ internal sealed partial class ImportWindow
 
         var autoOffset = model.AutoOffset(row);
         var hit = mechanic?.HitAt(entry.HitIndex ?? 0);
+
+        // Items of a series call that wait for a floor of their own, later than the entry's press (TimingRules.ForEntry).
+        var laterItems = string.Empty;
+        if (hit is { } at && model.ItemPressTimes(row) is { } presses)
+        {
+            var press = at + (entry.Offset ?? autoOffset);
+            laterItems = string.Join("; ", entry.Do.Select((item, i) => (Item: item, At: presses[i]))
+                .Where(x => x.At > press + 0.005)
+                .GroupBy(x => Math.Round(x.At, 2))
+                .Select(g => $"{string.Join(", ", g.Select(x => ReminderText.ItemName(x.Item, gameData)))} at {FormatClock(g.Key)} ({FormatOffset(g.Key - at)})"));
+        }
         var labels = new RowLabels
         {
             Version = row.Version,
@@ -788,6 +802,7 @@ internal sealed partial class ImportWindow
             ProblemsLong = string.Join("\n", issues.Select(i => $"{i.Severity}: {i.Message}{(i.FromImporter ? " (import)" : string.Empty)}")),
             AutoOffset = autoOffset,
             Press = hit is { } h ? h + (entry.Offset ?? autoOffset) : null,
+            LaterItems = laterItems,
             Search = string.Join(
                 '\n',
                 mechanicText,
@@ -838,6 +853,9 @@ internal sealed partial class ImportWindow
         public double AutoOffset { get; init; }
 
         public double? Press { get; init; }
+
+        /// <summary>The items pressed later than the entry, with their press times ("" when none is).</summary>
+        public string LaterItems { get; init; } = string.Empty;
 
         public string Search { get; init; } = string.Empty;
     }

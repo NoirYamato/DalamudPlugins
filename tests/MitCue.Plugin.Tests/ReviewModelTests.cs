@@ -141,8 +141,8 @@ public class ReviewModelTests
         var actions = ActionCatalog.Load(data.ReadText("actions/actions.yaml"));
         var plan = PlanSerializer.FromYaml(EmbeddedDataSource.Plans().ReadText("tea-lpdu.yaml"));
         var model = new ReviewModel(plan, tea, actions, true, ReviewOrigin.Yaml);
-        var scheduled = new ReminderScheduler(tea, plan.Entries, actions, new ReminderOptions()).All
-            .GroupBy(r => r.Entry).ToDictionary(g => g.Key, g => g.First());
+        var all = new ReminderScheduler(tea, plan.Entries, actions, new ReminderOptions()).All;
+        var scheduled = all.GroupBy(r => r.Entry).ToDictionary(g => g.Key, g => g.First());
 
         Assert.Equal(plan.Entries.Count, model.Rows.Count);
         foreach (var row in model.Rows)
@@ -152,6 +152,15 @@ public class ReviewModelTests
             if (row.Entry.Offset is null)
                 Assert.Equal(reminder.PressAt - reminder.Hit, model.AutoOffset(row), 6);
         }
+
+        // Each item as the scheduler presses it, also an item of a series call that waits for its own floor ('Alex
+        // Prime/PA'!E21: the Succor at 718.4, its instant Soil, Summon Seraph and Consolation after wave 4, at 720.2).
+        var rows = model.Rows.ToDictionary(r => r.Entry);
+        foreach (var r in all)
+            Assert.Equal(r.PressAt, model.ItemPressTimes(rows[r.Entry])![r.ItemIndex], 6);
+        var e21 = model.Rows.Single(r => r.Entry.Src == "'Alex Prime/PA'!E21");
+        Assert.Equal([718.4, 720.2, 720.2, 720.2], model.ItemPressTimes(e21)!.Select(t => Math.Round(t, 2)));
+        Assert.Equal(718.4, model.PressTime(e21)!.Value, 6);
 
         Assert.Contains(model.Rows, r => r.Entry.Offset is null);
     }

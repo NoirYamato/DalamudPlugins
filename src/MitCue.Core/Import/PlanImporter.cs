@@ -219,7 +219,10 @@ public sealed partial class PlanImporter
     /// <param name="Use">The reminder of the press that finds no charge (its entry, hit and press time).</param>
     /// <param name="Action">The action that has no charge then.</param>
     /// <param name="Offset">The entry's new offset.</param>
-    /// <param name="From">The entry's offset before the recast fit moved it.</param>
+    /// <param name="From">
+    /// The press's offset before the recast fit moved its entry: the entry's, or the item's own series floor when that is
+    /// later (<see cref="ItemTiming.PressAt"/>).
+    /// </param>
     /// <param name="Earlier">The earlier press whose recast it waits for.</param>
     /// <param name="EarlierAction">That press's action (the same action, or one that shares its recast).</param>
     /// <param name="Charges">The charges of the action at the sync level.</param>
@@ -2551,8 +2554,8 @@ public sealed partial class PlanImporter
 
             var seats = this.Seats(new MitPlan { Fight = this.fight.Key, Assignees = assignees, Entries = drafts.Select(d => d.Entry).ToList() });
 
-            // Each press as the plan has it before the fit, for the infos.
-            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry).PressAt);
+            // Each press as the plan has it before the fit, for the infos: each item's, as check replays it.
+            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry));
             var moved = new Dictionary<PlanEntry, RecastMove>();
             for (var round = 0; round < MaxFitRounds; round++)
             {
@@ -2574,7 +2577,10 @@ public sealed partial class PlanImporter
             foreach (var d in drafts)
             {
                 if (moved.TryGetValue(d.Entry, out var move))
-                    this.ReportRecastFit(move, planned[move.Entry] - planned[move.Earlier.Entry], moved.ContainsKey(move.Earlier.Entry));
+                {
+                    var gap = planned[move.Entry].Items[move.Use.ItemIndex].PressAt - planned[move.Earlier.Entry].Items[move.Earlier.ItemIndex].PressAt;
+                    this.ReportRecastFit(move, gap, moved.ContainsKey(move.Earlier.Entry));
+                }
             }
         }
 

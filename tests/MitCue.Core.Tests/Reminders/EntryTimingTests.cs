@@ -80,8 +80,10 @@ public class EntryTimingTests
         {
             Assert.Equal(t.Hit, r.Hit, Kit.Tolerance);
             Assert.Equal(t.PressAt, r.PressAt, Kit.Tolerance);
+            Assert.Equal(t.Items[r.ItemIndex].PressAt, r.PressAt, Kit.Tolerance);
             Assert.Equal(t.Items[r.ItemIndex].Earliest, r.Earliest, Kit.Tolerance);
             Assert.Equal(t.Items[r.ItemIndex].Latest, r.Latest, Kit.Tolerance);
+            Assert.Equal(t.Items[r.ItemIndex].DueNotBefore, r.DueNotBefore);
         }
     }
 
@@ -356,6 +358,48 @@ public class EntryTimingTests
 
         // On the first wave it keeps its lead.
         Assert.Equal(95.5, Kit.Timing(Kit.Entry("p1.wave_1", null, Kit.Do(Kit.NeutralSect)), SeriesFight()).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_EachItemWaitsForTheFloorOfItsOwnAction()
+    {
+        // "Adloquium + Divine Benison" on wave 3 (106), timed by the Adloquium: its 2 s cast may start 1.7 s before wave 2
+        // (103) + 0.3, the instant Benison may not (it would be spent on wave 2).
+        var t = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Adloquium), Kit.Do(Kit.DivineBenison)), SeriesFight());
+        Assert.Equal(101.5, t.PressAt, Kit.Tolerance);                     // the entry: the Adloquium's own −4.5 s
+        Assert.Equal(101.3, t.DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(101.5, t.Items[0].PressAt, Kit.Tolerance);
+        Assert.Equal(101.3, t.Items[0].DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(101.3, t.Items[0].Earliest, Kit.Tolerance);
+        Assert.Equal(103.3, t.Items[1].PressAt, Kit.Tolerance);
+        Assert.Equal(103.3, t.Items[1].DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(103.3, t.Items[1].Earliest, Kit.Tolerance);
+        Assert.Equal(103.3, t.Items[1].DueAt(new ReminderOptions()), Kit.Tolerance);
+
+        // The scheduler turns the Benison due only after wave 2, and a Benison before that is early.
+        var s = Kit.Scheduler(SeriesFight(), new ReminderOptions(), Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Adloquium), Kit.Do(Kit.DivineBenison)));
+        var adloquium = Assert.Single(s.All, r => r.ItemIndex == 0);
+        var benison = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(101.3);
+        Assert.Equal((ReminderState.Due, ReminderState.Upcoming), (adloquium.State, benison.State));
+        s.OnOwnAction(Kit.Adloquium.Id, 101.4);
+        s.OnOwnAction(Kit.DivineBenison.Id, 102.0);
+        Assert.False(adloquium.UsedEarly);
+        Assert.True(benison.UsedEarly);
+    }
+
+    [Theory]
+    [InlineData(-4.0, 101.3, 101.3)]  // after the entry's floor (101.3), before the Benison's (103.3): the entry's for both
+    [InlineData(-2.5, 101.3, 103.3)]  // after both: each its own
+    [InlineData(-5.0, null, null)]    // before the entry's floor: none
+    public void Series_AWrittenPressKeepsEachFloorItIsAtOrAfter(double offset, double? adloquium, double? benison)
+    {
+        var t = Kit.Timing(Kit.Entry("p1.wave_3", offset, Kit.Do(Kit.Adloquium), Kit.Do(Kit.DivineBenison)), SeriesFight());
+        Assert.All(t.Items, i => Assert.Equal(106 + offset, i.PressAt, Kit.Tolerance));   // a written press is not moved
+        Assert.Equal(adloquium, t.Items[0].DueNotBefore);
+        Assert.Equal(benison, t.Items[1].DueNotBefore);
+        if (benison is { } floor)
+            Assert.Equal(floor, t.Items[1].Earliest, Kit.Tolerance);
     }
 
     [Fact]

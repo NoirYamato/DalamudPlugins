@@ -67,46 +67,50 @@ public static class TimingRules
     /// <param name="options">Use window settings (the defaults when null).</param>
     /// <remarks>
     /// <para>
-    /// The hit is the mechanic's hit at <see cref="PlanEntry.HitIndex"/>. All items share one press time: hit + the entry's
-    /// offset, or without one the automatic offset. That is <see cref="DefaultOffset"/> of the entry's timing action, the
-    /// first item action the catalog resolves (for an either-or item: its first resolvable option), with these rules of
-    /// the anchor mechanic (fight file fields, <see cref="Mechanic"/>):
+    /// The hit is the mechanic's hit at <see cref="PlanEntry.HitIndex"/>. The entry's press time is hit + its offset, or
+    /// without one its automatic offset, which these rules give, in this order:
     /// </para>
-    /// <list type="bullet">
-    /// <item><see cref="Mechanic.PressAfter"/>: after the hit, like heals (+1 s, or the action's own later default: +2 s
-    /// for a healer limit break).</item>
-    /// <item><see cref="Mechanic.HealLead"/>: an entry timed by a heal used after the hit (<see cref="IsUsedAfterHit"/>) is
-    /// pressed that long before the hit instead, to top the targets up for it.</item>
-    /// </list>
-    /// <para>
-    /// Otherwise an entry timed by a heal used after the hit or by a buff, movement or other action (which give the other
-    /// items no lead) is pressed with its earliest action pressed before the hit (<see cref="EarliestPreHitOffset"/>) when
-    /// that is earlier: "Bless/Whisper/Succor" with Whispering Dawn's −6.3 s, so the Succor lands before the hit;
-    /// "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's −6 s, time for the whole combo. An entry timed by mitigation,
-    /// a shield, a regen or an invuln keeps its action's lead ("Reprisal/Party Mit": Reprisal's −3 s still covers the
-    /// mechanic's second hit).
-    /// </para>
-    /// <para>
+    /// <list type="number">
+    /// <item>
+    /// The default of the entry's timing action (<see cref="DefaultOffset"/>), the first item action the catalog resolves
+    /// (for an either-or item: its first resolvable option), with the anchor mechanic's fields first (fight file,
+    /// <see cref="Mechanic"/>): <see cref="Mechanic.PressAfter"/> presses the entry after the hit, like heals (+1 s, or the
+    /// action's own later default: +2 s for a healer limit break), and no rule below applies; with
+    /// <see cref="Mechanic.HealLead"/> an entry timed by a heal used after the hit (<see cref="IsUsedAfterHit"/>) is pressed
+    /// that long before the hit instead, to top the targets up for it. Otherwise an entry timed by a heal used after the
+    /// hit or by a buff, movement or other action (which give the other items no lead) is pressed with its earliest action
+    /// pressed before the hit (<see cref="EarliestPreHitOffset"/>) when that is earlier: "Bless/Whisper/Succor" with
+    /// Whispering Dawn's −6.3 s, so the Succor lands before the hit; "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's
+    /// −6 s, time for the whole combo. An entry timed by mitigation, a shield, a regen or an invuln keeps its action's
+    /// lead ("Reprisal/Party Mit": Reprisal's −3 s still covers the mechanic's second hit).
+    /// </item>
+    /// <item>
     /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
     /// tank mitigation, invulns) also covers the later hits its effect can reach. For each such item with a duration D,
     /// the last later hit hR with hR − first hit ≤ D − 2.5 s is covered: the press is no earlier than hR − D + 2 s, so even
     /// pressed on the NOW cue (1.5 s before) the effect outlasts hR by 0.5 s, and the press is still 0.5 s before the first
-    /// hit (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s). A use that would end before hR + 0.5 s
-    /// is early.
-    /// </para>
+    /// hit (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s). A use that would end before
+    /// hR + 0.5 s is early.
+    /// </item>
+    /// <item>
+    /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): nothing is
+    /// pressed before the hit before it + 0.3 s, so that a shield is not spent on that hit and mitigation lasts through the
+    /// later ones; an action whose effect lands a while after its press is pressed that much earlier, a shield by its
+    /// cast, an action whose barrier comes from a cast after it by that cast (<see cref="ActionInfo.BarrierCast"/>: Neutral
+    /// Sect's 1.5 s Aspected Helios). The timing action's floor is the entry's: the automatic press is never before it,
+    /// and the entry's reminders do not turn due before it (<see cref="EntryTiming.DueNotBefore"/>). Each item has a floor
+    /// of its own action, never earlier than the entry's (<see cref="ItemTiming.DueNotBefore"/>), and an automatic press
+    /// presses it no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor's 2 s cast 1.8 s before wave 4 +
+    /// 0.3 s, the instant Sacred Soil, Summon Seraph and Consolation wait until then. A written press keeps each floor it
+    /// is at or after (a press the importer moved later, so that the action is ready again); one before the entry's floor
+    /// has none.
+    /// </item>
+    /// </list>
     /// <para>
-    /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): the automatic
-    /// press is never before the hit before it + 0.3 s (for an entry timed by a shield with a cast: minus the cast, so the
-    /// shield lands then; by an action whose barrier comes from a cast after it, <see cref="ActionInfo.BarrierCast"/>:
-    /// minus that cast, Neutral Sect's 1.5 s Aspected Helios), and the reminder does not turn due before that either
-    /// (<see cref="EntryTiming.DueNotBefore"/>).
-    /// A written press at or after that floor keeps it too (a press the importer moved later, so that the action is ready
-    /// again); one before the floor has none.
-    /// </para>
-    /// <para>
-    /// Each item's use window is <see cref="UseWindow"/> of its own timing action around that press time; a use before the
-    /// series' floor, when the entry has it, or with an automatic press one that ends before a later hit the item covers,
-    /// is early.
+    /// Every item is pressed at the entry's press time, except that an item of an automatic press waits for its own series
+    /// floor (<see cref="ItemTiming.PressAt"/>). Each item's use window is <see cref="UseWindow"/> of its own timing action
+    /// around its press time; a use before the item's series floor, when it has one, or with an automatic press one that
+    /// ends before a later hit the item covers, is early.
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -141,24 +145,34 @@ public static class TimingRules
         }
 
         // A later hit of a series: not before the hit before it (a cast shield, or a barrier cast after the press, lands then).
-        double? floor = null;
-        if (PreviousSeriesHit(fight, hit) is { } previous)
-        {
-            floor = SeriesFloor(previous, timingAction);
+        var previous = PreviousSeriesHit(fight, hit);
+        var floor = previous.HasValue ? SeriesFloor(previous.Value, timingAction) : (double?)null;
+        if (floor.HasValue)
             automatic = Math.Max(automatic, floor.Value - hit);
-        }
 
         var isAutomatic = entry.Offset is null;
         var pressAt = hit + (entry.Offset ?? automatic);
-        var notBefore = floor is { } f && pressAt >= f - WrittenPrecision ? floor : null;
+        var notBefore = AtOrAfter(pressAt, floor);
 
         var windows = new ItemTiming[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
-            var (earliest, latest) = UseWindow(timing[i], level, hit, pressAt, options);
-            if (Later(isAutomatic ? covers[i] : null, notBefore) is { } notEarly)
-                earliest = Math.Min(Math.Max(earliest, notEarly), pressAt);
-            windows[i] = new ItemTiming(timing[i], earliest, latest);
+            // Each item waits for the series floor of its own action, never earlier than the entry's: an instant shield
+            // beside the cast one that times the entry lands after the hit before it too.
+            var itemPress = pressAt;
+            var itemNotBefore = notBefore;
+            if (previous.HasValue && floor.HasValue)
+            {
+                var own = Math.Max(floor.Value, SeriesFloor(previous.Value, timing[i]));
+                if (isAutomatic)
+                    itemPress = Math.Max(pressAt, own);
+                itemNotBefore = AtOrAfter(itemPress, own) ?? notBefore;
+            }
+
+            var (earliest, latest) = UseWindow(timing[i], level, hit, itemPress, options);
+            if (Later(isAutomatic ? covers[i] : null, itemNotBefore) is { } notEarly)
+                earliest = Math.Min(Math.Max(earliest, notEarly), itemPress);
+            windows[i] = new ItemTiming(timing[i], itemPress, earliest, latest, itemNotBefore);
         }
 
         return new EntryTiming
@@ -352,6 +366,12 @@ public static class TimingRules
 
     /// <summary>The later of two optional times (null when both are).</summary>
     private static double? Later(double? a, double? b) => a is { } x && b is { } y ? Math.Max(x, y) : a ?? b;
+
+    /// <summary>
+    /// <paramref name="floor"/> when <paramref name="pressAt"/> is at or after it (to the 0.01 s plan offsets are written
+    /// to), else null: the floor a press keeps.
+    /// </summary>
+    private static double? AtOrAfter(double pressAt, double? floor) => floor is { } f && pressAt >= f - WrittenPrecision ? floor : null;
 
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the
