@@ -225,7 +225,7 @@ public static class TimingRules
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        var duration = action?.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel);
+        var duration = CoverageDuration(action, syncLevel);
         var earliest = duration is { } d
             ? EarliestCoveringUse(hit, d)
             : pressAt - UnknownDurationLead;
@@ -237,6 +237,13 @@ public static class TimingRules
 
         return (earliest, latest);
     }
+
+    /// <summary>
+    /// How long a use of <paramref name="action"/> covers a hit (<see cref="UseWindow"/>): the longest of its effects for a
+    /// <see cref="UseTiming.Before"/> action (Neutral Sect's 30 s barrier), else its duration; null when unknown.
+    /// </summary>
+    public static double? CoverageDuration(ActionInfo? action, int syncLevel) =>
+        action?.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel);
 
     /// <summary>
     /// The earliest use of an effect of <paramref name="duration"/> seconds that still covers <paramref name="hit"/>: one

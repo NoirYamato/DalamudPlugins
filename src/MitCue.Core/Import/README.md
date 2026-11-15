@@ -218,11 +218,15 @@ Rules worth knowing:
   column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported name Soil and
   Kera; a `note-row` info says so).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
-  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`). "Still lasts" is the reminders' rule
-  (`TimingRules.ForEntry`, `EarliestCoveringUse`): used on its NOW cue (the default due lead), the earlier effect
-  outlasts the later hit by 1 s. An earlier press without a time in the sheet that falls short is pressed later so that
-  it covers both, no later than `(Late)` would press it (TEA's Hidden Mines Temperance −3.5 s, through Water 2);
-  otherwise both stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in
+  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
+  later call as the reminders time both (`TimingRules.ForEntry`), used on its NOW cue (the default due lead). A note says
+  that the earlier effect covers the later hit: it outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as
+  the reminders count it covering one (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s
+  barrier). A follow-up needs the action only when it is used, its own effect covering the hit: it is pressed within
+  `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
+  Water 2). An earlier press without a time in the sheet that falls short is pressed later so that it serves both, no
+  later than `(Late)` would press it (TEA's Hidden Mines Temperance −3.5 s, through Water 2); otherwise both stay
+  presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in
   brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
   for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.

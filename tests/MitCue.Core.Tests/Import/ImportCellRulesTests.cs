@@ -486,6 +486,61 @@ public class ImportCellRulesTests
         Assert.Contains(why, Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("P2", "Water 2", "Whirlwind 2", "p2.whirlwind_2")] // 20.9 s apart
+    [InlineData("P1", "Doll Feeds", "Hand of Pain 2", "p1.hand_of_pain_2")] // 19.7 s apart
+    public void SeraphNamedAgain_OutWhenItsConsolationIsUsed_IsConsolation(string phase, string first, string again, string mechanic)
+    {
+        // Seraph (22 s) is gone before the later hit, but not when the Consolation for it is pressed (4 s before the hit),
+        // whose own barrier covers the hit: one Summon Seraph, no second press within its 120 s recast.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet(phase, "Scholar", first + "\tSeraph", again + "\tSeraph"), fight: tea);
+
+        Assert.Equal(["Consolation"], r.Plan.Entries.Single(e => e.Mechanic == mechanic).Names());
+        Assert.Null(r.Plan.Entries.Single(e => e.Mechanic != mechanic).Offset);
+        Assert.DoesNotContain(PlanChecker.Check(tea, RepoFiles.Actions, r.Plan, new PlayerContext(Job.SCH, tea.SyncLevel)), f => f.Severity == PlanFindingSeverity.Error);
+    }
+
+    [Fact]
+    public void BuffNamedAgain_ItsFollowUpsWindowCounts_AtLevel100()
+    {
+        // DMU Gravitas 1 (87.2) and 2 (105.8), 18.6 s apart: Divine Caress (Divine Grace, 30 s) and Sun Sign (Suntouched, 30 s).
+        var dmu = FightLoader.Load(RepoFiles.Data.ReadText("fights/dmu.yaml"), "fights/dmu.yaml");
+        var r = Import(Sheet("P1", "White Mage\tAstrologian", "Gravitas 1\tTemperance\tNeutral", "Gravitas 2\tTemperance\tNeutral"), fight: dmu);
+
+        var later = r.Plan.Entries.Where(e => e.Mechanic == "p1.gravitas_2").ToList();
+        Assert.Equal(["Divine Caress"], later.Single(e => e.Who.Job == Job.WHM).Names());
+        Assert.Equal(["Sun Sign"], later.Single(e => e.Who.Job == Job.AST).Names());
+    }
+
+    [Theory]
+    [InlineData("Cascade", "Hand of Prayer", -1.2, "Stellar Detonation", "so that it still lasts when Stellar Detonation is used")] // 16.3 s apart
+    [InlineData("Doll Feeds", "Hand of Pain 2", null, "Earthly Star", "but its follow-up Stellar Detonation would be used after it is over even pressed just before its own: both stay presses")] // 19.7 s apart
+    public void StarNamedAgain_ItsDetonationNeedsTheStarOut(string first, string again, double? offset, string later, string info)
+    {
+        // Stellar Detonation (after the hit) needs the 20 s star still out: pressed 1.2 s before Cascade, the star is out
+        // until the detonation 1 s after Hand of Prayer; 19.7 s apart, no press before Doll Feeds keeps it out that long.
+        var r = Import(Sheet("P1", "Astrologian", first + "\tStar", again + "\tStar"), fight: PlanImports.Tea);
+
+        Assert.Equal(offset, r.Plan.Entries[0].Offset);
+        Assert.Equal([later], r.Plan.Entries[1].Names());
+        Assert.Contains(info, Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("P5", "Omega Raidwide", "Omega Cones", "p5.omega_cannons", false)] // TOP, 17.1 s apart
+    [InlineData("P1", "Cascade", "Hand of Prayer", "p1.hand_1", true)] // TEA, 16.3 s apart
+    [InlineData("P2", "Water 1", "Mines", "p2.hidden_mines", true)] // TEA, 15.4 s apart
+    public void NeutralNamedAgain_WithinItsBarrierWindow_IsANote_AndKeepsItsLead(string phase, string first, string again, string mechanic, bool tea)
+    {
+        // Neutral Sect is pressed 4.5 s early so that the barrier GCD after it lands before the hit; the reminders count it
+        // as covering a hit for its longest effect (the 30 s barrier, TimingRules.UseWindow).
+        var r = Import(Sheet(phase, "Astrologian", first + "\tNeutral", again + "\tNeutral"), fight: tea ? PlanImports.Tea : PlanImports.Top);
+
+        Assert.Equal(["note:Neutral Sect (still active)"], r.Plan.Entries.Single(e => e.Mechanic == mechanic).Names());
+        Assert.Null(r.Plan.Entries.Single(e => e.Mechanic != mechanic).Offset);
+    }
+
     [Fact]
     public void LimitBreakInTwoColumns_IsOptional_ForWhoeverHasIt()
     {
