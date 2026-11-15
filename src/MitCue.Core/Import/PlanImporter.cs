@@ -266,6 +266,12 @@ public sealed partial class PlanImporter
             "between", "among", "around", "by", "of",
         };
 
+        /// <summary>
+        /// The first part of a role word written in two ("co-tank", "off-tank", "main tank", "non-tanks"): a place word before
+        /// it still places the role word (<see cref="IsPlacement"/>).
+        /// </summary>
+        private static readonly HashSet<string> RolePrefixes = new(StringComparer.OrdinalIgnoreCase) { "co", "off", "main", "non" };
+
         /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
         private static readonly ReminderOptions DefaultReminders = new();
 
@@ -2267,15 +2273,18 @@ public sealed partial class PlanImporter
 
         /// <summary>
         /// The role or slot word at <paramref name="i"/> says where or for whom to press, and speaks to no player: after a place
-        /// word ("on the melee", "under the tanks"), before "buster" ("the tank buster"), or after "and"/"or" that lists it
-        /// with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT"; not "on the melee and OT
-        /// provokes").
+        /// word ("on the melee", "under the tanks", "on the co-tank"), before "buster" ("the tank buster", "the OT's buster"),
+        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT";
+        /// not "on the melee and OT provokes").
         /// </summary>
         private static bool IsPlacement(string[] words, int i)
         {
-            if (i + 1 < words.Length && words[i + 1].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
+            var next = i + 1 < words.Length && words[i + 1].Equals("s", StringComparison.OrdinalIgnoreCase) ? i + 2 : i + 1; // "the OT's buster"
+            if (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
                 return true;
             var j = i - 1;
+            if (j >= 0 && RolePrefixes.Contains(words[j]))
+                j--;
             while (j >= 0 && Determiners.Contains(words[j]))
                 j--;
             if (j < 0)

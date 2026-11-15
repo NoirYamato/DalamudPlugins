@@ -653,6 +653,11 @@ public class ImportLayoutRulesTests
     [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
     [InlineData("Press Soil under the MT or OT as the first tether resolves!")]
     [InlineData("Press Soil as the first tether resolves, before the tank buster!")]
+    [InlineData("Press Soil under the co-tank as the first tether resolves!")] // a role word in two
+    [InlineData("Press Soil under the off-tank as the first tether resolves!")]
+    [InlineData("Press Soil under the main tank as the first tether resolves!")]
+    [InlineData("Press Soil on the non-tanks as the first tether resolves!")]
+    [InlineData("Press Soil as the first tether resolves, before the OT's buster!")]
     [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
     public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
     {
@@ -664,12 +669,13 @@ public class ImportLayoutRulesTests
         Assert.DoesNotContain(r.Plan.Entries, e => e.Do.Any(i => i.Note == tip));
     }
 
-    [Fact]
-    public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns()
+    [Theory]
+    [InlineData("Press Soil on the melee and OT provokes after it!")]
+    [InlineData("Press Soil on the melee, then the co-tank provokes after it!")]
+    public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns(string note)
     {
         // "on the melee" places the Soil, but "OT provokes" speaks to the OT ("and" lists only a word of the same kind, a role
-        // with a role, a slot with a slot): every entry of its columns, and a note entry for R1.
-        const string note = "Press Soil on the melee and OT provokes after it!";
+        // with a role, a slot with a slot), as "the co-tank provokes" does: every entry of its columns, and a note entry for R1.
         var r = Import(PlacingTab(note));
 
         Assert.Equal(6, r.Plan.Entries.Count(e => e.Detail == note));
