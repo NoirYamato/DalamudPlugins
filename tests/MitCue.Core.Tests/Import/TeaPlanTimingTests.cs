@@ -255,6 +255,31 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// "Lightspeed + Neutral Sect" on J Wave 5, either way round and as a sequence, and "Neutral Sect → Intersection →
+    /// Lightspeed": Lightspeed (cast times −2.5 s for 15 s) makes the Aspected Helios that puts up Neutral Sect's barrier
+    /// instant, the barrier up on the press, so every item waits for wave 4 + 0.3 s (720.2), pressed and due then, and a
+    /// Neutral Sect before then is early. Pressed at 718.7, as Neutral Sect alone is for a Helios cast in 1.5 s, the instant
+    /// Helios's barrier would be spent on wave 4 (719.9).
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Lightspeed", "Neutral Sect")]
+    [InlineData(true, "Lightspeed", "Neutral Sect")]
+    [InlineData(false, "Neutral Sect", "Lightspeed")]
+    [InlineData(true, "Neutral Sect", "Celestial Intersection", "Lightspeed")]
+    public void JWave5_LightspeedAndTheNeutralSectWhoseHeliosItMakesInstantWaitForWave4(bool seq, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.AST }, Seq = seq, Do = [.. cell.Select(Item)] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(cell.Length, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), PressAndDue(r)));
+
+        var neutral = Assert.Single(s.All, r => r.Item.Name == "Neutral Sect");
+        s.Update(719.8);
+        s.OnOwnAction(neutral.ActionIds[0], 719.8);
+        Assert.True(neutral.UsedEarly);
+    }
+
+    /// <summary>
     /// "Stack middle → Succor" on J Wave 5, a sequence: the note has nothing wave 4 could spend, so it comes with the Succor,
     /// both pressed at 718.4 and due at 718.2, and does not hold the Succor back until after wave 4 (720.2), when its 2 s
     /// cast would land 0.7 s before wave 5.
