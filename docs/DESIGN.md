@@ -323,9 +323,10 @@ Conjunction) and `instant_next_cast` (`true` for an action that makes the next s
 instant: Swiftcast, so that a call that lists it counts no cast before a series floor,
 §5.1 rule 4). `lead` and `barrier_cast` must be positive numbers of seconds, or the
 catalog does not load (`mitcue validate` reports it). Eukrasia's `recast` is hand-set to
-1 s, the GCD the game locks after it (in cactbot's sample log of a Sage, 36 of 37 Eukrasia
-→ Eukrasian action pairs are 0.98–1.07 s apart), not the game data's 2.5 s: `(Late)` and
-multi-hit coverage leave a Eukrasian action 1 s for it (§5.1 rule 3, §6 step 3).
+1 s, the GCD the game locks after it (in cactbot's sample log of a Sage, 36 of the 37
+in-combat Eukrasia → Eukrasian action pairs are 0.98–1.07 s apart, the other a 2.1 s
+wait), not the game data's 2.5 s: `(Late)` and multi-hit coverage leave a Eukrasian
+action 1 s for it (§5.1 rule 3, §6 step 3).
 The fields and the loader's rules: docs/research/actions.md §6.
 
 `aliases.yaml`: lowercase shorthand → action(s) (optionally per job), role phrases with
@@ -432,9 +433,11 @@ Then, in this order:
    four later cleaves of TOP's Diffuse Wave Cannon Kyrios, the five later Splashes of TEA's
    first). A party or tank mitigation or invuln item of duration D (its longest effect
    for `when: before`) covers the last later hit `hR` with `hR − hit ≤ D − 1.5`: it is
-   pressed at `hR − D + 2`, but no later than 0.5 s before the first hit, and its NOW cue
-   never comes before `hR − D + 0.5`, whatever the due lead (§5.2): a use on the NOW cue
-   then outlasts `hR` by 0.5 s, and still comes at least 1 s before the first hit. Within
+   pressed no earlier than `hR − D + 2` (with the entry when that is pressed later: on
+   TEA's first Splash a 15 s Sacred Soil keeps its −4.5 s and still covers the sixth hit),
+   but no later than 0.5 s before the first hit, and its NOW cue never comes before
+   `hR − D + 0.5`, whatever the due lead (§5.2): a use on the NOW cue then outlasts `hR` by
+   at least 0.5 s, and still comes at least 1 s before the first hit. Within
    `hR − hit ≤ D − 2.5` that press is the entry's, and the item that needs the latest press
    times the entry (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of
    −3 s; TEA's first Splash, its sixth hit 5.5 s after the first: a 10 s Reprisal, Feint or
@@ -522,10 +525,11 @@ do (`still-active`, step 4, and the recast fit, step 7).
   press. On LPDU TOP's Cosmo Dive, The Blackest Night (7 s) beside a Rampart pressed at
   −6 s turns due 6 s before the hit, not 7.5 s, and the 8 s Bloodwhetting, Heart of
   Corundum or Holy Sheltron beside it 7 s before; at TEA's level 80, a 6 s Raw Intuition
-  beside a Rampart at −6 s turns due at its press; *NoirMit - WHM*'s Sigma Temperance,
-  written 18 s before the hit, turns due 19 s before it, not 19.5 s. The earliest-use
-  floor counts the default due lead only: a longer due lead of the player's still turns
-  the other items due that much earlier.
+  beside a Rampart at its automatic −6 s turns due at its press (written at −6 s, before
+  `hit − D + 1`, it keeps −7.5 s); *NoirMit - WHM*'s Sigma Temperance, written 18 s
+  before the hit, turns due 19 s before it, not 19.5 s. The earliest-use floor counts the
+  default due lead only: a longer due lead of the player's still turns the other items due
+  that much earlier.
   `latest = hit − 0.3` for mitigation, shields and pre-placed heals (`when: before`), and
   `press + 5` for heals used after the damage and anything planned after the hit (never
   before `press + 0.5`). Sound plays once on entering Due. A press that the series floor
@@ -682,7 +686,7 @@ previews, which have no cooldown provider.
    would press it, never after the lead of a `when: before` action that is no heal (Neutral
    Sect 4.5 s, Passage of Arms 2 s), never so that another of its items is pressed earlier
    than without it, and never so that a seat that sees it loses what the recast fit keeps
-   for it (step 7: a Passage of Arms of another cell stays the last press before its hit,
+   for it (step 7: a Passage of Arms of another entry stays the last press before its hit,
    a follow-up stays in its trigger's window); like `(Late)`'s, the offset is written into
    the plan, so the review and `mitcue plan` show it as set, not automatic. Otherwise both
    stay presses, and `check` reports the recast. A `still-active` info says which, with the
@@ -765,13 +769,14 @@ previews, which have no cooldown provider.
    leave a window after its trigger that it is in now, the trigger's longest effect counted
    from its press, as `check` counts it, or from its NOW cue, as step 4 reads it (a
    Consolation more than 22 s after the Summon Seraph before it, or before it). Nor is it
-   pressed at or after a Passage of Arms of another cell that a seat sees with it and that
-   is not before it now, up to that Passage of Arms' hit, whichever hit the entry is for
-   (TEA's Hand of Pain 4 hits 0.1 s before Protean 2): once nothing else moves (that
-   Passage of Arms may wait for its own recast first), it is pressed 0.1 s before the
-   Passage of Arms, for every seat, if its action is ready by then (in LPDU TEA's layout,
-   a Tank 1 Reprisal beside `PLD Wings` in Extras: 2.1 s before the hit at the latest, for
-   every MT, a Warrior too); else it stays. Only firm presses keep an action on
+   pressed at or after a Passage of Arms of another entry (another cell's, or another call
+   of its own cell split by ` / `) that a seat sees with it and that is not before it now,
+   up to that Passage of Arms' hit, whichever hit the entry is for (TEA's Hand of Pain 4
+   hits 0.1 s before Protean 2): once nothing else moves (that Passage of Arms may wait
+   for its own recast first), it is pressed 0.1 s before the Passage of Arms, for every
+   seat, if its action is ready by then (in LPDU TEA's layout, a Tank 1 Reprisal beside
+   `PLD Wings` in Extras: 2.1 s before the hit at the latest, for every MT, a Warrior
+   too); else it stays. Only firm presses keep an action on
    recast: not an optional entry (grey, in brackets, with a condition, one choice of an
    either/or), an either/or item or a note; an optional call itself still waits (LPDU
    TEA's "CU (if up)" on Irresistible Grace 1). A press with a time in the sheet counts but
@@ -779,8 +784,9 @@ previews, which have no cooldown provider.
    ("on CD") keeps its press and still counts: its reminder already waits for the action in
    game. A sequence moves for its first step only (`check` times every step at its own
    press, §5.1: the entry's, unless the step waits for a series floor or a later hit of its
-   own; in game the later steps follow the first), and only when its later steps are
-   instant oGCDs woven in right after it (`Kerachole → Holos`): one with a later GCD or
+   own or, with an automatic press, for the step before it; in game the later steps follow
+   the first), and only when its later steps are instant oGCDs woven in right after it
+   (`Kerachole → Holos`): one with a later GCD or
    cast (`Zoe → Eukrasian Prognosis → Holos → Kerachole`, `Recitation → Succor`) keeps its
    press. An entry several seats see takes the latest press any of them needs. The
    earliest press without a charge moves first, then the plan is replayed again, until
@@ -805,7 +811,9 @@ previews, which have no cooldown provider.
    each entry with the importer's diagnostics and the plugin's checks, and the automatic
    offset and press time the overlay will use (§5.1), with the press of each item pressed
    later than the entry ("Pressed later: …"); an offset the importer wrote (`(Late)`, step
-   4, the recast fit) shows as set, not automatic, step 4's and the fit's with their info.
+   4, the recast fit) shows as set, not automatic: the fit's with its info on that row,
+   step 4's with its info on the row of the later call it serves (LPDU TEA's G44
+   Temperance at −3.5 s; the info is on G46's "Temperance (still active)").
    An edit of the entry's offset, mechanic or hit removes the fit's info, which no longer
    describes the entry, as an edit of the offset removes the importer's notes about the
    sheet's time and one of the mechanic those about the mechanic.
@@ -846,10 +854,13 @@ files and links; the plugin's import window adds downloading, the review and the
   territory changes.
 - **Overlay:** compact list (max N rows), icon + name + countdown + mechanic + target;
   colours per state; optional click-through and lock; scale and opacity. **As built:** the
-  active rows first, then the most recently finished ones in the room left, all in the
-  scheduler's order: press time, then plan order, an item pressed last (Passage of Arms)
-  after the other items of its entry, item order, whatever their state; the co-healer's
-  rows are merged in by press time, the player's first on a tie.
+  player's active rows first (the earliest that fit), then, in the room left, the player's
+  finished rows still listed (3 s) that come last in the scheduler's order (the latest
+  press times, not the latest to finish), all shown in that order: press time, then plan
+  order, an item pressed last (Passage of Arms) after the other items of its entry, item
+  order, whatever their state; the co-healer's rows, chosen the same way in the room the
+  player's rows leave (a finished row of the player's takes the place of an active one of
+  theirs), are merged in by press time, the player's first on a tie.
 - **Config defaults:** lookahead 15 s; due lead 1.5 s; max rows 5; sound on due (game SE);
   own calls only; co-healer calls off; show skipped off; post-pull summary on; overlay
   locked off; hotbar glow not in v1. **As built:** also track done/missed on, sound effect

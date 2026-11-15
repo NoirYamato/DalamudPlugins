@@ -148,25 +148,26 @@ TOP - P1: Omega - 1:15
   *no Lily*, *no Aetherflow* and so on when a job resource is missing (Lily, Blood Lily, Aetherflow,
   Addersgall, Addersting).
 - **Your co-healer's calls:** with **Also show my co-healer's calls** ticked, they are listed dimmed with
-  their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs. This needs
-  a plan with your co-healer's column: on LPDU the Scholar sees the White Mage's H1 calls. *NoirMit - WHM*
-  and *Carry the Clear - SCH* have only their own job's column, so they show none. A White Mage who chooses
-  LPDU under **Active plan** to see the Scholar's calls also gets LPDU's calls instead of their own (see
-  [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
+  their column as a tag, e.g. `[H1 WHM] Temperance`. Your own rows are never pushed out by theirs, and come
+  before theirs for the same moment. This needs a plan with your co-healer's column: on LPDU the Scholar sees
+  the White Mage's H1 calls. *NoirMit - WHM* and *Carry the Clear - SCH* have only their own job's column, so
+  they show none. A White Mage who chooses LPDU under **Active plan** to see the Scholar's calls also gets
+  LPDU's calls instead of their own (see [Which plan and column MitCue
+  uses](#which-plan-and-column-mitcue-uses)).
 
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
-press time. It turns NOW **Turn "NOW" this early** (1.5 s) before, but not while its effect, used then, would
-end less than 1 s after the hit: it then turns NOW once a use lasts that long, or at its planned time if that
-comes first, so that a press on NOW is not *(early)*. *The Blackest Night* (7 s) planned with *Rampart* 6 s
-before a tank buster turns NOW 6 s before it, not 7.5 s, and an 8 s *Heart of Corundum* beside it 7 s before;
-the White Mage's *Temperance* for Sigma, 18 s before it in NoirMit's sheet, turns NOW 19 s before Sigma. A time
-in the sheet that is earlier than that keeps the full lead, and a longer **Turn "NOW" this early** of yours
-still applies to the other calls. A step of a sequence (`→`) never turns NOW before the step before it. A
-reminder stays NOW until just before the hit for mitigation, shields and heals placed ahead of the damage
-(Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos), or until 5 s after the planned time
-for heals and anything else planned after the damage, and then counts as missed. An entry marked *on cooldown*
-in the plan stays NOW until the action is ready. A call for the end of a phase (*as P1 dies*) turns NOW when a
-push ends that phase early.
+press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. When its effect, used 1.5 s before the
+planned time, would end less than 1 s after the hit, it turns NOW instead once a use lasts that long, or at its
+planned time if that comes first, so that a press on NOW is not *(early)*. *The Blackest Night* (7 s) planned
+with *Rampart* 6 s before a tank buster turns NOW 6 s before it, not 7.5 s, and an 8 s *Heart of Corundum*
+beside it 7 s before; the White Mage's *Temperance* for Sigma, 18 s before it in NoirMit's sheet, turns NOW 19 s
+before Sigma. A time in the sheet that is earlier than that keeps the full lead. A longer **Turn "NOW" this
+early** of yours still turns the other calls NOW that much earlier, even when a use then would be *(early)*. A
+step of a sequence (`→`) never turns NOW before the step before it. A reminder stays NOW until just before the
+hit for mitigation, shields and heals placed ahead of the damage (Liturgy of the Bell, Excogitation, Earthly
+Star, Horoscope, Macrocosmos), or until 5 s after the planned time for heals and anything else planned after
+the damage, and then counts as missed. An entry marked *on cooldown* in the plan stays NOW until the action is
+ready. A call for the end of a phase (*as P1 dies*) turns NOW when a push ends that phase early.
 
 Plan entries without a time get an automatic press time (details in [docs/DESIGN.md](docs/DESIGN.md) §5.1):
 
@@ -180,23 +181,25 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
 - **From the mechanic:** mitigation for a mechanic with several hits is pressed late enough to last through the
   later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). An action that
   reaches a later hit only when pressed at the last moment is pressed on its own, 0.5 s before the first hit,
-  and turns NOW only 1 to 2 s before it, while the other actions of its call keep their time (TOP's P6 Wave
-  Cannon: a 10 s Reprisal, Feint or invuln then lasts through the Wild Charge). Hits that the fight's timeline
-  shows as one count too: a tank's invuln for TOP's Diffuse Wave Cannon Kyrios, five cleaves over 8.3 s, is
-  pressed 0.5 s before the first and turns NOW 1.2 s before it, so that it lasts through the fifth, and a 10 s
-  Reprisal, Feint or Addle on TEA's first Splash, six hits over 5.5 s, 2.5 s before the first. In TEA:
+  and turns NOW only 1 to 2 s before it (TOP's P6 Wave Cannon: a 10 s Reprisal, Feint or invuln then lasts
+  through the Wild Charge), while the other actions of its call keep their time, except the later steps of a
+  sequence (`→`), which wait for it. Hits that the fight's timeline shows as one count too: a tank's invuln for
+  TOP's Diffuse Wave Cannon Kyrios, five cleaves over 8.3 s, is pressed 0.5 s before the first and turns NOW
+  1.2 s before it, so that it lasts through the fifth, and a 10 s Reprisal, Feint or Addle on TEA's first
+  Splash, six hits over 5.5 s, 2.5 s before the first. In TEA:
   - the calls on Photon, which drops HP to 1, are its heal-up, 1 s after it. They still turn NOW 1.5 s before
     that, just before Photon lands: wait for the HP drop before an instant heal;
   - heals on Double Rocket Punch (the White Mage's Benediction) go out 4 s before it, once the second Photon
     has dropped the tanks to 1 HP; a heal placed ahead of the damage keeps its own lead (the Scholar's
     Excogitation, 8 s);
   - a call for a later J Wave waits for the wave before it, so it turns NOW with less of a lead, or none. A
-    call that starts with a Succor (a 2 s cast), or with a buff for it, turns NOW 1.7 s before that wave, so
-    that the Succor lands just after it. Its buffs and notes come with the Succor (*Reci → Succor*), and so
-    does a step before it (*Indom → Succor*), while its other instant actions still wait for the wave (the
-    Scholar's Sacred Soil, and Summon Seraph with its Consolation). With *Swiftcast* in the call the Succor
-    is instant, so both wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
-    just after it.
+    call timed by its Succor (a 2 s cast), one that starts with the Succor or with a buff, a note or a heal
+    used after the damage before it, turns NOW 1.7 s before that wave, so that the Succor lands just after
+    it. Its buffs and notes come with the Succor (*Reci → Succor*), and so does such a heal as a step before
+    it (*Indom → Succor*), while its other instant actions still wait for the wave (the Scholar's Sacred Soil,
+    and Summon Seraph with its Consolation). A call that starts with mitigation or a regen waits for the
+    wave, its Succor too (*Soil → Succor*, *Whisper → Succor*), and so does one with *Swiftcast*, which makes
+    the Succor instant. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands just after it.
 - **From your earlier calls:** when a sheet is imported (from a link or pasted cells; not a plan pasted on the
   AI route, a plan file or a share code), a call without a time in the sheet that would come before its action
   is ready again waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that
@@ -373,9 +376,10 @@ steps.
    (*PLD Wings* is the Paladin's), and the rest of the cell, a note or an action several jobs share (*Feint*),
    is one note for everyone; a remark in brackets after the cell, or below it after a caret, goes with each of
    them (*Dismantle + Feint (on BJ)*: the Dismantle is on BJ too), but a call with a remark of its own keeps it
-   and takes only a timing or a condition from the last one (*Dismantle (on BJ) + Feint (on CC)*: the
-   Dismantle is on BJ only). A sequence (`→`) with a step several jobs share stays one note for everyone
-   (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what
+   and takes from the last call's brackets only a timing or a condition (*Dismantle (on BJ) + Feint (on CC)*:
+   the Dismantle is on BJ only); a remark below the cell after a caret still goes with every call. A sequence
+   (`→`) with a step several jobs share stays one note for everyone (*PLD Wings → Addle*: no call for the
+   Paladin). **Slashes** says what
    `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or *all of them (Soil/Succor)*. On
    *(automatic)*, MitCue reads all of them when no cell of the sheet joins actions another way (`+`, `,`, `&`,
    `;`, `|`, an arrow, a spaced ` / `, a line break or a gap of three or more spaces) and at least two cells
@@ -427,15 +431,16 @@ after a *Seraph (Late)* stays a second summon, since its Consolation would come 
 comes later than that stays a call, even within Neutral Sect's 30 s barrier or the 30 s in which Divine Caress
 and Sun Sign can be used. When the earlier call has no time in the sheet and would wear off too soon, MitCue
 presses it later if that keeps the effect up, and writes that time into the plan (the review shows it as set,
-not automatic): LPDU TEA's Hidden Mines Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts
-through Water 2. It never presses Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the
-hit, nor another action of that call earlier, nor so that it would come after a Passage of Arms of another
-column that the same player sees, before that one's hit, or put a follow-up (Consolation, Divine Caress) out of
-its trigger's time. Otherwise both stay calls, with a note in the review that says why. When a call's wait (see
-below) moves your earlier call, a later call that it now keeps up becomes a note too (*Asylum (Late)* on
-Double Rocket Punch, 18.8 s after a Gavel Asylum that waits until 1.5 s before Gavel), unless a call after that
-one is kept up by its own press: then both stay calls. An optional call (grey, in brackets, with a condition,
-or one choice of an either/or) keeps nothing up.
+not automatic, and the later call's note says why): LPDU TEA's Hidden Mines Temperance is pressed 3.5 s before
+its hit instead of 6 s, and lasts through Water 2. It never presses Neutral Sect later than 4.5 s or Passage of
+Arms later than 2 s before the hit, nor another action of that call earlier, nor so that it would come after a
+Passage of Arms of another call that a player with this call also has (in another row or column, or the same
+cell), before that one's hit, or put a follow-up (Consolation, Divine Caress) out of its trigger's time; the
+call's time is every player's who has it. Otherwise both stay calls, with a note in the review that says why.
+When a call's wait (see below) moves your earlier call, a later call that it now keeps up becomes a note too,
+or the action's follow-up as above (*Asylum (Late)* on Double Rocket Punch, 18.8 s after a Gavel Asylum that
+waits until 1.5 s before Gavel), unless a call after that one is kept up by its own press: then both stay
+calls. An optional call (grey, in brackets, with a condition, or one choice of an either/or) keeps nothing up.
 
 A call without a time in the sheet that would come before its action is ready again, after your earlier
 presses of it (counted with the action's charges, as `mitcue check` counts them), waits for it: MitCue presses
@@ -443,12 +448,14 @@ it when the action is ready plus 1.5 s, so that with the default **Turn "NOW" th
 as the action comes back (LPDU TEA's Gavel Asylum: 1.5 s before Gavel instead of 7.2 s), but never later than
 `(Late)` would press it, nor than the lead of any action of the call allows (Neutral Sect 4.5 s, Earthly Star
 10 s, Passage of Arms 2 s: *Reprisal + Wings* waits only until 2 s before the hit). Nor does it wait past a
-Passage of Arms of another column that the same player sees, before that one's hit, since that would end its
-channel: it is then pressed 0.1 s before the Passage of Arms, if the action is ready by then (a tank column's
-*Reprisal* next to *PLD Wings* in *Extras*), else it keeps its time. That time is written into the plan: the
-review shows it as set, not automatic, with a note that says why (*… so that its NOW cue comes when Asylum is
-ready again.*), which goes once you change the call's offset, mechanic or hit there, and `mitcue plan` shows it
-without `*`. An optional call does not hold its action back from later calls, though it waits for it itself; a
+Passage of Arms of another call that a player with this call also has (in another row or column, or the same
+cell), before that one's hit, since that would end its channel: it is then pressed 0.1 s before the Passage of
+Arms, if the action is ready by then, else it keeps its time, for every player who has the call (a tank
+column's *Reprisal* next to *PLD Wings* in *Extras* waits only until just before the Paladin's Passage of Arms
+for a Warrior in that slot too). The time a call waits until is written into the plan: the review shows it as
+set, not automatic, with a note that says why (*… so that its NOW cue comes when Asylum is ready again.*),
+which goes once you change the call's offset, mechanic or hit there, and `mitcue plan` shows it without `*`.
+An optional call does not hold its action back from later calls, though it waits for it itself; a
 call with a time in the sheet, or marked *on cooldown*, keeps its time; and a sequence (`→`) waits only when
 its later steps are instant actions woven in after the first (*Kerachole → Holos*). When the action would be
 ready too late, the call keeps its time, and so does a call whose wait would press another of its actions

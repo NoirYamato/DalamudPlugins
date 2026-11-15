@@ -116,6 +116,7 @@ Notes:
   are GCDs or casts, an action ready only after "(Late)" or the lead of an action of the call (Neutral Sect 4.5 s,
   Earthly Star 10 s, Passage of Arms 2 s) would press it, a wait that would press another action of the call
   earlier or put a follow-up of any seat that sees it out of its trigger's window, a wait that would pass a
-  Passage of Arms of another cell before that one's hit when the action is not ready 0.1 s before it (a wait
-  never passes it), and a conflict with an earlier optional call, which the fit does not count (`check` warns
-  that "an optional use is involved").
+  Passage of Arms of another call (another cell's, or one split from the same cell by ` / `) that a seat sees with
+  it, before that one's hit, when the action is not ready 0.1 s before it (a wait never passes it, for any seat),
+  and a conflict with an earlier optional call, which the fit does not count (`check` warns that "an optional use
+  is involved").

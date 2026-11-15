@@ -1,4 +1,4 @@
-# Mechanic catalogs: TOP (verified, except one added sync), TEA and DMU (first drafts)
+# Mechanic catalogs: TOP (verified, except one added sync and four sub-hits from BossMod), TEA and DMU (first drafts)
 
 Research note for MitCue's fight catalogs (`data/fights/*.yaml`, schema in `docs/DESIGN.md` §3.1), written
 2026-11-11. Everything below was checked against the primary sources in §1. Anything that could not be checked
@@ -1172,9 +1172,10 @@ Evidence and **UNVERIFIED** points:
   **UNVERIFIED** against a log.
 - `p1.splash_1` has the five later Splashes as `sub_hits` (§2), so the sheet's 10 s Splash calls (Reprisal, Feint,
   Addle, Dismantle) are pressed 2.5 s before the first (78.6) and last through the sixth (86.6). Its 15 and 20 s
-  calls (Sacred Soil, Kerachole, Dark Missionary, Heart of Light, Troubadour, Tactician, Shield Samba; Fey
-  Illumination) keep their press, and a use of them before 72.1 (15 s) or 67.1 (20 s), which would end before the
-  sixth Splash + 0.5 s (87.1), is early.
+  party mitigation (Sacred Soil, Kerachole, Dark Missionary, Heart of Light, Troubadour, Tactician, Shield Samba;
+  Fey Illumination) keeps its press, and a use of it before 72.1 (15 s) or 67.1 (20 s), which would end before the
+  sixth Splash + 0.5 s (87.1), is early. The row's shields and regens (the Sage's Panhaima and Physis II, 15 s) do
+  not count the later Splashes: a use of them is early only before 67.1, as for one hit.
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
   is right is **UNVERIFIED**, so it has no `sub_hits`; LPDU's sheet plans nothing for it.
 - `p2.photon_1` ("Photon (everyone to 1 HP)") sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` ("Photon

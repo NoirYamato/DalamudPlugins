@@ -314,17 +314,22 @@ are in [DESIGN.md](DESIGN.md) §5: an entry without a time gets the automatic pr
 `TimingRules.ForEntry`, the one the import review and the CLI show too, item by item (an item may wait for a
 series floor or a later hit of its own, a step of a sequence for the step before it, and Passage of Arms comes
 after the others). A reminder turns due **Turn "NOW" this early** before its press, but never before its due
-floor (DESIGN.md §5.2): a series floor, the earliest use that still reaches a later hit, for Passage of Arms the
-other items' due floors, for a step of a sequence the step before it's, or, when the default 1.5 s would turn it
-due earlier, the earliest use that is not early (The Blackest Night beside a Rampart at −6 s: due 6 s before the
-hit, not 7.5 s). Done and missed rows stay visible for 3 s, or vanish at once with **Track done/missed** off;
+floor (DESIGN.md §5.2): a series floor (a written press keeps only one it is at or after), with an automatic
+press the earliest use that still reaches a later hit, for Passage of Arms the other items' due floors, for a
+step of a sequence the step before it's, or, when the default 1.5 s would turn it due before `hit − D + 1` (its
+earliest use that is not early, for its duration D), that time, never after the press (The Blackest Night beside
+a Rampart at −6 s: due 6 s before the hit, not 7.5 s). A press written before `hit − D + 1` asks for an early
+press and keeps its plain NOW cue, and a use on it is early (*Carry the Clear - SCH*'s Protraction 14 s before
+Pantokrator). Done and missed rows stay visible for 3 s, or vanish at once with **Track done/missed** off;
 skipped rows show for 3 s only with **Show reminders skipped by a phase push**. The overlay
-(`OverlayModel.Select`) shows the active rows that fit in **Maximum rows**, then the most recently finished ones
-in the room left, in the scheduler's order (press time, then plan order, an item pressed last after the other
-items of its entry, item order), whatever their state, so a row keeps its place when it is done; the co-healer's
-rows are merged in by press time, the player's first on a tie, and *+N more* counts the player's active rows that
-did not fit. At the lookahead time the cooldown provider is asked whether the action will be ready, which
-produces *ready in N s* and *no Lily*.
+(`OverlayModel.Select`) shows the player's active rows that fit in **Maximum rows** (the earliest), then, in the
+room left, those of the player's finished rows still listed that come last in the scheduler's order (the latest
+press times, not the latest to finish), all in that order (press time, then plan order, an item pressed last
+after the other items of its entry, item order), whatever their state, so a row keeps its place when it is
+done; the co-healer's rows, chosen the same way in the room the player's rows leave, are merged in by press
+time, the player's first on a tie, and *+N more* counts the player's active rows that did not fit. At the
+lookahead time the cooldown provider is asked whether the action will be ready, which produces *ready in N s*
+and *no Lily*.
 
 **Recognising your presses.**
 
@@ -420,11 +425,13 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
    checks, which run again after each edit. An entry without a time shows the automatic offset and press time the
    overlay will use (`TimingRules.ForEntry`), and its details list the items the overlay presses later than the
-   entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own, and
-   Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil, Summon
-   Seraph, Consolation at 12:00.2 (-2.7 s)*). An offset the importer wrote shows as set (*-1.5 s*, not *auto*):
-   `(Late)`, a press it moved so that a buff still lasts (`still-active`), or one its recast fit moved so that the
-   action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on the row. A
+   entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own, a step
+   of a sequence that waits for the step before it, and Passage of Arms, pressed with the last item (the
+   Scholar's J Wave 5 call: *Pressed later: Sacred Soil, Summon Seraph, Consolation at 12:00.2 (-2.7 s)*). An
+   offset the importer wrote shows as set (*-1.5 s*, not *auto*): `(Late)`, a press it moved so that a buff still
+   lasts (`still-active`: its note is on the row of the later call it keeps up, such as *Temperance (still
+   active)* at 'LL/BJCC'!G46 for the Hidden Mines Temperance at G44, *-3.5 s*), or one its recast fit moved so
+   that the action is ready again (`recast-fit`, DESIGN.md §6 step 7, with its note on the row itself). A
    change of the row's offset (a drag, a typed value, *Automatic timing*, *At the hit (0 s)*), mechanic or hit
    (*Relative to*) removes the recast-fit note, as a change of the offset removes the importer's notes about the
    sheet's time and one of the mechanic those about the mechanic; choosing the hit the entry already has changes
@@ -596,9 +603,10 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       *NoirMit - WHM* has no Scholar column, so first choose *LPDU TOP Mitigation* under **Active plan** (your
       own calls are then LPDU's *H1 WHM*, 11 entries): the H2 columns' calls appear dimmed with tags like
       `[H2 SCH]` (outside a party `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order (rows
-      for the same moment in the plan's order, done or not), and your own rows are never pushed out. White
-      Mage: afterwards, set **Active plan** back to *(automatic: the bundled plan for this job, else my own
-      plan for it)*.
+      for the same moment: yours first, then your co-healer's, each in the plan's order, done or not; as
+      Scholar, your Expedient and Summon Seraph for P3's Hello World round 2 come before the White Mage's
+      Temperance, which is first in the plan), and your own rows are never pushed out. White Mage: afterwards,
+      set **Active plan** back to *(automatic: the bundled plan for this job, else my own plan for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
