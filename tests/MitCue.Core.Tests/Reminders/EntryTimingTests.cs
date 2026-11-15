@@ -402,11 +402,18 @@ public class EntryTimingTests
     /// for 20 s calls). The calls reach what they can with their NOW cue at least a second before the first hit.
     /// </summary>
     [Theory]
-    [InlineData("tea", "p3.wormhole", "Reprisal", -2.2)]               // covers 656.7, not 659.5
+    [InlineData("tea", "p3.wormhole", "Reprisal", -2.2)]                    // covers 656.7, not 659.5
     [InlineData("tea", "p3.wormhole", "Plenary Indulgence", -2.2)]
-    [InlineData("dmu", "p5.maddening_orchestra_1", "Exaltation", -2.4)] // its own lead: 1438.6 is out of reach
+    [InlineData("tea", "p3.wormhole", "Feint", -2.2)]
+    [InlineData("tea", "p3.wormhole", "Holmgang", -2.0)]                    // an invuln's default, later than −2.2 s
+    [InlineData("dmu", "p5.maddening_orchestra_1", "Exaltation", -2.4)]     // its default covers 1435.1, not 1438.6
     [InlineData("dmu", "p5.maddening_orchestra_1", "Aquaveil", -2.4)]
-    [InlineData("top", "p5.omega_all", "Temperance", -0.5)]            // covers 945.8, not 946.4: due 1.5 s before
+    [InlineData("dmu", "p5.maddening_orchestra_1", "Heart of Corundum", -2.4)]
+    [InlineData("top", "p5.omega_all", "Temperance", -0.5)]                 // covers 945.8, not 946.4: due 1.5 s before
+    [InlineData("top", "p5.omega_all", "Fey Illumination", -0.5)]
+    [InlineData("top", "p5.omega_all", "Expedient", -0.5)]
+    [InlineData("top", "p5.omega_all", "Holos", -0.5)]
+    [InlineData("top", "p5.omega_all", "Rampart", -0.5)]
     public void Coverage_RealCells_TheNowCueComesASecondBeforeTheFirstHit(string fightKey, string mechanic, string action, double offset)
     {
         var fight = fightKey switch
@@ -674,20 +681,28 @@ public class EntryTimingTests
     }
 
     /// <summary>
-    /// A real cell: "Earthly Star + CU" on TOP's Latent Defect 2 (485.4), either way round. Collective Unconscious lasts
-    /// 10 s: at the star's −10 s it would end at the hit, so both are pressed at −7.5 s, and CU's NOW cue still lasts
-    /// through the hit.
+    /// Real cells: "Earthly Star + CU" on TOP's Latent Defect 2 (485.4), and on mechanics of several hits, where a
+    /// coverage push used to hide the star's −10 s (TOP's Wave Cannon 1 and Pantokrator, DMU's Ultima Blaster), either
+    /// way round. Collective Unconscious lasts 10 s: at the star's −10 s it would end at the hit, so both are pressed at
+    /// −7.5 s, and CU's NOW cue still lasts through the hit.
     /// </summary>
     [Theory]
-    [InlineData("Earthly Star", "Collective Unconscious")]
-    [InlineData("Collective Unconscious", "Earthly Star")]
-    public void OwnLead_RealCell_EarthlyStarBesideCu(params string[] actions)
+    [InlineData("top", "p3.latent_2", "Earthly Star", "Collective Unconscious")]
+    [InlineData("top", "p3.latent_2", "Collective Unconscious", "Earthly Star")]
+    [InlineData("top", "p6.wave_cannon_1", "Earthly Star", "Collective Unconscious")]
+    [InlineData("top", "p6.wave_cannon_1", "Collective Unconscious", "Earthly Star")]
+    [InlineData("top", "p1.pantokrator", "Earthly Star", "Collective Unconscious")]
+    [InlineData("top", "p1.pantokrator", "Collective Unconscious", "Earthly Star")]
+    [InlineData("dmu", "p3.ultima_blaster", "Earthly Star", "Collective Unconscious")]
+    [InlineData("dmu", "p3.ultima_blaster", "Collective Unconscious", "Earthly Star")]
+    public void OwnLead_RealCells_EarthlyStarBesideCu(string fightKey, string mechanic, params string[] actions)
     {
-        var fight = PlanImports.Top;
-        var entry = Kit.Entry("p3.latent_2", null, [.. actions.Select(a => Kit.Do(RepoFiles.Action(a)))]);
-        var t = TimingRules.ForEntry(entry, fight.GetMechanic("p3.latent_2")!, fight, RepoFiles.Actions);
+        var fight = fightKey == "top" ? PlanImports.Top : FightLoader.Load(RepoFiles.Data.ReadText($"fights/{fightKey}.yaml"), $"fights/{fightKey}.yaml");
+        var entry = Kit.Entry(mechanic, null, [.. actions.Select(a => Kit.Do(RepoFiles.Action(a)))]);
+        var t = TimingRules.ForEntry(entry, fight.GetMechanic(mechanic)!, fight, RepoFiles.Actions);
         Assert.Equal(-7.5, t.AutomaticOffset, Kit.Tolerance);
         var options = new ReminderOptions();
+        Assert.All(t.Items, i => Assert.Equal(t.PressAt, i.PressAt, Kit.Tolerance));
         Assert.All(t.Items, i => Assert.True(i.Earliest <= i.DueAt(options) + Kit.Tolerance, $"{i.Action!.Name}: due {i.DueAt(options)}, earliest {i.Earliest}"));
         var cu = t.Items[Array.IndexOf(actions, "Collective Unconscious")];
         Assert.True(cu.DueAt(options) + 10 >= t.Hit + 1 - Kit.Tolerance);

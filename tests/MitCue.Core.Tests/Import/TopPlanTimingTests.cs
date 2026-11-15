@@ -50,15 +50,19 @@ public class TopPlanTimingTests
     }
 
     /// <summary>
-    /// The cells that list a 10 s call with other calls on Wave Cannon 1 and 2: the DRK's 'WAR/DRK'!C11 "Shadow Wall +
-    /// Oblation + TBN" and 'DRK/GNB'!B12 "Rampart + Dark Mind + Oblation + TBN", and the Reprisal tank's 'P6'!C4 party
-    /// mitigation + Reprisal. Only the 10 s calls wait for the Wild Charge, 0.5 s before the first protean; the others keep
-    /// their own press, which already reaches it or is not meant for it (The Blackest Night, 7 s), so that a DRK's three or
-    /// four presses do not all turn due in the last 2 s before the first protean.
+    /// The cells that list a 10 s call with other calls on Wave Cannon 1 and 2: the DRK's "Shadow Wall + Oblation + TBN"
+    /// ('WAR/DRK'!C11, the default DRK seat, and 'DRK/GNB'!B11, 'DRK/PLD'!B11) and "Rampart + Dark Mind + Oblation + TBN"
+    /// ('DRK/GNB'!B12, 'DRK/PLD'!B12), and the Reprisal tank's 'P6'!C4 party mitigation + Reprisal. Only the 10 s calls
+    /// wait for the Wild Charge, 0.5 s before the first protean; the others keep their own press, which already reaches
+    /// it or is not meant for it (The Blackest Night, 7 s), so that a DRK's three or four presses do not all turn due in
+    /// the last 2 s before the first protean.
     /// </summary>
     [Theory]
     [InlineData("'WAR/DRK'!C11", 1244.3, "Oblation", "Shadow Wall=-4.5;The Blackest Night=-4.5")]
+    [InlineData("'DRK/GNB'!B11", 1244.3, "Oblation", "Shadow Wall=-4.5;The Blackest Night=-4.5")]
+    [InlineData("'DRK/PLD'!B11", 1244.3, "Oblation", "Shadow Wall=-4.5;The Blackest Night=-4.5")]
     [InlineData("'DRK/GNB'!B12", 1278.2, "Dark Mind,Oblation", "Rampart=-6;The Blackest Night=-6")]
+    [InlineData("'DRK/PLD'!B12", 1278.2, "Dark Mind,Oblation", "Rampart=-6;The Blackest Night=-6")]
     [InlineData("'P6'!C4", 1244.3, "Reprisal", "Divine Veil=-4;Shake It Off=-4;Dark Missionary=-4.5;Heart of Light=-4.5")]
     public void WaveCannon_OnlyTheTenSecondCallsOfACellWaitForTheWildCharge(string cell, double wildCharge, string waiting, string others)
     {
@@ -73,6 +77,27 @@ public class TopPlanTimingTests
         var rest = calls.Where(r => !waiting.Split(',').Contains(r.Item.Name)).ToList();
         Assert.Equal(own.Keys.Order(), rest.Select(r => r.Item.Name!).Distinct().Order());
         Assert.All(rest, r => Assert.Equal(own[r.Item.Name!], r.PressAt - r.Hit, 1e-9));
+    }
+
+    /// <summary>
+    /// Cosmo Meteor (hits 1335.6 … 1342.7, 1343.7): the 10 s Reprisals of 'P6'!B7 (beside each tank's party mitigation)
+    /// and the Dismantle of 'P6'!J7 (beside Tactician) reach the last spreads only pressed 0.5 s before the first hit, on
+    /// their own; the 15 and 30 s calls beside them keep the entry's press, which the 10 s call's reach of the spreads at
+    /// 1342.7 gives (−0.9 s).
+    /// </summary>
+    [Fact]
+    public void CosmoMeteor_OnlyTheTenSecondCallsOfACellWaitForTheLastSpreads()
+    {
+        static bool Waits(Reminder r) => r.Item.Name is "Reprisal" or "Dismantle";
+        var calls = Reminders("'P6'!B7", "'P6'!J7").GroupBy(r => r.Entry).Where(g => g.Count() > 1 && g.Any(Waits)).SelectMany(g => g).ToList();
+        Assert.Equal(10, calls.Count); // each tank's party mitigation + Reprisal, Tactician + Dismantle
+        Assert.All(calls, r =>
+        {
+            Assert.Equal(Waits(r) ? -0.5 : -0.9, r.PressAt - r.Hit, 1e-9);
+            Assert.Equal(Waits(r), RepoFiles.Action(r.Item.Name!).DurationAt(90) == 10);
+            if (Waits(r))
+                Assert.True(NowCue(r) + 10 >= 1343.7 + 0.5 - 1e-9, $"{r.Entry.Src} {r.Item.Name}: from the NOW cue ({NowCue(r)}) it ends at {NowCue(r) + 10}");
+        });
     }
 
     /// <summary>

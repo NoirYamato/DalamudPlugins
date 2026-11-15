@@ -136,13 +136,18 @@ public class TeaPlanTimingTests
 
     /// <summary>
     /// An Astrologian's "Earthly Star + Neutral Sect" on J Wave 5 (722.9), either way round, as a sheet may write it (LPDU
-    /// has 'Alex Prime/PA'!H21 "Neutral" alone): the star times the cell, but Neutral Sect is still pressed and due at
-    /// 718.7, so that the Helios it gives a barrier lands after wave 4 (719.9) and before wave 5.
+    /// has 'Alex Prime/PA'!H21 "Neutral" alone), and a healers' cell with Temperance or Excogitation: the other action
+    /// times the cell, but Neutral Sect is still pressed and due at 718.7, so that the Helios it gives a barrier lands
+    /// after wave 4 (719.9) and before wave 5; the other action waits for wave 4 + 0.3 s.
     /// </summary>
     [Theory]
     [InlineData("Neutral Sect", "Earthly Star")]
     [InlineData("Earthly Star", "Neutral Sect")]
-    public void JWave5_NeutralSectBesideEarthlyStar_IsDueAt7187(string first, string second)
+    [InlineData("Temperance", "Neutral Sect")]
+    [InlineData("Neutral Sect", "Temperance")]
+    [InlineData("Excogitation", "Neutral Sect")]
+    [InlineData("Neutral Sect", "Excogitation")]
+    public void JWave5_NeutralSectBesideAnActionThatTimesTheCell_IsDueAt7187(string first, string second)
     {
         var fight = PlanImports.Tea;
         var entry = new PlanEntry
@@ -153,10 +158,10 @@ public class TeaPlanTimingTests
         };
         var s = new ReminderScheduler(fight, [entry], RepoFiles.Actions, new ReminderOptions());
         var neutral = Assert.Single(s.All, r => r.Item.Name == "Neutral Sect");
-        var star = Assert.Single(s.All, r => r.Item.Name == "Earthly Star");
+        var other = Assert.Single(s.All, r => r.Item.Name != "Neutral Sect");
         Assert.Equal(718.7, neutral.PressAt, 1e-9);
         Assert.Equal(718.7, TimingRules.DueAt(neutral.PressAt, neutral.DueNotBefore, new ReminderOptions()), 1e-9);
-        Assert.Equal(720.2, star.PressAt, 1e-9);
+        Assert.Equal(720.2, other.PressAt, 1e-9);
     }
 
     /// <summary>
