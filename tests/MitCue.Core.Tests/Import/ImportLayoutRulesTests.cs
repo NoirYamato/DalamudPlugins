@@ -448,17 +448,20 @@ public class ImportLayoutRulesTests
         Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void ExtrasColumn_ACallWithWordsAfterIt_AndAnother_NamesItByItsActionWords()
+    [Theory]
+    [InlineData(SlashReading.All, "note:Feint + Right", "Feint Left")]
+    [InlineData(SlashReading.Either, "note:Feint", "Left")]
+    public void ExtrasColumn_ACallWithWordsAfterIt_AndAnother_NamesItByItsActionWords(SlashReading slashes, string name, string remark)
     {
         // "Feint Left/Right" read as "and": "Feint Left", an action several jobs share, and "Right", a note. Everyone's note
-        // is "Feint + Right", noted "Feint Left", not "Feint Left + Right" noted "Feint Left Left".
+        // is "Feint + Right", noted "Feint Left", not "Feint Left + Right" noted "Feint Left Left". Read as "either one":
+        // "Feint", noted "Left" ("Right" is left out), not "Feint Left/Right".
         var r = new PlanImporter().Import(
             new SheetDocument { Title = "Test sheet", Tabs = [Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "Feint Left/Right"])] },
-            new ImportOptions { Fight = PlanImports.Top, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date, Slashes = SlashReading.All });
+            new ImportOptions { Fight = PlanImports.Top, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date, Slashes = slashes });
 
         var note = Assert.Single(r.Plan.Entries);
-        Assert.Equal(("note:Feint + Right", "Feint Left"), (note.Names().Single(), note.Note));
+        Assert.Equal((name, remark), (note.Names().Single(), note.Note));
     }
 
     [Fact]

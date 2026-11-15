@@ -1745,7 +1745,9 @@ public sealed partial class PlanImporter
 
         /// <summary>
         /// A token's action words as written (<see cref="TokenState.Words"/>): <paramref name="head"/>, the parser's guess,
-        /// without the words at its end that <paramref name="rest"/>, the text after the matched action, starts with.
+        /// without the words at its end that <paramref name="rest"/>, the text after the matched action, starts with; a word
+        /// of the head that joins alternatives with "/" counts as its first one, which the rest keeps when "/" is read as
+        /// either one ("Kera Left/Right": Kerachole, noted "Left").
         /// </summary>
         private static string ActionWords(string head, string? rest)
         {
@@ -1753,9 +1755,11 @@ public sealed partial class PlanImporter
                 return head;
             var heads = head.Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var rests = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            static bool Same(string word, string after) =>
+                word.Equals(after, StringComparison.OrdinalIgnoreCase) || word.Split('/')[0].Equals(after, StringComparison.OrdinalIgnoreCase);
             for (var k = Math.Min(heads.Length - 1, rests.Length); k > 0; k--)
             {
-                if (heads.Skip(heads.Length - k).SequenceEqual(rests.Take(k), StringComparer.OrdinalIgnoreCase))
+                if (heads.Skip(heads.Length - k).Zip(rests.Take(k)).All(p => Same(p.First, p.Second)))
                     return string.Join(' ', heads.Take(heads.Length - k));
             }
 

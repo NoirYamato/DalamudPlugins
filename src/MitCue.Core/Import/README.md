@@ -202,10 +202,11 @@ Rules worth knowing:
   such as `tank` or `melee`, mechanic words such as `Stack`, `TB` or `Tower`) joined by `/` after an action are its
   remark (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil
   and/or Expedient`). Any other word after a `/` is read like an action: "all of them" makes it a call of its own, a
-  note when it names none (`Kera Left/Right`: Kerachole, noted "Left", and the note "Right"), "either one" an
-  alternative (`Kera Left/Right`: Kerachole, noted "Left"; "Right" is left out). An alternative that means nothing is an
-  `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry
-  per choice (`either-or-split`).
+  note when it names none (`Kera Left/Right`: Kerachole and the note "Right", noted "Kera Left", the call's action
+  words and its remark, as a cell of several calls is), "either one" an alternative (`Kera Left/Right`: Kerachole,
+  noted "Left"; "Right" is left out; `Kera Left/Right + Holos`: noted "Kera Left"). An alternative that means nothing
+  is an `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional
+  entry per choice (`either-or-split`).
 - **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
