@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using AnoMech.Core.Game;
+using AnoMech.Core.SimObjects;
 
 namespace AnoMech.Scenarios.Tea;
 
@@ -30,6 +31,7 @@ public static class TeaP1Constants
         public const uint LivingLiquid = 11335;
         public const uint LiquidHand = 11336;
         public const uint LiquidRage = 11337;                       // a tornado
+        public const uint JagdDoll = 11338;
         public const uint Embolus = 11339;
         public const uint CruiseChaser = 11342;
         public const uint Helper = 9020;                            // the invisible helper the waves, Sluices and Hawk Blasters come from
@@ -40,6 +42,7 @@ public static class TeaP1Constants
         public const uint LivingLiquid = 9211;
         public const uint LiquidHand = 9212;
         public const uint LiquidRage = 9213;
+        public const uint JagdDoll = 9214;
         public const uint Embolus = 9215;
         public const uint BruteJustice = 9216;
         public const uint CruiseChaser = 9218;
@@ -49,6 +52,13 @@ public static class TeaP1Constants
     {
         // Added on each Liquid Rage's spot as it appears. UNVERIFIED: that it takes no spawn arguments.
         public const uint LiquidRagePuddle = 2005400;
+    }
+
+    // The spawn packet's parts for the phase's one demihuman, which draws nothing without them: its NpcEquip row's.
+    // UNVERIFIED until a Jagd Doll is seen drawn.
+    public static class P1Appearance
+    {
+        public static readonly NpcAppearance JagdDoll = new(MainHand: 0x100020200, Equipment: [0x0, 0x10006]);
     }
 
     public static class P1ActionId
@@ -71,6 +81,9 @@ public static class TeaP1Constants
         public const uint LiquidGaol = 18472;
         public const uint Pressurize = 18473;
         public const uint Outburst = 18474;                         // an Embolus, instant, raidwide
+        public const uint Exhaust = 18462;                          // a Jagd Doll->self, instant, r8 + hitbox
+        public const uint ExhaustFromAPlayer = 18463;               // round a player two Exhausts hit at once, r8 + hitbox
+        public const uint ReducibleComplexity = 18464;              // a fed Jagd Doll, instant, raidwide
         public const uint HawkBlaster = 18480;                      // helper at a location, instant, r10, no omen
         public const uint AlphaSword = 18484;                       // Cruise Chaser->self, instant, cone 25 + hitbox
         public const uint JKick = 18516;                            // Brute Justice, instant raidwide
@@ -85,6 +98,11 @@ public static class TeaP1Constants
         public const uint Berserk = 38;                             // the button Inner Release replaces from level 70
         public const uint Esuna = 7568;
         public const uint WardensPaean = 3561;
+        public const uint Provoke = 7533;
+        public const uint HallowedGround = 30;
+        public const uint Holmgang = 43;
+        public const uint LivingDead = 3638;
+        public const uint Superbolide = 16152;
     }
 
     public static class P1StatusId
@@ -94,13 +112,19 @@ public static class TeaP1Constants
         public const ushort PhysicalVulnerabilityUp = 695;
         public const ushort Throttle = 700;
         public const ushort WaterResistanceDown = 1025;             // Water Resistance Down II
-        // Hallowed Ground, Holmgang, Living Dead, Superbolide.
-        public static readonly ushort[] Invulnerabilities = [82, 409, 810, 1836];
+        public const ushort LuminousAetheroplasm = 706;             // an Exhaust leaves it
+        public const ushort HallowedGround = 82;
+        public const ushort Holmgang = 409;
+        public const ushort LivingDead = 810;
+        public const ushort Superbolide = 1836;
+        public static readonly ushort[] Invulnerabilities = [HallowedGround, Holmgang, LivingDead, Superbolide];
     }
 
     public static class P1TetherId
     {
         public const ushort Drainage = 3;
+        public const ushort JagdDoll = 17;                          // from a doll to the player it follows
+        public const ushort Fed = 41;                               // from a doll to the boss it is fed to
     }
 
     // The Liquid Hand shows the first with the bosses close as it glows and the second with them far apart. UNVERIFIED
@@ -133,9 +157,18 @@ public static class TeaP1Constants
         public const float EmbolusRadius = 1f;
         public const float EmbolusLeavesBeyond = 21.5f;             // it goes on out of the arena and is gone there
 
-        // Where a run puts the bosses at its start, on relative bearings (degrees clockwise of the open quarter): the
-        // Living Liquid on the centre, turned to its tank; the Liquid Hand beside it, toward its own. UNVERIFIED: the
-        // fight leaves them wherever their tanks took them.
+        // Where the Living Liquid waits for the pull and where the Liquid Hand splits off it, both facing south.
+        public static readonly Vector3 LiquidBeforeThePull = new(0f, 0f, -15f);
+        public static readonly Vector3 HandAppearsOn = Vector3.Zero;
+        // The four Jagd Dolls' spots, the same whatever the tornadoes' layout: degrees clockwise of true north.
+        public const float JagdDollRing = 7f;
+        public static readonly float[] JagdDollBearings = [67.5f, 157.5f, 247.5f, 337.5f];
+        // Between a doll's centre and a boss's; seen from 3.26 to 4.57 y.
+        public const float DollIsFedWithin = 4.14f;
+
+        // Where a run that starts after the pull puts the bosses, on relative bearings (degrees clockwise of the open
+        // quarter): the Living Liquid on the centre, turned to its tank; the Liquid Hand beside it, toward its own.
+        // UNVERIFIED: the fight has them wherever their tanks took them.
         public const float LiquidStartsFacing = 135f;
         public const float HandStartsOnBearing = 225f;
         public const float HandStartsFromTheCentre = 2.1f;
@@ -182,6 +215,18 @@ public static class TeaP1Constants
         public const float HandLeavesAfterTheLiquid = 1.3f;
         public const float LiquidCorpseFade = 3f;
         public const float LivingLiquidDamageDelay = 1f;            // UNVERIFIED: for the waves, Sluice and Drainage
+
+        // A boss sets off for whoever Provoked it this long after the press. UNVERIFIED for the Living Liquid: only
+        // Provokes on the Liquid Hand were seen.
+        public const float ProvokeTakesHold = 0.67f;
+        public const float TankInvulnerability = 10f;               // Hallowed Ground, Holmgang, Living Dead, Superbolide
+        public const float DollTethersAfterItsFirstHit = 0.6f;      // 0.35 to 1.3 s, by the action
+        // UNVERIFIED: how fast a doll's health falls is the party's doing. Here it is a quarter this long after its
+        // tether shows.
+        public const float DollUnderAQuarterAfter = 4f;
+        public const float ExhaustEvery = 10.64f;
+        public const float LuminousAetheroplasm = 4.96f;
+        public const float ReducibleComplexityAfterTheFeed = 1.07f;
     }
 
     public static class P1Rules
@@ -217,6 +262,16 @@ public static class TeaP1Constants
         public const float FluidSwingMitigation = 0.2f;
         public const float FluidStrikeMitigation = 0.2f;
         public const float EmbolusSpeed = 1.92f;
+
+        public const float DollWalkSpeed = 9f;
+        // A doll stands a median 3.3 y from the player it follows, the first of these past their two hitboxes.
+        // UNVERIFIED: the second, past which it sets off again, taken from the bosses'.
+        public const float DollStopsPastTheHitboxes = 2f;
+        public const float DollSetsOffPastTheHitboxes = 3f;
+        // Fed to a boss with less than this share of its health left, a doll harms nobody: seen harmless at 24.5 % and
+        // deadly at 25.3 %.
+        public const float DollIsReadyUnder = 0.25f;
+        public const float DollHealthFloor = 0.1f;                  // UNVERIFIED: where the scripted health stops falling
         public const int LivingLiquidHelpers = 17;                  // the fight's own count
     }
 }

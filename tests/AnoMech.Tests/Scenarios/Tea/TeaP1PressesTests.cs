@@ -13,11 +13,340 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// The human's own Arm's Length, Surecast or Inner Release, and its Esuna or Warden's Paean, as the client reports the
-// press. The player sits in the main tank's seat.
+// The human's own Arm's Length, Surecast or Inner Release, its Esuna or Warden's Paean, its Provoke, its invulnerability
+// and its hits on an enemy, as the client reports the press. The player sits in the main tank's seat.
 public class TeaP1PressesTests
 {
     private const uint Provoke = 7533;
+    private const ulong CurrentTargetStandIn = 0xE0000000;
+
+    // -- Provoke --
+    // Each test presses at 1.0; the player sits in the main tank's seat and one enemy stands in the arena.
+
+    [Test]
+    public void AProvokeOnAnEnemyIsReportedWithItsTargetOnceTheRunLooks()
+    {
+        var insideThePress = -1;
+        List<TeaP1Provoke> raised = [];
+        ulong enemyId = 0;
+        Presses((world, presses, enemy) =>
+        {
+            presses.Provoked += raised.Add;
+            enemyId = (ulong)enemy.GameObjectId;
+            world.Events.Add(1f, () =>
+            {
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke, enemyId));
+                insideThePress = raised.Count;
+            });
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That(insideThePress, Is.Zero, "nothing settles inside the client's own call");
+        Assert.That(raised.Select(p => (((ISimPartyMember)p.By).Role, p.TargetId, p.ByHuman)), Is.EqualTo(new[] { (MainTank, enemyId, true) }));
+        Assert.That(raised[0].At, Is.EqualTo(1f).Within(TimelineRun.FrameLate), "it carries the time it was heard");
+    }
+
+    [TestCase(true, TestName = "{m}(at a party member)")]
+    [TestCase(false, TestName = "{m}(at nothing)")]
+    public void AProvokeAimedAtNoEnemyIsNone(bool atAPartyMember)
+    {
+        List<TeaP1Provoke> provokes = [];
+        var strikes = 0;
+        Presses((world, presses, _) =>
+        {
+            presses.Provoked += provokes.Add;
+            presses.Struck += _ => strikes++;
+            world.Events.Add(1f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke,
+                atAPartyMember ? (ulong)world.Party.Get(OffTank)!.GameObjectId : 0ul)));
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That((provokes.Count, strikes), Is.EqualTo((0, 0)));
+    }
+
+    // -- A tank's invulnerability --
+    // Its status is there as the client's call returns, where the sim's own resolving of the player's actions would put
+    // it: a press in the gap before a frame counts in that frame.
+
+    [TestCase(P1PlayerActionId.HallowedGround, P1StatusId.HallowedGround, false)]
+    [TestCase(P1PlayerActionId.Holmgang, P1StatusId.Holmgang, false)]
+    [TestCase(P1PlayerActionId.LivingDead, P1StatusId.LivingDead, false)]
+    [TestCase(P1PlayerActionId.Superbolide, P1StatusId.Superbolide, false)]
+    [TestCase(P1PlayerActionId.Holmgang, P1StatusId.Holmgang, true)]
+    public void AnInvulnerabilityPutsItsStatusOnThePlayerThereAndThenForTenSeconds(uint press, int status, bool resolved)
+    {
+        var carries = new List<bool>();
+        var others = 0;
+        Presses((world, presses, _) =>
+        {
+            var player = world.Party.Player!;
+            world.Events.Add(1f, () =>
+            {
+                carries.Add(player.HasStatus((ushort)status));
+                if (resolved) TopP6HumanMitigation.PressNow(world, [press]);
+                else Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, (ulong)world.Party.Get(OffTank)!.GameObjectId));
+                carries.Add(player.HasStatus((ushort)status));
+                others = PerRole.All.Count(role => role != MainTank && world.Party.Get(role)!.HasStatus((ushort)status));
+            });
+            world.Events.Add(10.9f, () => carries.Add(player.HasStatus((ushort)status)));
+            world.Events.Add(11.1f, () => carries.Add(player.HasStatus((ushort)status)));
+        }, resolved);
+
+        Assert.That(carries, Is.EqualTo(new[] { false, true, true, false }));
+        Assert.That(others, Is.Zero, "on the player alone, whatever the press was aimed at");
+    }
+
+    [TestCase(true, TestName = "{m}(the listener disposed)")]
+    [TestCase(false, TestName = "{m}(the player dead)")]
+    public void AnInvulnerabilityHeardTooLateGivesNothing(bool disposed)
+    {
+        var carries = true;
+        Presses((world, presses, _) =>
+        {
+            var player = world.Party.Player!;
+            world.Events.Add(0.5f, () =>
+            {
+                if (disposed) presses.Dispose();
+                else player.Die(P1ActionId.Splash);
+            });
+            world.Events.Add(1f, () =>
+            {
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Holmgang, 0));
+                carries = player.HasStatus(P1StatusId.Holmgang);
+            });
+        }, expectDeaths: disposed ? 0 : 1);
+
+        Assert.That(carries, Is.False);
+    }
+
+    [TestCase(P1PlayerActionId.HallowedGround, "Hallowed Ground", 82)]
+    [TestCase(P1PlayerActionId.Holmgang, "Holmgang", 409)]
+    [TestCase(P1PlayerActionId.LivingDead, "Living Dead", 810)]
+    [TestCase(P1PlayerActionId.Superbolide, "Superbolide", 1836)]
+    public void EachInvulnerabilityIsTheActionAndTheStatusItIsNamedFor(uint press, string name, int status)
+    {
+        FakeGame.Install();
+
+        Assert.That(Natives.Data.Action(press)?.Name, Is.EqualTo(name));
+        Assert.That(Natives.Data.Status((ushort)status)?.Name, Is.EqualTo(name));
+        Assert.That(P1StatusId.Invulnerabilities, Does.Contain((ushort)status));
+    }
+
+    // -- A hit on an enemy --
+    // A press comes aimed at the client's target whatever the button is, so what is a hit is read off what the action
+    // can be aimed at: an enemy, and neither its user, a party member nor the ground.
+
+    [TestCase(31u, "Heavy Swing", true)]
+    [TestCase(16u, "Shield Bash", true)]
+    [TestCase(9u, "Fast Blade", true)]
+    [TestCase(3617u, "Hard Slash", true)]
+    [TestCase(7533u, "Provoke", true)]
+    [TestCase(119u, "Stone", true)]
+    [TestCase(141u, "Fire", true)]
+    [TestCase(97u, "Heavy Shot", true)]
+    [TestCase(2866u, "Split Shot", true)]
+    [TestCase(7384u, "Holy Spirit", true)]
+    [TestCase(16143u, "Lightning Shot", true)]
+    [TestCase(7531u, "Rampart", false)]
+    [TestCase(7548u, "Arm's Length", false)]
+    [TestCase(7568u, "Esuna", false)]
+    [TestCase(3541u, "Clemency", false)]
+    [TestCase(7535u, "Reprisal", false)]
+    [TestCase(41u, "Overpower", false)]
+    [TestCase(7381u, "Total Eclipse", false)]
+    [TestCase(3569u, "Asylum", false)]
+    [TestCase(188u, "Sacred Soil", false)]
+    [TestCase(7439u, "Earthly Star", false)]
+    [TestCase(3573u, "Ley Lines", false)]
+    [TestCase(2262u, "Shukuchi", false)]
+    [TestCase(30u, "Hallowed Ground", false)]
+    [TestCase(43u, "Holmgang", false)]
+    [TestCase(3638u, "Living Dead", false)]
+    [TestCase(16152u, "Superbolide", false)]
+    public void OnlyAnActionThatCanOnlyBeAimedAtAnEnemyIsAHitOnTheEnemyItIsPressedAt(uint press, string name, bool hits)
+    {
+        List<TeaP1Strike> strikes = [];
+        ulong enemyId = 0;
+        string? pressed = null;
+        Presses((world, presses, enemy) =>
+        {
+            presses.Struck += strikes.Add;
+            enemyId = (ulong)enemy.GameObjectId;
+            pressed = Natives.Data.Action(press)?.Name;
+            world.Events.Add(1f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, enemyId)));
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That(pressed, Is.EqualTo(name));
+        if (hits) Assert.That(strikes.Select(s => (((ISimPartyMember)s.By).Role, s.TargetId, s.ByHuman)), Is.EqualTo(new[] { (MainTank, enemyId, true) }));
+        else Assert.That(strikes, Is.Empty);
+    }
+
+    [Test]
+    public void OnlyAResolvedActionIsAHit()
+    {
+        var strikes = new List<float>();
+        Presses((world, presses, enemy) =>
+        {
+            presses.Struck += strike => strikes.Add(strike.At);
+            var enemyId = (ulong)enemy.GameObjectId;
+            world.Events.Add(0.5f, () => Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, 119, enemyId, 1.5f)));
+            world.Events.Add(0.7f, () => Act(new PlayerAction(PlayerActionStep.Interrupted, ActionType.Action, 119, enemyId)));
+            world.Events.Add(0.8f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Item, 31, enemyId)));
+            world.Events.Add(1f, () => Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, 119, enemyId, 1.5f)));
+            world.Events.Add(2.5f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, 119, enemyId)));
+            world.Events.Add(3f, () => { });
+        });
+
+        Assert.That(strikes, Is.EqualTo(new[] { 2.5f }).Within(TimelineRun.FrameLate));
+    }
+
+    [TestCase(true, TestName = "{m}(at a party member)")]
+    [TestCase(false, TestName = "{m}(at nothing)")]
+    public void AHitAimedAtNoEnemyIsNone(bool atAPartyMember)
+    {
+        var strikes = 0;
+        Presses((world, presses, _) =>
+        {
+            presses.Struck += _ => strikes++;
+            world.Events.Add(1f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, 31,
+                atAPartyMember ? (ulong)world.Party.Get(OffTank)!.GameObjectId : 0ul)));
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That(strikes, Is.Zero);
+    }
+
+    // A client may report a press aimed at its "current target" stand-in rather than at the target's own id.
+    [TestCase(Provoke)]
+    [TestCase(31u)]
+    public void APressAimedAtTheClientsCurrentTargetGoesToThePlayersTarget(uint press)
+    {
+        var leftInstalled = Plugin.TargetManager;
+        var targetManager = DispatchProxy.Create<ITargetManager, TopP6MeleeWindowTests.TargetStandIn>();
+        DalamudServices.Install(nameof(Plugin.TargetManager), targetManager);
+        try
+        {
+            var targets = new List<ulong>();
+            ulong enemyId = 0;
+            Presses((world, presses, enemy) =>
+            {
+                presses.Provoked += provoke => targets.Add(provoke.TargetId);
+                presses.Struck += strike => targets.Add(strike.TargetId);
+                enemyId = (ulong)enemy.GameObjectId;
+                world.Events.Add(1f, () =>
+                {
+                    ((TopP6MeleeWindowTests.TargetStandIn)(object)targetManager).Target = enemyId;
+                    Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, press, CurrentTargetStandIn));
+                });
+                world.Events.Add(2f, () => { });
+            });
+
+            Assert.That(targets, Is.Not.Empty.And.All.EqualTo(enemyId));
+        }
+        finally
+        {
+            DalamudServices.Install(nameof(Plugin.TargetManager), leftInstalled);
+        }
+    }
+
+    [Test]
+    public void ADisposedListenerReportsNoProvokeAndNoHit()
+    {
+        var raised = 0;
+        Presses((world, presses, enemy) =>
+        {
+            presses.Provoked += _ => raised++;
+            presses.Struck += _ => raised++;
+            var enemyId = (ulong)enemy.GameObjectId;
+            world.Events.Add(0.5f, () => Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke, enemyId)));
+            world.Events.Add(0.5f, presses.Dispose);
+            world.Events.Add(1f, () =>
+            {
+                Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, Provoke, enemyId));
+                presses.Provoke(world.Party.Get(OffTank)!, enemy);
+                presses.Strike(world.Party.Get(MeleeDpsA)!, enemy);
+                presses.Invulnerability(world.Party.Get(OffTank)!);
+            });
+            world.Events.Add(2f, () => raised += PerRole.All.Count(role => P1StatusId.Invulnerabilities.Any(world.Party.Get(role)!.HasStatus)));
+        });
+
+        Assert.That(raised, Is.Zero);
+    }
+
+    // -- The run's own presses, for a seat nobody presses for --
+
+    [Test]
+    public void TheRunsOwnProvokeAndHitAreReportedAtOnceAndPlayedOnABotOnly()
+    {
+        List<(PartyRole By, ulong Target, bool ByHuman, string Kind)> raised = [];
+        var offTanksId = "";
+        ulong enemyId = 0;
+        var run = Presses((world, presses, enemy) =>
+        {
+            presses.Provoked += provoke => raised.Add((((ISimPartyMember)provoke.By).Role, provoke.TargetId, provoke.ByHuman, "provoke"));
+            presses.Struck += strike => raised.Add((((ISimPartyMember)strike.By).Role, strike.TargetId, strike.ByHuman, "hit"));
+            enemyId = (ulong)enemy.GameObjectId;
+            world.Events.Add(1f, () =>
+            {
+                offTanksId = world.Party.Get(OffTank)!.EntityId.ToString("X8");
+                presses.Provoke(world.Party.Get(OffTank)!, enemy);
+                presses.Provoke(world.Party.Get(MainTank)!, enemy);
+                presses.Strike(world.Party.Get(MeleeDpsA)!, enemy);
+                raised.Add((MainTank, 0, false, $"settled {raised.Count}"));
+            });
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That(raised, Is.EqualTo(new[]
+        {
+            (OffTank, enemyId, false, "provoke"), (MainTank, enemyId, false, "provoke"), (MeleeDpsA, enemyId, false, "hit"), (MainTank, 0ul, false, "settled 3"),
+        }));
+        Assert.That(run.Sent("ability", Provoke).Select(sent => sent.Actor), Is.EqualTo(new[] { offTanksId }),
+                    "never on the player: an effect the client sees itself cast breaks its own cast state");
+    }
+
+    // A bot's is its job's; the player's seat gets the one the bot of that seat would press.
+    [Test]
+    public void TheRunsOwnInvulnerabilityIsTheSeatsJobs()
+    {
+        var offTanksId = "";
+        var carries = new List<bool>();
+        var run = Presses((world, presses, _) =>
+        {
+            var (player, offTank) = (world.Party.Get(MainTank)!, world.Party.Get(OffTank)!);
+            world.Events.Add(1f, () =>
+            {
+                offTanksId = offTank.EntityId.ToString("X8");
+                presses.Invulnerability(offTank);
+                presses.Invulnerability(player);
+                carries.AddRange([offTank.HasStatus(P1StatusId.HallowedGround), player.HasStatus(P1StatusId.Holmgang)]);
+            });
+            world.Events.Add(10.9f, () => carries.Add(offTank.HasStatus(P1StatusId.HallowedGround)));
+            world.Events.Add(11.1f, () => carries.Add(offTank.HasStatus(P1StatusId.HallowedGround)));
+        });
+
+        Assert.That(carries, Is.EqualTo(new[] { true, true, true, false }));
+        Assert.That(run.Sent("ability", P1PlayerActionId.HallowedGround, P1PlayerActionId.Holmgang).Select(sent => (sent.ActionId, sent.Actor)),
+                    Is.EqualTo(new[] { (P1PlayerActionId.HallowedGround, offTanksId) }));
+    }
+
+    // One enemy in the arena and the listener ticked as a scenario ticks it; the run ends once its events run dry.
+    private static TimelineRunResult Presses(Action<SimWorld, TeaP1Presses, SimEnemy> schedule, bool resolved = false, int expectDeaths = 0)
+    {
+        TeaP1Presses? listener = null;
+        var run = TimelineRun.Execute(world =>
+        {
+            var presses = listener = new TeaP1Presses(world);
+            var enemy = world.SpawnEnemy(new EnemySpawnConfig(BNpcBaseId: P1BNpcBaseId.CruiseChaser, NameId: P1BNpcNameId.CruiseChaser, Level: Level))!;
+            schedule(world, presses, enemy);
+        }, new TimelineRunOptions { Phase = TeaZone.P1, HumanPlayer = true, UserActionsEnabled = resolved, Tick = () => listener?.Tick() });
+
+        listener?.Dispose();
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(run.Deaths, Has.Count.EqualTo(expectDeaths), run.ToString);
+        return run;
+    }
 
     [TestCase(P1PlayerActionId.ArmsLength)]
     [TestCase(P1PlayerActionId.Surecast)]

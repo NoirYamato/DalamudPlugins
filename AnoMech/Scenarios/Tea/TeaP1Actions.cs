@@ -21,7 +21,7 @@ public static class TeaP1Actions
         "A second hit from Cruise Chaser: his cleave and his charge each leave a vulnerability, so each may catch only its own number";
 
     public const string SecondWave =
-        "Hit by a second Protean Wave: every wave leaves Water Resistance Down for 4 s, and the next one while it lasts kills whoever carries it, short of a tank's invulnerability";
+        "Hit by a Protean Wave while carrying Water Resistance Down: every wave, Fluid Swing and Fluid Strike leaves it for 4 s, and a wave on whoever carries it kills, short of a tank's invulnerability";
 
     public const string StoodAheadOfTheLiquid =
         "Stood straight ahead of the Living Liquid as an untelegraphed set went off: besides the cones at the four closest players, each set has one along the Liquid's facing, which kills";
@@ -151,6 +151,18 @@ public static class TeaP1Actions
     };
 
     public static readonly EnemyAction Outburst = new(P1ActionId.Outburst) { Effects = [Damage()] };
+
+    // -- The Jagd Dolls --
+    // One doll's Exhaust harms nobody. TeaP1JagdDolls decides whom two at once kill and what a fed doll does; the
+    // other two actions only show the hits.
+    public static readonly EnemyAction Exhaust = new(P1ActionId.Exhaust)
+    {
+        Effects = [Damage(), ApplyStatus(P1StatusId.LuminousAetheroplasm, P1Duration.LuminousAetheroplasm)],
+    };
+
+    public static readonly EnemyAction ExhaustFromAPlayer = new(P1ActionId.ExhaustFromAPlayer) { Effects = [Damage()] };
+
+    public static readonly EnemyAction ReducibleComplexity = new(P1ActionId.ReducibleComplexity) { Effects = [Damage()] };
 
     // -- The cleaves --
     // Each boss's cleave at its target: a non-tank seat in it dies, and a human tank on a tank's job needs a cooldown

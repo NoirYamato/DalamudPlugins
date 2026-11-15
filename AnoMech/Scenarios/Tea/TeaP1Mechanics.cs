@@ -205,12 +205,16 @@ public sealed class TeaP1LivingLiquid
     private readonly List<SimEnemy> emboli = [];
     private bool embolusBurst;
     private bool fallen;
+    private bool theHandHasYetToBeShownItsTarget;
+    private float timelineEndsAt;
 
     public TeaP1LivingLiquid(SimWorld world, TeaP1Presses presses)
     {
         this.world = world;
         this.presses = presses;
+        presses.Provoked += Hear;
         Tornadoes = new TeaP1Tornadoes(world);
+        Dolls = new TeaP1JagdDolls(world, presses, this);
         throttle = new ThrottleCarriers(world, presses);
         waveFromTheLiquid = Actions.ProteanWaveFromTheLiquid(world, presses);
         waveAtAPlayer = Actions.ProteanWaveAtAPlayer(world, presses);
@@ -229,6 +233,8 @@ public sealed class TeaP1LivingLiquid
     public SimEnemy? Hand => bosses[(int)TeaP1Boss.LiquidHand];
 
     public TeaP1Tornadoes Tornadoes { get; }
+
+    public TeaP1JagdDolls Dolls { get; }
 
     // P1Rules.EmbolusSpeed; headless runs also play faster ones.
     internal float EmbolusSpeed { get; set; } = P1Rules.EmbolusSpeed;
@@ -249,21 +255,50 @@ public sealed class TeaP1LivingLiquid
     // an actor spawned in its own frame plays no animation.
     public void Spawn(Placement liquid, Placement hand)
     {
-        bosses[(int)TeaP1Boss.LivingLiquid] = SpawnBoss(P1BNpcBaseId.LivingLiquid, P1BNpcNameId.LivingLiquid, liquid);
-        bosses[(int)TeaP1Boss.LiquidHand] = SpawnBoss(P1BNpcBaseId.LiquidHand, P1BNpcNameId.LiquidHand, hand);
-        lastSeenAt[(int)TeaP1Boss.LivingLiquid] = liquid.Position;
-        lastSeenAt[(int)TeaP1Boss.LiquidHand] = hand.Position;
+        Spawn(TeaP1Boss.LivingLiquid, liquid);
+        Spawn(TeaP1Boss.LiquidHand, hand);
         helpers.Spawn();
     }
 
-    private SimEnemy? SpawnBoss(uint bnpcBaseId, uint nameId, Placement placement) => world.SpawnEnemy(new EnemySpawnConfig(
-        BNpcBaseId: bnpcBaseId,
-        NameId: nameId,
-        Level: Level,
-        Targetable: true,
-        EnemyList: EnemyListMode.Always,
-        Visibility: SpawnVisibility.Visible,
-        Placement: placement));
+    // The pull's start, with the Living Liquid alone: the Liquid Hand splits off it with Cascade.
+    public void SpawnTheLiquid(Placement liquid)
+    {
+        Spawn(TeaP1Boss.LivingLiquid, liquid);
+        helpers.Spawn();
+    }
+
+    private void Spawn(TeaP1Boss boss, Placement placement)
+    {
+        var (bnpcBaseId, nameId) = boss == TeaP1Boss.LivingLiquid
+            ? (P1BNpcBaseId.LivingLiquid, P1BNpcNameId.LivingLiquid)
+            : (P1BNpcBaseId.LiquidHand, P1BNpcNameId.LiquidHand);
+        bosses[(int)boss] = world.SpawnEnemy(new EnemySpawnConfig(
+            BNpcBaseId: bnpcBaseId,
+            NameId: nameId,
+            Level: Level,
+            Targetable: true,
+            EnemyList: EnemyListMode.Always,
+            Visibility: SpawnVisibility.Visible,
+            Placement: placement));
+        lastSeenAt[(int)boss] = placement.Position;
+    }
+
+    // The split, from an event: the client has the new actor only some frames later and drops what is written to it
+    // before, so the Hand is shown its target again once it is there. Its first cast comes long after. UNVERIFIED:
+    // that it starts on the off tank's seat; the fight's goes to whoever holds its enmity.
+    private void TheHandAppears()
+    {
+        Spawn(TeaP1Boss.LiquidHand, new Placement(P1Geometry.HandAppearsOn, 0f));
+        theHandHasYetToBeShownItsTarget = Hand is { PacketSpawnPending: true };
+        TurnTo(TeaP1Boss.LiquidHand);
+    }
+
+    private void ShowTheHandItsTargetOnceItIsThere()
+    {
+        if (!theHandHasYetToBeShownItsTarget || Hand is { PacketSpawnPending: true }) return;
+        theHandHasYetToBeShownItsTarget = false;
+        TurnTo(TeaP1Boss.LiquidHand);
+    }
 
     public void CastFromHelper(EnemyAction action, CastTarget target = default, Placement? at = null, byte animationVariation = 0)
         => helpers.Cast(action, target, at ?? Liquid?.Placement() ?? default, animationVariation);
@@ -303,12 +338,27 @@ public sealed class TeaP1LivingLiquid
         enemy.KeepFacing(target);
     }
 
+    // A Provoke on either boss gives it to whoever pressed it, P1Duration.ProvokeTakesHold after the press.
+    private void Hear(TeaP1Provoke provoke)
+    {
+        if (fallen) return;
+        foreach (var boss in Enum.GetValues<TeaP1Boss>())
+        {
+            if (bosses[(int)boss] is not { } enemy || !enemy.IsAlive() || (ulong)enemy.GameObjectId != provoke.TargetId) continue;
+            world.Events.Add(MathF.Max(0f, provoke.At + P1Duration.ProvokeTakesHold - world.Events.Elapsed), () =>
+            {
+                if (!fallen && provoke.By.IsAlive()) SetTarget(boss, provoke.By);
+            });
+        }
+    }
+
+    // A boss the client does not have yet reads no hitbox, so its reach is not known.
     private void EachBossWalksAfterATargetOutOfReach()
     {
         foreach (var boss in Enum.GetValues<TeaP1Boss>())
         {
             var index = (int)boss;
-            if (bosses[index] is not { } enemy || !enemy.IsAlive()) continue;
+            if (bosses[index] is not { } enemy || !enemy.IsAlive() || enemy.PacketSpawnPending) continue;
             var held = boss == TeaP1Boss.LivingLiquid && FacingLocked;
             if (held || targets[index] is not { } target || !target.IsAlive())
             {
@@ -418,12 +468,17 @@ public sealed class TeaP1LivingLiquid
     }
 
     // -- The raidwides --
-    // Cascade; `newTornadoes` appear P1Duration.TornadoesAppearAfterCascade after it lands.
-    public void Cascade(float castAt, TeaP1TornadoLayout? newTornadoes, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    // Cascade; `newTornadoes` appear P1Duration.TornadoesAppearAfterCascade after it lands, and with them, at the
+    // pull's, the Liquid Hand splits off the Living Liquid.
+    public void Cascade(float castAt, TeaP1TornadoLayout? newTornadoes, bool theLiquidSplits = false, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         At(castAt, () => Liquid?.Cast(Actions.Cascade), file, line);
-        if (newTornadoes is not null)
-            At(castAt + Actions.Cascade.ReleasesAfter() + P1Duration.TornadoesAppearAfterCascade, () => Tornadoes.Appear(newTornadoes), file, line);
+        if (newTornadoes is null && !theLiquidSplits) return;
+        At(castAt + Actions.Cascade.ReleasesAfter() + P1Duration.TornadoesAppearAfterCascade, () =>
+        {
+            if (theLiquidSplits) TheHandAppears();
+            if (newTornadoes is not null) Tornadoes.Appear(newTornadoes);
+        }, file, line);
     }
 
 
@@ -657,6 +712,30 @@ public sealed class TeaP1LivingLiquid
 
     private static bool Touches(SimCharacter who, Vector3 embolus) => Apart(who.Position, embolus) <= who.HitboxRadius + P1Geometry.EmbolusRadius;
 
+    // -- The Jagd Dolls --
+    public void JagdDollsAppear(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+        => At(at, Dolls.Appear, file, line);
+
+    public void JagdDollsTurnTargetable(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+        => At(at, Dolls.TurnTargetable, file, line);
+
+    // Every doll that is up Exhausts at `firstAt` and every P1Duration.ExhaustEvery after it, while one is left and
+    // the timeline lasts. Each Exhaust schedules the next, on the run's clock so the chain slips no frame, and none
+    // past the last time the scenario has asked for: a doll nobody feeds must not keep a finished run going.
+    public void Exhausts(float firstAt, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        timelineEndsAt = MathF.Max(timelineEndsAt, firstAt);
+        Exhaust(firstAt, 0, file, line);
+    }
+
+    private void Exhaust(float firstAt, int nth, string file, int line)
+        => OnTheRunsClock(firstAt + nth * P1Duration.ExhaustEvery, () =>
+        {
+            if (fallen) return;
+            Dolls.Exhaust();
+            if (Dolls.AnyLeft && firstAt + (nth + 1) * P1Duration.ExhaustEvery <= timelineEndsAt) Exhaust(firstAt, nth + 1, file, line);
+        }, file, line);
+
     // -- The end --
 
     // The Living Liquid falls on the timeline, which ends the run; the Liquid Hand leaves
@@ -670,6 +749,7 @@ public sealed class TeaP1LivingLiquid
             Position(TeaP1Boss.LivingLiquid);
             Liquid?.Defeat(P1Duration.LiquidCorpseFade);
             Tornadoes.Leave();
+            Dolls.Leave();
             foreach (var embolus in emboli.Where(embolus => embolus.IsActive)) embolus.FadeOut();
         }, file, line);
         At(at + P1Duration.HandLeavesAfterTheLiquid, () =>
@@ -686,8 +766,10 @@ public sealed class TeaP1LivingLiquid
         Position(TeaP1Boss.LivingLiquid);
         Position(TeaP1Boss.LiquidHand);
         if (fallen) return;
+        ShowTheHandItsTargetOnceItIsThere();
         EachBossWalksAfterATargetOutOfReach();
         Tornadoes.KillWhoeverEntersAPuddle();
+        Dolls.Tick();
         BurstATouchedEmbolus();
     }
 
@@ -746,8 +828,14 @@ public sealed class TeaP1LivingLiquid
         }
     }
 
-    // On the run's clock, whenever it is called.
+    // On the run's clock, whenever it is called. The latest time asked for is where the scenario's timeline ends.
     internal void At(float time, Action action, string file, int line)
+    {
+        timelineEndsAt = MathF.Max(timelineEndsAt, time);
+        OnTheRunsClock(time, action, file, line);
+    }
+
+    private void OnTheRunsClock(float time, Action action, string file, int line)
         => world.Events.FromRunStart(() =>
         {
             world.Events.Add(time, action, file, line);
