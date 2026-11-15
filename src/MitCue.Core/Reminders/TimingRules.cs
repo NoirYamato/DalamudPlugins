@@ -51,7 +51,7 @@ public static class TimingRules
     private const double CoverageLead = 2;           // ...also pressed on the NOW cue: the default due lead (1.5 s) + 0.5 s
     private const double CoveringPressLead = 0.5;    // ...but pressed at least this long before the first hit
     private const double MinDueWindow = 1;           // ...and due at least this long before it (the latest use is then)
-    private const double OwnLeadGuard = 2.5;        // an item's own lead pulls an entry no earlier than D − 2.5 s for its
+    private const double OwnLeadGuard = 2.5;         // an item's own lead presses an entry no earlier than D − 2.5 s for its
                                                      // other items: on the NOW cue (1.5 s before) they outlast the hit by 1 s
     private const double EffectBeforeHit = 1;        // what a press takes time to is in place this long before the hit, as
                                                      // "(Late)" has it (PlanImporter.LateOffset)
@@ -94,10 +94,11 @@ public static class TimingRules
     /// <item>
     /// An item's own lead (<see cref="ActionInfo.Lead"/> of a <see cref="UseTiming.Before"/> action) pulls the press
     /// earlier wherever the cell lists it: "CU + Neutral Sect" at Neutral Sect's −4.5 s, time for its Helios, like
-    /// "Neutral Sect + CU". It never pulls it so early that another item's lasting effect D (mitigation, a shield, a regen,
-    /// an invuln, a pre-placed heal) used on the NOW cue ends before the hit: no earlier than −(D − 2.5 s) ("CU + Earthly
-    /// Star": −7.5 s; "Earthly Star + CU", timed by the star, keeps its −10 s). The action whose lead pulled the press
-    /// then times the entry (its series floor, below). Not on a <see cref="Mechanic.PressAfter"/> mechanic.
+    /// "Neutral Sect + CU". No lead, a pull or the timing action's own, presses the entry so early that another item's
+    /// lasting effect D (mitigation, a shield, a regen, an invuln, a pre-placed heal) used on the NOW cue ends before the
+    /// hit: no earlier than −(D − 2.5 s) ("CU + Earthly Star" and "Earthly Star + CU": −7.5 s, beside the 10 s CU; the
+    /// star then matures 2.5 s after the hit, for its heal). The action whose lead pulled the press then times the entry
+    /// (its series floor, below). Not on a <see cref="Mechanic.PressAfter"/> mechanic.
     /// </item>
     /// <item>
     /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
@@ -420,28 +421,51 @@ public static class TimingRules
     /// <summary>
     /// The second rule of <see cref="ForEntry"/>: <paramref name="timed"/>, pulled earlier to the lead of an item that has
     /// one of its own (<see cref="OwnLead"/>) wherever the cell lists it ("CU + Neutral Sect": Neutral Sect's −4.5 s), but
-    /// no earlier than the entry's other items with a lasting effect D allow (<see cref="CoveringDuration"/>: −(D − 2.5 s),
-    /// so that used on the NOW cue they still outlast the hit by 1 s: "CU + Earthly Star" at −7.5 s). The action whose lead
-    /// pulled it then times the entry.
+    /// no earlier than the entry's other items with a lasting effect D allow (<see cref="Guarded"/>: −(D − 2.5 s), so that
+    /// used on the NOW cue they still outlast the hit by 1 s), also when that lead already times the entry: "CU + Earthly
+    /// Star" and "Earthly Star + CU" at −7.5 s. The action whose lead pulled it then times the entry.
     /// </summary>
     private static (double Offset, ActionInfo? Timing) WithOwnLeads(IReadOnlyList<ActionInfo?> timing, (double Offset, ActionInfo? Timing) timed, int syncLevel)
     {
+        // The timing action's own lead first (rule 1 gave it), so that a later lead pulls from the guarded press.
+        if (OwnLead(timed.Timing) is not null)
+        {
+            for (var i = 0; i < timing.Count; i++)
+            {
+                if (ReferenceEquals(timing[i], timed.Timing))
+                {
+                    timed = (Guarded(timing, i, timed.Offset, syncLevel), timed.Timing);
+                    break;
+                }
+            }
+        }
+
         for (var i = 0; i < timing.Count; i++)
         {
             if (OwnLead(timing[i]) is not { } lead || -lead >= timed.Offset)
                 continue;
-            var offset = -lead;
-            for (var j = 0; j < timing.Count; j++)
-            {
-                if (j != i && CoveringDuration(timing[j], syncLevel) is { } duration)
-                    offset = Math.Max(offset, OwnLeadGuard - duration);
-            }
-
+            var offset = Guarded(timing, i, -lead, syncLevel);
             if (offset < timed.Offset)
                 timed = (offset, timing[i]);
         }
 
         return timed;
+    }
+
+    /// <summary>
+    /// <paramref name="offset"/>, the lead of the item at <paramref name="index"/>, but no earlier than the entry's other
+    /// items with a lasting effect D allow (<see cref="CoveringDuration"/>): −(D − 2.5 s), so that used on the NOW cue they
+    /// still outlast the hit by 1 s.
+    /// </summary>
+    private static double Guarded(IReadOnlyList<ActionInfo?> timing, int index, double offset, int syncLevel)
+    {
+        for (var j = 0; j < timing.Count; j++)
+        {
+            if (j != index && CoveringDuration(timing[j], syncLevel) is { } duration)
+                offset = Math.Max(offset, OwnLeadGuard - duration);
+        }
+
+        return offset;
     }
 
     /// <summary>The lead of a <see cref="UseTiming.Before"/> action with a positive one of its own (<see cref="ActionInfo.Lead"/>), else null.</summary>

@@ -231,11 +231,14 @@ public class EntryTimingTests
         Assert.Equal(-3, Several(TenSecondMit, PassageOfArms).AutomaticOffset, Kit.Tolerance);       // a later lead pulls nothing
 
         // Never so early that another item, used on the NOW cue, no longer lasts through the hit: −(10 − 2.5) for the 10 s
-        // mitigation beside Earthly Star (whose −10 s still times an entry it comes first in).
-        var star = Several(TenSecondMit, Kit.EarthlyStar);
-        Assert.Equal(-7.5, star.AutomaticOffset, Kit.Tolerance);
-        Assert.Equal(TimingRules.EarliestCoveringUse(100, 10), star.DueAt(new ReminderOptions()), Kit.Tolerance);
-        Assert.Equal(-10, Several(Kit.EarthlyStar, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        // mitigation beside Earthly Star, also when the star's lead times the entry (it comes first).
+        foreach (var star in new[] { Several(TenSecondMit, Kit.EarthlyStar), Several(Kit.EarthlyStar, TenSecondMit) })
+        {
+            Assert.Equal(-7.5, star.AutomaticOffset, Kit.Tolerance);
+            Assert.Equal(TimingRules.EarliestCoveringUse(100, 10), star.DueAt(new ReminderOptions()), Kit.Tolerance);
+            Assert.All(star.Items, i => Assert.True(i.Earliest <= i.DueAt(new ReminderOptions()) + Kit.Tolerance));
+        }
+
         Assert.Equal(-10, Several(Kit.Tetragrammaton, Kit.EarthlyStar).AutomaticOffset, Kit.Tolerance); // a heal has no effect to keep
 
         // After heal_lead too, but not on a press: after mechanic (the calls are the heal-up).
@@ -587,8 +590,9 @@ public class EntryTimingTests
         Assert.Equal(-4.5, Limited("p1.far", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-3.5, Limited("p1.mid", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
 
-        // An item with a lead of its own keeps it: Earthly Star matures, Neutral Sect leaves time for its Helios.
-        Assert.Equal(-10, Limited("p1.two", Kit.EarthlyStar, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        // An item with a lead of its own is not pressed later for a later hit: Earthly Star matures (beside the 10 s
+        // mitigation as late as that still lasts through the first hit, −7.5 s), Neutral Sect leaves time for its Helios.
+        Assert.Equal(-7.5, Limited("p1.two", Kit.EarthlyStar, TenSecondMit).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-4.5, Limited("p1.two", Kit.NeutralSect, TenSecondMit).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-4.5, Limited("p1.two", TenSecondMit, Kit.NeutralSect).AutomaticOffset, Kit.Tolerance);
 
@@ -614,6 +618,26 @@ public class EntryTimingTests
         Assert.Equal(offset, t.AutomaticOffset, Kit.Tolerance);
         var cast = actions.Max(a => RepoFiles.Action(a).CastTime);
         Assert.True(t.PressAt + cast <= t.Hit - 1 + Kit.Tolerance);
+    }
+
+    /// <summary>
+    /// A real cell: "Earthly Star + CU" on TOP's Latent Defect 2 (485.4), either way round. Collective Unconscious lasts
+    /// 10 s: at the star's −10 s it would end at the hit, so both are pressed at −7.5 s, and CU's NOW cue still lasts
+    /// through the hit.
+    /// </summary>
+    [Theory]
+    [InlineData("Earthly Star", "Collective Unconscious")]
+    [InlineData("Collective Unconscious", "Earthly Star")]
+    public void OwnLead_RealCell_EarthlyStarBesideCu(params string[] actions)
+    {
+        var fight = PlanImports.Top;
+        var entry = Kit.Entry("p3.latent_2", null, [.. actions.Select(a => Kit.Do(RepoFiles.Action(a)))]);
+        var t = TimingRules.ForEntry(entry, fight.GetMechanic("p3.latent_2")!, fight, RepoFiles.Actions);
+        Assert.Equal(-7.5, t.AutomaticOffset, Kit.Tolerance);
+        var options = new ReminderOptions();
+        Assert.All(t.Items, i => Assert.True(i.Earliest <= i.DueAt(options) + Kit.Tolerance, $"{i.Action!.Name}: due {i.DueAt(options)}, earliest {i.Earliest}"));
+        var cu = t.Items[Array.IndexOf(actions, "Collective Unconscious")];
+        Assert.True(cu.DueAt(options) + 10 >= t.Hit + 1 - Kit.Tolerance);
     }
 
     // ---- series (a raidwide repeated a few seconds apart) ------------------------------------------------------
