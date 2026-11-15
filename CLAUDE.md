@@ -57,10 +57,12 @@ NoirMech change:
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
 - TEA P1 (below), the first family NoirMech adds: `Scenarios/Tea/` with `TeaZone` and its `P1` phase,
-  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses and cleanses),
-  `TeaP1Mechanics.cs` (the Living Liquid, the Liquid Hand, the tornadoes and the attacks they play), and two
-  scenarios, each with an `[LPDU] Light PF` strat: `P1LivingLiquid/`, the fight from Protean 1 to the kill, and
-  `P1LimitCut/`, the intermission; in upstream's `ScenarioCatalog.cs`, a `using` and one entry for each;
+  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses, cleanses,
+  Provokes, invulnerability and hits on an enemy), `TeaP1Mechanics.cs` (the Living Liquid, the Liquid Hand, the
+  tornadoes and the attacks they play), `TeaP1JagdDolls.cs` (the pull's four dolls), and two scenarios, each with an
+  `[LPDU] Light PF` strat: `P1LivingLiquid/`, the fight from the pull to the kill (the strat's pull is in
+  `TeaP1LivingLiquidLpduAi.Pull.cs`), and `P1LimitCut/`, the intermission; in upstream's `ScenarioCatalog.cs`, a
+  `using` and one entry for each;
 - the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
   release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
   `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
@@ -294,16 +296,23 @@ anywhere, since they hold other players' names.
   the dolls and Emboli, Drainage and Throttle, Limit Cut and the deaths. `TeaPullLogReportTests` is its companion.
   - What both reports share is in `Reports/PullLogs/`: `PullLog` (a pull as typed events; `TopPull` and `TeaPull`
     derive from it), `LogFinding`, `SimSource`, `LethalHits` and the report's text.
-  - A fifth verdict, "measured, not in the sim", is for what the fight does that no scenario plays: the opening
-    (the dolls, the cleaves, whom the bosses turn to), health (maximum hit points, Hand of Pain's gap) and the like.
-    Such a finding points at the scenario's own note that the opening isn't played, or that no health is, so
-    building it, which rewords the note, fails `TeaPullLogReportTests` for every finding that then has a value to
-    check.
+  - A fifth verdict, "measured, not in the sim", is for what the fight does that no scenario plays: the bosses' and
+    the dolls' auto-attacks, a doll killed, health (maximum hit points, the Liquid's halving at the split, Hand of
+    Pain's gap) and the like. Such a finding points at the scenario's own note that it isn't played, so building it,
+    which rewords the note, fails `TeaPullLogReportTests` for every finding that then has a value to check.
   - A part's literals are read from its `fight.X(start + 4.8f)` lines (`SimSource.PartTime`) and held against the
     event's time after the cast the part is timed by: the Liquid's telegraphed cast for Protean 1, Cascade 2's cast for
-    Cascade 2, the first Hawk Blaster pair for Limit Cut. The combat flag gives the opening's times and each part's
-    place on the fight's clock; a pull the log joined after its start (the Living Liquid not at full health as it
-    opened) is left out of those.
+    Cascade 2, the first Hawk Blaster pair for Limit Cut. The pull's lines take no `start` (`fight.X(38.6f)`,
+    `SimSource.FightTime`) and are held against the combat flag, which also gives each part's place on the fight's
+    clock; a pull the log joined after its start (the Living Liquid not at full health as it opened) is left out of
+    those.
+  - The pull's findings are held against the sim: its timeline, the Liquid before the pull and the Hand's appearing,
+    a Provoke taking hold (the Hand's set-off after the main tank's Provoke), the dolls' spots, tethers, Exhausts,
+    stand-off and walking speed, an untouched doll a boss passes, and the feed. The feed's distance is held as a
+    line, not a mean: dolls walk in across it, so the finding differs when a feed went out from beyond
+    `DollIsFedWithin`, and, with 20 feeds or more, when none came within a quarter yalm of it. The cleaves' damage
+    is listed with what covered it and reads inconclusive: a tank lived through each bare, so the sim asks for no
+    cooldown.
   - A pull carries what stood as it opened (`ActPull.Standing`: each combatant's 03 line, each object's 261 Add and
     the map effects since the last pull), which is where the Liquid's spot before the pull, the helpers and the
     entrance barrier are read from; a combatant of the pull before can linger there, so the report takes what joined
@@ -338,7 +347,8 @@ anywhere, since they hold other players' names.
     alone, an Embolus on two move lines) and fails on a NaN in any measured or detail line.
   - The retune of both TEA scenarios took its values from this report; `tea-unverified.txt` now reads matches for
     them, "inconclusive" for what one or two pulls showed (those keep an UNVERIFIED mark with the bounds seen) and
-    "measured, not in the sim" for the opening and for health.
+    "measured, not in the sim" for health and the auto-attacks. The pull was built from the same report; nobody has
+    run it on the logs since, so the pull's findings are tested on made-up pulls only.
 - ACT's folder may hold only recent logs: older ones have been moved out of it into an archive folder and renamed,
   and the reports read `Network_*.log` in the one folder they are given. TOP's logs went that way, so
   `TopUnverifiedValues` finds no TOP pull in ACT's folder now; point `PullLogs` at a folder that holds them.
@@ -829,7 +839,7 @@ multiplayer.
 
 ## TEA P1
 `Scenarios/Tea/`: `TeaZone` (The Epic of Alexander, territory 887, one EU waymark preset) with a `P1` phase,
-`P1LivingLiquid/`, the phase's fight from Protean 1 to the kill (next section; its opening isn't built), and
+`P1LivingLiquid/`, the phase's fight from the pull to the kill (next section), and
 `P1LimitCut/`, the intermission that ends the phase, which the rest of this section is about. Ids and tunables are in
 `TeaP1Constants.cs`. Both scenarios were retuned to the pull-log report (above): what it could not settle keeps an
 UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bounds the pulls leave it.
@@ -950,18 +960,20 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bound
   `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Limit&Name~Cut`.
 
 ## TEA P1 Living Liquid
-`Scenarios/Tea/P1LivingLiquid/`, "Living Liquid", listed ahead of Limit Cut: the fight from the Living Liquid's first
-Protean Wave to its death, in two parts with a Start from pick (`TeaP1LivingLiquidParts`), each on its own clock:
-Protean 1 (the fight's clock at 60.9) and Cascade 2 (84.8, so 23.9 s into a run of both). The opening before them
-(the split, Provoke, the invulnerability, the dolls, the first Emboli, the busters) isn't built: it comes as a third,
-earlier part, and the part enum keeps 0 for it, since kept setups hold a part as a number. One strat, EU
-`[LPDU] Light PF`; party-only, no solo or multiplayer.
+`Scenarios/Tea/P1LivingLiquid/`, "Living Liquid", listed ahead of Limit Cut: the fight from the pull to the Living
+Liquid's death, in three parts with a Start from pick (`TeaP1LivingLiquidParts`), each on its own clock: the pull (the
+fight's clock, from the first hit on the Living Liquid), Protean 1 (60.9) and Cascade 2 (84.8, so 23.9 s into a run
+from Protean 1); a whole run is 124.5 s to the kill. Start from offers "The pull" first and by default, so a kept
+setup that held the old default (Protean 1, stored as nothing) now starts at the pull; kept setups hold a part as a
+number (0, 1, 2). The track starts at 0 s on a run from the pull. One strat, EU `[LPDU] Light PF`; party-only, no
+solo or multiplayer. The pull has its own section below; this one is about the two later parts and what all three
+share.
 - Script and check: no enmity and no health are played. The raidwides (Cascade, Splash, both Hands) hurt nobody,
   Hand of Pain never fails, and the Living Liquid falls on the timeline, 39.7 s into Cascade 2, which ends the run;
   the enrage isn't played. Positions are played for real and the human's own presses are heard. A mistake kills by
   the fight's own rule, with the reason, never a strat spot.
 - `TeaP1LivingLiquid` (`TeaP1Mechanics.cs`) is the one piece that plays both bosses and every attack, as
-  `TopP6AlphaOmega` does for P6; the scenario's two methods read as the timeline:
+  `TopP6AlphaOmega` does for P6; the scenario's three methods read as the timeline (the pull's is below):
   - Protean 1: the telegraphed Protean Wave's cast 4.8 (lands 7.8), Hand of Pain 5.0, the first unseen set and the
     Sluices 9.9 (the Sluices land 12.9), the second set 13.0, the Drainage tethers 17.5, six Splashes from 19.1,
     1.12 s apart, Drainage 24.7, with which the first tornadoes leave;
@@ -973,11 +985,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
     leaves 1.3 s later. Protean 1's Drainage and its last Splash fall 0.8 s into this part's clock: a run that starts
     here has no first tornadoes and goes without both.
   - A cast with a bar decides whom it hits as the bar ends, 0.3 s before the time it lands. No Fluid Swing or Fluid
-    Strike falls in these parts: both actions, their tank-job split and the piece's `FluidSwing` and `FluidStrike`,
-    which cast them at each boss's target, are defined and tested for the opening, and scheduled by nothing. Each
-    leaves Water Resistance Down, as a wave does.
+    Strike falls in these two parts; the pull has five.
   - Its 17 invisible 9020 helpers, the fight's own count, are a `SpawnedHelperPool`, every helper cast going through
-    `CastFromHelper`; the most busy at once is 11 (`TeaP1LivingLiquidHelperBudgetTests`).
+    `CastFromHelper`; the most busy at once is 11, in Cascade 2, and 3 in the pull
+    (`TeaP1LivingLiquidHelperBudgetTests`).
   - The bosses, and a Protean 1 start's tornadoes, are spawned in `Run` itself, ahead of the strat's `Run`: the
     strat's first move reads where the Liquid stands, and events of one time fire in the order they were added.
 - The tornadoes (`TeaP1Tornadoes`, `TeaP1TornadoLayout`): three Liquid Rages 15 y out on three quarters, each with
@@ -992,7 +1003,8 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   4.1 y): `EachBossWalksAfterATargetOutOfReach`, from the scenario's `Tick`, since the engine's `Follow` walks up
   to the hitboxes whatever the distance. The Hand's stop and the walk speed were
   measured; the Liquid's stop was seen twice and both set-off distances are taken for an auto-attack's reach
-  (UNVERIFIED). `SetTarget` is public for the opening's Provoke; nothing here calls it again.
+  (UNVERIFIED). A Provoke on either boss gives it to whoever pressed it (the pull, below); nothing else changes a
+  target.
   - A main tank that steps more than 7 y from the Liquid drags it, and its tether fetch does: the bot's by up to
     2.7 y, most where its own tether is the second to come free (the west one starts on the main tank itself, or its
     own starts on the off tank). Protean 2's spots, round the Liquid and beside the tornadoes, are spaced for a
@@ -1046,12 +1058,13 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   apart, the Hand still walking in); the close form, its fist, slams as Hand of Prayer and kills everyone within
   12 y (UNVERIFIED: it killed up to 2.39 y, and nobody was seen to take one apart). Which model state looks a fist
   and which a palm is UNVERIFIED. A fist with the bosses between 12 and 15.6 y apart kills nobody as it stands.
-- Emboli: only the second pair is played. Two orbs show on two tornadoes 0.7 s after Pressurize, wait there, and
-  set off 5.55 s after it (the fight's first move line of one comes at 5.67 s, with it 0.2 y on its way), at
-  1.92 y/s, through where a boss stood at the cast and on out of the arena, where each is gone 21.5 y out. One
-  bursts on a player or a boss whose hitbox comes within 1 y of its centre, and kills everyone (the Living Liquid
-  was seen to burst them so; UNVERIFIED for the Hand and for a player). Here the Liquid falls 0.95 s after they set
-  off, so they can hardly be touched: the rule tests pin faster ones. The first pair belongs to the opening.
+- Emboli: two pairs, one from the pull's Pressurize and one from Cascade 2's. Two orbs show on two tornadoes 0.7 s
+  after Pressurize, wait there, and set off 5.55 s after it (the fight's first move line of one comes at 5.67 s, with
+  it 0.2 y on its way), at 1.92 y/s, through where a boss stood at the cast and on out of the arena, where each is
+  faded out, once, 21.5 y out. One bursts on a player or a boss whose hitbox comes within 1 y of its centre, and
+  kills everyone (the Living Liquid was seen to burst them so; UNVERIFIED for the Hand and for a player). In
+  Cascade 2 the Liquid falls 0.95 s after they set off, so they can hardly be touched: the rule tests pin faster
+  ones. The pull's cross the arena for some 17 s.
 - Each death's reason states its rule: a second Protean Wave on a carrier of Water Resistance Down; an unseen set's
   wave straight ahead; a Sluice going off; a Liquid Rage's water; a Drainage tether held by a non-tank, a Drainage
   aimed at someone else, two Drainages, and Drainage without a tank's cooldown; Throttle running out; the palm's slam
@@ -1060,7 +1073,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   Throttle, the slam, an Embolus) kills at once. Nothing kills once the Liquid has fallen.
 - Rolls, each drawn whether or not it is forced: both tornado layouts (8 each; the second may repeat the first), the
   tornado without a tether and the two seats the tethers start on, Throttle's six, the tornado without an Embolus
-  and which orb heads for which boss. Settings: Start from; each part's Tornadoes (Auto or the open quarter);
+  and which orb heads for which boss. The pull's own roll, its Emboli, is drawn from a fork of the run's stream
+  (`rng.Fork`), never from the stream itself: a draw added there would shift every later roll of a seed, and the
+  stream is drawn from again after the State (a tether rolled onto a dead seat). So a run from Protean 1 or Cascade 2
+  rolls and plays what it did before the pull existed. Settings: Start from; each part's Tornadoes (Auto or the open quarter);
   Drainage tethers start on (Auto, The tanks, Others); Your Throttle (Auto, Yes, No). The per-seat Throttle rows
   need a host's session, as Limit Cut's numbers do, and are reached only by tests.
 - A start puts both bosses in the middle, the Liquid turned to relative south-east and the Hand beside it to the
@@ -1105,14 +1121,16 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   before Protean 2's bar, and its last hand (hold the Liquid more than 17 y from the Hand until the palm shows, then
   walk on through the middle until the Liquid stands on the Hand); a human off tank's last hand, the same with the
   Hand, which stops 4 y behind it; a human healer's cleanse order. A healer's seat on a job without Esuna is held to
-  no cleanse: the run cleanses for it. The strat presses nothing for a human in its seat. In headless runs the debug
-  driver walks the player's seat and presses nothing, so the strat cleanses for it too, unless a test sets the
-  internal `PlayerPressesItsOwnActions`.
+  no cleanse: the run cleanses for it. The strat presses nothing for a human in its seat that its job can press. In
+  headless runs the debug driver walks the player's seat and presses nothing, so the strat presses for it too (its
+  cleanses, and in the pull its Provokes, invulnerability and doll), unless a test sets the internal
+  `PlayerPressesItsOwnActions`. The human suites leave that off: the seat a human from the first frame is all that
+  tells the strat, as in the plugin.
 - UNVERIFIED in `TeaP1Constants`: the puddle's 7.6 y and that its object takes no spawn arguments, the waves' and
   cleaves' half-angles, the telegraphed wave's knockback (10 y, its speed, straight away from its source), the puddle's
   first harmless second, the Liquid's 6.0 y stop and both set-off distances, where between 15.15 and 16.13 y the
   Hand's form changes and which form looks which, the palm's 5.1 y (between 2.9 and 7.1) and the fist's 12 y,
-  Drainage's 0.2 mitigation and the two cleaves', the second after which a wave's, a Sluice's and Drainage's damage
+  Drainage's 0.2 mitigation, the second after which a wave's, a Sluice's and Drainage's damage
   shows, an Embolus's 1 y for the Hand and a player, and where a start puts the bosses. In the State, the actions
   and the mechanics: the odds of every roll and whom the
   tethers pick, that a holder can't take the second tether, that one Drainage circle kills a tank that holds no
@@ -1199,6 +1217,179 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   alone), `TeaP1PressesTests`, `TeaP1LivingLiquidSecondRunTests` (one scenario instance plays every run of a session,
   and `Run` replaces the listener and the piece) and `TeaP1LivingLiquidHelperBudgetTests`;
   `TeaP1LivingLiquidPlanTests` for the plan and its chat lines.
-- The gate's buckets are `tea-p1-protean-human`, `tea-p1-cascade-human` and `tea-p1-liquid` (the rest of the
-  scenario's tests). The soak filter is
-  `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Living&Name~Liquid`.
+- The gate's buckets are `tea-p1-pull-human`, `tea-p1-protean-human`, `tea-p1-cascade-human` and `tea-p1-liquid`
+  (the rest of the scenario's tests). The soak filter is
+  `FullyQualifiedName~ScenarioCatalogTests&Name~Alexander&Name~Living&Name~Liquid`; it plays the whole fight from
+  the pull, and `TeaP1LivingLiquidHandoverTests` plays each later start. A hand-run filter that selects more than
+  2000 tests makes the NUnit adapter run the whole assembly: add `-- NUnit.AssemblySelectLimit=1000000` to a filter
+  as wide as `FullyQualifiedName~Tea`, as `tools\test.ps1` does for every shard.
+
+## TEA P1 Living Liquid: the pull
+Part 0 of "Living Liquid", on the fight's own clock from the first hit on the Living Liquid: `ThePullIntoTheCentre`
+in the scenario, whose lines take no `start` since nothing comes before it, `TeaP1JagdDolls.cs`, and the strat's
+`TeaP1LivingLiquidLpduAi.Pull.cs`. At 60.9 the Protean 1 part begins and the run plays on to the kill.
+- The timeline: the Liquid waits on (0, -15) facing south and takes the main tank's seat at 0.5; Fluid Swing 10.1;
+  Cascade 14.2 (lands 18.2); at 19.6 the Liquid Hand splits off on the middle, on the off tank's seat, with the first
+  tornadoes, whose water kills from 20.6; the Hand glows 29.3; the tornadoes' telegraphed waves are aimed 32.4
+  (decide 35.1); four Jagd Dolls appear 32.6 and turn targetable 33.4; the Hand slams 34.4; Fluid Swing 36.4 and
+  Fluid Strike 36.5; the tornadoes' unseen waves 37.5; Exhaust 38.5 and every 10.64 s; Hand of Pain 38.6;
+  Pressurize 40.4, its Emboli setting off at 45.95; Fluid Swing 55.55 and Fluid Strike 55.8. Not played: both
+  bosses' and the dolls' auto-attacks (the animation of one every 3 s would stall a boss's walk), the Liquid's
+  health halving at the split, Hand of Pain's check, a doll killed.
+- The Hand and the dolls are spawned from an event, and the client has a spawned actor only some frames later and
+  drops what is written to it before: a boss turned to its target that early is shown it again once it is there, a
+  boss still on its way reads no hitbox and does not walk, and a doll turns targetable on the first frame it is
+  there (`FakeBattleCharas.PacketSpawnFrames` delays an actor in tests).
+- Provoke: `TeaP1Presses` hears the human's (7533, with "Resolve your own actions" on or off) and the piece gives
+  the boss it was aimed at to whoever pressed it 0.67 s after the press (`P1Duration.ProvokeTakesHold`; measured for
+  the Hand, UNVERIFIED for the Liquid), counted from when it was heard. The target changes then; the turn and the
+  walk wait out a cast. The main tank Provokes the Hand once it shows its palm and the off tank Provokes it back
+  after the first busters. Pressed before about 28.2 the Hand has walked within 15.6 y by the glow and shows a fist,
+  which then finds them together; pressed after about 31.9, or never, the palm's slam finds the Hand still on its
+  way: everyone dies either way. An off tank that never Provokes back loses nobody in the pull; the Hand then stays
+  with the main tank and the last hand shows a fist.
+- The cleaves ask for no cooldown. A tank at full health lived through each bare in the fight (the hardest, with
+  nothing up, took three fifths of its health), so each is a plain tank buster: a non-tank seat in one dies, a tank
+  seat lives, whatever its job. No rule kills for both cleaves at once either. Each leaves Water Resistance Down, and
+  what kills is the wave that follows: the main tank holds both bosses and is the middle tornado's closest player,
+  so that tornado's unseen wave at 37.5 finds it carrying the cleaves' debuff. That is what its invulnerability is
+  for; pressed from 27.5 to 37.5 it takes it through, and a main tank that leaves the tornado after the cleaves needs
+  none.
+- The invulnerability is read as its four statuses (82, 409, 810, 1836), as every TEA rule reads it. With "Resolve
+  your own actions" off, `TeaP1Presses` adds the status itself as it hears the press (30, 43, 3638, 16152), for
+  10 s, in the call the sim's own resolving would add it from, so a press in the gap before a frame counts in that
+  frame with the setting on or off. That holds in the two later parts too: a human tank's invulnerability now counts
+  under their waves, Sluices and Drainage with that setting off. A listener outlives its run (a scenario has no hook
+  for its run's end, and `Acted` is raised for every scenario): one that hears a press after the world's `Rng` has
+  been replaced, as each run does, does nothing and lets go.
+- A tornado's telegraphed wave throws a human it hits 10 y, past the rim from a bait spot. The bots are not thrown:
+  the main tank bot stays in its telegraph under its invulnerability and the ranged step out and back. A human main
+  tank steps out and back, or presses Arm's Length.
+- The Jagd Dolls (`TeaP1JagdDolls`): four, 7 y out on true bearings 67.5, 157.5, 247.5 and 337.5 whatever the
+  layout, so each quarter of the tornadoes' frame holds one. They are the phase's one demihuman, which draws nothing
+  without its spawn packet's parts: `P1Appearance.JagdDoll` is its NpcEquip row's, decoded as upstream's FRU
+  appearances decode from theirs (UNVERIFIED until one is seen drawn).
+  - A doll tethers the first player whose weaponskill or spell on it is heard, 0.6 s after the press, and walks
+    after that player at 9 y/s to 3.3 y from it (setting off again past 4.3 y, UNVERIFIED). A holder that dies
+    leaves it where it stands. What is a hit is read off the Action sheet: an action aimed at one target that is
+    not its user and not the ground, pressed at something that is no party member. A press comes with the client's
+    target whatever the button, so a cooldown, a heal, an invulnerability or a ground-targeted button pressed with a
+    doll targeted is none. Thunderclap and its like, which can land on a party member or an enemy, count, on the
+    taking that the client refuses a party-only button aimed at an enemy before it is heard (UNVERIFIED). The
+    fight's doll also tethers on an auto-attack (8 of 150 tethers); the run hears no auto-attack, so a doll waits
+    for the first weaponskill or spell: a known gap, and hearing them needs an event from upstream's
+    `AutoAttackHandler`.
+  - No damage is played, so a doll's health is scripted: whole until its tether shows, a quarter 4 s later
+    (`DollUnderAQuarterAfter`, UNVERIFIED: the party's doing), then down to a tenth, where it stays; no doll dies.
+    The bar is sent in twentieths through the status list (UNVERIFIED that the client's follows), and a human's own
+    doll says in chat, once, when it is under a quarter.
+  - Exhaust from every doll that is up, each reaching the sheet's 8 y past its hitbox (8.8 y). One harms nobody and
+    leaves Luminous Aetheroplasm for 4.96 s; a player two reach at once explodes and kills everyone within 8.5 y,
+    itself included. The Exhausts chain on the run's clock and stop with the scenario's last line, so a doll nobody
+    feeds neither keeps a finished run going nor Exhausts past the kill.
+  - A doll a player has hit is fed to a boss once their centres are within `P1Geometry.DollIsFedWithin`, 4.6 y
+    (UNVERIFIED where the line lies: dolls walking in were fed from 3.26 to 4.57 y, most near the far end, so it is
+    at least the farthest; 4.14 y, the mean, was taken for it at first). Fed, it turns untargetable and casts
+    Reducible Complexity 1.07 s later: harmless under a quarter of its health, and killing everyone from a quarter
+    up (24.5 % was harmless and 25.3 % killed six of eight). A doll nobody has hit is never fed, however close a
+    boss comes (UNVERIFIED past a doll's first 0.75 s), and one hit beside a boss is fed there and then, whole.
+- Each death's reason states its rule, as in the later parts; the pull's own are the explosion and the doll fed too
+  soon.
+- `TeaP1LivingLiquidPlan`'s chat lines for the pull. Where a tank takes its boss is its seat's to do whatever its
+  job, since each boss walks after its seat and no move reaches a human; its presses are its job's.
+  - Main tank: the pull (turn the Liquid away, within 6 y of the middle as Cascade lands); the first hand (the rim
+    beside the middle tornado, be that tornado's closest, the telegraph, and on a tank's job the Provoke as the palm
+    shows and the invulnerability between 28 and 37 s); from 42 s through the middle to 6 y past it, then within 4 y
+    of the Liquid, since an Embolus from the tornado right of the open quarter passes 7 y out on that side. On
+    another job it is told the run's presses instead: Provoke at 30.0 if a palm shows, invulnerability at 34.0.
+  - Off tank: take the Hand far out to the right of the open quarter until the palm; then wait beside the Liquid,
+    not near the middle, which is inside two dolls' reach until the first Exhaust; Provoke back between the busters
+    (the run does at 38.0 for another job) and lead the Hand onto the middle only from 42 s, once the melee have
+    fed.
+  - A damage dealer: its doll's quarter, hit it first with a weaponskill or a spell, stand where only its Exhaust
+    reaches, keep it more than 5 y from both bosses until it is under a quarter, then draw it through a boss from
+    the far side, clear of the water. M1 is also told to hit by 38 s: on every layout the tanks lead the bosses to
+    the middle past the south-west doll's spot from 42.5, which feeds a hit doll there, and its health falls by
+    the script, so a first hit from about 39.0 wipes the run at 44.7. The bosses pass no other doll's spot.
+  - A healer: wait far out until the first Exhaust.
+- The strat (`TeaP1LivingLiquidLpduAi.Pull.cs`), with no `arrivalTime` anywhere. What it does on sight is looked at
+  every 0.25 s and sent once per decision: a walk sent again while its bot rounds a puddle would pick its side
+  afresh.
+  - 0.0 the party in a knot behind the main tank, 2 y south of the middle; 2.0 the main tank through the Liquid to
+    turn it north; 14.3 it steps in to 6 y for Cascade; 24.0 the split: the main tank sprints to the rim beside the
+    middle tornado (8.4 y from it at bearing 258), the off tank takes the Hand 11.5 y out at 39, the ranged bait the
+    side tornadoes 8.4 y from them, 10 degrees outward of north, H1 far north, H2 far south-east, the melee
+    south-west of the middle.
+  - 30.0 the main tank Provokes the Hand if it shows a palm, and the off tank walks to the Liquid's flank once the
+    Hand has left it; 32.5 the ranged step out of their telegraphs and 35.15 back; 33.5 each melee half a yalm off
+    its doll, away from the tornado beside it; 34.0 the main tank's invulnerability; from 34.25 each damage dealer
+    hits its doll once it is in reach (3.5 y, 25 y) with both bosses 5.2 y or more from it; 38.0 the off tank
+    Provokes back.
+  - From 36.0 a bot whose doll someone else hit takes that one's own, a melee walking to it first. When the taker
+    is not a melee the doll goes out to it, into reach of whoever stands by the taker's own, so the melee waits out
+    the first Exhaust and goes from 38.75. A melee takes no doll from 47.0 and goes north without one: hit later it
+    would not be fed before the second busters, which cleave over the melee dolls' spots.
+  - From 38.75 each melee whose doll is under a quarter draws it through the nearer boss at rest, 2.5 y past it,
+    turned round it by up to 100 degrees to a spot 8.3 y from every tornado, then goes north; the ranged do so
+    from 49.3, after the second Exhaust, and go back out. 42.5 each tank across the middle, its boss's stopping
+    distance past it, and the healers and ranged to their Protean 1 spots; from 46.0, by 49.0, each tank takes its
+    hold once it and its boss have come to rest.
+  - These depart from the guides' drawing or fill what it leaves open, all UNVERIFIED picks the margin suite's
+    floors hold: the off tank's split at r 11.5 (drawn at 14.1, out of Provoke's reach); the main tank in to r 6 for
+    Cascade (drawn at r 8, inside a puddle on three layouts) and staying in its telegraph; the ranged 10 degrees
+    outward; the melee dolls left where they appear with the melee half a yalm off them (drawn dragged east), so
+    the healers stay out until 42.5 where the guides draw them in the middle; the feeds at the rim and on the
+    middle; the 5.2 y rule, 0.6 y past the feed line; every time and the looks' 0.25 s.
+- Change the pull's bot movement only with `TeaP1LivingLiquidPullLpduHumanTests`, the pull's margin tests
+  (`TeaP1LivingLiquidLpduMarginTests.Pull.cs`), `TeaP1LivingLiquidHandoverTests` and `TeaP1LivingLiquidLpduAiTests`'
+  pull half green.
+  - The margin suite holds, on every layout: the Liquid at rest 6 y behind the main tank and 5.3 y or more from the
+    nearest doll's spot (5.50 in the build, where no spot fixes it: it trails a tank that sprints); the bosses apart
+    at the glow and together at the slam; each tornado aiming at its baiter both times; nobody but the main tank in
+    a telegraph; every cleave on its tank alone; the second-nearest doll 0.3 y past its reach at the first Exhaust;
+    a hit doll 0.55 y past the feed line from both bosses while it holds a quarter; the melee's dolls fed by 42.4
+    and the ranged's by 52.0; the Emboli clear of every seat and boss; every seat on its Protean 1 spot at 60.9.
+  - The handover tests play a run from the pull beside one from Protean 1 on the same seed: the same seats, bosses,
+    targets and casts from 0.6 s into Protean 1 to the fall. At most one of the pull's Emboli is still crossing
+    then, 16 y out, gone 3 s in.
+  - The human suite seats a human from the first frame, which is all that tells the strat to press nothing for it
+    (no internal override), on every layout, walking or sprinting, 0 to 0.5 s late, pressing its own Provokes,
+    invulnerability and doll hit, and feeding once the chat says its doll is ready. No scripted tank presses a
+    cooldown for a cleave. Nobody may die, every doll goes to its damage dealer and is fed, and each boss ends on
+    its tank, but in these cases, each its own test:
+    - the main tank's Provoke at 27.8 (the fist), at 32.4 or never (the palm): everyone; its invulnerability at 27,
+      at 37.6 or never: it alone, of the unseen wave; staying in the telegraph without Arm's Length: it alone, past
+      the rim; 3 y along the rim, no longer the tornado's closest: R2 or M1 on most rolls, the count held; 6.5 y
+      from the Liquid on the middle, on the line of the orb that heads for it: everyone;
+    - an off tank that waits on the middle once the Hand has left: it explodes at the first Exhaust with both
+      melee; one that leads the Hand in at 37.5: it explodes on the cardinal layouts and feeds M1's doll too soon
+      on the diagonal ones (a quarter second later Hand of Pain holds the Hand back and nobody dies); one that
+      keeps the Hand near the Liquid: a fist, and everyone at the slam or of the Hand's Embolus; one that never
+      Provokes back: everyone at the last hand;
+    - a melee 2 y toward the other melee's doll: it explodes; M1 hitting 5 s late: everyone at 44.7 (M2 loses
+      nobody); a melee feeding 2 s after its tether: everyone, or M2 exploding on its way; a damage dealer that
+      never hits its doll loses nobody;
+    - a ranged staying in its telegraph: it alone, past the rim; a healer in the middle from the dolls' appearing:
+      it and both melee, but H1 on a cardinal layout.
+    - Losing nobody, each its own test: a tank on another job (the run presses), cooldowns pressed with a doll
+      targeted, the sim not resolving the tank's actions, the main tank a yalm along the rim, baiting from where
+      some guides draw it (the Liquid then rests 5.24 y from the south-west doll's spot at the nearest, just past
+      the bots' 5.2 y), not quite back from its step out, or leading the Liquid in up to 4 s late; a damage dealer
+      taking the other's doll, a ranged taking a melee's, hits 2 and 3 s late, a caster's long cast, a melee on its
+      doll or half a yalm toward its tornado, feeds once the bosses rest on the middle; and the whole fight from
+      the pull.
+- Change a rule or a press of the pull only with the strat-free tests green: `TeaP1LivingLiquidPullTests` (each
+  rule, one mistake at a time, on the stage's pull cues), `TeaP1JagdDollsTests` (the piece alone),
+  `TeaP1PressesTests`, `TeaP1LivingLiquidActionsTests`, `TeaP1LivingLiquidStateTests` (the fork, and that every
+  later roll of a seed is unchanged), `TeaP1LivingLiquidSecondRunTests` and `TeaP1LivingLiquidHelperBudgetTests`.
+- UNVERIFIED for the pull, in `TeaP1Constants` unless said: the doll's appearance; where the feed line lies; a
+  doll's set-off distance, its scripted health (4 s to a quarter, the floor) and that the bar follows; that a Provoke
+  takes hold on the Liquid as on the Hand; the cleaves' half-angle. In the pieces: that the Hand starts on the off
+  tank's seat (the fight's goes to whoever holds its enmity); that a doll nobody has hit is never fed and one can be
+  fed from its first hit; that a doll fed at a quarter or more kills everyone, where the fight's kills most; the
+  explosion's 8.5 y; that every weaponskill or spell aimed at a doll tethers it and one that only clips it does not;
+  that the client refuses a party-only button aimed at an enemy; the client's current-target stand-in.
+- In-game checks still owed, in this order: the four dolls are drawn; the Hand shows the off tank as its target a
+  moment after it appears; a weaponskill and a hard cast on a doll are heard and tether it, and a cooldown pressed
+  with one targeted does not; the doll's bar falling and the chat line; Provoke moving the Hand two thirds of a
+  second after the press, and the invulnerability with the module on and off.
