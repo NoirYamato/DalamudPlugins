@@ -327,8 +327,17 @@ anywhere, since they hold other players' names.
   - What the sim plays on its own terms is measured as the sim asks it: a boss's stand-off from its target as the
     distance past their two hitboxes while the target stood still, an Embolus's contact as the distance past the
     toucher's hitbox, the rim by who was seen past it and who came back.
+  - A verdict reads matches only where a sample could have said otherwise. A slam's distance needs slams on both
+    sides of it, and its finding prints the room the pulls leave for the line; with every slam on one side it reads
+    inconclusive. The rim under Cruise Chaser's throws counts every player a hit left alive whose named row ends a
+    yalm and more past the rim, and reads DIFFERS if one that was seen to slide lived on; one that lived without
+    sliding is listed and left out, as is a throw's length taken from a hit that names no row.
+  - A finding over several literals (Limit Cut's series of blasts, cleaves and charges) names every row's line, so a
+    literal the scenario no longer holds shows as `:?` and "not found in the scenario", and `TeaPullLogReportTests`
+    fails on it. That test also feeds every measure pulls that show little (a wipe in the first seconds, one boss
+    alone, an Embolus on two move lines) and fails on a NaN in any measured or detail line.
   - The retune of both TEA scenarios took its values from this report; `tea-unverified.txt` now reads matches for
-    them, "inconclusive" for what one or two pulls showed (those keep an UNVERIFIED mark that says what was seen) and
+    them, "inconclusive" for what one or two pulls showed (those keep an UNVERIFIED mark with the bounds seen) and
     "measured, not in the sim" for the opening and for health.
 - ACT's folder may hold only recent logs: older ones have been moved out of it into an archive folder and renamed,
   and the reports read `Network_*.log` in the one folder they are given. TOP's logs went that way, so
@@ -823,14 +832,14 @@ multiplayer.
 `P1LivingLiquid/`, the phase's fight from Protean 1 to the kill (next section; its opening isn't built), and
 `P1LimitCut/`, the intermission that ends the phase, which the rest of this section is about. Ids and tunables are in
 `TeaP1Constants.cs`. Both scenarios were retuned to the pull-log report (above): what it could not settle keeps an
-UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with what was seen.
+UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bounds the pulls leave it.
 - The arena has no wall, and whoever goes past its rim (r 20) dies at once: `TeaZone.Run` asks the world for the
   boundary, with the reason. Its weather is left to the territory and its entrance barrier's ids are read from the
   layout, both UNVERIFIED. The phase's BGM is 706; the fight changes to 723 with J Kick, which ends the run here, so
   that isn't played.
 - Limit Cut starts 8 s before the first Hawk Blaster, the party in the middle and no boss up, and ends after J Kick;
   Brute Justice and Cruise Chaser turning targetable isn't played. Party-only: no solo, no multiplayer.
-  - The numbers show from 5.95, 0.045 s apart.
+  - The numbers show from 5.95, the first two together and each later one 0.045 s on.
   - Hawk Blasters (r 10, centred 14 y out, no omen, from 3 invisible 9020 helpers in a `SpawnedHelperPool`) go off in
     pairs on opposite spots at 8.0, 10.2, 12.4, 14.6 and 19.0, 21.2, 23.45, 25.6, each pair 45 degrees clockwise of
     the last and the fifth on the first's spots, and in the middle at 16.8 and 27.8.
@@ -877,7 +886,10 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with what was 
   b - 8. #1 and #2 are hit on their group's spot 2, #5 and #6 on its spot 5, #3 and #4 on their group's spot 3 and
   #7 and #8 on its spot 6. A cleaved odd walks on at once, onto the outer lane.
   - He lands 14.23 into the run for #1, 1.8 s after the blast that frees its spot, so #1 and #2 sprint that walk
-    (12.5, arriving about 13.8); every other number has a round or more.
+    (12.5, arriving about 13.8); every other number has a round or more. A human rolled number 1 is told so as the
+    numbers show (`TeaP1LimitCutScenario.NumberOneHasTheLeastTime`, the fight's own rule: he lands 1.8 s after the
+    third pair, behind wherever number 1 is then, and cleaves through it from there). Only a human in the player's
+    seat is told; #2, not charged until 16.9, needs no sprint.
 - The strat turns its odd bots along the rim, but nothing turns a human or puts it exactly on a spot, and both of
   Cruise Chaser's hits pass close to the group's other pair, waiting at the rim:
   - Landing 3 y behind, an odd number's cleave reaches its group's waiting odd bot from about 20 degrees outward of
@@ -919,7 +931,14 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with what was 
       else may;
     - a #1 that reacts 0.5 s late, still short of its spot as he lands: its cleave catches its group's waiting odd
       bot in 21 of the 40 runs on the usual rolls, and the case may lose no more, and only bots to a second hit of
-      his.
+      his;
+    - a #1 or a #2 that walks the leg onto its hit spot (`ANumberOneOrTwoThatWalksOntoItsHitSpot...`): #2 loses
+      nobody at any reaction time, nor does a #1 that sets off the moment the blast goes off; a walking #1 a quarter
+      second late or more is short of its spot in all 40 runs, and loses a bot in each.
+    Both of #1's counts hang on where he lands against a number still walking (the 3 y, and that he takes its
+    facing), neither of which is measured: count them again when either changes. No waiting spot for #5 and #6 was
+    found that clears both a chord-aimed cleave and #2's charge; hitting #1 and #2 a spot earlier would end the
+    squeeze and is the user's pick.
   - The margin suite measures the bots' clearance from every blast, cleave and charge on every axis, with him
     landing 1.5, 3 and 4.5 y behind and the odd number turned 5 degrees either way. Its `Usual` rows hold at
     `P1Geometry.CruiseChaserLandsBehind` and were measured at 3 y: retune them with it. At that distance it also
@@ -950,7 +969,7 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
     tornadoes 1.4 s after that; Liquid Gaol 10.05 and Throttle 10.5, running out at 20.5; Protean Wave 18.15 (lands
     21.15), Hand of Pain 20.1, the first set and the Sluices 23.25, the tornadoes' telegraphed waves aimed 24.2 (land
     27.2), the second set 26.3, the tornadoes' unseen waves 29.25, the Hand's glow 33.15, Pressurize 33.2, with its
-    two Emboli showing 0.7 s later and setting off at 38.87, the slam 38.25, the Liquid falls 39.7 and the Hand
+    two Emboli showing 0.7 s later and setting off at 38.75, the slam 38.25, the Liquid falls 39.7 and the Hand
     leaves 1.3 s later. Protean 1's Drainage and its last Splash fall 0.8 s into this part's clock: a run that starts
     here has no first tornadoes and goes without both.
   - A cast with a bar decides whom it hits as the bar ends, 0.3 s before the time it lands. No Fluid Swing or Fluid
@@ -974,10 +993,13 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   to the hitboxes whatever the distance. The Hand's stop and the walk speed were
   measured; the Liquid's stop was seen twice and both set-off distances are taken for an auto-attack's reach
   (UNVERIFIED). `SetTarget` is public for the opening's Provoke; nothing here calls it again.
-  - A main tank that steps more than 7 y from the Liquid drags it: its tether fetch can, by up to a yalm and a half,
-    and Protean 2's spots, round the Liquid and beside the tornadoes, are spaced for a Liquid on the middle. The bot
-    leads it back when it stands more than 0.7 y off; no move of the strat's reaches a human, so the start's chat
-    line asks a human main tank to. That close to the middle a Liquid left where it stands costs nobody.
+  - A main tank that steps more than 7 y from the Liquid drags it, and its tether fetch does: the bot's by up to
+    2.7 y, most where its own tether is the second to come free (the west one starts on the main tank itself, or its
+    own starts on the off tank). Protean 2's spots, round the Liquid and beside the tornadoes, are spaced for a
+    Liquid on the middle. The bot leads it back when it stands more than 0.7 y off; no move of the strat's reaches
+    a human, so the start's chat line asks a human main tank to. The suite's human drags it a yalm and a half taking
+    its tether where the line is nearest, and 2.2 y taking it by its tornado; left there it costs nobody. A Liquid
+    left farther off than that is not played.
 - The facing lock: from a telegraphed Protean Wave's cast until 3 s after its second unseen set, when its next
   auto-attack would go off, the Liquid keeps its facing whatever its target does, and stands still.
 - Protean Waves (15 degrees either side, UNVERIFIED, 40 y): the telegraphed cast aims one along the Liquid's facing
@@ -987,6 +1009,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   included, short of a tank's invulnerability; a first wave never does, but for an unseen set's wave straight ahead,
   which kills whoever it hits, carrier or not (UNVERIFIED that a tank's cooldowns don't take one through it). Two
   waves that catch one player in one frame are a first and a second.
+  In the fight the tornadoes' telegraphed waves land 3.88 to 3.98 s after Protean 2's first unseen set, either side
+  of the debuff's 3.96 s, and none ever hit anyone: whether one kills a carrier of that set's wave there is a coin's
+  toss nobody saw. Here a bar decides as it ends, 3.65 s after the set (24.2 + 2.7 against 23.25), so it always
+  kills; retune the 3.96 s or either literal with that pair in mind.
   The telegraphed rows also knock back 10 y straight away from their source (UNVERIFIED: none was seen to hit
   anyone): bots are not pushed, nor is a human whose anti-knockback is up as the bar ends. Whom a wave throws is
   decided then, with the hit; the slide starts as the wave goes out, 0.3 s later, when the client would slide its
@@ -1015,16 +1041,17 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   the two apart; UNVERIFIED that the barrier stops Throttle).
 - The Hand's last slam: as it glows it takes one of two forms by how far apart the bosses' centres are, the far one
   beyond 15.6 y (it showed the close one up to 15.15 y and the far one from 16.13 y). The far form, the sim's palm,
-  slams as Hand of Parting and kills everyone unless the bosses are within 5.1 y by then (nobody died up to 2.87 y
-  and everyone at 7.15 y); the close form, its fist, slams as Hand of Prayer and kills everyone within 12 y
-  (UNVERIFIED: it killed up to 2.39 y, and nobody was seen to take one apart). Which model state looks a fist and
-  which a palm is UNVERIFIED. A fist with the bosses between 12 and 15.6 y apart kills nobody as it stands.
+  slams as Hand of Parting and kills everyone unless the bosses are within 5.1 y by then (UNVERIFIED where between
+  2.9 and 7.1 y the fight's line lies: nobody died up to 2.87 y, and the one slam that killed found them 7.15 y
+  apart, the Hand still walking in); the close form, its fist, slams as Hand of Prayer and kills everyone within
+  12 y (UNVERIFIED: it killed up to 2.39 y, and nobody was seen to take one apart). Which model state looks a fist
+  and which a palm is UNVERIFIED. A fist with the bosses between 12 and 15.6 y apart kills nobody as it stands.
 - Emboli: only the second pair is played. Two orbs show on two tornadoes 0.7 s after Pressurize, wait there, and
-  set off 5.67 s after it, at 1.92 y/s, through where a boss stood at the cast and on out of the arena, where each
-  is gone 21.5 y out. One bursts on a player or a boss whose hitbox comes within 1 y of its centre, and kills
-  everyone (the Living Liquid was seen to burst them so; UNVERIFIED for the Hand and for a player). Here the Liquid
-  falls 0.8 s after they set off, so they can hardly be touched: the rule tests pin faster ones. The first pair
-  belongs to the opening.
+  set off 5.55 s after it (the fight's first move line of one comes at 5.67 s, with it 0.2 y on its way), at
+  1.92 y/s, through where a boss stood at the cast and on out of the arena, where each is gone 21.5 y out. One
+  bursts on a player or a boss whose hitbox comes within 1 y of its centre, and kills everyone (the Living Liquid
+  was seen to burst them so; UNVERIFIED for the Hand and for a player). Here the Liquid falls 0.95 s after they set
+  off, so they can hardly be touched: the rule tests pin faster ones. The first pair belongs to the opening.
 - Each death's reason states its rule: a second Protean Wave on a carrier of Water Resistance Down; an unseen set's
   wave straight ahead; a Sluice going off; a Liquid Rage's water; a Drainage tether held by a non-tank, a Drainage
   aimed at someone else, two Drainages, and Drainage without a tank's cooldown; Throttle running out; the palm's slam
@@ -1048,7 +1075,9 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   - Each tank fetches its own tether (`Intercept`, every 0.25 s from 17.75) and walks it to its spot: the east
     tornado's is the main tank's and the west one's the off tank's, and the middle one's goes to the tank whose side
     has none. A free tank takes its own even off the other tank; only both tanks crossed from the start stay so.
-  - Before Cascade 2 lands everyone gathers within 6 y of the middle, inside any new puddle's reach (7.4 y).
+  - Before Cascade 2 lands everyone gathers within 6 y of the middle, inside any new puddle's reach (7.4 y). The
+    main tank, leading the Liquid back, then stands up to 6.7 y out until it turns the Liquid at 9.5, with the new
+    puddles lethal from 8.3.
   - The healers cleanse at 11.2, 13.7, 16.2 and 18.7, each itself first, then H1 down the party list and H2 up it.
   - Protean 2's two stacks are taken at 12.0 on the Liquid's north-south line, and again, every 0.25 s until 17.75,
     whenever the Liquid stands more than 0.25 y from where they were last taken. The telegraphs are aimed at the
@@ -1065,9 +1094,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
     than 12 y apart.
   - No move brings a bot's boss onto a human tank's. A human off tank that stops on the middle has the Hand within
     the palm's 5.1 y, by a yalm; a human main tank that stops there leaves the Liquid 6 y short, and one that stops a
-    yalm beside the other tank is short of the middle too: everyone dies. A bot tank that walked its boss onto the
-    other boss's live spot would cover that, and would also carry an off tank that never brings the Hand in, which
-    the rule's test expects to lose: not made, the user's to pick.
+    yalm beside the other tank is short of the middle too: everyone dies, by the sim's 5.1 y. Those leave the
+    bosses about 6 y apart, inside the 2.9 to 7.1 y the fight's own line is only known to lie in. A bot tank that
+    walked its boss onto the other boss's live spot would cover that, and would also carry an off tank that never
+    brings the Hand in, which the rule's test expects to lose: not made, the user's to pick.
 - `TeaP1LivingLiquidPlan` is the one piece of strat the scenario reads, for the start's chat lines: a human tank's
   tether, and that two tanks who start with each other's keep them, each on its own spot; a human main tank's standing
   away from the open quarter before Protean 1, so the Liquid's own wave goes that way, its leading the Liquid back onto
@@ -1081,9 +1111,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
 - UNVERIFIED in `TeaP1Constants`: the puddle's 7.6 y and that its object takes no spawn arguments, the waves' and
   cleaves' half-angles, the telegraphed wave's knockback (10 y, its speed, straight away from its source), the puddle's
   first harmless second, the Liquid's 6.0 y stop and both set-off distances, where between 15.15 and 16.13 y the
-  Hand's form changes and which form looks which, the fist's 12 y, Drainage's 0.2 mitigation and the two cleaves', the
-  second after which a wave's, a Sluice's and Drainage's damage shows, an Embolus's 1 y for the Hand and a player, and
-  where a start puts the bosses. In the State, the actions and the mechanics: the odds of every roll and whom the
+  Hand's form changes and which form looks which, the palm's 5.1 y (between 2.9 and 7.1) and the fist's 12 y,
+  Drainage's 0.2 mitigation and the two cleaves', the second after which a wave's, a Sluice's and Drainage's damage
+  shows, an Embolus's 1 y for the Hand and a player, and where a start puts the bosses. In the State, the actions
+  and the mechanics: the odds of every roll and whom the
   tethers pick, that a holder can't take the second tether, that one Drainage circle kills a tank that holds no
   tether, that a telegraphed wave kills no more than a second wave does, that a tank's cooldowns don't take it
   through the wave straight ahead, that the Warden's Paean's barrier stops Throttle, and when the second tornadoes
@@ -1095,7 +1126,7 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
   - the main tank 3.9 y from the Liquid whenever it is free to walk, where the guide draws it 7.4 y out ((5.0, 5.5)
     for Drainage, (-0.8, -7.4) for Protean 2's stack): the Liquid walks after a tank more than 7.0 y away;
   - everyone inside r 6 for Cascade 2's cast, where the guide keeps the six stacked at r 7 to 9.4: a new puddle
-    reaches in to r 7.4;
+    reaches in to r 7.4 (the main tank up to r 6.7 while it leads the Liquid back);
   - Protean 2's two stacks on the Liquid's north-south line (H1 5.7 and R2 7.5 y north of it; H2 3.2, M1 3.8, R1
     4.4, M2 5.0 and the off tank 5.6 y south), where the guide scatters them: two narrow bundles of telegraphs;
   - M1 aside at bearing 215 for the telegraph and onto its south bait at 21.3: that bait is inside the south
@@ -1123,7 +1154,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
     fetch from all 21 starts.
   - The margin suite holds every pick by distance, every cone, Sluice and puddle, Drainage and the last hand to
     floors derived from the spots (`MarginSeeds` asks for more runs). The thinnest is the tornadoes' aim, the next
-    closest 0.75 y and more behind the baiter.
+    closest 0.75 y and more behind the baiter. Through every start of the tethers both are on their tanks by 22.5
+    (about 21 in the slowest, where the main tank takes the middle one off the off tank before the off tank can
+    fetch the west one), both tanks are on their spots at Drainage, and the Liquid is at most 3.5 y off the middle
+    then (2.7 y in these runs).
   - The human suites (`TeaP1LivingLiquidProtean1LpduHumanTests`, `...Cascade2LpduHumanTests`, on
     `TeaP1LivingLiquidHuman`) seat a human from the first frame who reads its north off the tornadoes and sets off
     from what a player sees (each telegraph's bar, each unseen set landing, the tethers, Cascade landing, the
@@ -1142,8 +1176,10 @@ earlier part, and the part enum keeps 0 for it, since kept setups hold a part as
       stops on the middle loses nobody. One that waits for the glow in the middle is shown a fist, with the bosses
       still more than 12 y apart: staying, or stepping 8 or 10 y away, loses nobody, and walking on toward the Liquid
       loses everyone to the fist;
-    - a main tank that never leads the Liquid back onto the middle, or does 2 to 7 s late: nobody, with the Liquid a
-      yalm and a half off at the most;
+    - a main tank that never leads the Liquid back onto the middle: nobody, however its tether comes to it (from the
+      stack, once the off tank has taken the other one off it, or off the off tank), with the Liquid a yalm and a
+      half off, or 2.2 y for one that takes its tether by its tornado. One that leads it back 2 to 7 s late loses
+      nobody either; that is played from the stack's starts alone;
     - a main tank that never turns the Liquid and waits for the bar where the start put it. In Protean 1 the Liquid's
       own wave throws it down the Liquid's facing, where the first set's wave straight ahead kills it; the Sluice
       that drops under it and the cone that goes to another in its place cost three more. In Protean 2 the Liquid
