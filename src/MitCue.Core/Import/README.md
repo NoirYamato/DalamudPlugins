@@ -229,12 +229,13 @@ Rules worth knowing:
   columns' entries when none does). A note that speaks to players by role, slot or job ("Tanks: Rampart the first tower
   set, then OT provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their
   entries, as a note in each column. A role or slot word that says where or for whom to press speaks to no one ("on the
-  melee", "under the tanks", "on melee and ranged", "on the co-tank", "the tank buster", "the OT's buster"), nor does
-  the job whose own action the note names ("SCH: … press Soil …"). A word that names actions of several jobs does not
-  say whose it is: "WAR Rampart the first tower set, then PLD provokes …" speaks to the PLD (Rampart is every tank's, as
-  "Invuln" names one action of each). A merged note reads the same whichever of its columns are imported: imported
-  alone, the Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported
-  name Soil and Kera; a `note-row` info says so).
+  melee", "under the tanks", "on melee and ranged", "on the co-tank", "the tank buster", "the OT's buster"), unless a
+  colon follows it: then it heads the note, as in "Tanks: …", whatever word comes before it ("For the tanks: …", "Tip
+  for melee: …", "To the melee: …"). Nor does the job whose own action the note names ("SCH: … press Soil …"). A word
+  that names actions of several jobs does not say whose it is: "WAR Rampart the first tower set, then PLD provokes …"
+  speaks to the PLD (Rampart is every tank's, as "Invuln" names one action of each). A merged note reads the same
+  whichever of its columns are imported: imported alone, the Scholar column gets the Soil/Kera tip on its Soil entries,
+  the Tank 1 column none (the columns not imported name Soil and Kera; a `note-row` info says so).
 - **After the cells.** An action used on the party, an area or oneself (Temperance, Sacred Soil, Rampart), with one
   charge at the sync level and a recast longer than its effect, that the same player (column, slot and job) plans again
   from another row less than its duration after the earlier press, item press to item press, is its follow-up (Summon

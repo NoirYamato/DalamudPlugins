@@ -379,6 +379,10 @@ public sealed partial class PlanImporter
         [GeneratedRegex(@"^\s*(?<who>(?:the\s+|a\s+|your\s+)?[\p{L}\p{N}/-]+(?:\s+[\p{L}\p{N}/-]+)?)\s*:(?!\d)", RegexOptions.CultureInvariant)]
         private static partial Regex WhoColon();
 
+        // The word right before a colon, which heads what follows: "Tanks:", "For the tanks:", "Tip for melee:" (not "1:30").
+        [GeneratedRegex(@"(?<who>[\p{L}\p{N}]+)\s*:(?!\d)", RegexOptions.CultureInvariant)]
+        private static partial Regex HeadingColon();
+
         public ImportResult Execute()
         {
             this.detector = new LayoutDetector(this.fight);
@@ -2324,14 +2328,19 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
         /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
-        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), nor is the
-        /// job whose own action the note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of
-        /// several jobs (a role action such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the
-        /// first tower set, then PLD provokes …" speaks to the PLD. A note over several columns that speaks to no other
-        /// player is about using the actions it names (<see cref="BannerNote"/>).
+        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), unless a
+        /// colon follows it: then it heads what follows, whatever word comes before it,
+        /// as "Tanks:" does ("For the tanks: …", "Tip for melee: …", "To the melee: …"). Nor is the job whose own action the
+        /// note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of several jobs (a role action
+        /// such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the first tower set, then PLD
+        /// provokes …" speaks to the PLD. A note over several columns that speaks to no other player is about using the
+        /// actions it names (<see cref="BannerNote"/>).
         /// </summary>
         private bool NamesAPlayer(string text)
         {
+            if (HeadingColon().Matches(text).Any(m => PlayerWords.Contains(m.Groups["who"].Value)))
+                return true;
+
             var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
             if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
                 return true;

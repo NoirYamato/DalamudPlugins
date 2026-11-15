@@ -648,6 +648,46 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("For tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("For the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("To the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("Note for the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("For the MT and OT: Rampart the first tower set, then Reprisal after Pantokrator")]
+    public void NoteMergedAcrossColumns_AddressingPlayersBeforeAColon_GoesToEveryEntryOfItsColumns(string note)
+    {
+        // A role or slot word right before a colon heads the note, as "Tanks:" does, though "for" or "to" before it would
+        // place it elsewhere ("press Soil for the melee"): the MT gets it on every entry, Holmgang too, and the OT, with no
+        // entry in P1, a note entry.
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", note, ""],
+            ["Program Loop", "Rampart", ""],
+            ["Pantokrator", "Reprisal", ""],
+            ["Wave Cannon Kyrios", "Holmgang", ""]));
+
+        Assert.Equal(["'P1'!B3", "'P1'!B4", "'P1'!B5"], r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "OT" && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
+    [InlineData("M1", "M2", "Feint", "Tip for melee: Feint the first raidwide, Bloodbath after Pantokrator")]
+    [InlineData("M1", "M2", "Feint", "To the melee: Feint the first raidwide, Bloodbath after Pantokrator")]
+    [InlineData("R1", "R2", "Addle", "For the ranged: Addle the first raidwide and the Kyrios")]
+    public void NoteMergedAcrossColumns_AddressingSlotsBeforeAColon_GivesAnEmptyColumnItsNote(string first, string empty, string action, string note)
+    {
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", first, empty],
+            ["", note, ""],
+            ["Program Loop", action, ""]));
+
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == empty && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
     [InlineData("Press Soil as the first tether resolves on the melee and cover the stacks!")]
     [InlineData("Press Soil under the tanks as the first tether resolves!")]
     [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
@@ -659,6 +699,8 @@ public class ImportLayoutRulesTests
     [InlineData("Press Soil on the non-tanks as the first tether resolves!")]
     [InlineData("Press Soil as the first tether resolves, before the OT's buster!")]
     [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
+    [InlineData("Press Soil for the melee as the first tether resolves!")] // "for" places a role word that heads nothing
+    [InlineData("A tip for the tank buster: press Soil as the first tether resolves!")]
     public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
     {
         // Where or when to press ("on the melee", "under the tanks", "before the tank buster") and the job that presses it
