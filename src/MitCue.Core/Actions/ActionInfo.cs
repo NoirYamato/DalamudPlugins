@@ -158,6 +158,13 @@ public sealed class ActionInfo
     /// </summary>
     public double? BarrierCast { get; init; }
 
+    /// <summary>
+    /// True for an action that makes the next spell instant (actions.yaml <c>instant_next_cast</c>: Swiftcast). On a later
+    /// hit of a series, an entry that lists it waits for the hit before it + 0.3 s with its shields and barrier casts too,
+    /// since the instant spell's effect lands on its press (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public bool InstantNextCast { get; init; }
+
     /// <summary>Limit break tier (1, 2 or 3) for limit breaks, else null.</summary>
     public int? LimitBreakTier { get; init; }
 

@@ -183,6 +183,7 @@ public class ActionCatalogTests
         Assert.Null(A("Collective Unconscious").BarrierCast);
         var wings = A("Passage of Arms");  // a channel any action ends: pressed last
         Assert.Equal((ActionKind.PartyMit, UseTiming.Before, 2.0), (wings.Kind, wings.When, wings.Lead!.Value));
+        Assert.Equal(["Swiftcast"], Catalog.All.Where(a => a.InstantNextCast).Select(a => a.Name));  // the next spell is instant
 
         // The GCD the game locks after Eukrasia: 1 s (combat logs), not the Action sheet's 2.5 s; the Eukrasian actions 1.5 s.
         var eukrasia = A("Eukrasia");

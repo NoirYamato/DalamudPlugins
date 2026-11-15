@@ -1600,6 +1600,9 @@ actions:
     recast_by_level: {18: 60, 94: 40}
     duration: {18: 10}
     sync: {80: 10, 90: 10, 100: 10}
+    # instant_next_cast: the next spell is instant, so on a later hit of a series (TEA's J Waves) a call that lists
+    # Swiftcast waits for the hit before it + 0.3 s with its Succor too: cast instantly, it lands on its press.
+    instant_next_cast: true
     icon: 866
   - id: 7562
     name: "Lucid Dreaming"
