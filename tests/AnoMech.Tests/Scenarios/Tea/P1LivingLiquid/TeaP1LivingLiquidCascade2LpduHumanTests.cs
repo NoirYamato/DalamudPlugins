@@ -320,7 +320,8 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
     }
 
     // A main tank that stops on the middle leaves the Living Liquid 6 y short of it, and of the Hand the off tank's
-    // bot has there. The start's chat line tells it to walk on through until the Liquid stands on the Hand.
+    // bot has there. The start's chat line tells it to walk on through until the Liquid stands on the Hand. Everyone
+    // dies by the sim's 5.1 y: the fight's own line is only known to lie between 2.9 and 7.1 y.
     [Test]
     public void AHumanMainTankWhoStopsOnTheMiddleLeavesTheLiquidShortAndLosesEveryoneToThePalm(
         [Values(TeaP1OpenQuarter.North, TeaP1OpenQuarter.Southeast, TeaP1OpenQuarter.West)] TeaP1OpenQuarter open, [Values] TeaP1HumanPace pace)
@@ -640,21 +641,61 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
     // The human leads back a Living Liquid it sees more than this off the middle, as the strat's own main tank does.
     private const float LedBackFromBeyond = 0.7f;
 
+    // How the main tank's own Drainage tether comes to it in a run of both parts: with both tethers starting on the
+    // stack; once the off tank has taken the west one, which started on the main tank itself, off it; or off the off
+    // tank, on whom its own, the middle one, started.
+    public enum TheMainTanksTether { FromTheStack, OnceItIsRidOfTheOther, OffTheOffTank }
+
+    private static Roll WithItsTether(Roll roll, TheMainTanksTether comes, PartyRole onTheStack) => comes switch
+    {
+        TheMainTanksTether.OnceItIsRidOfTheOther
+            => roll with { Drainage = Tethers((TeaP1Tornado.West, TeaP1Tornado.East), StartsOn.TheMainTankAndTheStack, onTheStack, onTheStack) },
+        TheMainTanksTether.OffTheOffTank
+            => roll with { Drainage = Tethers((TeaP1Tornado.West, TeaP1Tornado.Middle), StartsOn.TheStackAndTheOffTank, onTheStack, onTheStack) },
+        _ => roll,
+    };
+
     // No move of the strat's reaches a human, and the Living Liquid walks after its tank from 7 y. This main tank
-    // fetches its tether, takes it to its spot and later turns the Liquid north where it stands, never leading it
-    // back: it is left up to a yalm and a half off the middle for Protean 2, whose spots round it and beside the
-    // tornadoes are spaced for a Liquid on the middle. That close to the middle nobody dies. The start's chat line
-    // still asks the main tank to lead it back.
+    // fetches its tether where its line is nearest, takes it to its spot and later turns the Liquid north where it
+    // stands, never leading it back: it is left up to a yalm and a half off the middle for Protean 2, whose spots
+    // round it and beside the tornadoes are spaced for a Liquid on the middle. That close to the middle nobody dies,
+    // however its tether comes to it. The start's chat line still asks the main tank to lead it back.
     [Test]
-    public void AHumanMainTankWhoLeavesTheLiquidWhereItsFetchPutItLosesNobody()
+    public void AHumanMainTankWhoLeavesTheLiquidWhereItsFetchPutItLosesNobody([Values] TheMainTanksTether comes)
+    {
+        var left = LeavingTheLiquidWhereItsFetchPutIt(comes, byItsTornado: false);
+
+        Assert.That(left.Problems, Is.Empty, () => string.Join(Environment.NewLine, left.Problems.Take(12)));
+        Assert.That(left.FarthestOff, Is.InRange(1f, 2f), "the fetch drags the Living Liquid");
+        Assert.That(left.Lost, Is.Zero, "runs with a death");
+    }
+
+    // This one takes its tether as far out along it as the tornado's water lets it, 8 y from the middle, and the
+    // Living Liquid comes after it, to 6 y from it: left there, some 2 y off the middle, it still costs nobody. The
+    // bots' own fetch can drag it farther, to 2.7 y; no human here leaves it that far off.
+    [Test]
+    public void AHumanMainTankWhoTakesItsTetherByItsTornadoAndLeavesTheLiquidThereLosesNobody([Values] TheMainTanksTether comes)
+    {
+        var left = LeavingTheLiquidWhereItsFetchPutIt(comes, byItsTornado: true);
+
+        Assert.That(left.Problems, Is.Empty, () => string.Join(Environment.NewLine, left.Problems.Take(12)));
+        Assert.That(left.FarthestOff, Is.InRange(1.7f, 3f), "the fetch drags the Living Liquid");
+        Assert.That(left.Lost, Is.Zero, "runs with a death");
+    }
+
+    // Forty runs of both parts.
+    private static (List<string> Problems, int Lost, float FarthestOff) LeavingTheLiquidWhereItsFetchPutIt(TheMainTanksTether comes, bool byItsTornado)
     {
         var problems = new List<string>();
         var (lost, farthestOff) = (0, 0f);
         foreach (var seed in new[] { 153, 170, 187, 204, 221 })
         for (var i = 0; i < 8; i++)
         {
-            var roll = BothParts(i, seed);
-            var play = new TeaP1LivingLiquidHumanPlay(MainTank, TeaP1HumanPace.Walking, ReactionTimes[i % 3]) { LeavesTheLiquidWhereItStands = true };
+            var roll = WithItsTether(BothParts(i, seed), comes, (i + seed) % 2 == 0 ? PhysRangedDps : CasterDps);
+            var play = new TeaP1LivingLiquidHumanPlay(MainTank, TeaP1HumanPace.Walking, ReactionTimes[i % 3])
+            {
+                LeavesTheLiquidWhereItStands = true, TakesItsTetherByItsTornado = byItsTornado,
+            };
             var offTheMiddle = float.NaN;
             var (run, human) = Human.Play(roll, play, seed, mayLose: true, probe: p =>
             {
@@ -666,13 +707,11 @@ public class TeaP1LivingLiquidCascade2LpduHumanTests
             if (run.Failure is not null) problems.Add($"{context}: {run}");
             if (run.Passed) continue;
             lost++;
-            TestContext.Out.WriteLine($"{context}: {string.Join(", ", run.Deaths.Select(d => $"{d.Role} at {Secs(d.Time - Stage.CascadeTwo)}"))}");
+            TestContext.Out.WriteLine($"{context}: {string.Join(", ", run.Deaths.Select(d => $"{d.Role} of {d.ActionId} at {Secs(d.Time - Stage.CascadeTwo)}"))}");
             problems.Add($"{context}: {run}");
         }
 
         TestContext.Out.WriteLine($"{lost} of 40 runs with a death; the Living Liquid stood up to {Secs(farthestOff)} y off the middle at Protean 2's aim");
-        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
-        Assert.That(farthestOff, Is.InRange(1f, 2f), "the fetch drags the Living Liquid");
-        Assert.That(lost, Is.Zero, "runs with a death");
+        return (problems, lost, farthestOff);
     }
 }

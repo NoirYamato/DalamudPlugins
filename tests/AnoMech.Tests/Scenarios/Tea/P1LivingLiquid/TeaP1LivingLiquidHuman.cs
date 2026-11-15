@@ -61,6 +61,9 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 
     public bool NeverFetches { get; init; }
 
+    // A tank takes its tether as far out along it as the tornado's water lets it, not where the line is nearest.
+    public bool TakesItsTetherByItsTornado { get; init; }
+
     // On top of the reaction time, for the tether alone.
     public float FetchesLate { get; init; }
 
@@ -489,7 +492,8 @@ internal sealed class TeaP1LivingLiquidHuman
         }
         var mine = tethers.FirstOrDefault(tether => tether.From == itsOwn).Tether;
         if (mine is null || fight.Holder(mine) is not { } holder) return;
-        WalkTo(at, OnTheLine(at, Flat(holder.Position), Flat(fight.Tornadoes.Centre(itsOwn!.Value)!.Value)));
+        var itsTornado = Flat(fight.Tornadoes.Centre(itsOwn!.Value)!.Value);
+        WalkTo(at, OnTheLine(play.TakesItsTetherByItsTornado ? itsTornado : at, Flat(holder.Position), itsTornado));
     }
 
     // The nearest point of a tether's line to walk into: ahead of its holder, and short of its tornado's water.
