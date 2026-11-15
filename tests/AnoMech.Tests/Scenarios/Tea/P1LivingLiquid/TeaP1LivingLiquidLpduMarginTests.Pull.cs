@@ -14,8 +14,9 @@ using Stage = AnoMech.Tests.TeaP1LivingLiquidStage;
 namespace AnoMech.Tests;
 
 // The pull's margins, measured as the other parts' are. Its floors and ceilings come from the strat's spots and the
-// fight's rules, each worked out beside it, with every bot anywhere in its jitter (0.3 y, or 0.15 y on a bait) and less
-// a frame's walk (0.15 y), which the debug-driven player's seat can stop short by.
+// fight's rules, each worked out beside it and then taken with every bot anywhere in its jitter (0.3 y, or 0.15 y on a
+// bait), each boss anywhere its rule lets it rest behind its tank (the Living Liquid 6.0 to 7.0 y, the Liquid Hand 4.1
+// to 5.1), and less a frame's walk (0.15 y), which the debug-driven player's seat can stop short by.
 //
 // Two of them hang off where the Living Liquid comes to rest behind a main tank who has run round the middle tornado's
 // water to the rim, which no spot fixes: it trails 6 y behind the tank and cuts the corner the tank walks round. Those
@@ -56,46 +57,50 @@ public partial class TeaP1LivingLiquidLpduMarginTests
     private static readonly (string Check, float AtLeast)[] ThePullsFloors =
     [
         // Everyone waits within 6 y of the middle, the main tank farthest, and a tornado's water reaches in to 7.4.
-        (SplitWater, 1.1f),
+        (SplitWater, 1.0f),
         (PullPuddles, 0.1f),
         // The feeders keep within 19.3 y of the middle and the main tank baits 18.7 y out.
         (PullRim, 0.4f),
-        // The Hand rests 4.1 y behind an off tank 11.5 y out, 25.9 y from the main tank's bait, and the Liquid at most
-        // its 7.0 y of reach from that bait.
-        (FirstGlowApart, 2.9f),
+        // The Hand rests behind an off tank 11.5 y out, 24.9 y or more from the main tank's bait, and the Liquid within
+        // its 7.0 y of that bait.
+        (FirstGlowApart, 1.8f),
         // Provoke reaches 25 y between hitboxes, 27.1 between a tank and the Hand.
         (ProvokesReach, 0.7f),
-        // It is still walking after the tank as the tank arrives, so it stops on its 6.0 y.
+        // Its rule lets it rest up to 7.0 y behind the tank, but it is still walking after the tank as the tank arrives,
+        // so it stops on its 6.0 y. If that ever fails, the two floors after this one are the ones to read.
         (LiquidBehindItsTank, 5.9f),
         (LiquidFromTheMiddleTornado, 0.7f),
         (LiquidFromADoll, 0.1f),
         // The Hand walks straight to 4.1 y from the main tank, down a line that leaves the tank 30 degrees east of
-        // north; the Liquid rests within its 7.0 y of the tank, between north and that line.
-        (FirstSlamTogether, 1.2f),
+        // north; the Liquid rests within its 7.0 y of the tank, between north and that line: 4.0 y from the Hand at the
+        // most.
+        (FirstSlamTogether, 1.0f),
         // M2 waits 10.3 y from the middle tornado, which the main tank baits from 8.4.
         (FirstTelegraphPick, 1.3f),
         // Each bait is 8.4 y from its tornado, whose water reaches 7.6.
         (FirstBaiterToItsPuddle, 0.4f),
-        // A ranged steps 32.6 degrees off the line from its tornado to its bait.
-        (FirstTelegraphCones, 14.0f),
+        // A ranged steps 32.6 degrees off the line from its tornado to its bait, 17.6 outside the cone.
+        (FirstTelegraphCones, 13.5f),
         // A melee half a yalm off its doll, away from the tornado beside it, is 9.44 y from that tornado.
         (FirstUnseenPick, 0.6f),
-        // The off tank on the Liquid's flank is 44 degrees off the middle tornado's line to the main tank.
-        (FirstUnseenCones, 26.0f),
-        // The melee beside the middle tornado is 17.4 degrees off that tornado's line to the nearer ranged's bait.
-        (FlippedWave, 0.7f),
-        // Seen from a boss within a yalm of the middle, the two tanks' holds are 67 degrees apart or more; at the first
-        // busters the off tank is 90 degrees and more off both.
-        (CleaveOthers, 20.0f),
+        // The off tank on the Liquid's flank is 44.3 degrees off the middle tornado's line to the main tank, 29.3
+        // outside the cone; its jitter turns that by 1.5 degrees, and the tank's and a frame's walk by 1 each.
+        (FirstUnseenCones, 25.5f),
+        // The melee beside the middle tornado is 17.8 degrees off that tornado's line to the nearer ranged's bait.
+        (FlippedWave, 0.6f),
+        // Seen from a boss within a yalm of the middle, the two tanks' holds are 65 degrees apart or more; at the first
+        // busters the off tank is 90 degrees and more off both. Held at 60.
+        (CleaveOthers, 15.0f),
         // The dolls' spots are 9.9 y apart, and a melee half a yalm off its own is 9.4 y from the nearer of the next
         // two.
-        (ExhaustOne, 0.35f),
+        (ExhaustOne, 0.3f),
         // Each ranged's doll rests 3.3 y short of its tornado's bait, 13 y east or west of the middle.
         (ExhaustTwo, 3.2f),
         // The bots hit a doll only with both bosses 5.2 y from it, and neither boss walks until the melee's are fed.
         (HitDollFromABoss, 1.0f),
-        // The orb from the east tornado passes the main tank's hold, 3.9 y south-east of the Liquid, 2.9 y off.
-        (FirstEmboliSeats, 0.8f),
+        // The orb from the east tornado passes the main tank's hold, 3.9 y south-east of the Liquid, 2.8 y off at the
+        // least, and the Liquid stands up to half a yalm off the middle.
+        (FirstEmboliSeats, 0.7f),
         // It passes 6.5 y and more from the middle, where the Liquid then stands.
         (FirstEmboliBosses, 1.5f),
     ];
