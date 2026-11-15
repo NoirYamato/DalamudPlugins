@@ -330,38 +330,37 @@ entries:
     src: "'LL/BJCC'!E23"
   - id: e047
     mechanic: p1.protean_2
+    who: {job: SGE, assignee: Sage}
+    do:
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24298, name: Kerachole}
+    src: "'LL/BJCC'!F23"
+  - id: e048
+    mechanic: p1.protean_2
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7432, name: Divine Benison}
     target: Tank
     src: "'LL/BJCC'!G23"
-  - id: e048
+  - id: e049
     mechanic: p1.protean_2
     who: {job: AST, assignee: Astrologian}
     do:
       - {action: 16556, name: Celestial Intersection}
     target: Tank
     src: "'LL/BJCC'!H23"
-  - id: e049
+  - id: e050
     mechanic: p1.protean_2
     who: {job: WHM, assignee: White Mage}
     do:
       - {action: 7433, name: Plenary Indulgence}
     src: "'LL/BJCC'!G23"
-  - id: e050
+  - id: e051
     mechanic: p1.protean_2
     who: {slot: M1, assignee: Melee 1}
     do:
       - {action: 7549, name: Feint}
     src: "'LL/BJCC'!I23"
-  - id: e051
-    mechanic: p1.protean_2
-    offset: -1
-    who: {job: SGE, assignee: Sage}
-    do:
-      - {action: 24292, name: Eukrasian Prognosis}
-      - {action: 24298, name: Kerachole}
-    src: "'LL/BJCC'!F23"
   - id: e052
     mechanic: p2.j_kick
     who: {slot: MT, job: DRK, assignee: Tank 1}

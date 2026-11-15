@@ -240,6 +240,22 @@ public class ImportRecastFitTests
         Assert.Equal(offset is null ? 1 : 0, Conflicts(r, fight, Job.SCH).Count);
     }
 
+    [Theory]
+    [InlineData(128, "Kerachole", -1.0)]                 // ready at 125.5, 2.5 s before the hit: pressed 1 s before it
+    [InlineData(128, "EukProg + Kerachole", null)]       // Eukrasia (a 2.5 s GCD) must come first: 3.5 s before the hit at the latest, not yet ready
+    [InlineData(129.2, "EukProg + Kerachole", -3.5)]     // ready 3.7 s before the hit: pressed 3.5 s before it, the shield up 1 s before
+    public void AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt(double bravo, string cell, double? offset)
+    {
+        // Level 90, a Sage: Kerachole on Alpha (100) at 95.5 is ready again at 125.5. Bravo's Eukrasian Prognosis (a shield,
+        // 4 s before the hit) needs Eukrasia first: pressed at "(Late)"'s -1 s, Eukrasia would take the last GCD before the
+        // hit and the shield would come after it.
+        var fight = Fight(90, ("Alpha", 100), ("Bravo", bravo));
+        var r = Import(Sheet("P1", "Sage", "Alpha\tKerachole", "Bravo\t" + cell), fight);
+
+        Assert.Equal(offset, At(r, "p1.bravo", "Kerachole").Offset);
+        Assert.Equal(offset is null ? 1 : 0, Conflicts(r, fight, Job.SGE).Count);
+    }
+
     // ---- chains, seats and entries ----------------------------------------------------------------------------
 
     [Fact]

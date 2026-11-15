@@ -32,7 +32,8 @@ internal sealed record HintTiming
 
     /// <summary>
     /// A parenthetical that is only "late" or "later" ("Reprisal (Late)"): an entry pressed before its hit is pressed just
-    /// before it (<see cref="PlanImporter.LateOffset"/>, minus a cast), so that it also covers a hit that follows soon after.
+    /// before it (<see cref="PlanImporter.LateOffset"/>, minus a cast or the GCD a follow-up needs first), so that it also
+    /// covers a hit that follows soon after.
     /// </summary>
     public bool Late { get; init; }
 

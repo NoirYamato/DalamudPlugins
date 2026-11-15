@@ -214,8 +214,9 @@ Rules worth knowing:
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when
   nothing is above); a parenthetical that names the token's own per-job actions limits the jobs (`Party Mit (DM/HoL)`:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
-  pressed before its hit presses it just before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)`
-  −1 s, `Succor (Late)` −3 s), but never earlier than without it.
+  pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
+  1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
+  Eukrasia's 2.5 s), but never earlier than without it.
 - **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
   those actions: the detail of the entries in their columns and section that press one of them (all their columns'
   entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
@@ -238,7 +239,8 @@ Rules worth knowing:
   slot of its role and in none, with the column the plugin chooses), is pressed when that action is ready again plus
   the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s: TEA's Gavel Asylum, 85.8 s after
   the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of 7.2 s. Never later than `(Late)`
-  would press it (1 s before the hit, minus the entry's longest cast): then just after the action is ready (the J Wave
+  would press it (1 s before the hit, minus the entry's longest cast or the GCD a follow-up needs first: a Sage's
+  Eukrasian Prognosis stays 3.5 s before the hit at the latest): then just after the action is ready (the J Wave
   7 Plenary, 1 s before its wave, which still turns due only after the wave before it); when the action is ready only
   after that, the press stays and `check` reports the recast. Only firm presses keep an action on recast: not an
   optional entry (in brackets, with a condition, one choice of an either/or), an either/or item or a note ("Temperance

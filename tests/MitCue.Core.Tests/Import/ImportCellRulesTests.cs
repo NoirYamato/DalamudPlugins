@@ -577,6 +577,18 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt()
+    {
+        // A Sage's Eukrasian Prognosis (instant) needs Eukrasia first, a GCD of 2.5 s: "(Late)" presses Eukrasia 3.5 s before
+        // the hit, so that the shield is up 1 s before it (at -1 s it would come after the hit).
+        var entry = Assert.Single(Import(Sheet("P3", "Sage", "Mega Holy\tEukProg (Late)"), fight: PlanImports.Tea).Plan.Entries);
+
+        Assert.Equal(["Eukrasian Prognosis"], entry.Names());
+        Assert.Equal(-3.5, entry.Offset);
+        Assert.Equal(PlanImporter.LateOffset, entry.Offset!.Value + RepoFiles.Action("Eukrasia").RecastAt(80), 3);
+    }
+
+    [Fact]
     public void Late_NeverPressesEarlierThanWithoutIt()
     {
         // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.9 s before the first hit, so that it

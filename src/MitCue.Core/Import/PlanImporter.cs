@@ -1943,12 +1943,13 @@ public sealed partial class PlanImporter
                             entry.Offset = PreHitLead(actions, this.level);
                     }
 
-                    // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast ending 1 s before
-                    // the hit, but never earlier than without the hint (mitigation timed to also cover a later hit).
+                    // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast (or the GCD a
+                    // follow-up needs first) ending 1 s before the hit, but never earlier than without the hint (mitigation
+                    // timed to also cover a later hit).
                     if (timing.Late && press is null && entry.Offset is null && actions.Count > 0
-                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && LateOffsetOf(actions) > automatic)
+                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && this.LateOffsetOf(actions) > automatic)
                     {
-                        entry.Offset = LateOffsetOf(actions);
+                        entry.Offset = this.LateOffsetOf(actions);
                     }
 
                     this.drafts.Add(new Draft(entry, this.PressEstimate(entry, anchor), row.Tab.Order, row.Row.Index, cell.Column.Index, item.Index, (groupIndex * 100) + part, IsConfident(row), Written: press is not null));
@@ -2037,10 +2038,22 @@ public sealed partial class PlanImporter
         private EntryTiming TimingOf(PlanEntry entry) => this.TimingOf(entry, this.fight.GetMechanic(entry.Mechanic)!);
 
         /// <summary>
-        /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus their longest cast, so that
-        /// the cast ends that long before the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s).
+        /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus the longest time one of them
+        /// takes from its press to its effect (<see cref="TimeToEffect"/>), so that each effect is in place that long before
+        /// the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s; "Eukrasian Prognosis (Late)", after Eukrasia's
+        /// 2.5 s: −3.5 s).
         /// </summary>
-        private static double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(a => a.CastTime).DefaultIfEmpty(0).Max();
+        private double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(this.TimeToEffect).DefaultIfEmpty(0).Max();
+
+        /// <summary>
+        /// Seconds from pressing an action to its effect: its cast, plus the recast of a GCD that is pressed right before it
+        /// to make it usable (<see cref="ActionInfo.FollowUpOf"/> a GCD without a cooldown of its own, a recast under
+        /// <see cref="PlanCheckOptions.MinRecast"/>: Eukrasia before Eukrasian Prognosis, not Macrocosmos, pressed long before
+        /// Microcosmos).
+        /// </summary>
+        private double TimeToEffect(ActionInfo action) =>
+            action.CastTime + (action.FollowUpOf is { } id && this.options.Actions.Get(id) is { IsGcd: true } trigger
+                && trigger.RecastAt(this.level) < CheckDefaults.MinRecast ? trigger.RecastAt(this.level) : 0);
 
         /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to
@@ -2456,7 +2469,7 @@ public sealed partial class PlanImporter
 
             // Pressed later, with its reminder due at the earliest use that still covers the later call.
             var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
-            if (!movable || offset > LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
+            if (!movable || offset > this.LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
                 return false;
             movedFrom = before.Offset;
             earlier.Offset = offset;
@@ -2623,7 +2636,7 @@ public sealed partial class PlanImporter
         {
             var (use, action) = chain[index];
             var offset = use.PressAt - use.Hit;
-            var late = LateOffsetOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>());
+            var late = this.LateOffsetOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>());
             if (use.PressAt >= use.Hit || readyAt - use.Hit > late + SameTime)
                 return null;
             var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
