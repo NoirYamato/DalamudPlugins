@@ -314,16 +314,17 @@ are in [DESIGN.md](DESIGN.md) §5: an entry without a time gets the automatic pr
 `TimingRules.ForEntry`, the one the import review and the CLI show too, item by item (an item may wait for a
 series floor or a later hit of its own, a step of a sequence for the step before it, and Passage of Arms comes
 after the others). A reminder turns due **Turn "NOW" this early** before its press, but never before its due
-floor (DESIGN.md §5.2): a series floor, the earliest use that still reaches a later hit, the step before it in a
-sequence, or, when the default 1.5 s would turn it due earlier, the earliest use that is not early (The Blackest
-Night beside a Rampart at −6 s: due 6 s before the hit, not 7.5 s). Done and missed rows stay visible for 3 s,
-or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show reminders skipped
-by a phase push**. The overlay (`OverlayModel.Select`) shows the active rows that fit in **Maximum rows**, then
-the most recently finished ones in the room left, in the scheduler's order (press time, then plan order, an item
-pressed last after the other items of its entry, item order), whatever their state, so a row keeps its place when
-it is done; the co-healer's rows are merged in by press time, the player's first on a tie, and *+N more* counts
-the player's active rows that did not fit. At the lookahead time the cooldown provider is asked whether the
-action will be ready, which produces *ready in N s* and *no Lily*.
+floor (DESIGN.md §5.2): a series floor, the earliest use that still reaches a later hit, for Passage of Arms the
+other items' due floors, for a step of a sequence the step before it's, or, when the default 1.5 s would turn it
+due earlier, the earliest use that is not early (The Blackest Night beside a Rampart at −6 s: due 6 s before the
+hit, not 7.5 s). Done and missed rows stay visible for 3 s, or vanish at once with **Track done/missed** off;
+skipped rows show for 3 s only with **Show reminders skipped by a phase push**. The overlay
+(`OverlayModel.Select`) shows the active rows that fit in **Maximum rows**, then the most recently finished ones
+in the room left, in the scheduler's order (press time, then plan order, an item pressed last after the other
+items of its entry, item order), whatever their state, so a row keeps its place when it is done; the co-healer's
+rows are merged in by press time, the player's first on a tie, and *+N more* counts the player's active rows that
+did not fit. At the lookahead time the cooldown provider is asked whether the action will be ready, which
+produces *ready in N s* and *no Lily*.
 
 **Recognising your presses.**
 

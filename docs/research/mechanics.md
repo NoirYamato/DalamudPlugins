@@ -25,7 +25,8 @@ fixtures and readers in `docs/research/sheets-import.md`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
     sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; all three also
     `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`
-    (TEA also the timing fields `press`, `heal_lead` and `series`, TEA and TOP `sub_hits`, `docs/DESIGN.md` §3.1).
+    (TEA also the timing fields `press`, `heal_lead` and `series`, and TEA and TOP `sub_hits`: `docs/DESIGN.md`
+    §3.1).
 - **TOP sheet coverage.**
   - All 47 mechanic rows of Carry the Clear map to a TOP mechanic. Their columns A and B are identical in the three
     tabs.
@@ -1170,7 +1171,10 @@ Evidence and **UNVERIFIED** points:
   judgment calls (§6.3); the damage itself has no cactbot entry (the first Tetrashatter is a timeline addition) and is
   **UNVERIFIED** against a log.
 - `p1.splash_1` has the five later Splashes as `sub_hits` (§2), so the sheet's 10 s Splash calls (Reprisal, Feint,
-  Addle, Dismantle) are pressed 2.5 s before the first (78.6) and last through the sixth (86.6).
+  Addle, Dismantle) are pressed 2.5 s before the first (78.6) and last through the sixth (86.6). Its 15 and 20 s
+  calls (Sacred Soil, Kerachole, Dark Missionary, Heart of Light, Troubadour, Tactician, Shield Samba; Fey
+  Illumination) keep their press, and a use of them before 72.1 (15 s) or 67.1 (20 s), which would end before the
+  sixth Splash + 0.5 s (87.1), is early.
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
   is right is **UNVERIFIED**, so it has no `sub_hits`; LPDU's sheet plans nothing for it.
 - `p2.photon_1` ("Photon (everyone to 1 HP)") sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` ("Photon
