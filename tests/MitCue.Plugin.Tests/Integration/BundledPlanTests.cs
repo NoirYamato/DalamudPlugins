@@ -281,6 +281,39 @@ public class BundledPlanTests
         Assert.Equal(expected, expected.Select(e => (e.Job, next.ActivePlanFor("tea", e.Job, out var automatic) is { } p && !automatic ? p.Id : "?")));
     }
 
+    [Fact]
+    public void WhileTheUpdateWaitsEachJobKeepsThePlanVersion1GaveIt()
+    {
+        // While the migration waits for "Zz other TEA plan" (Scholar, Paladin), which another program holds, the settings
+        // are still version 1's: "Static TEA" (Scholar, White Mage) reads, and LPDU TEA must not take its place for these
+        // starts, however many there are. The Paladin's plan cannot be read: as with version 1, the Paladin gets what is
+        // left, LPDU TEA. Once the file reads, the migration pins each job's plan.
+        var dir = Kit.TempDirectory();
+        var writer = new PlanStore(dir, new Configuration(), () => { }, Kit.Errors());
+        writer.EnsureLoaded();
+        MitPlan[] own =
+        [
+            new() { Id = "tea-own", Name = "Static TEA", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Temperance, "Temperance", Job.WHM)] },
+            new() { Id = "tea-zz", Name = "Zz other TEA plan", Fight = "tea", Entries = [Kit.Entry("p1.pull", 0, Kit.SacredSoil, "Sacred Soil", Job.SCH), Kit.Entry("p1.pull", 0, Kit.Reprisal, "Reprisal", Job.PLD)] },
+        ];
+        foreach (var plan in own)
+            Assert.True(writer.Save(plan, out var error), error);
+
+        var config = new Configuration { Version = 1 };
+        var store = new PlanStore(dir, config, () => { }, Kit.Errors());
+        using (new FileStream(Path.Combine(writer.PlansDirectory, "tea-zz.json"), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            store.EnsureLoaded();
+
+        Assert.Equal(1, config.Version);
+        (Job Job, string Plan)[] waiting = [(Job.SCH, "tea-own"), (Job.WHM, "tea-own"), (Job.PLD, LpduTea), (Job.SGE, LpduTea)];
+        Assert.Equal(waiting, waiting.Select(e => (e.Job, store.ActivePlanFor("tea", e.Job, out var automatic) is { } p && automatic ? p.Id : "?")));
+
+        store.Reload(); // "Reload plans": the file reads again
+        Assert.Equal(2, config.Version);
+        (Job Job, string Plan, bool Automatic)[] migrated = [(Job.SCH, "tea-own", false), (Job.WHM, "tea-own", false), (Job.PLD, "tea-zz", false), (Job.SGE, LpduTea, true)];
+        Assert.Equal(migrated, migrated.Select(e => (e.Job, store.ActivePlanFor("tea", e.Job, out var automatic)?.Id ?? "?", automatic)));
+    }
+
     [Theory]
     [InlineData(Job.WHM, "H1", "White Mage", "H1", 25)]
     [InlineData(Job.WHM, null, "White Mage", null, 25)]

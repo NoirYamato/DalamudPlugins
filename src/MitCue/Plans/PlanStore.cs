@@ -452,7 +452,10 @@ internal sealed class PlanStore
     /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. TEA's only bundled plan
     /// (LPDU's TEA sheet) is the automatic one of every job it names, with no <see cref="BundledDefaults"/> entry. Where no
     /// bundled plan covers the job (DMU ships none; LPDU's TEA sheet names no melee job but the Monk, as the calls of
-    /// its melee seats are job-less), the user's own plan is the automatic one.
+    /// its melee seats are job-less), the user's own plan is the automatic one. While the settings are still at version 1
+    /// (<see cref="MigrateFromVersion1"/> waits for a plan file it could not read), a job keeps the plan version 1 gave it
+    /// automatically, so LPDU TEA takes no own plan's place before the migration has pinned it; a job version 1 gave none
+    /// gets this order's plan.
     /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {
@@ -469,6 +472,8 @@ internal sealed class PlanStore
         }
 
         automatic = true;
+        if (this.config.Version < 2 && this.Version1Plan(fightKey, job) is { } before)
+            return before;
         var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
 
         // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job, and
@@ -495,14 +500,16 @@ internal sealed class PlanStore
     /// <remarks>
     /// A plan file that could not be read (another program holds it, its cloud folder is offline) may hold the plan a job
     /// had, or the one it chose: the migration then waits, with no pins, the settings at version 1 and nothing saved, and
-    /// the next load (the next start, "Reload plans") tries again. A file that reads but does not parse is no plan in any
-    /// version and does not hold it up.
+    /// the next load (the next start, "Reload plans") tries again. Until then each job keeps the plan version 1 gave it
+    /// (<see cref="ActivePlanFor(string, Job, out bool)"/>). A file that reads but does not parse is no plan in any version
+    /// and does not hold it up.
     /// </remarks>
     private void MigrateFromVersion1()
     {
         if (this.config.Version >= 2 || this.userPlansUnread)
             return;
 
+        this.config.Version = 2; // ActivePlanFor gives version 2's automatic plans from here on
         foreach (var fight in this.plans.Select(p => p.Plan.Fight).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
         {
             foreach (var job in this.ForFight(fight).SelectMany(p => JobsOf(p.Plan)).Distinct().ToList())
@@ -514,7 +521,6 @@ internal sealed class PlanStore
             }
         }
 
-        this.config.Version = 2;
         this.SaveConfig();
     }
 
