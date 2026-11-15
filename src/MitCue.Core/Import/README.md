@@ -33,10 +33,12 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
   (`P2 — Omega-M/F  (from phase start)`, `Phase Two`), bare label rows (`P2`), a `Phase` column (`P2` or `2`), a
   phase title above the header, a phase title over the player columns that has a header row below it (TEA's
   `P2: Brute Justice / Cruise Chaser`) or is a merged banner that reads as a title (the fight's name for the phase, or
-  at most four words without `,` `;` `.` `!` `?`), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is
-  `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
-  `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss
-  after`) stays a note; a title over the player columns whose name is not the fight's is reported (`phase-title`).
+  at most four words without `,` `;` `.` `!` `?`; its part in parentheses too, unless it is a timing hint such as
+  `(from phase start)`), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and labels
+  like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as `guessed-phase`). A merged
+  remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss after`, `P1 (MT invulns …)`)
+  stays a note; a title over the player columns whose name, or part in parentheses other than a timing hint, is not
+  the fight's is reported (`phase-title`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.

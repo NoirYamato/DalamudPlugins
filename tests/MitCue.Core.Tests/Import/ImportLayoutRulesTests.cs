@@ -133,6 +133,74 @@ public class ImportLayoutRulesTests
         Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains("P2: MT pulls the boss north", StringComparison.Ordinal) == true);
     }
 
+    [Theory]
+    [InlineData("P1 (MT invulns the second Wave Cannon, OT takes boss after)", "P2 (MT pulls the boss north at the start of P2)")]
+    [InlineData("P1 - (MT invulns the second Wave Cannon.)", "P2: Omega-M/F (MT pulls the boss north, OT takes adds)")]
+    public void MergedRemarkInParenthesesAfterAPhase_StaysANote(string current, string later)
+    {
+        // The remark is the parenthetical, not a name: it is no title either, for the phase it is in or a later one.
+        var tab = Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2), new CellRange(5, 1, 5, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", current, ""],
+            ["Wave Cannon Kyrios", "Holmgang", ""],
+            ["", later, ""],
+            ["Atomic Ray", "Rep", ""]);
+        var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
+
+        Assert.Equal("HDDNDND", Kinds(layout));
+        Assert.Equal("1111111", Phases(layout));
+
+        var r = Import(tab);
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code is "mechanic-phase" or "phase-title");
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains(current, StringComparison.Ordinal) == true);
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains(later, StringComparison.Ordinal) == true);
+    }
+
+    [Theory]
+    [InlineData("P2 — Omega-M/F (from phase start)", false)]
+    [InlineData("P2 (from boss targetable; always 4:46 long)", false)]
+    [InlineData("P2 (Omega-M/F)", false)]
+    [InlineData("P2 (tanks swap)", true)]
+    public void MergedPhaseTitleWithAHint_WithoutAHeaderBelow_StartsThePhase(string title, bool reported)
+    {
+        // A timing hint, the fight's name or a short name in parentheses still reads as a title; a hint that is neither a
+        // timing hint nor the fight's name is reported, as a short remark would read the same.
+        var layout = new LayoutDetector(PlanImports.Top).Detect(Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", title, ""],
+            ["Solar Ray", "Rep", ""]));
+
+        Assert.Equal("HDDSD", Kinds(layout));
+        Assert.Equal("11122", Phases(layout));
+        Assert.Equal(reported, layout.Diagnostics.Any(x => x.Code == "phase-title"));
+    }
+
+    [Fact]
+    public void RemarkInParenthesesAboveAHeader_IsReported()
+    {
+        // With a header row below it the row is a title whatever it says, but a remark in it is not lost unseen.
+        var layout = new LayoutDetector(PlanImports.Top).Detect(Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", "P1 (MT invulns the second Wave Cannon, OT takes boss after)", ""],
+            ["", "MT", "OT"],
+            ["Wave Cannon Kyrios", "Holmgang", ""]));
+
+        var d = Assert.Single(layout.Diagnostics, x => x.Code == "phase-title");
+        Assert.Equal((DiagnosticSeverity.Info, "'Mit'!B4"), (d.Severity, d.Src));
+    }
+
     [Fact]
     public void MergedPhaseTitle_WithoutAHeaderBelow_StartsThePhase_WhenItReadsAsATitle()
     {
