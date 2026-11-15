@@ -231,7 +231,7 @@ public class TeaPlanTimingTests
     /// <summary>
     /// "Swiftcast/Succor" on J Wave 5, either way round and as a sequence: Swiftcast makes the Succor instant, its shield up
     /// on the press, so both wait for wave 4 + 0.3 s (720.2), pressed and due then, and a Succor before then is spent on
-    /// wave 4 (719.9): early. With its 2 s cast from 718.4, as without Swiftcast, the instant Succor would land on wave 4.
+    /// wave 4 (719.9): early. Pressed at 718.4, as a Succor cast in 2 s is, the instant one would be spent on wave 4.
     /// </summary>
     [Theory]
     [InlineData(false, "Swiftcast", "Succor")]
