@@ -585,7 +585,7 @@ internal sealed partial class ImportWindow
             }
 
             if (l.LaterItems.Length > 0)
-                ImGui.TextUnformatted("After the hit before it in the series: " + l.LaterItems);
+                ImGui.TextUnformatted("Pressed later: " + l.LaterItems);
         }
         else
         {
@@ -774,7 +774,7 @@ internal sealed partial class ImportWindow
         var autoOffset = model.AutoOffset(row);
         var hit = mechanic?.HitAt(entry.HitIndex ?? 0);
 
-        // Items of a series call that wait for a floor of their own, later than the entry's press (TimingRules.ForEntry).
+        // Items pressed later than the entry (TimingRules.ForEntry): a series floor or a later hit of their own, or last.
         var laterItems = string.Empty;
         if (hit is { } at && model.ItemPressTimes(row) is { } presses)
         {

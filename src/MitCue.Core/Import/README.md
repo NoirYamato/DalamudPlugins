@@ -216,7 +216,9 @@ Rules worth knowing:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
   pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
   1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
-  Eukrasia's 2.5 s), but never earlier than without it.
+  Eukrasia's 2.5 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
+  before the first protean, so that it lasts through the Wild Charge, and so does `Rampart + Reprisal (Late)`, whose
+  Rampart keeps its own −6 s).
 - **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
   those actions: the detail of the entries in their columns and section that press one of them (all their columns'
   entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
@@ -236,8 +238,8 @@ Rules worth knowing:
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
-  an item of a series call that waits for a floor of its own at that floor, and the info gives the gap between the two
-  items' presses) for any seat (every job, in each
+  later than its entry's for an item that waits for a series floor or a later hit of its own, and the info gives the gap
+  between the two items' presses) for any seat (every job, in each
   slot of its role and in none, with the column the plugin chooses without a party and with any party that changes it:
   the jobs of a team-composition column, `WAR/PLD WAR` next to a Paladin, and every two-job party), is pressed when
   that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:

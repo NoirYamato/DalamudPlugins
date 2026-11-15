@@ -50,6 +50,32 @@ public class TopPlanTimingTests
     }
 
     /// <summary>
+    /// The cells that list a 10 s call with other calls on Wave Cannon 1 and 2: the DRK's 'WAR/DRK'!C11 "Shadow Wall +
+    /// Oblation + TBN" and 'DRK/GNB'!B12 "Rampart + Dark Mind + Oblation + TBN", and the Reprisal tank's 'P6'!C4 party
+    /// mitigation + Reprisal. Only the 10 s calls wait for the Wild Charge, 0.5 s before the first protean; the others keep
+    /// their own press, which already reaches it or is not meant for it (The Blackest Night, 7 s), so that a DRK's three or
+    /// four presses do not all turn due in the last 2 s before the first protean.
+    /// </summary>
+    [Theory]
+    [InlineData("'WAR/DRK'!C11", 1244.3, "Oblation", "Shadow Wall=-4.5;The Blackest Night=-4.5")]
+    [InlineData("'DRK/GNB'!B12", 1278.2, "Dark Mind,Oblation", "Rampart=-6;The Blackest Night=-6")]
+    [InlineData("'P6'!C4", 1244.3, "Reprisal", "Divine Veil=-4;Shake It Off=-4;Dark Missionary=-4.5;Heart of Light=-4.5")]
+    public void WaveCannon_OnlyTheTenSecondCallsOfACellWaitForTheWildCharge(string cell, double wildCharge, string waiting, string others)
+    {
+        var calls = Reminders(cell);
+        foreach (var r in calls.Where(r => waiting.Split(',').Contains(r.Item.Name)))
+        {
+            Assert.Equal(r.Hit - 0.5, r.PressAt, 1e-9);
+            Assert.True(NowCue(r) + 10 >= wildCharge + 0.5 - 1e-9, $"{cell} {r.Item.Name}: from the NOW cue ({NowCue(r)}) it ends at {NowCue(r) + 10}");
+        }
+
+        var own = others.Split(';').Select(o => o.Split('=')).ToDictionary(o => o[0], o => double.Parse(o[1], System.Globalization.CultureInfo.InvariantCulture));
+        var rest = calls.Where(r => !waiting.Split(',').Contains(r.Item.Name)).ToList();
+        Assert.Equal(own.Keys.Order(), rest.Select(r => r.Item.Name!).Distinct().Order());
+        Assert.All(rest, r => Assert.Equal(own[r.Item.Name!], r.PressAt - r.Hit, 1e-9));
+    }
+
+    /// <summary>
     /// Limitless Synergy ('P1/P2'!B11/C11/H11 party mitigation, 'General Tank Mit til P5'!B6/C6 tank cooldowns, "15 sec Mit
     /// is used as the clone jumps"): the 15 s calls cover the flares (309.7) and the Cosmo Memory raidwide itself (7B24,
     /// 320.2), 1.4 s after the 7B22 cast end (318.8): pressed at 320.2 − 15 + 2, so that even on the NOW cue they last

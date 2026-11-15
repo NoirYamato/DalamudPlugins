@@ -104,19 +104,21 @@ public static class TimingRules
     /// tank mitigation, invulns) also covers the later hits its effect can reach. For each such item with a duration D,
     /// the last later hit hR it can cover is covered: the press is no earlier than hR − D + 2 s, so even pressed on the NOW
     /// cue (1.5 s before) the effect outlasts hR by 0.5 s (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s
-    /// instead of −3 s), but no later than 0.5 s before the first hit; and the item's NOW cue never comes before
-    /// hR − D + 0.5 s (<see cref="ItemTiming.DueNotBefore"/>), so that a press on it still reaches hR (TOP's Wave Cannon,
-    /// the Wild Charge 8.3 s after the first protean: a 10 s invuln at −0.5 s turns due 1.2 s before the first protean).
-    /// It can cover hR when hR − first hit ≤ D − 1 s − the latest use before the hit
-    /// (<see cref="ReminderOptions.MitigationLatestBeforeHit"/>), and that NOW cue still comes 1 s before the first hit, as
-    /// late as it may be used: hR − first hit ≤ D − 1.5 s (a 10 s call on TEA's Wormhole does not wait for the #5 Alpha
-    /// Sword 8.6 s after the Super Jump). A use that would end before hR + 0.5 s is early. Only as late as the entry's other
-    /// items allow: an item pressed before the hit that takes time to its effect (<see cref="TimeToEffect"/>: a cast, or
-    /// the GCD a follow-up needs first) has it in place 1 s before the first hit, as "(Late)" does ("Soil + Succor": −3 s
-    /// at the latest), and an item with a lead of its own that is no mitigation keeps it (Earthly Star 10 s, Neutral Sect
-    /// 4.5 s). A later hit that would need a later press is not covered, so that the items' earliest uses stay those of the
-    /// press ("Soil + Succor" on TOP's Pantokrator keeps the Succor's −4.5 s and covers the second line stack, not the
-    /// third).
+    /// instead of −3 s), and the item's NOW cue never comes before hR − D + 0.5 s (<see cref="ItemTiming.DueNotBefore"/>),
+    /// so that a press on it still reaches hR. The item that needs the latest press times the entry, up to 0.5 s before the
+    /// first hit (hR − first hit ≤ D − 2.5 s); an item reaches a later hit than that on its own, pressed 0.5 s before the
+    /// first hit (<see cref="ItemTiming.PressAt"/>), while the entry's other items keep their press (TOP's Wave Cannon, the
+    /// Wild Charge 8.3 s after the first protean: a 10 s Oblation at −0.5 s turns due 1.2 s before the first protean, and
+    /// the Shadow Wall and The Blackest Night of its cell keep −4.5 s). It can cover hR when hR − first hit ≤ D − 1 s − the
+    /// latest use before the hit (<see cref="ReminderOptions.MitigationLatestBeforeHit"/>), and that NOW cue still comes
+    /// 1 s before the first hit, as late as it may be used: hR − first hit ≤ D − 1.5 s (a 10 s call on TEA's Wormhole does
+    /// not wait for the #5 Alpha Sword 8.6 s after the Super Jump). A use that would end before hR + 0.5 s is early. Only
+    /// as late as the entry's other items allow: an item pressed before the hit that takes time to its effect
+    /// (<see cref="TimeToEffect"/>: a cast, or the GCD a follow-up needs first) has it in place 1 s before the first hit,
+    /// as "(Late)" does ("Soil + Succor": −3 s at the latest), and an item with a lead of its own that is no mitigation
+    /// keeps it (Earthly Star 10 s, Neutral Sect 4.5 s). A later hit that would need a later press, the entry's or the
+    /// item's own, is not covered, so that the items' earliest uses stay those of the press ("Soil + Succor" on TOP's
+    /// Pantokrator keeps the Succor's −4.5 s and covers the second line stack, not the third).
     /// </item>
     /// <item>
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): nothing is
@@ -133,13 +135,15 @@ public static class TimingRules
     /// </item>
     /// </list>
     /// <para>
-    /// Every item is pressed at the entry's press time, except that an item of an automatic press waits for its own series
-    /// floor (<see cref="ItemTiming.PressAt"/>), and that an item pressed last (<see cref="IsPressedLast"/>: Passage of
-    /// Arms, a channel any other action ends) comes with the entry's last item. Each item's use window is
-    /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when it
-    /// has one, or with an automatic press one that ends before a later hit the item covers, is early, and the item's
-    /// reminder does not turn due before then either. An item pressed last does not turn due before any other item of the
-    /// entry ("Reprisal + Passage of Arms" on Wave Cannon: with the Reprisal, whose NOW cue waits for the Wild Charge).
+    /// Every item is pressed at the entry's press time, except that with an automatic press an item waits for its own
+    /// series floor or for a later hit it reaches on its own (<see cref="ItemTiming.PressAt"/>), and that an item pressed
+    /// last (<see cref="IsPressedLast"/>: Passage of Arms, a channel any other action ends) comes with the entry's last
+    /// item; the automatic press is then the entry's first item's (<see cref="EntryTiming.AutomaticOffset"/>). Each item's
+    /// use window is <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series
+    /// floor, when it has one, or with an automatic press one that ends before a later hit the item covers, is early, and
+    /// the item's reminder does not turn due before then either. An item pressed last does not turn due before any other
+    /// item of the entry ("Reprisal + Passage of Arms" on Wave Cannon: both 0.5 s before the first protean, due with the
+    /// Reprisal, whose NOW cue waits for the Wild Charge).
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -160,8 +164,11 @@ public static class TimingRules
         var (automatic, timingAction) = AutomaticOffset(timing, mechanic, level);
 
         // Mitigation for the whole of a multi-hit mechanic also covers the later hits it can reach, as late as the entry's
-        // other items allow; its NOW cue never comes before the earliest use that still reaches them.
+        // other items allow: the entry is pressed for the hits each reaches pressed with it, an item that reaches a later
+        // one only pressed just before the first hit is pressed then on its own; its NOW cue never comes before the
+        // earliest use that still reaches them.
         var covers = new double?[items.Count];
+        var reach = new double?[items.Count];
         if (automatic < 0 && (entry.HitIndex ?? 0) == 0)
         {
             var latest = LatestCoveringOffset(timing, actions, level);
@@ -170,7 +177,9 @@ public static class TimingRules
                 if (CoveredHit(timing[i], mechanic, hit, level, latest, options) is { } covered)
                 {
                     covers[i] = covered.NotEarly;
-                    automatic = Math.Max(automatic, covered.Press - hit);
+                    reach[i] = covered.Press;
+                    if (covered.EntryPress is { } press)
+                        automatic = Math.Max(automatic, press - hit);
                 }
             }
         }
@@ -181,37 +190,46 @@ public static class TimingRules
         if (floor.HasValue)
             automatic = Math.Max(automatic, floor.Value - hit);
 
+        // Each item's automatic press: the entry's, or later for an item that waits for the series floor of its own action
+        // (never earlier than the entry's: an instant shield beside the cast one that times the entry lands after the hit
+        // before it too) or for a later hit it reaches on its own. An item pressed last (Passage of Arms, a channel any other
+        // action ends) comes with the entry's last item. The entry's press is its first item's.
+        var floors = new double?[items.Count];
+        var automaticPresses = new double[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            floors[i] = previous.HasValue && floor.HasValue ? Math.Max(floor.Value, SeriesFloor(previous.Value, timing[i])) : null;
+            automaticPresses[i] = Math.Max(hit + automatic, Math.Max(floors[i] ?? double.NegativeInfinity, reach[i] ?? double.NegativeInfinity));
+        }
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (IsPressedLast(timing[i]))
+                automaticPresses[i] = automaticPresses.Max();
+        }
+
         var isAutomatic = entry.Offset is null;
-        var pressAt = hit + (entry.Offset ?? automatic);
+        var automaticPress = items.Count > 0 ? automaticPresses.Min() : hit + automatic;
+        var pressAt = entry.Offset is { } offset ? hit + offset : automaticPress;
         var notBefore = AtOrAfter(pressAt, floor);
 
-        // Each item's press, and the time its reminder does not turn due before.
+        // Each item's press (a written one is every item's), and the time its reminder does not turn due before: a written
+        // press keeps each series floor it is at or after.
         var presses = new double[items.Count];
         var dueFloors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
-            // Each item waits for the series floor of its own action, never earlier than the entry's: an instant shield
-            // beside the cast one that times the entry lands after the hit before it too.
-            presses[i] = pressAt;
-            var itemNotBefore = notBefore;
-            if (previous.HasValue && floor.HasValue)
-            {
-                var own = Math.Max(floor.Value, SeriesFloor(previous.Value, timing[i]));
-                if (isAutomatic)
-                    presses[i] = Math.Max(pressAt, own);
-                itemNotBefore = AtOrAfter(presses[i], own) ?? notBefore;
-            }
-
+            presses[i] = isAutomatic ? automaticPresses[i] : pressAt;
+            var itemNotBefore = floors[i] is { } own ? AtOrAfter(presses[i], own) ?? notBefore : notBefore;
             dueFloors[i] = Later(isAutomatic ? covers[i] : null, itemNotBefore);
         }
 
-        // An item pressed last (Passage of Arms, a channel any other action ends) comes with the entry's last item, and its
-        // reminder turns due no earlier than any other: the others' NOW cues may be held (a series floor, a later hit).
+        // An item pressed last turns due no earlier than any other: the others' NOW cues may be held (a series floor, a
+        // later hit).
         for (var i = 0; i < items.Count; i++)
         {
             if (!IsPressedLast(timing[i]))
                 continue;
-            presses[i] = presses.Max();
             for (var j = 0; j < items.Count; j++)
             {
                 if (j != i && dueFloors[j] is { } other)
@@ -231,7 +249,7 @@ public static class TimingRules
         return new EntryTiming
         {
             Hit = hit,
-            AutomaticOffset = automatic,
+            AutomaticOffset = automaticPress - hit,
             IsAutomatic = isAutomatic,
             PressAt = pressAt,
             DueNotBefore = notBefore,
@@ -467,14 +485,15 @@ public static class TimingRules
     }
 
     /// <summary>
-    /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration D: the last later
-    /// hit hR of the mechanic it can cover together with <paramref name="hit"/> (hR − hit ≤ D − 1 s − the latest use before
-    /// the hit, <see cref="ReminderOptions.MitigationLatestBeforeHit"/>, and the earliest use that still reaches hR at least
-    /// 1 s before <paramref name="hit"/>), with a press no later than <paramref name="latestOffset"/> after the hit allows
-    /// (<see cref="LatestCoveringOffset"/>): the press, hR − D + 2 s but at least 0.5 s before the hit, and that earliest
-    /// use, hR − D + 0.5 s; else null. A later hit that would need a later press is not covered.
+    /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration D: the later hits of
+    /// the mechanic it can cover together with <paramref name="hit"/> (hR − hit ≤ D − 1 s − the latest use before the hit,
+    /// <see cref="ReminderOptions.MitigationLatestBeforeHit"/>, and the earliest use that still reaches hR at least 1 s
+    /// before <paramref name="hit"/>) with a press no later than <paramref name="latestOffset"/> after the hit allows
+    /// (<see cref="LatestCoveringOffset"/>), each pressed hR − D + 2 s but at least 0.5 s before the hit; for the last of
+    /// them its press and that earliest use, hR − D + 0.5 s, and the press for the last one the entry reaches pressed at
+    /// hR − D + 2 s (null when none is that close); else null. A later hit that would need a later press is not covered.
     /// </summary>
-    private static (double Press, double NotEarly)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset, ReminderOptions options)
+    private static (double? EntryPress, double Press, double NotEarly)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset, ReminderOptions options)
     {
         if (action is null || !IsMitigation(action) || IsUsedAfterHit(action)
             || (action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel)) is not { } duration)
@@ -482,6 +501,7 @@ public static class TimingRules
             return null;
         }
 
+        double? entryPress = null;
         (double Press, double NotEarly)? covered = null;
         foreach (var later in mechanic.Hits)
         {
@@ -492,10 +512,12 @@ public static class TimingRules
                 && notEarly <= hit - MinDueWindow && press - hit <= latestOffset)
             {
                 covered = (press, notEarly);
+                if (later - duration + CoverageLead <= hit - CoveringPressLead)
+                    entryPress = press;
             }
         }
 
-        return covered;
+        return covered is { } c ? (entryPress, c.Press, c.NotEarly) : null;
     }
 
     /// <summary>

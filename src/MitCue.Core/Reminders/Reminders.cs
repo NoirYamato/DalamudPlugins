@@ -81,8 +81,8 @@ public sealed class Reminder
     public required double Hit { get; init; }
 
     /// <summary>
-    /// Planned press time (timeline seconds): the entry's, or for an item of a series call that waits for its own floor,
-    /// that floor (<see cref="ItemTiming.PressAt"/>).
+    /// Planned press time (timeline seconds): the entry's, or later for an item that waits for a series floor or a later hit
+    /// of its own, or comes last (<see cref="ItemTiming.PressAt"/>).
     /// </summary>
     public required double PressAt { get; init; }
 

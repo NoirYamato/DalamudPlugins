@@ -14,8 +14,8 @@ namespace MitCue.Core.Reminders;
 /// Building (docs/DESIGN.md §5.1): one <see cref="Reminder"/> per item of every entry whose
 /// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). The items of
 /// an entry are pressed at its press time, hit + offset, or the automatic press time without an
-/// explicit offset (an item of a series call may wait for a floor of its own); each item has its own
-/// use window and NOW cue floor (<see cref="TimingRules.ForEntry"/>).
+/// explicit offset (an item may wait for a series floor or a later hit of its own); each item has its
+/// own use window and NOW cue floor (<see cref="TimingRules.ForEntry"/>).
 /// </para>
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or

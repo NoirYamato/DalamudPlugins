@@ -11,7 +11,10 @@ public sealed class EntryTiming
     /// <summary>The anchor hit (timeline seconds): the mechanic's hit at the entry's hit index.</summary>
     public required double Hit { get; init; }
 
-    /// <summary>The automatic offset (press − hit): what the entry is pressed at when the plan gives it no offset.</summary>
+    /// <summary>
+    /// The automatic offset (press − hit): what the entry is pressed at when the plan gives it no offset, its first item's
+    /// press (an item may be pressed later, <see cref="ItemTiming.PressAt"/>).
+    /// </summary>
     public required double AutomaticOffset { get; init; }
 
     /// <summary>True when the plan gives the entry no offset, so <see cref="PressAt"/> is automatic.</summary>
@@ -46,8 +49,9 @@ public sealed class EntryTiming
 /// and actions the catalog does not know.
 /// </param>
 /// <param name="PressAt">
-/// The item's press time (timeline seconds): the entry's (<see cref="EntryTiming.PressAt"/>), or for an automatic press for
-/// a later hit of a series, the item's own floor when that is later (see <see cref="TimingRules.ForEntry"/>).
+/// The item's press time (timeline seconds): the entry's (<see cref="EntryTiming.PressAt"/>), or with an automatic press
+/// later when the item waits for the series floor of its own action or for a later hit it reaches on its own, or comes
+/// last (see <see cref="TimingRules.ForEntry"/>).
 /// </param>
 /// <param name="Earliest">The earliest use that still covers the hit (see <see cref="Reminder.Earliest"/>).</param>
 /// <param name="Latest">The last useful moment (see <see cref="Reminder.Latest"/>).</param>

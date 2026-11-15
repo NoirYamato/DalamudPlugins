@@ -419,35 +419,70 @@ public class EntryTimingTests
     }
 
     [Fact]
-    public void Coverage_EachItemWaitsForItsOwnLaterHit_OthersKeepTheirNowCue()
+    public void Coverage_AnItemThatReachesALaterHitOnlyPressedLate_IsPressedAlone_OthersKeepTheirPress()
     {
-        // "Rampart + Reprisal" on 100/102/108.3: the 10 s Reprisal needs the press at −0.5 s and waits until 98.8; the 20 s
-        // Rampart reaches 108.3 from 90.3 on and turns due by the due lead (98.0).
+        // "Rampart + Reprisal" on 100/102/108.3: the 10 s Reprisal reaches 108.3 only pressed at −0.5 s and waits until
+        // 98.8; the 20 s Rampart keeps the entry's −6 s (Rampart's own, and what the Reprisal needs for 102), from which it
+        // reaches 108.3 anyway, and turns due by the due lead.
         var options = new ReminderOptions();
         var t = Charge("p1.charge", null, Kit.Rampart, TenSecondMit);
-        Assert.Equal(99.5, t.PressAt, Kit.Tolerance);
-        Assert.Equal(98.0, t.Items[0].DueAt(options), Kit.Tolerance);
+        Assert.Equal(94, t.PressAt, Kit.Tolerance);                                 // the first item's
+        Assert.Equal(-6, t.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal((94.0, 99.5), (t.Items[0].PressAt, t.Items[1].PressAt));
+        Assert.Equal(92.5, t.Items[0].DueAt(options), Kit.Tolerance);
         Assert.Equal(98.8, t.Items[1].DueAt(options), Kit.Tolerance);
         Assert.Equal(88.8, t.Items[0].Earliest, Kit.Tolerance);                      // 108.3 − 20 + 0.5
         Assert.Equal(98.8, t.Items[1].Earliest, Kit.Tolerance);
 
-        // The scheduler: a Reprisal on its NOW cue is on time, one before it is early (it would end before 108.3 + 0.5).
+        // The scheduler: the Rampart is due first; a Reprisal on its NOW cue is on time, one before it is early (it would
+        // end before 108.3 + 0.5).
         var fight = WildChargeFight();
-        var catalog = new FakeCatalog([.. Kit.Catalogued, TenSecondMit]);
-        var s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(Kit.Rampart), Kit.Do(TenSecondMit))], catalog, options);
+        var s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(Kit.Rampart), Kit.Do(TenSecondMit))], ChargeCatalog, options);
         var rampart = Assert.Single(s.All, r => r.ItemIndex == 0);
         var reprisal = Assert.Single(s.All, r => r.ItemIndex == 1);
-        s.Update(98.0);
+        s.Update(92.5);
         Assert.Equal((ReminderState.Due, ReminderState.Upcoming), (rampart.State, reprisal.State));
+        s.OnOwnAction(Kit.Rampart.Id, 93.0);
+        Assert.Equal((ReminderState.Done, false), (rampart.State, rampart.UsedEarly));
         s.Update(98.8);
         Assert.Equal(ReminderState.Due, reprisal.State);
         s.OnOwnAction(TenSecondMit.Id, 98.8);
         Assert.Equal(ReminderState.Done, reprisal.State);
         Assert.False(reprisal.UsedEarly);
 
-        s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit))], catalog, options);
+        s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit))], ChargeCatalog, options);
         s.OnOwnAction(TenSecondMit.Id, 98.0);
         Assert.True(Assert.Single(s.All).UsedEarly);
+    }
+
+    [Fact]
+    public void Coverage_TheCallsOfACellThatWaitForALaterHitAreOnlyThose()
+    {
+        // A tank's "Rampart + Benison + Reprisal + Hallowed Ground" on 100/102/108.3 (like a DRK's Rampart, The Blackest
+        // Night, Oblation and Dark Mind on TOP's Wave Cannon): the 10 s calls wait for 108.3 on their own, the Rampart and
+        // the shield are pressed and due before them, so that the four presses do not all come in the last 2 s.
+        var options = new ReminderOptions();
+        var t = Charge("p1.charge", null, Kit.Rampart, Kit.DivineBenison, TenSecondMit, Kit.HallowedGround);
+        Assert.Equal([94.0, 94.0, 99.5, 99.5], t.Items.Select(i => i.PressAt));
+        Assert.Equal([92.5, 92.5, 98.8, 98.8], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(94, t.PressAt, Kit.Tolerance);
+
+        // Calls that all wait are pressed together, and the entry with them.
+        var late = Charge("p1.charge", null, TenSecondMit, Kit.HallowedGround);
+        Assert.Equal(-0.5, late.AutomaticOffset, Kit.Tolerance);
+        Assert.All(late.Items, i => Assert.Equal(99.5, i.PressAt, Kit.Tolerance));
+
+        // Passage of Arms, pressed last, comes with the Reprisal, after the shield.
+        var paladin = Charge("p1.charge", null, Kit.DivineBenison, TenSecondMit, PassageOfArms);
+        Assert.Equal([96.0, 99.5, 99.5], paladin.Items.Select(i => i.PressAt));
+        Assert.Equal([94.5, 98.8, 98.8], paladin.Items.Select(i => i.DueAt(options)));
+
+        // A written press is every item's, and holds no NOW cue.
+        var fight = WildChargeFight();
+        var written = TimingRules.ForEntry(Kit.Entry("p1.charge", -3, Kit.Do(Kit.Rampart), Kit.Do(TenSecondMit)), fight.GetMechanic("p1.charge")!, fight, ChargeCatalog);
+        Assert.All(written.Items, i => Assert.Equal(97, i.PressAt, Kit.Tolerance));
+        Assert.All(written.Items, i => Assert.Null(i.DueNotBefore));
+        Assert.Equal(-6, written.AutomaticOffset, Kit.Tolerance);                   // what the review offers as automatic
     }
 
     [Theory]

@@ -611,6 +611,20 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void Late_NeverPressesAnItemEarlierThanWithoutIt()
+    {
+        // TOP Wave Cannon 2 (protean 1269.9, Wild Charge 1278.2): a 10 s Reprisal reaches the Wild Charge only pressed on its
+        // own, 0.5 s before the first protean, while the Rampart beside it keeps the entry's −6 s. "(Late)" (−1 s for both)
+        // would press the Reprisal earlier: the entry keeps its automatic presses.
+        var entry = Assert.Single(Import(Sheet("P6", "MT", "WC2\tRampart + Reprisal (Late)")).Plan.Entries);
+
+        Assert.Equal(["Rampart", "Reprisal"], entry.Names());
+        Assert.Null(entry.Offset);
+        var timing = TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions);
+        Assert.Equal([-6.0, -0.5], timing.Items.Select(i => Math.Round(i.PressAt - timing.Hit, 3)));
+    }
+
+    [Fact]
     public void Late_OnAMechanicWhoseCallsArePressedAfterIt_ChangesNothing()
     {
         // TEA's Photon sets everyone to 1 HP: its calls are the heal-up after it (press: after), "(Late)" or not.

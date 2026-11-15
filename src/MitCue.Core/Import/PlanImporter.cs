@@ -1953,10 +1953,10 @@ public sealed partial class PlanImporter
                     }
 
                     // "(Late)": an entry pressed before its hit is pressed just before it, its longest cast (or the GCD a
-                    // follow-up needs first) ending 1 s before the hit, but never earlier than without the hint (mitigation
-                    // timed to also cover a later hit).
+                    // follow-up needs first) ending 1 s before the hit, but never an item earlier than without the hint
+                    // (mitigation timed to also cover a later hit, an item that waits for a floor of its own).
                     if (timing.Late && press is null && entry.Offset is null && actions.Count > 0
-                        && this.TimingOf(entry, anchor).AutomaticOffset is var automatic && automatic < 0 && this.LateOffsetOf(actions) > automatic)
+                        && LastOffset(this.TimingOf(entry, anchor)) is var automatic && automatic < 0 && this.LateOffsetOf(actions) > automatic)
                     {
                         entry.Offset = this.LateOffsetOf(actions);
                     }
@@ -2053,6 +2053,12 @@ public sealed partial class PlanImporter
         /// 2.5 s: −3.5 s).
         /// </summary>
         private double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(this.TimeToEffect).DefaultIfEmpty(0).Max();
+
+        /// <summary>
+        /// The offset of an entry's last item press (<see cref="ItemTiming.PressAt"/>; the entry's offset without items): an
+        /// item may be pressed later than the entry (<see cref="TimingRules.ForEntry"/>).
+        /// </summary>
+        private static double LastOffset(EntryTiming timing) => timing.Items.Select(i => i.PressAt).DefaultIfEmpty(timing.PressAt).Max() - timing.Hit;
 
         /// <summary>
         /// Seconds from pressing an action to its effect (<see cref="TimingRules.TimeToEffect"/>: its cast, plus the GCD a
