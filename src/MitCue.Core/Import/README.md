@@ -182,10 +182,10 @@ Rules worth knowing:
   that phase's enrage/end mechanic with `at_phase_end`). Hint text stays in `note`. Presses after a phase's last hit get
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
   `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
-  actions, a mechanic's several hits and the fight file's `press`, `heal_lead` and `series`); the importer writes no
-  offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan lists its
-  entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a press
-  moved.
+  actions and their own leads, a mechanic's hits and the fight file's `press`, `heal_lead` and `series`); the importer
+  writes no offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan
+  lists its entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a
+  press moved.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
@@ -235,7 +235,9 @@ Rules worth knowing:
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
-  level, one charge recharging at a time, recast groups, recasts under 3 s left out) for any seat (every job, in each
+  level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
+  an item of a series call that waits for a floor of its own at that floor, and the info gives the gap between the two
+  items' presses) for any seat (every job, in each
   slot of its role and in none, with the column the plugin chooses without a party and with any party that changes it:
   the jobs of a team-composition column, `WAR/PLD WAR` next to a Paladin, and every two-job party), is pressed when
   that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:

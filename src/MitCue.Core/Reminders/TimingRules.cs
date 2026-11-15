@@ -95,8 +95,8 @@ public static class TimingRules
     /// earlier wherever the cell lists it: "CU + Neutral Sect" at Neutral Sect's −4.5 s, time for its Helios, like
     /// "Neutral Sect + CU". It never pulls it so early that another item's lasting effect D (mitigation, a shield, a regen,
     /// an invuln, a pre-placed heal) used on the NOW cue ends before the hit: no earlier than −(D − 2.5 s) ("CU + Earthly
-    /// Star": −7.5 s; "Earthly Star + CU", timed by the star, keeps its −10 s). Not on a <see cref="Mechanic.PressAfter"/>
-    /// mechanic.
+    /// Star": −7.5 s; "Earthly Star + CU", timed by the star, keeps its −10 s). The action whose lead pulled the press
+    /// then times the entry (its series floor, below). Not on a <see cref="Mechanic.PressAfter"/> mechanic.
     /// </item>
     /// <item>
     /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
