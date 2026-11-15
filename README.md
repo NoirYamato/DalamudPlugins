@@ -154,11 +154,18 @@ TOP - P1: Omega - 1:15
   [Which plan and column MitCue uses](#which-plan-and-column-mitcue-uses)).
 
 When reminders appear and turn NOW: a reminder appears **Show reminders this early** (15 s) before its planned
-press time. It turns NOW **Turn "NOW" this early** (1.5 s) before. It stays NOW until just before the hit for
-mitigation, shields and heals placed ahead of the damage (Liturgy of the Bell, Excogitation, Earthly Star,
-Horoscope, Macrocosmos), or until 5 s after the planned time for heals and anything else planned after the
-damage, and then counts as missed. An entry marked *on cooldown* in the plan stays NOW until the action is
-ready. A call for the end of a phase (*as P1 dies*) turns NOW when a push ends that phase early.
+press time. It turns NOW **Turn "NOW" this early** (1.5 s) before, but not while its effect, used then, would
+end less than 1 s after the hit: it then turns NOW once a use lasts that long, or at its planned time if that
+comes first, so that a press on NOW is not *(early)*. *The Blackest Night* (7 s) planned with *Rampart* 6 s
+before a tank buster turns NOW 6 s before it, not 7.5 s, and an 8 s *Heart of Corundum* beside it 7 s before;
+the White Mage's *Temperance* for Sigma, 18 s before it in NoirMit's sheet, turns NOW 19 s before Sigma. A time
+in the sheet that is earlier than that keeps the full lead, and a longer **Turn "NOW" this early** of yours
+still applies to the other calls. A step of a sequence (`→`) never turns NOW before the step before it. A
+reminder stays NOW until just before the hit for mitigation, shields and heals placed ahead of the damage
+(Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos), or until 5 s after the planned time
+for heals and anything else planned after the damage, and then counts as missed. An entry marked *on cooldown*
+in the plan stays NOW until the action is ready. A call for the end of a phase (*as P1 dies*) turns NOW when a
+push ends that phase early.
 
 Plan entries without a time get an automatic press time (details in [docs/DESIGN.md](docs/DESIGN.md) §5.1):
 
@@ -183,9 +190,11 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     has dropped the tanks to 1 HP; a heal placed ahead of the damage keeps its own lead (the Scholar's
     Excogitation, 8 s);
   - a call for a later J Wave waits for the wave before it, so it turns NOW with less of a lead, or none. A
-    call that starts with a Succor (a 2 s cast) turns NOW 1.7 s before that wave, so that the Succor lands
-    just after it, while the instant actions of the same call (the Scholar's Sacred Soil, Summon Seraph and
-    Consolation) still wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
+    call that starts with a Succor (a 2 s cast), or with a buff for it, turns NOW 1.7 s before that wave, so
+    that the Succor lands just after it. Its buffs and notes come with the Succor (*Reci → Succor*), and so
+    does a step before it (*Indom → Succor*), while its other instant actions still wait for the wave (the
+    Scholar's Sacred Soil, and Summon Seraph with its Consolation). With *Swiftcast* in the call the Succor
+    is instant, so both wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
     just after it.
 - **From your earlier calls:** when a sheet is imported (from a link or pasted cells; not a plan pasted on the
   AI route, a plan file or a share code), a call without a time in the sheet that would come before its action

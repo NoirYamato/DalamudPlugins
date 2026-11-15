@@ -1276,22 +1276,27 @@ anchor on and to sync:
   is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
 - **Series.** `p3.j_waves` has `series: true`: a call without a time for wave n > 1 (on `p3.j_wave_n`, or on the
   umbrella with a hit index) is pressed no earlier than wave n − 1 + 0.3 s, and turns NOW no earlier
-  (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast (the shield times the call), and for a
-  call that lists Neutral Sect anywhere (the cast of the Helios that puts up its barrier, `barrier_cast: 1.5` in
-  `actions.yaml`), both are earlier by that cast, so that the shield or barrier lands then. A cast shield beside
-  another action that times the call waits for the call's floor (`Soil + Succor` on J Wave 5: both at 720.2).
-  Each action of a call has its own floor, never earlier than the call's. Most default leads (3–6 s;
-  Passage of Arms 2 s) are as long as the 3 s between waves or longer, so a shield would be spent on wave n − 1,
-  and 15–20 s mitigation would end before the last, strongest waves it should cover. Most calls on LPDU's "Jwaves
-  (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and 732.2, and turn NOW then, with no lead. Passage of
-  Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9) and turns NOW at 726.2. The Astrologian's Neutral
-  Sect (H21, J Wave 5) is pressed and turns NOW at 718.7, so that its Helios lands 0.3 s after wave 4. The
-  Scholar's Succors (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5; `Succor`, E25, at J Wave 9) keep −4.5 s
-  (718.4, 730.4) and turn NOW at 718.2 and 730.2, 1.7 s before the wave before them, so that the Succor lands just
-  after it; E21's instant Sacred Soil, Summon Seraph and Consolation wait for wave 4 (720.2). The White Mage's
-  Plenary Indulgence (G23, J Wave 7) would be pressed at 726.2, before Plenary is ready again (727.0) after G13's;
-  the importer's recast fit (`docs/DESIGN.md` §6 step 7) presses it 1 s before its wave (727.9, `offset: -1`, as
-  late as `(Late)` would), and it still turns NOW only at 726.4, after wave 6.
+  (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast (the shield times the call), and for a call
+  that lists Neutral Sect anywhere (the cast of the Helios that puts up its barrier, `barrier_cast: 1.5` in
+  `actions.yaml`), both are earlier by that cast, so that the shield or barrier lands then, unless the call lists
+  Swiftcast (`instant_next_cast`), which makes the spell instant (`Swiftcast/Succor` on J Wave 5: both at 720.2). A
+  cast shield beside another action that times the call waits for the call's floor (`Soil + Succor` on J Wave 5:
+  both at 720.2). Each action of a call has its own floor, never earlier than the call's; a buff, movement or other
+  action without a lead of its own (Recitation, Emergency Tactics, Dissipation, Protraction), a note or an unknown
+  action keeps the call's floor and comes with the cast it changes (`Reci → Succor` on J Wave 5: both at 718.4), but
+  a Summon Seraph waits with the Consolation of its call. With an automatic press, a step of a sequence waits for no
+  later floor than the step after it (`Indom → Succor` on J Wave 5: both at 718.4, so that the Succor still lands
+  between the waves). Most default leads (3–6 s; Passage of Arms 2 s) are as long as the 3 s between waves or
+  longer, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before the last, strongest
+  waves it should cover. Most calls on LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and
+  732.2, and turn NOW then, with no lead. Passage of Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9)
+  and turns NOW at 726.2. The Astrologian's Neutral Sect (H21, J Wave 5) is pressed and turns NOW at 718.7, so that
+  its Helios lands 0.3 s after wave 4. The Scholar's Succors (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5;
+  `Succor`, E25, at J Wave 9) keep −4.5 s (718.4, 730.4) and turn NOW at 718.2 and 730.2, 1.7 s before the wave
+  before them, so that the Succor lands just after it; E21's instant Sacred Soil, Summon Seraph and Consolation wait
+  for wave 4 (720.2). The White Mage's Plenary Indulgence (G23, J Wave 7) would be pressed at 726.2, before Plenary
+  is ready again (727.0) after G13's; the importer's recast fit (`docs/DESIGN.md` §6 step 7) presses it 1 s before
+  its wave (727.9, `offset: -1`, as late as `(Late)` would), and it still turns NOW only at 726.4, after wave 6.
 
 ### 6.3 Judgment calls (TEA)
 

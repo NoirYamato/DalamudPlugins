@@ -458,7 +458,10 @@ Then, in this order:
    timing action's effect takes to land after the press: a shield's cast, or the cast of
    the GCD that puts up its barrier (`barrier_cast`, §3.3: Neutral Sect's 1.5 s Helios),
    so that the shield or barrier lands then; nor does the reminder turn due earlier
-   (§5.2). The J Waves come 3 s apart, closer than most default leads: a shield pressed
+   (§5.2). A cell that lists an action that makes the next spell instant
+   (`instant_next_cast`, §3.3: Swiftcast) counts no cast: "Swiftcast/Succor" on J Wave 5
+   is pressed and due at 720.2, both items, so that the instant Succor is not spent on
+   wave 4. The J Waves come 3 s apart, closer than most default leads: a shield pressed
    earlier would be spent on the wave before, and mitigation would end before the last,
    strongest waves it should cover. An item with a `barrier_cast` lowers the entry's floor
    to its own wherever the cell lists it (Neutral Sect beside Earthly Star, Temperance or
@@ -466,18 +469,29 @@ Then, in this order:
    action at 720.2); a shield's cast does not. Each item also has the floor of its own
    action, never earlier than the entry's, and an automatic press presses it, and turns it
    due, no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor (a 2 s cast:
-   pressed at 718.4, due at its floor, 718.2), the instant Sacred Soil, Summon Seraph and
-   Consolation wait for J Wave 4, at 720.2, as they would alone.
+   pressed at 718.4, due at its floor, 718.2), the instant Sacred Soil and Consolation
+   wait for J Wave 4, at 720.2, as they would alone. A buff, movement or other action
+   without a lead of its own (Recitation, Emergency Tactics, Dissipation, Protraction,
+   Swiftcast), a note and an action the catalog does not know have no effect the wave
+   before could spend: they keep the entry's floor and come with the cast they change or
+   go with ("Reci → Succor", "Emergency Tactics/Succor", "Stack middle → Succor": both
+   items at 718.4, due at 718.2), but the trigger of a follow-up the entry lists waits with
+   it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation, at 720.2). With an
+   automatic press, a step of a sequence has no later floor than the step after it: in
+   "Indom → Succor" the Indomitability, a heal that alone waits for wave 4 + 0.3 s, comes
+   with the Succor at 718.4, so that the Succor's cast still lands between the waves.
 
 Every item is pressed at the entry's press, except that with an automatic press an item
 waits for its own series floor (rule 4) or for a later hit it reaches on its own (rule 3),
-and that mitigation with a lead of its own (Passage of Arms: any other action ends its
-channel) is pressed with the entry's last item, turns due no earlier than any other item,
-and is listed after them, in the overlay and in `mitcue plan`: "Passage of Arms +
-Reprisal" on Wave Cannon is pressed 0.5 s before the first protean, turns due with the
-Reprisal, whose NOW cue waits for the Wild Charge, and is listed after it. The entry's
-automatic press is the earliest of its items' presses: the plan's order (§6 step 7) and
-the review (step 8) use it, and the review lists the items pressed later.
+and a step of a sequence (`seq: true`) for the step before it, and that mitigation with a
+lead of its own (Passage of Arms: any other action ends its channel) is pressed with the
+entry's last item, turns due no earlier than any other item, and is listed after them, in
+the overlay and in `mitcue plan`: "Passage of Arms + Reprisal" on Wave Cannon is pressed
+0.5 s before the first protean, turns due with the Reprisal, whose NOW cue waits for the
+Wild Charge, and is listed after it. A step of a sequence also turns due no earlier than
+the step before it, whatever the press (§5.2). The entry's automatic press is the
+earliest of its items' presses: the plan's order (§6 step 7) and the review (step 8) use
+it, and the review lists the items pressed later.
 
 A written press is every item's, and keeps each series floor it is at or after: its
 reminders turn due no earlier, and a use before the floor is early (§5.2). One before the
@@ -498,8 +512,20 @@ do (`still-active`, step 4, and the recast fit, step 7).
 - **Due (NOW):** from `due` until `latest`, where `due = press − dueLead` (the item's
   press, §5.1), but never before the item's due floor: its series floor when its press,
   automatic or written, is at or after it (§5.1 rule 4); with an automatic press,
-  `hR − D + 0.5` for an item that covers a later hit `hR` (rule 3); and, for mitigation
-  with a lead of its own (Passage of Arms), the due floors of its entry's other items.
+  `hR − D + 0.5` for an item that covers a later hit `hR` (rule 3); its earliest use that
+  is not early (`hit − D + 1` for its known duration D, below, never after the press) when
+  the default due lead (1.5 s) would turn it due before then, so that a use on the NOW cue
+  is not early, for an automatic press and for a written one at or after `hit − D + 1` (a
+  written press before it asks for an early press and keeps `press − dueLead`); for
+  mitigation with a lead of its own (Passage of Arms), the due floors of its entry's other
+  items; and for a step of a sequence, the due floor of the step before it, up to its own
+  press. On LPDU TOP's Cosmo Dive, The Blackest Night (7 s) beside a Rampart pressed at
+  −6 s turns due 6 s before the hit, not 7.5 s, and the 8 s Bloodwhetting, Heart of
+  Corundum or Holy Sheltron beside it 7 s before; at TEA's level 80, a 6 s Raw Intuition
+  beside a Rampart at −6 s turns due at its press; *NoirMit - WHM*'s Sigma Temperance,
+  written 18 s before the hit, turns due 19 s before it, not 19.5 s. The earliest-use
+  floor counts the default due lead only: a longer due lead of the player's still turns
+  the other items due that much earlier.
   `latest = hit − 0.3` for mitigation, shields and pre-placed heals (`when: before`), and
   `press + 5` for heals used after the damage and anything planned after the hit (never
   before `press + 0.5`). Sound plays once on entering Due. A press that the series floor
@@ -512,7 +538,7 @@ do (`still-active`, step 4, and the recast fit, step 7).
   still active at the hit (Bell up to 19 s, Excogitation up to 44 s before it) is on time,
   not early. `earliest` is also no earlier than the item's due floor (above), but never
   after the press: a use before the series floor, or one that ends before `hR + 0.5`, is
-  early.
+  early. A step of a sequence is early only by its own window, not by the step before it.
 - **Missed:** `latest` passed without a matching use (not counted for optional entries).
 - **Skipped:** the timeline jumped past the entry (phase push) before it became due.
   Exception — **phase-end reminders**: entries anchored to a phase's enrage/end mechanic

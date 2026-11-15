@@ -312,10 +312,14 @@ At the end, if anything was done, missed or skipped, the summary goes to chat wh
 then Due (NOW), and finally Done, Missed, Skipped, or Passed for notes and optional entries. The timing rules
 are in [DESIGN.md](DESIGN.md) §5: an entry without a time gets the automatic press time of
 `TimingRules.ForEntry`, the one the import review and the CLI show too, item by item (an item may wait for a
-series floor or a later hit of its own, and Passage of Arms comes after the others). Done and missed rows stay
-visible for 3 s, or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show
-reminders skipped by a phase push**. At the lookahead time the cooldown provider is asked whether the action
-will be ready, which produces *ready in N s* and *no Lily*.
+series floor or a later hit of its own, a step of a sequence for the step before it, and Passage of Arms comes
+after the others). A reminder turns due **Turn "NOW" this early** before its press, but never before its due
+floor (DESIGN.md §5.2): a series floor, the earliest use that still reaches a later hit, the step before it in a
+sequence, or, when the default 1.5 s would turn it due earlier, the earliest use that is not early (The Blackest
+Night beside a Rampart at −6 s: due 6 s before the hit, not 7.5 s). Done and missed rows stay visible for 3 s,
+or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show reminders skipped
+by a phase push**. At the lookahead time the cooldown provider is asked whether the action will be ready, which
+produces *ready in N s* and *no Lily*.
 
 **Recognising your presses.**
 
@@ -543,7 +547,9 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       the countdown.
 - [ ] At zero the header changes to `TOP - P1: … - 0:00` and the clock runs in real time.
 - [ ] Each reminder appears about 15 s before its press time and counts down. About 1.5 s before, it turns
-      **NOW** on a pulsing orange row and the sound plays once.
+      **NOW** on a pulsing orange row and the sound plays once (later for a call whose effect, used 1.5 s
+      before its press time, would end less than 1 s after the hit: then once a use lasts that long, or at
+      its press time).
 - [ ] Icons, action names in your client language, mechanic names, and targets/notes (*on MT*) look right
       for your plan.
 - [ ] At the striking dummy, use an action while it shows **NOW**: it turns into a green check mark. Let
