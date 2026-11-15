@@ -431,29 +431,83 @@ public class ImportRecastFitTests
     [InlineData("Tank 1\tTank 2\tExtras", "Reprisal\t\t", "Reprisal\t\tPLD Wings", 159.8)] // ready 2.8 s before it, before the Passage of Arms
     [InlineData("Extras\tTank 1\tTank 2", "\tReprisal\t", "PLD Wings\tReprisal\t", 159.3)]
     [InlineData("Extras\tTank 1\tTank 2", "\tReprisal\t", "PLD Wings\tReprisal\t", 159.8)]
-    public void AMoveNeverPassesAPassageOfArmsOfAnotherCell(string columns, string alpha, string bravo, double bravoHit)
+    public void AMoveThatWouldPassAPassageOfArmsOfAnotherCell_StopsJustBeforeIt(string columns, string alpha, string bravo, double bravoHit)
     {
         // Tank 1's Reprisal on Alpha (100, at 97) is ready again at 157. On Bravo a Paladin also presses Passage of Arms from
         // the Extras column, 2 s before the hit and last: a channel any other action ends. Pressed when Reprisal is ready
-        // (1.3 s before the hit, or 1 s), the Reprisal would come after it. The entry is every MT's: it keeps its press for
-        // each of them, and check reports the recast, for a Warrior too.
+        // (1.3 s before the hit, or 1 s), the Reprisal would come after it: it is pressed 0.1 s before it instead, when
+        // Reprisal is ready too. The entry is every MT's: no seat finds Reprisal on cooldown, a Warrior's neither.
         var fight = Fight(80, ("Alpha", 100), ("Bravo", bravoHit));
+        var r = Import(Sheet("P1", columns, "Alpha\t" + alpha, "Bravo\t" + bravo), fight);
+
+        Assert.Equal(-2.1, At(r, "p1.bravo", "Reprisal").Offset);
+        Assert.EndsWith(
+            "it is pressed 2.1 s before its hit instead of 3.0 s, just before the Passage of Arms at p1.bravo, which is pressed last, once Reprisal is ready again.",
+            Assert.Single(Fits(r)).Message,
+            StringComparison.Ordinal);
+        var paladin = Reminders(r, fight, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p1.bravo").ToList();
+        Assert.Equal(["Reprisal", "Passage of Arms"], paladin.Select(x => x.Item.Name));
+        Assert.True(paladin[0].PressAt < paladin[1].PressAt);
+        Assert.Empty(Conflicts(r, fight, Job.PLD, "MT"));
+        Assert.Empty(Conflicts(r, fight, Job.WAR, "MT"));
+    }
+
+    [Theory]
+    [InlineData("Tank 1\tTank 2\tExtras", "Reprisal\t\t", "Reprisal\t\tPLD Wings")]
+    [InlineData("Extras\tTank 1\tTank 2", "\tReprisal\t", "PLD Wings\tReprisal\t")]
+    public void AMoveThatWouldPassAPassageOfArmsOfAnotherCell_NotReadyBeforeIt_KeepsItsPress(string columns, string alpha, string bravo)
+    {
+        // Bravo at 158.9: Reprisal, ready again at 157, is not ready 0.1 s before the Passage of Arms (156.9). The entry keeps
+        // its press for every MT, and check reports the recast, for a Warrior too.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", 158.9));
         var r = Import(Sheet("P1", columns, "Alpha\t" + alpha, "Bravo\t" + bravo), fight);
 
         Assert.Null(At(r, "p1.bravo", "Reprisal").Offset);
         Assert.Empty(Fits(r));
-        var paladin = Reminders(r, fight, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p1.bravo").ToList();
-        Assert.Equal(["Reprisal", "Passage of Arms"], paladin.Select(x => x.Item.Name));
-        Assert.True(paladin[0].PressAt < paladin[1].PressAt);
+        Assert.Equal(["Reprisal", "Passage of Arms"], Reminders(r, fight, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p1.bravo").Select(x => x.Item.Name));
         Assert.Single(Conflicts(r, fight, Job.PLD, "MT"));
         Assert.Single(Conflicts(r, fight, Job.WAR, "MT"));
+    }
+
+    [Theory]
+    [InlineData(159.3, 160.0, -1.4)] // its hit 0.7 s before the Passage of Arms' (pressed at 158): 0.1 s before that press
+    [InlineData(159.6, 159.0, null)] // 0.6 s after it (pressed at 157): Reprisal is not ready 0.1 s before, so it stays
+    public void AMoveNeverPassesAPassageOfArmsOfANearbyHit(double bravo, double charlie, double? offset)
+    {
+        // Pressed when Reprisal is ready (1 s before Bravo, at the latest), the Bravo Reprisal would come after the Passage of
+        // Arms planned on Charlie and before its hit, ending its channel, though the two hits are not the same.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", bravo), ("Charlie", charlie));
+        var r = Import(Sheet("P1", "Tank 1\tTank 2\tExtras", "Alpha\tReprisal\t\t", "Bravo\tReprisal\t\t", "Charlie\t\t\tPLD Wings"), fight);
+
+        Assert.Equal(offset, At(r, "p1.bravo", "Reprisal").Offset);
+        var paladin = Reminders(r, fight, Job.PLD, "MT");
+        var poa = Assert.Single(paladin, x => x.Item.Name == "Passage of Arms");
+        Assert.DoesNotContain(paladin, x => x != poa && x.PressAt >= poa.PressAt - 0.005 && x.PressAt < poa.Hit);
+    }
+
+    [Fact]
+    public void Tea_TheHandOfPain4ReprisalIsNeverPressedAfterTheProtean2PassageOfArms()
+    {
+        // TEA P1: Hand of Pain 4 hits at 109, 0.1 s before Protean 2, where Extras has "PLD Wings" (pressed at 107.1). Tank 1's
+        // Reprisal at Doll Feeds is ready again at 107.3: pressed 1 s before Hand of Pain 4, it would end the channel, and
+        // it is not ready 0.1 s before the Passage of Arms. It keeps its press, and check reports the recast.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P1", "Tank 1\tTank 2\tExtras", "Doll Feeds\tReprisal\t\t", "Hand of Pain 4\tReprisal\t\t", "Protean 2\t\t\tPLD Wings"), tea);
+
+        Assert.Null(At(r, "p1.hand_of_pain_4", "Reprisal").Offset);
+        Assert.Empty(Fits(r));
+        Assert.Equal(
+            ["Reprisal", "Passage of Arms"],
+            Reminders(r, tea, Job.PLD, "MT").Where(x => x.Mechanic.Id is "p1.hand_of_pain_4" or "p1.protean_2").Select(x => x.Item.Name));
+        Assert.Single(Conflicts(r, tea, Job.PLD, "MT"));
     }
 
     [Fact]
     public void Tea_AMoveNeverPassesThePassageOfArmsInExtras()
     {
         // TEA P2: Tank 1's Reprisal at Water and Thunder 1 and again 58.9 s later at Water and Thunder 3, where Extras has
-        // "PLD Wings". Ready 1.9 s before the hit, the Reprisal would be pressed 1 s before it, after the Passage of Arms.
+        // "PLD Wings". Ready 1.9 s before the hit, the Reprisal would be pressed 1 s before it, after the Passage of Arms,
+        // and it is not ready 0.1 s before that one: it keeps its press.
         var tea = PlanImports.Tea;
         var r = Import(Sheet("P2", "Tank 1\tTank 2\tExtras", "Water and Thunder 1\tReprisal\t\t", "Water and Thunder 3\tReprisal\t\tPLD Wings"), tea);
 

@@ -262,8 +262,8 @@ Rules worth knowing:
   is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), never so that another of its items is pressed earlier than
   without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press), and never so
   that a seat that sees it loses what the recast fit keeps for it (below: a Passage of Arms of another cell stays the
-  last press of its hit, a follow-up stays in its trigger's window); otherwise both stay presses (a `still-active` info,
-  which says what a later press would break), and `check` reports the recast. After each round of the recast fit, a
+  last press before its hit, a follow-up stays in its trigger's window); otherwise both stay presses (a `still-active`
+  info, which says what a later press would break), and `check` reports the recast. After each round of the recast fit, a
   call after a press the fit moved that this press now serves as it is is read as still active too (TEA's `Asylum
   (Late)` at Double Rocket Punch, 18.8 s after the Gavel Asylum that the fit presses 1.5 s before its hit), its info in
   place of the one that kept it a press, unless a later call was read as still active from that call's own press: the
@@ -290,20 +290,22 @@ Rules worth knowing:
   It stays too when the move would press another item of the entry earlier than without it, since the offset is every
   item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
   (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge),
-  and when a seat that sees the entry needs it where it is (the move is every seat's): an action of it would come at or
-  after a Passage of Arms of another cell on its hit that is not before it now (LPDU TEA's `PLD Wings` in Extras beside
-  Tank 1's Reprisal: the Reprisal stays for every MT, a Warrior too), or a follow-up of the seat, the entry's own or one
-  whose trigger the entry presses, would leave a window after its trigger that it is in now, the trigger's longest
-  effect counted from its press as `check` counts it or from its NOW cue as `still-active` reads it (a Consolation more
-  than 22 s after the Summon Seraph before it, or after a Seraph summoned on its NOW cue, finds Seraph gone; one before
-  its Summon Seraph finds none yet). Only firm
-  presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
-  either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
-  ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote
-  (`still-active`'s) may move. A when-ready call ("on CD") is left to the runtime: it keeps its press and counts,
-  since its reminder already waits for the action in game (LPDU TOP's P5 party mitigation on cooldown, which a move
-  would only push into the Blind Faith calls). A sequence moves for its first step only (`check` times each step at its
-  item's press, the entry's unless it waits for a series floor or a later hit of its own; in game the later steps
+  and when a seat that sees the entry needs it where it is (the move is every seat's): a follow-up of the seat, the
+  entry's own or one whose trigger the entry presses, would leave a window after its trigger that it is in now, the
+  trigger's longest effect counted from its press as `check` counts it or from its NOW cue as `still-active` reads it
+  (a Consolation more than 22 s after the Summon Seraph before it, or after a Seraph summoned on its NOW cue, finds
+  Seraph gone; one before its Summon Seraph finds none yet). Nor is it pressed at or after a Passage of Arms of another
+  cell that a seat sees with it and that is not before it now, before that one's hit, whichever hit the entry is for
+  (TEA's Hand of Pain 4 hits 0.1 s before Protean 2): once nothing else moves (that Passage of Arms may wait for its
+  own recast first), it is pressed 0.1 s before the Passage of Arms, the move being every seat's (LPDU TEA's `PLD
+  Wings` in Extras beside Tank 1's Reprisal: 2.1 s before the hit at the latest, for every MT, a Warrior too), if its
+  action is ready by then; else it stays. Only firm presses keep an action on recast: not an optional entry (in
+  brackets, with a condition, one choice of an either/or), an either/or item or a note ("Temperance (still active)");
+  an optional call itself still waits ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset
+  the importer wrote (`still-active`'s) may move. A when-ready call ("on CD") is left to the runtime: it keeps its press
+  and counts, since its reminder already waits for the action in game (LPDU TOP's P5 party mitigation on cooldown, which
+  a move would only push into the Blind Faith calls). A sequence moves for its first step only (`check` times each step
+  at its item's press, the entry's unless it waits for a series floor or a later hit of its own; in game the later steps
   follow), and only when its later steps are instant oGCDs woven in right after it
   (`Kerachole → Holos`): a later GCD or cast (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the
   hit, so such a sequence keeps its press. An entry several seats see takes the latest press any of them needs; the
