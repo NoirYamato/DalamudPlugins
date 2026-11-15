@@ -295,18 +295,25 @@ calls come before their action is ready again after the same player's call befor
   (1 s before the hit, minus its longest cast or the GCD a follow-up needs first) nor than an action's own lead
   allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s). The press stays, and `check` reports the
   recast, when the action is ready only after that; when the move would press another item of the entry earlier
-  than without it, or a follow-up later than `check`'s window after its trigger (Seraph's 22 s for a Consolation);
-  and for the later steps of a sequence, and a sequence whose later steps are GCDs or casts (`Zoe → Eukrasian
-  Prognosis → Holos → Kerachole`): only instant oGCDs woven in after the first step (`Kerachole → Holos`) let it
-  move. An optional call still waits. An entry several seats see takes the latest press any of them needs; the
-  earliest press without a charge moves first, then the plan is replayed again, until nothing moves.
+  than without it, or take a follow-up of a seat that sees the entry (its own, or one whose trigger it presses)
+  out of the window after its trigger that it is in now, counted from the trigger's press as `check` counts it or
+  from its NOW cue as `still-active` reads it (Seraph's 22 s for a Consolation); and for the later steps of a
+  sequence, and a sequence whose later steps are GCDs or casts (`Zoe → Eukrasian Prognosis → Holos →
+  Kerachole`): only instant oGCDs woven in after the first step (`Kerachole → Holos`) let it move. A move never
+  lands at or after a Passage of Arms of another cell that a seat sees with the entry, up to that one's hit:
+  once nothing else moves, the press goes 0.1 s before that Passage of Arms if the action is ready by then, else
+  it stays. An optional call still waits. An entry several seats see takes the latest press any of them needs;
+  the earliest press without a charge moves first, then the plan is replayed again, until nothing moves. After
+  each round, `still-active` looks again at the calls after the presses moved so far (`docs/DESIGN.md` §6
+  step 4).
 - **What it gives.** The moved offset is written into the plan, so the review shows it as set and `mitcue plan`
   without `*`; `check` then reports it as `recast-tight`. The info gives the gap between the two items' presses
   before the fit (*Asylum at p2.gavel is planned 85.8 s after the Asylum at p2.photon_1 (recast 90.0 s): it is
   pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.*), ending
-  *as late as "(Late)" would press it, once … is ready again* when the `(Late)` bound stops it, or *as late as the
-  2.0 s lead of Passage of Arms allows, once … is ready again* when an action's own lead does, and with *which is
-  pressed later too* when the earlier press moved as well.
+  *as late as "(Late)" would press it, once … is ready again* when the `(Late)` bound stops it, *as late as the
+  2.0 s lead of Passage of Arms allows, once … is ready again* when an action's own lead does, or *just before
+  the Passage of Arms at …, which is pressed last, once … is ready again* when another cell's Passage of Arms
+  does, and with *which is pressed later too* when the earlier press moved as well.
 
 | Cell | Call | Before the fit | After |
 |---|---|---|---|

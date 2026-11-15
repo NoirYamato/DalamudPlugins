@@ -596,15 +596,24 @@ previews, which have no cooldown provider.
    sequence with such a step stays one note for everyone, written with its arrows
    (`PLD Wings → Addle`: no entry for the Paladin). The cell's remark in parentheses, or in
    a cell below it after a caret, stays on every entry the cell splits into (`Dismantle +
-   Feint (on BJ)`: the Machinist's Dismantle is on BJ too). A phase title over the player
-   columns starts its phase when a header row follows it (`P2: Brute Justice / Cruise
-   Chaser`), or, as a merged banner without one, when it reads as a title: the fight's name
-   for the phase, or at most four words with none of `,` `;` `.` `!` `?`, and so does its
-   part in parentheses, unless that is a timing hint (`(from phase start)`). A merged remark
-   that starts with a phase stays a note (`P1: MT invulns the second Wave Cannon, OT takes
-   boss after`, `P1 (MT invulns …)`), and a title whose name, or part in parentheses other
-   than a timing hint, is not the fight's name for its phase gets a `phase-title` info. An
-   unlabelled column of prose beside the labels holds the rows' notes.
+   Feint (on BJ)`: the Machinist's Dismantle is on BJ too); a call with words of its own (an
+   action's notes, a note's own parentheses or target) keeps them, and takes from the last
+   call's parentheses only a timing or a condition and what a caret below the cell says
+   (`Dismantle (on BJ) + Feint (on CC)`: the Dismantle is on BJ only; `Dismantle (on BJ) +
+   Feint (late)`: late too). A phase title over the player columns starts its phase when a
+   header row follows it (`P2: Brute Justice / Cruise Chaser`), or, as a merged banner
+   without one, when it reads as a title: the fight's name for the phase, or at most four
+   words with none of `,` `;` `.` `!` `?`, and so does its part in parentheses, unless that
+   is a timing hint (`(from phase start)`). A merged banner of a later phase whose name
+   reads as a title also starts that phase, whatever its part in parentheses holds, when
+   the next labelled row is a mechanic of that phase (its label, simplified or a prefix of
+   it, not a near miss) and none of the current phase's (TOP's `P2 (Party Synergy,
+   Limitless Synergy)`; TEA's `P3: Alexander Prime (Inception, Wormhole, J Waves)` above
+   Inception, not above `JKick`, which P2 has too). A merged remark that starts with a
+   phase stays a note (`P1: MT invulns the second Wave Cannon, OT takes boss after`,
+   `P1 (MT invulns …)`), and a title whose name, or part in parentheses other than a timing
+   hint, is not the fight's name for its phase gets a `phase-title` info. An unlabelled
+   column of prose beside the labels holds the rows' notes.
 3. **Cell parsing.** Split into items: ` / ` separates independent actions (each may have
    its own time), `+` and `,` join simultaneous actions, `→`/`->` make a sequence, `X/Y`
    without spaces means either/or (often across jobs: `Kera/Soil`). Extract `(1:18)`,
@@ -621,12 +630,17 @@ previews, which have no cooldown provider.
    which was used and why. Every tab's cells count, whichever are imported. "All of them"
    never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`,
    `Stack/Spread`) or in `and/or`. In both readings, a `/` between two single letters is
-   one word, spaced or not, which joins nothing (`N/A`, `N / A`); `MT/Co-tank` after an
-   action is one target (either of them); other slot, job, target or mechanic words joined
-   by `/` after an action are its remark (`Kera Stack/Spread`: Kerachole, noted
-   "Stack/Spread"; `Rampart MT/TB`), other words not (`Kera Left/Right`: a note item
-   "Right" under "all of them", "Right" left out of the either/or under "either one", with
-   a warning); and `X and/or Y` is either one. Also read since then: a cell that is one
+   one word, spaced or not, which joins nothing (`N/A`, `N / A`); `MT/Co-tank` or `MT/OT`
+   after an action is one target (either of them); other words joined by `/` after an
+   action that each name a player or a part of a mechanic (slots, jobs, target words such
+   as `tank` or `melee`, mechanic words such as `Stack`, `TB` or `Tower`) are its remark
+   (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread"; `Rampart MT/TB`); any other word
+   after a `/` is read like an action: under "all of them" a call of its own, a note when
+   it names no action (`Kera Left/Right`: Kerachole and a note item "Right", noted "Kera
+   Left", the call's action words and its remark, as each call of a cell of several calls
+   is noted), under "either one" an alternative, left out with a warning when it names
+   none (`Kera Left/Right`: Kerachole, noted "Left"; `Kera Left/Right + Holos`: noted
+   "Kera Left"); and `X and/or Y` is either one. Also read since then: a cell that is one
    pair of brackets (`(Shake)`: optional), a cell that points up (`(^on BJ)`: a remark on
    every item of the cell above) and `(Late)`: an entry pressed before its hit (not one on
    a mechanic with `press: after`, §5.1) gets the offset that presses it just before it, so
@@ -657,20 +671,32 @@ previews, which have no cooldown provider.
    lead). A note needs the earlier effect, lasting as long as the reminders count it
    covering a hit (a `when: before` action's longest effect: Neutral Sect's 30 s barrier),
    to outlast the later hit, or the later press when that comes after the hit, by 1 s. A
-   follow-up needs the action only when it is used: it is pressed within `check`'s
-   follow-up window after the earlier press's NOW cue, the action's longest effect
-   (Seraph's 22 s: LPDU TEA's plain "Seraph" at J Wave 7, 6 s after the one at J Wave 5, is
-   its Consolation alone; at level 100 Divine Grace's and Suntouched's 30 s). An earlier
-   press without a time in the sheet that falls short gets an offset that presses it
-   later, so that it serves both (LPDU TEA's Hidden Mines Temperance: `offset: -3.5`,
-   through Water 2), no later than `(Late)` would press it, never after the lead of a
-   `when: before` action that is no heal (Neutral Sect 4.5 s, Passage of Arms 2 s), and
-   never so that another of its items is pressed earlier than without it; like `(Late)`'s,
-   the offset is written into the plan, so the review and `mitcue plan` show it as set,
-   not automatic. Otherwise both stay presses, and `check` reports the recast. A
-   `still-active` info says which, with the gap between the two items' presses ("… but its
-   follow-up Consolation would be used after it is over …: both stay presses"; a move ends
-   "… so that it still lasts when Consolation is used"). A call planned again at or after
+   follow-up needs the action only when it is used: it is pressed after the earlier press
+   (a `Seraph` 2 s after a `Seraph (Late)` stays a second summon, as its Consolation would
+   come before that Summon Seraph), within `check`'s follow-up window after the earlier
+   press's NOW cue, the action's longest effect (Seraph's 22 s: LPDU TEA's plain "Seraph"
+   at J Wave 7, 6 s after the one at J Wave 5, is its Consolation alone; at level 100
+   Divine Grace's and Suntouched's 30 s). An earlier press without a time in the sheet
+   that falls short gets an offset that presses it later, so that it serves both (LPDU
+   TEA's Hidden Mines Temperance: `offset: -3.5`, through Water 2), no later than `(Late)`
+   would press it, never after the lead of a `when: before` action that is no heal (Neutral
+   Sect 4.5 s, Passage of Arms 2 s), never so that another of its items is pressed earlier
+   than without it, and never so that a seat that sees it loses what the recast fit keeps
+   for it (step 7: a Passage of Arms of another cell stays the last press before its hit,
+   a follow-up stays in its trigger's window); like `(Late)`'s, the offset is written into
+   the plan, so the review and `mitcue plan` show it as set, not automatic. Otherwise both
+   stay presses, and `check` reports the recast. A `still-active` info says which, with the
+   gap between the two items' presses ("… but its follow-up Consolation would be used
+   after it is over …: both stay presses"; "… and pressed later it would come after the
+   Passage of Arms at …, which is pressed last: both stay presses"; a move ends "… so that
+   it still lasts when Consolation is used"). After each round of the recast fit (step 7),
+   a call after a press the fit moved that this press now serves is read as still active
+   too, its info in place of the one that kept it a press (an `Asylum (Late)` at Double
+   Rocket Punch, 18.8 s after a Gavel Asylum the fit presses 1.5 s before its hit), unless
+   a later call was read as still active from that call's own press: the moved press need
+   not last through that one, so both stay presses ("… as the recast fit presses that one
+   1.5 s before its hit, but the Asylum at … is read as still active from this one: both
+   stay presses"), and `check` reports the recast. A call planned again at or after
    the action's own duration stays a press without an info, whatever the barrier or the
    follow-up window: a Neutral Sect named again 20–30 s later is no note, and at level 100
    a Temperance or Neutral Sect then is no Divine Caress or Sun Sign. An optional earlier
@@ -684,11 +710,16 @@ previews, which have no cooldown provider.
    one of them; one that speaks to players by role, slot or job ("Tanks: …, then OT
    provokes …") is the detail of all their entries, and a note entry of its own in a column
    with no entry there. A role or slot word that says where or for whom to press speaks to
-   no one ("on the melee", "under the tanks", "on melee and ranged", "on the co-tank", "the
-   tank buster", "the OT's buster"), nor does the job whose own action the note names
-   ("SCH: … press Soil"); a job named beside a word for several jobs' actions (Rampart,
-   "Invuln") does: "WAR Rampart the first tower set, then PLD provokes …" speaks to the
-   PLD. Either note reads the same whichever of its columns are imported.
+   no one ("on the melee", "under the tanks", "on melee and ranged", "on the MT/OT", "under
+   the tanks/healers", "on the co-tank", "the tank buster", "the OT's buster": a `/`, `&`
+   or `+` between such words lists them as "or" does), unless a colon follows it and no
+   place word but "for" or "to" places it: then it heads the note, as in "Tanks: …"
+   ("For the tanks: …", "Tip for melee: …", "To the melee: …", "For the MT and OT: …";
+   "Soil on the melee: …" and "WHM on the tank: …" place the actions). Nor does the job
+   whose own action the note names ("SCH: … press Soil"); a job named beside a word for
+   several jobs' actions (Rampart, "Invuln") does: "WAR Rampart the first tower set, then
+   PLD provokes …" speaks to the PLD. Either note reads the same whichever of its columns
+   are imported.
 5. **Mechanic resolution.** Per-fight aliases + phase context + monotonic row order +
    timestamps. Same label in different phases (`Hello World`, `Solar Ray`, `Magic Number`)
    is disambiguated by phase and order.
@@ -726,11 +757,21 @@ previews, which have no cooldown provider.
    7.2 s. Never later than `(Late)` would press it (step 3) nor than an action's own lead
    allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s): then just after the
    action is ready (the J Wave 7 Plenary, 1 s before its wave). The press stays, and
-   `check` reports the recast, when the action is ready only later than that, and when the
+   `check` reports the recast, when the action is ready only later than that, when the
    move would press another item of the entry earlier than without it (an item that waits
-   for a later hit or a series floor of its own, or Passage of Arms with the last item) or
-   a follow-up of the entry later than `check`'s window after its trigger (a Consolation
-   more than 22 s after the Summon Seraph before it). Only firm presses keep an action on
+   for a later hit or a series floor of its own, or Passage of Arms with the last item),
+   and when a seat that sees the entry needs it where it is (the move is every seat's): a
+   follow-up of the seat, the entry's own or one whose trigger the entry presses, would
+   leave a window after its trigger that it is in now, the trigger's longest effect counted
+   from its press, as `check` counts it, or from its NOW cue, as step 4 reads it (a
+   Consolation more than 22 s after the Summon Seraph before it, or before it). Nor is it
+   pressed at or after a Passage of Arms of another cell that a seat sees with it and that
+   is not before it now, up to that Passage of Arms' hit, whichever hit the entry is for
+   (TEA's Hand of Pain 4 hits 0.1 s before Protean 2): once nothing else moves (that
+   Passage of Arms may wait for its own recast first), it is pressed 0.1 s before the
+   Passage of Arms, for every seat, if its action is ready by then (in LPDU TEA's layout,
+   a Tank 1 Reprisal beside `PLD Wings` in Extras: 2.1 s before the hit at the latest, for
+   every MT, a Warrior too); else it stays. Only firm presses keep an action on
    recast: not an optional entry (grey, in brackets, with a condition, one choice of an
    either/or), an either/or item or a note; an optional call itself still waits (LPDU
    TEA's "CU (if up)" on Irresistible Grace 1). A press with a time in the sheet counts but
@@ -747,7 +788,9 @@ previews, which have no cooldown provider.
    link keeps its due lead. The offset is written into the plan: `mitcue plan` shows it
    without `*`, and the review as set, not automatic. The info gives the gap between the
    two items' presses before the fit, with "which is pressed later too" when the earlier
-   press moved as well. In the bundled plans the fit moves LPDU TEA's Gavel Asylum
+   press moved as well, and "just before the Passage of Arms at …, which is pressed last"
+   when one stops it. After each round, step 4 looks again at the calls after the presses
+   moved so far. In the bundled plans the fit moves LPDU TEA's Gavel Asylum
    (−1.5 s), J Wave 7 Plenary (−1 s), Water 2 Sacred Soil (−2.4 s), the Sage's Protean 2
    "EukProg/Kerachole" (−2 s, the `(Late)` bound, when Kerachole is ready again) and
    Irresistible Grace 1 "CU (if up)" (−1 s), and LPDU TOP's M2 Feint at Omega (−1 s).

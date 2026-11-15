@@ -371,8 +371,10 @@ steps.
    calls for the jobs they name*). Its cells are read call by call: a call of a job's own action is that job's
    (*PLD Wings* is the Paladin's), and the rest of the cell, a note or an action several jobs share (*Feint*),
    is one note for everyone; a remark in brackets after the cell, or below it after a caret, goes with each of
-   them (*Dismantle + Feint (on BJ)*: the Dismantle is on BJ too). A sequence (`→`) with a step several jobs
-   share stays one note for everyone (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what
+   them (*Dismantle + Feint (on BJ)*: the Dismantle is on BJ too), but a call with a remark of its own keeps it
+   and takes only a timing or a condition from the last one (*Dismantle (on BJ) + Feint (on CC)*: the
+   Dismantle is on BJ only). A sequence (`→`) with a step several jobs share stays one note for everyone
+   (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what
    `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or *all of them (Soil/Succor)*. On
    *(automatic)*, MitCue reads all of them when no cell of the sheet joins actions another way (`+`, `,`, `&`,
    `;`, `|`, an arrow, a spaced ` / `, a line break or a gap of three or more spaces) and at least two cells
@@ -380,8 +382,9 @@ steps.
    (`Soil/Reci/Deploy/Whisper`), else either one. In both readings, slots, jobs, target or mechanic words
    joined by `/` after an action are its note (*Kera Stack/Spread*, *Rampart MT/TB*), or its target when they
    are all slots or tank words (*Benison MT/Co-tank*: either of them). Other words are not: *Kera Left/Right*
-   gives Kerachole and a note *Right* of its own when `/` means all of them, and drops *Right* when it means
-   either one, with a warning. *N/A* is one word, also spaced (*N / A*), and joins nothing. The cells of every
+   gives Kerachole, noted *Kera Left*, and a note *Right* of its own when `/` means all of them, and Kerachole
+   noted *Left*, without *Right*, when it means either one, with a warning. *N/A* is one word, also spaced
+   (*N / A*), and joins nothing. The cells of every
    tab count, whichever tabs and columns you import, and the review's notes about the whole import say which
    reading was used. Click **Import and review**. If the result looks wrong, **Not reading it right? Use the AI
    route**.
@@ -417,14 +420,20 @@ comes less than the action's own duration after your earlier call (press to pres
 Neutral Sect and Rampart, 22 s for Summon Seraph) becomes a note if your earlier press keeps the effect up
 through its hit (pressed on its NOW cue, the effect lasts at least 1 s past that hit; for Neutral Sect its
 30 s Helios barrier counts): *Temperance (still active)*. For an action with a follow-up it becomes that
-follow-up, if the earlier press still allows it when the follow-up is used (Summon Seraph's Consolation; at
-level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign). A second call that comes later than that
-stays a call, even within Neutral Sect's 30 s barrier or the 30 s in which Divine Caress and Sun Sign can be
-used. When the earlier call has no time in the sheet and would wear off too soon, MitCue presses it later if
-that keeps the effect up, and writes that time into the plan (the review shows it as set, not automatic):
-LPDU TEA's Hidden Mines Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2.
-It never presses Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the hit, nor another
-action of that call earlier. Otherwise both stay calls. An optional call (grey, in brackets, with a condition,
+follow-up, if the earlier press comes before it and still allows it when the follow-up is used (Summon
+Seraph's Consolation; at level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign): a *Seraph* 2 s
+after a *Seraph (Late)* stays a second summon, since its Consolation would come first. A second call that
+comes later than that stays a call, even within Neutral Sect's 30 s barrier or the 30 s in which Divine Caress
+and Sun Sign can be used. When the earlier call has no time in the sheet and would wear off too soon, MitCue
+presses it later if that keeps the effect up, and writes that time into the plan (the review shows it as set,
+not automatic): LPDU TEA's Hidden Mines Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts
+through Water 2. It never presses Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the
+hit, nor another action of that call earlier, nor so that it would come after a Passage of Arms of another
+column that the same player sees, before that one's hit, or put a follow-up (Consolation, Divine Caress) out of
+its trigger's time. Otherwise both stay calls, with a note in the review that says why. When a call's wait (see
+below) moves your earlier call, a later call that it now keeps up becomes a note too (*Asylum (Late)* on
+Double Rocket Punch, 18.8 s after a Gavel Asylum that waits until 1.5 s before Gavel), unless a call after that
+one is kept up by its own press: then both stay calls. An optional call (grey, in brackets, with a condition,
 or one choice of an either/or) keeps nothing up.
 
 A call without a time in the sheet that would come before its action is ready again, after your earlier
@@ -432,18 +441,21 @@ presses of it (counted with the action's charges, as `mitcue check` counts them)
 it when the action is ready plus 1.5 s, so that with the default **Turn "NOW" this early** (1.5 s) it turns NOW
 as the action comes back (LPDU TEA's Gavel Asylum: 1.5 s before Gavel instead of 7.2 s), but never later than
 `(Late)` would press it, nor than the lead of any action of the call allows (Neutral Sect 4.5 s, Earthly Star
-10 s, Passage of Arms 2 s: *Reprisal + Wings* waits only until 2 s before the hit). That time is written into
-the plan: the review shows it as set, not automatic, with a note that says why (*… so that its NOW cue comes
-when Asylum is ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold its
+10 s, Passage of Arms 2 s: *Reprisal + Wings* waits only until 2 s before the hit). Nor does it wait past a
+Passage of Arms of another column that the same player sees, before that one's hit, since that would end its
+channel: it is then pressed 0.1 s before the Passage of Arms, if the action is ready by then (a tank column's
+*Reprisal* next to *PLD Wings* in *Extras*), else it keeps its time. That time is written into the plan: the
+review shows it as set, not automatic, with a note that says why (*… so that its NOW cue comes when Asylum is
+ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold its
 action back from later calls, though it waits for it itself; a call with a time in the sheet, or marked *on
 cooldown*, keeps its time; and a sequence (`→`) waits only when its later steps are instant actions woven in
 after the first (*Kerachole → Holos*). When the action would be ready too late, the call keeps its time, and so
 does a call whose wait would press another of its actions earlier than without it (*Rampart + Reprisal* on
-TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge) or a follow-up later than its trigger allows (a
-Consolation more than 22 s after Summon Seraph); in game the reminder then shows *ready in N s*. `mitcue
-check` reports a call that waited as tight (*only 1.5 s to spare*, or less when `(Late)` or a lead stopped
-it: 0.9 s for the J Wave 7 Plenary, none for the Sage's Protean 2 call), and one that could not wait as a recast
-conflict. The full rules:
+TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge) or put a follow-up, of this call or another of
+yours, out of its trigger's time (a Consolation more than 22 s after Summon Seraph, or before it); in game the
+reminder then shows *ready in N s*. `mitcue check` reports a call that waited as tight (*only 1.5 s to spare*,
+or less when `(Late)`, a lead or a Passage of Arms stopped it: 0.9 s for the J Wave 7 Plenary, none for the
+Sage's Protean 2 call), and one that could not wait as a recast conflict. The full rules:
 [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops

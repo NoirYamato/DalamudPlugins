@@ -77,11 +77,12 @@ Notes:
   another way ("+", ",", "&", ";", "|", an arrow, a spaced " / ", a line break or a gap of three or more spaces) and
   two or more cells list several actions of one job with "/", three or more in one; the `slash-reading` diagnostic
   says which reading was used and why. Under "and", a "/" between slots, jobs, target or mechanic words
-  ("MT/Co-tank") or in "and/or" never joins. In both readings, slots, jobs, target or mechanic words joined by "/"
-  after an action are its note ("Kera Stack/Spread", "Rampart MT/TB"), or its target when they are all slots or
-  tank words ("Benison MT/Co-tank"); other words are not ("Kera Left/Right": a note item "Right" under `and`,
-  "Right" left out of the either/or under `or`, with a warning). "N/A" (also "N / A") is one word that joins
-  nothing.
+  ("MT/Co-tank") or in "and/or" never joins. In both readings, words joined by "/" after an action that each are
+  a slot, job, target or mechanic word are its note ("Kera Stack/Spread", "Rampart MT/TB"), or its target when
+  they are all slots or tank words ("Benison MT/Co-tank", "Rampart MT/OT"); other words are read like actions
+  ("Kera Left/Right": under `and` Kerachole, noted "Kera Left", and a note item "Right"; under `or` Kerachole,
+  noted "Left", with "Right" left out of the either/or and a warning). "N/A" (also "N / A") is one word that
+  joins nothing.
 - Plans are read as the plugin reads them: slot synonyms (`T1`/`T2`, `ST`, `D1`-`D4`) become the standard slots,
   and an entry with no job in a column with a job gets that job (a job-less call in "H1 AST" is the Astrologian's).
 - `simulate` plays only the event types the plugin sees in game (combat start/end, cast starts, resolved boss
@@ -114,5 +115,7 @@ Notes:
   a recast the fit leaves: a time in the sheet, an "on CD" call, a later step of a sequence or one whose later steps
   are GCDs or casts, an action ready only after "(Late)" or the lead of an action of the call (Neutral Sect 4.5 s,
   Earthly Star 10 s, Passage of Arms 2 s) would press it, a wait that would press another action of the call
-  earlier or a follow-up out of its trigger's window, and a conflict with an earlier optional call, which the fit
-  does not count (`check` warns that "an optional use is involved").
+  earlier or put a follow-up of any seat that sees it out of its trigger's window, a wait that would pass a
+  Passage of Arms of another cell before that one's hit when the action is not ready 0.1 s before it (a wait
+  never passes it), and a conflict with an earlier optional call, which the fit does not count (`check` warns
+  that "an optional use is involved").
