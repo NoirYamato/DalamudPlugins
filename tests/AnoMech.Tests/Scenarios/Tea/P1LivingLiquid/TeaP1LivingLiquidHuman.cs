@@ -33,6 +33,26 @@ public enum TeaP1HumanCleanses { InItsOwnOrder, InTheOtherHealersOrder, Never }
 // it, as the strat does; onto the middle and no farther; or beside the other tank, short of the middle.
 public enum TeaP1HumanBringsItsBoss { ThroughTheMiddle, OntoTheMiddle, BesideTheOtherTank, Never }
 
+// What a main tank does about its tornado's telegraphed wave at the pull, which throws whoever it hits: it holds its
+// ground with Arm's Length, steps out of it along the rim and back, or stays and is thrown.
+public enum TeaP1HumanTelegraph { HoldsItsGround, StepsOutAndBack, Stays }
+
+// Which Jagd Doll a damage dealer hits: its own quarter's, the one of the other damage dealer of its kind, or none.
+public enum TeaP1HumanHits { ItsOwnDoll, TheOthersDoll, NoDoll }
+
+// Where a melee waits by its doll: half a yalm off it, away from the tornado beside it, as the strat does; on it; 2 y
+// toward the other melee's doll; or half a yalm toward the tornado beside it.
+public enum TeaP1HumanByItsDoll { HalfAYalmOff, OnIt, TwoYalmsTowardTheOtherMeleesDoll, HalfAYalmTowardTheTornado }
+
+// When it draws its doll through a boss: as the strat does (a melee once the doll is under a quarter, a ranged after
+// the second Exhaust); 2 s after the doll's tether shows, ready or not; or, ready, once a boss rests on the middle,
+// which for a melee is later than the strat and for a ranged sooner.
+public enum TeaP1HumanFeeds { AsTheStratDoes, TwoSecondsAfterItsTether, OnceABossRestsOnTheMiddle }
+
+// Where a healer waits out the dolls: far out on its split spot until their first Exhaust, or in the middle from the
+// moment they appear, as some guides draw it.
+public enum TeaP1HumanHealerWaits { FarOut, InTheMiddle }
+
 // How one scripted human plays its seat; the defaults are the strat's.
 internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace Pace, float Late)
 {
@@ -98,6 +118,62 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 
     // The player's job as its client has it; null leaves its seat's own.
     public JobId? Job { get; init; }
+
+    // -- The pull --
+
+    // The main tank's Provoke on the Liquid Hand, on the fight's clock; null: 0.7 s after it sees the palm.
+    public float? ProvokesAt { get; init; }
+    public bool NeverProvokes { get; init; }
+
+    // The main tank's invulnerability, on the fight's clock; null: 1.6 s after its tornado's telegraph shows.
+    public float? TurnsInvulnerableAt { get; init; }
+    public bool NeverTurnsInvulnerable { get; init; }
+
+    public TeaP1HumanTelegraph Telegraph { get; init; }
+
+    // Having stepped out of the telegraph, the main tank stops this far short of its spot on its way back.
+    public float ComesBackShortBy { get; init; }
+
+    // The main tank takes the Living Liquid this far along the rim from the strat's spot, away from the middle tornado.
+    public float ParksAlongTheRim { get; init; }
+
+    // A tank presses its cooldowns, its Arm's Length and its invulnerability with the nearest doll targeted.
+    public bool PressesWithADollTargeted { get; init; }
+
+    // The main tank sets off for the middle this long after the strat's beat.
+    public float LeadsTheLiquidInLate { get; init; }
+
+    // On the middle the main tank stands this far from the Living Liquid, between the middle tornado and the one right
+    // of the open quarter; null: the strat's 3.9 y.
+    public float? HoldsThisFarFromTheLiquid { get; init; }
+
+    // The off tank's Provoke back, on the fight's clock; null: 1.5 s after it sees the first Fluid Strike.
+    public float? ProvokesBackAt { get; init; }
+    public bool NeverProvokesBack { get; init; }
+
+    // The off tank takes the Liquid Hand only a little way out as it splits off, 14 y from where the Living Liquid
+    // goes.
+    public bool HoldsTheHandNearTheLiquid { get; init; }
+
+    // Shown a fist at the pull, the off tank walks to the Living Liquid's flank all the same.
+    public bool WalksInOnAFist { get; init; }
+
+    public TeaP1HumanHits Hits { get; init; }
+
+    // On top of the reaction time, for its first hit on its doll alone.
+    public float HitsLate { get; init; }
+
+    // Its hit is a spell cast this long, standing still; null: 2.5 s for the caster's seat and none for the others.
+    public float? CastsFor { get; init; }
+
+    public TeaP1HumanByItsDoll ByItsDoll { get; init; }
+
+    public TeaP1HumanFeeds Feeds { get; init; }
+
+    // A ranged stays on its bait through its tornado's telegraphed wave.
+    public bool StaysInItsTelegraph { get; init; }
+
+    public TeaP1HumanHealerWaits Waits { get; init; }
 }
 
 // The sunny-day soak drives the player's seat with the bots' own AI. Here the seat is a human from the first frame,
@@ -109,6 +185,15 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 //
 // A tank takes its own tether out of its line, wherever it is, and walks it to its spot; a healer presses Esuna every
 // 2.5 s on the next seat of its order that still shows Throttle. Nothing presses for it.
+//
+// At the pull it also sees Cascade's bar, the Liquid Hand leaving the off tank, the tornadoes' telegraphs going off,
+// the dolls appearing and turning targetable, the first Fluid Strike, each Exhaust, Hand of Pain landing, its own
+// doll's health and whether a boss stands still. A main tank Provokes the Hand once it shows its palm, holds its
+// ground in its tornado's telegraph and turns invulnerable; an off tank Provokes the Hand back after the busters; each
+// leads its boss onto the middle after Hand of Pain and takes its hold once the boss rests there. A damage dealer hits
+// its doll once it is targetable, in reach and no boss stands by it, a caster standing still for its cast, and draws
+// it through the nearer boss at rest, to a spot clear of the water. A healer waits far out until the first Exhaust.
+// With the sim resolving its actions, a tank also presses a cooldown ahead of each buster it is to take.
 internal sealed class TeaP1LivingLiquidHuman
 {
     internal const int LpduStrat = 0;
@@ -127,10 +212,36 @@ internal sealed class TeaP1LivingLiquidHuman
     private const string Tethers = "tethers", Drainage = "drainage", NewTornadoes = "new tornadoes", Throttle = "throttle";
     private const string CascadeLands = "cascade lands";
     private const string TornadoAim = "tornado aim", UnseenTornadoWaves = "unseen tornado waves", Glow = "glow";
+    private const string FirstTornadoes = "first tornadoes", CascadeBar = "cascade bar", TornadoWavesFired = "tornado waves fired";
+    private const string DollsAppear = "dolls", DollsTargetable = "dolls targetable", Exhaust = "exhaust";
+    private const string HandOfPainLands = "hand of pain lands", FluidStrike = "fluid strike", HandLeft = "hand left";
+
+    // The pull's beats, each counted from what the human sees.
+    private const float SplitsAfterTheTornadoes = 4.4f;
+    private const float ProvokesAfterThePalm = 0.7f, TurnsInvulnerableAfterTheTelegraph = 1.6f, ProvokesBackAfterTheStrike = 1.5f;
+    private const float HitsAfterTheDollsTurnTargetable = 0.85f, StartsItsCastAfterTheDollsTurnTargetable = 0.3f, HitsAnothersDollAfterItTurnsTargetable = 0.2f;
+    private const float LeavesTheRimAfterHandOfPain = 0.9f, TakesItsHoldAfterHandOfPain = 4.4f;
+    private const float TheSecondStrikeBeforeProteanOne = 5.1f, ThePullLastLooksAt = 60.5f;
+    private const float AMeleeReaches = 3.5f, ARangedReaches = 25f, NoBossThisCloseToADollBeingHit = 5.2f;
+    private const float PastTheBossADollIsDrawnThrough = 2.5f, AFeederKeepsFromEveryTornado = 8.3f, AFeederStaysWithinOfTheMiddle = 19.3f;
+    private const float ABossRestsOnTheMiddleWithin = 3f;
+    private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141;
+    private const uint Vengeance = 44, Sentinel = 17, ShadowWall = 3636, Nebula = 16148;
+
+    // How often a run sees each of these in the pull, in Protean 1 and in Cascade 2.
+    private static readonly Dictionary<string, int[]> SeenPerPart = new()
+    {
+        [Telegraph] = [0, 1, 1], [TelegraphFired] = [0, 1, 1], [Set] = [0, 2, 2], [CascadeLands] = [1, 0, 1],
+        [TornadoAim] = [1, 0, 1], [UnseenTornadoWaves] = [1, 0, 1], [Glow] = [1, 0, 1],
+    };
 
     internal static readonly PartyRole[] FarFour = [RegenHealer, ShieldHealer, PhysRangedDps, CasterDps];
+    private static readonly PartyRole[] Melee = [MeleeDpsA, MeleeDpsB];
+    private static readonly PartyRole[] Ranged = [PhysRangedDps, CasterDps];
 
-    private sealed record Leg(string Cue, float Beat, Func<ScenarioProbe, Vector2?> To, bool Follows = false, bool Sprints = false, bool IfItComes = false)
+    // When: it does not set off until this holds.
+    private sealed record Leg(string Cue, float Beat, Func<ScenarioProbe, Vector2?> To, bool Follows = false, bool Sprints = false, bool IfItComes = false,
+        Func<ScenarioProbe, bool>? When = null)
     {
         public bool SetOff { get; set; }
     }
@@ -156,11 +267,22 @@ internal sealed class TeaP1LivingLiquidHuman
     private int gcds;
     private bool pressedItsCooldown, pressedItsAntiKnockback, everHeld;
     private int crossing;
+    private readonly HashSet<string> pressed = [];
+    private bool sawAForm, theHandWasOnIt, hadADoll, wentOnAfterItsDoll;
+    private float? castResolvesAt, itsDollLookedReadyAt;
+    private ulong castsAt;
+    private Vector2? drewItsDollThroughABossAt;
 
     public TeaP1OpenQuarter? Open1Read { get; private set; }
     public TeaP1OpenQuarter? Open2Read { get; private set; }
     public int Slides { get; private set; }
+
+    // The form the Liquid Hand last showed, and the one it showed at the pull.
     public bool? SawAPalm { get; private set; }
+    public bool? SawAPalmAtThePull { get; private set; }
+    public float? ProvokedAt { get; private set; }
+    public float? TurnedInvulnerableAt { get; private set; }
+    public float? HitADollAt { get; private set; }
     public List<PartyRole> Cleansed { get; } = [];
     public TeaP1Tornado? HeldAsDrainageWentOff { get; private set; }
     public bool HeldTwoAtOnce { get; private set; }
@@ -173,21 +295,23 @@ internal sealed class TeaP1LivingLiquidHuman
         this.play = play;
         seat = play.Seat;
         late = play.Late;
+        if (roll.Plays(Pull)) legs.AddRange(ThroughThePull());
         if (roll.Plays(Protean1)) legs.AddRange(ThroughProteanOne());
         if (roll.Plays(Cascade2)) legs.AddRange(FromCascadeTwo());
     }
 
     // One run with the human in its seat from the first frame, as the plugin has it: nothing but that tells the strat
-    // to press nothing for it. A tank's own cooldowns count.
+    // to press nothing for it. A tank's own cooldowns count: the sim resolves a tank's actions unless `resolved` says not.
     public static (ScenarioRun Run, TeaP1LivingLiquidHuman Human) Play(Roll roll, TeaP1LivingLiquidHumanPlay play, int seed,
-        bool mayLose = false, Action<TeaP1LivingLiquidStateOverrides>? pin = null, Action<ScenarioProbe>? probe = null, float? stopAt = null)
+        bool mayLose = false, Action<TeaP1LivingLiquidStateOverrides>? pin = null, Action<ScenarioProbe>? probe = null, float? stopAt = null,
+        bool? resolved = null)
     {
         var human = new TeaP1LivingLiquidHuman(roll, play);
         var run = ScenarioRun.Execute(typeof(TeaP1LivingLiquidScenario), LpduStrat, seed, new ScenarioRunOptions
         {
             PlayerRole = play.Seat,
             StopAt = stopAt,
-            UserActionsEnabled = play.Seat.IsTank(),
+            UserActionsEnabled = resolved ?? play.Seat.IsTank(),
             WriteArtifactsOnFailure = !mayLose,
             Configure = play.Job is { } job ? _ => ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)job : null,
             Overrides = o =>
@@ -208,17 +332,117 @@ internal sealed class TeaP1LivingLiquidHuman
 
     // -- The walks --
 
+    private IEnumerable<Leg> ThroughThePull()
+    {
+        if (seat != MainTank) yield return new(FirstTornadoes, SplitsAfterTheTornadoes, WhereItSplitsTo);
+        switch (seat)
+        {
+            case MainTank:
+                yield return new(Start, 2.0f, p => Spot(p, Pull, 2.0f));
+                yield return new(CascadeBar, 0.1f, p => Spot(p, Pull, 14.3f));
+                yield return new(FirstTornadoes, SplitsAfterTheTornadoes, _ => Frame1.ToArena(ItsBaitBesideTheMiddleTornado), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
+                if (play.Telegraph == TeaP1HumanTelegraph.StepsOutAndBack)
+                {
+                    yield return new(TornadoAim, 0.1f, _ => Frame1.ToArena(OutOfTheMiddleTornadosTelegraph));
+                    yield return new(TornadoWavesFired, 0.05f, _ => Frame1.ToArena(BackOnItsBaitOrShortOfIt));
+                }
+                yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain + play.LeadsTheLiquidInLate, p => Spot(p, Pull, 42.5f));
+                yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain + play.LeadsTheLiquidInLate, ItsHoldBesideTheLiquid, Follows: true,
+                    When: p => AtRest(Stage.Fight(p).Liquid));
+                break;
+            case OffTank:
+                yield return new(HandLeft, 0.05f, _ => Frame1.ToArena(Stage.OffTanksFlank), IfItComes: true);
+                if (play.WalksInOnAFist) yield return new(Glow, 0.5f, _ => SawAPalmAtThePull == false ? Frame1.ToArena(Stage.OffTanksFlank) : null);
+                yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
+                yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain, p => Spot(p, Pull, 46.6f), Follows: true, When: p => AtRest(Stage.Fight(p).Hand));
+                break;
+            case RegenHealer or ShieldHealer:
+                if (play.Waits == TeaP1HumanHealerWaits.InTheMiddle)
+                    yield return new(DollsAppear, 0.9f, _ => Frame1.ToArena(seat == RegenHealer ? new Vector2(-1.0f, -1.9f) : new Vector2(-0.1f, -0.2f)));
+                yield return new(Exhaust, 0.2f, p => Spot(p, Pull, 42.5f));
+                break;
+            case MeleeDpsA or MeleeDpsB:
+                yield return new(DollsAppear, play.Hits == TeaP1HumanHits.TheOthersDoll ? 0.1f : 0.9f, _ => Frame1.ToArena(WhereItWaitsByItsDoll));
+                break;
+            default:
+                if (!play.StaysInItsTelegraph)
+                {
+                    yield return new(TornadoAim, 0.1f, p => Spot(p, Pull, 32.5f));
+                    yield return new(TornadoWavesFired, 0.05f, p => Spot(p, Pull, 35.15f));
+                }
+                yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
+                break;
+        }
+    }
+
+    private Vector2? WhereItSplitsTo(ScenarioProbe p)
+        => seat == OffTank && play.HoldsTheHandNearTheLiquid ? Frame1.ToArena(Stage.Off(Vector2.Zero, 5.5f, 39f)) : Spot(p, Pull, 24.0f);
+
+    // The strat's spot at the rim beside the middle tornado, or one farther along the rim from that tornado.
+    private Vector2 ItsBaitBesideTheMiddleTornado
+    {
+        get
+        {
+            var bait = Stage.MainTanksBait;
+            var bearing = MathF.Atan2(bait.X, -bait.Y) * 180f / MathF.PI;
+            return Stage.Off(Vector2.Zero, bait.Length(), bearing + play.ParksAlongTheRim / bait.Length() * 180f / MathF.PI);
+        }
+    }
+
+    // On the rim, 24 degrees off the line from the middle tornado to the strat's spot: 9 degrees outside its wave.
+    private static readonly Vector2 OutOfTheMiddleTornadosTelegraph = Stage.Off(Stage.South, 14.7f, 282f);
+
+    private Vector2 BackOnItsBaitOrShortOfIt
+        => ItsBaitBesideTheMiddleTornado + play.ComesBackShortBy * Vector2.Normalize(OutOfTheMiddleTornadosTelegraph - ItsBaitBesideTheMiddleTornado);
+
+    private Vector2? ItsHoldBesideTheLiquid(ScenarioProbe p)
+        => play.HoldsThisFarFromTheLiquid is { } far ? Frame1.ToArena(Stage.Off(TheLiquidIn(p, Frame1), far, 135f)) : Spot(p, Pull, 46.6f);
+
+    private static bool AtRest(SimEnemy? boss) => boss is null or { MoveDestination: null };
+
+    private PartyRole WhoseDollItHits => play.Hits != TeaP1HumanHits.TheOthersDoll ? seat : TheOtherOfItsKind(seat);
+
+    private static PartyRole TheOtherOfItsKind(PartyRole damageDealer) => damageDealer switch
+    {
+        MeleeDpsA => MeleeDpsB,
+        MeleeDpsB => MeleeDpsA,
+        PhysRangedDps => CasterDps,
+        _ => PhysRangedDps,
+    };
+
+    // In the first tornadoes' frame.
+    private Vector2 WhereItWaitsByItsDoll
+    {
+        get
+        {
+            var doll = TheStage.DollSpot(Stage.DollOf[WhoseDollItHits]);
+            var fromItsTornado = Vector2.Normalize(doll - new[] { Stage.West, Stage.South, Stage.East }.MinBy(tornado => Vector2.Distance(tornado, doll)));
+            return play.ByItsDoll switch
+            {
+                TeaP1HumanByItsDoll.OnIt => doll,
+                TeaP1HumanByItsDoll.TwoYalmsTowardTheOtherMeleesDoll
+                    => doll + 2f * Vector2.Normalize(TheStage.DollSpot(Stage.DollOf[TheOtherOfItsKind(WhoseDollItHits)]) - doll),
+                TeaP1HumanByItsDoll.HalfAYalmTowardTheTornado => doll - 0.5f * fromItsTornado,
+                _ => doll + 0.5f * fromItsTornado,
+            };
+        }
+    }
+
+    // What Protean 1's first walk is counted from: the run's start, or after a pull the second Fluid Strike.
+    private (string Cue, float Beat) ProteanOneStarts => roll.First == Pull ? ($"{FluidStrike} 2", TheSecondStrikeBeforeProteanOne) : (Start, 0f);
+
     private IEnumerable<Leg> ThroughProteanOne()
     {
+        var (starts, after) = ProteanOneStarts;
         if (play.TakesItsOwnTelegraphedWave)
         {
-            yield return new(Start, 1.5f, p => Spot(p, Protean1, 5.3f));
+            yield return new(starts, after + 1.5f, p => Spot(p, Protean1, 5.3f));
             yield return new(Thrown, 0f, p => Spot(p, Protean1, 5.3f), IfItComes: true);
         }
         else
         {
             if (seat != MainTank || !play.NeverTurnsTheLiquid)
-                yield return new(Start, 1.5f, p => seat == MainTank && play.StacksOffSouth != 0f
+                yield return new(starts, after + 1.5f, p => seat == MainTank && play.StacksOffSouth != 0f
                     ? Frame1.ToArena(Stage.Off(TheLiquidIn(p, Frame1), 3.3f, 180f + play.StacksOffSouth))
                     : Spot(p, Protean1, 1.5f));
             yield return new(Nth(Telegraph, Protean1), 0.5f, p => Bait(p, Spot(p, Protean1, 5.3f)));
@@ -242,8 +466,8 @@ internal sealed class TeaP1LivingLiquidHuman
         else if (!play.NeverTurnsTheLiquid)
         {
             if (!play.LeavesTheLiquidWhereItStands)
-                yield return new(CascadeLands, 0.5f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? PastTheMiddleFromTheLiquid(p) : null);
-            yield return new(CascadeLands, 3.6f + play.LeadsItBackLate, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
+                yield return new(Nth(CascadeLands, Cascade2), 0.5f + play.LeadsItBackLate, p => TheLiquidLooksOffTheMiddle(p) ? PastTheMiddleFromTheLiquid(p) : null);
+            yield return new(Nth(CascadeLands, Cascade2), 3.6f + play.LeadsItBackLate, p => play.MaxMelee ? Frame2.ToArena(new Vector2(-0.8f, -7.4f))
                 : play.TurnsItOffNorth != 0f ? Frame2.ToArena(Stage.Off(TheLiquidIn(p, Frame2), 3.9f, play.TurnsItOffNorth))
                 : Spot(p, Cascade2, 9.5f), Follows: true);
         }
@@ -251,15 +475,15 @@ internal sealed class TeaP1LivingLiquidHuman
         yield return new(Nth(Telegraph, Cascade2), 0.5f, p => Bait(p, Spot(p, Cascade2, 18.7f)));
         if (seat == MeleeDpsA) yield return new(Nth(TelegraphFired, Cascade2), 0.1f, p => Bait(p, Spot(p, Cascade2, 21.3f)));
         if (seat == MainTank) yield return new(Nth(Set, Cascade2), 0.05f, p => Spot(p, Cascade2, 23.35f));
-        if (FarFour.Contains(seat)) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
-        if (seat is MeleeDpsA or MeleeDpsB) yield return new(TornadoAim, 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)));
-        if (seat == OffTank) yield return new(TornadoAim, 1.0f, p => Bait(p, Spot(p, Cascade2, 27.0f)));
-        yield return new(UnseenTornadoWaves, 0.05f, p => seat == OffTank && play.WaitsForTheGlowInTheMiddle ? Vector2.Zero : Spot(p, Cascade2, 29.35f));
+        if (FarFour.Contains(seat)) yield return new(Nth(TornadoAim, Cascade2), 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
+        if (seat is MeleeDpsA or MeleeDpsB) yield return new(Nth(TornadoAim, Cascade2), 0.05f, p => Bait(p, Spot(p, Cascade2, 24.25f)));
+        if (seat == OffTank) yield return new(Nth(TornadoAim, Cascade2), 1.0f, p => Bait(p, Spot(p, Cascade2, 27.0f)));
+        yield return new(Nth(UnseenTornadoWaves, Cascade2), 0.05f, p => seat == OffTank && play.WaitsForTheGlowInTheMiddle ? Vector2.Zero : Spot(p, Cascade2, 29.35f));
         if (seat == OffTank && play.StepsAwayOnAFist is { } steps)
-            yield return new(Glow, 0.3f, p => SawAPalm == false ? Flat(p.Member(seat)!.Position) + AwayFromTheLiquid(p) * steps : null);
+            yield return new(Nth(Glow, Cascade2), 0.3f, p => SawAPalm == false ? Flat(p.Member(seat)!.Position) + AwayFromTheLiquid(p) * steps : null);
         if (play.BringsItsBoss == TeaP1HumanBringsItsBoss.Never) yield break;
-        if (seat != OffTank) yield return new(Glow, 0.3f, p => SawAPalm == true ? TakesItsBossTo(p) : null);
-        else if (play.BringsTheHandIn is { } bringsLate) yield return new(Glow, 0.3f + bringsLate, p => SawAPalm == true ? TakesItsBossTo(p) : null);
+        if (seat != OffTank) yield return new(Nth(Glow, Cascade2), 0.3f, p => SawAPalm == true ? TakesItsBossTo(p) : null);
+        else if (play.BringsTheHandIn is { } bringsLate) yield return new(Nth(Glow, Cascade2), 0.3f + bringsLate, p => SawAPalm == true ? TakesItsBossTo(p) : null);
     }
 
     // The other tank's bot ends its boss's stopping distance past the middle; beside it is a yalm to its side.
@@ -283,8 +507,9 @@ internal sealed class TeaP1LivingLiquidHuman
     // The n-th of a part's cues of one kind, as the run counts them from its start.
     private string Nth(string cue, TeaP1LivingLiquidPart part, int n = 1)
     {
-        var perPart = cue == Set ? 2 : 1;
-        return $"{cue} {(part == Cascade2 && roll.Plays(Protean1) ? perPart : 0) + n}";
+        var before = 0;
+        for (var earlier = roll.First; earlier < part; earlier++) before += SeenPerPart[cue][(int)earlier];
+        return $"{cue} {before + n}";
     }
 
     public void Tick(ScenarioProbe p)
@@ -294,11 +519,13 @@ internal sealed class TeaP1LivingLiquidHuman
         if (p.Member(seat) is not { } me || !me.IsAlive()) return;
         See(p);
         Press(p);
+        if (roll.Plays(Pull)) PressThroughThePull(p, me);
         var at = Flat(me.Position);
         if (StillSliding(p, at)) return;
-        if (p.Time < freeAt) return;
+        if (p.Time < freeAt || castResolvesAt is not null) return;
         SetOffOnWhatItHasSeen(p, at);
         PlayItsTether(p, me, at);
+        if (roll.Plays(Pull)) PlayItsDoll(p, me, at);
         Walk(p, me, at, delta);
     }
 
@@ -318,15 +545,15 @@ internal sealed class TeaP1LivingLiquidHuman
                 ("ability", P1ActionId.ProteanWaveStraightAhead) => Set,
                 ("ability", P1ActionId.Cascade) => CascadeLands,
                 ("cast", P1ActionId.TornadoWave) => TornadoAim,
+                ("ability", P1ActionId.TornadoWave) => TornadoWavesFired,
                 ("ability", P1ActionId.TornadoWaveUnseen) => UnseenTornadoWaves,
+                ("cast", P1ActionId.Cascade) => CascadeBar,
+                ("ability", P1ActionId.FluidStrike) => FluidStrike,
+                ("ability", P1ActionId.Exhaust) => Exhaust,
+                ("ability", P1ActionId.HandOfPain) => HandOfPainLands,
                 _ => null,
             };
-            if (cue is null) continue;
-            var (count, last) = counted.GetValueOrDefault(cue, (0, float.NegativeInfinity));
-            if (p.Time - last > 0.5f) count++;
-            counted[cue] = (count, p.Time);
-            seen.TryAdd($"{cue} {count}", p.Time);
-            seen.TryAdd(cue, p.Time);
+            if (cue is not null) Count(cue, p);
         }
 
         var fight = Stage.Fight(p);
@@ -335,7 +562,11 @@ internal sealed class TeaP1LivingLiquidHuman
         var standing = fight.Tornadoes.Standing is not null;
         if (standing && !hadTornadoes)
         {
-            if (roll.Plays(Protean1) && Open1Read is null) Open1Read = TheQuarterWithNoTornado(fight);
+            if (roll.First != Cascade2 && Open1Read is null)
+            {
+                Open1Read = TheQuarterWithNoTornado(fight);
+                seen.TryAdd(FirstTornadoes, p.Time);
+            }
             else
             {
                 Open2Read = TheQuarterWithNoTornado(fight);
@@ -346,7 +577,28 @@ internal sealed class TeaP1LivingLiquidHuman
         if (!standing && hadTornadoes) seen.TryAdd(Drainage, p.Time);
         hadTornadoes = standing;
         if (PerRole.All.Any(role => p.Member(role) is { } member && member.HasStatus(P1StatusId.Throttle))) seen.TryAdd(Throttle, p.Time);
-        if (fight.HandShowsAPalm is { } palm && seen.TryAdd(Glow, p.Time)) SawAPalm = palm;
+        if (fight.HandShowsAPalm is { } palm && !sawAForm)
+        {
+            Count(Glow, p);
+            SawAPalm = palm;
+            if (roll.First == Pull) SawAPalmAtThePull ??= palm;
+        }
+        sawAForm = fight.HandShowsAPalm is not null;
+        if (fight.Dolls.All.Count > 0) seen.TryAdd(DollsAppear, p.Time);
+        if (fight.Dolls.All.Any(doll => doll.IsUp)) seen.TryAdd(DollsTargetable, p.Time);
+        var theHandIsOnIt = fight.Hand is not null && ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), p.Member(seat));
+        if (theHandWasOnIt && !theHandIsOnIt) seen.TryAdd(HandLeft, p.Time);
+        theHandWasOnIt = theHandIsOnIt;
+    }
+
+    // One more of `cue`, unless the last was within half a second: several casts of one kind go off as one.
+    private void Count(string cue, ScenarioProbe p)
+    {
+        var (count, last) = counted.GetValueOrDefault(cue, (0, float.NegativeInfinity));
+        if (p.Time - last > 0.5f) count++;
+        counted[cue] = (count, p.Time);
+        seen.TryAdd($"{cue} {count}", p.Time);
+        seen.TryAdd(cue, p.Time);
     }
 
     // The two side tornadoes stand opposite each other, so the three centres sum to the middle one's, opposite the
@@ -393,7 +645,8 @@ internal sealed class TeaP1LivingLiquidHuman
     // they stand now. Null: the cue moves another seat.
     private Vector2? Spot(ScenarioProbe p, TeaP1LivingLiquidPart part, float cueAt)
     {
-        var at = part == Protean1 ? TheStage.P1(cueAt)
+        var at = part == Pull ? cueAt
+            : part == Protean1 ? TheStage.P1(cueAt)
             : cueAt == 0.9f && !roll.Plays(Protean1) ? 0.05f
             : TheStage.C2(cueAt);
         var cue = TheStage.Cues().Single(cue => MathF.Abs(cue.At - at) < 0.001f);
@@ -446,6 +699,178 @@ internal sealed class TeaP1LivingLiquidHuman
         if (next is null) return;
         Cleansed.Add(Seat(next)!.Value);
         p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, (ulong)next.GameObjectId));
+    }
+
+    // -- The pull's buttons --
+
+    private bool Once(string press) => pressed.Add(press);
+
+    // The module that resolves the player's own actions is not there in a headless run: its effects are put on here.
+    private static void Act(ScenarioProbe p, uint actionId, ulong targetId, bool itsOwnEffects = false)
+    {
+        p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, actionId, targetId));
+        if (itsOwnEffects && p.Fake.UserActions.Enabled && p.World.Party.Player is { } player)
+            JobActions.ApplyEffects(player, actionId, (ulong)player.GameObjectId, new Random(1));
+    }
+
+    private void PressThroughThePull(ScenarioProbe p, SimCharacter me)
+    {
+        if (p.Time >= ThePullLastLooksAt && castResolvesAt is null) return;
+        if (seat.IsTank()) PressATanksButtons(p, me, Stage.Fight(p));
+        else if (Melee.Contains(seat) || Ranged.Contains(seat)) HitItsDoll(p, me, Stage.Fight(p));
+    }
+
+    // A cooldown goes out a second and a half before each buster the tank is to take, where the sim asks for one.
+    private void PressATanksButtons(ScenarioProbe p, SimCharacter me, TeaP1LivingLiquid fight)
+    {
+        var job = (JobId)Natives.BattleCharas.LocalPlayer.ClassJob;
+        var aimed = play.PressesWithADollTargeted
+                    && fight.Dolls.All.Where(doll => doll.IsUp).MinBy(doll => TeaP1LivingLiquid.Apart(doll.Enemy.Position, me.Position)) is { } targeted
+            ? (ulong)targeted.Enemy.GameObjectId
+            : (ulong)me.GameObjectId;
+        if (seat == MainTank && play.Telegraph == TeaP1HumanTelegraph.HoldsItsGround && seen.TryGetValue(TornadoAim, out var aimedAt)
+            && p.Time >= aimedAt + 2.7f - PressesBeforeTheTelegraphLands && Once("anti-knockback"))
+            Act(p, PartyPresets.SkipRoleForJob((uint)job) is RegenHealer or ShieldHealer or CasterDps ? P1PlayerActionId.Surecast : P1PlayerActionId.ArmsLength, aimed);
+
+        if (!Stage.Scenario(p).State!.Plan.HumanTanks) return;
+        var resolved = p.Fake.UserActions.Enabled;
+        var (invulnerability, cooldown) = job switch
+        {
+            JobId.Paladin => (P1PlayerActionId.HallowedGround, Sentinel),
+            JobId.DarkKnight => (P1PlayerActionId.LivingDead, ShadowWall),
+            JobId.Gunbreaker => (P1PlayerActionId.Superbolide, Nebula),
+            _ => (P1PlayerActionId.Holmgang, Vengeance),
+        };
+        var theHandIsOnIt = fight.Hand is not null && ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), me);
+        if (seat == MainTank)
+        {
+            if (resolved && p.Time >= 8.5f && Once("cooldown 1")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+            var provokesAt = play.ProvokesAt ?? (SawAPalmAtThePull == true && seen.TryGetValue(Glow, out var glowed) ? glowed + ProvokesAfterThePalm + late : (float?)null);
+            if (!play.NeverProvokes && provokesAt is { } provokes && p.Time >= provokes && fight.Hand is { } hand && Once("provoke"))
+            {
+                ProvokedAt = p.Time;
+                Act(p, P1PlayerActionId.Provoke, (ulong)hand.GameObjectId);
+            }
+            var invulnerableAt = play.TurnsInvulnerableAt
+                                 ?? (seen.TryGetValue(TornadoAim, out var telegraphed) ? telegraphed + TurnsInvulnerableAfterTheTelegraph + late : (float?)null);
+            if (!play.NeverTurnsInvulnerable && invulnerableAt is { } turns && p.Time >= turns && Once("invulnerability"))
+            {
+                TurnedInvulnerableAt = p.Time;
+                Act(p, invulnerability, aimed, itsOwnEffects: true);
+            }
+            if (resolved && p.Time >= 34.9f && TurnedInvulnerableAt is null && Once("cooldown 2")) Act(p, cooldown, aimed, itsOwnEffects: true);
+            if (resolved && p.Time >= 54.0f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? TopP6HumanMitigation.Rampart : cooldown, aimed, itsOwnEffects: true);
+            return;
+        }
+
+        var provokesBackAt = play.ProvokesBackAt ?? (seen.TryGetValue(FluidStrike, out var struck) ? struck + ProvokesBackAfterTheStrike + late : (float?)null);
+        if (!play.NeverProvokesBack && provokesBackAt is { } back && p.Time >= back && fight.Hand is { } itsBoss && Once("provoke back") && !theHandIsOnIt)
+        {
+            ProvokedAt = p.Time;
+            Act(p, P1PlayerActionId.Provoke, (ulong)itsBoss.GameObjectId);
+        }
+        if (resolved && theHandIsOnIt && p.Time is >= 35.0f and < 36.5f && Once("cooldown 2")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+        if (resolved && theHandIsOnIt && p.Time >= 54.3f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? cooldown : TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+    }
+
+    private uint ItsAttack => seat switch { MeleeDpsA => TrueThrust, MeleeDpsB => Bootshine, PhysRangedDps => HeavyShot, _ => Fire };
+
+    // Its first weaponskill or spell on the doll it takes, once that is targetable, untouched and in reach with no
+    // boss beside it: a doll hit beside a boss is fed there and then. A spell is cast standing still.
+    private void HitItsDoll(ScenarioProbe p, SimCharacter me, TeaP1LivingLiquid fight)
+    {
+        if (castResolvesAt is { } resolves)
+        {
+            if (p.Time < resolves) return;
+            castResolvesAt = null;
+            HitADollAt = p.Time;
+            Act(p, ItsAttack, castsAt);
+            return;
+        }
+        if (play.Hits == TeaP1HumanHits.NoDoll || HitADollAt is not null || !seen.TryGetValue(DollsTargetable, out var targetable)) return;
+        var casts = play.CastsFor ?? (seat == CasterDps ? 2.5f : 0f);
+        var after = play.Hits == TeaP1HumanHits.TheOthersDoll ? HitsAnothersDollAfterItTurnsTargetable
+            : casts > 0f ? StartsItsCastAfterTheDollsTurnTargetable
+            : HitsAfterTheDollsTurnTargetable;
+        if (p.Time < targetable + after + late + play.HitsLate) return;
+        if (fight.Dolls.In(Frame1, Stage.DollOf[WhoseDollItHits]) is not { IsUp: true, HasBeenHit: false } doll) return;
+        if (TeaP1LivingLiquid.Apart(me.Position, doll.Enemy.Position) > (Melee.Contains(seat) ? AMeleeReaches : ARangedReaches)) return;
+        if (Bosses(fight).Any(boss => TeaP1LivingLiquid.Apart(boss.Position, doll.Enemy.Position) < NoBossThisCloseToADollBeingHit)) return;
+        var target = (ulong)doll.Enemy.GameObjectId;
+        if (casts <= 0f)
+        {
+            HitADollAt = p.Time;
+            Act(p, ItsAttack, target);
+            return;
+        }
+        if (goal is not null) return;
+        castsAt = target;
+        castResolvesAt = p.Time + casts;
+        p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.CastStarted, ActionType.Action, ItsAttack, target, casts));
+    }
+
+    private static IEnumerable<SimEnemy> Bosses(TeaP1LivingLiquid fight)
+        => new[] { fight.Liquid, fight.Hand }.Where(boss => boss is not null && boss.IsAlive()).Select(boss => boss!);
+
+    // -- Its doll --
+
+    // A doll walks straight at its holder and stops short, so it is drawn through a boss from that boss's far side:
+    // 2.5 y past the nearer boss, turned round it until the spot is clear of the water. With no doll left it goes
+    // where the strat's bots go: a melee north, a ranged back out.
+    private void PlayItsDoll(ScenarioProbe p, SimCharacter me, Vector2 at)
+    {
+        if (p.Time >= ThePullLastLooksAt || !(Melee.Contains(seat) || Ranged.Contains(seat))) return;
+        var fight = Stage.Fight(p);
+        if (fight.Dolls.HeldBy(me) is not { } doll)
+        {
+            GoOnWithoutADoll(p, at);
+            return;
+        }
+        hadADoll = true;
+        if (!ItIsTimeToFeed(p, doll)) return;
+        if (Bosses(fight).MinBy(boss => TeaP1LivingLiquid.Apart(boss.Position, me.Position)) is not { MoveDestination: null } nearest) return;
+        var stands = Frame1.ToRelative(nearest.Position);
+        if (play.Feeds == TeaP1HumanFeeds.OnceABossRestsOnTheMiddle && stands.Length() > ABossRestsOnTheMiddleWithin) return;
+        if (drewItsDollThroughABossAt is { } before && Vector2.Distance(before, stands) < 0.25f) return;
+        if (PastTheBossFromItsDoll(stands, Frame1.ToRelative(doll.Enemy.Position)) is not { } past) return;
+        drewItsDollThroughABossAt = stands;
+        WalkTo(at, Frame1.ToArena(past));
+    }
+
+    private bool ItIsTimeToFeed(ScenarioProbe p, TeaP1JagdDoll doll)
+    {
+        if (play.Feeds == TeaP1HumanFeeds.TwoSecondsAfterItsTether) return doll.TetheredAt is { } tethered && p.Time >= tethered + 2f;
+        if (doll.Health(p.Time) >= P1Rules.DollIsReadyUnder) return false;
+        if (!seen.TryGetValue(Exhaust, out var first) || p.Time < first + 0.25f) return false;
+        itsDollLookedReadyAt ??= p.Time;
+        if (p.Time < itsDollLookedReadyAt + late) return false;
+        return play.Feeds != TeaP1HumanFeeds.AsTheStratDoes || Melee.Contains(seat)
+               || (seen.TryGetValue($"{Exhaust} 2", out var second) && p.Time >= second + 0.15f + late);
+    }
+
+    private void GoOnWithoutADoll(ScenarioProbe p, Vector2 at)
+    {
+        if (wentOnAfterItsDoll) return;
+        var theDollItWantedIsTaken = HitADollAt is null && castResolvesAt is null && Stage.Fight(p).Dolls.In(Frame1, Stage.DollOf[WhoseDollItHits]) is { HasBeenHit: true };
+        var hitsNone = Melee.Contains(seat) && (play.Hits == TeaP1HumanHits.NoDoll || theDollItWantedIsTaken)
+                       && seen.TryGetValue(Exhaust, out var exhausted) && p.Time >= exhausted + 0.25f + late;
+        if (!(hadADoll || hitsNone) || Spot(p, Pull, Melee.Contains(seat) ? 42.5f : 53.5f) is not { } next) return;
+        wentOnAfterItsDoll = true;
+        WalkTo(at, next);
+    }
+
+    // In the first tornadoes' frame; null: no spot within 100 degrees is clear, and past that the doll stops short.
+    private static Vector2? PastTheBossFromItsDoll(Vector2 boss, Vector2 doll)
+    {
+        var straightOn = MathF.Atan2(boss.X - doll.X, doll.Y - boss.Y) * 180f / MathF.PI;
+        foreach (var turn in new[] { 0f, 20f, -20f, 40f, -40f, 60f, -60f, 80f, -80f, 100f, -100f })
+        {
+            var past = Stage.Off(boss, PastTheBossADollIsDrawnThrough, straightOn + turn);
+            if (past.Length() <= AFeederStaysWithinOfTheMiddle
+                && new[] { Stage.West, Stage.South, Stage.East }.All(tornado => Vector2.Distance(tornado, past) >= AFeederKeepsFromEveryTornado))
+                return past;
+        }
+        return null;
     }
 
     // -- Its tether --
@@ -561,6 +986,7 @@ internal sealed class TeaP1LivingLiquidHuman
         {
             if (leg.SetOff || !seen.TryGetValue(leg.Cue, out var cue) || p.Time < cue + leg.Beat + late) continue;
             if (leg.Follows && goal is not null) continue;
+            if (leg.When?.Invoke(p) == false) continue;
             leg.SetOff = true;
             if (leg.To(p) is not { } to) continue;
             WalkTo(at, to, leg.Sprints);
