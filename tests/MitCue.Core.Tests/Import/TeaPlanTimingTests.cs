@@ -22,6 +22,16 @@ public class TeaPlanTimingTests
     private static ReminderScheduler Scheduler(params string[] cells) =>
         new(PlanImports.Tea, Entries(cells), RepoFiles.Actions, new ReminderOptions());
 
+    /// <summary>A TEA sheet of one pasted tab ("phase\tcolumn" then "row\tcell" lines), imported with the repository's data.</summary>
+    private static ImportResult Import(string tsv) =>
+        new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', "Pasted")] },
+            new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date });
+
+    /// <summary>The (press, NOW cue) of a reminder with the default options, to 1e-6 s.</summary>
+    private static (double Press, double Due) PressAndDue(Reminder r) =>
+        (Math.Round(r.PressAt, 6), Math.Round(TimingRules.DueAt(r.PressAt, r.DueNotBefore, new ReminderOptions()), 6));
+
     // ---- Photon: every player (the second time: both tanks) to 1 HP; the row's calls are the heal-up ---------------------
 
     /// <summary>
@@ -217,6 +227,43 @@ public class TeaPlanTimingTests
         s.OnOwnAction(buff.ActionIds[0], 718.2);
         s.OnOwnAction(cast.ActionIds[0], 718.3);
         Assert.Equal((false, false), (buff.UsedEarly, cast.UsedEarly));
+    }
+
+    /// <summary>
+    /// "Stack middle → Succor" on J Wave 5, a sequence: the note has nothing wave 4 could spend, so it comes with the Succor,
+    /// both pressed at 718.4 and due at 718.2, and does not hold the Succor back until after wave 4 (720.2), when its 2 s
+    /// cast would land 0.7 s before wave 5.
+    /// </summary>
+    [Fact]
+    public void JWave5_ANoteStepComesWithTheSuccor()
+    {
+        var entry = new PlanEntry
+        {
+            Mechanic = "p3.j_wave_5",
+            Who = new WhoSpec { Job = Job.SCH },
+            Seq = true,
+            Do = [PlanItem.ForNote("Stack middle"), PlanItem.ForAction(RepoFiles.Action("Succor").Id, "Succor")],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((718.4, 718.2), PressAndDue(r)));
+    }
+
+    /// <summary>
+    /// "Recitation > Succor" on J Wave 5 and "Recitation > Adloquium" on J Wave 7: the importer reads the second Recitation,
+    /// planned while the first lasts, as the note "Recitation (still active)", which as the first step does not hold the
+    /// Adloquium back either: both pressed at 724.4 and due at 724.2, the cast landing between waves 6 and 7.
+    /// </summary>
+    [Fact]
+    public void JWave7_AStillActiveNoteStepComesWithTheAdloquium()
+    {
+        var r = Import("P3\tScholar\nJwaves (4)\tRecitation > Succor\nJwaves (6)\tRecitation > Adloquium");
+        var wave7 = Assert.Single(r.Plan.Entries, e => e.Mechanic == "p3.j_wave_7");
+        Assert.True(wave7.Seq);
+        Assert.Equal("Recitation (still active)", wave7.Do[0].Note);
+        var s = new ReminderScheduler(PlanImports.Tea, [wave7], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, x => Assert.Equal((724.4, 724.2), PressAndDue(x)));
     }
 
     /// <summary>

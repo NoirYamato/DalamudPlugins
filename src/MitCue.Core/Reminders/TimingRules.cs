@@ -135,11 +135,12 @@ public static class TimingRules
     /// of its own action, never earlier than the entry's (<see cref="ItemTiming.DueNotBefore"/>), and an automatic press
     /// presses it no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor's 2 s cast 1.8 s before wave 4 +
     /// 0.3 s, the instant Sacred Soil and Consolation wait until then. A buff, movement or other action without a lead of
-    /// its own has no effect the hit before could spend: it keeps the entry's floor, so that it comes with the cast it
-    /// changes ("Reci → Succor": the Recitation with the Succor, 1.8 s before wave 4 + 0.3 s), and as the trigger of a
-    /// follow-up the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). A
-    /// written press keeps each floor it is at or after (a press the importer moved later, so that the action is ready
-    /// again); one before the entry's floor has none.
+    /// its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
+    /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
+    /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
+    /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). A written press
+    /// keeps each floor it is at or after (a press the importer moved later, so that the action is ready again); one
+    /// before the entry's floor has none.
     /// </item>
     /// </list>
     /// <para>
@@ -207,11 +208,11 @@ public static class TimingRules
         if (floor.HasValue)
             automatic = Math.Max(automatic, floor.Value - hit);
 
-        // Each item's automatic press: the entry's, or later for an item that waits for its own series floor (ItemFloor: never
-        // earlier than the entry's, an instant shield beside the cast one that times the entry lands after the hit before it
-        // too; a buff keeps the entry's) or for a later hit it reaches on its own, and a step of a sequence never before the
-        // step before it. An item pressed last (Passage of Arms, a channel any other action ends) comes with the entry's last
-        // item. The entry's automatic press is the earliest of them.
+        // Each item's automatic press: the entry's, or later for an item that waits for its own series floor (ItemFloor:
+        // never earlier than the entry's, an instant shield beside the cast one that times the entry lands after the hit
+        // before it too; a buff or a note keeps the entry's) or for a later hit it reaches on its own, and a step of a
+        // sequence never before the step before it. An item pressed last (Passage of Arms, a channel any other action ends)
+        // comes with the entry's last item. The entry's automatic press is the earliest of them.
         var floors = new double?[items.Count];
         var automaticPresses = new double[items.Count];
         for (var i = 0; i < items.Count; i++)
@@ -642,11 +643,11 @@ public static class TimingRules
     }
 
     /// <summary>
-    /// The series floor of the item at <paramref name="index"/> (see <see cref="ForEntry"/>), never earlier than the entry's
-    /// <paramref name="entryFloor"/>: its own action's (<see cref="SeriesFloor"/>). A buff, movement or other action without a
-    /// lead of its own (<see cref="KeepsTheEntryFloor"/>) keeps the entry's floor, so that it comes with the cast it changes
-    /// (Recitation, Emergency Tactics or Swiftcast with a Succor); the trigger of a follow-up the entry lists waits with it
-    /// (Summon Seraph with its Consolation).
+    /// The series floor of the item at <paramref name="index"/> (see <see cref="ForEntry"/>), never earlier than the
+    /// entry's <paramref name="entryFloor"/>: its own action's (<see cref="SeriesFloor"/>). A note and a buff, movement or
+    /// other action without a lead of its own (<see cref="KeepsTheEntryFloor"/>) keep the entry's floor, so that they come
+    /// with the cast they change or go with (Recitation, Emergency Tactics or Swiftcast with a Succor, "Stack middle →
+    /// Succor"); the trigger of a follow-up the entry lists waits with it (Summon Seraph with its Consolation).
     /// </summary>
     private static double ItemFloor(double previous, double entryFloor, IReadOnlyList<ActionInfo?> timing, int index)
     {
@@ -657,7 +658,7 @@ public static class TimingRules
         var floor = entryFloor;
         foreach (var followUp in timing)
         {
-            if (followUp is not null && followUp.FollowUpOf == action!.Id && !KeepsTheEntryFloor(followUp))
+            if (action is not null && followUp?.FollowUpOf == action.Id && !KeepsTheEntryFloor(followUp))
                 floor = Math.Max(floor, SeriesFloor(previous, followUp));
         }
 
@@ -665,12 +666,13 @@ public static class TimingRules
     }
 
     /// <summary>
-    /// True for a buff, movement or other action without a lead of its own: the hit before a later hit of a series has
-    /// nothing of it to spend (its effect changes the next GCD, or the player), so it keeps the entry's series floor
-    /// (<see cref="ItemFloor"/>). Not Neutral Sect, whose barrier comes with the Helios cast after it (its lead).
+    /// True for an item the hit before a later hit of a series has nothing of to spend, so that it keeps the entry's series
+    /// floor (<see cref="ItemFloor"/>): a note, an action the catalog does not know (<paramref name="action"/> null), and a
+    /// buff, movement or other action without a lead of its own (its effect changes the next GCD, or the player). Not
+    /// Neutral Sect, whose barrier comes with the Helios cast after it (its lead).
     /// </summary>
     private static bool KeepsTheEntryFloor(ActionInfo? action) =>
-        action is not null && OwnLead(action) is null && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other;
+        action is null || (OwnLead(action) is null && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
 
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the

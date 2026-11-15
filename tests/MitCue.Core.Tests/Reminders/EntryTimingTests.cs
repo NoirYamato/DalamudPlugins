@@ -971,6 +971,37 @@ public class EntryTimingTests
     }
 
     [Fact]
+    public void Series_ANoteKeepsTheEntrysFloor_AsAStepItHoldsNoStepBack()
+    {
+        // Wave 3 (106): "Adloquium + Stack middle", and an action the catalog does not know beside it, come with the
+        // Adloquium (101.5, due 101.3), not after wave 2 + 0.3: wave 2 has nothing of them to spend.
+        var options = new ReminderOptions();
+        var fight = SeriesFight();
+        EntryTiming Wave3Items(double? offset, bool seq, params PlanItem[] items)
+        {
+            var entry = Kit.Entry("p1.wave_3", offset, items);
+            entry.Seq = seq;
+            return Kit.Timing(entry, fight);
+        }
+
+        foreach (var t in new[] { Wave3Items(null, false, Kit.Do(Kit.Adloquium), Kit.Note("Stack middle")), Wave3Items(null, false, Kit.Do(Kit.Unlisted), Kit.Do(Kit.Adloquium)) })
+        {
+            Assert.Equal([101.5, 101.5], t.Items.Select(i => i.PressAt));
+            Assert.Equal([101.3, 101.3], t.Items.Select(i => i.DueAt(options)));
+        }
+
+        // "Stack middle → Adloquium": the note step does not hold the Adloquium back, with an automatic press or a written
+        // one (103.3: both turn due 1.5 s before it, the Adloquium's cast landing after wave 2).
+        var automatic = Wave3Items(null, true, Kit.Note("Stack middle"), Kit.Do(Kit.Adloquium));
+        Assert.Equal([101.5, 101.5], automatic.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 101.3], automatic.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.8, 101.8], Wave3Items(-2.7, true, Kit.Note("Stack middle"), Kit.Do(Kit.Adloquium)).Items.Select(i => i.DueAt(options)));
+
+        // Alone, a note times the entry: wave 2 + 0.3.
+        Assert.Equal(103.3, Wave3Items(null, false, Kit.Note("Stack middle")).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
     public void Series_AStepOfASequenceIsNeitherPressedNorDueBeforeTheStepBeforeIt()
     {
         // "Tetragrammaton → Adloquium" on wave 3 (106): timed by the Adloquium (a heal gives no lead), whose cast may start at
