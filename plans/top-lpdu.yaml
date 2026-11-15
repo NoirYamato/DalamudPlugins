@@ -442,49 +442,73 @@ entries:
     src: "'P1/P2'!H11"
   - id: e062
     mechanic: p2.limitless
+    who: {slot: H1, assignee: H1}
+    do:
+      - {note: Everything}
+    src: "'P1/P2'!D11"
+  - id: e063
+    mechanic: p2.limitless
+    who: {slot: H2, assignee: H2}
+    do:
+      - {note: Everything}
+    src: "'P1/P2'!E11"
+  - id: e064
+    mechanic: p2.limitless
+    who: {slot: R1, job: RDM, assignee: R1}
+    do:
+      - {action: 25857, name: Magick Barrier}
+    src: "'P1/P2'!H11"
+  - id: e065
+    mechanic: p2.limitless
+    who: {slot: R2, job: RDM, assignee: R2}
+    do:
+      - {action: 25857, name: Magick Barrier}
+    src: "'P1/P2'!I11"
+  - id: e066
+    mechanic: p2.limitless
     who: {slot: MT, job: DRK, assignee: MT}
     do:
       - {action: 16471, name: Dark Missionary}
     detail: 15 sec Mit is used as the clone jumps
     src: "'P1/P2'!B11"
-  - id: e063
+  - id: e067
     mechanic: p2.limitless
     who: {slot: MT, job: GNB, assignee: MT}
     do:
       - {action: 16160, name: Heart of Light}
     detail: 15 sec Mit is used as the clone jumps
     src: "'P1/P2'!B11"
-  - id: e064
+  - id: e068
     mechanic: p2.limitless
     who: {slot: OT, job: DRK, assignee: OT}
     do:
       - {action: 16471, name: Dark Missionary}
     src: "'P1/P2'!C11"
-  - id: e065
+  - id: e069
     mechanic: p2.limitless
     who: {slot: OT, job: GNB, assignee: OT}
     do:
       - {action: 16160, name: Heart of Light}
     src: "'P1/P2'!C11"
-  - id: e066
+  - id: e070
     mechanic: p2.limitless
     who: {slot: R1, job: BRD, assignee: R1}
     do:
       - {action: 7405, name: Troubadour}
     src: "'P1/P2'!H11"
-  - id: e067
+  - id: e071
     mechanic: p2.limitless
     who: {slot: R1, job: MCH, assignee: R1}
     do:
       - {action: 16889, name: Tactician}
     src: "'P1/P2'!H11"
-  - id: e068
+  - id: e072
     mechanic: p2.limitless
     who: {slot: R1, job: DNC, assignee: R1}
     do:
       - {action: 16012, name: Shield Samba}
     src: "'P1/P2'!H11"
-  - id: e069
+  - id: e073
     mechanic: p2.limitless
     who: {slot: MT, job: PLD, assignee: MT}
     do:
@@ -493,7 +517,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e070
+  - id: e074
     mechanic: p2.limitless
     who: {slot: MT, job: WAR, assignee: MT}
     do:
@@ -502,7 +526,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e071
+  - id: e075
     mechanic: p2.limitless
     who: {slot: MT, job: DRK, assignee: MT}
     do:
@@ -511,7 +535,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e072
+  - id: e076
     mechanic: p2.limitless
     who: {slot: MT, job: GNB, assignee: MT}
     do:
@@ -520,7 +544,7 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!B6"
-  - id: e073
+  - id: e077
     mechanic: p2.limitless
     who: {slot: OT, job: PLD, assignee: OT}
     do:
@@ -529,7 +553,7 @@ entries:
       - {action: 25746, name: Holy Sheltron}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e074
+  - id: e078
     mechanic: p2.limitless
     who: {slot: OT, job: WAR, assignee: OT}
     do:
@@ -538,7 +562,7 @@ entries:
       - {action: 25751, name: Bloodwhetting}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e075
+  - id: e079
     mechanic: p2.limitless
     who: {slot: OT, job: DRK, assignee: OT}
     do:
@@ -547,7 +571,7 @@ entries:
       - {action: 7393, name: The Blackest Night}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e076
+  - id: e080
     mechanic: p2.limitless
     who: {slot: OT, job: GNB, assignee: OT}
     do:
@@ -556,30 +580,6 @@ entries:
       - {action: 25758, name: Heart of Corundum}
     detail: for Autos after Party synergy
     src: "'General Tank Mit til P5'!C6"
-  - id: e077
-    mechanic: p2.limitless
-    who: {slot: H1, assignee: H1}
-    do:
-      - {note: Everything}
-    src: "'P1/P2'!D11"
-  - id: e078
-    mechanic: p2.limitless
-    who: {slot: H2, assignee: H2}
-    do:
-      - {note: Everything}
-    src: "'P1/P2'!E11"
-  - id: e079
-    mechanic: p2.limitless
-    who: {slot: R1, job: RDM, assignee: R1}
-    do:
-      - {action: 25857, name: Magick Barrier}
-    src: "'P1/P2'!H11"
-  - id: e080
-    mechanic: p2.limitless
-    who: {slot: R2, job: RDM, assignee: R2}
-    do:
-      - {action: 25857, name: Magick Barrier}
-    src: "'P1/P2'!I11"
   - id: e081
     mechanic: p3.hello_world
     who: {slot: H2, job: SCH, assignee: H2 SCH}

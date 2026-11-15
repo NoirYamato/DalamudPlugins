@@ -1,8 +1,8 @@
 # MitCue fight catalog: The Omega Protocol (Ultimate). Schema: docs/DESIGN.md section 3.1.
 # Timeline: data/timelines/the_omega_protocol.txt = cactbot ui/raidboss/data/06-ew/ultimate/the_omega_protocol.txt @ e79ea7f1.
-# Every hit/entry pair and every value in hits is a timeline entry (checked); analysis and sheet mapping:
-# docs/research/mechanics.md. hit = the damage a mitigation must cover; where cactbot has no entry for the damage
-# itself, the "# anchor:" comment gives the delay from the anchor entry to the real hit.
+# Every hit/entry pair and every value in hits is a timeline entry, timeline_additions included (checked); analysis and
+# sheet mapping: docs/research/mechanics.md. hit = the damage a mitigation must cover; where cactbot has no entry for the
+# damage itself, the "# anchor:" comment gives the delay from the anchor entry to the real hit.
 # kind "marker" = MechanicKind.Marker in src/MitCue.Core/Fights/FightDefinition.cs: pseudo-mechanics (pull, phase
 # starts, boss targetable) that carry no damage. Aliases marked "# unverified" are community shorthand that appears in
 # neither source sheet; the others are sheet labels (verbatim), cactbot entry names or plain-text forms.
@@ -11,6 +11,16 @@ name: The Omega Protocol (Ultimate)
 territory: 1122
 sync_level: 90
 timeline: the_omega_protocol.txt
+# The P2 Cosmo Memory raidwide (7B24, BossMod's CosmoMemoryAOE: the Optical Unit's 1.5 s cast, range 100; Action.csv
+# 31524) has no cactbot entry: cactbot's -ii line drops it, and its "Cosmo Memory" (318.8) is the 7B22 visual cast end
+# (an Omega-M helper's 5 s cast, range 0). BossMod (TOPStates.cs P2LimitlessSynergy) counts the 7B24 casts as "Raidwide"
+# 10.2 s after "Flares + Stack" (Pile Pitch, 310.0): 320.2, which p2.limitless' second hit uses. 7B24 is cast nowhere
+# else (BossMod's P2CosmoMemory component is its only use; cactbot's timeline and triggers, at e79ea7f1 as today, never
+# name it; P6's Cosmo Memory is 7BA1), so the sync is a narrow catch: "window 1,1" is active from 319.2 until 321.2
+# only, and moves the timeline by at most 1 s. The Optical Unit is one actor (BossMod) and the cast takes 1.5 s, so
+# after a sync no other 7B24 cast falls in the window. No source: the id is enough. Not checked against a log.
+timeline_additions: |
+  320.2 "Cosmo Memory raidwide" Ability { id: "7B24" } window 1,1
 phases:
   - { id: p1, name: "P1: Omega", start: 0.0 }   # InCombat (pull)
   - { id: p2, name: "P2: Omega-M/F", start: 200.0 }   # MapEffect 00020001/0A, window 200,0 (v1 engine: StartsUsing 7B40 Firewall @203.4, window 210,5)
@@ -278,10 +288,12 @@ mechanics:
       - "Limitless Synergy: Bladedance (tanks) + Sagittarius Arrow (55k) ★"
   - id: p2.limitless
     # note: umbrella for the LPDU "Limitless" rows (party mitigation for the flares and Cosmo Memory); Bladedance (295.6) is p2.bladedance
+    # hits: the flares (Optimized Meteor) and the Cosmo Memory raidwide itself (7B24, timeline_additions), 1.4 s after the
+    # 7B22 cast end that p2.cosmo_memory is anchored on: the party mitigation for both lasts through the damage.
     name: "Limitless Synergy raidwides: flares + Pile Pitch, then Cosmo Memory"
     phase: p2
     hit: 309.7
-    hits: [309.7, 318.8]
+    hits: [309.7, 320.2]
     entry: "Optimized Meteor"
     kind: multihit
     aliases:
@@ -303,8 +315,9 @@ mechanics:
       - "P2 Flares"
       - "Optimized Meteor flares + Pile Pitch ★★★"
   - id: p2.cosmo_memory
-    # ids: 7B22 (synced cast end, visual) then 7B24 raidwide (-ii line)
-    # anchor: 7B22 cast end; the raidwide 7B24 (1.5 s cast) lands about 1.4 s later (BossMod: 10.2 s after Pile Pitch)
+    # ids: 7B22 (synced cast end, visual) then 7B24 raidwide (on cactbot's -ii line; a timeline_additions sync at 320.2)
+    # anchor: 7B22 cast end, the time the sheets give Cosmo Memory; the raidwide 7B24 (1.5 s cast) lands about 1.4 s later
+    # (BossMod: 10.2 s after Pile Pitch), the second hit of p2.limitless
     name: "Cosmo Memory (P2 raidwide)"
     phase: p2
     hit: 318.8

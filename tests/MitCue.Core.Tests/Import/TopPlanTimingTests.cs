@@ -50,6 +50,28 @@ public class TopPlanTimingTests
     }
 
     /// <summary>
+    /// Limitless Synergy ('P1/P2'!B11/C11/H11 party mitigation, 'General Tank Mit til P5'!B6/C6 tank cooldowns, "15 sec Mit
+    /// is used as the clone jumps"): the 15 s calls cover the flares (309.7) and the Cosmo Memory raidwide itself (7B24,
+    /// 320.2), 1.4 s after the 7B22 cast end (318.8): pressed at 320.2 − 15 + 2, so that even on the NOW cue they last
+    /// 0.5 s past it.
+    /// </summary>
+    [Fact]
+    public void Limitless_FifteenSecondMitigationLastsThroughTheCosmoMemoryRaidwide()
+    {
+        Assert.Equal([309.7, 320.2], PlanImports.Top.GetMechanic("p2.limitless")!.Hits);
+        var fifteen = Reminders("'P1/P2'!B11", "'P1/P2'!C11", "'P1/P2'!H11", "'General Tank Mit til P5'!B6", "'General Tank Mit til P5'!C6")
+            .Where(r => r.Mechanic.Id == "p2.limitless" && RepoFiles.Action(r.Item.Name!).DurationAt(90) == 15).ToList();
+        Assert.Contains(fifteen, r => r.Item.Name == "Dark Missionary");
+        Assert.Contains(fifteen, r => r.Item.Name == "Troubadour");
+        Assert.Contains(fifteen, r => r.Item.Name == "Shadow Wall");
+        Assert.All(fifteen, r =>
+        {
+            Assert.Equal(307.2, r.PressAt, 1e-9);
+            Assert.True(NowCue(r) + 15 >= 320.2 + 0.5 - 1e-9, $"{r.Entry.Src} {r.Item.Name}: from the NOW cue ({NowCue(r)}) it ends at {NowCue(r) + 15}");
+        });
+    }
+
+    /// <summary>
     /// 'P3'!E4 "CU + Neutralsect" on Latent Defect 2 (485.4) and 'P6'!E5 "CU + Neutralsect shields for proteans" on Wave
     /// Cannon 2 (proteans 1269.9 and 1271.9): Neutral Sect's 4.5 s lead counts although CU comes first, time for the Neutral
     /// Aspected Helios to put up its barrier; CU pressed then still lasts through the second hit or protean.

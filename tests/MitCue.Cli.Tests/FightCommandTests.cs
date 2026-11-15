@@ -64,7 +64,7 @@ public class FightCommandTests : IDisposable
     {
         var r = this.kit.Run("timeline", "top");
         Assert.Equal(0, r.ExitCode);
-        Assert.StartsWith("the_omega_protocol.txt (fight top): 282 entries, 207 with a sync", r.Out);
+        Assert.StartsWith("the_omega_protocol.txt (fight top): 283 entries, 208 with a sync", r.Out);   // with top.yaml's timeline_additions
         Assert.Contains("ends at 1421.9", r.Out);
         Assert.Contains("Phase anchors (# -p): 7B03 at 15.0, 7B40 at 206.4", r.Out);
 
@@ -83,7 +83,8 @@ public class FightCommandTests : IDisposable
         var all = this.kit.Run("timeline", "top");
         var syncs = this.kit.Run("timeline", "top", "--syncs");
         Assert.Equal(0, syncs.ExitCode);
-        Assert.Contains("Entries with a sync (207):", syncs.Out);
+        Assert.Contains("Entries with a sync (208):", syncs.Out);
+        Assert.Contains(syncs.OutLines, l => l.Contains("\"Cosmo Memory raidwide\"", StringComparison.Ordinal) && l.Contains("Ability { id: \"7B24\" }", StringComparison.Ordinal));
         Assert.DoesNotContain("Diffuse Wave Cannon Kyrios x5", syncs.Out);
         Assert.True(syncs.OutLines.Length < all.OutLines.Length);
     }
