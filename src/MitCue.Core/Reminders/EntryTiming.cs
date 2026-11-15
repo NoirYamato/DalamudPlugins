@@ -50,8 +50,8 @@ public sealed class EntryTiming
 /// </param>
 /// <param name="PressAt">
 /// The item's press time (timeline seconds): the entry's (<see cref="EntryTiming.PressAt"/>), or with an automatic press
-/// later when the item waits for the series floor of its own action or for a later hit it reaches on its own, or comes
-/// last (see <see cref="TimingRules.ForEntry"/>).
+/// later when the item waits for the series floor of its own action, for a later hit it reaches on its own or, as a step of
+/// a sequence, for the step before it, or comes last (see <see cref="TimingRules.ForEntry"/>).
 /// </param>
 /// <param name="Earliest">The earliest use that still covers the hit (see <see cref="Reminder.Earliest"/>).</param>
 /// <param name="Latest">The last useful moment (see <see cref="Reminder.Latest"/>).</param>
@@ -60,7 +60,8 @@ public sealed class EntryTiming
 /// <see cref="Reminder.DueNotBefore"/>): the latest of the item's series floor, with an automatic press the earliest use
 /// that still reaches a later hit the item covers, and its earliest use that is not early when the press is at or after it
 /// but the default due lead would turn it due before (The Blackest Night beside Rampart); for an item pressed last
-/// (Passage of Arms), no earlier than the entry's other items' (up to its press); null when it has none.
+/// (Passage of Arms), no earlier than the entry's other items' (up to its press), and for a step of a sequence, no earlier
+/// than the step before it; null when it has none.
 /// </param>
 public readonly record struct ItemTiming(ActionInfo? Action, double PressAt, double Earliest, double Latest, double? DueNotBefore)
 {

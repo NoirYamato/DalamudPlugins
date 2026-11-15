@@ -82,7 +82,7 @@ public sealed class Reminder
 
     /// <summary>
     /// Planned press time (timeline seconds): the entry's, or later for an item that waits for a series floor or a later hit
-    /// of its own, or comes last (<see cref="ItemTiming.PressAt"/>).
+    /// of its own or for the step before it in a sequence, or comes last (<see cref="ItemTiming.PressAt"/>).
     /// </summary>
     public required double PressAt { get; init; }
 
@@ -94,8 +94,9 @@ public sealed class Reminder
     /// of a series of hits, automatic or written at or after the hit before it, comes after that hit, by the item's own
     /// action; mitigation an automatic press times to also cover a later hit of its mechanic, not before the earliest use
     /// that still reaches it; a press at or after its earliest use (<see cref="Earliest"/>), not before it when the default
-    /// due lead would turn it due earlier; an item pressed last (Passage of Arms), not before the other items of its entry
-    /// (<see cref="TimingRules.ForEntry"/>, <see cref="ItemTiming.DueNotBefore"/>). Null otherwise.
+    /// due lead would turn it due earlier; an item pressed last (Passage of Arms), not before the other items of its entry;
+    /// a step of a sequence, not before the step before it (<see cref="TimingRules.ForEntry"/>,
+    /// <see cref="ItemTiming.DueNotBefore"/>). Null otherwise.
     /// </summary>
     public double? DueNotBefore { get; init; }
 

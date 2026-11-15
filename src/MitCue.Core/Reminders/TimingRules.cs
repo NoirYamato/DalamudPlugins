@@ -245,7 +245,7 @@ public static class TimingRules
         }
 
         // An item pressed last turns due no earlier than any other: the others' NOW cues may be held (a series floor, a
-        // later hit).
+        // later hit, an earliest use).
         for (var i = 0; i < items.Count; i++)
         {
             if (!IsPressedLast(timing[i]))
