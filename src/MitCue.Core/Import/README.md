@@ -252,10 +252,13 @@ Rules worth knowing:
   without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press), and never so
   that a seat that sees it loses what the recast fit keeps for it (below: a Passage of Arms of another cell stays the
   last press of its hit, a follow-up stays in its trigger's window); otherwise both stay presses (a `still-active` info,
-  which says what a later press would break), and `check` reports the recast. An optional earlier press (in brackets,
-  with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written for one
-  role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever
-  of those columns are imported: a tank who imports only their own column gets it optional too.
+  which says what a later press would break), and `check` reports the recast. After each round of the recast fit, a
+  call after a press the fit moved that this press now serves as it is is read as still active too (TEA's `Asylum
+  (Late)` at Double Rocket Punch, 18.8 s after the Gavel Asylum that the fit presses 1.5 s before its hit), its info in
+  place of the one that kept it a press. An optional earlier press (in brackets, with a condition, one choice of an
+  either/or) may not happen, so it keeps no buff up. A limit break written for one role in columns of different slots
+  at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those columns are imported: a tank
+  who imports only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
@@ -292,7 +295,8 @@ Rules worth knowing:
   hit, so such a sequence keeps its press. An entry several seats see takes the latest press any of them needs; the
   earliest press without a charge moves first, then the plan is replayed again, until nothing moves. A press that
   moved is replayed at its press time, as `check` replays every press: in a chain of moves each NOW cue still comes
-  when the action is ready for a player who presses at the press times (each link keeps its due lead).
+  when the action is ready for a player who presses at the press times (each link keeps its due lead). After each
+  round, `still-active` looks again at the calls after the presses moved so far (above).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

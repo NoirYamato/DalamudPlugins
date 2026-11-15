@@ -342,6 +342,12 @@ public sealed partial class PlanImporter
         private readonly List<(string Mechanic, Role Role, string Column, string? Slot)> otherLimitBreaks = [];
 
         /// <summary>
+        /// The <c>still-active</c> info of each call that stays a press (<see cref="MarkStillActive"/>): when the recast fit
+        /// presses the earlier one later and that one then serves the call too, its info replaces this one.
+        /// </summary>
+        private readonly Dictionary<(PlanEntry Entry, uint Action), ImportDiagnostic> keptPresses = [];
+
+        /// <summary>
         /// The plan's seats (<see cref="Seats"/>) for the steps after the cells (<see cref="BuildPlan"/>), whose moves keep
         /// what each seat that sees an entry needs (<see cref="KeepsItsSeats"/>). Who an entry is for no longer changes then.
         /// </summary>
@@ -2496,13 +2502,19 @@ public sealed partial class PlanImporter
         /// without a time in the sheet is pressed later when that makes it serve both (TEA's Hidden Mines Temperance 3.5 s
         /// before its hit instead of 6 s, so that it lasts through Water 2), unless a seat that sees it needs it where it is
         /// (<see cref="KeepsItsSeats"/>). Otherwise the later call stays a press, and <c>check</c> reports the recast the
-        /// sheet asks for.
+        /// sheet asks for. After the recast fit has pressed earlier entries later (<see cref="FitRecasts"/>), it looks
+        /// again at the calls after those (<paramref name="fitted"/>): one that such a press now serves as it is is read
+        /// as still active too, its info in place of the one that kept it a press; nothing moves then.
         /// </remarks>
-        private void MarkStillActive(List<Draft> ordered)
+        /// <param name="ordered">The entries in press order.</param>
+        /// <param name="fitted">The entries the recast fit moved, for that second look; null for the first.</param>
+        /// <returns>True when a call was read as still active.</returns>
+        private bool MarkStillActive(List<Draft> ordered, IReadOnlySet<PlanEntry>? fitted = null)
         {
             // Per player and action: the last entry that presses it for sure, and whether its time is the importer's (no
             // time in the sheet), so that CoversLaterCall may press it later.
             var last = new Dictionary<(string? Assignee, string? Slot, Job? Job, uint Action), (Draft Draft, bool Movable)>();
+            var changed = false;
             foreach (var d in ordered.Where(d => d.Confident))
             {
                 var e = d.Entry;
@@ -2518,7 +2530,8 @@ public sealed partial class PlanImporter
                     if (!last.TryGetValue(key, out var prev) || (prev.Draft.Tab, prev.Draft.Row) == (d.Tab, d.Row)
                         || (prev.Draft.Entry.Mechanic, prev.Draft.Entry.HitIndex ?? 0) == (e.Mechanic, e.HitIndex ?? 0)
                         || e.Optional || e.Target is not null || action.Target is not (ActionTarget.Party or ActionTarget.Ground or ActionTarget.Self)
-                        || action.ChargesAt(this.level) > 1 || duration <= 0 || recast <= duration)
+                        || action.ChargesAt(this.level) > 1 || duration <= 0 || recast <= duration
+                        || (fitted is not null && !fitted.Contains(prev.Draft.Entry)))
                     {
                         if (!e.Optional)
                             last[key] = (d, e.Offset is null);
@@ -2542,12 +2555,14 @@ public sealed partial class PlanImporter
                     var serves = follow is null
                         ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, press), TimingRules.CoverageDuration(action, this.level) ?? duration)
                         : this.PressReadAs(e, i, readAs, follow.Id) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+
+                    // After the recast fit nothing moves again, and a call that stays a press keeps its info.
                     double? movedFrom = null;
                     string? blocked = null;
-                    if (gap >= duration || !this.CoversLaterCall(earlier, id, prev.Movable, serves, out movedFrom, out blocked))
+                    if (gap >= duration || !this.CoversLaterCall(earlier, id, prev.Movable && fitted is null, serves, out movedFrom, out blocked))
                     {
                         // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
-                        if (gap < duration)
+                        if (gap < duration && fitted is null)
                         {
                             var why = follow is null ? "that one does not last through this hit" : $"its follow-up {follow.Name} would be used after it is over";
                             var when = blocked is not null ? $"at its press, and pressed later {blocked}"
@@ -2555,6 +2570,7 @@ public sealed partial class PlanImporter
                             this.Diag(DiagnosticSeverity.Info, "still-active",
                                 $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {why} {when}: both stay presses.",
                                 e.Src);
+                            this.keptPresses[(e, id)] = this.diagnostics[^1];
                         }
 
                         last[key] = (d, e.Offset is null);
@@ -2575,14 +2591,23 @@ public sealed partial class PlanImporter
                     }
 
                     e.Seq &= e.Do.Count > 1;
+                    changed = true;
                     var moved = movedFrom is { } from
                         ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it {(follow is null ? "lasts through this one" : $"still lasts when {follow.Name} is used")}."
+                        : fitted is not null ? $" The recast fit presses that one {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit."
                         : string.Empty;
-                    this.Diag(DiagnosticSeverity.Info, "still-active",
+                    var info = new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
                         $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(press - ItemOf(this.TimingOf(earlier), earlier, id).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
                         e.Src);
+                    var at = this.keptPresses.Remove((e, id), out var kept) ? this.diagnostics.IndexOf(kept) : -1;
+                    if (at >= 0)
+                        this.diagnostics[at] = info;
+                    else
+                        this.diagnostics.Add(info);
                 }
             }
+
+            return changed;
         }
 
         /// <summary>
@@ -2722,8 +2747,9 @@ public sealed partial class PlanImporter
         /// replayed again, until nothing moves: moves only go later, for every item, up to the latest press the entry
         /// allows. A press that moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW
         /// cue: in a chain of moves each NOW cue still comes when its action is ready for a player who presses at the press
-        /// times (each link keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before
-        /// the fit.
+        /// times (each link keeps its due lead). After each round, a call after a press the fit moved that this press now
+        /// serves as it is is read as still active (<see cref="MarkStillActive"/>): its note holds no charge, so the plan
+        /// is replayed again. A <c>recast-fit</c> info names each entry that moved, with the gap before the fit.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts)
         {
@@ -2731,8 +2757,15 @@ public sealed partial class PlanImporter
             if (movable.Count == 0)
                 return;
 
-            // Each press as the plan has it before the fit, for the infos: each item's, as check replays it.
-            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry));
+            // Each item's press as the plan has it before the fit, for the infos, as check replays it.
+            var planned = new Dictionary<PlanItem, double>(ReferenceEqualityComparer.Instance);
+            foreach (var d in drafts)
+            {
+                var timing = this.TimingOf(d.Entry);
+                for (var i = 0; i < d.Entry.Do.Count; i++)
+                    planned[d.Entry.Do[i]] = timing.Items[i].PressAt;
+            }
+
             var moved = new Dictionary<PlanEntry, RecastMove>();
             for (var round = 0; round < MaxFitRounds; round++)
             {
@@ -2744,25 +2777,29 @@ public sealed partial class PlanImporter
                 bool Keeps(PlanEntry entry, double offset) =>
                     kept.TryGetValue((entry, offset), out var keeps) ? keeps : kept[(entry, offset)] = this.KeepsItsSeats(entry, offset, e => timings[e], out _);
                 var moves = this.seats.Value.SelectMany(s => this.RecastMoves(s.Job, order.Where(s.Entries.Contains).ToList(), movable, Keeps)).ToList();
-                if (moves.Count == 0)
-                    break;
 
                 // The earliest press that finds no charge first: a later one may wait for it.
-                var first = moves.Min(m => m.Use.PressAt);
+                var first = moves.Select(m => m.Use.PressAt).DefaultIfEmpty().Min();
                 foreach (var move in moves.Where(m => m.Use.PressAt <= first + SameTime).GroupBy(m => m.Entry).Select(g => g.MaxBy(m => m.Offset)!))
                 {
                     move.Entry.Offset = move.Offset;
                     moved[move.Entry] = moved.TryGetValue(move.Entry, out var before) ? move with { From = before.From } : move;
                 }
+
+                // A later call that a press moved so far now serves as it is is still active (MarkStillActive): its note holds
+                // no charge, and its entry may be pressed at another time, so the plan is replayed again.
+                var stillActive = moved.Count > 0
+                    && this.MarkStillActive(InPressOrder(drafts.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt })), moved.Keys.ToHashSet());
+                if (moves.Count == 0 && !stillActive)
+                    break;
             }
 
+            // The gap as the sheet plans both presses (an item read as still active during the fit: as it was then).
+            double Planned(Reminder r) => planned.TryGetValue(r.Item, out var press) ? press : r.PressAt;
             foreach (var d in drafts)
             {
                 if (moved.TryGetValue(d.Entry, out var move))
-                {
-                    var gap = planned[move.Entry].Items[move.Use.ItemIndex].PressAt - planned[move.Earlier.Entry].Items[move.Earlier.ItemIndex].PressAt;
-                    this.ReportRecastFit(move, gap, moved.ContainsKey(move.Earlier.Entry));
-                }
+                    this.ReportRecastFit(move, Planned(move.Use) - Planned(move.Earlier), moved.ContainsKey(move.Earlier.Entry));
             }
         }
 

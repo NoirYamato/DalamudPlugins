@@ -500,6 +500,75 @@ public class ImportRecastFitTests
         Assert.Contains("pressed 1.0 s before its hit instead of 2.5 s", Assert.Single(Fits(r)).Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(231.0)]
+    [InlineData(231.5)]
+    [InlineData(232.5)]
+    public void AfterTheFit_ACallThatTheMovedPressServes_IsStillActive(double bravo)
+    {
+        // Temperance on Zed (100, at 94) is ready again at 214, so Alpha's (216) waits until then: pressed 1 s before its hit,
+        // its NOW cue at 213.5, it lasts until 233.5. "Temperance (Late)" on Bravo, 1 s before its hit, is then 15-16.5 s
+        // later, within its 20 s: still active as the plan finally times both. As the sheet plans them (Alpha at 210), the
+        // second press came after the first one ended.
+        var fight = Fight(80, ("Zed", 100), ("Alpha", 216), ("Bravo", bravo));
+        var r = Import(Sheet("P1", "White Mage", "Zed\tTemperance", "Alpha\tTemperance", "Bravo\tTemperance (Late)"), fight);
+
+        Assert.Equal(-1.0, At(r, "p1.alpha", "Temperance").Offset);
+        Assert.Equal(["note:Temperance (still active)"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Names());
+        Assert.Empty(Conflicts(r, fight, Job.WHM));
+        Assert.EndsWith(
+            "it is still active, so it is read as a note 'Temperance (still active)'. The recast fit presses that one 1.0 s before its hit.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message,
+            StringComparison.Ordinal);
+        Assert.Single(Fits(r));
+    }
+
+    [Fact]
+    public void AfterTheFit_ACallThatTheMovedPressDoesNotServe_StaysAPress()
+    {
+        // Bravo at 233: Alpha's Temperance, used on its NOW cue (213.5), ends 0.5 s too early. Both stay presses, and check
+        // reports the second one.
+        var fight = Fight(80, ("Zed", 100), ("Alpha", 216), ("Bravo", 233));
+        var r = Import(Sheet("P1", "White Mage", "Zed\tTemperance", "Alpha\tTemperance", "Bravo\tTemperance (Late)"), fight);
+
+        Assert.Equal(-1.0, At(r, "p1.alpha", "Temperance").Offset);
+        Assert.Equal(["Temperance"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Names());
+        Assert.Single(Conflicts(r, fight, Job.WHM));
+    }
+
+    [Fact]
+    public void AfterTheFit_ACallThatStayedAPress_IsStillActive_ItsInfoInPlaceOfTheOther()
+    {
+        // Tank 1's Rampart on Alpha (100) and again on Bravo (113.7). Pressed 3.8 s before its hit, the Alpha Rampart would
+        // last through Bravo, but a Paladin presses "Divine Veil + PLD Wings" from Extras 4 s before Alpha, the Passage of
+        // Arms last: both stay presses. The fit then presses that entry 2 s before Alpha, when Divine Veil (Yank, 7) is
+        // ready again, and the Alpha Rampart 3.5 s before it, when Rampart (Zed, 5) is: it now lasts through Bravo, whose
+        // call is still active, and one info says so.
+        var fight = Fight(80, ("Zed", 11), ("Yank", 11), ("Alpha", 100), ("Bravo", 113.7));
+        var r = Import(Sheet("P1", "Tank 1\tTank 2\tExtras", "Zed\tRampart\t\t", "Yank\t\t\tDivine Veil", "Alpha\tRampart\t\tDivine Veil + PLD Wings", "Bravo\tRampart\t\t"), fight);
+
+        Assert.Equal(-2.0, At(r, "p1.alpha", "Passage of Arms").Offset);
+        Assert.Equal(-3.5, At(r, "p1.alpha", "Rampart").Offset);
+        Assert.Equal(["note:Rampart (still active)"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Names());
+        Assert.Equal(
+            "Rampart at p1.bravo is planned 11.2 s after the Rampart at p1.alpha, which lasts 20.0 s (recast 90.0 s): it is still active, so it is read as a note 'Rampart (still active)'. The recast fit presses that one 3.5 s before its hit.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message);
+        Assert.Equal(["Rampart", "Divine Veil", "Passage of Arms"], Reminders(r, fight, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p1.alpha").Select(x => x.Item.Name));
+    }
+
+    [Fact]
+    public void Tea_AfterTheFit_TheDoubleRocketPunchAsylumIsStillActive()
+    {
+        // TEA P2: Asylum after Photon, again at Gavel (pressed 1.5 s before its hit, when Asylum is ready: until 379) and
+        // "Asylum (Late)" at Double Rocket Punch (374.8), 18.8 s after the Gavel Asylum as the fit presses it: still active.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P2", "White Mage", "Photon\tAsylum", "Gavel\tAsylum", "Double Rocket Punch\tAsylum (Late)"), tea);
+
+        Assert.Equal(-1.5, At(r, "p2.gavel", "Asylum").Offset);
+        Assert.Equal(["note:Asylum (still active)"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p2.double_rocket_punch").Names());
+        Assert.Empty(Conflicts(r, tea, Job.WHM, "H1"));
+    }
+
     [Fact]
     public void AnEntrySeveralSeatsSee_TakesTheLatestPressAnyOfThemNeeds()
     {
