@@ -156,6 +156,8 @@ internal sealed class DataValidator(IDataSource data)
                 item.Problems.Add($"{m.Id} has no hits");
             else if (m.Hits[0] != m.Hit || !m.Hits.Zip(m.Hits.Skip(1)).All(p => p.First <= p.Second))
                 item.Problems.Add($"{m.Id}: hits must be in time order and start with hit {Inv(m.Hit)}");
+            if (m.SubHits.Count > 0 && (m.SubHits[0] <= m.Hit || !m.SubHits.Zip(m.SubHits.Skip(1)).All(p => p.First < p.Second) || m.SubHits.Any(m.Hits.Contains)))
+                item.Problems.Add($"{m.Id}: sub_hits must be after hit {Inv(m.Hit)}, in time order and none of the hits");
             if (m.Kind == MechanicKind.Marker && TimingFields(m) is { Count: > 0 } fields)
                 item.Problems.Add($"{m.Id} is a marker with {string.Join(" and ", fields)}: timing fields time the calls planned on a mechanic against its damage, and a marker has none");
         }
@@ -194,7 +196,10 @@ internal sealed class DataValidator(IDataSource data)
         item.Summary += $"; {checkedEntries} entries checked against {fight.TimelineFile}";
     }
 
-    /// <summary>The fight file fields of a mechanic that change the automatic press times of the calls planned on it.</summary>
+    /// <summary>
+    /// The fight file fields of a mechanic that change the automatic press times of the calls planned on it (sub_hits:
+    /// through multi-hit coverage).
+    /// </summary>
     private static List<string> TimingFields(Mechanic m)
     {
         var fields = new List<string>();
@@ -204,6 +209,8 @@ internal sealed class DataValidator(IDataSource data)
             fields.Add("heal_lead: " + Inv(lead));
         if (m.Series)
             fields.Add("series: true");
+        if (m.SubHits.Count > 0)
+            fields.Add("sub_hits");
         return fields;
     }
 

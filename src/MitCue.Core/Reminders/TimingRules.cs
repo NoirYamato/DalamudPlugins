@@ -102,7 +102,9 @@ public static class TimingRules
     /// </item>
     /// <item>
     /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
-    /// tank mitigation, invulns) also covers the later hits its effect can reach. For each such item with a duration D,
+    /// tank mitigation, invulns) also covers the later hits its effect can reach, the mechanic's and its damage times that
+    /// are no timeline entries (<see cref="Mechanic.SubHits"/>: the four later cleaves of TOP's Diffuse Wave Cannon Kyrios,
+    /// which a tank's invuln must last through, the five later Splashes of TEA's first). For each such item with a duration D,
     /// the last later hit hR it can cover is covered: the press is no earlier than hR − D + 2 s, so even pressed on the NOW
     /// cue (1.5 s before) the effect outlasts hR by 0.5 s (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s
     /// instead of −3 s), and the item's NOW cue never comes before hR − D + 0.5 s (<see cref="ItemTiming.DueNotBefore"/>),
@@ -522,7 +524,8 @@ public static class TimingRules
 
     /// <summary>
     /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration D, the later hits hR
-    /// of the mechanic it can cover together with <paramref name="hit"/>: hR − hit ≤ D − 1 s − the latest use before the
+    /// of the mechanic (<see cref="Mechanic.Hits"/> and <see cref="Mechanic.SubHits"/>) it can cover together with
+    /// <paramref name="hit"/>: hR − hit ≤ D − 1 s − the latest use before the
     /// hit (<see cref="ReminderOptions.MitigationLatestBeforeHit"/>), the earliest use that still reaches hR,
     /// hR − D + 0.5 s, at least 1 s before the hit, and a press no later than <paramref name="latestOffset"/> after the hit
     /// allows (<see cref="LatestCoveringOffset"/>), the press being hR − D + 2 s but at least 0.5 s before the hit. For the
@@ -538,7 +541,8 @@ public static class TimingRules
 
         double? entryPress = null;
         (double Press, double NotEarly)? covered = null;
-        foreach (var later in mechanic.Hits)
+        IEnumerable<double> hits = mechanic.SubHits.Count == 0 ? mechanic.Hits : mechanic.Hits.Concat(mechanic.SubHits).Order();
+        foreach (var later in hits)
         {
             // Due from notEarly on, and pressed at the latest 0.5 s before the hit, it is due until the hit (UseWindow).
             var press = Math.Min(later - duration + CoverageLead, hit - CoveringPressLead);

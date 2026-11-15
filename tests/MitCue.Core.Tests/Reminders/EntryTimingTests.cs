@@ -598,6 +598,42 @@ public class EntryTimingTests
         Assert.Equal(ReminderState.Due, Assert.Single(s.All).State);
     }
 
+    /// <summary>
+    /// A first hit at 100 with sub hits (damage times that are no timeline entries) 2.1, 4.1, 6.2 and 8.3 s later and a hit
+    /// 8.8 s later (TOP's Diffuse Wave Cannon Kyrios), and a hit at 200 with five sub hits 1.1 s apart (TEA's first
+    /// Splash) (sync 90).
+    /// </summary>
+    private static FightDefinition SubHitFight() => Kit.Fight(
+        90,
+        new Mechanic { Id = "p1.cleaves", Name = "cleaves", Phase = "p1", Hit = 100, Hits = [100, 108.8], SubHits = [102.1, 104.1, 106.2, 108.3] },
+        new Mechanic { Id = "p1.splash", Name = "splash", Phase = "p1", Hit = 200, Hits = [200], SubHits = [201.1, 202.2, 203.3, 204.4, 205.5] });
+
+    [Fact]
+    public void Coverage_SubHitsAreLaterHitsToo_WithoutAHitIndex()
+    {
+        // The fifth cleave (108.3) is 8.3 s after the first, within 10 − 1.5 s: the invuln is pressed 0.5 s before the first
+        // and turns due at 108.3 − 10 + 0.5, so that a press on its NOW cue still lasts 0.5 s past it; 108.8 is out of reach.
+        var options = new ReminderOptions();
+        var fight = SubHitFight();
+        EntryTiming Timing(PlanEntry entry) => TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, ChargeCatalog);
+        var invuln = Timing(Kit.Entry("p1.cleaves", null, Kit.Do(Kit.HallowedGround)));
+        Assert.Equal(-0.5, invuln.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(98.8, invuln.Items[0].DueAt(options), Kit.Tolerance);
+        Assert.Equal(98.8, invuln.Items[0].Earliest, Kit.Tolerance);
+
+        // The sixth splash 5.5 s after the first: a 10 s call at 205.5 − 10 + 2, early before 205.5 − 10 + 0.5.
+        var splash = Timing(Kit.Entry("p1.splash", null, Kit.Do(TenSecondMit)));
+        Assert.Equal(-2.5, splash.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(196, splash.Items[0].Earliest, Kit.Tolerance);
+
+        // Sub hits have no index: hit index 1 is the second hit (108.8).
+        Assert.Equal(108.8, Timing(Kit.Entry("p1.cleaves", -2, Kit.Do(Kit.HallowedGround)).AtHit(1)).Hit, Kit.Tolerance);
+
+        // Without them only the hits count: the invuln keeps its own −2 s.
+        var bare = Kit.Fight(90, new Mechanic { Id = "p1.cleaves", Name = "cleaves", Phase = "p1", Hit = 100, Hits = [100, 108.8] });
+        Assert.Equal(-2, TimingRules.ForEntry(Kit.Entry("p1.cleaves", null, Kit.Do(Kit.HallowedGround)), bare.GetMechanic("p1.cleaves")!, bare, ChargeCatalog).AutomaticOffset, Kit.Tolerance);
+    }
+
     /// <summary>Sacred Soil: 15 s party mitigation (−4.5 s).</summary>
     private static readonly ActionInfo Soil = Kit.Act(188, "Sacred Soil", ActionKind.PartyMit, duration: 15, jobs: [Job.SCH]);
 

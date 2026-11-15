@@ -117,6 +117,10 @@ public class ValidateCommandTests : IDisposable
         var lead = this.CopyData("lead");
         Replace(Path.Combine(lead, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    heal_lead: 2\n    aliases:\n      - \"P4 Start\"");
         Assert.Contains("problem: p4.start is a marker with heal_lead: 2:", this.kit.Run("validate", "--data", lead).Out);
+
+        var sub = this.CopyData("sub");
+        Replace(Path.Combine(sub, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    sub_hits: [901.0]\n    aliases:\n      - \"P4 Start\"");
+        Assert.Contains("problem: p4.start is a marker with sub_hits:", this.kit.Run("validate", "--data", sub).Out);
     }
 
     [Fact]
