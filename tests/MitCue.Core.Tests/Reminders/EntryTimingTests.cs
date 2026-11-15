@@ -2,6 +2,8 @@ using MitCue.Core.Actions;
 using MitCue.Core.Fights;
 using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
+using MitCue.Core.Tests.Data;
+using MitCue.Core.Tests.Import;
 
 namespace MitCue.Core.Tests.Reminders;
 
@@ -323,6 +325,87 @@ public class EntryTimingTests
         s.OnOwnAction(TenSecondMit.Id, 96.6);                      // on the NOW cue: on time
         Assert.Equal(ReminderState.Done, r.State);
         Assert.False(r.UsedEarly);
+    }
+
+    /// <summary>Sacred Soil: 15 s party mitigation (−4.5 s).</summary>
+    private static readonly ActionInfo Soil = Kit.Act(188, "Sacred Soil", ActionKind.PartyMit, duration: 15, jobs: [Job.SCH]);
+
+    /// <summary>Eukrasia: a GCD (2.5 s) without a cooldown of its own, which Eukrasian Prognosis needs first.</summary>
+    private static readonly ActionInfo Eukrasia = new() { Id = 24290, Name = "Eukrasia", Kind = ActionKind.Other, Jobs = [Job.SGE], IsGcd = true, Recast = 2.5 };
+
+    /// <summary>Eukrasian Prognosis: an instant shield (−4 s), usable after Eukrasia.</summary>
+    private static readonly ActionInfo EukrasianPrognosis = new()
+    {
+        Id = 24292,
+        Name = "Eukrasian Prognosis",
+        Kind = ActionKind.Shield,
+        Jobs = [Job.SGE],
+        IsGcd = true,
+        DurationByLevel = new Dictionary<int, double> { [1] = 30 },
+        FollowUpOf = Eukrasia.Id,
+    };
+
+    /// <summary>Hits 6.1 s apart at 100, 12 s apart at 300, 8.4 s apart at 500 and 9.5 s apart at 700 (sync 90).</summary>
+    private static EntryTiming Limited(string mechanic, params ActionInfo[] actions)
+    {
+        var fight = Kit.Fight(90, Kit.Mech("p1.two", 100, 100, 106.1), Kit.Mech("p1.far", 300, 300, 312), Kit.Mech("p1.near", 500, 500, 508.4), Kit.Mech("p1.mid", 700, 700, 709.5));
+        var catalog = new FakeCatalog([.. Kit.Catalogued, TenSecondMit, Soil, Eukrasia, EukrasianPrognosis]);
+        return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, catalog);
+    }
+
+    [Fact]
+    public void Coverage_NeverPressesLaterThanTheEntrysCastsAndLeadsAllow()
+    {
+        Assert.Equal(-1, Limited("p1.far", Soil).AutomaticOffset, Kit.Tolerance);                        // alone: 312 − 15 + 2 − 300
+
+        // "Adloquium + Soil", either way round: at −1 s the 2 s cast would end after the first hit, so the 12 s later hit
+        // is not covered and the cast ends 1 s or more before the first hit; every item's NOW cue is on time.
+        foreach (var t in new[] { Limited("p1.far", Kit.Adloquium, Soil), Limited("p1.far", Soil, Kit.Adloquium) })
+        {
+            Assert.Equal(-4.5, t.AutomaticOffset, Kit.Tolerance);
+            Assert.True(t.PressAt + Kit.Adloquium.CastTime <= t.Hit - 1 + Kit.Tolerance);
+            Assert.All(t.Items, i => Assert.True(i.Earliest <= i.DueAt(new ReminderOptions()) + Kit.Tolerance));
+        }
+
+        Assert.Equal(286, Limited("p1.far", Kit.Adloquium, Soil).Items[1].Earliest, Kit.Tolerance);       // Soil's own window: 300 − 15 + 1
+
+        // A later hit within that limit is still covered: 9.5 s away, −3.5 s (709.5 − 15 + 2 − 700) with the cast ending at −1.5 s.
+        var mid = Limited("p1.mid", Soil, Kit.Adloquium);
+        Assert.Equal(-3.5, mid.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(695, mid.Items[0].Earliest, Kit.Tolerance);                                        // 709.5 − 15 + 0.5
+        Assert.Equal(-4.6, Limited("p1.near", Kit.Temperance, Soil, Kit.Adloquium).AutomaticOffset, Kit.Tolerance);
+
+        // A follow-up of a GCD (Eukrasian Prognosis after Eukrasia's 2.5 s) is in place 1 s before the hit too: −3.5 s at the latest.
+        Assert.Equal(-4.5, Limited("p1.far", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-3.5, Limited("p1.mid", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+
+        // An item with a lead of its own keeps it: Earthly Star matures, Neutral Sect leaves time for its Helios.
+        Assert.Equal(-10, Limited("p1.two", Kit.EarthlyStar, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Limited("p1.two", Kit.NeutralSect, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Limited("p1.two", TenSecondMit, Kit.NeutralSect).AutomaticOffset, Kit.Tolerance);
+
+        // An instant shield does not hold coverage back, nor does a heal used after the hit.
+        Assert.Equal(-1.9, Limited("p1.two", TenSecondMit, Kit.DivineBenison).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-1.9, Limited("p1.two", TenSecondMit, Kit.Tetragrammaton).AutomaticOffset, Kit.Tolerance);
+    }
+
+    /// <summary>
+    /// Real cells: "Sacred Soil + Succor" on TOP's Pantokrator (line stacks at 81.3, 87.3, 93.3 and 99.3), either way round,
+    /// and "Collective Unconscious + Aspected Helios" on TEA's Fate Calibration β (1081.5, 1082.5, 1088.6): the cast still
+    /// ends before the first hit.
+    /// </summary>
+    [Theory]
+    [InlineData("top", "p1.pantokrator", -4.5, "Sacred Soil", "Succor")]
+    [InlineData("top", "p1.pantokrator", -4.5, "Succor", "Sacred Soil")]
+    [InlineData("tea", "p4.fate_beta", -3.0, "Collective Unconscious", "Aspected Helios")]
+    public void Coverage_RealCells_TheCastEndsBeforeTheFirstHit(string fightKey, string mechanic, double offset, params string[] actions)
+    {
+        var fight = fightKey == "top" ? PlanImports.Top : PlanImports.Tea;
+        var entry = Kit.Entry(mechanic, null, [.. actions.Select(a => Kit.Do(RepoFiles.Action(a)))]);
+        var t = TimingRules.ForEntry(entry, fight.GetMechanic(mechanic)!, fight, RepoFiles.Actions);
+        Assert.Equal(offset, t.AutomaticOffset, Kit.Tolerance);
+        var cast = actions.Max(a => RepoFiles.Action(a).CastTime);
+        Assert.True(t.PressAt + cast <= t.Hit - 1 + Kit.Tolerance);
     }
 
     // ---- series (a raidwide repeated a few seconds apart) ------------------------------------------------------

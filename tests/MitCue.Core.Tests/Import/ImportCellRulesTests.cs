@@ -577,6 +577,17 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void Late_WithMitigationThatCoversALaterHit_TheCastStillEndsBeforeTheHit()
+    {
+        // TOP Pantokrator: "Soil + Succor (Late)". Coverage of the later line stacks never presses the Succor so late that
+        // its 2 s cast ends after the first (it was −1 s, later than "(Late)"), so "(Late)" gives −3 s.
+        var entry = Assert.Single(Import(Sheet("P1", "Scholar", "Pantokrator\tSoil + Succor (Late)")).Plan.Entries);
+
+        Assert.Equal(["Sacred Soil", "Succor"], entry.Names());
+        Assert.Equal(-3.0, entry.Offset);
+    }
+
+    [Fact]
     public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt()
     {
         // A Sage's Eukrasian Prognosis (instant) needs Eukrasia first, a GCD of 2.5 s: "(Late)" presses Eukrasia 3.5 s before

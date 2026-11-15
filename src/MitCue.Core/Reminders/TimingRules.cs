@@ -52,6 +52,10 @@ public static class TimingRules
     private const double CoverageSpanMargin = 2.5;   // the press is then still 0.5 s before the first hit
     private const double OwnLeadGuard = 2.5;         // an item's own lead pulls an entry no earlier than D − 2.5 s for its
                                                      // other items: on the NOW cue (1.5 s before) they outlast the hit by 1 s
+    private const double EffectBeforeHit = 1;        // what a press takes time to is in place this long before the hit, as
+                                                     // "(Late)" has it (PlanImporter.LateOffset)
+    private const double PlainGcdRecast = 3;         // a GCD with a recast under this has no cooldown of its own
+                                                     // (PlanCheckOptions.MinRecast)
 
     // §5.2 use window.
     private const double ExpiryMargin = 1;           // an effect must outlast the hit by this much
@@ -100,7 +104,12 @@ public static class TimingRules
     /// the last later hit hR with hR − first hit ≤ D − 2.5 s is covered: the press is no earlier than hR − D + 2 s, so even
     /// pressed on the NOW cue (1.5 s before) the effect outlasts hR by 0.5 s, and the press is still 0.5 s before the first
     /// hit (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s). A use that would end before
-    /// hR + 0.5 s is early.
+    /// hR + 0.5 s is early. Only as late as the entry's other items allow: an item pressed before the hit that takes time
+    /// to its effect (<see cref="TimeToEffect"/>: a cast, or the GCD a follow-up needs first) has it in place 1 s before
+    /// the first hit, as "(Late)" does ("Soil + Succor": −3 s at the latest), and an item with a lead of its own that is no
+    /// mitigation keeps it (Earthly Star 10 s, Neutral Sect 4.5 s). A later hit that would need a later press is not
+    /// covered, so that the items' earliest uses stay those of the press ("Soil + Succor" on TOP's Pantokrator keeps the
+    /// Succor's −4.5 s and covers the second line stack, not the third).
     /// </item>
     /// <item>
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): nothing is
@@ -140,13 +149,15 @@ public static class TimingRules
 
         var (automatic, timingAction) = AutomaticOffset(timing, mechanic, level);
 
-        // Mitigation for the whole of a multi-hit mechanic also covers the later hits it can reach.
+        // Mitigation for the whole of a multi-hit mechanic also covers the later hits it can reach, as late as the entry's
+        // other items allow.
         var covers = new double?[items.Count];
         if (automatic < 0 && (entry.HitIndex ?? 0) == 0)
         {
+            var latest = LatestCoveringOffset(timing, actions, level);
             for (var i = 0; i < items.Count; i++)
             {
-                if (CoveredHit(timing[i], mechanic, hit, level) is { } covered)
+                if (CoveredHit(timing[i], mechanic, hit, level, latest) is { } covered)
                 {
                     covers[i] = covered.Hit - covered.Duration + CoverageMargin;
                     automatic = Math.Max(automatic, covered.Hit - covered.Duration + CoverageLead - hit);
@@ -275,6 +286,24 @@ public static class TimingRules
     public static double EarliestCoveringUse(double hit, double duration) => hit - duration + ExpiryMargin;
 
     /// <summary>
+    /// Seconds from pressing <paramref name="action"/> to its effect: its cast, plus the recast of a GCD that is pressed right
+    /// before it to make it usable (<see cref="ActionInfo.FollowUpOf"/> a GCD without a cooldown of its own, a recast under
+    /// 3 s: Eukrasia's 2.5 s before Eukrasian Prognosis; not Macrocosmos, pressed long before Microcosmos). The importer's
+    /// "(Late)" has that much in place 1 s before the hit, and so does multi-hit coverage (<see cref="ForEntry"/>).
+    /// </summary>
+    /// <param name="action">The action.</param>
+    /// <param name="actions">The catalog its trigger is resolved in.</param>
+    /// <param name="syncLevel">The sync level (the trigger's recast).</param>
+    /// <exception cref="ArgumentNullException"><paramref name="action"/> or <paramref name="actions"/> is null.</exception>
+    public static double TimeToEffect(ActionInfo action, IActionCatalog actions, int syncLevel)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        ArgumentNullException.ThrowIfNull(actions);
+        return action.CastTime + (action.FollowUpOf is { } id && actions.Get(id) is { IsGcd: true } trigger
+            && trigger.RecastAt(syncLevel) < PlainGcdRecast ? trigger.RecastAt(syncLevel) : 0);
+    }
+
+    /// <summary>
     /// When a reminder pressed at <paramref name="pressAt"/> turns due (its "NOW" cue): <see cref="ReminderOptions.DueLead"/>
     /// before the press time, but not before <paramref name="notBefore"/> (<see cref="EntryTiming.DueNotBefore"/>).
     /// </summary>
@@ -397,10 +426,11 @@ public static class TimingRules
 
     /// <summary>
     /// For mitigation (party or tank mitigation, an invuln) pressed before the hit with a known duration: the last later
-    /// hit of the mechanic it covers together with <paramref name="hit"/> (no more than its duration − 2.5 s after it), with
-    /// that duration; else null.
+    /// hit of the mechanic it covers together with <paramref name="hit"/> (no more than its duration − 2.5 s after it) with
+    /// a press no later than <paramref name="latestOffset"/> after the hit allows (<see cref="LatestCoveringOffset"/>), with
+    /// that duration; else null. A later hit that would need a later press is not covered.
     /// </summary>
-    private static (double Hit, double Duration)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel)
+    private static (double Hit, double Duration)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset)
     {
         if (action is not { Kind: ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln } || IsUsedAfterHit(action)
             || (action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel)) is not { } duration)
@@ -411,11 +441,34 @@ public static class TimingRules
         (double Hit, double Duration)? covered = null;
         foreach (var later in mechanic.Hits)
         {
-            if (later > hit + SameHit && later - hit <= duration - CoverageSpanMargin)
+            if (later > hit + SameHit && later - hit <= duration - CoverageSpanMargin && later - duration + CoverageLead - hit <= latestOffset)
                 covered = (later, duration);
         }
 
         return covered;
+    }
+
+    /// <summary>
+    /// The latest offset multi-hit coverage may give an entry with these timing actions (see <see cref="ForEntry"/>): an
+    /// item pressed before the hit that takes time to its effect (<see cref="TimeToEffect"/>: a cast, or the GCD a follow-up
+    /// needs first) has it in place 1 s before the hit, as "(Late)" presses it ("Succor": −3 s, "Eukrasian Prognosis":
+    /// −3.5 s), and an item with a lead of its own that is no mitigation keeps that lead (Earthly Star −10 s, to mature;
+    /// Neutral Sect −4.5 s, for its Helios). +∞ when no item limits it.
+    /// </summary>
+    private static double LatestCoveringOffset(IReadOnlyList<ActionInfo?> timing, IActionCatalog actions, int syncLevel)
+    {
+        var latest = double.PositiveInfinity;
+        foreach (var action in timing)
+        {
+            if (action is null || IsUsedAfterHit(action))
+                continue;
+            if (TimeToEffect(action, actions, syncLevel) is var time && time > 0)
+                latest = Math.Min(latest, -(time + EffectBeforeHit));
+            if (OwnLead(action) is { } lead && action.Kind is not (ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln))
+                latest = Math.Min(latest, -lead);
+        }
+
+        return latest;
     }
 
     /// <summary>The later of two optional times (null when both are).</summary>

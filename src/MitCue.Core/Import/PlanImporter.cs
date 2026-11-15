@@ -2055,14 +2055,10 @@ public sealed partial class PlanImporter
         private double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(this.TimeToEffect).DefaultIfEmpty(0).Max();
 
         /// <summary>
-        /// Seconds from pressing an action to its effect: its cast, plus the recast of a GCD that is pressed right before it
-        /// to make it usable (<see cref="ActionInfo.FollowUpOf"/> a GCD without a cooldown of its own, a recast under
-        /// <see cref="PlanCheckOptions.MinRecast"/>: Eukrasia before Eukrasian Prognosis, not Macrocosmos, pressed long before
-        /// Microcosmos).
+        /// Seconds from pressing an action to its effect (<see cref="TimingRules.TimeToEffect"/>: its cast, plus the GCD a
+        /// follow-up needs first, Eukrasia before Eukrasian Prognosis), which multi-hit coverage leaves too.
         /// </summary>
-        private double TimeToEffect(ActionInfo action) =>
-            action.CastTime + (action.FollowUpOf is { } id && this.options.Actions.Get(id) is { IsGcd: true } trigger
-                && trigger.RecastAt(this.level) < CheckDefaults.MinRecast ? trigger.RecastAt(this.level) : 0);
+        private double TimeToEffect(ActionInfo action) => TimingRules.TimeToEffect(action, this.options.Actions, this.level);
 
         /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to
