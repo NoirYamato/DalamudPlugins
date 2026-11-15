@@ -540,6 +540,44 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("Press Soil as the first tether resolves on the melee and cover the stacks!")]
+    [InlineData("Press Soil under the tanks as the first tether resolves!")]
+    [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
+    [InlineData("Press Soil under the MT or OT as the first tether resolves!")]
+    [InlineData("Press Soil as the first tether resolves, before the tank buster!")]
+    [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
+    public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
+    {
+        // Where or when to press ("on the melee", "under the tanks", "before the tank buster") and the job that presses it
+        // ("SCH:") are no players spoken to: the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
+        var r = Import(PlacingTab(tip));
+
+        Assert.Equal(["'P1'!D2"], r.Plan.Entries.Where(e => e.Detail == tip).Select(e => e.Src!));
+        Assert.DoesNotContain(r.Plan.Entries, e => e.Do.Any(i => i.Note == tip));
+    }
+
+    [Fact]
+    public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns()
+    {
+        // "on the melee" places the Soil, but "OT provokes" speaks to the OT ("and" lists only a word of the same kind, a role
+        // with a role, a slot with a slot): every entry of its columns, and a note entry for R1.
+        const string note = "Press Soil on the melee and OT provokes after it!";
+        var r = Import(PlacingTab(note));
+
+        Assert.Equal(6, r.Plan.Entries.Count(e => e.Detail == note));
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "R1" && e.Do.Any(i => i.Note == note));
+    }
+
+    /// <summary>P1 over MT, WHM, SCH and R1 (no entry), with <paramref name="note"/> merged over all four below Pantokrator.</summary>
+    private static SheetTab PlacingTab(string note) => Tab(
+        "P1",
+        [new CellRange(3, 1, 3, 4)],
+        ["P1", "MT", "H1 WHM", "H2 SCH", "R1"],
+        ["Program Loop", "Rep", "Temperance", "Soil", ""],
+        ["Pantokrator", "Rep", "Asylum", "Succor", ""],
+        ["", note, "", "", ""]);
+
+    [Theory]
     [InlineData("Watch the clone positions before you move!!")] // names no action
     [InlineData("Discuss the LB3 order during the cutscene!!")] // names one that no entry of its columns presses
     public void NoteMergedAcrossColumns_ThatNoEntryPresses_GoesToEveryColumn(string note)

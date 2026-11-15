@@ -212,13 +212,15 @@ Rules worth knowing:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
   pressed before its hit presses it just before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)`
   −1 s, `Succor (Late)` −3 s), but never earlier than without it.
-- **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
-  those actions: the detail of the entries in their columns and section that press one of them (all their columns'
-  entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
-  provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their entries, as a
-  note in each column. A merged note reads the same whichever of its columns are imported: imported alone, the Scholar
-  column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported name Soil and
-  Kera; a `note-row` info says so).
+- **Notes over several columns** that name actions and speak to no other player ("A tip for Soil/Kera timing …") are
+  about using those actions: the detail of the entries in their columns and section that press one of them (all their
+  columns' entries when none does). A note that speaks to players by role, slot or job ("Tanks: Rampart the first tower
+  set, then OT provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their
+  entries, as a note in each column. A role or slot word that says where or for whom to press speaks to no one ("on the
+  melee", "under the tanks", "on melee and ranged", "the tank buster"), nor does the job of an action the note names
+  ("SCH: … press Soil …"). A merged note reads the same whichever of its columns are imported: imported alone, the
+  Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported name Soil
+  and Kera; a `note-row` info says so).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
   Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
   later call as the reminders time both (`TimingRules.ForEntry`), used on its NOW cue (the default due lead). A note says

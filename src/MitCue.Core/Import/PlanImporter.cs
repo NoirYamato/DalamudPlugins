@@ -256,6 +256,16 @@ public sealed partial class PlanImporter
             "d2", "d3", "d4",
         };
 
+        /// <summary>
+        /// Words before a role or slot word that make it where or for whom to press, not a player spoken to: "press Soil on the
+        /// melee", "under the tanks", "for both ranged" (<see cref="IsPlacement"/>).
+        /// </summary>
+        private static readonly HashSet<string> PlaceWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "on", "onto", "under", "behind", "near", "beside", "at", "in", "into", "to", "toward", "towards", "for", "with", "from",
+            "between", "among", "around", "by", "of",
+        };
+
         /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
         private static readonly ReminderOptions DefaultReminders = new();
 
@@ -737,9 +747,9 @@ public sealed partial class PlanImporter
                     continue;
                 }
 
-                // Over several columns, a note about using the actions it names (it names no player) is for whoever presses
-                // them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
-                if (spanned.Count > 1 && !NamesAPlayer(text) && this.NamedActions(text) is { Count: > 0 } named)
+                // Over several columns, a note about using the actions it names (it speaks to no other player) is for whoever
+                // presses them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
+                if (spanned.Count > 1 && this.NamedActions(text) is { Count: > 0 } named && !this.NamesAPlayer(text, named))
                 {
                     this.bannerNotes.Add(new BannerNote(note, columns, spanned.Except(columns).ToList(), text, named));
                     continue;
@@ -2206,11 +2216,42 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// The text names players: by role or slot ("Tanks: …", "then OT provokes …", "healers") or by job ("WHM covers the
-        /// rest"). A note over several columns that names none is about using the actions it names (<see cref="BannerNote"/>).
+        /// The text speaks to players besides those who press the actions it names (<paramref name="named"/>): by role or slot
+        /// ("Tanks: …", "then OT provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where
+        /// or for whom to press is no player spoken to ("press Soil/Kera on the melee", "the tank buster",
+        /// <see cref="IsPlacement"/>), nor is the job of a named action, whom the tip is for ("SCH: … press Soil …"). A note
+        /// over several columns that speaks to no other player is about using the actions it names (<see cref="BannerNote"/>).
         /// </summary>
-        private static bool NamesAPlayer(string text) =>
-            Regex.Split(text, @"[^\p{L}\p{N}]+").Any(PlayerWords.Contains) || LayoutDetector.JobsFromTabName(text).Count > 0;
+        private bool NamesAPlayer(string text, HashSet<uint> named)
+        {
+            var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
+                return true;
+            var pressers = named.Select(this.options.Actions.Get).OfType<ActionInfo>().SelectMany(a => a.Jobs).ToHashSet();
+            return LayoutDetector.JobsFromTabName(text).Any(job => !pressers.Contains(job));
+        }
+
+        /// <summary>
+        /// The role or slot word at <paramref name="i"/> says where or for whom to press, and speaks to no player: after a place
+        /// word ("on the melee", "under the tanks"), before "buster" ("the tank buster"), or after "and"/"or" that lists it
+        /// with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT"; not "on the melee and OT
+        /// provokes").
+        /// </summary>
+        private static bool IsPlacement(string[] words, int i)
+        {
+            if (i + 1 < words.Length && words[i + 1].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
+                return true;
+            var j = i - 1;
+            while (j >= 0 && Determiners.Contains(words[j]))
+                j--;
+            if (j < 0)
+                return false;
+            if (PlaceWords.Contains(words[j]))
+                return true;
+            return (words[j].Equals("and", StringComparison.OrdinalIgnoreCase) || words[j].Equals("or", StringComparison.OrdinalIgnoreCase))
+                && j > 0 && PlayerWords.Contains(words[j - 1]) && Slots.TryNormalize(words[j - 1], out _) == Slots.TryNormalize(words[i], out _)
+                && IsPlacement(words, j - 1);
+        }
 
         /// <summary>
         /// The actions the note names that cells of its section name in the columns it spans that are not imported: the
