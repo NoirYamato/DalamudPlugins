@@ -628,6 +628,26 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("Swap: WAR Rampart the first tower set, then PLD provokes and takes the boss after Pantokrator")] // a role action
+    [InlineData("Swap: WAR Invuln the first tower set, then PLD provokes and takes the boss after Pantokrator")] // one action of each tank
+    [InlineData("Swap: WAR Holmgang the first tower set, then PLD provokes and takes the boss after Pantokrator")] // the Warrior's own
+    public void NoteMergedAcrossColumns_NamingAJobBesidesWhoseOwnActionItNames_GoesToEveryEntryOfItsColumns(string note)
+    {
+        // Rampart is every tank's, and "Invuln" names one action of each tank: neither says that the PLD presses it, so "PLD
+        // provokes" speaks to the PLD. The MT gets the note on both entries, and the OT, with no entry, a note entry.
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", note, ""],
+            ["Program Loop", "Rampart", ""],
+            ["Pantokrator", "Holmgang", ""]));
+
+        Assert.Equal(["'P1'!B3", "'P1'!B4"], r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "OT" && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
     [InlineData("Press Soil as the first tether resolves on the melee and cover the stacks!")]
     [InlineData("Press Soil under the tanks as the first tether resolves!")]
     [InlineData("Press Soil on melee and ranged as the first tether resolves!")]

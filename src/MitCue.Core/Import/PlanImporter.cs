@@ -749,7 +749,7 @@ public sealed partial class PlanImporter
 
                 // Over several columns, a note about using the actions it names (it speaks to no other player) is for whoever
                 // presses them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
-                if (spanned.Count > 1 && this.NamedActions(text) is { Count: > 0 } named && !this.NamesAPlayer(text, named))
+                if (spanned.Count > 1 && this.NamedActions(text) is { Count: > 0 } named && !this.NamesAPlayer(text))
                 {
                     this.bannerNotes.Add(new BannerNote(note, columns, spanned.Except(columns).ToList(), text, named));
                     continue;
@@ -2214,42 +2214,54 @@ public sealed partial class PlanImporter
         /// level; note-only phrases do not count. A word that also names some job's action ("to cover all": Cover) only
         /// matters when an entry presses it.
         /// </summary>
-        private HashSet<uint> NamedActions(string text)
+        private HashSet<uint> NamedActions(string text) =>
+            this.NamedByWord(text).SelectMany(w => w.Actions).SelectMany(a => new[] { a.Id, this.options.Actions.ResolveAt(a, this.level).Id }).ToHashSet();
+
+        /// <summary>
+        /// For each word of a note that names actions by alias (<see cref="NamedActions"/>): those actions, and the jobs whose
+        /// actions they are ("Soil": the Scholar's Sacred Soil; "Rampart", a role action, and "Invuln", one action of each
+        /// tank: every tank's).
+        /// </summary>
+        private IEnumerable<(List<ActionInfo> Actions, HashSet<Job> Jobs)> NamedByWord(string text)
         {
-            var found = new HashSet<uint>();
             var words = ImportText.NormalizedWords(text);
             for (var i = 0; i < words.Length; i++)
             {
                 if (words[i].Length < 3 || this.options.Aliases.MatchLongest(string.Join(' ', words, i, words.Length - i)) is not { } match)
                     continue;
+                var actions = new List<ActionInfo>();
+                var jobs = new HashSet<Job>();
                 foreach (var expansion in this.options.Aliases.Lookup(match.Key).Where(e => !e.NoteOnly))
                 {
                     foreach (var name in expansion.ActionNames)
                     {
                         if (this.options.Actions.FindByName(name, expansion.Job) is not { } action)
                             continue;
-                        found.Add(action.Id);
-                        found.Add(this.options.Actions.ResolveAt(action, this.level).Id);
+                        actions.Add(action);
+                        jobs.UnionWith(expansion.Job is { } job ? [job] : action.Jobs);
                     }
                 }
-            }
 
-            return found;
+                if (actions.Count > 0)
+                    yield return (actions, jobs);
+            }
         }
 
         /// <summary>
-        /// The text speaks to players besides those who press the actions it names (<paramref name="named"/>): by role or slot
-        /// ("Tanks: …", "then OT provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where
-        /// or for whom to press is no player spoken to ("press Soil/Kera on the melee", "the tank buster",
-        /// <see cref="IsPlacement"/>), nor is the job of a named action, whom the tip is for ("SCH: … press Soil …"). A note
-        /// over several columns that speaks to no other player is about using the actions it names (<see cref="BannerNote"/>).
+        /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
+        /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
+        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), nor is the
+        /// job whose own action the note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of
+        /// several jobs (a role action such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the
+        /// first tower set, then PLD provokes …" speaks to the PLD. A note over several columns that speaks to no other
+        /// player is about using the actions it names (<see cref="BannerNote"/>).
         /// </summary>
-        private bool NamesAPlayer(string text, HashSet<uint> named)
+        private bool NamesAPlayer(string text)
         {
             var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
             if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
                 return true;
-            var pressers = named.Select(this.options.Actions.Get).OfType<ActionInfo>().SelectMany(a => a.Jobs).ToHashSet();
+            var pressers = this.NamedByWord(text).Where(w => w.Jobs.Count == 1).SelectMany(w => w.Jobs).ToHashSet();
             return LayoutDetector.JobsFromTabName(text).Any(job => !pressers.Contains(job));
         }
 
