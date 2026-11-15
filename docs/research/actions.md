@@ -770,8 +770,9 @@ aliases:
   joins actions with `/` only ("Soil/Reci/Deploy/Whisper": all four), so the importer reads `/` between actions of
   one job per document, as either one or as all of them (`ImportOptions.Slashes`, `src/MitCue.Core/Import/README.md`).
   "All of them" never joins at a `/` between slots, jobs, target or mechanic words ("MT/Co-tank", "Stack/Spread") or
-  in "and/or"; in both readings "Benison MT/Co-tank" has one target, either of them, and "Soil and/or Expedient" is
-  either one.
+  in "and/or"; in both readings "Benison MT/Co-tank" has one target, either of them, other words that name no action
+  joined by `/` after an action are its remark ("Kera Stack/Spread": Kerachole, noted "Stack/Spread"), "N/A" (also
+  "N / A") is one word that joins nothing, and "Soil and/or Expedient" is either one.
 - Short keys can swallow targets: `co` (AST Celestial Opposition) would match a bare "Co-Tank" item (normalized
   `co tank`). The sheets never have a bare "Co-Tank" item after splitting, and the AST-only job filter keeps it away
   from tank columns, but a target word must not be resolved as an action for another job.

@@ -87,7 +87,7 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | `ImportAnalysis`, `TrialImportTracker` | `Import/` | The Options step's trial import: tabs, columns and entry counts (the calls of a column for anyone, such as "Extras", counted apart: always imported), and the tabs and columns ticked by default |
 | `ReviewModel`, `ReviewValidator` | `Import/` | The review's rows, edits and undo; the checks of each entry (unknown mechanics or actions, actions the job can't use at the sync level, missing who, odd offsets) |
 | `ImportColumns` | `Import/ImportColumns.cs` | The column choice saved with an imported plan, how many entries the overlay will show (in the player's party and slot, as the overlay chooses) and how many of them are the player's calls, not notes for everyone, and which of the player's calls the choice leaves out, by column |
-| `LlmPrompt`, `SheetText` | `Import/` | The AI prompt: the plan format and rules (with the importer's reading of `X/Y` in the loaded sheet), the fight's mechanics, the chosen jobs' actions and aliases, and the loaded sheet as text. Reads the YAML out of the AI's answer |
+| `LlmPrompt`, `SheetText` | `Import/` | The AI prompt: the plan format and rules (with the importer's readings of the loaded sheet: `X/Y`, and a plain "Seraph" in a sheet that numbers its Seraph calls), the fight's mechanics, the chosen jobs' actions and aliases, and the loaded sheet as text. Reads the YAML out of the AI's answer |
 | `PersonalAliases` | `Import/PersonalAliases.cs` | Review fixes remembered as personal aliases |
 | `ErrorReporter` | `Util/ErrorReporter.cs` | Collects problems. Each distinct problem is logged once to Dalamud's log and listed under **Problems** and in the debug report |
 
@@ -373,9 +373,14 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
      aliases, and, when a sheet is loaded and *Include the text of …* is ticked, its chosen tabs as text
      (`SheetText`). Its rule for `X/Y` between one job's actions is the importer's per-sheet reading; with the
      sheet's text, it also says which reading MitCue's importer uses for that sheet
-     (`ImportWindow.PromptSlashes`): the Options step's **Slashes** choice, else the sheet's own reading from
-     the trial import (`ImportResult.DocumentSlashes`), else none. It does not give the per-sheet Seraph
-     reading: its aliases read a plain "Seraph" as Summon Seraph alone. **Check the YAML and review** reads
+     (`ImportWindow.PromptSlashes`): the Options step's **Slashes** choice, else the sheet's own reading from the
+     trial import (`ImportResult.DocumentSlashes`), else none. The rule names every way of joining actions the
+     importer counts, with *a "|" inside a cell*, since the prompt's sheet text separates cells with " | ". With
+     the sheet's text, and when the trial import found that the sheet numbers its Seraph calls
+     (`ImportResult.SeraphNumbered`, `ImportWindow.PromptSeraph`), a prompt for the Scholar's calls (or every
+     job's) adds the per-sheet Seraph reading right after that rule: a plain "Seraph" is "Seraph1", Summon Seraph
+     then Consolation, and one while the Seraph summoned before is still out (22 s) is "Seraph2", the other
+     Consolation; the aliases alone read a plain "Seraph" as Summon Seraph. **Check the YAML and review** reads
      the answer (`ImportPipeline.ParseYaml`: the YAML block of the answer, `PlanSerializer.FromYaml`,
      `ReviewValidator.Repair`) and goes straight to the review.
 2. **Options.** A trial import of every tab and column (`ImportPipeline.Analyze` → `ImportAnalysis`, once per
@@ -616,8 +621,8 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       of two or four actions. Hovering the info icon (a circled *i*) next to **Slashes** shows the automatic
       rule and says that the cells of every tab count. **< Back** to **Options**, **Not reading it right? Use
       the AI route**, then **Copy AI prompt**: the prompt says *For the plan below, the player chose in
-      MitCue's import options to read "/" between actions of one job as either one: do the same.* Close the
-      window without saving.
+      MitCue's import options to read "/" between actions of one job as either one: do the same.* As
+      Scholar, the next rule begins *This sheet numbers its Seraph calls*. Close the window without saving.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
       **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan

@@ -340,22 +340,27 @@ steps.
    - **Paste plan YAML (AI route):** for layouts MitCue can't read. Check the fight and the jobs (yours is
      ticked), click **Copy AI prompt** and paste the prompt into any AI chat. If you loaded the sheet first,
      the prompt already holds the plan, and says how MitCue reads `X/Y` between one job's actions in it (your
-     **Slashes** choice, else the sheet's own reading); otherwise paste the plan after it. Paste the AI's
-     answer back and click **Check the YAML and review**. A MitCue plan file (YAML or JSON) can be pasted here
-     too.
+     **Slashes** choice, else the sheet's own reading) and, for a sheet that numbers its Seraph calls and a
+     prompt with the Scholar's calls, that a plain `Seraph` is `Seraph1` (or `Seraph2` while Seraph is still
+     out); otherwise paste the plan after it. Paste the AI's answer back and click **Check the YAML and
+     review**. A MitCue plan file (YAML or JSON) can be pasted here too.
 2. **Options:** the fight, the tabs and columns to import (MitCue ticks yours after looking at the tabs), the
    plan name, the calibration preset and **Slashes**. A column of calls for anyone (*Extras*, *Other*, *Misc*
    or *Utility*) is no choice: it is always imported, and the window says so (*Always imported: Extras - N
    calls for the jobs they name*). Its cells are read call by call: a call of a job's own action is that job's
    (*PLD Wings* is the Paladin's), and the rest of the cell, a note or an action several jobs share (*Feint*),
-   is one note for everyone. A sequence (`→`) with a step several jobs share stays one note for everyone
-   (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what `X/Y` between two actions of one job
-   means: *either one (TBN/Oblation)* or *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of
-   them when no cell of the sheet joins actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line
-   break) and at least two cells list several actions of one job with `/`, one of them three or more, as
-   LPDU's TEA sheet does (`Soil/Reci/Deploy/Whisper`), else either one. The cells of every tab count,
-   whichever tabs and columns you import, and the review's notes about the whole import say which reading was
-   used. Click **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
+   is one note for everyone; a remark in brackets after the cell, or below it after a caret, goes with each of
+   them (*Dismantle + Feint (on BJ)*: the Dismantle is on BJ too). A sequence (`→`) with a step several jobs
+   share stays one note for everyone (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what
+   `X/Y` between two actions of one job means: *either one (TBN/Oblation)* or *all of them (Soil/Succor)*. On
+   *(automatic)*, MitCue reads all of them when no cell of the sheet joins actions another way (`+`, `,`, `&`,
+   `;`, `|`, an arrow, a spaced ` / `, a line break or a gap of three or more spaces) and at least two cells
+   list several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
+   (`Soil/Reci/Deploy/Whisper`), else either one. In both readings, words that name no action joined by `/`
+   after an action are its note (*Kera Stack/Spread*), and *N/A* is one word, also spaced (*N / A*), and joins
+   nothing. The cells of every tab count, whichever tabs and columns you import, and the review's notes about
+   the whole import say which reading was used. Click **Import and review**. If the result looks wrong, **Not
+   reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
    ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
    (right-click for automatic timing), set the flags, change what to press, and delete entries. When you
@@ -379,14 +384,19 @@ MitCue reads a sheet with a row per mechanic (with or without times) and a colum
 `H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
 job of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell
 that points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call
-meant for before the hit just before it, so that its cast ends 1 s before the hit (`Reprisal (Late)` 1 s
-before it, `Succor (Late)` 3 s). A call for a party buff that your earlier press keeps up through its hit
-(pressed on its NOW cue, the buff lasts at least 1 s past that hit) becomes a note (*Temperance (still
-active)*) or the buff's follow-up (Summon Seraph's Consolation). When the earlier call has no time in the
-sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and writes that time
-into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines Temperance is pressed
-3.5 s before its hit instead of 6 s, and lasts through Water 2. Otherwise both stay calls. An optional call
-(grey, in brackets, with a condition, or one choice of an either/or) keeps no buff up.
+meant for before the hit just before it, so that its cast, or the GCD it needs first, ends 1 s before the hit
+(`Reprisal (Late)` 1 s before it, `Succor (Late)` 3 s, `Eukrasian Prognosis (Late)` 3.5 s, after Eukrasia),
+unless that would press one of its actions earlier than without it. A call for a party buff that your
+earlier press keeps up through its hit (pressed on its NOW cue, the buff lasts at least 1 s past that hit)
+becomes a note (*Temperance (still active)*; also Neutral Sect within its 30 s barrier); one for a buff with
+a follow-up becomes that follow-up while the buff is still up when the follow-up is used (Summon Seraph's
+Consolation; at level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign). When the earlier call has
+no time in the sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and
+writes that time into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines
+Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2. It never presses
+Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the hit, nor another action of that
+call earlier. Otherwise both stay calls. An optional call (grey, in brackets, with a condition, or one choice
+of an either/or) keeps no buff up.
 
 A call without a time in the sheet that would come before its action is ready again, after your earlier
 presses of it (counted with the action's charges, as `mitcue check` counts them), waits for it: MitCue presses
