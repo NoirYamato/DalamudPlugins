@@ -177,8 +177,9 @@ public sealed record ImportDiagnostic(DiagnosticSeverity Severity, string Code, 
 public enum SlashReading
 {
     /// <summary>
-    /// Decided from the document: "and" when no assignment cell joins actions any other way ("+", ",", "&amp;", arrows,
-    /// a spaced " / ", line breaks) and slashes list several actions of one job, else either one.
+    /// Decided from the document: "and" when no assignment cell joins actions any other way ("+", ",", "&amp;", ";", "|",
+    /// arrows, a spaced " / ", line breaks, gaps of three or more spaces) and slashes list several actions of one job, else
+    /// either one.
     /// </summary>
     Auto,
 

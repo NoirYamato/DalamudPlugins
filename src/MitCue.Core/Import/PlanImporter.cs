@@ -476,8 +476,9 @@ public sealed partial class PlanImporter
         /// <summary>
         /// What "/" between two actions of one job means in this document (<see cref="ImportOptions.Slashes"/>), reported as a
         /// "slash-reading" diagnostic. Automatic: "and" (<see cref="CellParserOptions.SlashJoins"/>) when no assignment cell
-        /// joins actions any other way (<see cref="ParsedCell.Joins"/>: "+", ",", "&amp;", arrows, a spaced " / ", line breaks),
-        /// and at least two cells list several actions of one job with "/", one of them three or more
+        /// joins actions any other way (<see cref="ParsedCell.Joins"/>: "+", ",", "&amp;", ";", "|", arrows, a spaced " / ",
+        /// line breaks, gaps of three or more spaces), and at least two cells list several actions of one job with "/", one
+        /// of them three or more
         /// ("Soil/Reci/Deploy/Whisper"): a sheet that writes "TBN/Oblation" next to "Living Dead + …" means either one. Every
         /// plan tab counts, whichever tabs and columns are imported, so that a re-import of one column reads the sheet the
         /// same way.
@@ -516,7 +517,7 @@ public sealed partial class PlanImporter
             var auto = joined == 0 && listed >= 2 && longest >= 3 ? SlashReading.All : SlashReading.Either;
             var reading = this.options.Slashes == SlashReading.Auto ? auto : this.options.Slashes;
             this.documentSlashes = auto;
-            const string Others = "'+', ',', '&', an arrow, ' / ' or a line break";
+            const string Others = "'+', ',', '&', ';', '|', an arrow, a spaced ' / ', a line break or a gap of three or more spaces";
             var counts = (listed == 0 ? "no cell lists several actions of one job with '/'" : $"{Count(listed, "cell lists", "cells list")} several actions of one job with '/', up to {longest} (e.g. {listExample})")
                 + "; " + (joined == 0 ? $"no cell joins actions another way ({Others})" : $"{Count(joined, "cell joins", "cells join")} actions another way ({Others}; e.g. {joinExample})");
             var meaning = reading == SlashReading.All ? "'and' (press all of them, like '+')" : "'either one'";
