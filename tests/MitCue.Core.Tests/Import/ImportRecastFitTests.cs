@@ -71,6 +71,15 @@ public class ImportRecastFitTests
 
     private static List<ImportDiagnostic> Fits(ImportResult r) => r.Diagnostics.Where(d => d.Code == "recast-fit").ToList();
 
+    /// <summary>A seat's reminders in the scheduler's order, as the plugin chooses its column.</summary>
+    private static List<Reminder> Reminders(ImportResult r, FightDefinition fight, Job job, string? slot = null) =>
+        new ReminderScheduler(fight, PlanSelection.For(r.Plan, ColumnSuggestion.Context(ColumnSuggestion.Suggest(r.Plan, job, slot), job, slot, fight.SyncLevel)), RepoFiles.Actions, Defaults).All.ToList();
+
+    /// <summary>The <c>follow-up-without-trigger</c> warnings <c>check</c> gives a seat, as the plugin chooses its column.</summary>
+    private static List<PlanFinding> FollowUpsWithoutTrigger(ImportResult r, FightDefinition fight, Job job, string? slot = null) =>
+        PlanChecker.Check(fight, RepoFiles.Actions, r.Plan, ColumnSuggestion.Context(ColumnSuggestion.Suggest(r.Plan, job, slot), job, slot, fight.SyncLevel))
+            .Where(f => f.Code == "follow-up-without-trigger").ToList();
+
     // ---- a move ------------------------------------------------------------------------------------------------
 
     [Fact]
@@ -298,6 +307,60 @@ public class ImportRecastFitTests
     }
 
     [Theory]
+    [InlineData(126.5)] // the fit would press it at 125.5: 21 s after the summon (104.5), 22.5 s after its NOW cue (103)
+    [InlineData(127.5)] // 126.5: 22 s after the summon, 23.5 s after its NOW cue
+    public void WhenTheMoveWouldPressAFollowUpAfterTheWindowStillActiveReadItWith_ThePressStays(double charlie)
+    {
+        // Still-active reads Charlie's Seraph as the Consolation because a Seraph summoned on its NOW cue (103) is still out
+        // when the Consolation is pressed, 4.5 s before Charlie's hit. For its Soil, ready again at 125.5, the fit would
+        // press the entry 1 s before its hit: within 22 s of the summon, as check counts, but after a Seraph summoned on
+        // its NOW cue is gone (125). The entry keeps its press, and check reports the Soil.
+        var fight = Fight(90, ("Alpha", 100), ("Bravo", 107.5), ("Charlie", charlie));
+        var r = Import(Sheet("P1", "Scholar", "Alpha\tSoil", "Bravo\tSeraph", "Charlie\tSoil + Seraph"), fight);
+
+        var entry = At(r, "p1.charlie", "Sacred Soil");
+        Assert.Equal(["Sacred Soil", "Consolation"], entry.Names());
+        Assert.Null(entry.Offset);
+        Assert.Empty(Fits(r));
+        Assert.Contains(Conflicts(r, fight, Job.SCH), f => f.ActionId == RepoFiles.Action("Sacred Soil").Id);
+    }
+
+    [Fact]
+    public void Tea_TheFitKeepsAConsolationThatStillActiveRead_WhileItsSeraphIsOut()
+    {
+        // TEA P1: Soil at Hand of Pain 1 (pressed at 38.3, ready again at 68.3), Seraph at Doll Feeds (47.3, its NOW cue at
+        // 45.8, out until 67.8) and "Soil + Seraph" at Hand of Pain 2, whose Seraph is the Consolation (pressed at 65.5).
+        // Pressed for its Soil at 69, the Consolation would come after a Seraph summoned on its NOW cue is gone.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P1", "Scholar", "Hand of Pain 1\tSoil", "Doll Feeds\tSeraph", "Hand of Pain 2\tSoil + Seraph"), tea);
+
+        var entry = At(r, "p1.hand_of_pain_2", "Sacred Soil");
+        Assert.Equal(["Sacred Soil", "Consolation"], entry.Names());
+        Assert.Null(entry.Offset);
+        Assert.Empty(Fits(r));
+    }
+
+    [Theory]
+    [InlineData(80, "Scholar", "Soil", 100, "Soil + Seraph", 128, "Consolation", 129.5, "Sacred Soil")]
+    [InlineData(80, "Scholar", "Seraph1", 102, "Seraph1", 220, "Seraph2", 221.5, "Summon Seraph")]
+    [InlineData(100, "White Mage", "Asylum", 100, "Temperance + Asylum", 186, "Divine Caress", 185, "Asylum")]
+    public void WhenTheMoveWouldPressATriggerAfterAnotherEntrysFollowUp_ThePressStays(int level, string column, string alpha, double alphaHit, string bravo, double bravoHit, string charlie, double charlieHit, string action)
+    {
+        // Bravo's entry presses a trigger (Summon Seraph, Temperance) that Charlie's follow-up (Consolation, Divine Caress)
+        // is pressed after, within its window. The fit would press Bravo later, for its Soil, Seraph or Asylum, after that
+        // follow-up, which would then find no trigger out. Bravo keeps its press, and check reports the recast, not the
+        // follow-up.
+        var fight = Fight(level, ("Alpha", alphaHit), ("Bravo", bravoHit), ("Charlie", charlieHit));
+        var r = Import(Sheet("P1", column, "Alpha\t" + alpha, "Bravo\t" + bravo, "Charlie\t" + charlie), fight);
+
+        Assert.Null(At(r, "p1.bravo", action).Offset);
+        Assert.Empty(Fits(r));
+        var job = column == "Scholar" ? Job.SCH : Job.WHM;
+        Assert.Empty(FollowUpsWithoutTrigger(r, fight, job));
+        Assert.Contains(Conflicts(r, fight, job), f => f.ActionId == RepoFiles.Action(action).Id);
+    }
+
+    [Theory]
     [InlineData(128, "Soil", -1.0)]          // ready at 125.5, 2.5 s before the hit: pressed 1 s before it
     [InlineData(128, "Succor + Soil", null)] // the Succor's 2 s cast must end 1 s before the hit: pressed 3 s before it at the latest, not yet ready
     [InlineData(129, "Succor + Soil", -3.0)] // ready 3.5 s before the hit: pressed 3 s before it, its cast ending 1 s before
@@ -361,6 +424,43 @@ public class ImportRecastFitTests
             Assert.Single(Fits(r)).Message,
             StringComparison.Ordinal);
         Assert.Empty(Conflicts(r, fight, Job.PLD));
+    }
+
+    [Theory]
+    [InlineData("Tank 1\tTank 2\tExtras", "Reprisal\t\t", "Reprisal\t\tPLD Wings", 159.3)] // ready 2.3 s before the hit
+    [InlineData("Tank 1\tTank 2\tExtras", "Reprisal\t\t", "Reprisal\t\tPLD Wings", 159.8)] // ready 2.8 s before it, before the Passage of Arms
+    [InlineData("Extras\tTank 1\tTank 2", "\tReprisal\t", "PLD Wings\tReprisal\t", 159.3)]
+    [InlineData("Extras\tTank 1\tTank 2", "\tReprisal\t", "PLD Wings\tReprisal\t", 159.8)]
+    public void AMoveNeverPassesAPassageOfArmsOfAnotherCell(string columns, string alpha, string bravo, double bravoHit)
+    {
+        // Tank 1's Reprisal on Alpha (100, at 97) is ready again at 157. On Bravo a Paladin also presses Passage of Arms from
+        // the Extras column, 2 s before the hit and last: a channel any other action ends. Pressed when Reprisal is ready
+        // (1.3 s before the hit, or 1 s), the Reprisal would come after it. The entry is every MT's: it keeps its press for
+        // each of them, and check reports the recast, for a Warrior too.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", bravoHit));
+        var r = Import(Sheet("P1", columns, "Alpha\t" + alpha, "Bravo\t" + bravo), fight);
+
+        Assert.Null(At(r, "p1.bravo", "Reprisal").Offset);
+        Assert.Empty(Fits(r));
+        var paladin = Reminders(r, fight, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p1.bravo").ToList();
+        Assert.Equal(["Reprisal", "Passage of Arms"], paladin.Select(x => x.Item.Name));
+        Assert.True(paladin[0].PressAt < paladin[1].PressAt);
+        Assert.Single(Conflicts(r, fight, Job.PLD, "MT"));
+        Assert.Single(Conflicts(r, fight, Job.WAR, "MT"));
+    }
+
+    [Fact]
+    public void Tea_AMoveNeverPassesThePassageOfArmsInExtras()
+    {
+        // TEA P2: Tank 1's Reprisal at Water and Thunder 1 and again 58.9 s later at Water and Thunder 3, where Extras has
+        // "PLD Wings". Ready 1.9 s before the hit, the Reprisal would be pressed 1 s before it, after the Passage of Arms.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P2", "Tank 1\tTank 2\tExtras", "Water and Thunder 1\tReprisal\t\t", "Water and Thunder 3\tReprisal\t\tPLD Wings"), tea);
+
+        Assert.Null(At(r, "p2.water_thunder_3", "Reprisal").Offset);
+        Assert.Empty(Fits(r));
+        Assert.Equal(["Reprisal", "Passage of Arms"], Reminders(r, tea, Job.PLD, "MT").Where(x => x.Mechanic.Id == "p2.water_thunder_3").Select(x => x.Item.Name));
+        Assert.Single(Conflicts(r, tea, Job.PLD, "MT"));
     }
 
     // ---- chains, seats and entries ----------------------------------------------------------------------------

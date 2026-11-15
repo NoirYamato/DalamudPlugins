@@ -235,7 +235,9 @@ Rules worth knowing:
   "Invuln" names one action of each). A merged note reads the same whichever of its columns are imported: imported
   alone, the Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported
   name Soil and Kera; a `note-row` info says so).
-- **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
+- **After the cells.** An action used on the party, an area or oneself (Temperance, Sacred Soil, Rampart), with one
+  charge at the sync level and a recast longer than its effect, that the same player (column, slot and job) plans again
+  from another row less than its duration after the earlier press, item press to item press, is its follow-up (Summon
   Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
   later call as the reminders time both (`TimingRules.ForEntry`), each at the press of its own item, used on that item's
   NOW cue (the default due lead; an item may be pressed later than its entry: an instant Sacred Soil beside a Succor on
@@ -246,12 +248,14 @@ Rules worth knowing:
   action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after Water 2). An earlier press
   without a time in the sheet that falls short is pressed later so that it serves both (TEA's Hidden Mines Temperance
   −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead of a `when: before` action that
-  is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), and never so that another of its items is pressed earlier than
-  without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press); otherwise both
-  stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in brackets, with a
-  condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written for one role in
-  columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those
-  columns are imported: a tank who imports only their own column gets it optional too.
+  is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), never so that another of its items is pressed earlier than
+  without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press), and never so
+  that a seat that sees it loses what the recast fit keeps for it (below: a Passage of Arms of another cell stays the
+  last press of its hit, a follow-up stays in its trigger's window); otherwise both stay presses (a `still-active` info,
+  which says what a later press would break), and `check` reports the recast. An optional earlier press (in brackets,
+  with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written for one
+  role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever
+  of those columns are imported: a tank who imports only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
@@ -269,15 +273,21 @@ Rules worth knowing:
   It stays too when the move would press another item of the entry earlier than without it, since the offset is every
   item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
   (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge),
-  or a follow-up of the entry later than `check`'s window after its trigger allows (a Consolation more than 22 s after
-  the Summon Seraph before it, as `still-active` may have read a second Seraph, would find Seraph gone). Only firm
+  and when a seat that sees the entry needs it where it is (the move is every seat's): an action of it would come at or
+  after a Passage of Arms of another cell on its hit that is not before it now (LPDU TEA's `PLD Wings` in Extras beside
+  Tank 1's Reprisal: the Reprisal stays for every MT, a Warrior too), or a follow-up of the seat, the entry's own or one
+  whose trigger the entry presses, would leave a window after its trigger that it is in now, the trigger's longest
+  effect counted from its press as `check` counts it or from its NOW cue as `still-active` reads it (a Consolation more
+  than 22 s after the Summon Seraph before it, or after a Seraph summoned on its NOW cue, finds Seraph gone; one before
+  its Summon Seraph finds none yet). Only firm
   presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
   either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
   ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote
   (`still-active`'s) may move. A when-ready call ("on CD") is left to the runtime: it keeps its press and counts,
   since its reminder already waits for the action in game (LPDU TOP's P5 party mitigation on cooldown, which a move
-  would only push into the Blind Faith calls). A sequence moves for its first step only (`check` times every step at
-  its press; in game the later steps follow), and only when its later steps are instant oGCDs woven in right after it
+  would only push into the Blind Faith calls). A sequence moves for its first step only (`check` times each step at its
+  item's press, the entry's unless it waits for a series floor or a later hit of its own; in game the later steps
+  follow), and only when its later steps are instant oGCDs woven in right after it
   (`Kerachole → Holos`): a later GCD or cast (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the
   hit, so such a sequence keeps its press. An entry several seats see takes the latest press any of them needs; the
   earliest press without a charge moves first, then the plan is replayed again, until nothing moves. A press that

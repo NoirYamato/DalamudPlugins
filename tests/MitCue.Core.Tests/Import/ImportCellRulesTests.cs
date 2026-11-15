@@ -672,6 +672,22 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void PartyBuffNamedAgain_IsNeverPressedAfterAPassageOfArmsOfAnotherCell()
+    {
+        // Tank 1's Rampart on Alpha (100, at 94), with "PLD Wings" in Extras, and again on Bravo, 16.3 s later. Pressed 1.2 s
+        // before its hit, the Alpha Rampart would last through Bravo, but it would come after the Passage of Arms that a
+        // Paladin in MT presses there 2 s before the hit, last: a channel any other action ends. Both stay presses.
+        var fight = Fight(80, ("Alpha", [100], false), ("Bravo", [116.3], false));
+        var r = Import(Sheet("P1", "Tank 1\tTank 2\tExtras", "Alpha\tRampart\t\tPLD Wings", "Bravo\tRampart\t\t"), fight: fight);
+
+        Assert.Null(r.Plan.Entries.Single(e => e.Mechanic == "p1.alpha" && e.Names().Contains("Rampart")).Offset);
+        Assert.Equal(["Rampart"], r.Plan.Entries.Single(e => e.Mechanic == "p1.bravo").Names());
+        Assert.Equal(
+            "Rampart at p1.bravo is planned 16.3 s after the Rampart at p1.alpha, which lasts 20.0 s (recast 90.0 s), but that one does not last through this hit at its press, and pressed later it would come after the Passage of Arms at p1.alpha, which is pressed last: both stay presses.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message);
+    }
+
+    [Fact]
     public void PartyBuffNamedAgain_TheEarlierEntryIsNeverPressedSoThatAnotherOfItsItemsComesEarlier()
     {
         // "Rampart + Reprisal" on two hits 8.3 s apart, like TOP's Wave Cannon and its Wild Charge: the Rampart at its
