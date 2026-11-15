@@ -38,7 +38,8 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
     private readonly List<Glow> glows = [];
     private readonly List<Pain> pains = [];
     private readonly List<double> resets = [], cleaveAim = [], cleaveHitOff = [], cleaveMissedOff = [], handTurnsAfter = [];
-    private readonly List<string> cleaves = [], targets = [], shields = [];
+    private readonly List<string> cleaves = [], targets = [], shields = [], provokeDetails = [];
+    private readonly List<double> shieldSeconds = [], provokeTakesHold = [];
     private readonly Dictionary<string, int> cleaveLeaves = [];
     private readonly Dictionary<string, List<double>> provokes = [];
     private int cleaveVolleys, cleavesOnTheTarget, cleavesHittingOthers, handFirstOnTheOtherTank, handFirstTargets, cleavesUnderAnInvulnerability;
@@ -184,9 +185,34 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
             times.Add(pull.Clock(press.Time));
         }
         foreach (var gain in pull.Statuses.Where(s => s.Gained && Invulnerabilities.Contains(s.Status) && ActorIds.IsPlayer(s.Target)))
+        {
+            shieldSeconds.Add(gain.Duration);
             shields.Add($"{pull.Name} at {Spread.F(pull.Clock(gain.Time), "0.0")} s: {pull.Who(gain.Target)} gains {pull.StatusName(gain.Status)} "
                         + $"for {Spread.F(gain.Duration, "0.0")} s");
+        }
+        ObserveProvokesOnAHandAtRest(pull);
     }
+
+    // The Hand sets off some time after the Provoke that gives it away. Its own move lines come every third of a second
+    // or so, so the first that has left its resting spot is walked back at its pace to when it set off. A Hand already
+    // walking as it is Provoked shows nothing.
+    private void ObserveProvokesOnAHandAtRest(TeaPull pull)
+    {
+        if (pull.Hand is not { } hand) return;
+        var moves = pull.Moves.Where(m => m.Actor == hand && !m.Placed).ToList();
+        foreach (var press in pull.Hits.Where(h => h.Action == TeaLogIds.Provoke && h.Target == hand && ActorIds.IsPlayer(h.Source)))
+        {
+            if (pull.Where(hand, press.Time) is not { } rest) continue;
+            if (moves.Any(m => PullLog.Seconds(m.Time, press.Time) is >= 0 and < 1 && Vector2.Distance(m.Position, rest) > RestsWithin)) continue;
+            if (moves.Where(m => m.Time > press.Time && Vector2.Distance(m.Position, rest) > RestsWithin).Cast<ActMove?>().FirstOrDefault() is not { } left) continue;
+            var after = PullLog.Seconds(press.Time, left.Time) - Vector2.Distance(left.Position, rest) / P1Rules.BossWalkSpeed;
+            if (after is < 0 or > 3) continue;
+            provokeTakesHold.Add(after);
+            provokeDetails.Add($"{pull.Name} at {Spread.F(pull.Clock(press.Time), "0.0")} s: {pull.Who(press.Source)} Provokes the Hand, which sets off {Spread.F(after)} s later");
+        }
+    }
+
+    private const float RestsWithin = 0.3f;
 
     public IEnumerable<LogFinding> Findings()
     {
@@ -299,18 +325,31 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
         var turns = new Spread(handTurnsAfter);
         yield return new LogFinding(Section, "Whom the bosses turn to through the opening",
             SimSource.Line(TeaSource.Mechanics, "public void TakeTargets()"),
-            "not played: the Liquid on the main tank's seat and the Hand on the off tank's from the start of a part",
+            "no enmity is played: the Liquid on the main tank's seat, and the Hand on the off tank's as it appears, until a Provoke gives one away",
             targets.Count == 0 ? "no pull"
                 : $"the Hand first turns to a player {turns.Describe(" s")} after it appears, in {handFirstOnTheOtherTank} of {handFirstTargets} pulls the tank the "
                   + "Liquid is not on. Presses, in seconds from the combat flag: "
                   + string.Join("; ", provokes.OrderBy(p => p.Value.Min()).Select(p => $"{p.Key} at {string.Join(", ", p.Value.Order().Select(t => Spread.F(t, "0.0")))}")),
-            LogFinding.Unplayed(targets.Count))
+            // Whom the fight's Hand turns to is its enmity's doing, which the sim has none of.
+            handFirstTargets == 0 ? Verdict.NotInTheseLogs : handFirstOnTheOtherTank == handFirstTargets ? Verdict.Matches : Verdict.Inconclusive)
         {
             Details = targets,
         };
 
-        yield return new LogFinding(Section, "The invulnerabilities the tanks used", TeaSource.OpeningNotPlayed, "not played",
-            shields.Count == 0 ? "none" : $"{shields.Count}, below", LogFinding.Unplayed(shields.Count))
+        var holds = new Spread(provokeTakesHold);
+        yield return new LogFinding(Section, "A Provoke taking hold: how long after its line the Liquid Hand sets off",
+            SimSource.Line(TeaSource.Constants, "float ProvokeTakesHold ="), $"{P1Duration.ProvokeTakesHold} s",
+            holds.Count == 0 ? "no Provoke on a Hand at rest" : $"{holds.Describe(" s")}, median {Spread.F(holds.Median)} s",
+            holds.Count == 0 ? Verdict.NotInTheseLogs : Math.Abs(holds.Median - P1Duration.ProvokeTakesHold) <= 0.1 ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = provokeDetails,
+        };
+
+        var lasts = new Spread(shieldSeconds);
+        yield return new LogFinding(Section, "The invulnerabilities the tanks used", SimSource.Line(TeaSource.Constants, "ushort[] Invulnerabilities ="),
+            $"Hallowed Ground, Holmgang, Living Dead or Superbolide takes its carrier through a wave on Water Resistance Down, for {P1Duration.TankInvulnerability} s from the press",
+            shields.Count == 0 ? "none" : $"{shields.Count}, lasting {lasts.Describe(" s", "0.0")}, below",
+            shields.Count == 0 ? Verdict.NotInTheseLogs : LogFinding.Compare(lasts, P1Duration.TankInvulnerability, 0.5))
         {
             Details = shields,
         };

@@ -243,22 +243,30 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
     {
         var headings = new Spread(liquidHeadings);
         yield return new LogFinding(Section, "The Living Liquid before the pull: its spot and facing (0 faces south)",
-            SimSource.Line(TeaSource.Constants, "float LiquidStartsFacing ="), "not played: a start puts it on the centre, mid-fight",
+            SimSource.Line(TeaSource.Constants, "Vector3 LiquidBeforeThePull ="),
+            $"{TeaPull.Spot(TeaPull.Centre + new Vector2(P1Geometry.LiquidBeforeThePull.X, P1Geometry.LiquidBeforeThePull.Z))}, facing 0 rad",
             liquidSpots.Count == 0 ? "no pull logged from its start"
                 : $"{Tally(liquidSpots)}, facing {headings.Describe(" rad")}",
-            LogFinding.Unplayed(liquidSpots.Count));
+            liquidSpots.Count == 0 ? Verdict.NotInTheseLogs
+            : liquidSpots.All(spot => spot == TeaPull.Spot(TeaPull.Centre + new Vector2(P1Geometry.LiquidBeforeThePull.X, P1Geometry.LiquidBeforeThePull.Z)))
+              && (headings.Count == 0 || Math.Abs(headings.Mean) <= 0.05) ? Verdict.Matches
+            : Verdict.Differs);
 
         var after = new Spread(handAfterCascade);
         var share = new Spread(handHpShare);
         yield return new LogFinding(Section, "The Liquid Hand appears: where, facing, how long after Cascade lands, and with what hit points",
-            SimSource.Line(TeaSource.Constants, "float HandStartsFromTheCentre ="),
-            $"not played: a start puts it {P1Geometry.HandStartsFromTheCentre} y from the centre, mid-fight",
+            SimSource.Line(TeaSource.Constants, "Vector3 HandAppearsOn ="),
+            $"{TeaPull.Spot(TeaPull.Centre + new Vector2(P1Geometry.HandAppearsOn.X, P1Geometry.HandAppearsOn.Z))}, facing 0 rad, "
+            + $"{P1Duration.TornadoesAppearAfterCascade} s after Cascade lands; no health is played",
             handSpots.Count == 0 ? "no Liquid Hand"
                 : $"{Tally(handSpots)}, facing {new Spread(handHeadings).Describe(" rad")}, {after.Describe(" s")} after Cascade lands; its hit points as it "
                   + $"appears over the Liquid's as Cascade landed: {share.Describe("", "0.000")}; over the Liquid's as it appears: "
                   + new Spread(handHpBesideTheLiquid).Describe("", "0.000") + "; over the Liquid's last reading before its own halve: "
                   + new Spread(halfShare).Describe("", "0.0000"),
-            LogFinding.Unplayed(handSpots.Count));
+            handSpots.Count == 0 ? Verdict.NotInTheseLogs
+            : handSpots.All(spot => spot == TeaPull.Spot(TeaPull.Centre + new Vector2(P1Geometry.HandAppearsOn.X, P1Geometry.HandAppearsOn.Z)))
+              && (after.Count == 0 || LogFinding.Compare(after, P1Duration.TornadoesAppearAfterCascade, 0.25) == Verdict.Matches) ? Verdict.Matches
+            : Verdict.Differs);
 
         yield return new LogFinding(Section, "Maximum hit points", TeaSource.NoHealthPlayed, "no health is played",
             maxHp.Count == 0 ? "no enemy with hit points"

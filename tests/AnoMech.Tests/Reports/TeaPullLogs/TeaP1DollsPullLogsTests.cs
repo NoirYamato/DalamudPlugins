@@ -67,4 +67,78 @@ public class TeaP1DollsPullLogsTests
 
         Assert.That(spots.Measured, Is.EqualTo("7.00 y (n=1) from the centre, on bearings 180.0; from the tornadoes' open quarter: 90.0"));
     }
+
+    // The pull's line is at 33.4 + 5.1, and the status lasts 4.96 s.
+    [TestCase(38.5, true)]
+    [TestCase(39.4, false)]
+    public void TheFirstExhaustIsHeldAgainstThePullsLineAfterTheDollsTurnTargetable(double exhaustAt, bool matches)
+    {
+        var exhaust = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, new Vector2(102.68f, 106.47f), 0f, 43540, 43540), NameToggle(33.4, Doll1, true),
+            Hit(exhaustAt, Doll1, TeaLogIds.Exhaust, Player(1)),
+        ])).Named("Exhaust: when");
+
+        Assert.That(exhaust.Sim, Does.StartWith("first 5.10 s after the dolls turn targetable, then every 10.64 s"));
+        Assert.That(exhaust.Verdict, Is.EqualTo(matches ? Verdict.Matches : Verdict.Differs));
+    }
+
+    // The doll stands 3.3 y from the first seat, which has stood still for a second either side of its auto-attack; the
+    // second seat is walking as it is hit.
+    [Test]
+    public void ADollsStandOffIsReadAsItsAutoAttackLandsOnAPlayerWhoStandsStill()
+    {
+        var at = new Vector2(110f, 100f);
+        var standOff = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, new Vector2(102.68f, 106.47f), 0f, 43540, 43540),
+            Moved(36, Doll1, at + new Vector2(3.3f, 0f), 0f),
+            StatusList(36.5, Player(1), 40000, at), StatusList(37.5, Player(1), 40000, at), StatusList(38.5, Player(1), 40000, at),
+            Hit(37.5, Doll1, TeaLogIds.DollAutoAttack, Player(1)),
+            StatusList(39.5, Player(2), 40000, at), StatusList(40.5, Player(2), 40000, at + new Vector2(0f, 3f)), StatusList(41.5, Player(2), 40000, at + new Vector2(0f, 6f)),
+            Hit(40.5, Doll1, TeaLogIds.DollAutoAttack, Player(2)),
+        ])).Named("A doll's stand-off");
+
+        Assert.That(standOff.Measured, Does.StartWith("median 3.30 y, 3.30 y (n=1)"));
+        Assert.That(standOff.Verdict, Is.EqualTo(Verdict.Matches));
+    }
+
+    // The Hand walks to 1.5 y from a doll three tenths of a second after it turned targetable, and on; the first player
+    // acts on the doll at 35.0.
+    [TestCase(false)]
+    [TestCase(true)]
+    public void ABossThatPassesADollNobodyHasActedOnShowsWhetherSuchADollIsFed(bool fedMeanwhile)
+    {
+        var spot = new Vector2(102.68f, 106.47f);
+        string[] fed = fedMeanwhile ? [Tether(33.9, Doll1, Hand, TeaLogIds.FeedTether)] : [];
+        var untouched = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, spot, 0f, 43540, 43540), NameToggle(33.4, Doll1, true),
+            Moved(33.7, Hand, spot + new Vector2(1.5f, 0f), 0f), Moved(34.0, Hand, spot + new Vector2(6f, 0f), 0f),
+            .. fed,
+            Hit(35.0, Player(1), 31, Doll1), Tether(35.6, Doll1, Player(1), TeaLogIds.DollTether),
+        ], [LiquidStands()])).Named("A doll nobody has acted on yet");
+
+        Assert.That(untouched.Measured, Does.StartWith($"1 of 1 dolls had a boss within 4.14 y before any player acted on them, the nearest 1.50 y; {(fedMeanwhile ? 1 : 0)} of them were fed. "
+                                                       + "The latest such pass came 0.30 s after the doll turned targetable"));
+        Assert.That(untouched.Verdict, Is.EqualTo(fedMeanwhile ? Verdict.Differs : Verdict.Matches));
+    }
+
+    // A boss that walks past a doll a player has acted on already says nothing of the rule.
+    [Test]
+    public void ABossThatPassesADollAfterItsFirstHitIsLeftOut()
+    {
+        var spot = new Vector2(102.68f, 106.47f);
+        var untouched = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, spot, 0f, 43540, 43540), NameToggle(33.4, Doll1, true),
+            Hit(34.0, Player(1), 31, Doll1),
+            Moved(36.0, Hand, spot + new Vector2(1.5f, 0f), 0f),
+        ], [LiquidStands()])).Named("A doll nobody has acted on yet");
+
+        Assert.That((untouched.Measured, untouched.Verdict),
+                    Is.EqualTo(("no boss came within 4.14 y of any of 1 dolls before a player acted on it", Verdict.Inconclusive)));
+    }
 }

@@ -20,25 +20,39 @@ public class TeaP1TimelinePullLogsTests
         Assert.That((pain.Measured, pain.Verdict), Is.EqualTo(($"{Spread.F(painAt - 60)} s (n=1)", matches ? Verdict.Matches : Verdict.Differs)));
     }
 
-    [Test]
-    public void WhatTheOpeningDoesIsMeasuredFromTheCombatFlag()
+    // The pull plays its first Fluid Swing at 10.1.
+    [TestCase(10.2, true)]
+    [TestCase(10.5, false)]
+    public void WhatTheOpeningDoesIsHeldAgainstThePullsLineFromTheCombatFlag(double swingAt, bool matches)
     {
-        var swing = Findings(new TeaP1TimelinePullLogs(), Of([Hit(10.5, Liquid, P1ActionId.FluidSwing, Player(1))])).Named("Opening: the first Fluid Swing");
+        var swing = Findings(new TeaP1TimelinePullLogs(), Of([Hit(swingAt, Liquid, P1ActionId.FluidSwing, Player(1))])).Named("Opening: the first Fluid Swing");
 
         Assert.Multiple(() =>
         {
-            Assert.That(swing.Measured, Does.StartWith("10.50 s (n=1) from the combat flag"));
-            Assert.That(swing.Verdict, Is.EqualTo(Verdict.NotInTheSim));
+            Assert.That(swing.Measured, Does.StartWith($"{Spread.F(swingAt)} s (n=1) from the combat flag"));
+            Assert.That(swing.Sim, Does.StartWith("10.10 s from the pull"));
+            Assert.That(swing.Verdict, Is.EqualTo(matches ? Verdict.Matches : Verdict.Differs));
         });
     }
 
-    [Test]
-    public void APullJoinedLateGivesNoTimeFromTheFlag()
+    // Cascade is cast at 14.2, 4.1 s after the first Fluid Swing.
+    [TestCase(12.6, true)]
+    [TestCase(13.2, false)]
+    public void APullJoinedLateGivesNoTimeFromTheFlagAndIsHeldToCascadesCast(double cascadeAt, bool matches)
     {
-        var late = Of([Hit(8.5, Liquid, P1ActionId.FluidSwing, Player(1)), Cast(12.6, Liquid, P1ActionId.Cascade, 3.7f)], [LiquidStands(LiquidMaxHp - 20000)]);
+        var late = Of([Hit(8.5, Liquid, P1ActionId.FluidSwing, Player(1)), Cast(cascadeAt, Liquid, P1ActionId.Cascade, 3.7f)], [LiquidStands(LiquidMaxHp - 20000)]);
 
         var swing = Findings(new TeaP1TimelinePullLogs(), late).Named("Opening: the first Fluid Swing");
 
-        Assert.That(swing.Measured, Is.EqualTo("no samples from the combat flag; -4.10 s (n=1) from Cascade's cast"));
+        Assert.That(swing.Measured, Is.EqualTo($"no samples from the combat flag; {Spread.F(8.5 - cascadeAt)} s (n=1) from Cascade's cast"));
+        Assert.That(swing.Verdict, Is.EqualTo(matches ? Verdict.Matches : Verdict.Differs));
+    }
+
+    [Test]
+    public void WhatThePullLeavesOutIsOnlyMeasured()
+    {
+        var auto = Findings(new TeaP1TimelinePullLogs(), Of([Hit(3, Liquid, TeaLogIds.LiquidAutoAttack, Player(1))])).Named("Opening: the Living Liquid's first auto-attack");
+
+        Assert.That((auto.Sim, auto.Verdict), Is.EqualTo(("not played", Verdict.NotInTheSim)));
     }
 }

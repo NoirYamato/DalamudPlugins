@@ -4,7 +4,7 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// Ids the pulls show that the sim has no use for yet: the opening's, and what no part plays.
+// Ids the measures read the pulls by, the sim's own among them, and what no part plays.
 internal static class TeaLogIds
 {
     public const uint JagdDoll = 11338;
@@ -266,9 +266,15 @@ internal static class TeaSource
     public const string LimitCut = "AnoMech/Scenarios/Tea/P1LimitCut/TeaP1LimitCutScenario.cs";
     public const string LimitCutState = "AnoMech/Scenarios/Tea/P1LimitCut/TeaP1LimitCutState.cs";
 
-    // The scenario's own note that the opening is not played. What only the opening has points here, so building the
-    // opening, which rewords the note, names every finding that then has a value to check.
-    public static string OpeningNotPlayed => SimSource.Line(Scenario, "the pull before them isn't played");
+    public const string Dolls = "AnoMech/Scenarios/Tea/TeaP1JagdDolls.cs";
 
     public static string NoHealthPlayed => SimSource.Line(Scenario, "which the timeline brings: no health is");
+
+    // The scenario's own notes of what the pull leaves out; a finding on either points here.
+    public static string NoAutoAttacksPlayed => SimSource.Line(Scenario, "Neither boss's auto-attacks are played");
+
+    public static string NoDollDies => SimSource.Line(Dolls, "and no doll dies");
+
+    // A line of the pull's own timeline, which is written on the fight's clock.
+    public static (string Where, float? Seconds) Pull(string call, int occurrence = 1) => SimSource.FightTime(Scenario, $"fight.{call}(", occurrence);
 }

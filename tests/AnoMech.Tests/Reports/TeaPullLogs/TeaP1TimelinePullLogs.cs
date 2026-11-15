@@ -2,8 +2,8 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// The Living Liquid's timeline: what the opening does, from the combat flag and from Cascade's cast, and each part's
-// literals from the cast its part is timed by.
+// The Living Liquid's timeline: what the opening does, from the combat flag and from Cascade's cast, held against the
+// pull's own lines, and each later part's literals from the cast its part is timed by.
 internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
 {
     private const string Section = "P1 timeline";
@@ -11,34 +11,47 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
     private const double Tolerance = 0.25;
     private const double SplashesApart = 1.2;
 
-    // What the opening does, with the second the community timeline gives it on its own clock.
-    private static readonly (string Key, string Name, double? Community)[] Opening =
+    // The pull's line a row is played by, with what comes after it and where that is kept; no line for what the pull
+    // leaves out.
+    private sealed record Played(Func<(string Where, float? Seconds)> Line, double Plus = 0, string Note = "", string? Constant = null);
+
+    private static Played On(string call, int occurrence = 1) => new(() => TeaSource.Pull(call, occurrence));
+
+    private static Played After(string call, double plus, string note, string? constant = null) => new(() => TeaSource.Pull(call), plus, note, constant);
+
+    // What the opening does, with the second the community timeline gives it on its own clock and where the pull plays
+    // it.
+    private static readonly (string Key, string Name, double? Community, Played? Played)[] Opening =
     [
-        ("Liquid auto 1", "the Living Liquid's first auto-attack", null),
-        ("Fluid Swing 1", "the first Fluid Swing", 11.4),
-        ("Cascade cast 1", "Cascade's cast starts", 15.5),
-        ("Cascade lands 1", "Cascade lands", 19.5),
-        ("split 1", "the Living Liquid's hit points halve", null),
-        ("Hand appears 1", "the Liquid Hand appears", 19.5),
-        ("tornadoes appear 1", "the Liquid Rages appear", 19.5),
-        ("Hand auto 1", "the Liquid Hand's first auto-attack", null),
-        ("glow 1", "the Hand glows, its model state set", 30.6),
-        ("tornado wave cast 1", "the tornadoes' telegraphed Protean Wave, cast", 33.7),
-        ("dolls appear 1", "the Jagd Dolls appear", null),
-        ("dolls targetable 1", "the Jagd Dolls turn targetable", 34.7),
-        ("slam 1", "the Hand's slam", 35.8),
-        ("tornado wave lands 1", "the tornadoes' telegraphed wave lands", 36.7),
-        ("Fluid Swing 2", "the second Fluid Swing", 37.7),
-        ("Fluid Strike 1", "the first Fluid Strike", 37.7),
-        ("tornado unseen 1", "the tornadoes' unseen Protean Wave", 38.7),
-        ("Exhaust 1", "the dolls' first Exhaust", 39.7),
-        ("Hand of Pain cast 1", "Hand of Pain 1, cast", 39.8),
-        ("Pressurize 1", "Pressurize", 41.6),
-        ("Emboli appear 1", "the Emboli appear", 42.2),
-        ("Hand of Pain lands 1", "Hand of Pain 1 lands", 42.8),
-        ("Exhaust 2", "the dolls' second Exhaust", 50.3),
-        ("Fluid Swing 3", "the third Fluid Swing", 56.7),
-        ("Fluid Strike 2", "the second Fluid Strike", 56.7),
+        ("Liquid auto 1", "the Living Liquid's first auto-attack", null, null),
+        ("Fluid Swing 1", "the first Fluid Swing", 11.4, On("FluidSwing")),
+        ("Cascade cast 1", "Cascade's cast starts", 15.5, On("Cascade")),
+        ("Cascade lands 1", "Cascade lands", 19.5, After("Cascade", 4, ", the sheet's cast time after its cast")),
+        ("split 1", "the Living Liquid's hit points halve", null, null),
+        ("Hand appears 1", "the Liquid Hand appears", 19.5,
+            After("Cascade", 4 + P1Duration.TornadoesAppearAfterCascade, $", {P1Duration.TornadoesAppearAfterCascade} s after Cascade lands", "float TornadoesAppearAfterCascade =")),
+        ("tornadoes appear 1", "the Liquid Rages appear", 19.5,
+            After("Cascade", 4 + P1Duration.TornadoesAppearAfterCascade, $", {P1Duration.TornadoesAppearAfterCascade} s after Cascade lands", "float TornadoesAppearAfterCascade =")),
+        ("Hand auto 1", "the Liquid Hand's first auto-attack", null, null),
+        ("glow 1", "the Hand glows, its model state set", 30.6, On("TheHandGlows")),
+        ("tornado wave cast 1", "the tornadoes' telegraphed Protean Wave, cast", 33.7, On("TornadoWaves")),
+        ("dolls appear 1", "the Jagd Dolls appear", null, On("JagdDollsAppear")),
+        ("dolls targetable 1", "the Jagd Dolls turn targetable", 34.7, On("JagdDollsTurnTargetable")),
+        ("slam 1", "the Hand's slam", 35.8, On("TheHandSlams")),
+        ("tornado wave lands 1", "the tornadoes' telegraphed wave lands", 36.7, After("TornadoWaves", 3, ", 3 s after its cast starts")),
+        ("Fluid Swing 2", "the second Fluid Swing", 37.7, On("FluidSwing", 2)),
+        ("Fluid Strike 1", "the first Fluid Strike", 37.7, On("FluidStrike")),
+        ("tornado unseen 1", "the tornadoes' unseen Protean Wave", 38.7, On("UntelegraphedTornadoWaves")),
+        ("Exhaust 1", "the dolls' first Exhaust", 39.7, On("Exhausts")),
+        ("Hand of Pain cast 1", "Hand of Pain 1, cast", 39.8, On("HandOfPain")),
+        ("Pressurize 1", "Pressurize", 41.6, On("Pressurize")),
+        ("Emboli appear 1", "the Emboli appear", 42.2,
+            After("Pressurize", P1Duration.EmbolusAfterPressurize, $", {P1Duration.EmbolusAfterPressurize} s after Pressurize", "float EmbolusAfterPressurize =")),
+        ("Hand of Pain lands 1", "Hand of Pain 1 lands", 42.8, After("HandOfPain", 3, ", the sheet's cast time after its cast")),
+        ("Exhaust 2", "the dolls' second Exhaust", 50.3,
+            After("Exhausts", P1Duration.ExhaustEvery, $", {P1Duration.ExhaustEvery} s after the first", "float ExhaustEvery =")),
+        ("Fluid Swing 3", "the third Fluid Swing", 56.7, On("FluidSwing", 3)),
+        ("Fluid Strike 2", "the second Fluid Strike", 56.7, On("FluidStrike", 2)),
     ];
 
     private readonly Dictionary<(string Anchor, string Key), List<(string Pull, double Seconds)>> offsets = [];
@@ -150,15 +163,33 @@ internal sealed class TeaP1TimelinePullLogs : ITeaPullLogMeasures
 
     public IEnumerable<LogFinding> Findings()
     {
-        foreach (var (key, name, community) in Opening)
+        // The pull's clock is the fight's own, from the combat flag; a pull joined late is held to Cascade's cast instead.
+        var cascadeCast = TeaSource.Pull("Cascade").Seconds;
+        foreach (var (key, name, community, played) in Opening)
         {
             var (flag, cascade) = (From(Flag, key), From(Cascade1, key));
-            yield return new LogFinding(Section, $"Opening: {name}", TeaSource.OpeningNotPlayed,
-                "not played" + (community is { } t ? $"; the community timeline has it at {Spread.F(t, "0.0")} s on its own clock" : ""),
-                $"{flag.Describe(" s")} from the combat flag; {cascade.Describe(" s")} from Cascade's cast",
-                LogFinding.Unplayed(Math.Max(flag.Count, cascade.Count)))
+            var timeline = community is { } t ? $"; the community timeline has it at {Spread.F(t, "0.0")} s on its own clock" : "";
+            var measured = $"{flag.Describe(" s")} from the combat flag; {cascade.Describe(" s")} from Cascade's cast";
+            var details = PerPull(flag.Count > 0 ? Flag : Cascade1, key);
+            if (played is null)
             {
-                Details = PerPull(flag.Count > 0 ? Flag : Cascade1, key),
+                yield return new LogFinding(Section, $"Opening: {name}", key == "split 1" ? TeaSource.NoHealthPlayed : TeaSource.NoAutoAttacksPlayed,
+                    "not played" + timeline, measured, LogFinding.Unplayed(Math.Max(flag.Count, cascade.Count)))
+                {
+                    Details = details,
+                };
+                continue;
+            }
+            var line = played.Line();
+            var playedAt = line.Seconds + (float)played.Plus;
+            yield return new LogFinding(Section, $"Opening: {name}", played.Constant is { } constant ? SimSource.Line(TeaSource.Constants, constant) : line.Where,
+                (playedAt is { } at ? $"{Spread.F(at)} s from the pull{played.Note}" : "not found in the scenario") + timeline, measured,
+                playedAt is not { } seconds ? Verdict.Inconclusive
+                : flag.Count > 0 ? LogFinding.Compare(flag, seconds, Tolerance)
+                : cascadeCast is { } cast ? LogFinding.Compare(cascade, seconds - cast, Tolerance)
+                : Verdict.Inconclusive)
+            {
+                Details = details,
             };
         }
 

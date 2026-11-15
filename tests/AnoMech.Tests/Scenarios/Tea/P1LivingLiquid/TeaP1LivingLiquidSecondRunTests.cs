@@ -42,6 +42,40 @@ public class TeaP1LivingLiquidSecondRunTests
         });
     }
 
+    // The pull twice, the player a human off tank that Provokes the Hand back at 38.0 itself. The first run is left at
+    // 41.0: the Hand its own again, four dolls up and tethered, the melee walking theirs into the Living Liquid.
+    [Test]
+    public void ASecondPullStartsWithNoDollNoTetherAndTheHandOnItsFirstTarget()
+    {
+        var stage = new Stage { First = Pull, Last = Pull, HumanUntil = 60f, PlayerPressesItself = true };
+        using var stay = new Stay(stage, OffTank);
+        void ProvokeBack(ScenarioProbe p)
+        {
+            if (p.Crossed(38f))
+                p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Provoke, (ulong)stay.Scenario.Fight!.Hand!.GameObjectId));
+        }
+
+        var first = stay.PlayThePull(until: 41f, ProvokeBack);
+        var (firstRunsPresses, firstRunsFight) = (stay.Scenario.Presses!, stay.Scenario.Fight!);
+        var second = stay.PlayThePull(until: 38.9f, ProvokeBack);
+        firstRunsPresses.CatchUp();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.AtTheStart, Is.EqualTo(new SeenOfThePull(Dolls: 0, Tethered: 0, Hand: null, HumanProvokes: 0)), "the first run's start");
+            Assert.That(first.AtTheEnd, Is.EqualTo(new SeenOfThePull(Dolls: 4, Tethered: 4, Hand: OffTank, HumanProvokes: 1)), "the first run at 41.0");
+            Assert.That(second.AtTheStart, Is.EqualTo(new SeenOfThePull(Dolls: 0, Tethered: 0, Hand: null, HumanProvokes: 0)), "the second run's start");
+            Assert.That(second.AtTheEnd, Is.EqualTo(new SeenOfThePull(Dolls: 4, Tethered: 4, Hand: OffTank, HumanProvokes: 1)), "the second run at 38.9");
+            Assert.That(firstRunsPresses.Provokes.Count(provoke => provoke.ByHuman), Is.EqualTo(1), "the first run's listener heard nothing of the second");
+            Assert.That(firstRunsFight.Dolls.All.Count(doll => doll.Enemy.IsActive), Is.Zero, "the first run's dolls went with it");
+            Assert.That(stay.Scenario.Fight, Is.Not.SameAs(firstRunsFight));
+        });
+    }
+
+    // The Jagd Dolls standing in the world, how many of the run's own are tethered, whom the Hand is on, and the human's
+    // Provokes the run's listener has reported.
+    private sealed record SeenOfThePull(int Dolls, int Tethered, PartyRole? Hand, int HumanProvokes);
+
     // What a run holds: the Liquid Rages standing in the world, the puddles bots walk round, the Emboli out, and the
     // boss piece's own state.
     private sealed record Seen(int Tornadoes, int Puddles, int Emboli, bool Locked, bool? Palm, int Throttled, int Cleanses);
@@ -103,6 +137,37 @@ public class TeaP1LivingLiquidSecondRunTests
                 probe.EndFrame();
             }
             return (atTheStart!, See());
+        }
+
+        // The same for the pull, with `each` called every frame for the human's own presses.
+        public (SeenOfThePull AtTheStart, SeenOfThePull AtTheEnd) PlayThePull(float until, Action<ScenarioProbe> each)
+        {
+            game.StartScenario(new RunScenarioParams(Scenario, new LocalPartyProvider { RoleOverride = seat }, Stage.NoStrat, 0, ++runs));
+            fake.Frame(ScenarioRun.FrameSeconds, game.Tick);
+            Assert.That(game.Status, Is.EqualTo(SessionStatus.Running), $"run {runs} started");
+
+            SeenOfThePull? atTheStart = null;
+            var probe = new ScenarioProbe(game, fake, log, chat, () => []);
+            while (probe.Time < until)
+            {
+                Assert.That(game.Status, Is.EqualTo(SessionStatus.Running), $"run {runs} at {probe.Time:F2}: {string.Join("; ", log.Warnings)}");
+                fake.Frame(ScenarioRun.FrameSeconds, game.Tick);
+                stage.Follow(probe);
+                each(probe);
+                if (probe.Crossed(ReadTheStartAt)) atTheStart = SeeThePull();
+                probe.EndFrame();
+            }
+            return (atTheStart!, SeeThePull());
+        }
+
+        private SeenOfThePull SeeThePull()
+        {
+            var fight = Scenario.Fight!;
+            return new SeenOfThePull(
+                game.World.Children.OfType<SimEnemy>().Count(enemy => enemy.IsActive && enemy.BNpcBaseId == P1BNpcBaseId.JagdDoll),
+                fight.Dolls.All.Count(doll => doll.TetheredAt is not null),
+                fight.Hand is null ? null : (fight.Target(TeaP1Boss.LiquidHand) as ISimPartyMember)?.Role,
+                Scenario.Presses!.Provokes.Count(provoke => provoke.ByHuman));
         }
 
         private Seen See()

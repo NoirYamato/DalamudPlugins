@@ -7,13 +7,15 @@ using Stage = AnoMech.Tests.TeaP1LivingLiquidStage;
 namespace AnoMech.Tests;
 
 // Every wave and Sluice comes from one pool of invisible helpers, and a cast that finds none free is dropped with
-// only a warning. The telegraphed waves hold seven at once, and the first set with its Sluices eight. Cascade 2 holds the most: its Sluices land in the moment
+// only a warning. The pull holds three at once, for the tornadoes' telegraphs. The telegraphed waves hold seven at once, and the first set with its Sluices eight. Cascade 2 holds the most: its Sluices land in the moment
 // its second set fires, while the tornadoes' three telegraphs are still casting.
 public class TeaP1LivingLiquidHelperBudgetTests
 {
     [TestCase(Protean1, Protean1, 8)]
     [TestCase(Cascade2, Cascade2, 11)]
     [TestCase(Protean1, Cascade2, 11)]
+    [TestCase(Pull, Pull, 3)]
+    [TestCase(Pull, Cascade2, 11)]
     public void TheHelperPoolIsNeverShort(TeaP1LivingLiquidPart first, TeaP1LivingLiquidPart last, int expectedPeak)
     {
         var stage = new Stage { First = first, Last = last };

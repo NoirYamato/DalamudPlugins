@@ -10,10 +10,13 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 
-// The phase's fight from the Living Liquid's first Protean Wave to its death, which the timeline brings: no health is
-// played, so the raidwides are harmless and Hand of Pain never fails. It plays in parts (TeaP1LivingLiquidParts), each
-// on its own clock from its start, so a run can start from either; the pull before them isn't played. A mistake kills
-// by the fight's own rule, with the reason.
+// The phase's fight from the pull to the Living Liquid's death, which the timeline brings: no health is
+// played, so the raidwides are harmless, Hand of Pain never fails and a Jagd Doll's health falls by itself. It plays
+// in parts (TeaP1LivingLiquidParts), each on its own clock from its start, so a run can start from any.
+// A mistake kills by the fight's own rule, with the reason.
+//
+// Neither boss's auto-attacks are played, nor the dolls': nothing reads them, and the animation of one every 3 s would
+// stall a boss's walk.
 //
 // The scenario reads the strat's plan (TeaP1LivingLiquidPlan), its only read of the strat, for the start's chat lines
 // naming the human's duties.
@@ -52,30 +55,54 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
         DiagnosticLog.Info($"[TeaP1LivingLiquid] Roll: tornadoes open {state.Tornadoes1.Open}, then {state.Tornadoes2.Open}; Drainage "
                            + string.Join(", ", state.Drainage.Select(roll => $"{roll.From} on {roll.FirstTarget}"))
                            + $"; Throttle on {string.Join(" ", state.Throttled.List)}; Emboli "
-                           + string.Join(", ", state.Emboli.Select(roll => $"{roll.From} to the {roll.AimsAt}")) + ".");
+                           + string.Join(", ", state.Emboli.Select(roll => $"{roll.From} to the {roll.AimsAt}"))
+                           + "; the pull's Emboli " + string.Join(", ", state.FirstEmboli.Select(roll => $"{roll.From} to the {roll.AimsAt}")) + ".");
 
         // Before the strat's Run: its first move reads where the Living Liquid stands, and fires ahead of anything
         // scheduled here.
         var parts = state.Parts;
-        SpawnTheBosses(state.Tornadoes1);
+        if (parts.First == Pull) fight.SpawnTheLiquid(new Placement(P1Geometry.LiquidBeforeThePull, 0f));
+        else SpawnTheBosses(state.Tornadoes1);
         if (parts.First == Protean1) fight.Tornadoes.Appear(state.Tornadoes1);
         if (selectedAi is { } idx && idx < AiStrats.Count)
             ((IScenarioAi<TeaP1LivingLiquidState>)AiStrats[idx]).Run(state, world);
 
         foreach (var duties in state.Plan.ChatLines(parts.Plays)) world.Events.Add(0f, () => world.Announce(duties));
         world.Events.Add(0.5f, fight.TakeTargets);
+        if (parts.Plays(Pull)) ThePullIntoTheCentre();
         if (parts.Plays(Protean1)) ProteanOneIntoDrainage(parts.Start(Protean1));
         if (parts.Plays(Cascade2)) CascadeTwoIntoTheKill(parts.Start(Cascade2));
     }
 
     public void Tick(float delta, float elapsed) => fight?.Tick();
 
-    // Both parts start mid-fight, with the bosses where the tanks would have them: in the frame of the tornadoes
-    // standing through Protean 1, which a run from Cascade 2 never shows.
+    // A part after the pull starts mid-fight, with the bosses where the tanks would have them: in the frame of the
+    // tornadoes standing through Protean 1, which a run from Cascade 2 never shows.
     private void SpawnTheBosses(TeaP1TornadoLayout frame)
         => fight.Spawn(
             new Placement(Vector3.Zero, frame.Facing(P1Geometry.LiquidStartsFacing)),
             new Placement(frame.At(P1Geometry.HandStartsOnBearing, P1Geometry.HandStartsFromTheCentre), frame.Facing(P1Geometry.HandStartsOnBearing)));
+
+    // The fight's own clock, from the first hit on the Living Liquid, so it takes no start: nothing comes before the
+    // pull. The Liquid Hand and the first tornadoes appear 1.4 s after Cascade lands, at 19.6.
+    private void ThePullIntoTheCentre()
+    {
+        fight.FluidSwing(10.1f);
+        fight.Cascade(14.2f, state.Tornadoes1, theLiquidSplits: true);
+        fight.TheHandGlows(29.3f);
+        fight.TornadoWaves(32.4f);
+        fight.JagdDollsAppear(32.6f);
+        fight.JagdDollsTurnTargetable(33.4f);
+        fight.TheHandSlams(34.4f);
+        fight.FluidSwing(36.4f);
+        fight.FluidStrike(36.5f);
+        fight.UntelegraphedTornadoWaves(37.5f);
+        fight.Exhausts(38.5f);
+        fight.HandOfPain(38.6f);
+        fight.Pressurize(40.4f, state.FirstEmboli);
+        fight.FluidSwing(55.55f);
+        fight.FluidStrike(55.8f);
+    }
 
     // From the fight's clock at 60.9. Drainage and the last Splash come 0.8 s after Cascade 2's part begins: they belong
     // to this one, since a run that starts there has no first tornadoes to cast Drainage; it goes without that Splash

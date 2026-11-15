@@ -4,11 +4,17 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
 
-// The opening's Jagd Dolls, which no part plays yet, and the Emboli of both Pressurizes.
+// The pull's Jagd Dolls and the Emboli of both Pressurizes.
 internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
 {
     private const string Section = "P1 Jagd Dolls and Emboli";
-    private const float ExhaustReach = 8f + 0.8f;
+    private const float DollHitbox = 0.8f, PlayerHitbox = 0.5f;
+    private const float ExhaustReach = 8f + DollHitbox;
+    private const float StandsStillWithin = 0.3f;
+
+    private readonly List<double> dollStandOff = [], untouchedPasses = [], untouchedPassesAfterTargetable = [];
+    private readonly List<string> untouchedDetails = [];
+    private int untouchedDolls, untouchedFed;
 
     private readonly List<double> dollRadii = [], tetherAfterTargetable = [], exhaustAfterTargetable = [], exhaustAgain = [], exhaustHit = [], exhaustMissed = [];
     private readonly List<double> aetheroplasm = [], fedAfterTether = [], fedApart = [], dollSpeeds = [];
@@ -72,6 +78,8 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             }
             ObserveItsEnd(pull, doll.Actor);
             dollSpeeds.AddRange(Speeds(pull, doll.Actor));
+            ObserveItsStandOff(pull, doll.Actor);
+            if (targetable is { } up && doll.Position is { } spot) ObserveABossPassingItUntouched(pull, doll.Actor, spot, up);
         }
         aetheroplasm.AddRange(pull.Statuses.Where(s => s.Gained && s.Status == TeaLogIds.LuminousAetheroplasm).Select(s => (double)s.Duration));
         // A player takes a stack from each doll whose Exhaust reaches it: two dolls at once are two stacks.
@@ -95,6 +103,42 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         exploded.Observe(pull, pull.Hits.Where(h => h.Action == TeaLogIds.ExhaustFromAPlayer), h => $"a player's explosion at {Spread.F(pull.Clock(h.Time))} s");
         dollKilled.Observe(pull, pull.Hits.Where(h => h.Action == TeaLogIds.ReducibleComplexityKilled),
                            h => $"a dead doll's Reducible Complexity at {Spread.F(pull.Clock(h.Time))} s");
+    }
+
+    // Where a doll comes to rest from the player it follows: its distance from that player as its own auto-attack lands,
+    // with the player standing still for a second either side.
+    private void ObserveItsStandOff(TeaPull pull, uint doll)
+    {
+        foreach (var auto in pull.Hits.Where(h => h.Source == doll && h.Action == TeaLogIds.DollAutoAttack && h.HitSomeone && ActorIds.IsPlayer(h.Target)))
+        {
+            if (pull.Where(doll, auto.Time) is not { } from || pull.Positions.At(auto.Target, auto.Time) is not { Gap.TotalSeconds: < 0.5 } stands) continue;
+            if (pull.Positions.At(auto.Target, auto.Time.AddSeconds(-1)) is not { Gap.TotalSeconds: < 0.5 } before
+                || pull.Positions.At(auto.Target, auto.Time.AddSeconds(1)) is not { Gap.TotalSeconds: < 0.5 } after) continue;
+            if (Vector2.Distance(before.Position, stands.Position) > StandsStillWithin || Vector2.Distance(after.Position, stands.Position) > StandsStillWithin) continue;
+            dollStandOff.Add(Vector2.Distance(from, stands.Position));
+        }
+    }
+
+    // From the moment a doll turns targetable until a player first acts on it, the nearest a boss comes to its spot, by
+    // the boss's own move lines, and whether it was fed meanwhile.
+    private void ObserveABossPassingItUntouched(TeaPull pull, uint doll, Vector2 spot, DateTimeOffset targetable)
+    {
+        var until = pull.Hits.Where(h => h.Target == doll && ActorIds.IsPlayer(h.Source) && h.Time >= targetable).Select(h => (DateTimeOffset?)h.Time).FirstOrDefault()
+                    ?? pull.Tethers.Where(t => t.Source == doll && t.Id == TeaLogIds.DollTether).Select(t => (DateTimeOffset?)t.Time).FirstOrDefault();
+        if (until is not { } touched) return;
+        untouchedDolls++;
+        var passes = new[] { pull.Liquid, pull.Hand }.OfType<uint>()
+            .SelectMany(boss => pull.Moves.Where(m => m.Actor == boss && !m.Placed && m.Time >= targetable && m.Time <= touched))
+            .Select(m => (m.Time, Apart: (double)Vector2.Distance(m.Position, spot)))
+            .Where(pass => pass.Apart <= P1Geometry.DollIsFedWithin).ToList();
+        if (passes.Count == 0) return;
+        var fedMeanwhile = pull.Tethers.Any(t => t.Source == doll && t.Id == TeaLogIds.FeedTether && t.Time <= touched);
+        if (fedMeanwhile) untouchedFed++;
+        untouchedPasses.Add(passes.Min(pass => pass.Apart));
+        untouchedPassesAfterTargetable.Add(passes.Max(pass => PullLog.Seconds(targetable, pass.Time)));
+        untouchedDetails.Add($"{pull.Name}: a boss passes {Spread.F(passes.Min(pass => pass.Apart))} y from a doll nobody has acted on yet, up to "
+                             + $"{Spread.F(passes.Max(pass => PullLog.Seconds(targetable, pass.Time)))} s after it turned targetable; "
+                             + (fedMeanwhile ? "it is fed" : $"it is not fed, and is first acted on {Spread.F(PullLog.Seconds(targetable, touched))} s after turning targetable"));
     }
 
     // A doll is fed when its feed tether goes out to a boss, and its Reducible Complexity follows.
@@ -231,63 +275,111 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
     public IEnumerable<LogFinding> Findings()
     {
         var radii = new Spread(dollRadii);
-        yield return new LogFinding(Section, "The Jagd Dolls' spawn spots", TeaSource.OpeningNotPlayed, "not played",
+        yield return new LogFinding(Section, "The Jagd Dolls' spawn spots", SimSource.Line(TeaSource.Constants, "float JagdDollRing ="),
+            $"{P1Geometry.JagdDollRing} y from the centre, on bearings {string.Join(", ", P1Geometry.JagdDollBearings.Select(b => Spread.F(b, "0.0")))}, whatever the layout",
             radii.Count == 0 ? "no dolls"
                 : $"{radii.Describe(" y")} from the centre, on bearings {TeaP1ActorsPullLogs.Tally(dollBearings)}; from the tornadoes' open quarter: "
                   + TeaP1ActorsPullLogs.Tally(dollBearingsFromTheOpenQuarter),
-            LogFinding.Unplayed(radii.Count));
+            radii.Count == 0 ? Verdict.NotInTheseLogs
+            : Math.Abs(radii.Mean - P1Geometry.JagdDollRing) <= 0.1 && dollBearings.All(b => P1Geometry.JagdDollBearings.Any(own => Spread.F(own, "0.0") == b)) ? Verdict.Matches
+            : Verdict.Differs);
 
         var tethers = new Spread(tetherAfterTargetable);
-        yield return new LogFinding(Section, "Whom a doll tethers", TeaSource.OpeningNotPlayed, "not played",
+        yield return new LogFinding(Section, "Whom a doll tethers", SimSource.Line(TeaSource.Dolls, "doll.Holder = strike.By;"),
+            $"the first player whose weaponskill or spell on it is heard, {P1Duration.DollTethersAfterItsFirstHit} s after the press; an auto-attack is not heard",
             dollTethers == 0 ? "no doll's tether"
                 : $"{tethersToTheFirstToActOnIt} of {dollTethers} tethers go to the first player whose action hit the doll, {tethers.Describe(" s")} after the dolls "
                   + "turn targetable",
-            LogFinding.Unplayed(dollTethers))
+            dollTethers == 0 ? Verdict.NotInTheseLogs : 20 * tethersToTheFirstToActOnIt >= 19 * dollTethers ? Verdict.Matches : Verdict.Differs)
         {
             Details = tetherDetails,
         };
 
         var (hit, missed) = (new Spread(exhaustHit), new Spread(exhaustMissed));
-        yield return new LogFinding(Section, "Exhaust: when, and how far it reaches", TeaSource.OpeningNotPlayed,
-            $"not played; the sheet's reach is {ExhaustReach} y from the doll's centre",
-            exhaustAfterTargetable.Count == 0 ? "no Exhaust"
-                : $"first {new Spread(exhaustAfterTargetable).Describe(" s")} after the doll turns targetable, the next {new Spread(exhaustAgain).Describe(" s")} later; "
+        var (firstExhaust, targetable) = (TeaSource.Pull("Exhausts"), TeaSource.Pull("JagdDollsTurnTargetable"));
+        var (afterTargetable, again) = (new Spread(exhaustAfterTargetable), new Spread(exhaustAgain));
+        var simAfterTargetable = firstExhaust.Seconds - targetable.Seconds;
+        yield return new LogFinding(Section, "Exhaust: when, and how far it reaches", firstExhaust.Where,
+            (simAfterTargetable is { } simFirst ? $"first {Spread.F(simFirst)} s after the dolls turn targetable" : "not found in the scenario")
+            + $", then every {P1Duration.ExhaustEvery} s; the sheet's reach is {ExhaustReach} y from the doll's centre",
+            afterTargetable.Count == 0 ? "no Exhaust"
+                : $"first {afterTargetable.Describe(" s")} after the doll turns targetable, the next {again.Describe(" s")} later; "
                   + $"hit players stood up to {Spread.F(hit.Max)} y from the doll (n={hit.Count}), missed ones from {Spread.F(missed.Min)} y (n={missed.Count}), by client positions",
-            LogFinding.Unplayed(exhaustAfterTargetable.Count));
+            afterTargetable.Count == 0 ? Verdict.NotInTheseLogs
+            : simAfterTargetable is not { } simAfter ? Verdict.Inconclusive
+            : LogFinding.Compare(afterTargetable, simAfter, 0.25) == Verdict.Matches && (again.Count == 0 || LogFinding.Compare(again, P1Duration.ExhaustEvery, 0.1) == Verdict.Matches)
+                ? Verdict.Matches
+            : Verdict.Differs);
 
         var plasm = new Spread(aetheroplasm);
-        yield return new LogFinding(Section, "Luminous Aetheroplasm, the status an Exhaust leaves", TeaSource.OpeningNotPlayed, "not played",
+        yield return new LogFinding(Section, "Luminous Aetheroplasm, the status an Exhaust leaves", SimSource.Line(TeaSource.Constants, "float LuminousAetheroplasm ="),
+            $"status {P1StatusId.LuminousAetheroplasm} for {P1Duration.LuminousAetheroplasm} s; whoever two or more dolls' Exhausts reach at once explodes, and nobody one reaches",
             plasm.Count == 0 ? "never gained"
                 : $"status {TeaLogIds.LuminousAetheroplasm} for {plasm.Describe(" s")}; {twoExhaustsExploded} of {twoExhausts} players hit by two or more dolls' "
                   + $"Exhausts at once exploded (Exhaust from the player, {TeaLogIds.ExhaustFromAPlayer}); {oneExhaustExploded} of {oneExhaust} hit by one did",
-            LogFinding.Unplayed(plasm.Count))
+            plasm.Count == 0 ? Verdict.NotInTheseLogs
+            : LogFinding.Compare(plasm, P1Duration.LuminousAetheroplasm, 0.1) == Verdict.Matches && twoExhaustsExploded == twoExhausts && oneExhaustExploded == 0 ? Verdict.Matches
+            : Verdict.Differs)
         {
             Details = stacks,
         };
-        yield return Unplayed(exploded.Finding(Section, "A player's explosion (Exhaust from the player) kills whoever it hits",
-                                               TeaSource.OpeningNotPlayed, "not played"));
+        yield return exploded.Finding(Section, "A player's explosion (Exhaust from the player) kills whoever it hits",
+                                      SimSource.Line(TeaSource.Dolls, "internal const string LuminousAetheroplasmBurst ="),
+                                      "kills everyone within the sheet's 8 y and a player's hitbox of the exploding player, itself included");
 
         var light = fedHardest.Where(f => f.Hardest < AHeavyHit).ToList();
         var heavy = fedHardest.Where(f => f.Hardest >= AHeavyHit).ToList();
+        var (apart, complexity) = (new Spread(fedApart), new Spread(fedAfterTether));
+        var readyUnder = 100 * P1Rules.DollIsReadyUnder;
         yield return new LogFinding(Section, "Feeding a doll: its hit points as its tether goes to a boss, and what its Reducible Complexity does",
-            TeaSource.OpeningNotPlayed, "not played; a doll fed under a quarter of its hit points is said to be survived",
+            SimSource.Line(TeaSource.Constants, "float DollIsFedWithin ="),
+            $"a doll a player has hit is fed within {P1Geometry.DollIsFedWithin} y of a boss's centre; Reducible Complexity {P1Duration.ReducibleComplexityAfterTheFeed} s later, "
+            + $"harmless with the doll under {Spread.F(readyUnder, "0")} % of its health and killing everyone from there up. Its health is scripted: no damage is played",
             feeds.Count == 0 ? "no doll fed"
-                : $"{feeds.Count} dolls fed, {new Spread(fedApart).Describe(" y")} from the boss's centre as the tether goes out; Reducible Complexity "
-                  + $"{new Spread(fedAfterTether).Describe(" s")} later. "
+                : $"{feeds.Count} dolls fed, {apart.Describe(" y")} from the boss's centre as the tether goes out; Reducible Complexity "
+                  + $"{complexity.Describe(" s")} later. "
                   + (light.Count == 0 ? "None hit lightly" : $"With the doll at {Spread.F(light.Min(f => f.Share), "0.0")} to {Spread.F(light.Max(f => f.Share), "0.0")} % "
                                                              + $"its hardest hit was {light.Max(f => f.Hardest)} at the most (n={light.Count})")
                   + (heavy.Count == 0 ? "; none hit hard" : $"; at {Spread.F(heavy.Min(f => f.Share), "0.0")} % and over it was {heavy.Min(f => f.Hardest)} at the least "
                                                             + $"(n={heavy.Count})"),
-            LogFinding.Unplayed(feeds.Count))
+            feeds.Count == 0 ? Verdict.NotInTheseLogs
+            : LogFinding.Compare(apart, P1Geometry.DollIsFedWithin, 0.25) == Verdict.Differs || LogFinding.Compare(complexity, P1Duration.ReducibleComplexityAfterTheFeed, 0.1) == Verdict.Differs
+              || light.Any(f => f.Share >= readyUnder) || heavy.Any(f => f.Share < readyUnder) ? Verdict.Differs
+            // The line is held only by feeds on both sides of it.
+            : light.Count > 0 && heavy.Count > 0 ? Verdict.Matches
+            : Verdict.Inconclusive)
         {
             Details = feeds,
         };
 
-        yield return Unplayed(dollKilled.Finding(Section, "A doll killed: its Reducible Complexity kills everyone", TeaSource.OpeningNotPlayed, "not played"));
+        yield return Unplayed(dollKilled.Finding(Section, "A doll killed: its Reducible Complexity kills everyone", TeaSource.NoDollDies,
+                                                 "not played: no damage is played, so no doll dies"));
 
         var speeds = new Spread(dollSpeeds);
-        yield return new LogFinding(Section, "The dolls' walking speed", TeaSource.OpeningNotPlayed, "not played", speeds.Describe(" y/s"),
-            LogFinding.Unplayed(speeds.Count));
+        yield return new LogFinding(Section, "The dolls' walking speed", SimSource.Line(TeaSource.Constants, "float DollWalkSpeed ="), $"{P1Rules.DollWalkSpeed} y/s",
+            speeds.Describe(" y/s"), speeds.Count == 0 ? Verdict.NotInTheseLogs : Math.Abs(speeds.Median - P1Rules.DollWalkSpeed) <= 0.5 ? Verdict.Matches : Verdict.Differs);
+
+        var standOff = new Spread(dollStandOff);
+        var simStandOff = DollHitbox + PlayerHitbox + P1Rules.DollStopsPastTheHitboxes;
+        yield return new LogFinding(Section, "A doll's stand-off: how far from a player who stands still it is as its own auto-attack lands",
+            SimSource.Line(TeaSource.Constants, "float DollStopsPastTheHitboxes ="),
+            $"{Spread.F(simStandOff, "0.0")} y: it walks until it is {P1Rules.DollStopsPastTheHitboxes} y past the two hitboxes",
+            standOff.Count == 0 ? "no doll attacked a player who stood still"
+                : $"median {Spread.F(standOff.Median)} y, {standOff.Describe(" y")}; the tenth to the ninetieth in a hundred: {Spread.F(standOff.Quantile(0.1))} to "
+                  + $"{Spread.F(standOff.Quantile(0.9))} y. The doll's spot is the server's, the player's the client's",
+            standOff.Count == 0 ? Verdict.NotInTheseLogs : Math.Abs(standOff.Median - simStandOff) <= 0.5 ? Verdict.Matches : Verdict.Differs);
+
+        var (passes, lastPass) = (new Spread(untouchedPasses), new Spread(untouchedPassesAfterTargetable));
+        yield return new LogFinding(Section, "A doll nobody has acted on yet and a boss that comes close to it",
+            SimSource.Line(TeaSource.Dolls, "if (doll.HasBeenHit) FeedItToABossItHasReached(doll);"),
+            $"never fed, however close a boss comes: only a doll a player has hit is fed within {P1Geometry.DollIsFedWithin} y of a boss",
+            untouchedDolls == 0 ? "no doll" : passes.Count == 0 ? $"no boss came within {P1Geometry.DollIsFedWithin} y of any of {untouchedDolls} dolls before a player acted on it"
+                : $"{passes.Count} of {untouchedDolls} dolls had a boss within {P1Geometry.DollIsFedWithin} y before any player acted on them, the nearest {Spread.F(passes.Min)} y; "
+                  + $"{untouchedFed} of them were fed. The latest such pass came {Spread.F(lastPass.Max)} s after the doll turned targetable, which is as far as the rule is seen",
+            untouchedDolls == 0 ? Verdict.NotInTheseLogs : passes.Count == 0 ? Verdict.Inconclusive : untouchedFed == 0 ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = untouchedDetails,
+        };
 
         yield return new LogFinding(Section, "Pressurize: which tornadoes cast it",
             SimSource.Line(TeaSource.State, "var pressurizing = AllBut((TeaP1Tornado)rng.NextInt(3));"), "two of the three, the third rolled evenly",

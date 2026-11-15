@@ -33,6 +33,16 @@ internal static partial class SimSource
         return (Line(path, text, occurrence), seconds);
     }
 
+    // The seconds on the fight's own clock of the occurrence-th line holding the text, which ends where the line's
+    // literal starts: "fight.FluidSwing(" on a "fight.FluidSwing(36.4f);" line.
+    public static (string Where, float? Seconds) FightTime(string path, string text, int occurrence = 1)
+    {
+        var found = Find(path, text, occurrence);
+        var match = found is null ? null : Literal().Match(found.Value.Text[(found.Value.Text.IndexOf(text, StringComparison.Ordinal) + text.Length)..]);
+        var seconds = match is { Success: true } ? float.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) : (float?)null;
+        return (Line(path, text, occurrence), seconds);
+    }
+
     // The number the occurrence-th line holding the text assigns: its "= 1.1f" or "= 6".
     public static (string Where, float? Value) Assigned(string path, string text, int occurrence = 1)
     {
@@ -69,6 +79,9 @@ internal static partial class SimSource
 
     [GeneratedRegex(@"start \+ (\d+(?:\.\d+)?)f")]
     private static partial Regex StartPlus();
+
+    [GeneratedRegex(@"^\s*(\d+(?:\.\d+)?)f")]
+    private static partial Regex Literal();
 
     [GeneratedRegex(@"=\s*(-?\d+(?:\.\d+)?)f?\s*;")]
     private static partial Regex Assignment();

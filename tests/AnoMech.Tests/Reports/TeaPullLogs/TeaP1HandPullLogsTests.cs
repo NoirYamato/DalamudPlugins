@@ -88,4 +88,34 @@ public class TeaP1HandPullLogsTests
 
         Assert.That((leaves.Measured, leaves.Verdict), Is.EqualTo(("Fluid Swing: Status (1025) x1", Verdict.Matches)));
     }
+
+    // The Hand rests on the centre and is Provoked at 30.0. Its first move line that has left the centre has it 3 y on,
+    // a third of a second's walk at 9 y/s.
+    [TestCase(31.0, "0.67", true)]
+    [TestCase(31.5, "1.17", false)]
+    public void AProvokeTakesHoldAsTheHandSetsOff(double firstLineAt, string after, bool matches)
+    {
+        var hold = Findings(new TeaP1HandPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp), Moved(25, Hand, Centre, 0f),
+            Hit(30, Player(1), TeaLogIds.Provoke, Hand),
+            Moved(firstLineAt, Hand, Centre + new Vector2(3f, 0f), 0f), Moved(firstLineAt + 0.3, Hand, Centre + new Vector2(5.7f, 0f), 0f),
+        ], [LiquidStands(x: Far.X, y: Far.Y)])).Named("A Provoke taking hold");
+
+        Assert.That((hold.Measured, hold.Verdict), Is.EqualTo(($"{after} s (n=1), median {after} s", matches ? Verdict.Matches : Verdict.Differs)));
+    }
+
+    [Test]
+    public void AHandAlreadyWalkingAsItIsProvokedShowsNothing()
+    {
+        var hold = Findings(new TeaP1HandPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            Moved(29.5, Hand, Centre, 0f), Moved(29.8, Hand, Centre + new Vector2(2.7f, 0f), 0f),
+            Hit(30, Player(1), TeaLogIds.Provoke, Hand),
+            Moved(30.1, Hand, Centre + new Vector2(5.4f, 0f), 0f),
+        ], [LiquidStands(x: Far.X, y: Far.Y)])).Named("A Provoke taking hold");
+
+        Assert.That((hold.Measured, hold.Verdict), Is.EqualTo(("no Provoke on a Hand at rest", Verdict.NotInTheseLogs)));
+    }
 }
