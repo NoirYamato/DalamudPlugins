@@ -11,8 +11,8 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 public enum TeaP1DrainageStartsOn { TheTanks, Others }
 
 // One run's rolls, each drawn in the order the fight shows it and whether or not it is forced, so forcing one leaves
-// the others as the seed had them. The pull's own roll, its Emboli, is drawn from a stream of its own, so a seed keeps
-// every draw it made before the pull was played. UNVERIFIED: that the game draws each evenly,
+// the others as the seed had them. The pull's Emboli are drawn from a fork of their own: a draw added to the run's
+// stream would shift every roll after it for a seed. UNVERIFIED: that the game draws each evenly,
 // and that Cascade 2's tornadoes can stand where the first did.
 public sealed class TeaP1LivingLiquidState
 {
