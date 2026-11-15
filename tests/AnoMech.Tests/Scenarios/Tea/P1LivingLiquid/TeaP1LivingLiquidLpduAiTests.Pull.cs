@@ -7,6 +7,7 @@ using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
+using AnoMech.Scenarios.Tea.P1LivingLiquid;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Tea.P1LivingLiquid.TeaP1LivingLiquidPart;
@@ -22,7 +23,9 @@ namespace AnoMech.Tests;
 //     Provokes it back at 38.0. The off tank leaves for the Liquid's flank once the Hand is no longer on it;
 //   - from 34.25 each damage dealer hits the doll of its quarter once it stands in reach of it (3.5 y for a melee, 25
 //     for a ranged) with both bosses 5.2 y or more from it; from 36.0 a bot whose doll someone else hit takes that
-//     one's doll, a melee walking to it first;
+//     one's doll, a melee walking to it first. When a ranged took a melee's, that doll goes out to it, into reach of
+//     its own: the melee waits out the first Exhaust and goes from 38.75. A melee takes no doll from 47.0 and goes
+//     north without one;
 //   - from 38.75 each melee whose doll is under a quarter draws it through the nearer boss, standing 2.5 y past that
 //     boss on a spot clear of the water, and then walks north; the ranged do the same from 49.3 and walk back out;
 //   - each tank crosses the middle at 42.5 and takes its hold from 46.0, once it and its boss have come to rest.
@@ -168,7 +171,9 @@ public partial class TeaP1LivingLiquidLpduAiTests
         {
             Assert.That(provokes.Select(provoke => (provoke.By, provoke.ByHuman)), Is.EqualTo(new[] { (MainTank, false), (OffTank, false) }));
             Assert.That(invulnerable, Is.True);
-            Assert.That(chat.Where(said => said.Contains("Your Provokes and invulnerability: none")), Has.Exactly(1).Items);
+            Assert.That(chat.Where(said => said.Contains(seat == MainTank
+                            ? "Your Provoke and invulnerability: none, since your job has none: the run presses them for your seat"
+                            : "the run Provokes it back for your seat at 38 s, since your job has no Provoke")), Has.Exactly(1).Items);
         });
     }
 
@@ -220,6 +225,91 @@ public partial class TeaP1LivingLiquidLpduAiTests
             Assert.That(before, Is.EqualTo(((PartyRole?)MeleeDpsA, (PartyRole?)null)), "until 36.0 the bot leaves both alone");
             Assert.That(after, Is.EqualTo(((PartyRole?)MeleeDpsA, (PartyRole?)MeleeDpsB)));
             Assert.That(secondMeleeFromItsNewSpot, Is.LessThan(Tolerance), "half a yalm off the south-west doll, away from the tornado beside it");
+        });
+    }
+
+    // A human R1 steps out of its tornado's telegraph, hits M2's doll, the south-east one, and steps back: that doll
+    // walks to 3.3 y from it. Half a yalm off R1's own doll, the north-east one, M2 would then stand in reach of both
+    // as they first Exhaust, at 38.5. It waits that out where it is, takes R1's own doll after it, feeds that once the
+    // bosses are on the middle and is north of it for the second busters.
+    [Test]
+    public void AMeleeWhoseDollARangedTookWaitsOutTheFirstExhaustBeforeItTakesTheRangedsOwn()
+    {
+        var stage = new Stage { First = Pull, Last = Pull };
+        var (itsOwn, theRangeds) = (stage.BesideItsDoll(MeleeDpsB), stage.DollSpot(TeaP1Quarter.Northeast));
+        float fromItsOwnSpot = float.NaN, takenDollFromTheRangedsOwn = float.NaN, fromItsSpotNorth = float.NaN;
+        (PartyRole? Southeast, PartyRole? Northeast) holders = default;
+        (float? HitAt, TeaP1Boss? FedTo) theRangedsOwn = default;
+        var run = Play(ThePull(), PhysRangedDps, Random.Shared.Next(), p =>
+        {
+            var dolls = Stage.Fight(p).Dolls;
+            if (p.Time < 33.5f) return;
+            var (southeast, northeast) = (dolls.In(stage.Frame1, TeaP1Quarter.Southeast)!, dolls.In(stage.Frame1, TeaP1Quarter.Northeast)!);
+            if (p.Crossed(33.6f)) p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, 97, (ulong)southeast.Enemy.GameObjectId));
+            if (p.Crossed(38.4f))
+            {
+                fromItsOwnSpot = Vector2.Distance(Flat(p.Member(MeleeDpsB)!.Position), itsOwn);
+                takenDollFromTheRangedsOwn = Vector2.Distance(Flat(southeast.Enemy.Position), theRangeds);
+            }
+            if (!p.Crossed(55f)) return;
+            holders = (Seat(southeast.Holder), Seat(northeast.Holder));
+            theRangedsOwn = (northeast.HitAt, northeast.FedTo);
+            fromItsSpotNorth = Vector2.Distance(Flat(p.Member(MeleeDpsB)!.Position), new Vector2(0.4f, -4.3f));
+        }, stopAt: 57f, new Takeover(32.5f, new Vector2(11.5f, -8.4f)), new Takeover(35.45f, Stage.FirstRangedsBait));
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(takenDollFromTheRangedsOwn, Is.LessThan(8.8f), "the doll R1 took rests in reach of whoever stands by R1's own");
+            Assert.That(fromItsOwnSpot, Is.LessThan(Tolerance), "M2 waits where it stood through the first Exhaust");
+            Assert.That(holders, Is.EqualTo(((PartyRole?)PhysRangedDps, (PartyRole?)MeleeDpsB)));
+            Assert.That(theRangedsOwn.HitAt, Is.InRange(38.75f, 41.5f), "hit once M2 has walked to it from 38.75");
+            Assert.That(theRangedsOwn.FedTo, Is.Not.Null, "and fed before the second Exhaust");
+            Assert.That(fromItsSpotNorth, Is.LessThan(Tolerance), "M2 on its spot north of the middle by 55.0");
+        });
+    }
+
+    // A human main tank keeps the Living Liquid 3 y from the south-west doll's spot until 46.9. M1 waits beside that
+    // doll, and at 47.0 goes north without it: hit that late it would not be fed before the second busters, which cleave
+    // over its spot. The tank then steps away, the Liquid after it: it is 5.2 y gone a moment later, with M1 still in
+    // reach of the doll, and M1 leaves it alone.
+    // A tank that far from the middle tornado leaves that tornado's waves to others, so nobody is let die here.
+    [Test]
+    public void AMeleeKeptFromItsDollUntilFortySevenLeavesItAlone()
+    {
+        var stage = new Stage { First = Pull, Last = Pull };
+        var liquidParks = new Vector2(-8.0f, 5.3f);
+        var tankStands = liquidParks + Stage.LiquidStopsFromItsTank * Vector2.Normalize(liquidParks - new Vector2(0f, -4f));
+        var hit = new List<bool>();
+        float fromTheDoll = float.NaN, liquidFromTheDoll = float.NaN;
+        var roll = ThePull() with { FirstEmboli = [new(TeaP1Tornado.West, TeaP1Boss.LiquidHand), new(TeaP1Tornado.East, TeaP1Boss.LivingLiquid)] };
+        var run = ScenarioRun.Execute(typeof(TeaP1LivingLiquidScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 48.45f,
+            GodMode = true,
+            Takeovers = [new Takeover(24.0f, tankStands), new Takeover(46.9f, new Vector2(-11f, 15f))],
+            Overrides = o => roll.Pin((TeaP1LivingLiquidStateOverrides)o),
+            Probe = p =>
+            {
+                var fight = Stage.Fight(p);
+                if (p.Crossed(30f))
+                    p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Provoke, (ulong)fight.Hand!.GameObjectId));
+                if (p.Time < 33.5f) return;
+                var doll = fight.Dolls.In(stage.Frame1, TeaP1Quarter.Southwest)!;
+                if (p.Crossed(46.85f) || p.Crossed(48.4f)) hit.Add(doll.HasBeenHit);
+                if (!p.Crossed(47.3f)) return;
+                fromTheDoll = Vector2.Distance(Flat(p.Member(MeleeDpsA)!.Position), Flat(doll.Enemy.Position));
+                liquidFromTheDoll = Vector2.Distance(Flat(fight.Position(TeaP1Boss.LivingLiquid)), Flat(doll.Enemy.Position));
+            },
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(liquidFromTheDoll, Is.GreaterThan(5.2f), "the Liquid has left the doll by 47.3");
+            Assert.That(fromTheDoll, Is.LessThan(3.5f), "with M1 still in reach of it");
+            Assert.That(hit, Is.EqualTo(new[] { false, false }));
         });
     }
 

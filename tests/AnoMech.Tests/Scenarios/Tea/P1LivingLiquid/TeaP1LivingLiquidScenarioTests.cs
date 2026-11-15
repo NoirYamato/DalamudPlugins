@@ -984,7 +984,8 @@ public class TeaP1LivingLiquidScenarioTests
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
     [TestCase(MeleeDpsA, Protean1)]
     [TestCase(CasterDps, Cascade2)]
-    [TestCase(OffTank, Pull, "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter", "Your Drainage tether: from the tornado left of the open quarter",
+    [TestCase(OffTank, Pull, "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter",
+        "Your Liquid Hand from 42 s: Provoke it back after the busters at 36 s and before the next at 55 s", "Your Drainage tether: from the tornado left of the open quarter",
         "Your Liquid Hand: it stays put while you are within 5 y of it")]
     [TestCase(MeleeDpsA, Pull, "Your Jagd Doll: the one south-west of the middle with the open quarter north", "Your spot beside it: on your doll or a step away from the tornado beside it")]
     [TestCase(RegenHealer, Pull, "Your wait for the Jagd Dolls: stay far out, in the open quarter", "Your Throttle cleanses: yourself first, then MT, OT, H2, M1, M2, R1, R2")]
@@ -1101,6 +1102,9 @@ public class TeaP1LivingLiquidScenarioTests
 
         public IReadOnlyList<string> Spawned(uint bnpcBaseId)
             => fake!.Timeline.Rows.Where(row => row["kind"] == "spawn" && row["id"] == bnpcBaseId.ToString()).Select(row => row["actor"]).ToList();
+
+        // How often `actor` was told to fade out.
+        public int Fades(string actor) => fake!.Timeline.Rows.Count(row => row["kind"] == "ac" && row["actor"] == actor && row["id"] == "0x25F");
 
         // Each model state the first actor of `bnpcBaseId` was sent, and when.
         public IReadOnlyList<(float At, byte State)> ModelStates(uint bnpcBaseId)

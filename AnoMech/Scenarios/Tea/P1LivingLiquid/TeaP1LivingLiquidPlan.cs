@@ -122,25 +122,39 @@ public sealed class TeaP1LivingLiquidPlan
         return lines;
     }
 
+    // Where a tank takes its boss is its seat's to do whatever its job; its presses are its job's.
     private IEnumerable<string> ThePullsLines()
     {
-        if (HumanSeat.IsTank() && !HumanTanks)
-            yield return "Your Provokes and invulnerability: none, since your job has none: the run presses them for your seat";
-        if (HumanSeat == MainTank && HumanTanks)
+        if (HumanSeat == MainTank)
         {
             yield return "Your pull: the Living Liquid comes to 6 y from you and cleaves toward you at 10 s, so turn it away from the party. "
                          + "Be within 6 y of the middle when Cascade lands at 18 s: the tornadoes appear a moment later, on any three sides";
             yield return "Your first hand: take the Living Liquid to the rim beside the middle tornado, on the side of the tornado left of the open quarter, and be the middle tornado's closest player. "
-                         + "Provoke the Liquid Hand as it shows its palm, at about 29 to 31 s: it sets off a moment after your Provoke and must reach the Living Liquid by 34 s. "
-                         + "That tornado's telegraphed wave throws you past the rim: step out of it and back, or hold your ground with Arm's Length, and be its closest player again by 37 s. "
-                         + "Your invulnerability by 37 s: both busters leave Water Resistance Down, and the tornado's unseen wave follows";
-            yield return "Your Living Liquid from 42 s: lead it onto the middle and stand within 4 y of it, between the middle tornado and the one right of the open quarter, for the next busters at 55 s: "
+                         + (HumanTanks
+                             ? "Provoke the Liquid Hand as it shows its palm, at about 29 to 31 s: it sets off a moment after your Provoke and must reach the Living Liquid by 34 s. "
+                             : "")
+                         + $"That tornado's telegraphed wave throws you past the rim: step out of it and back, or hold your ground with {(HumanTanks ? "Arm's Length" : "your anti-knockback")}, and be its closest player again by 37 s"
+                         + (HumanTanks
+                             ? ". Your invulnerability between 28 and 37 s: both busters at 36 s leave Water Resistance Down, and the tornado's unseen wave on it kills at 37.5 s"
+                             : "");
+            yield return "Your Living Liquid from 42 s: walk through the middle to 6 y past it, so that it stops on the middle, then stand within 4 y of it, "
+                         + "between the middle tornado and the one right of the open quarter, for the next busters at 55 s: "
                          + "an Embolus from the tornado right of the open quarter passes 7 y from the middle on that side at about 52 s";
+            if (!HumanTanks)
+                yield return "Your Provoke and invulnerability: none, since your job has none: the run presses them for your seat. "
+                             + "It Provokes the Liquid Hand at 30 s if it shows a palm, which it does with the Living Liquid at the rim, and turns you invulnerable at 34 s";
         }
-        if (HumanSeat == OffTank && HumanTanks)
+        if (HumanSeat == OffTank)
         {
             yield return "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm; the main tank Provokes it then. "
-                         + "Provoke it back after the busters at 36 s and before the next at 55 s, lead it onto the middle and stand between the middle tornado and the one left of the open quarter";
+                         + "Once it has left you, wait beside the Living Liquid on the side of the tornado left of the open quarter, not near the middle: "
+                         + "until the Jagd Dolls' first Exhaust at 38 s the middle is inside two dolls' reach, and two Exhausts at once kill";
+            yield return "Your Liquid Hand from 42 s: "
+                         + (HumanTanks
+                             ? "Provoke it back after the busters at 36 s and before the next at 55 s, and lead it onto the middle only from 42 s"
+                             : "the run Provokes it back for your seat at 38 s, since your job has no Provoke; lead it onto the middle only from 42 s")
+                         + ", once the melee have fed their dolls: walk through the middle to 4 y past it, so that the Hand stops on the middle, "
+                         + "then stand between the middle tornado and the one left of the open quarter";
         }
         if (DollOf(HumanSeat) is { } quarter)
         {
@@ -151,8 +165,10 @@ public sealed class TeaP1LivingLiquidPlan
                 TeaP1Quarter.Southwest => "south-west",
                 _ => "north-west",
             };
-            yield return $"Your Jagd Doll: the one {where} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell, and stand where only its Exhaust reaches you: each reaches 8.8 y, and two at once kill. "
-                         + "Keep it more than 4 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone. "
+            yield return $"Your Jagd Doll: the one {where} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell, since no auto-attack is heard here, "
+                         + "and stand where only its Exhaust reaches you: each reaches 8.8 y, and two at once kill. "
+                         + (HumanSeat == MeleeDpsA ? "Hit it by 38 s: from 42 s the tanks lead the bosses past it to the middle, which feeds it. " : "")
+                         + "Keep it more than 5 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone. "
                          + "Then draw it through a boss: stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle";
             yield return HumanSeat is PhysRangedDps or CasterDps
                 ? $"Your tornado: the one {(HumanSeat == PhysRangedDps ? "right" : "left")} of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back"

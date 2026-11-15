@@ -152,14 +152,32 @@ public class TeaP1LivingLiquidPlanTests
         [Values(JobId.Warrior, JobId.Paladin, JobId.DarkKnight, JobId.Gunbreaker)] JobId job)
         => Assert.That(Plan(seat, job).HumanTanks, Is.True);
 
+    // Each boss walks after its seat whatever the job in it, so the seat's spots are still the human's: it is told
+    // them, and when the run presses for it.
     [Test]
-    public void AHumanOnAnotherJobInATanksSeatIsHeldToNoneOfATanksPresses([Values(MainTank, OffTank)] PartyRole seat,
+    public void AHumanOnAnotherJobInATanksSeatIsHeldToNoneOfATanksPressesAndToldItsSpots([Values(MainTank, OffTank)] PartyRole seat,
         [Values(JobId.Monk, JobId.WhiteMage, JobId.Bard, JobId.BlackMage)] JobId job)
     {
         var plan = Plan(seat, job);
+        var lines = plan.ChatLines(ThePull);
+        var all = string.Join(" | ", lines);
 
         Assert.That(plan.HumanTanks, Is.False);
-        Assert.That(plan.ChatLines(ThePull).Single(), Is.EqualTo("Your Provokes and invulnerability: none, since your job has none: the run presses them for your seat"));
+        Assert.That(all, Does.Not.Contain("Provoke the Liquid Hand as").And.Not.Contain("Your invulnerability").And.Not.Contain("Provoke it back after").And.Not.Contain("Arm's Length"));
+        if (seat == MainTank)
+        {
+            Assert.That(lines, Has.Count.EqualTo(4));
+            Assert.That(lines[0], Does.StartWith("Your pull: the Living Liquid comes to 6 y from you"));
+            Assert.That(lines[1], Does.StartWith("Your first hand: take the Living Liquid to the rim beside the middle tornado")
+                .And.Contain("step out of it and back, or hold your ground with your anti-knockback, and be its closest player again by 37 s"));
+            Assert.That(lines[2], Does.StartWith("Your Living Liquid from 42 s: walk through the middle to 6 y past it"));
+            Assert.That(lines[3], Is.EqualTo("Your Provoke and invulnerability: none, since your job has none: the run presses them for your seat. "
+                                              + "It Provokes the Liquid Hand at 30 s if it shows a palm, which it does with the Living Liquid at the rim, and turns you invulnerable at 34 s"));
+            return;
+        }
+        Assert.That(lines, Has.Count.EqualTo(2));
+        Assert.That(lines[0], Does.StartWith("Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter"));
+        Assert.That(lines[1], Does.StartWith("Your Liquid Hand from 42 s: the run Provokes it back for your seat at 38 s, since your job has no Provoke; lead it onto the middle only from 42 s"));
     }
 
     [Test]
@@ -191,22 +209,32 @@ public class TeaP1LivingLiquidPlanTests
             Assert.That(lines[1], Does.StartWith("Your first hand: take the Living Liquid to the rim beside the middle tornado, on the side of the tornado left of the open quarter")
                 .And.Contain("Provoke the Liquid Hand as it shows its palm, at about 29 to 31 s")
                 .And.Contain("step out of it and back, or hold your ground with Arm's Length, and be its closest player again by 37 s")
-                .And.Contain("Your invulnerability by 37 s: both busters leave Water Resistance Down, and the tornado's unseen wave follows"));
-            Assert.That(lines[2], Does.StartWith("Your Living Liquid from 42 s: lead it onto the middle and stand within 4 y of it, between the middle tornado and the one right of the open quarter")
+                .And.Contain("Your invulnerability between 28 and 37 s: both busters at 36 s leave Water Resistance Down, and the tornado's unseen wave on it kills at 37.5 s"));
+            Assert.That(lines[2], Does.StartWith("Your Living Liquid from 42 s: walk through the middle to 6 y past it, so that it stops on the middle, then stand within 4 y of it, between the middle tornado and the one right of the open quarter")
                 .And.Contain("an Embolus from the tornado right of the open quarter passes 7 y from the middle on that side at about 52 s"));
         });
     }
 
+    // Without the Hand from the main tank's Provoke until it leads it in, it has to be told where to wait: the middle
+    // is inside two dolls' reach, and a Hand led in before the melee have fed walks over a doll that is not ready.
     [Test]
-    public void TheOffTankIsToldToTakeTheHandAwayAndToProvokeItBack()
+    public void TheOffTankIsToldToTakeTheHandAwayWhereToWaitAndWhenToLeadItIn()
     {
-        var line = Plan(OffTank, JobId.Paladin).ChatLines(ThePull).Single();
+        var lines = Plan(OffTank, JobId.Paladin).ChatLines(ThePull);
 
-        Assert.That(line, Does.StartWith("Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm")
-            .And.Contain("Provoke it back after the busters at 36 s and before the next at 55 s")
-            .And.Contain("stand between the middle tornado and the one left of the open quarter"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines, Has.Count.EqualTo(2));
+            Assert.That(lines[0], Does.StartWith("Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm")
+                .And.Contain("Once it has left you, wait beside the Living Liquid on the side of the tornado left of the open quarter, not near the middle")
+                .And.Contain("until the Jagd Dolls' first Exhaust at 38 s the middle is inside two dolls' reach"));
+            Assert.That(lines[1], Does.StartWith("Your Liquid Hand from 42 s: Provoke it back after the busters at 36 s and before the next at 55 s, and lead it onto the middle only from 42 s, once the melee have fed their dolls")
+                .And.Contain("walk through the middle to 4 y past it, so that the Hand stops on the middle")
+                .And.Contain("then stand between the middle tornado and the one left of the open quarter"));
+        });
     }
 
+    // The bots' tanks lead the bosses to the middle past the south-west doll's spot on every layout, and past no other.
     [TestCase(PhysRangedDps, JobId.Bard, "north-east", "Your tornado: the one right of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back")]
     [TestCase(CasterDps, JobId.BlackMage, "north-west", "Your tornado: the one left of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back")]
     [TestCase(MeleeDpsA, JobId.Dragoon, "south-west", "Your spot beside it: on your doll or a step away from the tornado beside it, not toward it")]
@@ -214,14 +242,16 @@ public class TeaP1LivingLiquidPlanTests
     public void ADamageDealerIsToldItsDollAndWhereToStand(PartyRole seat, JobId job, string quarter, string stands)
     {
         var lines = Plan(seat, job).ChatLines(ThePull);
+        const string deadline = "Hit it by 38 s: from 42 s the tanks lead the bosses past it to the middle, which feeds it";
 
         Assert.Multiple(() =>
         {
             Assert.That(lines, Has.Count.EqualTo(2));
-            Assert.That(lines[0], Does.StartWith($"Your Jagd Doll: the one {quarter} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell")
+            Assert.That(lines[0], Does.StartWith($"Your Jagd Doll: the one {quarter} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell, since no auto-attack is heard here")
                 .And.Contain("each reaches 8.8 y, and two at once kill")
-                .And.Contain("Keep it more than 4 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone")
+                .And.Contain("Keep it more than 5 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone")
                 .And.Contain("stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle"));
+            Assert.That(lines[0], seat == MeleeDpsA ? Does.Contain(deadline) : Does.Not.Contain(deadline));
             Assert.That(lines[1], Does.StartWith(stands));
         });
     }

@@ -16,6 +16,8 @@ public partial class TeaP1LivingLiquidLpduAi
     private const float ThePullLastLooksAt = 60.5f;
     private const float TheOffTankLastLooksForTheHandToLeaveAt = 42.25f;
     private const float ABotTakesAnothersDollFrom = 36.0f;
+    private const float AMeleeTakesTheDollOfOneWhoDrewItsOwnAwayFrom = 38.75f;
+    private const float AMeleeTakesNoDollFrom = 47.0f;
     private const float EachTankTakesItsHoldBy = 49.0f;
 
     private const float AMeleeReaches = 3.5f;
@@ -151,17 +153,24 @@ public partial class TeaP1LivingLiquidLpduAi
         }
     }
 
+    private bool ItIsTooLateToTakeADoll(PartyRole seat) => Melee.Contains(seat) && world.Events.Elapsed >= AMeleeTakesNoDollFrom - 0.001f;
+
     private TeaP1JagdDoll? TheDollOfItsQuarter(PartyRole seat)
         => state.Plan.DollOf(seat) is { } quarter ? fight.Dolls.In(state.Tornadoes1, quarter) : null;
 
     private TeaP1JagdDoll? TheDollLeftToHitFor(PartyRole seat, SimCharacter member)
     {
-        if (fight.Dolls.All.Any(doll => ReferenceEquals(doll.Holder, member))) return null;
+        if (ItIsTooLateToTakeADoll(seat) || fight.Dolls.All.Any(doll => ReferenceEquals(doll.Holder, member))) return null;
         var toHit = TheDollOfItsQuarter(seat);
         if (toHit is { HasBeenHit: true })
-            toHit = world.Events.Elapsed < ABotTakesAnothersDollFrom - 0.001f ? null : TheDollOfWhoeverTook(toHit);
+            toHit = world.Events.Elapsed < WhenItTakesTheDollOfWhoeverTook(toHit, seat) - 0.001f ? null : TheDollOfWhoeverTook(toHit);
         return toHit is { IsUp: true, HasBeenHit: false } ? toHit : null;
     }
+
+    private static float WhenItTakesTheDollOfWhoeverTook(TeaP1JagdDoll itsOwn, PartyRole seat)
+        => Melee.Contains(seat) && !(itsOwn.Holder is ISimPartyMember { Role: var taker } && Melee.Contains(taker))
+            ? AMeleeTakesTheDollOfOneWhoDrewItsOwnAwayFrom
+            : ABotTakesAnothersDollFrom;
 
     private TeaP1JagdDoll? TheDollOfWhoeverTook(TeaP1JagdDoll doll)
         => doll.Holder is ISimPartyMember { Role: var taker } ? TheDollOfItsQuarter(taker) : null;
