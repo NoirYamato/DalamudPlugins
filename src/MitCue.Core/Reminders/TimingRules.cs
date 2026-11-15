@@ -139,19 +139,30 @@ public static class TimingRules
     /// 4 + 0.3 s, the instant Sacred Soil and Consolation wait until then. A buff, movement or other action without a lead
     /// of its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
     /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
-    /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
-    /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). With an automatic
-    /// press a step of a sequence, which comes before the step after it, has no later floor than that step: in "Indom →
-    /// Succor" on J Wave 5 the Indomitability, a heal that alone waits for wave 4 + 0.3 s, comes with the Succor 1.8 s
-    /// earlier, so that the Succor's cast still lands between waves 4 and 5. A written press keeps each floor it is at or
+    /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it). Not so a trigger of follow-ups
+    /// (<see cref="ActionInfo.FollowUps"/>), as they can be used only for a while after its press: it keeps its own floor,
+    /// so that its window still reaches them, in the entry (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation)
+    /// or a later one (the Summon Seraph of "Seraph + Succor" on J Wave 5 at wave 4 + 0.3 s, 720.2, so that its 22 s reach
+    /// a Consolation after wave 11, 741.2); nor a buff, movement or other action that follows a trigger the entry lists
+    /// (<see cref="ActionInfo.FollowUpOf"/>), as it can be used only after it: it has the trigger's floor (the Arrow of
+    /// "Neutral Sect + Play II + the Arrow" on J Wave 5 with Play II at 720.2, not with Neutral Sect at 718.7). With an
+    /// automatic press a step of a sequence that keeps the entry's floor, or a heal used after the hit, which the hit
+    /// before has nothing of to spend either, has no later floor than the step after it, which it comes before
+    /// (<see cref="ComesWithTheStepAfterIt"/>): in "Indom → Succor" on J Wave 5 the Indomitability, a heal that alone waits
+    /// for wave 4 + 0.3 s, comes with the Succor 1.8 s earlier, so that the Succor's cast still lands between waves
+    /// 4 and 5. Any other step keeps its own floor, and the steps after it wait for it, as in "Soil → Succor" (the Succor
+    /// landing 0.7 s before wave 5): the Consolation of "Seraph → Consolation → Succor" on J Wave 5 is not spent on wave 4,
+    /// all three pressed at 720.2, nor the Celestial Intersection of "Intersection → Neutral Sect", both at 720.2, and the
+    /// Summon Seraph of "Seraph → Succor" keeps its window, both at 720.2. A written press keeps each floor it is at or
     /// after (a press the importer moved later, so that the action is ready again); one before the entry's floor has none.
     /// </item>
     /// </list>
     /// <para>
     /// Every item is pressed at the entry's press time, except that with an automatic press an item waits for its own
     /// series floor or for a later hit it reaches on its own (<see cref="ItemTiming.PressAt"/>) and a step of a sequence
-    /// (<see cref="PlanEntry.Seq"/>) for the step before it (which waits for no later series floor than it: "Indom →
-    /// Succor" on J Wave 5, both at the Succor's 718.4), and that an item pressed last (<see cref="IsPressedLast"/>:
+    /// (<see cref="PlanEntry.Seq"/>) for the step before it (which, by the series rule above, may wait for no later series
+    /// floor than it: "Indom → Succor" on J Wave 5, both at the Succor's 718.4; "Seraph → Consolation → Succor", all at the
+    /// Consolation's 720.2), and that an item pressed last (<see cref="IsPressedLast"/>:
     /// Passage of Arms, a channel any other action ends) comes with the entry's last item; the automatic press is then the
     /// earliest of the items' (<see cref="EntryTiming.AutomaticOffset"/>). Each item's use window is
     /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when
@@ -214,8 +225,11 @@ public static class TimingRules
             automatic = Math.Max(automatic, floor.Value - hit);
 
         // Each item's series floor (ItemFloor: never earlier than the entry's, an instant shield beside the cast one that
-        // times the entry lands after the hit before it too; a buff or a note keeps the entry's). With an automatic press a
-        // step of a sequence, pressed before the step after it, waits for no later floor than that step.
+        // times the entry lands after the hit before it too; a buff or a note keeps the entry's, a trigger of follow-ups
+        // its own, a buff that follows a trigger the entry lists the trigger's). With an automatic press a step of a
+        // sequence that the hit before has nothing of to spend (a heal, or an item that keeps the entry's floor), pressed
+        // before the step after it, waits for no later floor than that step; any other step keeps its own, and the steps
+        // after it wait.
         var isAutomatic = entry.Offset is null;
         var floors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
@@ -224,7 +238,7 @@ public static class TimingRules
         {
             for (var i = items.Count - 2; i >= 0; i--)
             {
-                if (floors[i] is { } own && floors[i + 1] is { } next)
+                if (floors[i] is { } own && floors[i + 1] is { } next && ComesWithTheStepAfterIt(timing, i))
                     floors[i] = Math.Min(own, next);
             }
         }
@@ -668,36 +682,57 @@ public static class TimingRules
 
     /// <summary>
     /// The series floor of the item at <paramref name="index"/> (see <see cref="ForEntry"/>), never earlier than the
-    /// entry's <paramref name="entryFloor"/>: its own action's (<see cref="SeriesFloor"/>). A note and a buff, movement or
-    /// other action without a lead of its own (<see cref="KeepsTheEntryFloor"/>) keep the entry's floor, so that they come
-    /// with the cast they change or go with (Recitation, Emergency Tactics or Swiftcast with a Succor, "Stack middle →
-    /// Succor"); the trigger of a follow-up the entry lists waits with it (Summon Seraph with its Consolation).
+    /// entry's <paramref name="entryFloor"/>: that of the action it has its floor of (<see cref="FloorAction"/>, its own or
+    /// the trigger it follows; <see cref="SeriesFloor"/>). A note and a buff, movement or other action without a lead of
+    /// its own (<see cref="KeepsTheEntryFloor"/>) keep the entry's floor, so that they come with the cast they change or go
+    /// with (Recitation, Emergency Tactics or Swiftcast with a Succor, "Stack middle → Succor"); a trigger of follow-ups
+    /// keeps its own, so that its window reaches them, the entry's (Summon Seraph with its Consolation) or a later entry's;
+    /// and such a buff that follows a trigger the entry lists has the trigger's (the Arrow with Play II).
     /// </summary>
     private static double ItemFloor(double previous, double entryFloor, IReadOnlyList<ActionInfo?> timing, int index)
     {
+        var action = FloorAction(timing, index);
+        return KeepsTheEntryFloor(action) ? entryFloor : Math.Max(entryFloor, SeriesFloor(previous, action, CastsInstantly(timing)));
+    }
+
+    /// <summary>
+    /// The action the item at <paramref name="index"/> has its series floor of (see <see cref="ForEntry"/>): its own, or
+    /// for an item that would keep the entry's floor (<see cref="KeepsTheEntryFloor"/>) and follows a trigger the entry
+    /// lists (<see cref="ActionInfo.FollowUpOf"/>), that trigger, as it can be used only after it: the Arrow of
+    /// "Neutral Sect + Play II + the Arrow" waits for Play II, not with Neutral Sect for its Helios.
+    /// </summary>
+    private static ActionInfo? FloorAction(IReadOnlyList<ActionInfo?> timing, int index)
+    {
         var action = timing[index];
-        var instant = CastsInstantly(timing);
-        if (!KeepsTheEntryFloor(action))
-            return Math.Max(entryFloor, SeriesFloor(previous, action, instant));
-
-        var floor = entryFloor;
-        foreach (var followUp in timing)
-        {
-            if (action is not null && followUp?.FollowUpOf == action.Id && !KeepsTheEntryFloor(followUp))
-                floor = Math.Max(floor, SeriesFloor(previous, followUp, instant));
-        }
-
-        return floor;
+        return KeepsTheEntryFloor(action) && action?.FollowUpOf is { } trigger && timing.FirstOrDefault(a => a?.Id == trigger) is { } listed
+            ? listed
+            : action;
     }
 
     /// <summary>
     /// True for an item the hit before a later hit of a series has nothing of to spend, so that it keeps the entry's series
-    /// floor (<see cref="ItemFloor"/>): a note, an action the catalog does not know (<paramref name="action"/> null), and a
-    /// buff, movement or other action without a lead of its own (its effect changes the next GCD, or the player). Not
-    /// Neutral Sect, whose barrier comes with the Helios cast after it (its lead).
+    /// floor (<see cref="ItemFloor"/>), unless it follows a trigger the entry lists (<see cref="FloorAction"/>): a note, an
+    /// action the catalog does not know (<paramref name="action"/> null), and a buff, movement or other action without a
+    /// lead of its own (its effect changes the next GCD, or the player). Not Neutral Sect, whose barrier comes with the
+    /// Helios cast after it (its lead), nor a trigger of follow-ups (<see cref="ActionInfo.FollowUps"/>: Summon Seraph,
+    /// whose Consolations can be used only for 22 s after it), whose window for them would end earlier.
     /// </summary>
     private static bool KeepsTheEntryFloor(ActionInfo? action) =>
-        action is null || (OwnLead(action) is null && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
+        action is null || (OwnLead(action) is null && action.FollowUps.Count == 0 && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
+
+    /// <summary>
+    /// True for the step at <paramref name="index"/> of a sequence that, with an automatic press, waits for no later series
+    /// floor than the step after it (<see cref="ForEntry"/>): a heal used after the hit (<see cref="IsUsedAfterHit"/>) or
+    /// an item that keeps the entry's floor (<see cref="KeepsTheEntryFloor"/>), which the hit before has nothing of to
+    /// spend, judged by the action it has its floor of (<see cref="FloorAction"/>). Any other step keeps its own floor, and
+    /// the steps after it wait for it: a shield, mitigation, an invuln, a regen, a pre-placed heal, Neutral Sect, a trigger
+    /// of follow-ups, a buff with the floor of the trigger it follows.
+    /// </summary>
+    private static bool ComesWithTheStepAfterIt(IReadOnlyList<ActionInfo?> timing, int index)
+    {
+        var action = FloorAction(timing, index);
+        return IsUsedAfterHit(action) || KeepsTheEntryFloor(action);
+    }
 
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the

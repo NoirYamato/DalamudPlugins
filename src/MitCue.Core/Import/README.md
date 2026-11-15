@@ -35,12 +35,12 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
   `P2: Brute Justice / Cruise Chaser`) or is a merged banner that reads as a title (the fight's name for the phase, or
   at most four words without `,` `;` `.` `!` `?`; its part in parentheses too, unless it is a timing hint such as
   `(from phase start)`), or a merged banner of a later phase whose name reads as a title and whose next labelled row is
-  a mechanic of that phase and not of the current one, whatever its part in parentheses holds (`P3: Alexander Prime
-  (Inception, Wormhole, J Waves)` above Inception), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is
-  `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
-  `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss
-  after`, `P1 (MT invulns …)`) stays a note; a title over the player columns whose name, or part in parentheses other
-  than a timing hint, is not the fight's is reported (`phase-title`).
+  read as a mechanic of that phase (a near miss too: `Inceptoin`) and not as one of the current phase, whatever its part
+  in parentheses holds (`P3: Alexander Prime (Inception, Wormhole, J Waves)` above Inception), a marker in front of a
+  row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`)
+  that move the phase forward (reported as `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns
+  the second Wave Cannon, OT takes boss after`, `P1 (MT invulns …)`) stays a note; a title over the player columns whose
+  name, or part in parentheses other than a timing hint, is not the fight's is reported (`phase-title`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.

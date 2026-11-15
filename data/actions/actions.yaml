@@ -760,6 +760,11 @@ actions:
     charges: {6: 2}
     duration: {6: 15}
     sync: {80: 15, 90: 15, 100: 15}
+    # instant_next_cast: cast times -2.5 s for 15 s (ActionTransient 3606: "Reduces cast times for spells by 2.5
+    # seconds."), so every Astrologian spell but Ascend is instant (Action sheet Cast100ms 15 or less), among them the
+    # Aspected Helios / Helios Conjunction that puts up Neutral Sect's barrier: on a later hit of a series (TEA's J
+    # Waves) a call that lists Lightspeed waits for the hit before it + 0.3 s with its Neutral Sect too.
+    instant_next_cast: true
     icon: 3135
   - id: 3614
     name: "Essential Dignity"

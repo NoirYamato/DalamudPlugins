@@ -957,8 +957,16 @@ public class EntryTimingTests
     /// <summary>Recitation: a buff (15 s) the next Adloquium or Succor consumes.</summary>
     private static readonly ActionInfo Recitation = Kit.Act(16542, "Recitation", ActionKind.Buff, duration: 15, jobs: [Job.SCH]);
 
-    /// <summary>Summon Seraph: a buff (22 s) whose follow-up is Consolation.</summary>
-    private static readonly ActionInfo SummonSeraph = Kit.Act(16545, "Summon Seraph", ActionKind.Buff, duration: 22, jobs: [Job.SCH]);
+    /// <summary>Summon Seraph: a buff (22 s) whose follow-up is Consolation, which it lists as in actions.yaml.</summary>
+    private static readonly ActionInfo SummonSeraph = new()
+    {
+        Id = 16545,
+        Name = "Summon Seraph",
+        Kind = ActionKind.Buff,
+        Jobs = [Job.SCH],
+        DurationByLevel = new Dictionary<int, double> { [1] = 22 },
+        FollowUps = [new ActionLink(16546, "Consolation")],
+    };
 
     /// <summary>Consolation: an instant shield, usable while Seraph is out.</summary>
     private static readonly ActionInfo Consolation = new()
@@ -971,16 +979,37 @@ public class EntryTimingTests
         FollowUpOf = SummonSeraph.Id,
     };
 
+    /// <summary>Play II: an other action whose follow-up is the Arrow, which it lists as in actions.yaml.</summary>
+    private static readonly ActionInfo PlayII = new()
+    {
+        Id = 37020,
+        Name = "Play II",
+        Kind = ActionKind.Other,
+        Jobs = [Job.AST],
+        FollowUps = [new ActionLink(37024, "the Arrow")],
+    };
+
+    /// <summary>The Arrow: a buff (15 s) on one player, usable after Play II.</summary>
+    private static readonly ActionInfo TheArrow = new()
+    {
+        Id = 37024,
+        Name = "the Arrow",
+        Kind = ActionKind.Buff,
+        Jobs = [Job.AST],
+        DurationByLevel = new Dictionary<int, double> { [1] = 15 },
+        FollowUpOf = PlayII.Id,
+    };
+
     private static EntryTiming Wave3(double? offset, bool seq, params ActionInfo[] actions)
     {
         var fight = SeriesFight();
         var entry = Kit.Entry("p1.wave_3", offset, [.. actions.Select(Kit.Do)]);
         entry.Seq = seq;
-        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation]));
+        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation, PlayII, TheArrow]));
     }
 
     [Fact]
-    public void Series_ABuffKeepsTheEntrysFloor_ATriggerWaitsWithItsFollowUp()
+    public void Series_ABuffKeepsTheEntrysFloor_ATriggerKeepsItsOwn()
     {
         // Wave 3 (106): "Recitation + Adloquium", either way round and as a sequence, is timed by the Adloquium's own −4.5 s
         // (101.5), its 2 s cast landing after wave 2 (103). The Recitation has nothing wave 2 could spend: it comes with the
@@ -993,13 +1022,47 @@ public class EntryTimingTests
             Assert.All(t.Items, i => Assert.Equal(101.3, i.Earliest, Kit.Tolerance));
         }
 
-        // "Summon Seraph + Consolation + Adloquium": the Seraph waits with its Consolation (an instant shield) for wave 2 + 0.3.
+        // "Summon Seraph + Consolation + Adloquium": the Seraph, whose Consolations can be used only for a while after it,
+        // keeps a floor of its own, wave 2 + 0.3, with its Consolation (an instant shield) or without it, so that its window
+        // reaches a Consolation of a later entry; as a step before the Adloquium it holds the Adloquium back.
         var seraph = Wave3(null, false, SummonSeraph, Consolation, Kit.Adloquium);
         Assert.Equal([103.3, 103.3, 101.5], seraph.Items.Select(i => i.PressAt));
         Assert.Equal([103.3, 103.3, 101.3], seraph.Items.Select(i => i.DueAt(options)));
+        var alone = Wave3(null, false, SummonSeraph, Kit.Adloquium);
+        Assert.Equal([103.3, 101.5], alone.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 101.3], alone.Items.Select(i => i.DueAt(options)));
+        var step = Wave3(null, true, SummonSeraph, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3], step.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3], step.Items.Select(i => i.DueAt(options)));
 
         // Alone, a buff times the entry, and its floor is its own (wave 2 + 0.3).
         Assert.Equal(103.3, Wave3(null, false, Recitation).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_ABuffThatFollowsATriggerTheEntryLists_HasTheTriggersFloor()
+    {
+        // Wave 3 (106): "Neutral Sect + Play II + the Arrow", either way round. Neutral Sect is pressed at 101.8, time for its
+        // Helios; Play II, a trigger of follow-ups, keeps its own floor, wave 2 + 0.3; the Arrow, a buff that can be used only
+        // after Play II, has Play II's floor: pressed and due at 103.3, early before then, not with Neutral Sect at 101.8.
+        var options = new ReminderOptions();
+        var t = Wave3(null, false, Kit.NeutralSect, PlayII, TheArrow);
+        Assert.Equal([101.8, 103.3, 103.3], t.Items.Select(i => i.PressAt));
+        Assert.Equal([101.8, 103.3, 103.3], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(103.3, t.Items[2].Earliest, Kit.Tolerance);
+        var reversed = Wave3(null, false, TheArrow, PlayII, Kit.NeutralSect);
+        Assert.Equal([103.3, 103.3, 101.8], reversed.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 101.8], reversed.Items.Select(i => i.DueAt(options)));
+
+        // A written press (103.3) turns it due with Play II, not 1.5 s before; as a step after Play II, before Neutral Sect, it
+        // is not lowered to Neutral Sect's floor: still early before 103.3.
+        Assert.Equal([101.8, 103.3, 103.3], Wave3(-2.7, false, Kit.NeutralSect, PlayII, TheArrow).Items.Select(i => i.DueAt(options)));
+        var step = Wave3(null, true, PlayII, TheArrow, Kit.NeutralSect);
+        Assert.Equal([103.3, 103.3, 103.3], step.Items.Select(i => i.DueAt(options)));
+        Assert.Equal(103.3, step.Items[1].Earliest, Kit.Tolerance);
+
+        // Without Play II it keeps the entry's floor, with Neutral Sect.
+        Assert.Equal([101.8, 101.8], Wave3(null, false, Kit.NeutralSect, TheArrow).Items.Select(i => i.PressAt));
     }
 
     [Fact]
@@ -1072,6 +1135,12 @@ public class EntryTimingTests
         var after = Wave3(null, true, Kit.Adloquium, Kit.Tetragrammaton);
         Assert.Equal([101.5, 103.3], after.Items.Select(i => i.PressAt));
         Assert.Equal([101.3, 103.3], after.Items.Select(i => i.DueAt(options)));
+
+        // An instant shield between them keeps its own floor, as wave 2 would spend it before then, and the Adloquium after it
+        // waits for it: "Tetragrammaton → Divine Benison → Adloquium" is pressed and due at 103.3.
+        var shield = Wave3(null, true, Kit.Tetragrammaton, Kit.DivineBenison, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3, 103.3], shield.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 103.3], shield.Items.Select(i => i.DueAt(options)));
 
         // A written press is every step's, and each keeps the floor it is at or after: the Adloquium turns due with the heal,
         // not at its own floor.

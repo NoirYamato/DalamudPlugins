@@ -32,6 +32,10 @@ public class TeaPlanTimingTests
     private static (double Press, double Due) PressAndDue(Reminder r) =>
         (Math.Round(r.PressAt, 6), Math.Round(TimingRules.DueAt(r.PressAt, r.DueNotBefore, new ReminderOptions()), 6));
 
+    /// <summary>A plan item for an action of the repository's catalog, or for a note ("note:Stack middle").</summary>
+    private static PlanItem Item(string name) =>
+        name.StartsWith("note:", StringComparison.Ordinal) ? PlanItem.ForNote(name[5..]) : PlanItem.ForAction(RepoFiles.Action(name).Id, name);
+
     // ---- Photon: every player (the second time: both tanks) to 1 HP; the row's calls are the heal-up ---------------------
 
     /// <summary>
@@ -194,6 +198,33 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// "Seraph + Succor", "Adlo + Seraph" and "Seraph > Succor" on J Wave 5 (722.9) and a Seraph call on J Wave 12 (743.9),
+    /// seven waves later, pressed after wave 11 (741.2). Summon Seraph's Consolations can be used only for 22 s after it,
+    /// so it keeps a floor of its own, wave 4 + 0.3 s (720.2), pressed and due then, and does not come with the Succor or
+    /// Adloquium (718.4, due 718.2), which as the next step of a sequence waits for it: its 22 s reach the later call. The
+    /// importer reads the second "Seraph" as the Consolation of the Seraph still out, and check finds no follow-up without
+    /// its trigger. With the cast, Seraph would leave at 740.2-740.4, before the Consolation's NOW cue, and the second
+    /// "Seraph" would stay a Summon Seraph 22.8 s after the first (recast 120 s).
+    /// </summary>
+    [Theory]
+    [InlineData("Seraph + Succor", "Seraph", "Succor", 718.4, 718.2)]
+    [InlineData("Adlo + Seraph", "Consolation", "Adloquium", 718.4, 718.2)]
+    [InlineData("Seraph > Succor", "Consolation", "Succor", 720.2, 720.2)]
+    public void JWave5_SummonSeraphBesideACastShield_ReachesAConsolationSevenWavesLater(string wave5, string wave12, string cast, double castPress, double castDue)
+    {
+        var r = Import($"P3\tScholar\nJwaves (4)\t{wave5}\nJwaves (11)\t{wave12}");
+        var later = Assert.Single(r.Plan.Entries, e => e.Mechanic == "p3.j_wave_12");
+        Assert.Equal("Consolation", Assert.Single(later.Do).Name);
+
+        var s = new ReminderScheduler(PlanImports.Tea, r.Plan.Entries, RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal((720.2, 720.2), PressAndDue(Assert.Single(s.All, x => x.Item.Name == "Summon Seraph")));
+        Assert.Equal((castPress, castDue), PressAndDue(Assert.Single(s.All, x => x.Item.Name == cast)));
+        Assert.Equal((741.2, 741.2), PressAndDue(Assert.Single(s.All, x => x.Item.Name == "Consolation")));
+        var findings = PlanChecker.Check(PlanImports.Tea, RepoFiles.Actions, r.Plan.Entries, Job.SCH, 80);
+        Assert.DoesNotContain(findings, f => f.Code is "follow-up-without-trigger" or "recast-conflict");
+    }
+
+    /// <summary>
     /// A Scholar's buff with the Succor or Adloquium it changes on J Wave 5 (722.9), as a sheet may write it (LPDU's E21 has
     /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor" and "Reci/Adlo/Deploy". The buff
     /// has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at 718.2, so that the cast
@@ -248,6 +279,57 @@ public class TeaPlanTimingTests
         s.Update(719.8);
         s.OnOwnAction(succor.ActionIds[0], 719.8);
         Assert.True(succor.UsedEarly);
+    }
+
+    /// <summary>
+    /// "Lightspeed + Neutral Sect" on J Wave 5, either way round and as a sequence, and "Neutral Sect → Intersection →
+    /// Lightspeed": Lightspeed (cast times −2.5 s for 15 s) makes the Aspected Helios that puts up Neutral Sect's barrier
+    /// instant, the barrier up on the press, so every item waits for wave 4 + 0.3 s (720.2), pressed and due then, and a
+    /// Neutral Sect before then is early. Pressed at 718.7, as Neutral Sect alone is for a Helios cast in 1.5 s, the instant
+    /// Helios's barrier would be spent on wave 4 (719.9).
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Lightspeed", "Neutral Sect")]
+    [InlineData(true, "Lightspeed", "Neutral Sect")]
+    [InlineData(false, "Neutral Sect", "Lightspeed")]
+    [InlineData(true, "Neutral Sect", "Celestial Intersection", "Lightspeed")]
+    public void JWave5_LightspeedAndTheNeutralSectWhoseHeliosItMakesInstantWaitForWave4(bool seq, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.AST }, Seq = seq, Do = [.. cell.Select(Item)] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(cell.Length, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), PressAndDue(r)));
+
+        var neutral = Assert.Single(s.All, r => r.Item.Name == "Neutral Sect");
+        s.Update(719.8);
+        s.OnOwnAction(neutral.ActionIds[0], 719.8);
+        Assert.True(neutral.UsedEarly);
+    }
+
+    /// <summary>
+    /// An Astrologian's "Neutral + Play II + Arrow" on 'Jwaves (4)' (J Wave 5, 722.9), as a sheet may write it (in game the
+    /// Play II button becomes the Arrow, so few list both), the other way round, as a sequence "Play II → Arrow → Neutral"
+    /// and with a written press: Play II, a trigger of follow-ups, keeps its own floor, wave 4 + 0.3 s (720.2), and the
+    /// Arrow, which can be used only after it, has its floor: pressed and due with Play II, not with Neutral Sect at 718.7
+    /// (time for its Helios), and early before 720.2.
+    /// </summary>
+    [Theory]
+    [InlineData(false, null, 720.2, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    [InlineData(false, null, 720.2, 720.2, "the Arrow", "Play II", "Neutral Sect")]
+    [InlineData(true, null, 720.2, 720.2, "Play II", "the Arrow", "Neutral Sect")]
+    [InlineData(false, -2.7, 720.2, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    [InlineData(false, -1.5, 721.4, 720.2, "Neutral Sect", "Play II", "the Arrow")]
+    public void JWave5_TheArrowWaitsForThePlayIIItFollows(bool seq, double? offset, double press, double due, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.AST }, Seq = seq, Offset = offset, Do = [.. cell.Select(Item)] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal((press, due), PressAndDue(Assert.Single(s.All, r => r.Item.Name == "Play II")));
+        var arrow = Assert.Single(s.All, r => r.Item.Name == "the Arrow");
+        Assert.Equal((press, due), PressAndDue(arrow));
+
+        s.Update(719.8);
+        s.OnOwnAction(arrow.ActionIds[0], 719.8);
+        Assert.True(arrow.UsedEarly);
     }
 
     /// <summary>
@@ -316,6 +398,48 @@ public class TeaPlanTimingTests
         var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
         var lands = TimingRules.DueAt(cast.PressAt, cast.DueNotBefore, new ReminderOptions()) + RepoFiles.Action(cast.Item.Name!).CastTime;
         Assert.InRange(lands, cast.Hit - 3 + 0.3 - 1e-6, cast.Hit - 1);
+    }
+
+    /// <summary>
+    /// A sequence on a J wave whose instant shield comes before the step that times the cell: "Seraph → Consolation →
+    /// Succor" on J Wave 5 and "Indom → Consolation → Adlo" on J Wave 7 (timed by the cast), "Intersection → Neutral Sect"
+    /// and "Neutral Sect → Intersection" with a note after it on J Wave 5 (timed by Neutral Sect's Helios). The wave before
+    /// would spend the shield: it keeps its own floor, the wave before + 0.3 s, and the steps after it wait for it, as in
+    /// "Soil → Succor" (the Succor landing 0.7 s before wave 5), all pressed and due then; a shield used before then is
+    /// early. With the cast's 718.4 (due 718.2) or Neutral Sect's 718.7, wave 4 (719.9) would take it.
+    /// </summary>
+    [Theory]
+    [InlineData("p3.j_wave_5", 720.2, "Summon Seraph", "Consolation", "Succor")]
+    [InlineData("p3.j_wave_7", 726.2, "Indomitability", "Consolation", "Adloquium")]
+    [InlineData("p3.j_wave_5", 720.2, "Celestial Intersection", "Neutral Sect")]
+    [InlineData("p3.j_wave_5", 720.2, "Neutral Sect", "Celestial Intersection", "note:Stack middle")]
+    public void JWaves_AShieldStepKeepsItsFloor_TheStepsAfterItWaitForIt(string mechanic, double floor, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = mechanic, Who = new WhoSpec(), Seq = true, Do = [.. cell.Select(Item)] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(cell.Length, s.All.Count);
+        var shield = Assert.Single(s.All, r => r.Item.Name is "Consolation" or "Celestial Intersection");
+        Assert.All(s.All.Where(r => r.ItemIndex >= shield.ItemIndex), r => Assert.Equal((floor, floor), PressAndDue(r)));
+
+        s.Update(floor - 0.3);
+        s.OnOwnAction(shield.ActionIds[0], floor - 0.3);
+        Assert.True(shield.UsedEarly);
+    }
+
+    /// <summary>
+    /// An LPDU-style "Seraph/Succor/Soil" on 'Jwaves (4)' (J Wave 5) in a sheet that numbers its Seraph calls: the plain
+    /// "Seraph" reads as "Seraph1", Summon Seraph then Consolation, and comes first. The Consolation keeps its floor, wave 4
+    /// + 0.3 s (720.2), and the Succor and Sacred Soil after it wait for it: all four pressed and due then.
+    /// </summary>
+    [Fact]
+    public void JWave5_ASeraphBeforeTheSuccor_TheConsolationWaitsForWave4()
+    {
+        var r = Import("P3\tScholar\nJwaves (4)\tSeraph/Succor/Soil\nJwaves (6)\tSeraph2/Fey Illum");
+        var wave5 = Assert.Single(r.Plan.Entries, e => e.Mechanic == "p3.j_wave_5");
+        Assert.True(wave5.Seq);
+        Assert.Equal(["Summon Seraph", "Consolation", "Succor", "Sacred Soil"], wave5.Do.Select(i => i.Name));
+        var s = new ReminderScheduler(PlanImports.Tea, [wave5], RepoFiles.Actions, new ReminderOptions());
+        Assert.All(s.All, x => Assert.Equal((720.2, 720.2), PressAndDue(x)));
     }
 
     /// <summary>
