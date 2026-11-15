@@ -86,18 +86,35 @@ public class ImportCellRulesTests
     }
 
     [Theory]
-    [InlineData(SlashReading.All)]
-    [InlineData(SlashReading.Either)]
-    public void NotApplicable_IsOneWord_InEitherReading(SlashReading slashes)
+    [InlineData(SlashReading.All, "N/A")]
+    [InlineData(SlashReading.Either, "N/A")]
+    [InlineData(SlashReading.All, "N / A")] // spaced: not two items either
+    [InlineData(SlashReading.Either, "N / A")]
+    public void NotApplicable_IsOneWord_InEitherReading(SlashReading slashes, string na)
     {
         // "N/A" (not applicable): no two notes "N" and "A", nor an either/or that keeps "N" and leaves "A" out.
-        var r = Import(Sheet("P3", "Scholar\tWAR", "Hello World\tN/A\tRampart N/A"), slashes);
+        var r = Import(Sheet("P3", "Scholar\tWAR", $"Hello World\t{na}\tRampart {na}"), slashes);
 
-        Assert.Equal(["note:N/A"], r.Plan.Entries.Single(e => e.Who.Job == Job.SCH).Names());
+        Assert.Equal([$"note:{na}"], r.Plan.Entries.Single(e => e.Who.Job == Job.SCH).Names());
         var rampart = r.Plan.Entries.Single(e => e.Who.Job != Job.SCH);
         Assert.Equal(["Rampart"], rampart.Names());
-        Assert.Equal("N/A", rampart.Note);
+        Assert.Equal(na, rampart.Note);
         Assert.Equal(["Kera", "E.Prog"], CellParser.Default.Parse("Kera/E.Prog").Tokens.Single().Alternatives); // one letter on one side only: either one
+    }
+
+    [Theory]
+    [InlineData("N / A", "N / A")]
+    [InlineData("N/ A", "N/ A")]
+    [InlineData("Feint n / a", "Feint n / a")]
+    [InlineData("Kera 0:28 / 0:37", "Kera")] // a time on each side: one item, its time a list
+    [InlineData("N\n/ A", null)] // a line break between: two items
+    public void SpacedSlash_BetweenSingleLetters_IsOneWord(string text, string? phrase)
+    {
+        var cell = CellParser.Default.Parse(text);
+
+        Assert.Equal(phrase is null ? 2 : 1, cell.Items.Count);
+        if (phrase is not null)
+            Assert.Equal(phrase, Assert.Single(cell.Tokens).Phrase);
     }
 
     [Theory]
@@ -183,6 +200,8 @@ public class ImportCellRulesTests
     [InlineData("Recit → Adlo → Deploy", 2)]
     [InlineData("Rampart\nReprisal", 1)]
     [InlineData("Soil; Kera", 1)]
+    [InlineData("N / A", 0)] // one word, like "N/A"
+    [InlineData("Feint N/ A", 0)]
     public void Joins_CountSeparatorsOtherThanSlashesBetweenWords(string text, int joins) => Assert.Equal(joins, CellParser.Default.Parse(text).Joins);
 
     [Theory]
@@ -246,6 +265,17 @@ public class ImportCellRulesTests
 
         Assert.All(r.Plan.Entries, e => Assert.NotNull(Assert.Single(e.Do).Any));
         Assert.Contains("read as 'either one'", SlashReadingOf(r).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SlashReading_Auto_IsAnd_WithASpacedNotApplicable()
+    {
+        // "N / A" is one word, like "N/A": no cell that joins actions another way, so the lists still read as "and".
+        var r = Import(Sheet("P1", "Scholar\tWAR", "Loop 1\tSoil/Reci/Deploy/Whisper\tN / A", "Loop 2\tSoil/Succor\tRampart", "Pantokrator\tIllum/Seraph\tReprisal"));
+
+        Assert.Contains("read as 'and'", SlashReadingOf(r).Message, StringComparison.Ordinal);
+        Assert.Equal(["Sacred Soil", "Recitation", "Deployment Tactics", "Whispering Dawn"], r.Plan.Entries.Single(e => e.Who.Job == Job.SCH && e.Mechanic == "p1.loop_set1").Names());
+        Assert.Equal(["note:N / A"], r.Plan.Entries.Single(e => e.Who.Job != Job.SCH && e.Mechanic == "p1.loop_set1").Names());
     }
 
     [Fact]

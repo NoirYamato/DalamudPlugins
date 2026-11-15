@@ -31,7 +31,8 @@ public sealed class CellParserOptions
 /// <list type="bullet">
 /// <item><c> / </c> (a slash with whitespace on a side), <c>;</c> and <c>|</c> separate independent <b>items</b>, each possibly with its
 /// own time: "Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)". An item that is only a time
-/// joins the item before it ("Kera 0:28 / 0:37").</item>
+/// joins the item before it ("Kera 0:28 / 0:37"). A slash with a single letter or digit on each side is one word, spaced
+/// or not ("N / A", like "N/A").</item>
 /// <item>Arrows separate the <b>steps</b> of a sequence: "Protraction + Recit → Adlo → Deploy (1:07)". That is any
 /// arrow character (→ ⇒ ⟶ ➔ ⇨ ➝ ⟹ …, the Unicode arrow blocks), "»", "-&gt;", "=&gt;", "--&gt;", "—&gt;", "~&gt;" and a
 /// bare "&gt;" or "&gt;&gt;" (but not "&gt;50%").</item>
@@ -649,6 +650,12 @@ public sealed partial class CellParser
                         j++;
                     }
 
+                    if (j < n && s[j] == '/' && this.SpacedAbbreviation(j) is > 0 and var spaced)
+                    {
+                        i = spaced; // "N / A"
+                        continue;
+                    }
+
                     if (j < n && s[j] == '/' && (j + 1 >= n || char.IsWhiteSpace(s[j + 1])))
                     {
                         var k = j + 1;
@@ -661,6 +668,12 @@ public sealed partial class CellParser
 
                     this.Add(lineBreak || j - i >= 3 ? LexKind.Gap : LexKind.Space, i, j);
                     i = j;
+                    continue;
+                }
+
+                if (c == '/' && this.SpacedAbbreviation(i) is > 0 and var wordEnd)
+                {
+                    i = wordEnd; // "N/ A"
                     continue;
                 }
 
@@ -765,6 +778,35 @@ public sealed partial class CellParser
         }
 
         private LexKind? LastKind => this.lexemes.Count == 0 ? null : this.lexemes[^1].Kind;
+
+        /// <summary>
+        /// "N / A" (or "N/ A", "N /A"): the "/" at <paramref name="slash"/> has spaces (not a line break) on a side and a single
+        /// letter or digit on each, the one before it at the end of the last word. Like "N/A" (<see cref="IsAbbreviation"/>)
+        /// it is one word, not two items and not a separator that joins words (<see cref="ParsedCell.Joins"/>): the word
+        /// before it is extended over it and the word after it. Returns where the lexer goes on, 0 when the "/" is no such
+        /// abbreviation.
+        /// </summary>
+        private int SpacedAbbreviation(int slash)
+        {
+            var s = this.s;
+            var a = slash;
+            while (a > 0 && IsSpace(s[a - 1]))
+                a--;
+            var b = slash + 1;
+            while (b < s.Length && IsSpace(s[b]))
+                b++;
+            if ((a == slash && b == slash + 1) || this.lexemes.Count == 0 || this.lexemes[^1] is not { Kind: LexKind.Word } before || before.End != a
+                || !char.IsLetterOrDigit(s[a - 1]) || (a >= 2 && char.IsLetterOrDigit(s[a - 2]))
+                || b >= s.Length || !char.IsLetterOrDigit(s[b]) || (b + 1 < s.Length && char.IsLetterOrDigit(s[b + 1])))
+                return 0;
+            var end = b + 1;
+            while (end < s.Length && !this.EndsWord(end, before.Start))
+                end++;
+            this.lexemes[^1] = before with { End = end };
+            return end;
+
+            static bool IsSpace(char c) => c is not ('\n' or '\r') && char.IsWhiteSpace(c);
+        }
 
         private void Add(LexKind kind, int start, int end) => this.lexemes.Add(new Lex(kind, start, end));
 

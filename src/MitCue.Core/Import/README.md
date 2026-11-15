@@ -189,12 +189,12 @@ Rules worth knowing:
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
   whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why. "All of
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
-  `and/or`. In both readings, a `/` between two single letters is one word (`N/A`), slots and tank target words joined
-  by `/` after an action are one target, either of them (`Benison MT/Co-tank`), other words that name no action joined
-  by `/` after an action are its remark (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and
-  `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an `unresolved-token` warning;
-  an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry per choice
-  (`either-or-split`).
+  `and/or`. In both readings, a `/` between two single letters is one word, spaced or not (`N/A`, and `N / A`, which
+  joins nothing), slots and tank target words joined by `/` after an action are one target, either of them (`Benison
+  MT/Co-tank`), other words that name no action joined by `/` after an action are its remark (`Kera Stack/Spread`:
+  Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil and/or Expedient`). An
+  alternative that means nothing is an `unresolved-token` warning; an either/or with a choice of several actions
+  (`Spread-Lo/Soil`) gives one optional entry per choice (`either-or-split`).
 - **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).

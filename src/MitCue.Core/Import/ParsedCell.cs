@@ -183,8 +183,8 @@ public sealed record ParsedCell
 
     /// <summary>
     /// Separators that join parts with words in writing, other than a "/" between words: "+", ",", "&amp;", arrows, ";",
-    /// "|", a spaced " / ", and line breaks or wide gaps that split tokens. A sheet with none of them in any cell may use
-    /// "/" for "and" (<see cref="SlashReading"/>).
+    /// "|", a spaced " / " (not in "N / A", one word), and line breaks or wide gaps that split tokens. A sheet with none of
+    /// them in any cell may use "/" for "and" (<see cref="SlashReading"/>).
     /// </summary>
     public int Joins { get; init; }
 
