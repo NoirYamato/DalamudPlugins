@@ -134,9 +134,12 @@ public static class TimingRules
     /// </list>
     /// <para>
     /// Every item is pressed at the entry's press time, except that an item of an automatic press waits for its own series
-    /// floor (<see cref="ItemTiming.PressAt"/>). Each item's use window is <see cref="UseWindow"/> of its own timing action
-    /// around its press time; a use before the item's series floor, when it has one, or with an automatic press one that
-    /// ends before a later hit the item covers, is early, and the item's reminder does not turn due before then either.
+    /// floor (<see cref="ItemTiming.PressAt"/>), and that an item pressed last (<see cref="IsPressedLast"/>: Passage of
+    /// Arms, a channel any other action ends) comes with the entry's last item. Each item's use window is
+    /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when it
+    /// has one, or with an automatic press one that ends before a later hit the item covers, is early, and the item's
+    /// reminder does not turn due before then either. An item pressed last does not turn due before any other item of the
+    /// entry ("Reprisal + Passage of Arms" on Wave Cannon: with the Reprisal, whose NOW cue waits for the Wild Charge).
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -182,26 +185,47 @@ public static class TimingRules
         var pressAt = hit + (entry.Offset ?? automatic);
         var notBefore = AtOrAfter(pressAt, floor);
 
-        var windows = new ItemTiming[items.Count];
+        // Each item's press, and the time its reminder does not turn due before.
+        var presses = new double[items.Count];
+        var dueFloors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             // Each item waits for the series floor of its own action, never earlier than the entry's: an instant shield
             // beside the cast one that times the entry lands after the hit before it too.
-            var itemPress = pressAt;
+            presses[i] = pressAt;
             var itemNotBefore = notBefore;
             if (previous.HasValue && floor.HasValue)
             {
                 var own = Math.Max(floor.Value, SeriesFloor(previous.Value, timing[i]));
                 if (isAutomatic)
-                    itemPress = Math.Max(pressAt, own);
-                itemNotBefore = AtOrAfter(itemPress, own) ?? notBefore;
+                    presses[i] = Math.Max(pressAt, own);
+                itemNotBefore = AtOrAfter(presses[i], own) ?? notBefore;
             }
 
-            var (earliest, latest) = UseWindow(timing[i], level, hit, itemPress, options);
-            var dueNotBefore = Later(isAutomatic ? covers[i] : null, itemNotBefore);
-            if (dueNotBefore is { } notEarly)
-                earliest = Math.Min(Math.Max(earliest, notEarly), itemPress);
-            windows[i] = new ItemTiming(timing[i], itemPress, earliest, latest, dueNotBefore);
+            dueFloors[i] = Later(isAutomatic ? covers[i] : null, itemNotBefore);
+        }
+
+        // An item pressed last (Passage of Arms, a channel any other action ends) comes with the entry's last item, and its
+        // reminder turns due no earlier than any other: the others' NOW cues may be held (a series floor, a later hit).
+        for (var i = 0; i < items.Count; i++)
+        {
+            if (!IsPressedLast(timing[i]))
+                continue;
+            presses[i] = presses.Max();
+            for (var j = 0; j < items.Count; j++)
+            {
+                if (j != i && dueFloors[j] is { } other)
+                    dueFloors[i] = Later(dueFloors[i], Math.Min(other, presses[i]));
+            }
+        }
+
+        var windows = new ItemTiming[items.Count];
+        for (var i = 0; i < items.Count; i++)
+        {
+            var (earliest, latest) = UseWindow(timing[i], level, hit, presses[i], options);
+            if (dueFloors[i] is { } notEarly)
+                earliest = Math.Min(Math.Max(earliest, notEarly), presses[i]);
+            windows[i] = new ItemTiming(timing[i], presses[i], earliest, latest, dueFloors[i]);
         }
 
         return new EntryTiming
@@ -407,6 +431,16 @@ public static class TimingRules
         action is { When: UseTiming.Before, Lead: { } lead } && lead > 0 && double.IsFinite(lead) ? lead : null;
 
     /// <summary>
+    /// True for mitigation with a lead of its own (<see cref="OwnLead"/>): its effect starts on the press, so the lead only
+    /// puts it after the entry's other items (Passage of Arms, 2 s: a channel any other action ends). It is pressed with
+    /// the entry's last item and turns due no earlier than any other (<see cref="ForEntry"/>).
+    /// </summary>
+    private static bool IsPressedLast(ActionInfo? action) => action is not null && OwnLead(action) is not null && IsMitigation(action);
+
+    /// <summary>Party or tank mitigation, or an invuln.</summary>
+    private static bool IsMitigation(ActionInfo action) => action.Kind is ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln;
+
+    /// <summary>
     /// The duration an action's effect must last through the hit with when it is pressed before it: mitigation, shields,
     /// regens, invulns and tank limit breaks, and the longest effect of a pre-placed heal (<see cref="UseTiming.Before"/>),
     /// when known; null for buffs, movement, other actions, heals used after the hit and notes.
@@ -442,7 +476,7 @@ public static class TimingRules
     /// </summary>
     private static (double Press, double NotEarly)? CoveredHit(ActionInfo? action, Mechanic mechanic, double hit, int syncLevel, double latestOffset, ReminderOptions options)
     {
-        if (action is not { Kind: ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln } || IsUsedAfterHit(action)
+        if (action is null || !IsMitigation(action) || IsUsedAfterHit(action)
             || (action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel)) is not { } duration)
         {
             return null;
@@ -480,7 +514,7 @@ public static class TimingRules
                 continue;
             if (TimeToEffect(action, actions, syncLevel) is var time && time > 0)
                 latest = Math.Min(latest, -(time + EffectBeforeHit));
-            if (OwnLead(action) is { } lead && action.Kind is not (ActionKind.PartyMit or ActionKind.TankMit or ActionKind.Invuln))
+            if (OwnLead(action) is { } lead && !IsMitigation(action))
                 latest = Math.Min(latest, -lead);
         }
 

@@ -93,7 +93,8 @@ public sealed class Reminder
     /// Due no earlier than this (timeline seconds), whatever <see cref="ReminderOptions.DueLead"/>: a press for a later hit
     /// of a series of hits, automatic or written at or after the hit before it, comes after that hit, by the item's own
     /// action; mitigation an automatic press times to also cover a later hit of its mechanic, not before the earliest use
-    /// that still reaches it (<see cref="TimingRules.ForEntry"/>, <see cref="ItemTiming.DueNotBefore"/>). Null otherwise.
+    /// that still reaches it; an item pressed last (Passage of Arms), not before the other items of its entry
+    /// (<see cref="TimingRules.ForEntry"/>, <see cref="ItemTiming.DueNotBefore"/>). Null otherwise.
     /// </summary>
     public double? DueNotBefore { get; init; }
 

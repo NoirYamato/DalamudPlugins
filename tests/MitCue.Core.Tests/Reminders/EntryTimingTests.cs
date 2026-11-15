@@ -341,8 +341,10 @@ public class EntryTimingTests
     private static EntryTiming Charge(string mechanic, ReminderOptions? options, params ActionInfo[] actions)
     {
         var fight = WildChargeFight();
-        return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, new FakeCatalog([.. Kit.Catalogued, TenSecondMit]), options);
+        return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, ChargeCatalog, options);
     }
+
+    private static FakeCatalog ChargeCatalog => new([.. Kit.Catalogued, TenSecondMit, PassageOfArms]);
 
     [Fact]
     public void Coverage_ALaterHitUpToD15_IsReachedWithAHeldNowCue()
@@ -446,6 +448,37 @@ public class EntryTimingTests
         s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit))], catalog, options);
         s.OnOwnAction(TenSecondMit.Id, 98.0);
         Assert.True(Assert.Single(s.All).UsedEarly);
+    }
+
+    [Theory]
+    [InlineData(1.5)]
+    [InlineData(3.0)]
+    [InlineData(0.5)]
+    public void Coverage_PassageOfArms_IsNotDueBeforeTheItemsPressedBeforeIt(double dueLead)
+    {
+        // "Reprisal + Passage of Arms" on 100/102/108.3, either way round: the Reprisal's NOW cue waits until 98.8 to reach
+        // 108.3; any action ends the channel, so Passage of Arms (pressed last) turns due with it, not when its own NOW cue
+        // (press − due lead) would come, and a use before then is early.
+        var options = new ReminderOptions { DueLead = dueLead };
+        foreach (var items in new[] { new[] { TenSecondMit, PassageOfArms }, new[] { PassageOfArms, TenSecondMit } })
+        {
+            var t = Charge("p1.charge", null, items);
+            var reprisal = t.Items[Array.IndexOf(items, TenSecondMit)];
+            var passage = t.Items[Array.IndexOf(items, PassageOfArms)];
+            Assert.Equal(99.5, reprisal.PressAt, Kit.Tolerance);
+            Assert.Equal(reprisal.PressAt, passage.PressAt, Kit.Tolerance);
+            Assert.Equal(Math.Max(99.5 - dueLead, 98.8), reprisal.DueAt(options), Kit.Tolerance);
+            Assert.Equal(reprisal.DueAt(options), passage.DueAt(options), Kit.Tolerance);
+            Assert.Equal(98.8, passage.Earliest, Kit.Tolerance);
+        }
+
+        // The scheduler turns both due at once, so that the Reprisal can go first.
+        var s = new ReminderScheduler(WildChargeFight(), [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit), Kit.Do(PassageOfArms))], ChargeCatalog, options);
+        var due = Kit.RecordDue(s);
+        s.Update(98.75);
+        Assert.Empty(due);
+        s.Update(Math.Max(99.5 - dueLead, 98.8));
+        Assert.Equal(2, due.Count);
     }
 
     [Fact]
