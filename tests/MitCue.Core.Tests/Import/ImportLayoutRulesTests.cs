@@ -183,6 +183,64 @@ public class ImportLayoutRulesTests
         Assert.Equal(reported, layout.Diagnostics.Any(x => x.Code == "phase-title"));
     }
 
+    [Theory]
+    [InlineData("P2: Omega-M/F (MT pulls the boss north, OT takes adds)")]
+    [InlineData("P2 (Party Synergy, Limitless Synergy)")]
+    [InlineData("P2 (times relative to boss targetable)")]
+    [InlineData("P2: Omega-M/F (all times from boss targetable)")]
+    public void MergedPhaseTitleWithARemarkInParentheses_AboveTheNextPhasesMechanic_StartsThePhase(string title)
+    {
+        // Above a mechanic of the current phase the same text stays a note (MergedRemarkInParenthesesAfterAPhase_StaysANote);
+        // above one of the later phase it names, and of no other, it starts that phase, whatever its parentheses hold, and
+        // the remark is reported.
+        var tab = Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", title, ""],
+            ["Solar Ray", "Rep", ""]);
+        var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
+
+        Assert.Equal("HDDSD", Kinds(layout));
+        Assert.Equal("11122", Phases(layout));
+        var d = Assert.Single(layout.Diagnostics, x => x.Code == "phase-title");
+        Assert.Equal((DiagnosticSeverity.Info, "'Mit'!B4"), (d.Severity, d.Src));
+        Assert.DoesNotContain(Import(tab).Diagnostics, x => x.Code is "mechanic-phase" or "unresolved-token" or "note-row");
+    }
+
+    [Theory]
+    [InlineData("Inception (Crystals Boom)", "HSDDSDD", "-222333")]
+    [InlineData("JKick", "HSDDNDD", "-222222")] // a label P2 has too: no proof that P3 starts
+    public void TeaPhaseTitleWithAListInParentheses_StartsP3_WhenTheNextLabelIsP3s(string next, string kinds, string phases)
+    {
+        // LPDU's "P3: Alexander Prime (Inception, Wormhole, J Waves)", merged over the player columns with no header below.
+        // Above Inception it starts P3, so that the "JKick" after it is J Storm (P3) and not P2's J Kick, 8 minutes earlier.
+        var tab = Tab(
+            "TEA",
+            [new CellRange(1, 1, 1, 2), new CellRange(4, 1, 4, 2)],
+            ["", "Tank 1", "Scholar"],
+            ["", "P2: Brute Justice / Cruise Chaser", ""],
+            ["JKick", "Reprisal", "Soil"],
+            ["Double Rocket Punch", "Reprisal", ""],
+            ["", "P3: Alexander Prime (Inception, Wormhole, J Waves)", ""],
+            [next, "Reprisal", "Soil"],
+            ["JKick", "", "Soil"]);
+        var layout = new LayoutDetector(PlanImports.Tea).Detect(tab);
+        Assert.Equal(kinds, Kinds(layout));
+        Assert.Equal(phases, Phases(layout));
+        if (next == "JKick")
+            return;
+
+        var r = new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [tab] },
+            new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date });
+        Assert.Equal("p3.j_storm", Assert.Single(r.Plan.Entries, e => e.Src == "'TEA'!C7").Mechanic);
+        Assert.DoesNotContain(r.Diagnostics, x => x.Code is "mechanic-phase" or "row-order");
+        Assert.Single(r.Diagnostics, x => x.Code == "phase-title" && x.Src == "'TEA'!B5");
+    }
+
     [Fact]
     public void RemarkInParenthesesAboveAHeader_IsReported()
     {
