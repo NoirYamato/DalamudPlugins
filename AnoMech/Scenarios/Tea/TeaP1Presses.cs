@@ -112,12 +112,20 @@ public sealed class TeaP1Presses : IDisposable
         else world.Events.Add(cast, () => Settle(new TeaP1Cleanse(by, target, world.Events.Elapsed, ByHuman: false, P1PlayerActionId.Esuna)));
     }
 
-    // The run's own Provoke, invulnerability and hit on a Jagd Doll, for a seat nobody presses for.
-    public void Provoke(SimCharacter by, SimEnemy boss)
+    // Whether `by` stands within Provoke's reach of `boss`, past their two hitboxes: the client holds a human's press
+    // to it.
+    public bool ProvokeReaches(SimCharacter by, SimEnemy boss)
+        => TeaP1LivingLiquid.Apart(by.Position, boss.Position) <= P1Rules.ProvokeReach + by.HitboxRadius + boss.HitboxRadius;
+
+    // The run's own Provoke, invulnerability and hit on a Jagd Doll, for a seat nobody presses for. A Provoke or a
+    // hit settles after whatever the human pressed before it, and a Provoke out of reach is none: false.
+    public bool Provoke(SimCharacter by, SimEnemy boss)
     {
-        if (disposed || !by.IsAlive() || !boss.IsActive) return;
+        if (disposed || !by.IsAlive() || !boss.IsActive || !ProvokeReaches(by, boss)) return false;
+        CatchUp();
         (by as SimNpc)?.PlayAction(P1PlayerActionId.Provoke);
         Settle(new TeaP1Provoke(by, (ulong)boss.GameObjectId, world.Events.Elapsed, ByHuman: false));
+        return true;
     }
 
     // Its job's own: a bot's, or for the player's seat the job a bot would have in it.
@@ -144,6 +152,7 @@ public sealed class TeaP1Presses : IDisposable
     public void Strike(SimCharacter by, SimEnemy doll)
     {
         if (disposed || !by.IsAlive() || !doll.IsActive) return;
+        CatchUp();
         Settle(new TeaP1Strike(by, (ulong)doll.GameObjectId, world.Events.Elapsed, ByHuman: false));
     }
 
@@ -215,8 +224,12 @@ public sealed class TeaP1Presses : IDisposable
     // not say which can land on an enemy. UNVERIFIED: that the client refuses one that cannot before it is heard,
     // that every weaponskill or spell aimed at an enemy counts as a hit on it, and that one which only clips it, laid
     // on the ground or round its user, does not. The fight's enemies also count an auto-attack; none is heard here.
+    //
+    // A button that turns into another action comes with its own id, and its own row is aimed at its user (Ninjutsu
+    // for Raiton, Iaijutsu for Higanbana): those are let through by id, so one that became something laid round its
+    // user, pressed with a doll targeted, counts as a hit too.
     private static bool IsAimedAtOneTarget(uint actionId)
-        => Natives.Data.Action(actionId) is { CanTargetSelf: false, TargetArea: false };
+        => P1PlayerActionId.BecomeAHitOnTheTarget.Contains(actionId) || Natives.Data.Action(actionId) is { CanTargetSelf: false, TargetArea: false };
 
     private void Cover(float seconds) => antiKnockbackUntil = MathF.Max(antiKnockbackUntil, world.Events.Elapsed + seconds);
 

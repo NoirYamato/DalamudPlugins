@@ -411,8 +411,8 @@ public class TeaP1LivingLiquidActionsTests
 
     private static readonly TimelineRunOptions HumanTankWithItsOwnActions = HumanMainTank with { UserActionsEnabled = true };
 
-    // A tank at full health lives through either cleave bare, so neither asks for a cooldown: not of a human on a
-    // tank's job with the sim resolving its actions, nor of one on another job that the Role setting seats there.
+    // A tank seat lives through either cleave bare, as the sim has it, so neither asks for a cooldown: not of a human
+    // on a tank's job with the sim resolving its actions, nor of one on another job that the Role setting seats there.
     [Test]
     public void ACleaveAsksAHumanInATankSeatForNoCooldown([Values] bool swing,
         [Values(JobId.Warrior, JobId.DarkKnight, JobId.Paladin, JobId.Gunbreaker, JobId.WhiteMage, JobId.Bard)] JobId job)

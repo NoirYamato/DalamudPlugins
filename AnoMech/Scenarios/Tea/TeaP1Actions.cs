@@ -165,9 +165,10 @@ public static class TeaP1Actions
     public static readonly EnemyAction ReducibleComplexity = new(P1ActionId.ReducibleComplexity) { Effects = [Damage()] };
 
     // -- The cleaves --
-    // Each boss's cleave at its target: a non-tank seat in it dies. A tank is asked for no cooldown: one at full
-    // health lives through either bare. Both leave Water Resistance Down as a wave does, and neither hits a carrier of
-    // it any harder.
+    // Each boss's cleave at its target: a non-tank seat in it dies. A tank is asked for no cooldown: a tank seat lives
+    // through either. Both leave Water Resistance Down as a wave does, and neither hits a carrier of it any harder.
+    // UNVERIFIED: that a cleave kills a non-tank, since none was hit by one, and that a bare Fluid Strike leaves a tank
+    // alive, since only Fluid Swing was taken bare, by a tank at full health.
     public static readonly EnemyAction FluidSwing = new(P1ActionId.FluidSwing)
     {
         Area = new() { Size = P1Geometry.CleaveHalfAngle },

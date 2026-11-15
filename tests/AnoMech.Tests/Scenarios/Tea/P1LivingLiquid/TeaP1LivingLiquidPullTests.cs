@@ -430,9 +430,9 @@ public class TeaP1LivingLiquidPullTests
     }
 
     // -- A human tank under the cleaves --
-    // A tank at full health lives through each cleave bare. With the sim resolving its actions and tank mitigation
-    // required, a human main tank on a tank's job that keeps both bosses takes all five of the pull's with no cooldown
-    // but the invulnerability the tornado's wave asks for.
+    // A tank seat lives through each cleave bare, as the sim has it. With the sim resolving its actions and tank
+    // mitigation required, a human main tank on a tank's job that keeps both bosses takes all five of the pull's with
+    // no cooldown but the invulnerability the tornado's wave asks for.
     [Test]
     public void TheCleavesAskAHumanTankOnATanksJobForNoCooldown()
     {
@@ -571,13 +571,15 @@ public class TeaP1LivingLiquidPullTests
         Assert.That(Vector3.Distance(meleesDoll, itsSpot), Is.LessThan(0.01f), "a doll whose holder stands beside it stays where it appeared");
     }
 
+    // M1 hits its own doll at 34.3 and M2's at 34.4. The second walks to 3.3 y from it, so both reach it as they first
+    // Exhaust: it explodes.
     [Test]
-    public void OneSeatThatHitsTwoDollsHoldsBothAndAHitBeforeTheyTurnTargetableCountsForNothing()
+    public void OneSeatThatHitsTwoDollsHoldsBothAndExplodesAtTheFirstExhaustAndAHitBeforeTheyTurnTargetableCountsForNothing()
     {
         var stage = new Stage { First = Pull, Last = Pull, NoHitBy = [MeleeDpsB] };
         bool early = true;
         PartyRole?[] holders = [];
-        var run = stage.Run(MainTank, stopAt: 35.2f, probe: p =>
+        var run = stage.Run(MainTank, stopAt: 38.6f, probe: p =>
         {
             if (p.Time < 32.7f) return;
             var presses = Stage.Scenario(p).Presses!;
@@ -587,18 +589,99 @@ public class TeaP1LivingLiquidPullTests
             if (p.Crossed(35.1f)) holders = [Rules.Seat(Doll(p, stage, MeleeDpsA).Holder), Rules.Seat(Doll(p, stage, MeleeDpsB).Holder)];
         });
 
-        Assert.That(run.Passed, run.ToString);
+        Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(early, Is.False);
         Assert.That(holders, Is.EqualTo(new PartyRole?[] { MeleeDpsA, MeleeDpsA }));
+        Assert.That(run.Deaths.Select(d => d.Role), Does.Contain(MeleeDpsA), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1JagdDolls.LuminousAetheroplasmBurst), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(38.5f).Within(0.05f), run.ToString);
+    }
+
+    // The client's input comes outside the run's tick: a press heard before the run's own hit of the same frame
+    // settles first, and the doll is the human's.
+    [Test]
+    public void AHumansHitHeardJustBeforeTheRunsOwnOfTheSameFrameTakesTheDoll()
+    {
+        var stage = Human(new Stage { First = Pull, Last = Pull, NoHitBy = [MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps] });
+        PartyRole? holder = null;
+        var run = stage.Run(CasterDps, stopAt: 35f, probe: p =>
+        {
+            if (p.Time < 32.7f) return;
+            var doll = Doll(p, stage, MeleeDpsA);
+            if (p.Crossed(34.3f))
+            {
+                Press(HeavySwing, Id(doll.Enemy));
+                Stage.Scenario(p).Presses!.Strike(p.Member(MeleeDpsA)!, doll.Enemy);
+            }
+            if (p.Crossed(34.9f)) holder = Rules.Seat(doll.Holder);
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(holder, Is.EqualTo(CasterDps));
+    }
+
+    // The human off tank Provokes the Hand in the gap before the frame the run's main tank does: both are heard, the
+    // human's first.
+    [Test]
+    public void AHumansProvokeHeardJustBeforeTheRunsOwnOfTheSameFrameSettlesFirst()
+    {
+        IReadOnlyList<TeaP1Provoke> provokes = [];
+        var run = Human(new Stage { First = Pull, Last = Pull, NoProvoke = true }).Run(OffTank, stopAt: 30.3f, probe: p =>
+        {
+            var scenario = Stage.Scenario(p);
+            if (p.Crossed(30f))
+            {
+                Press(P1PlayerActionId.Provoke, Id(scenario.Fight!.Hand));
+                scenario.Presses!.Provoke(p.Member(MainTank)!, scenario.Fight.Hand!);
+            }
+            provokes = scenario.Presses!.Provokes;
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(provokes.Select(provoke => (Rules.Seat(provoke.By), provoke.ByHuman)), Is.EqualTo(new[] { ((PartyRole?)OffTank, true), ((PartyRole?)MainTank, false) }));
+    }
+
+    // Provoke reaches 25 y past the two hitboxes. The run's own, for a seat nobody presses for, is held to that as the
+    // client holds a human's: the main tank's at 30.0 goes out with the Hand 25.9 y away, and not with the off tank
+    // and the Hand taken to the far rim.
+    [TestCase(false, true)]
+    [TestCase(true, false)]
+    public void TheRunsOwnProvokeIsHeldToItsReach(bool theHandIsTakenToTheFarRim, bool provoked)
+    {
+        var stage = new Stage { First = Pull, Last = Pull, GodMode = true };
+        var apart = float.NaN;
+        var provokes = -1;
+        Takeover[] takeovers = theHandIsTakenToTheFarRim ? [new Takeover(24.1f, stage.Arena1(6f, -18f))] : [];
+        var run = stage.Run(OffTank, stopAt: 30.3f, takeovers: takeovers, probe: p =>
+        {
+            var fight = Stage.Fight(p);
+            if (p.Crossed(29.95f)) apart = TeaP1LivingLiquid.Apart(p.Member(MainTank)!.Position, fight.Position(TeaP1Boss.LiquidHand));
+            provokes = Stage.Scenario(p).Presses!.Provokes.Count;
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(apart, provoked ? Is.InRange(25f, 27.1f) : Is.GreaterThan(27.1f));
+        Assert.That(provokes, Is.EqualTo(provoked ? 1 : 0));
     }
 
     // The human M1 presses one button with its doll targeted at 34.3. Only a weaponskill or a spell that is aimed at
-    // one target other than its user is a hit: a press comes with the client's target whatever the button.
+    // one target other than its user is a hit: a press comes with the client's target whatever the button. A button
+    // that turns into an attack on the target comes with its own id, whose row is aimed at its user, and is a hit too.
     [TestCase(31u, true, TestName = "{m}(Heavy Swing)")]
     [TestCase(16u, true, TestName = "{m}(Shield Bash)")]
     [TestCase(7533u, true, TestName = "{m}(Provoke)")]
     [TestCase(119u, true, TestName = "{m}(Stone)")]
     [TestCase(25762u, true, TestName = "{m}(Thunderclap)")]
+    [TestCase(2260u, true, TestName = "{m}(Ninjutsu)")]
+    [TestCase(7867u, true, TestName = "{m}(Iaijutsu)")]
+    [TestCase(16483u, true, TestName = "{m}(Tsubame-gaeshi)")]
+    [TestCase(25764u, true, TestName = "{m}(Masterful Blitz)")]
+    [TestCase(16155u, true, TestName = "{m}(Continuation)")]
+    [TestCase(35920u, true, TestName = "{m}(Serpent's Tail)")]
+    [TestCase(35921u, true, TestName = "{m}(Twinfang)")]
+    [TestCase(35922u, true, TestName = "{m}(Twinblood)")]
+    [TestCase(25822u, true, TestName = "{m}(Astral Flow)")]
+    [TestCase(35347u, true, TestName = "{m}(Living Muse)")]
     [TestCase(7531u, false, TestName = "{m}(Rampart)")]
     [TestCase(7548u, false, TestName = "{m}(Arm's Length)")]
     [TestCase(7568u, false, TestName = "{m}(Esuna)")]
@@ -734,13 +817,13 @@ public class TeaP1LivingLiquidPullTests
         Assert.That(watch.Sent("ability", P1ActionId.Exhaust).Count(sent => sent.Hits.Contains(ShieldHealer)), Is.EqualTo(2), "the casts hit whom the rule counted");
     }
 
-    // H2 explodes north of the middle, in reach of the two northern dolls. H1 is put 8 y west of it and dies with it;
-    // M2, put 9 y east of it, does not.
-    private static void PutOneWhereTwoDollsReachWithOneEightAndOneNineYalmsOff(ScenarioProbe p)
+    // H2 explodes north of the middle, in reach of the two northern dolls. H1 is put 8.4 y west of it and dies with
+    // it; M2, put 8.6 y east of it, does not. Each of those stands in one doll's reach only.
+    private static void PutOneWhereTwoDollsReachWithOthersJustInsideAndJustOutsideItsExplosion(ScenarioProbe p)
     {
         p.Member(ShieldHealer)!.SetPosition(new Vector3(1.9f, 0f, -9.5f));
-        p.Member(RegenHealer)!.SetPosition(new Vector3(-6.1f, 0f, -9.5f));
-        p.Member(MeleeDpsB)!.SetPosition(new Vector3(10.9f, 0f, -9.5f));
+        p.Member(RegenHealer)!.SetPosition(new Vector3(-6.5f, 0f, -9.5f));
+        p.Member(MeleeDpsB)!.SetPosition(new Vector3(10.5f, 0f, -9.5f));
     }
 
     [Test]
@@ -749,7 +832,7 @@ public class TeaP1LivingLiquidPullTests
         var stage = new Stage { First = Pull, Last = Pull, NoHitBy = [MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps] };
         var run = stage.Run(MainTank, stopAt: 40f, probe: p =>
         {
-            if (p.Crossed(38f)) PutOneWhereTwoDollsReachWithOneEightAndOneNineYalmsOff(p);
+            if (p.Crossed(38f)) PutOneWhereTwoDollsReachWithOthersJustInsideAndJustOutsideItsExplosion(p);
         });
 
         Assert.That(run.Failure, Is.Null, run.ToString);
@@ -765,7 +848,7 @@ public class TeaP1LivingLiquidPullTests
         var run = stage.Run(MainTank, stopAt: 40f, probe: p =>
         {
             chat = p.Chat.ToList();
-            if (p.Crossed(38f)) PutOneWhereTwoDollsReachWithOneEightAndOneNineYalmsOff(p);
+            if (p.Crossed(38f)) PutOneWhereTwoDollsReachWithOthersJustInsideAndJustOutsideItsExplosion(p);
         });
 
         Assert.That(run.Deaths, Is.Empty, run.ToString);

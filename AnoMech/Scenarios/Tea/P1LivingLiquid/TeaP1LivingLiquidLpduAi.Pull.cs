@@ -15,6 +15,10 @@ public partial class TeaP1LivingLiquidLpduAi
     private const float ThePullLooksEvery = 0.25f;
     private const float ThePullLastLooksAt = 60.5f;
     private const float TheOffTankLastLooksForTheHandToLeaveAt = 42.25f;
+    private const float TheMainTankLastLooksToProvokeAt = 34.25f;
+    private const float TheOffTankLastLooksToProvokeBackAt = 55.0f;
+    private const float AMeleeLeavesADollOnTheBossesWayInAloneFrom = 38.5f;
+    private const float TheTanksHaveLedTheBossesInBy = 45.0f;
     private const float ABotTakesAnothersDollFrom = 36.0f;
     private const float AMeleeTakesTheDollOfOneWhoDrewItsOwnAwayFrom = 38.75f;
     private const float AMeleeTakesNoDollFrom = 47.0f;
@@ -47,6 +51,8 @@ public partial class TeaP1LivingLiquidLpduAi
     private readonly HashSet<PartyRole> doneWithItsDoll = [];
     private readonly HashSet<PartyRole> holdsItsBoss = [];
     private bool theOffTankHasLeftForTheFlank;
+    private bool theMainTankHasSeenToTheHand;
+    private bool theOffTankHasSeenToTheHand;
 
     private void ForgetThePull()
     {
@@ -55,6 +61,8 @@ public partial class TeaP1LivingLiquidLpduAi
         doneWithItsDoll.Clear();
         holdsItsBoss.Clear();
         theOffTankHasLeftForTheFlank = false;
+        theMainTankHasSeenToTheHand = false;
+        theOffTankHasSeenToTheHand = false;
     }
 
     private void ThePullIntoTheCentre()
@@ -64,7 +72,7 @@ public partial class TeaP1LivingLiquidLpduAi
         ai.Move(24.0f, TheMainTankSprintsToTheRimBesideTheMiddleTornado, BaitJitter, sprint: true);
         ai.Move(24.0f, TheOffTankTakesTheHandFarNorthEastAndTheRangedBaitTheSideTornadoes, BaitJitter);
         ai.Move(24.0f, OneHealerFarNorthTheOtherFarSouthEastAndTheMeleeSouthWestOfTheMiddle);
-        world.Events.Add(30.0f, TheMainTankProvokesTheHandOnceItShowsAPalm);
+        EveryLook(30.0f, TheMainTankLastLooksToProvokeAt, at => world.Events.Add(at, TheMainTankProvokesTheHandOnceItShowsAPalmWithinItsReach));
         EveryLook(30.0f, TheOffTankLastLooksForTheHandToLeaveAt, at => ai.Move(at, TheOffTankGoesToTheLiquidsFlankOnceTheHandHasLeftIt));
         ai.Move(32.5f, TheRangedStepOutOfTheirTornadoesTelegraphs, BaitJitter);
         ai.Move(33.5f, EachMeleeStandsHalfAYalmOffItsDollAwayFromTheTornadoBesideIt, BaitJitter);
@@ -72,7 +80,7 @@ public partial class TeaP1LivingLiquidLpduAi
         EveryLook(34.25f, ThePullLastLooksAt, at => world.Events.Add(at, EachDamageDealerHitsItsDollOnceNoBossStandsByIt));
         ai.Move(35.15f, TheRangedStepBackOntoTheirBaitsOnceTheTelegraphsHaveFired, BaitJitter);
         EveryLook(ABotTakesAnothersDollFrom, ThePullLastLooksAt, at => ai.Move(at, AMeleeWhoseDollSomeoneElseTookGoesToThatOnesDoll, BaitJitter));
-        world.Events.Add(38.0f, TheOffTankProvokesTheHandBack);
+        EveryLook(38.0f, TheOffTankLastLooksToProvokeBackAt, at => world.Events.Add(at, TheOffTankProvokesTheHandBackOnceItIsWithinItsReach));
         EveryLook(38.75f, ThePullLastLooksAt, at => ai.Move(at, EachMeleeDrawsItsDollThroughTheNearerBossOnceItIsUnderAQuarterThenGoesNorth, BaitJitter));
         ai.Move(42.5f, EachTankCrossesTheMiddleSoThatItsBossFollowsOntoIt, BaitJitter);
         ai.Move(42.5f, HealersAndRangedTakeTheirSpotsForProteanOne);
@@ -105,11 +113,12 @@ public partial class TeaP1LivingLiquidLpduAi
         => Turned(state.Tornadoes1,
             (RegenHealer, new(0f, -14.3f)), (ShieldHealer, new(9.6f, 10.8f)), (MeleeDpsA, new(-5.5f, 4.5f)), (MeleeDpsB, new(-3.2f, 5.2f)));
 
-    private void TheMainTankProvokesTheHandOnceItShowsAPalm()
+    private void TheMainTankProvokesTheHandOnceItShowsAPalmWithinItsReach()
     {
-        if (fight.HandShowsAPalm != true || fight.Hand is not { } hand) return;
-        if (TheRunPressesFor(MainTank, aHumanInItCouldPress: state.Plan.HumanTanks) is not { } mainTank) return;
-        if (!ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), mainTank)) state.Presses?.Provoke(mainTank, hand);
+        if (theMainTankHasSeenToTheHand || fight.HandShowsAPalm != true || fight.Hand is not { } hand || state.Presses is not { } presses) return;
+        if (TheRunPressesFor(MainTank, aHumanInItCouldPress: state.Plan.HumanTanks) is not { } mainTank || !presses.ProvokeReaches(mainTank, hand)) return;
+        theMainTankHasSeenToTheHand = true;
+        if (!ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), mainTank)) presses.Provoke(mainTank, hand);
     }
 
     private IAiMove TheOffTankGoesToTheLiquidsFlankOnceTheHandHasLeftIt()
@@ -177,7 +186,13 @@ public partial class TeaP1LivingLiquidLpduAi
 
     private bool InReachWithNoBossBy(PartyRole seat, SimCharacter member, TeaP1JagdDoll doll)
         => TeaP1LivingLiquid.Apart(member.Position, doll.Enemy.Position) <= (Melee.Contains(seat) ? AMeleeReaches : ARangedReaches)
-           && TheBosses().All(boss => TeaP1LivingLiquid.Apart(boss.Position, doll.Enemy.Position) >= NoBossThisCloseToADollBeingHit);
+           && TheBosses().All(boss => TeaP1LivingLiquid.Apart(boss.Position, doll.Enemy.Position) >= NoBossThisCloseToADollBeingHit)
+           && !TheTanksAreAboutToLeadTheBossesPast(doll);
+
+    private bool TheTanksAreAboutToLeadTheBossesPast(TeaP1JagdDoll doll)
+        => world.Events.Elapsed >= AMeleeLeavesADollOnTheBossesWayInAloneFrom - 0.001f
+           && world.Events.Elapsed < TheTanksHaveLedTheBossesInBy - 0.001f
+           && Melee.Any(melee => ReferenceEquals(TheDollOfItsQuarter(melee), doll));
 
     private IEnumerable<SimEnemy> TheBosses()
         => new[] { fight.Liquid, fight.Hand }.Where(boss => boss is not null && boss.IsAlive()).Select(boss => boss!);
@@ -195,10 +210,12 @@ public partial class TeaP1LivingLiquidLpduAi
         return Turned(state.Tornadoes1, going.ToArray());
     }
 
-    private void TheOffTankProvokesTheHandBack()
+    private void TheOffTankProvokesTheHandBackOnceItIsWithinItsReach()
     {
-        if (fight.Hand is not { } hand || TheRunPressesFor(OffTank, aHumanInItCouldPress: state.Plan.HumanTanks) is not { } offTank) return;
-        if (!ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), offTank)) state.Presses?.Provoke(offTank, hand);
+        if (theOffTankHasSeenToTheHand || fight.Hand is not { } hand || state.Presses is not { } presses) return;
+        if (TheRunPressesFor(OffTank, aHumanInItCouldPress: state.Plan.HumanTanks) is not { } offTank || !presses.ProvokeReaches(offTank, hand)) return;
+        theOffTankHasSeenToTheHand = true;
+        if (!ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), offTank)) presses.Provoke(offTank, hand);
     }
 
     private IAiMove EachMeleeDrawsItsDollThroughTheNearerBossOnceItIsUnderAQuarterThenGoesNorth()

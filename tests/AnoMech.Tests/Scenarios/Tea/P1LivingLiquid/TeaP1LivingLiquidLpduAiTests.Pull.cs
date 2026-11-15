@@ -20,9 +20,11 @@ namespace AnoMech.Tests;
 // The pull: the strat's own presses, and the steps it takes when it sees something happen rather than on a beat.
 //
 //   - the main tank Provokes the Liquid Hand at 30.0 if it shows a palm and turns invulnerable at 34.0; the off tank
-//     Provokes it back at 38.0. The off tank leaves for the Liquid's flank once the Hand is no longer on it;
+//     Provokes it back at 38.0. Each looks on every quarter second, to 34.25 and to 55.0, until the Hand stands within
+//     Provoke's reach. The off tank leaves for the Liquid's flank once the Hand is no longer on it;
 //   - from 34.25 each damage dealer hits the doll of its quarter once it stands in reach of it (3.5 y for a melee, 25
-//     for a ranged) with both bosses 5.2 y or more from it; from 36.0 a bot whose doll someone else hit takes that
+//     for a ranged) with both bosses 5.2 y or more from it, but a doll of a melee's quarter not from 38.5 to 45.0,
+//     while the tanks lead the bosses in past it; from 36.0 a bot whose doll someone else hit takes that
 //     one's doll, a melee walking to it first. When a ranged took a melee's, that doll goes out to it, into reach of
 //     its own: the melee waits out the first Exhaust and goes from 38.75. A melee takes no doll from 47.0 and goes
 //     north without one;
@@ -347,6 +349,57 @@ public partial class TeaP1LivingLiquidLpduAiTests
             Assert.That(handFromTheDoll, Is.LessThan(5.2f), "the Hand from the south-west doll");
             Assert.That(hitBy3445, Is.EquivalentTo(Stage.DollOf.ToDictionary(its => its.Value, its => its.Key != MeleeDpsA)), "at 34.45 only the south-west doll is untouched");
             Assert.That(hitAt, Is.InRange(34.5f, 35.8f), "hit once both bosses are 5.2 y from it");
+        });
+    }
+
+    // A human main tank parks the Living Liquid 4.7 y from the south-west doll's spot, so M1 leaves that doll alone, and
+    // leads it away at 39.5. A doll hit then would still be whole as the off tank leads the Liquid Hand in past it from
+    // 42.5, and be fed to it. M1 leaves it alone until the tanks have led the bosses in, and hits it at 45.0.
+    [Test]
+    public void AMeleeThatWaitedForABossToLeaveItsDollWaitsOnWhileTheTanksLeadTheBossesIn()
+    {
+        var stage = new Stage { First = Pull, Last = Pull };
+        var spot = stage.DollSpot(TeaP1Quarter.Southwest);
+        var liquidParks = spot + 4.7f * Vector2.Normalize(new Vector2(-8.0f, 5.3f) - spot);
+        var tankStands = liquidParks + Stage.LiquidStopsFromItsTank * Vector2.Normalize(liquidParks - new Vector2(0f, -4f));
+        float liquidFromTheDollParked = float.NaN, liquidFromTheDollLedAway = float.NaN, handPassedTheDollAt = float.MaxValue;
+        var hit = new List<bool>();
+        float? hitAt = null;
+        IReadOnlyList<string> chat = [];
+        var roll = ThePull() with { FirstEmboli = [new(TeaP1Tornado.West, TeaP1Boss.LiquidHand), new(TeaP1Tornado.East, TeaP1Boss.LivingLiquid)] };
+        var run = ScenarioRun.Execute(typeof(TeaP1LivingLiquidScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        {
+            PlayerRole = MainTank,
+            StopAt = 46.95f,
+            GodMode = true,
+            Takeovers = [new Takeover(24.0f, tankStands), new Takeover(39.5f, new Vector2(-11f, 15f))],
+            Overrides = o => roll.Pin((TeaP1LivingLiquidStateOverrides)o),
+            Probe = p =>
+            {
+                var fight = Stage.Fight(p);
+                chat = p.Chat.ToList();
+                if (p.Crossed(30f))
+                    p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Provoke, (ulong)fight.Hand!.GameObjectId));
+                if (p.Time < 33.5f) return;
+                var doll = fight.Dolls.In(stage.Frame1, TeaP1Quarter.Southwest)!;
+                float From(TeaP1Boss boss) => Vector2.Distance(Flat(fight.Position(boss)), Flat(doll.Enemy.Position));
+                if (p.Crossed(39.4f)) liquidFromTheDollParked = From(TeaP1Boss.LivingLiquid);
+                if (p.Crossed(41.5f)) liquidFromTheDollLedAway = From(TeaP1Boss.LivingLiquid);
+                if (p.Time > 42.5f) handPassedTheDollAt = MathF.Min(handPassedTheDollAt, From(TeaP1Boss.LiquidHand));
+                if (p.Crossed(41.5f) || p.Crossed(44.9f)) hit.Add(doll.HasBeenHit);
+                hitAt = doll.HitAt;
+            },
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.Multiple(() =>
+        {
+            Assert.That(liquidFromTheDollParked, Is.InRange(4.3f, 5.19f), "the Liquid kept M1 from its doll until 39.5");
+            Assert.That(liquidFromTheDollLedAway, Is.GreaterThan(5.2f), "and had left it by 41.5");
+            Assert.That(handPassedTheDollAt, Is.LessThan(P1Geometry.DollIsFedWithin), "the Hand came in past the doll");
+            Assert.That(hit, Is.EqualTo(new[] { false, false }), "M1 left it alone with no boss by it");
+            Assert.That(hitAt, Is.InRange(44.95f, 46.8f), "and hit it once the tanks had led the bosses in");
+            Assert.That(chat.Where(line => line.Contains(TeaP1JagdDolls.ADollWasFedTooSoon)), Is.Empty);
         });
     }
 

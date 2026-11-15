@@ -103,6 +103,12 @@ public static class TeaP1Constants
         public const uint Holmgang = 43;
         public const uint LivingDead = 3638;
         public const uint Superbolide = 16152;
+
+        // Buttons that turn into an attack on the target while their own Action row is aimed at their user: Ninjutsu,
+        // Iaijutsu, Tsubame-gaeshi, Masterful Blitz, Continuation, Serpent's Tail, Twinfang, Twinblood, Astral Flow
+        // and Living Muse.
+        public static readonly IReadOnlySet<uint> BecomeAHitOnTheTarget =
+            new HashSet<uint> { 2260, 7867, 16483, 25764, 16155, 35920, 35921, 35922, 25822, 35347 };
     }
 
     public static class P1StatusId
@@ -217,11 +223,11 @@ public static class TeaP1Constants
         public const float LiquidCorpseFade = 3f;
         public const float LivingLiquidDamageDelay = 1f;            // UNVERIFIED: for the waves, Sluice and Drainage
 
-        // A boss sets off for whoever Provoked it this long after the press. UNVERIFIED for the Living Liquid: only
-        // Provokes on the Liquid Hand were seen.
+        // A boss sets off for whoever Provoked it this long after the press. UNVERIFIED for the Living Liquid: measured
+        // on the Liquid Hand only.
         public const float ProvokeTakesHold = 0.67f;
         public const float TankInvulnerability = 10f;               // Hallowed Ground, Holmgang, Living Dead, Superbolide
-        public const float DollTethersAfterItsFirstHit = 0.6f;      // 0.35 to 1.3 s, by the action
+        public const float DollTethersAfterItsFirstHit = 0.6f;      // 0.35 to 1.5 s, by the action
         // UNVERIFIED: how fast a doll's health falls is the party's doing. Here it is a quarter this long after its
         // tether shows.
         public const float DollUnderAQuarterAfter = 4f;
@@ -242,6 +248,8 @@ public static class TeaP1Constants
         public const int LimitCutHelpers = 3;
 
         public const float BossWalkSpeed = 9f;
+        // Provoke's Range on the Action sheet, past the two hitboxes.
+        public const float ProvokeReach = 25f;
         // A boss stands still while its target is within the second of these past their two hitboxes, centre to centre,
         // and then walks until it is within the first: the Liquid Hand stops 4.1 y from its target. UNVERIFIED: that the
         // Living Liquid stops so too, between 5.8 and 6.0 y from its own, and both set-offs, taken for the reach of an
