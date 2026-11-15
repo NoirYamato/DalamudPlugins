@@ -1270,7 +1270,10 @@ anchor on and to sync:
   Sect (H21, J Wave 5) is pressed and turns NOW at 718.7, so that its Helios lands 0.3 s after wave 4. The
   Scholar's Succors (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5; `Succor`, E25, at J Wave 9) keep −4.5 s
   (718.4, 730.4) and turn NOW at 718.2 and 730.2, 1.7 s before the wave before them, so that the Succor lands just
-  after it; E21's instant Sacred Soil, Summon Seraph and Consolation wait for wave 4 (720.2).
+  after it; E21's instant Sacred Soil, Summon Seraph and Consolation wait for wave 4 (720.2). The White Mage's
+  Plenary Indulgence (G23, J Wave 7) would be pressed at 726.2, before Plenary is ready again (727.0) after G13's;
+  the importer's recast fit (`docs/DESIGN.md` §6 step 7) presses it 1 s before its wave (727.9, `offset: -1`, as
+  late as `(Late)` would), and it still turns NOW only at 726.4, after wave 6.
 
 ### 6.3 Judgment calls (TEA)
 
@@ -1283,8 +1286,9 @@ anchor on and to sync:
    comes 30.8 s after the Cascade one. The Sage's Kerachole, the last step of `ZoeEukProg/Holos/Kerachole`
    ('LL/BJCC'!F13), shares the sequence's press time, which Holos's −6 s sets (`docs/DESIGN.md` §5.1 rule 1): 28.8 s
    after the Cascade row's Kerachole (F11). `mitcue check plans/tea-lpdu.yaml --job SGE` reports that as a recast
-   conflict, though in game the Kerachole comes after the sequence's first three steps. The row's automatic press
-   times (about 44–47 s) cover the feeds from ~45 s on; an early melee pair lands before most of them.
+   conflict, though in game the Kerachole comes after the sequence's first three steps; the importer's recast fit
+   leaves it, as a later step of a sequence (`docs/DESIGN.md` §6 step 7). The row's automatic press times (about
+   44–47 s) cover the feeds from ~45 s on; an early melee pair lands before most of them.
 2. **`Mines` → `p2.hidden_mines`** (kind `tankbuster`), anchored on Enumeration (4850, 292.7), the start of the soak
    window: once the Enumeration stacks and the ice puddle resolve, the tanks run over the two mines (4852 Hidden
    Mine, player-timed). An unsoaked mine explodes for the raid about 6.3 s after the ice (4853, ~299.8, BossMod).
@@ -1310,11 +1314,13 @@ anchor on and to sync:
    heal-up, pressed 1 s after the hit like heals (`docs/DESIGN.md` §5.1), mitigation and shields too (the sheet's
    C32 tip: Soil/Kera "immediatly after Photon"). They still turn NOW 1.5 s before the press, at 262.0: 0.5 s before
    Photon's cast ends (262.5) and about 0.8 s before the HP drop (4837, ~262.8), so an instant heal used on the cue
-   is lost. An entry's actions share one press time, so the White Mage's `Asylum/Plenary` ('LL/BJCC'!G40) moves
-   after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum (G52, P2 2:29), within Asylum's 90 s recast:
-   `mitcue check plans/tea-lpdu.yaml --job WHM` reports the conflict (*Asylum planned at P2 1:04 and P2 2:29
-   (85.8 s apart), recast 90 s.*), and in game the Gavel Asylum shows *ready in N s*. Keeping the regen before
-   Photon would need the cell split.
+   is lost. An entry's actions are pressed together, so the White Mage's `Asylum/Plenary` ('LL/BJCC'!G40) moves
+   after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum's automatic press (G52, P2 2:29, 7.2 s before
+   Gavel), within Asylum's 90 s recast. The importer's recast fit (`docs/DESIGN.md` §6 step 7) therefore presses
+   the Gavel Asylum 1.5 s before its hit (P2 2:35, `offset: -1.5` in the plan), so that its NOW cue comes when
+   Asylum is ready again: `mitcue check plans/tea-lpdu.yaml --job WHM` reports it as tight (*Asylum planned at P2
+   1:04 and P2 2:35 (91.5 s apart), recast 90 s: only 1.5 s to spare.*). Keeping the regen before Photon would
+   need the cell split.
 9. **`Double Rocket Punch` → `p2.double_rocket_punch`, with `heal_lead: 4`.** The second Photon leaves both tanks at
    1 HP 8 s before the buster (374.8; its 4 s cast starts 3.4 s after the drop, BossMod). Heals used after the hit
    that are planned on the row without a time ('LL/BJCC'!G54 `Benison (Tank)/Benediction`: the Benediction) are

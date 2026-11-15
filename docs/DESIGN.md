@@ -26,7 +26,7 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 | D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** runtime first, then the importer front half and the in-game import window, then the CLI, the importer back half and the converted plans; no plugin dependencies. |
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
-| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. **Changed (2026-11-14):** also from the entry's other actions, the mechanic's later hits and the fight file's timing fields, in one function that the reminders, the importer, the CLI and the review share (§5.1). |
+| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. **Changed (2026-11-14):** also from the entry's other actions, the mechanic's later hits and the fight file's timing fields, in one function that the reminders, the importer, the CLI and the review share (§5.1). **Changed (2026-11-15):** at import, a call that would find its action not ready yet is pressed when it is ready again (the recast fit, §6 step 7). |
 | D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). **Changed (2026-11-14):** TEA's data has been mapped onto LPDU's sheet *[LPDU] TEA Heal/Mit* (mechanics and aliases for its rows; the 16 J Waves of the P3 DPS check and the first Inception crystal explosion added to the timeline; timing fields for the Photons, Double Rocket Punch and the J Waves, §3.1, §5.1), and the sheet ships as *LPDU TEA Heal/Mit*, TEA's only plan and so the automatic one of every job it names (§7). The TEA data is still not checked against logs; DMU has no plan yet. |
 | D8 | BossMod / cactbot as dependencies | **No runtime dependency.** cactbot is a browser overlay inside ACT/IINACT, so a Dalamud plugin cannot read its state; BossMod's IPC only exposes autorotation/AI/config controls, not fight timelines. Instead MitCue **bundles cactbot's timeline files** (Apache-2.0, attributed) and parses them itself. |
 
@@ -96,6 +96,7 @@ MitCue.Core (net10.0, no Dalamud)
               · EmbeddedDataSource (data/** and plans/** are built into the DLL), DirectoryDataSource
   Plans       MitPlan · PlanSelection · ColumnSuggestion (the automatic column, for the plugin and the CLI)
               · PlanSerializer (YAML, JSON, share codes) · PlanChecker (recasts, gauges)
+              · RecastReplay (check's recast model, which the importer's recast fit uses too)
   Runtime     GameEvent ─► TimelinePlayer (sync) ─► timeline time ─► ReminderScheduler (TimingRules) ─► Reminder[]
               own action uses ─► ReminderScheduler.OnOwnAction;  ICooldownProvider ─► "ready in 6s", "no Lily"
   Simulation  FightSimulator (a generated pull from a timeline) · GameVisibleEvents (the kinds seen in game)
@@ -452,7 +453,8 @@ entry's floor keeps none.
 
 The importer writes no offset for these rules, so a plan's untimed entries follow any
 change of them. It writes one only for `(Late)` (§6 step 3) and where a step after the
-cells presses an entry later than they do (`still-active`, step 4).
+cells presses an entry later than they do (`still-active`, step 4, and the recast fit,
+step 7).
 
 ### 5.2 States
 
@@ -605,24 +607,63 @@ previews, which have no cooldown provider.
    Screen +1.0 s, the Omega row +1.1 s, Blind Faith −1.2 s and the P6 enrage −14.0 s; P2
    Cosmo Memory and the Hello World rounds need none, because the catalog anchors them at
    the cast end too. A timed item counts from the hit it belongs to (the first hit at or
-   after its press; for heals the last one at or before it), stored as `hit_index`. The
-   plan lists its entries in press order, as §5.1 times them (ties in sheet order), also
-   when step 4 changed an entry's actions, and numbers them `e001`, `e002` … in that order:
-   a change of the timing rules renumbers a plan imported again, as it did the bundled LPDU
-   plans' entries (2026-11-14). No setting refers to an entry id, so the renumbering
-   changes nothing for players.
+   after its press; for heals the last one at or before it), stored as `hit_index`.
+   **As built (2026-11-15): the recast fit** (a `recast-fit` info), after step 4. An entry
+   without a time in the sheet (none in the cell, no hint that names its press) that is
+   pressed before its hit, and one of whose actions would find no charge at its press, as
+   `check` replays the plan (`RecastReplay`: recasts and charges at the sync level, one
+   charge recharging at a time, recast groups, recasts under 3 s left out; each item at its
+   own press, §5.1) for any seat (every job, in each slot of its role and in none, with the
+   column the plugin suggests without a party and with each party that changes it: the jobs
+   of a team-composition column, and every two-job party), is pressed when that action is
+   ready again plus the default due lead (1.5 s), rounded up to 0.1 s, so that its NOW cue
+   comes when the action is ready: LPDU TEA's Gavel Asylum, planned 85.8 s after the
+   Asylum pressed after Photon (recast 90 s), is pressed 1.5 s before its hit instead of
+   7.2 s. Never later than `(Late)` would press it (step 3) nor than an action's own lead
+   allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s): then just after the
+   action is ready (the J Wave 7 Plenary, 1 s before its wave). The press stays, and
+   `check` reports the recast, when the action is ready only later than that, and when the
+   move would press another item of the entry earlier than without it (an item that waits
+   for a later hit or a series floor of its own, or Passage of Arms with the last item) or
+   a follow-up of the entry later than `check`'s window after its trigger (a Consolation
+   more than 22 s after the Summon Seraph before it). Only firm presses keep an action on
+   recast: not an optional entry (grey, in brackets, with a condition, one choice of an
+   either/or), an either/or item or a note; an optional call itself still waits (LPDU
+   TEA's "CU (if up)" on Irresistible Grace 1). A press with a time in the sheet counts but
+   never moves; an offset the importer wrote itself (step 4's) may move. A when-ready call
+   ("on CD") keeps its press and still counts: its reminder already waits for the action in
+   game. A sequence moves for its first step only (`check` times every step at the entry's
+   press; in game the later steps follow it), and only when its later steps are instant
+   oGCDs woven in right after it (`Kerachole → Holos`): one with a later GCD or cast
+   (`Zoe → Eukrasian Prognosis → Holos → Kerachole`, `Recitation → Succor`) keeps its
+   press. An entry several seats see takes the latest press any of them needs. The
+   earliest press without a charge moves first, then the plan is replayed again, until
+   nothing moves; a moved press is replayed at its press time, so in a chain of moves each
+   link keeps its due lead. The offset is written into the plan: `mitcue plan` shows it
+   without `*`, and the review as set, not automatic. The info gives the gap between the
+   two items' presses before the fit, with "which is pressed later too" when the earlier
+   press moved as well. In the bundled plans the fit moves LPDU TEA's Gavel Asylum
+   (−1.5 s), J Wave 7 Plenary (−1 s), Water 2 Sacred Soil (−2.4 s) and Irresistible
+   Grace 1 "CU (if up)" (−1 s), and LPDU TOP's M2 Feint at Omega (−1 s).
+   The plan lists its entries in press order, as §5.1 times them (ties in sheet order),
+   also when step 4 changed an entry's actions or the recast fit moved its press, and
+   numbers them `e001`, `e002` … in that order: a change of the timing rules renumbers a
+   plan imported again, as it did the bundled LPDU plans' entries (2026-11-14 and
+   2026-11-15). No setting refers to an entry id, so the renumbering changes nothing for
+   players.
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
    fixes become personal aliases; save. **As built** (the import window, PLUGIN.md §1.7):
    each entry with the importer's diagnostics and the plugin's checks, and the automatic
    offset and press time the overlay will use (§5.1), with the press of each item pressed
-   later than the entry ("Pressed later: …"); the user can change the mechanic,
-   hit, offset, flags, target, note and items, and delete entries; replacing a note with an
-   action offers to save the shorthand as a personal alias; the plan is saved as a user
-   plan, made the active plan when *Make it my active plan …* is ticked (it is by default
-   when calls of the player's apply, counted as the overlay will select them in the
-   player's party; notes for everyone do not count), with the column choice that has all of
-   the player's calls when one has them without another column's (otherwise the Save step
-   names the columns of the calls left out).
+   later than the entry ("Pressed later: …"); an offset the importer wrote (`(Late)`, step
+   4, the recast fit) shows as set, not automatic, step 4's and the fit's with their info.
+   The user can change the mechanic, hit, offset, flags, target, note and items, and delete
+   entries; replacing a note with an action offers to save the shorthand as a personal
+   alias; the plan is saved as a user plan, made the active plan when *Make it my active
+   plan …* is ticked (it is by default when calls of the player's apply, counted as the
+   overlay will select them in the player's party; notes for everyone do not count), with
+   the column choice that has all of the player's calls when one has them without another
+   column's (otherwise the Save step names the columns of the calls left out).
 
 LLM fallback: the plugin generates a prompt containing the plan schema, the fight's
 mechanic catalog and the job's alias list; the user runs it with their source text in any

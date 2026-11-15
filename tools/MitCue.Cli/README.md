@@ -17,7 +17,7 @@ without either, the copy built into MitCue.Core is used. Plans can be YAML, JSON
 | `mechanics <fight> [--phase p2] [--kind raidwide] [--find text]` | Phases, calibration presets and mechanics (hit as phase m:ss and timeline seconds, kind, cactbot entry, hits, aliases). |
 | `timeline <fight\|file.txt> [--syncs]` | The parsed cactbot timeline: entries with syncs, non-default windows, jumps; labels; parser warnings. |
 | `import <source> --fight <key> [...]` | A sheet (.xlsx, fixture folder, .csv/.tsv/.json, or a public Google Sheets link) to plan YAML, with the importer's diagnostics by severity and each phase's fitted zero point and spread. |
-| `plan <plan> --job <job> [--slot] [--assignee]` | The player's checklist in press-time order: phase time, offset from the hit (`*` = no time in the plan: the automatic press time, `docs/DESIGN.md` §5.1), action, mechanic, target and notes, flags. |
+| `plan <plan> --job <job> [--slot] [--assignee]` | The player's checklist in press-time order: phase time, offset from the hit (`*` = no time in the plan: the automatic press time, `docs/DESIGN.md` §5.1; an offset the importer wrote, such as its recast fit's, is a time in the plan), action, mechanic, target and notes, flags. |
 | `simulate <plan> --job <job> [--push p2=110,...] [--seed n] [--miss a,b] [--from p3] [--wipe t]` | A generated pull through the timeline player and the reminder scheduler, set up like the plugin's encounter session; logs every reminder state change and prints the pull summary. |
 | `check <plan> --job <job> [--slot] [--assignee]` | Plan checks (`PlanChecker`): unknown mechanics/actions, actions the job cannot use at the sync level, recast conflicts and tight margins, gauges and follow-ups (heuristic). |
 | `validate` | Every data file through the real loaders, with the consistency checks of the data tests; plans in `plans/` too. |
@@ -98,6 +98,11 @@ Notes:
   restores the tab names the xlsx export changes ("P1/P2" becomes "P1P2") from the sheet's htmlview page, so plan
   provenance and the importer's column names (LPDU's "WAR/DRK" pairs) match the sheet. `--tabs` matches names ignoring
   case and punctuation either way.
-- `check` compares planned uses on the timeline's nominal times. Within a phase these are exact, so a conflict is an
-  error; across a phase transition the real gap depends on when the earlier phase ends, so it is a warning. Gauge and
-  follow-up findings are marked `(h)`: they rest on stated assumptions (e.g. Lilies full at the pull, +1 every 20 s).
+- `check` compares planned uses on the timeline's nominal times, each item at its own press time (`docs/DESIGN.md`
+  §5.1). Within a phase these are exact, so a conflict is an error; across a phase transition the real gap depends on
+  when the earlier phase ends, so it is a warning. Gauge and follow-up findings are marked `(h)`: they rest on stated
+  assumptions (e.g. Lilies full at the pull, +1 every 20 s). `import` replays the plan with the same recast model and
+  presses an automatic call that would find its action not ready yet when the action is ready plus 1.5 s (the recast
+  fit, `docs/DESIGN.md` §6 step 7, a `recast-fit` diagnostic); `check` then reports it as tight, and still reports
+  a recast the fit leaves (a time in the sheet, an "on CD" call, a later step of a sequence or one whose later steps
+  are GCDs or casts, an action ready only after "(Late)" would press it).

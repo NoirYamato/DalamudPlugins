@@ -274,6 +274,53 @@ and passed to `python3 -I normalize_sheets.py <file> <out-dir>`. The script also
   and 180 merges). There is no grey text: optional calls are in brackets (`(Shake)`), and a remark about a cell is
   a cell of its own below it (`(^on LL)`). Row labels and their mechanics: `docs/research/mechanics.md` §6.1.
 
+### 2.6 Untimed calls inside their recast (input for the importer's timing)
+
+LPDU's TEA sheet has no times, so the importer times every call (`docs/DESIGN.md` §5.1). Timed that way, some of its
+calls come before their action is ready again after the same player's call before them. The importer's **recast fit**
+(`docs/DESIGN.md` §6 step 7, a `recast-fit` info on the entry) handles them:
+
+- **Which presses move.** An entry without a time in the sheet (none in the cell, no hint that names its press) that
+  is pressed before its hit, when one of its actions has no charge at its press. Not a when-ready call ("on CD"): its
+  reminder already waits for the action in game.
+- **The replay.** `check`'s recast model (`RecastReplay`: recasts and charges at the sync level, one charge recharging
+  at a time, recast groups, recasts under 3 s left out), on each item's press as the reminders time it, for every seat
+  the plugin and `check` read: every job, in each slot of its role and in none, with the column suggested without a
+  party and with each party that changes it (the jobs of a team-composition column, every two-job party). Only firm
+  presses keep an action on recast: not an optional entry (grey, in brackets, with a condition, one choice of an
+  either/or), an either/or item or a note. A press with a time in the sheet counts but never moves; an offset the
+  importer wrote itself (`still-active`'s) may move.
+- **The move.** The press becomes the moment the action is ready again plus the default due lead (1.5 s), rounded up
+  to 0.1 s, so that the NOW cue comes when the action is ready. It is never later than `(Late)` would press the entry
+  (1 s before the hit, minus its longest cast or the GCD a follow-up needs first) nor than an action's own lead
+  allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s). The press stays, and `check` reports the
+  recast, when the action is ready only after that; when the move would press another item of the entry earlier
+  than without it, or a follow-up later than `check`'s window after its trigger (Seraph's 22 s for a Consolation);
+  and for the later steps of a sequence, and a sequence whose later steps are GCDs or casts (`Zoe → Eukrasian
+  Prognosis → Holos → Kerachole`): only instant oGCDs woven in after the first step (`Kerachole → Holos`) let it
+  move. An optional call still waits. An entry several seats see takes the latest press any of them needs; the
+  earliest press without a charge moves first, then the plan is replayed again, until nothing moves.
+- **What it gives.** The moved offset is written into the plan, so the review shows it as set and `mitcue plan`
+  without `*`; `check` then reports it as `recast-tight`. The info gives the gap between the two items' presses
+  before the fit (*Asylum at p2.gavel is planned 85.8 s after the Asylum at p2.photon_1 (recast 90.0 s): it is
+  pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.*), ending
+  *as late as "(Late)" would press it, once … is ready again* when the bound stops it, and with *which is pressed
+  later too* when the earlier press moved as well.
+
+| Cell | Call | Before the fit | After |
+|---|---|---|---|
+| `LL/BJCC` G52 | White Mage: Asylum at Gavel, 85.8 s after G40's (recast 90 s) | −7.2 s | −1.5 s |
+| `Alex Prime/PA` G23 | White Mage: Plenary Indulgence at J Wave 7, 59.2 s after G13's (recast 60 s) | −2.7 s | −1.0 s, the `(Late)` bound |
+| `LL/BJCC` E46 | Scholar: Sacred Soil at Water 2, 29.4 s after E42's (recast 30 s) | −4.5 s | −2.4 s |
+| `Alex Prime/PA` H45 | Astrologian: "CU (if up)", optional, at Irresistible Grace 1, 58.9 s after H43's (recast 60 s) | −3.0 s | −1.0 s, the `(Late)` bound |
+
+The sheet's other recast conflicts stay for `check`: the action is ready only after the bound (`LL/BJCC` E23's Soil
+at Protean 2, ready 2.5 s before the hit while the cell's Succor caps the press at −3 s; F23's Kerachole beside a
+Eukrasian Prognosis, capped at −3.5 s), or the press is a later step of a sequence (the Sage's Kerachole at Doll
+Feeds, the last step of `ZoeEukProg/Holos/Kerachole`). In LPDU's TOP sheet the fit moves only `P5` I9, the M2 Feint
+at Omega (89 s after the one at Sigma: −3.0 s to −1.0 s, the `(Late)` bound); its "on CD" party mitigation at Sigma
+and Omega keeps its press.
+
 ---
 
 ## 3. Clipboard: what Sheets copies and what a Dalamud plugin can read (step 3)

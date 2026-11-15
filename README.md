@@ -182,6 +182,10 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     just after it, while the instant actions of the same call (the Scholar's Sacred Soil, Summon Seraph and
     Consolation) still wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
     just after it.
+- **From your earlier calls:** when a plan is imported, a call that would come before its action is ready again
+  waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that time. On the TEA
+  plan: the White Mage's Asylum on Gavel (1.5 s before it instead of 7.2 s) and Plenary Indulgence on J Wave 7,
+  the Scholar's Sacred Soil on Water 2, and the Astrologian's *CU (if up)* on Irresistible Grace 1.
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:
@@ -382,7 +386,20 @@ active)*) or the buff's follow-up (Summon Seraph's Consolation). When the earlie
 sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and writes that time
 into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines Temperance is pressed
 3.5 s before its hit instead of 6 s, and lasts through Water 2. Otherwise both stay calls. An optional call
-(grey, in brackets, with a condition, or one choice of an either/or) keeps no buff up. The full rules:
+(grey, in brackets, with a condition, or one choice of an either/or) keeps no buff up.
+
+A call without a time in the sheet that would come before its action is ready again, after your earlier
+presses of it (counted with the action's charges, as `mitcue check` counts them), waits for it: MitCue presses
+it when the action is ready plus 1.5 s, so that it turns NOW as the action comes back (LPDU TEA's Gavel
+Asylum: 1.5 s before Gavel instead of 7.2 s), but never later than `(Late)` would press it, nor than the
+action's own lead allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s). That time is written
+into the plan: the review shows it as set, not automatic, with a note that says why (*… so that its NOW cue
+comes when Asylum is ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold
+its action back from later calls, though it waits for it itself; a call with a time in the sheet, or marked
+*on cooldown*, keeps its time; and a sequence (`→`) waits only when its later steps are instant actions woven
+in after the first (*Kerachole → Holos*). When the action would be ready too late, the call keeps its time,
+and in game the reminder shows *ready in N s*. `mitcue check` reports a call that waited as tight (*only 1.5 s
+to spare*), and one that could not wait as a recast conflict. The full rules:
 [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops

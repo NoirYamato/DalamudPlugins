@@ -398,10 +398,13 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    the overlay will use (`TimingRules.ForEntry`), and its details list the items the overlay presses later than
    the entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own,
    and Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil,
-   Summon Seraph, Consolation at 12:00.2 (-2.7 s)*). The player can change the mechanic, hit, offset, flags,
-   target, note and items, and delete entries (with undo). Replacing a note with an action offers to remember
-   it: `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to
-   the alias dictionary for later imports.
+   Summon Seraph, Consolation at 12:00.2 (-2.7 s)*). An offset the importer wrote shows as set (*-1.5 s*, not
+   *auto*): `(Late)`, a press it moved so that a buff still lasts (`still-active`), or one its recast fit moved
+   so that the action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on
+   the row. The player can change the mechanic, hit, offset, flags, target, note and items, and delete entries
+   (with undo). Replacing a note with an action offers to remember it: `PersonalAliases` saves it in
+   `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the alias dictionary for later
+   imports.
 4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
    and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
    compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced
@@ -602,7 +605,12 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
 - [ ] **Link** of LPDU's TEA sheet, **Fetch**, and in **Options** the fight *The Epic of Alexander
       (Ultimate)*: the column list ends with *Always imported: Extras - N calls for the jobs they name*, and
       **Slashes** shows *(automatic)*. **Import and review**: *Notes about the whole import* says that `/`
-      between actions of one job is read as 'and'. Set **Slashes** to *either one (TBN/Oblation)* and import
+      between actions of one job is read as 'and'. As White Mage, the Gavel Asylum ('LL/BJCC'!G52) shows the
+      offset *-1.5 s*, not *auto*, with the note *Asylum at p2.gavel is planned 85.8 s after the Asylum at
+      p2.photon_1 (recast 90.0 s): it is pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue
+      comes when Asylum is ready again.*; as Scholar, the Water 2 Sacred Soil (E46) shows *-2.4 s* with such a
+      note, and the details of the J Wave 5 call ('Alex Prime/PA'!E21) read *Pressed later: Sacred Soil,
+      Summon Seraph, Consolation at 12:00.2 (-2.7 s)*. Set **Slashes** to *either one (TBN/Oblation)* and import
       again: the note says 'either one', and your column's `Asylum/Plenary` ('LL/BJCC'!G40, as White Mage) or
       `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13, as Scholar) is one call with a choice of its actions instead
       of two or four actions. Hovering the info icon (a circled *i*) next to **Slashes** shows the automatic
