@@ -223,8 +223,12 @@ public sealed partial class PlanImporter
     /// <param name="Earlier">The earlier press whose recast it waits for.</param>
     /// <param name="EarlierAction">That press's action (the same action, or one that shares its recast).</param>
     /// <param name="Charges">The charges of the action at the sync level.</param>
-    /// <param name="AtLate">The new press is the latest "(Late)" allows: the action is ready less than the due lead before it.</param>
-    private sealed record RecastMove(Reminder Use, ActionInfo Action, double Offset, double From, Reminder Earlier, ActionInfo EarlierAction, int Charges, bool AtLate)
+    /// <param name="AtLate">
+    /// The new press is the latest the entry allows ("(Late)", or an action's own lead): the action is ready less than the
+    /// due lead before it.
+    /// </param>
+    /// <param name="Lead">The action whose own lead before the hit is that latest press, or null when "(Late)" is.</param>
+    private sealed record RecastMove(Reminder Use, ActionInfo Action, double Offset, double From, Reminder Earlier, ActionInfo EarlierAction, int Charges, bool AtLate, ActionInfo? Lead)
     {
         public PlanEntry Entry => this.Use.Entry;
     }
@@ -287,7 +291,9 @@ public sealed partial class PlanImporter
         /// <summary>Times this close are one (a press and the moment a charge is ready again).</summary>
         private const double SameTime = 1e-6;
 
-        /// <summary>A guard for <see cref="FitRecasts"/>: every round moves an entry later, up to "(Late)".</summary>
+        /// <summary>
+        /// A guard for <see cref="FitRecasts"/>: every round moves an entry later, up to the latest press it allows.
+        /// </summary>
         private const int MaxFitRounds = 1000;
 
         private readonly SheetDocument document;
@@ -2512,9 +2518,10 @@ public sealed partial class PlanImporter
         /// would have no charge at that press for a seat that sees it (<c>check</c>'s <c>recast-conflict</c>), is pressed
         /// when the action has a charge again plus the default due lead, so that its NOW cue comes when it is ready (TEA's
         /// Gavel Asylum, 85.8 s after the Asylum pressed after Photon, recast 90 s: 1.5 s before its hit instead of 7.2 s).
-        /// It is never pressed later than "(Late)" would press it (<see cref="LateOffsetOf"/>): then just after the action is
-        /// ready; when the action is ready only after that, the entry stays, and <c>check</c> reports the recast. The offset
-        /// is written rounded up to 0.1 s, so the press is never before the action is ready.
+        /// It is never pressed later than "(Late)" would press it, nor than an action's own lead before the hit allows
+        /// (<see cref="LatestFitOf"/>: Neutral Sect, Earthly Star, Passage of Arms): then just after the action is ready;
+        /// when the action is ready only after that, the entry stays, and <c>check</c> reports the recast. The offset is
+        /// written rounded up to 0.1 s, so the press is never before the action is ready.
         /// </summary>
         /// <remarks>
         /// The recast is <c>check</c>'s (<see cref="RecastReplay"/>: recasts and charges at the sync level, one charge
@@ -2530,7 +2537,7 @@ public sealed partial class PlanImporter
         /// press) finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
         /// Prognosis → Holos → Kerachole). An entry several seats see takes the latest press any of them needs. The
         /// earliest press that finds no charge moves first, then the plan is replayed again, until nothing moves: moves
-        /// only go later, up to "(Late)". A <c>recast-fit</c> info names each entry that moved.
+        /// only go later, up to the latest press the entry allows. A <c>recast-fit</c> info names each entry that moved.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
@@ -2629,14 +2636,14 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The later press of the <paramref name="index"/>th press of <paramref name="chain"/> (replayed as
         /// <paramref name="presses"/>), which finds no charge before <paramref name="readyAt"/>: then plus the default due
-        /// lead, rounded up to 0.1 s, but no later than "(Late)" would press the entry. Null when the entry is not pressed
-        /// before its hit, or the action is ready only after that.
+        /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>). Null when the entry is
+        /// not pressed before its hit, or the action is ready only after that.
         /// </summary>
         private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges)
         {
             var (use, action) = chain[index];
             var offset = use.PressAt - use.Hit;
-            var late = this.LateOffsetOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>());
+            var (late, lead) = this.LatestFitOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList());
             if (use.PressAt >= use.Hit || readyAt - use.Hit > late + SameTime)
                 return null;
             var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
@@ -2648,7 +2655,25 @@ public sealed partial class PlanImporter
             // comes back first.
             var spent = Enumerable.Range(0, index).Where(j => presses[j].Spends).ToList();
             var (earlier, earlierAction) = chain[spent[Math.Max(0, spent.Count - charges)]];
-            return new RecastMove(use, action, later, ImportText.Round(offset), earlier, earlierAction, charges, due > late);
+            return new RecastMove(use, action, later, ImportText.Round(offset), earlier, earlierAction, charges, due > late, lead);
+        }
+
+        /// <summary>
+        /// The latest offset the recast fit gives an entry with these actions: "(Late)"'s (<see cref="LateOffsetOf"/>), but
+        /// never later than an action's own lead before the hit (<see cref="ActionInfo.Lead"/>: Earthly Star's 10 s to
+        /// mature, Neutral Sect's 4.5 s to cast the Aspected Helios that puts up its barrier, Passage of Arms's 2 s, pressed
+        /// last), so that the action still does its job; with the action whose lead that is (null for "(Late)").
+        /// </summary>
+        private (double Offset, ActionInfo? Lead) LatestFitOf(List<ActionInfo> actions)
+        {
+            (double Offset, ActionInfo? Lead) latest = (this.LateOffsetOf(actions), null);
+            foreach (var action in actions)
+            {
+                if (action.When == UseTiming.Before && action.Lead is { } lead && lead > 0 && double.IsFinite(lead) && -lead < latest.Offset)
+                    latest = (-lead, action);
+            }
+
+            return latest;
         }
 
         /// <summary>The <c>recast-fit</c> info of an entry the recast fit moved (<see cref="FitRecasts"/>).</summary>
@@ -2660,9 +2685,9 @@ public sealed partial class PlanImporter
                 ? $"the {move.Action.Name} at {move.Earlier.Entry.Mechanic}"
                 : $"the {move.EarlierAction.Name} at {move.Earlier.Entry.Mechanic}, which shares its recast";
             var gap = move.Use.Hit + move.From - move.Earlier.PressAt;
-            var when = move.AtLate
-                ? $"as late as \"(Late)\" would press it, once {move.Action.Name} is ready again"
-                : $"so that its NOW cue comes when {move.Action.Name} is ready again";
+            var when = !move.AtLate ? $"so that its NOW cue comes when {move.Action.Name} is ready again"
+                : move.Lead is { Lead: { } lead } ? $"as late as the {ImportText.Seconds(lead)} s lead of {move.Lead.Name} allows, once {move.Action.Name} is ready again"
+                : $"as late as \"(Late)\" would press it, once {move.Action.Name} is ready again";
             this.Diag(DiagnosticSeverity.Info, "recast-fit",
                 $"{move.Action.Name} at {move.Entry.Mechanic} is planned {ImportText.Seconds(gap)} s after {earlier} ({limit}): it is pressed {ImportText.Seconds(-move.Offset)} s before its hit instead of {ImportText.Seconds(-move.From)} s, {when}.",
                 move.Entry.Src);

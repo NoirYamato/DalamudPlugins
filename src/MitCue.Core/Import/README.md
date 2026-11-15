@@ -240,17 +240,18 @@ Rules worth knowing:
   the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s: TEA's Gavel Asylum, 85.8 s after
   the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of 7.2 s. Never later than `(Late)`
   would press it (1 s before the hit, minus the entry's longest cast or the GCD a follow-up needs first: a Sage's
-  Eukrasian Prognosis stays 3.5 s before the hit at the latest): then just after the action is ready (the J Wave
-  7 Plenary, 1 s before its wave, which still turns due only after the wave before it); when the action is ready only
-  after that, the press stays and `check` reports the recast. Only firm presses keep an action on recast: not an
-  optional entry (in brackets, with a condition, one choice of an either/or), an either/or item or a note ("Temperance
-  (still active)"); an optional call itself still waits ("CU (if up)"). A press with a time in the sheet counts but
-  never moves; an offset the importer wrote (`still-active`'s) may move. A when-ready call ("on CD") is left to the
-  runtime: it keeps its press and counts, since its reminder already waits for the action in game (LPDU TOP's P5 party
-  mitigation on cooldown, which a move would only push into the Blind Faith calls). A sequence moves for its first
-  step only (`check` times every step at its press; in game the later steps follow). An entry several seats see takes
-  the latest press any of them needs; the earliest press without a charge moves first, then the plan is replayed again,
-  until nothing moves.
+  Eukrasian Prognosis stays 3.5 s before the hit at the latest), nor than an action's own lead before the hit allows
+  (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does its job: then just after the
+  action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only after the wave before it);
+  when the action is ready only after that, the press stays and `check` reports the recast. Only firm presses keep an
+  action on recast: not an optional entry (in brackets, with a condition, one choice of an either/or), an either/or
+  item or a note ("Temperance (still active)"); an optional call itself still waits ("CU (if up)"). A press with a
+  time in the sheet counts but never moves; an offset the importer wrote (`still-active`'s) may move. A when-ready
+  call ("on CD") is left to the runtime: it keeps its press and counts, since its reminder already waits for the
+  action in game (LPDU TOP's P5 party mitigation on cooldown, which a move would only push into the Blind Faith
+  calls). A sequence moves for its first step only (`check` times every step at its press; in game the later steps
+  follow). An entry several seats see takes the latest press any of them needs; the earliest press without a charge
+  moves first, then the plan is replayed again, until nothing moves.
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

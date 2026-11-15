@@ -256,6 +256,42 @@ public class ImportRecastFitTests
         Assert.Equal(offset is null ? 1 : 0, Conflicts(r, fight, Job.SGE).Count);
     }
 
+    [Theory]
+    [InlineData("Neutral", 219.0)] // ready 3.5 s before the hit: its Aspected Helios needs 4.5 s
+    [InlineData("Star", 159.0)]    // ready 9 s before the hit: the star needs 10 s to mature
+    public void AnActionWithALeadOfItsOwn_IsNeverPressedLaterThanThatLead(string cell, double bravo)
+    {
+        // Neutral Sect (recast 120 s, pressed 4.5 s before the hit: time to cast the Aspected Helios that puts up its
+        // barrier) and Earthly Star (recast 60 s, 10 s before: time to mature), on Alpha (100) and again on Bravo before
+        // they are ready: pressed when ready, they would not do their job for Bravo's hit. The press stays, and check
+        // reports the recast.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", bravo));
+        var r = Import(Sheet("P1", "Astrologian", "Alpha\t" + cell, "Bravo\t" + cell), fight);
+
+        Assert.Null(Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Offset);
+        Assert.Empty(Fits(r));
+        Assert.Single(Conflicts(r, fight, Job.AST));
+    }
+
+    [Fact]
+    public void AMoveStopsAtTheLeadOfAnActionOfTheEntry()
+    {
+        // A Paladin's Reprisal on Alpha (100, at 97) is ready again at 157. "Reprisal + Wings" on Bravo (159.2), timed by
+        // its Reprisal (-3 s), waits for it, but Passage of Arms, pressed last, comes 2 s before the hit at the latest: the
+        // entry is pressed then, 0.2 s after Reprisal is ready, not 1 s before the hit.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", 159.2));
+        var r = Import(Sheet("P1", "Paladin", "Alpha\tReprisal", "Bravo\tReprisal + Wings"), fight);
+
+        var bravo = At(r, "p1.bravo", "Reprisal");
+        Assert.Equal(["Reprisal", "Passage of Arms"], bravo.Names());
+        Assert.Equal(-2.0, bravo.Offset);
+        Assert.EndsWith(
+            "it is pressed 2.0 s before its hit instead of 3.0 s, as late as the 2.0 s lead of Passage of Arms allows, once Reprisal is ready again.",
+            Assert.Single(Fits(r)).Message,
+            StringComparison.Ordinal);
+        Assert.Empty(Conflicts(r, fight, Job.PLD));
+    }
+
     // ---- chains, seats and entries ----------------------------------------------------------------------------
 
     [Fact]
