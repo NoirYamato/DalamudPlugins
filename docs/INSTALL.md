@@ -71,8 +71,8 @@ Updates keep your settings and plans. An update from 0.1.0.6 or older also keeps
 that was a TEA plan of your own, MitCue chooses it for that job, although a TEA plan now comes with MitCue
 (see [Which plan and column MitCue uses](../README.md#which-plan-and-column-mitcue-uses)). If a plan file
 cannot be read at the first start after the update (another program holds it, or its cloud folder is offline),
-MitCue lists it under **Problems** and waits: it tries again at every start and on **Reload plans**, and each
-job keeps its plan meanwhile.
+MitCue lists it under **Problems** and waits: it tries again at every start and on **Reload plans**, and
+meanwhile each job keeps the plan it had, of the plans MitCue can read.
 
 **Keep the repository row exactly as it is and enabled.** Dalamud loads a plugin installed from a custom
 repository only while that repository is in the list, enabled, with the same URL. If the row is removed,

@@ -296,7 +296,7 @@ job (in green).
   *(automatic)*. Your choices, *(no plan)* included, stay. If a plan file of yours cannot be read when MitCue
   starts (another program holds it, or its cloud folder is offline), MitCue waits with this: **Problems** lists
   the file, and MitCue tries again at every start and on **Reload plans**. Until then each job keeps the plan
-  it had, and *LPDU TEA Heal/Mit* goes only to jobs that had no TEA plan.
+  it had, of the plans MitCue can read: *LPDU TEA Heal/Mit* goes only to jobs without one.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
   calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
   column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,
