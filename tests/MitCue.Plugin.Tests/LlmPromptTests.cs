@@ -153,13 +153,16 @@ public class LlmPromptTests
     public void TheSlashRuleIsDecidedPerDocument()
     {
         // The prompt said that "X/Y" between actions of one job is either/or (`any: [...]`), but the importer reads it per
-        // document (PlanImporter.ChooseSlashReading): LPDU TEA's "Soil/Reci/Deploy/Whisper" is all four actions.
+        // document (PlanImporter.ChooseSlashReading): LPDU TEA's "Soil/Reci/Deploy/Whisper" is all four actions. It names every
+        // separator the importer counts (review finding F15), "|" as one inside a cell: " | " separates the plan text's cells.
         var rule = SlashRuleLine(LlmPrompt.Build(Input()));
 
         Assert.Contains("(\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action.", rule, StringComparison.Ordinal);
         Assert.Contains("Between actions of one job, \"/\" means the same in the whole sheet: all of them (one entry with every action, as for \"A + B\")", rule, StringComparison.Ordinal);
         Assert.Contains(
-            "when no cell joins actions another way (\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); otherwise either one (`any: [...]`)",
+            "when no cell joins actions another way " +
+            "(\"+\", \",\", \"&\", \";\", a \"|\" inside a cell, an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+            "and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); otherwise either one (`any: [...]`)",
             rule,
             StringComparison.Ordinal);
         Assert.DoesNotContain("For the plan below", rule, StringComparison.Ordinal); // no sheet loaded: the rule alone

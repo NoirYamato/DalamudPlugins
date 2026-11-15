@@ -1,3 +1,4 @@
+using MitCue.Core;
 using MitCue.Core.Import;
 using MitCue.Import;
 using MitCue.PluginTests.Support;
@@ -20,23 +21,34 @@ public class ImportOptionsTests
     {
         // The help gave a simplified rule ("no \"+\"", "three or more with \"/\""): every way of joining actions, and the
         // two cells listing several actions of one job, one of them three or more, decide it (PlanImporter.ChooseSlashReading).
+        // Review finding (F15): it left out ";", "|" and a wide gap, which join actions too (CellParser.CountJoins).
         Assert.Contains(
-            "all of them when no cell joins actions another way (\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) " +
+            "all of them when no cell joins actions another way " +
+            "(\"+\", \",\", \"&\", \";\", \"|\", an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
             "and at least two cells list several actions of one job with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); else either one",
             ImportWindow.SlashesHelp,
             StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// The importer reads each sheet as the help's rule says, and where a cell joins actions another way, the help, the
+    /// importer's "slash-reading" note and the AI prompt's rule all name that separator, in the same words.
+    /// </summary>
     [Theory]
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor" }, "read as 'and'")]          // the rule's case
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Indom" }, "read as 'either one'")]          // only one cell lists several
-    [InlineData(new[] { "Soil/Succor", "Indom/Succor" }, "read as 'either one'")]                // none lists three or more
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom, Succor" }, "read as 'either one'")] // a comma joins
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom & Succor" }, "read as 'either one'")]
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom / Succor" }, "read as 'either one'")] // a spaced slash
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom -> Succor" }, "read as 'either one'")]
-    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom\nSuccor" }, "read as 'either one'")]
-    public void TheAutomaticReading_IsTheHelpsRule(string[] cells, string reading)
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor" }, "read as 'and'", null)]          // the rule's case
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Indom" }, "read as 'either one'", null)]          // only one cell lists several
+    [InlineData(new[] { "Soil/Succor", "Indom/Succor" }, "read as 'either one'", null)]                // none lists three or more
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom, Succor" }, "read as 'either one'", "\",\"")] // a comma joins
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom & Succor" }, "read as 'either one'", "\"&\"")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom / Succor" }, "read as 'either one'", "a spaced \" / \"")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom -> Succor" }, "read as 'either one'", "an arrow")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom\nSuccor" }, "read as 'either one'", "a line break")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom; Succor" }, "read as 'either one'", "\";\"")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom | Succor" }, "read as 'either one'", "\"|\"")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom   Succor" }, "read as 'either one'", "a gap of three or more spaces")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom\t\t\tSuccor" }, "read as 'either one'", "a gap of three or more spaces")]
+    [InlineData(new[] { "Soil/Reci/Deploy/Whisper", "Soil/Succor", "Indom  Succor" }, "read as 'and'", null)] // two spaces join nothing
+    public void TheAutomaticReading_IsTheHelpsRule(string[] cells, string reading, string? separator)
     {
         var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
         data.EnsureLoaded();
@@ -50,7 +62,15 @@ public class ImportOptionsTests
 
         var result = ImportPipeline.Import(doc, ImportWindow.OptionsFor(top, data.Actions, data.Aliases!, null, string.Empty, SlashReading.Auto, "2026-11-11"));
 
-        Assert.Contains(reading, Assert.Single(result.Diagnostics, d => d.Code == "slash-reading").Message, StringComparison.Ordinal);
+        var note = Assert.Single(result.Diagnostics, d => d.Code == "slash-reading").Message;
+        Assert.Contains(reading, note, StringComparison.Ordinal);
+        if (separator is null)
+            return;
+        var prompt = LlmPrompt.Build(new LlmPromptInput { Fight = top, Jobs = [Job.SCH] });
+        var rule = prompt.Split('\n').Single(l => l.Contains("\"X/Y\" between actions of different jobs", StringComparison.Ordinal));
+        Assert.Contains(separator, ImportWindow.SlashesHelp, StringComparison.Ordinal);
+        Assert.Contains(separator.Replace('"', '\''), note, StringComparison.Ordinal); // the note quotes with '
+        Assert.Contains(separator, rule, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -1026,8 +1026,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
     /// </summary>
     internal const string SlashesHelp =
         "What \"X/Y\" between two actions of one job means. Automatic: all of them when no cell joins actions another way " +
-        "(\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job " +
-        "with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
+        "(\"+\", \",\", \"&\", \";\", \"|\", an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+        "and at least two cells list several actions of one job with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); " +
+        "else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
         "The cells of every tab count, whichever tabs and columns you import. The review's notes about the whole import say " +
         "which reading was used.";
 

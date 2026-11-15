@@ -189,10 +189,10 @@ Rules worth knowing:
   lists its entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a
   press moved.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
-  actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
-  more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
-  whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why
-  (`ImportResult.DocumentSlashes` is the document's own reading). "All of
+  actions another way (`+`, `,`, `&`, `;`, `|`, arrows, ` / `, line breaks, gaps of three or more spaces) and lists
+  several actions of one job with `/` in two or more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all
+  of them, lexed like `+`. Every plan tab counts, whatever is imported; `ImportOptions.Slashes` overrides it, and the
+  `slash-reading` info says which and why (`ImportResult.DocumentSlashes` is the document's own reading). "All of
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
   `and/or`. In both readings, a `/` between two single letters is one word, spaced or not (`N/A`, and `N / A`, which
   joins nothing), slots and tank target words joined by `/` after an action are one target, either of them (`Benison

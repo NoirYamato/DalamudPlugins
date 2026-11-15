@@ -94,6 +94,7 @@ internal sealed class PlanStore
     private readonly HashSet<string> bundledIds = new(StringComparer.OrdinalIgnoreCase); // also those a user copy replaces
     private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping, UnknownSeat? Seat)> suggestions = [];
     private int suggestionsRevision = -1;
+    private bool userPlansUnread; // the last load could not list the plans folder or read a plan file (MigrateFromVersion1 waits)
 
     /// <summary>Creates the store; nothing is read until <see cref="EnsureLoaded"/>.</summary>
     public PlanStore(DirectoryInfo configDirectory, Configuration config, Action saveConfig, ErrorReporter errors)
@@ -136,7 +137,10 @@ internal sealed class PlanStore
             this.Reload();
     }
 
-    /// <summary>Re-reads bundled and user plans (the first time, a configuration of an older version is brought up to date).</summary>
+    /// <summary>
+    /// Re-reads bundled and user plans (a configuration of an older version is brought up to date by the first load that
+    /// reads every plan file: <see cref="MigrateFromVersion1"/>).
+    /// </summary>
     public void Reload()
     {
         this.Loaded = true;
@@ -448,7 +452,10 @@ internal sealed class PlanStore
     /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. TEA's only bundled plan
     /// (LPDU's TEA sheet) is the automatic one of every job it names, with no <see cref="BundledDefaults"/> entry. Where no
     /// bundled plan covers the job (DMU ships none; LPDU's TEA sheet names no melee job but the Monk, as the calls of
-    /// its melee seats are job-less), the user's own plan is the automatic one.
+    /// its melee seats are job-less), the user's own plan is the automatic one. While the settings are still at version 1
+    /// (<see cref="MigrateFromVersion1"/> waits for a plan file it could not read), a job keeps the plan version 1 gave it
+    /// automatically, so LPDU TEA takes no own plan's place before the migration has pinned it; a job version 1 gave none
+    /// gets this order's plan.
     /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {
@@ -465,6 +472,8 @@ internal sealed class PlanStore
         }
 
         automatic = true;
+        if (this.config.Version < 2 && this.Version1Plan(fightKey, job) is { } before)
+            return before;
         var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
 
         // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job, and
@@ -479,20 +488,28 @@ internal sealed class PlanStore
     public StoredPlan? ActivePlanFor(string fightKey, Job job) => this.ActivePlanFor(fightKey, job, out _);
 
     /// <summary>
-    /// Settings version 1 to 2, once, on the first load: where a fight and job now get another plan automatically than
-    /// with version 1, the plan they had is chosen for them, so an update never changes a player's plan unasked. Version 1
-    /// had no bundled TEA plan (<see cref="BundledSinceVersion2"/>): the player's own TEA plan (the first by name that
-    /// names the job) was the job's automatic plan, also after a share-code import with the box unticked or a plan file
-    /// put in the plans folder, and LPDU TEA would now take its place. Version 1 also ranked the share code of a bundled
-    /// plan among the player's own plans (<see cref="ActivePlanFor(string, Job, out bool)"/>). Choices made in
+    /// Settings version 1 to 2, once, on the first load that reads every plan file: where a fight and job now get another
+    /// plan automatically than with version 1, the plan they had is chosen for them, so an update never changes a player's
+    /// plan unasked. Version 1 had no bundled TEA plan (<see cref="BundledSinceVersion2"/>): the player's own TEA plan (the
+    /// first by name that names the job) was the job's automatic plan, also after a share-code import with the box unticked
+    /// or a plan file put in the plans folder, and LPDU TEA would now take its place. Version 1 also ranked the share code
+    /// of a bundled plan among the player's own plans (<see cref="ActivePlanFor(string, Job, out bool)"/>). Choices made in
     /// /mitcue > Plans, "no plan" included, stay, and so do the automatic plans that are the same as before (TOP's
     /// bundled plans).
     /// </summary>
+    /// <remarks>
+    /// A plan file that could not be read (another program holds it, its cloud folder is offline) may hold the plan a job
+    /// had, or the one it chose: the migration then waits, with no pins, the settings at version 1 and nothing saved, and
+    /// the next load (the next start, "Reload plans") tries again. Until then each job keeps the plan version 1 gave it
+    /// (<see cref="ActivePlanFor(string, Job, out bool)"/>). A file that reads but does not parse is no plan in any version
+    /// and does not hold it up.
+    /// </remarks>
     private void MigrateFromVersion1()
     {
-        if (this.config.Version >= 2)
+        if (this.config.Version >= 2 || this.userPlansUnread)
             return;
 
+        this.config.Version = 2; // ActivePlanFor gives version 2's automatic plans from here on
         foreach (var fight in this.plans.Select(p => p.Plan.Fight).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
         {
             foreach (var job in this.ForFight(fight).SelectMany(p => JobsOf(p.Plan)).Distinct().ToList())
@@ -504,7 +521,6 @@ internal sealed class PlanStore
             }
         }
 
-        this.config.Version = 2;
         this.SaveConfig();
     }
 
@@ -813,6 +829,7 @@ internal sealed class PlanStore
 
     private void LoadUser()
     {
+        this.userPlansUnread = false;
         string[] files;
         try
         {
@@ -820,6 +837,7 @@ internal sealed class PlanStore
         }
         catch (Exception ex)
         {
+            this.userPlansUnread = true;
             this.errors.Report("plans.load.user", "Listing saved plans", ex);
             return;
         }
@@ -827,9 +845,12 @@ internal sealed class PlanStore
         Array.Sort(files, StringComparer.Ordinal);
         foreach (var file in files)
         {
+            var read = false;
             try
             {
-                var plan = PlanSerializer.FromJson(File.ReadAllText(file));
+                var json = File.ReadAllText(file);
+                read = true;
+                var plan = PlanSerializer.FromJson(json);
                 Normalize(plan);
 
                 // A user plan overrides a bundled plan with the same id; duplicate user ids keep the first file.
@@ -847,6 +868,8 @@ internal sealed class PlanStore
             }
             catch (Exception ex)
             {
+                if (!read)
+                    this.userPlansUnread = true; // not read (locked, offline): it may hold a plan, unlike a file that does not parse
                 this.errors.Report("plans.load.user." + Path.GetFileName(file), $"Reading saved plan {Path.GetFileName(file)}", ex);
             }
         }

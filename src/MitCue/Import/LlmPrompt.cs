@@ -192,7 +192,8 @@ internal static class LlmPrompt
     {
         var rule = "\"X/Y\" between actions of different jobs is a call for each job (\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action. " +
                    "Between actions of one job, \"/\" means the same in the whole sheet: all of them (one entry with every action, as for \"A + B\") when no cell joins actions another way " +
-                   "(\"+\", \",\", \"&\", an arrow, a spaced \" / \" or a line break) and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); " +
+                   "(\"+\", \",\", \"&\", \";\", a \"|\" inside a cell, an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+                   "and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); " +
                    "otherwise either one (`any: [...]`), as \"TBN/Oblation\" next to \"Living Dead + ...\".";
         if (input.Slashes is not { } reading || reading == SlashReading.Auto)
             return rule;
