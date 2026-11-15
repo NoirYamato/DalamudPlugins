@@ -318,8 +318,12 @@ floor (DESIGN.md §5.2): a series floor, the earliest use that still reaches a l
 sequence, or, when the default 1.5 s would turn it due earlier, the earliest use that is not early (The Blackest
 Night beside a Rampart at −6 s: due 6 s before the hit, not 7.5 s). Done and missed rows stay visible for 3 s,
 or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show reminders skipped
-by a phase push**. At the lookahead time the cooldown provider is asked whether the action will be ready, which
-produces *ready in N s* and *no Lily*.
+by a phase push**. The overlay (`OverlayModel.Select`) shows the active rows that fit in **Maximum rows**, then
+the most recently finished ones in the room left, in the scheduler's order (press time, then plan order, an item
+pressed last after the other items of its entry, item order), whatever their state, so a row keeps its place when
+it is done; the co-healer's rows are merged in by press time, the player's first on a tie, and *+N more* counts
+the player's active rows that did not fit. At the lookahead time the cooldown provider is asked whether the
+action will be ready, which produces *ready in N s* and *no Lily*.
 
 **Recognising your presses.**
 
@@ -419,12 +423,15 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil, Summon
    Seraph, Consolation at 12:00.2 (-2.7 s)*). An offset the importer wrote shows as set (*-1.5 s*, not *auto*):
    `(Late)`, a press it moved so that a buff still lasts (`still-active`), or one its recast fit moved so that the
-   action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on the row. When
-   the action is ready only too late, the entry keeps its press: `mitcue check` reports the recast, and in game
-   the reminder shows *ready in N s*. The player can change the mechanic, hit, offset, flags, target, note and
-   items, and delete entries (with undo). Replacing a note with an action offers to remember it: `PersonalAliases`
-   saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the alias dictionary for
-   later imports.
+   action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on the row. A
+   change of the row's offset (a drag, a typed value, *Automatic timing*, *At the hit (0 s)*), mechanic or hit
+   (*Relative to*) removes the recast-fit note, as a change of the offset removes the importer's notes about the
+   sheet's time and one of the mechanic those about the mechanic; choosing the hit the entry already has changes
+   nothing. When the action is ready only too late, the entry keeps its press: `mitcue check` reports the recast,
+   and in game the reminder shows *ready in N s*. The player can change the mechanic, hit, offset, flags, target,
+   note and items, and delete entries (with undo). Replacing a note with an action offers to remember it:
+   `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the alias
+   dictionary for later imports.
 4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
    and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
    compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced
@@ -587,9 +594,10 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       party, `[H1]` and only the columns of the party's jobs), never `[H2 SGE]`. As White Mage,
       *NoirMit - WHM* has no Scholar column, so first choose *LPDU TOP Mitigation* under **Active plan** (your
       own calls are then LPDU's *H1 WHM*, 11 entries): the H2 columns' calls appear dimmed with tags like
-      `[H2 SCH]` (outside a party `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order, and
-      your own rows are never pushed out. White Mage: afterwards, set **Active plan** back to *(automatic: the
-      bundled plan for this job, else my own plan for it)*.
+      `[H2 SCH]` (outside a party `[H2 SGE]` too), never `[H1 AST]`. All rows are in press-time order (rows
+      for the same moment in the plan's order, done or not), and your own rows are never pushed out. White
+      Mage: afterwards, set **Active plan** back to *(automatic: the bundled plan for this job, else my own
+      plan for it)*.
 - [ ] **Debug** during a preview: the *Preview* section shows *sim clock …; events played/total*, and the
       reminder list changes state as the preview runs.
 
@@ -632,14 +640,16 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       p2.photon_1 (recast 90.0 s): it is pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue
       comes when Asylum is ready again.*; as Scholar, the Water 2 Sacred Soil (E46) shows *-2.4 s* with such a
       note, and the details of the J Wave 5 call ('Alex Prime/PA'!E21) read *Pressed later: Sacred Soil,
-      Summon Seraph, Consolation at 12:00.2 (-2.7 s)*. Set **Slashes** to *either one (TBN/Oblation)* and import
-      again: the note says 'either one', and your column's `Asylum/Plenary` ('LL/BJCC'!G40, as White Mage) or
-      `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13, as Scholar) is one call with a choice of its actions instead
-      of two or four actions. Hovering the info icon (a circled *i*) next to **Slashes** shows the automatic
-      rule and says that the cells of every tab count. **< Back** to **Options**, **Not reading it right? Use
-      the AI route**, then **Copy AI prompt**: the prompt says *For the plan below, the player chose in
-      MitCue's import options to read "/" between actions of one job as either one: do the same.* As
-      Scholar, the next rule begins *This sheet numbers its Seraph calls*. Close the window without saving.
+      Summon Seraph, Consolation at 12:00.2 (-2.7 s)*. Right-click that offset (G52 or E46) and choose
+      *Automatic timing (from the action)*: it reads *auto* and the note is gone. Set **Slashes** to *either one
+      (TBN/Oblation)* and import again: the note says 'either one', and your column's `Asylum/Plenary`
+      ('LL/BJCC'!G40, as White Mage) or `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13, as Scholar) is one call with
+      a choice of its actions instead of two or four actions. Hovering the info icon (a circled *i*) next to
+      **Slashes** shows the automatic rule and says that the cells of every tab count. **< Back** to
+      **Options**, **Not reading it right? Use the AI route**, then **Copy AI prompt**: the prompt says *For the
+      plan below, the player chose in MitCue's import options to read "/" between actions of one job as either
+      one: do the same.* As Scholar, the next rule begins *This sheet numbers its Seraph calls*. Close the window
+      without saving.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
       **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan

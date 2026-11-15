@@ -806,6 +806,9 @@ previews, which have no cooldown provider.
    offset and press time the overlay will use (§5.1), with the press of each item pressed
    later than the entry ("Pressed later: …"); an offset the importer wrote (`(Late)`, step
    4, the recast fit) shows as set, not automatic, step 4's and the fit's with their info.
+   An edit of the entry's offset, mechanic or hit removes the fit's info, which no longer
+   describes the entry, as an edit of the offset removes the importer's notes about the
+   sheet's time and one of the mechanic those about the mechanic.
    The user can change the mechanic, hit, offset, flags, target, note and items, and delete
    entries; replacing a note with an action offers to save the shorthand as a personal
    alias; the plan is saved as a user plan, made the active plan when *Make it my active
@@ -842,7 +845,11 @@ files and links; the plugin's import window adds downloading, the review and the
   (boss syncs and own action uses); `InCombat` condition edges; duty wipe/recommence;
   territory changes.
 - **Overlay:** compact list (max N rows), icon + name + countdown + mechanic + target;
-  colours per state; optional click-through and lock; scale and opacity.
+  colours per state; optional click-through and lock; scale and opacity. **As built:** the
+  active rows first, then the most recently finished ones in the room left, all in the
+  scheduler's order: press time, then plan order, an item pressed last (Passage of Arms)
+  after the other items of its entry, item order, whatever their state; the co-healer's
+  rows are merged in by press time, the player's first on a tie.
 - **Config defaults:** lookahead 15 s; due lead 1.5 s; max rows 5; sound on due (game SE);
   own calls only; co-healer calls off; show skipped off; post-pull summary on; overlay
   locked off; hotbar glow not in v1. **As built:** also track done/missed on, sound effect

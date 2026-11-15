@@ -131,8 +131,9 @@ TOP - P1: Omega - 1:15
 - **Header:** the fight, then *pull in 12.3s* during a countdown, or the phase and fight clock during a pull,
   or *waiting for pull (plan name)* while you wait in the zone. A preview adds `PREVIEW 1x` or `PREVIEW 4x`
   at the front.
-- **Rows:** up to **Maximum rows** of your next reminders, earliest first. Each row has the action icon, the
-  time left, the action name (in your client's language), the mechanic, and the target or note from the plan.
+- **Rows:** up to **Maximum rows** of your next reminders, earliest first; calls for the same moment are in the
+  plan's order, done or not (Passage of Arms after the other actions of its call). Each row has the action icon,
+  the time left, the action name (in your client's language), the mechanic, and the target or note from the plan.
   If more of your calls are coming than fit, the last line says `+N more`.
 - **Time and state:**
   - a countdown (`12s`, `3.1s`): coming up;
@@ -446,17 +447,17 @@ Passage of Arms of another column that the same player sees, before that one's h
 channel: it is then pressed 0.1 s before the Passage of Arms, if the action is ready by then (a tank column's
 *Reprisal* next to *PLD Wings* in *Extras*), else it keeps its time. That time is written into the plan: the
 review shows it as set, not automatic, with a note that says why (*… so that its NOW cue comes when Asylum is
-ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold its
-action back from later calls, though it waits for it itself; a call with a time in the sheet, or marked *on
-cooldown*, keeps its time; and a sequence (`→`) waits only when its later steps are instant actions woven in
-after the first (*Kerachole → Holos*). When the action would be ready too late, the call keeps its time, and so
-does a call whose wait would press another of its actions earlier than without it (*Rampart + Reprisal* on
-TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge) or put a follow-up, of this call or another of
-yours, out of its trigger's time (a Consolation more than 22 s after Summon Seraph, or before it); in game the
-reminder then shows *ready in N s*. `mitcue check` reports a call that waited as tight (*only 1.5 s to spare*,
-or less when `(Late)`, a lead or a Passage of Arms stopped it: 0.9 s for the J Wave 7 Plenary, none for the
-Sage's Protean 2 call), and one that could not wait as a recast conflict. The full rules:
-[src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
+ready again.*), which goes once you change the call's offset, mechanic or hit there, and `mitcue plan` shows it
+without `*`. An optional call does not hold its action back from later calls, though it waits for it itself; a
+call with a time in the sheet, or marked *on cooldown*, keeps its time; and a sequence (`→`) waits only when
+its later steps are instant actions woven in after the first (*Kerachole → Holos*). When the action would be
+ready too late, the call keeps its time, and so does a call whose wait would press another of its actions
+earlier than without it (*Rampart + Reprisal* on TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge)
+or put a follow-up, of this call or another of yours, out of its trigger's time (a Consolation more than 22 s
+after Summon Seraph, or before it); in game the reminder then shows *ready in N s*. `mitcue check` reports a
+call that waited as tight (*only 1.5 s to spare*, or less when `(Late)`, a lead or a Passage of Arms stopped
+it: 0.9 s for the J Wave 7 Plenary, none for the Sage's Protean 2 call), and one that could not wait as a
+recast conflict. The full rules: [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
 it, and closing the window cancels it too.
