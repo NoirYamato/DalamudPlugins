@@ -2525,8 +2525,12 @@ public sealed partial class PlanImporter
         /// Gavel Asylum, 85.8 s after the Asylum pressed after Photon, recast 90 s: 1.5 s before its hit instead of 7.2 s).
         /// It is never pressed later than "(Late)" would press it, nor than an action's own lead before the hit allows
         /// (<see cref="LatestFitOf"/>: Neutral Sect, Earthly Star, Passage of Arms): then just after the action is ready;
-        /// when the action is ready only after that, the entry stays, and <c>check</c> reports the recast. The offset is
-        /// written rounded up to 0.1 s, so the press is never before the action is ready.
+        /// when the action is ready only after that, the entry stays, and <c>check</c> reports the recast. It stays too
+        /// when the move would press another of its items earlier than without it: the offset is every item's press,
+        /// and an item may be pressed later than the entry (<see cref="TimingRules.ForEntry"/>: a later hit or a
+        /// series floor of its own, or last), so "Rampart + Reprisal" on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s
+        /// before the first protean, for the Wild Charge. The offset is written rounded up to 0.1 s, so the press is
+        /// never before the action is ready.
         /// </summary>
         /// <remarks>
         /// The recast is <c>check</c>'s (<see cref="RecastReplay"/>: recasts and charges at the sync level, one charge
@@ -2543,10 +2547,11 @@ public sealed partial class PlanImporter
         /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
         /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
         /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
-        /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A press that
-        /// moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW cue: in a chain of
-        /// moves each NOW cue still comes when its action is ready for a player who presses at the press times (each link
-        /// keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before the fit.
+        /// replayed again, until nothing moves: moves only go later, for every item, up to the latest press the entry
+        /// allows. A press that moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW
+        /// cue: in a chain of moves each NOW cue still comes when its action is ready for a player who presses at the press
+        /// times (each link keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before
+        /// the fit.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
@@ -2679,7 +2684,8 @@ public sealed partial class PlanImporter
         /// <paramref name="presses"/>), which finds no charge before <paramref name="readyAt"/>: then plus the default due
         /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>). Null when the entry is
         /// not pressed before its hit, is a sequence whose later steps need time of their own
-        /// (<see cref="LaterStepsAreWoven"/>), or the action is ready only after that.
+        /// (<see cref="LaterStepsAreWoven"/>), the action is ready only after that, or that press would be earlier than
+        /// another item of the entry is pressed without it (<see cref="LastOffset"/>).
         /// </summary>
         private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges)
         {
@@ -2691,6 +2697,11 @@ public sealed partial class PlanImporter
             var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
             var later = ImportText.Round(Math.Min(due, late));
             if (later <= offset + OffsetPrecision)
+                return null;
+
+            // The offset is every item's press: never one earlier than without the move (an item that waits for a later
+            // hit or a series floor of its own, or comes last), which would lose what it waits for.
+            if (later < LastOffset(this.TimingOf(use.Entry)) - OffsetPrecision)
                 return null;
 
             // The press it waits for: the last one before it that spent a charge, with several charges the one whose charge

@@ -260,6 +260,24 @@ public class ImportRecastFitTests
         Assert.Single(Conflicts(r, tea, Job.WHM));
     }
 
+    [Fact]
+    public void WhenTheMoveWouldPressAnotherItemEarlier_ThePressStays()
+    {
+        // TOP's Wave Cannon 2 (protean 1269.9, Wild Charge 1278.2): "Rampart + Reprisal" presses the Rampart 6 s before
+        // the hit and the Reprisal on its own 0.5 s before it, so that it lasts through the Wild Charge. The Rampart pressed
+        // for Cosmo Arrow 1 (1176.2) is ready again at 1266.2: a move to 2.2 s before the hit would press the Reprisal
+        // 1.7 s earlier, short of the Wild Charge. The entry keeps its presses, and check reports the Rampart.
+        var top = PlanImports.Top;
+        var r = Import(Sheet("P6", "MT", "Cosmo Arrow 1\tRampart", "WC2\tRampart + Reprisal"), top);
+
+        var entry = At(r, "p6.wave_cannon_2", "Rampart");
+        Assert.Null(entry.Offset);
+        Assert.Empty(Fits(r));
+        var timing = Timing(entry, top);
+        Assert.Equal([-6.0, -0.5], timing.Items.Select(i => Math.Round(i.PressAt - timing.Hit, 3)));
+        Assert.Contains(Conflicts(r, top, Job.PLD, "MT"), f => f.ActionId == RepoFiles.Action("Rampart").Id);
+    }
+
     [Theory]
     [InlineData(128, "Soil", -1.0)]          // ready at 125.5, 2.5 s before the hit: pressed 1 s before it
     [InlineData(128, "Succor + Soil", null)] // the Succor's 2 s cast must end 1 s before the hit: pressed 3 s before it at the latest, not yet ready

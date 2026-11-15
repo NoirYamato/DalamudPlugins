@@ -249,6 +249,9 @@ Rules worth knowing:
   own lead before the hit allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does
   its job: then just after the action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only
   after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.
+  It stays too when the move would press another item of the entry earlier than without it, since the offset is every
+  item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
+  (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge).
   Only firm presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
   either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
   ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote
