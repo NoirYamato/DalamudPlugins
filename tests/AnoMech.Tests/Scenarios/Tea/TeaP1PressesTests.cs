@@ -334,6 +334,33 @@ public class TeaP1PressesTests
                     "never on the player: an effect the client sees itself cast breaks its own cast state");
     }
 
+    // Provoke's 25 y are counted past the two hitboxes, a tank's half yalm and the Liquid Hand's 1.6 y: 27.1 y between
+    // their centres.
+    [TestCase(27.0f, true)]
+    [TestCase(27.2f, false)]
+    public void TheRunsOwnProvokeReachesTwentyFiveYalmsPastTheTwoHitboxes(float apart, bool reaches)
+    {
+        var (hitboxes, inReach, pressed, raised) = (float.NaN, false, false, 0);
+        Presses((world, presses, _) =>
+        {
+            var hand = world.SpawnEnemy(new EnemySpawnConfig(BNpcBaseId: P1BNpcBaseId.LiquidHand, NameId: P1BNpcNameId.LiquidHand, Level: Level,
+                Placement: new Placement(new Vector3(0f, 0f, 10f), 0f)))!;
+            presses.Provoked += _ => raised++;
+            world.Events.Add(1f, () =>
+            {
+                var offTank = world.Party.Get(OffTank)!;
+                TimelineRun.Place(world, OffTank, 0f, 10f - apart);
+                hitboxes = offTank.HitboxRadius + hand.HitboxRadius;
+                inReach = presses.ProvokeReaches(offTank, hand);
+                pressed = presses.Provoke(offTank, hand);
+            });
+            world.Events.Add(2f, () => { });
+        });
+
+        Assert.That(hitboxes, Is.EqualTo(2.1f).Within(0.001f));
+        Assert.That((inReach, pressed, raised), Is.EqualTo((reaches, reaches, reaches ? 1 : 0)));
+    }
+
     // A bot's is its job's; the player's seat gets the one the bot of that seat would press.
     [Test]
     public void TheRunsOwnInvulnerabilityIsTheSeatsJobs()
