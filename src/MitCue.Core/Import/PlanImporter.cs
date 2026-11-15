@@ -2682,8 +2682,10 @@ public sealed partial class PlanImporter
         /// when the move would press another of its items earlier than without it: the offset is every item's press,
         /// and an item may be pressed later than the entry (<see cref="TimingRules.ForEntry"/>: a later hit or a
         /// series floor of its own, or last), so "Rampart + Reprisal" on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s
-        /// before the first protean, for the Wild Charge. The offset is written rounded up to 0.1 s, so the press is
-        /// never before the action is ready.
+        /// before the first protean, for the Wild Charge; and when it would press a follow-up of the entry later than
+        /// <c>check</c> allows after its trigger (<see cref="KeepsItsFollowUps"/>: a Consolation, which
+        /// <see cref="MarkStillActive"/> may have read from a second Seraph, more than 22 s after the Summon Seraph before
+        /// it). The offset is written rounded up to 0.1 s, so the press is never before the action is ready.
         /// </summary>
         /// <remarks>
         /// The recast is <c>check</c>'s (<see cref="RecastReplay"/>: recasts and charges at the sync level, one charge
@@ -2787,8 +2789,9 @@ public sealed partial class PlanImporter
         /// </summary>
         private IEnumerable<RecastMove> RecastMoves(Job job, List<PlanEntry> entries, HashSet<PlanEntry> movable)
         {
+            var reminders = new ReminderScheduler(this.fight, entries, this.options.Actions, DefaultReminders).All;
             var uses = new List<(Reminder Reminder, ActionInfo Action)>();
-            foreach (var r in new ReminderScheduler(this.fight, entries, this.options.Actions, DefaultReminders).All)
+            foreach (var r in reminders)
             {
                 if (RecastReplay.Tracked(r.Item, this.options.Actions, job, this.level, CheckDefaults.MinRecast) is { } action)
                     uses.Add((r, action));
@@ -2803,13 +2806,43 @@ public sealed partial class PlanImporter
                 for (var i = 0; i < chain.Count; i++)
                 {
                     var r = chain[i].Reminder;
-                    if (!states[i].HasCharge && movable.Contains(r.Entry) && IsPressedAtTheEntrysPress(r) && this.MoveFor(chain, presses, i, states[i].ReadyAt, charges) is { } move)
+                    if (!states[i].HasCharge && movable.Contains(r.Entry) && IsPressedAtTheEntrysPress(r)
+                        && this.MoveFor(chain, presses, i, states[i].ReadyAt, charges) is { } move
+                        && this.KeepsItsFollowUps(job, r.Entry, r.Hit + move.Offset, reminders))
                     {
                         yield return move;
                         break;
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// False when pressing every item of <paramref name="entry"/> at <paramref name="press"/> would take a follow-up of
+        /// it out of the window after the last press of its trigger that <c>check</c> allows
+        /// (<see cref="PlanChecker.FollowUpWindow"/>, on the seat's <paramref name="reminders"/>): a Consolation more than
+        /// 22 s after the Summon Seraph before it finds Seraph gone, also one that <see cref="MarkStillActive"/> read from
+        /// a second Seraph. True when it is out of it already.
+        /// </summary>
+        private bool KeepsItsFollowUps(Job job, PlanEntry entry, double press, IReadOnlyList<Reminder> reminders)
+        {
+            foreach (var r in reminders)
+            {
+                if (!ReferenceEquals(r.Entry, entry) || r.Item.Action is not { } id || r.Item.Any != null
+                    || RecastReplay.Usable(this.options.Actions, id, job, this.level) is not { FollowUpOf: { } triggerId }
+                    || this.options.Actions.Get(triggerId) is not { } trigger || PlanChecker.FollowUpWindow(trigger, this.level) is not { } window)
+                {
+                    continue;
+                }
+
+                var triggers = reminders.Where(x => x.Item.ActionIds().Any(t => t == trigger.Id
+                    || (this.options.Actions.Get(t) is { } a && this.options.Actions.ResolveAt(a, this.level).Id == trigger.Id))).Select(x => x.PressAt).ToList();
+                bool Within(double at) => triggers.Any(t => t <= at + SameTime && at - t <= window + SameTime);
+                if (Within(r.PressAt) && !Within(press))
+                    return false;
+            }
+
+            return true;
         }
 
         /// <summary>

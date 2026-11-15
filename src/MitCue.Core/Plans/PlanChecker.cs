@@ -181,6 +181,22 @@ public static class PlanChecker
     }
 
     /// <summary>
+    /// How long after a press of <paramref name="trigger"/> its follow-ups can be used, as the follow-up check counts it
+    /// (<c>follow-up-without-trigger</c>): its longest effect at <paramref name="level"/> (Summon Seraph's 22 s for
+    /// Consolation). Null when the check leaves the trigger out: one with a recast under 30 s is pressed right before its
+    /// follow-up and never planned (Eukrasia, Play II/III, Minor Arcana), and one without an effect duration.
+    /// </summary>
+    /// <exception cref="ArgumentNullException"><paramref name="trigger"/> is null.</exception>
+    public static double? FollowUpWindow(ActionInfo trigger, int level)
+    {
+        ArgumentNullException.ThrowIfNull(trigger);
+        if (trigger.RecastAt(level) < MinTriggerRecast)
+            return null;
+        var window = trigger.Effects.Select(e => e.DurationAt(level) ?? 0).Append(trigger.DurationAt(level) ?? 0).Max();
+        return window > 0 ? window : null;
+    }
+
+    /// <summary>
     /// A timeline time as the phase id and the time from the phase start, e.g. "P2 1:39" or "P1 -0:05" (whole seconds).
     /// </summary>
     /// <param name="fight">The fight (for its phases).</param>
@@ -389,14 +405,11 @@ public static class PlanChecker
             {
                 if (r.Item.Action is not { } id || r.Item.Any != null || this.Usable(id) is not { } action)
                     continue;
-                if (action.FollowUpOf is not { } triggerId || this.actions.Get(triggerId) is not { } trigger)
+                if (action.FollowUpOf is not { } triggerId || this.actions.Get(triggerId) is not { } trigger
+                    || FollowUpWindow(trigger, this.level) is not { } window)
+                {
                     continue;
-                if (trigger.RecastAt(this.level) < MinTriggerRecast)
-                    continue;
-
-                var window = trigger.Effects.Select(e => e.DurationAt(this.level) ?? 0).Append(trigger.DurationAt(this.level) ?? 0).Max();
-                if (window <= 0)
-                    continue;
+                }
 
                 var before = this.reminders
                     .Where(x => x.PressAt <= r.PressAt + Epsilon && this.ResolvedIds(x.Item).Contains(trigger.Id))

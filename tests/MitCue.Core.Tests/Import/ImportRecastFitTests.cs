@@ -278,6 +278,25 @@ public class ImportRecastFitTests
         Assert.Contains(Conflicts(r, top, Job.PLD, "MT"), f => f.ActionId == RepoFiles.Action("Rampart").Id);
     }
 
+    [Fact]
+    public void WhenTheMoveWouldPressAFollowUpAfterItsTriggersWindow_ThePressStays()
+    {
+        // "Soil + Seraph" on Charlie reads its Seraph as the Consolation for the Seraph summoned for Bravo (104.5), 20 s
+        // before the entry's press: Seraph is out for 22 s. The Soil pressed for Alpha (95.5) is ready again at 125.5, so
+        // the fit would press the entry 2 s before its hit (127), the Consolation 22.5 s after the summon, when Seraph is
+        // gone. The entry keeps its press, and check reports the Soil.
+        var fight = Fight(90, ("Alpha", 100), ("Bravo", 107.5), ("Charlie", 129));
+        var r = Import(Sheet("P1", "Scholar", "Alpha\tSoil", "Bravo\tSeraph", "Charlie\tSoil + Seraph"), fight);
+
+        var charlie = At(r, "p1.charlie", "Sacred Soil");
+        Assert.Equal(["Sacred Soil", "Consolation"], charlie.Names());
+        Assert.Null(charlie.Offset);
+        Assert.Empty(Fits(r));
+        var findings = PlanChecker.Check(fight, RepoFiles.Actions, r.Plan, new PlayerContext(Job.SCH, fight.SyncLevel));
+        Assert.DoesNotContain(findings, f => f.Code == "follow-up-without-trigger");
+        Assert.Contains(Conflicts(r, fight, Job.SCH), f => f.ActionId == RepoFiles.Action("Sacred Soil").Id);
+    }
+
     [Theory]
     [InlineData(128, "Soil", -1.0)]          // ready at 125.5, 2.5 s before the hit: pressed 1 s before it
     [InlineData(128, "Succor + Soil", null)] // the Succor's 2 s cast must end 1 s before the hit: pressed 3 s before it at the latest, not yet ready

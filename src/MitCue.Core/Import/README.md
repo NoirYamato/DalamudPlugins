@@ -268,8 +268,10 @@ Rules worth knowing:
   after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.
   It stays too when the move would press another item of the entry earlier than without it, since the offset is every
   item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
-  (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge).
-  Only firm presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
+  (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge),
+  or a follow-up of the entry later than `check`'s window after its trigger allows (a Consolation more than 22 s after
+  the Summon Seraph before it, as `still-active` may have read a second Seraph, would find Seraph gone). Only firm
+  presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
   either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
   ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote
   (`still-active`'s) may move. A when-ready call ("on CD") is left to the runtime: it keeps its press and counts,
