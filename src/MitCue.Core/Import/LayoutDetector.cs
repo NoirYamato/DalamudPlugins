@@ -828,9 +828,10 @@ public sealed partial class LayoutDetector
 
         /// <summary>
         /// The next row with a label below row <paramref name="r"/> is a mechanic of phase <paramref name="number"/> (its
-        /// label, simplified or a prefix of it; not a near miss) and none of the <paramref name="current"/> phase: a banner
-        /// of that phase there starts it ("P3: Alexander Prime (Inception, Wormhole, J Waves)" above Inception), while the
-        /// same text above a mechanic of the current phase, or one that both phases have (TEA's "JKick"), stays a note.
+        /// label, simplified, a prefix of it, or a near miss the row is read as: "Inceptoin") and none of the
+        /// <paramref name="current"/> phase: a banner of that phase there starts it ("P3: Alexander Prime (Inception,
+        /// Wormhole, J Waves)" above Inception), while the same text above a mechanic of the current phase, or one that both
+        /// phases have (TEA's "JKick", or its near miss "JKik"), stays a note.
         /// </summary>
         private bool NextLabelStarts(int r, int number, PhaseSection? current)
         {
@@ -841,7 +842,7 @@ public sealed partial class LayoutDetector
                 if (this.tab.IsRowHidden(next) || this.Txt(next, m) is not { } label)
                     continue;
                 var mechanics = this.mechanics ??= new MechanicResolver(fight);
-                return mechanics.Candidates(label, this.owner.PhaseId(number)).Match is MechanicMatch.Exact or MechanicMatch.Simplified or MechanicMatch.Prefix
+                return mechanics.Candidates(label, this.owner.PhaseId(number)).Match is MechanicMatch.Exact or MechanicMatch.Simplified or MechanicMatch.Prefix or MechanicMatch.Fuzzy
                     && (current is null || mechanics.Candidates(label, current.Id).Match is MechanicMatch.None or MechanicMatch.OtherPhase);
             }
 

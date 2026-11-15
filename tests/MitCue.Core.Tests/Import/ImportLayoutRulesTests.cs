@@ -184,11 +184,12 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
-    [InlineData("P2: Omega-M/F (MT pulls the boss north, OT takes adds)")]
-    [InlineData("P2 (Party Synergy, Limitless Synergy)")]
-    [InlineData("P2 (times relative to boss targetable)")]
-    [InlineData("P2: Omega-M/F (all times from boss targetable)")]
-    public void MergedPhaseTitleWithARemarkInParentheses_AboveTheNextPhasesMechanic_StartsThePhase(string title)
+    [InlineData("P2: Omega-M/F (MT pulls the boss north, OT takes adds)", "Solar Ray")]
+    [InlineData("P2 (Party Synergy, Limitless Synergy)", "Solar Ray")]
+    [InlineData("P2 (Party Synergy, Limitless Synergy)", "Solar Rya")] // a near miss the row is read as (fuzzy-mechanic)
+    [InlineData("P2 (times relative to boss targetable)", "Solar Ray")]
+    [InlineData("P2: Omega-M/F (all times from boss targetable)", "Solar Ray")]
+    public void MergedPhaseTitleWithARemarkInParentheses_AboveTheNextPhasesMechanic_StartsThePhase(string title, string next)
     {
         // Above a mechanic of the current phase the same text stays a note (MergedRemarkInParenthesesAfterAPhase_StaysANote);
         // above one of the later phase it names, and of no other, it starts that phase, whatever its parentheses hold, and
@@ -200,7 +201,7 @@ public class ImportLayoutRulesTests
             ["Program Loop", "Rep", ""],
             ["Pantokrator", "", "Rep"],
             ["", title, ""],
-            ["Solar Ray", "Rep", ""]);
+            [next, "Rep", ""]);
         var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
 
         Assert.Equal("HDDSD", Kinds(layout));
@@ -212,7 +213,10 @@ public class ImportLayoutRulesTests
 
     [Theory]
     [InlineData("Inception (Crystals Boom)", "HSDDSDD", "-222333")]
+    [InlineData("Inceptoin (Crystals Boom)", "HSDDSDD", "-222333")] // a near miss the row is read as (fuzzy-mechanic)
+    [InlineData("Incpetion", "HSDDSDD", "-222333")]
     [InlineData("JKick", "HSDDNDD", "-222222")] // a label P2 has too: no proof that P3 starts
+    [InlineData("JKik", "HSDDNDD", "-222222")] // a near miss of a label P2 has too
     public void TeaPhaseTitleWithAListInParentheses_StartsP3_WhenTheNextLabelIsP3s(string next, string kinds, string phases)
     {
         // LPDU's "P3: Alexander Prime (Inception, Wormhole, J Waves)", merged over the player columns with no header below.
@@ -230,7 +234,7 @@ public class ImportLayoutRulesTests
         var layout = new LayoutDetector(PlanImports.Tea).Detect(tab);
         Assert.Equal(kinds, Kinds(layout));
         Assert.Equal(phases, Phases(layout));
-        if (next == "JKick")
+        if (next is "JKick" or "JKik")
             return;
 
         var r = new PlanImporter().Import(
