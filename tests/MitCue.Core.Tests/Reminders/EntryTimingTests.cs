@@ -1073,6 +1073,12 @@ public class EntryTimingTests
         Assert.Equal([101.5, 103.3], after.Items.Select(i => i.PressAt));
         Assert.Equal([101.3, 103.3], after.Items.Select(i => i.DueAt(options)));
 
+        // An instant shield between them keeps its own floor, as wave 2 would spend it before then, and the Adloquium after it
+        // waits for it: "Tetragrammaton → Divine Benison → Adloquium" is pressed and due at 103.3.
+        var shield = Wave3(null, true, Kit.Tetragrammaton, Kit.DivineBenison, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3, 103.3], shield.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 103.3], shield.Items.Select(i => i.DueAt(options)));
+
         // A written press is every step's, and each keeps the floor it is at or after: the Adloquium turns due with the heal,
         // not at its own floor.
         var written = Wave3(-2.7, true, Kit.Tetragrammaton, Kit.Adloquium);

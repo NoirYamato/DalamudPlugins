@@ -141,17 +141,23 @@ public static class TimingRules
     /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
     /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
     /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). With an automatic
-    /// press a step of a sequence, which comes before the step after it, has no later floor than that step: in "Indom →
-    /// Succor" on J Wave 5 the Indomitability, a heal that alone waits for wave 4 + 0.3 s, comes with the Succor 1.8 s
-    /// earlier, so that the Succor's cast still lands between waves 4 and 5. A written press keeps each floor it is at or
-    /// after (a press the importer moved later, so that the action is ready again); one before the entry's floor has none.
+    /// press a step of a sequence that the hit before has nothing of to spend either, a heal used after the hit or an item
+    /// that keeps the entry's floor, has no later floor than the step after it, which it comes before
+    /// (<see cref="ComesWithTheStepAfterIt"/>): in "Indom → Succor" on J Wave 5 the Indomitability, a heal that alone waits
+    /// for wave 4 + 0.3 s, comes with the Succor 1.8 s earlier, so that the Succor's cast still lands between waves 4 and 5.
+    /// Any other step keeps its own floor, and the steps after it wait for it, as in "Soil → Succor" (the Succor landing
+    /// 0.7 s before wave 5): the Consolation of "Seraph → Consolation → Succor" on J Wave 5 is not spent on wave 4, all
+    /// three pressed at 720.2, nor the Celestial Intersection of "Intersection → Neutral Sect", both at 720.2. A written
+    /// press keeps each floor it is at or after (a press the importer moved later, so that the action is ready again); one
+    /// before the entry's floor has none.
     /// </item>
     /// </list>
     /// <para>
     /// Every item is pressed at the entry's press time, except that with an automatic press an item waits for its own
     /// series floor or for a later hit it reaches on its own (<see cref="ItemTiming.PressAt"/>) and a step of a sequence
-    /// (<see cref="PlanEntry.Seq"/>) for the step before it (which waits for no later series floor than it: "Indom →
-    /// Succor" on J Wave 5, both at the Succor's 718.4), and that an item pressed last (<see cref="IsPressedLast"/>:
+    /// (<see cref="PlanEntry.Seq"/>) for the step before it (which, by the series rule above, may wait for no later series
+    /// floor than it: "Indom → Succor" on J Wave 5, both at the Succor's 718.4; "Seraph → Consolation → Succor", all at the
+    /// Consolation's 720.2), and that an item pressed last (<see cref="IsPressedLast"/>:
     /// Passage of Arms, a channel any other action ends) comes with the entry's last item; the automatic press is then the
     /// earliest of the items' (<see cref="EntryTiming.AutomaticOffset"/>). Each item's use window is
     /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when
@@ -215,7 +221,8 @@ public static class TimingRules
 
         // Each item's series floor (ItemFloor: never earlier than the entry's, an instant shield beside the cast one that
         // times the entry lands after the hit before it too; a buff or a note keeps the entry's). With an automatic press a
-        // step of a sequence, pressed before the step after it, waits for no later floor than that step.
+        // step of a sequence that the hit before has nothing of to spend (a heal, a buff, a note), pressed before the step
+        // after it, waits for no later floor than that step; any other step keeps its own, and the steps after it wait.
         var isAutomatic = entry.Offset is null;
         var floors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
@@ -224,7 +231,7 @@ public static class TimingRules
         {
             for (var i = items.Count - 2; i >= 0; i--)
             {
-                if (floors[i] is { } own && floors[i + 1] is { } next)
+                if (floors[i] is { } own && floors[i + 1] is { } next && ComesWithTheStepAfterIt(timing[i]))
                     floors[i] = Math.Min(own, next);
             }
         }
@@ -698,6 +705,15 @@ public static class TimingRules
     /// </summary>
     private static bool KeepsTheEntryFloor(ActionInfo? action) =>
         action is null || (OwnLead(action) is null && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
+
+    /// <summary>
+    /// True for a step of a sequence that, with an automatic press, waits for no later series floor than the step after it
+    /// (<see cref="ForEntry"/>): one the hit before has nothing of to spend, a heal used after the hit
+    /// (<see cref="IsUsedAfterHit"/>) or an item that keeps the entry's floor (<see cref="KeepsTheEntryFloor"/>). Any other
+    /// step keeps its own floor, and the steps after it wait for it: a shield, mitigation, an invuln, a regen, a pre-placed
+    /// heal, Neutral Sect.
+    /// </summary>
+    private static bool ComesWithTheStepAfterIt(ActionInfo? action) => IsUsedAfterHit(action) || KeepsTheEntryFloor(action);
 
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the
