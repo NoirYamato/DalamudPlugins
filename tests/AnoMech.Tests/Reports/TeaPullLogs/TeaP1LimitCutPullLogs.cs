@@ -17,7 +17,7 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
     private static readonly uint[] LaterAutoAttacks = [18810, 18811];
 
     private readonly Dictionary<string, List<double>> offsets = [];
-    private readonly List<double> cardinalRadii = [], diagonalRadii = [], middleOff = [], turns = [], numberSpacing = [], blastHit = [], blastMissed = [];
+    private readonly List<double> cardinalRadii = [], diagonalRadii = [], middleOff = [], turns = [], numberSpacing = [], firstTwoApart = [], blastHit = [], blastMissed = [];
     private readonly List<double> landsBefore = [], landsBehind = [], offBehind = [], landsFacing = [], turnsBeforeTheSword = [], swordOff = [];
     private readonly List<double> turnsBeforeTheCharge = [], chargesFrom = [], chargeOff = [], swordThrows = [], chargeThrows = [];
     private readonly List<double> liquidToBlaster = [], handAfterLiquid = [], firstAttacks = [], thrownOut = [];
@@ -25,6 +25,8 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
     private readonly Dictionary<string, int> leaves = [];
     private readonly LethalHits blasts = new();
     private int swords, swordsOnTheirNumber, charges, chargesOnTheirNumber, anchored, laterHits, laterHitsKilled, landingsOnASubstitute;
+    private int thrownPastTheRim, diedPastTheRim, hitAgainPastTheRim;
+    private readonly List<string> livedPastTheRim = [], notSeenThrown = [];
 
     // The Knockback sheet's rows his hits name, as distance and speed.
     private static readonly Dictionary<uint, (float Distance, float Speed)> KnockbackRows = new() { [2] = (5f, 10f), [3] = (20f, 40f) };
@@ -97,7 +99,9 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         var markers = pull.HeadMarkers.Where(m => PullLog.Seconds(m.Time, first) is > 0 and < 5).OrderBy(m => m.Id).ToList();
         if (markers.Count == 0) return;
         at("numbers", markers.Min(m => m.Time));
-        numberSpacing.AddRange(markers.Zip(markers.Skip(1), (a, b) => PullLog.Seconds(a.Time, b.Time)));
+        var apart = markers.Zip(markers.Skip(1), (a, b) => PullLog.Seconds(a.Time, b.Time)).ToList();
+        firstTwoApart.AddRange(apart.Take(1));
+        numberSpacing.AddRange(apart.Skip(1));
         var living = pull.Living(markers[0].Time).Count();
         numbers.Add($"{pull.Name}: {markers.Count} numbers over {living} living players, lock-on ids {markers[0].Id} to {markers[^1].Id}, "
                     + $"over {Spread.F(PullLog.Seconds(markers.Min(m => m.Time), markers.Max(m => m.Time)))} s: "
@@ -121,10 +125,16 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
                 var left = $"{pull.StatusName(status)} ({status})" + (seconds is { } lasts ? $" for {Spread.F(lasts)} s" : "");
                 leaves[left] = leaves.GetValueOrDefault(left) + 1;
             }
-            if (pull.Outcome(hit) is HitOutcome.AlreadyDead) continue;
+            var outcome = pull.Outcome(hit);
+            if (outcome is HitOutcome.AlreadyDead) continue;
             var held = pull.Statuses.Where(s => s.Gained && s.Target == hit.Target && Anchors.Contains(pull.StatusName(s.Status)) && s.Time <= hit.Time
                                                 && s.Time.AddSeconds(s.Duration) > hit.Time).Select(s => pull.StatusName(s.Status)).FirstOrDefault();
-            throwsNamed[hit.Action].Add(hit.KnockbackRow is { } row ? $"row {row}" + (held is null ? "" : $" under {held}") : $"no throw, under {held ?? "nothing"}");
+            // A hit that names no throw: under an anchor, or its target dead of the hit itself, or neither.
+            throwsNamed[hit.Action].Add(hit.KnockbackRow is { } row ? $"row {row}" + (held is null ? "" : $" under {held}")
+                : held is not null ? $"no throw, under {held}"
+                : outcome == HitOutcome.Killed ? "no throw, the hit itself killed"
+                : outcome == HitOutcome.Invulnerable ? "no throw, under an invulnerability"
+                : "no throw, under nothing and alive");
         }
         for (var round = 0; round < Math.Max(swings.Count, dashes.Count); round++)
         {
@@ -212,34 +222,52 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
                             + $"after {pull.ActionName(before.Action)}: {TeaP1HandPullLogs.Damage(pull, hit)}");
             }
             if (outcome != HitOutcome.Survived || from is not { } origin || hit.TargetPosition is not { } stood || Vector2.Distance(stood, origin) < 0.1f) continue;
-            // A player the hit's damage left alive who is at 0 HP within 2 s, with no other hit of the fight's between,
-            // died of where the hit threw it.
-            if (pull.DiedWithin(hit.Target, hit.Time, 2) is { } died
-                && !pull.Hits.Any(h => h.Target == hit.Target && pull.IsOfTheFight(h.Source) && h.Time > hit.Time && h.Time <= died))
-            {
-                var rim = ToTheRim(stood - TeaPull.Centre, Vector2.Normalize(stood - origin));
-                thrownOut.Add(rim);
-                thrown.Add($"{pull.Name} at {Spread.F(pull.Clock(hit.Time))} s: {name} on {pull.Who(hit.Target)}: left at {pull.HpAfter(hit)} HP, dead "
-                           + $"{Spread.F(PullLog.Seconds(hit.Time, died))} s later with no other hit; it stood {Spread.F(Vector2.Distance(stood, TeaPull.Centre))} y from "
-                           + $"the centre, the rim {Spread.F(rim)} y on along the line from him");
-                continue;
-            }
-            // The farthest along the line from him the player is seen over the next second and a half.
             var away = Vector2.Normalize(stood - origin);
+            var dead = pull.DiedWithin(hit.Target, hit.Time, 2);
+            var hitAgain = dead is { } by && pull.Hits.Any(h => h.Target == hit.Target && pull.IsOfTheFight(h.Source) && h.Time > hit.Time && h.Time <= by);
+            var rim = ToTheRim(stood - TeaPull.Centre, away);
+            var who = $"{pull.Name} at {Spread.F(pull.Clock(hit.Time))} s: {name} on {pull.Who(hit.Target)}";
+            // The farthest along the line from him the player is seen over the next second and a half.
             var seen = new[] { 0.3, 0.5, 0.7, 0.9, 1.1, 1.3, 1.5 }.Select(s => pull.Positions.At(hit.Target, hit.Time.AddSeconds(s)))
                                                                   .Where(p => p is { Gap.TotalSeconds: < 0.35 })
                                                                   .Select(p => (double)Vector2.Dot(p!.Value.Position - stood, away)).ToList();
+            // Where the row the hit names ends its throw. A player's spot is good to a yalm, so only an end a yalm and
+            // more past the rim counts as past it. Two kinds say nothing of the rim: a player something else of the
+            // fight's hit before it died, and one that lived on without being seen to slide half the row's length or
+            // as far as the rim, whom something the log does not show held where it stood.
+            var endsPastTheRim = hit.KnockbackRow is { } named && KnockbackRows.TryGetValue(named, out var sheet)
+                                 && (stood - TeaPull.Centre + away * sheet.Distance).Length() > P1Geometry.ArenaRadius + 1f ? sheet.Distance : (float?)null;
+            if (endsPastTheRim is not null && hitAgain) hitAgainPastTheRim++;
+            else if (endsPastTheRim is { } length && dead is null && (seen.Count == 0 || seen.Max() < Math.Min(length / 2, rim - 0.5)))
+                notSeenThrown.Add($"{who}, {Spread.F(Vector2.Distance(stood, TeaPull.Centre))} y from the centre: lived on, seen "
+                                  + (seen.Count == 0 ? "nowhere after" : $"no farther than {Spread.F(seen.Max())} y along the line from him"));
+            else if (endsPastTheRim is not null)
+            {
+                thrownPastTheRim++;
+                if (dead is not null) diedPastTheRim++;
+                else livedPastTheRim.Add($"{who}, {Spread.F(Vector2.Distance(stood, TeaPull.Centre))} y from the centre, lived on");
+            }
+            // A player the hit's damage left alive who is at 0 HP within 2 s, with no other hit of the fight's between,
+            // died of where the hit threw it.
+            if (dead is { } died && !hitAgain)
+            {
+                if (endsPastTheRim is not null) thrownOut.Add(rim);
+                thrown.Add($"{who}: left at {pull.HpAfter(hit)} HP, dead {Spread.F(PullLog.Seconds(hit.Time, died))} s later with no other hit; it stood "
+                           + $"{Spread.F(Vector2.Distance(stood, TeaPull.Centre))} y from the centre, the rim {Spread.F(rim)} y on along the line from him"
+                           + (hit.KnockbackRow is null ? "; its hit names no throw" : ""));
+                continue;
+            }
             if (seen.Count == 0) continue;
             var held = pull.Statuses.Where(s => s.Gained && s.Target == hit.Target && Anchors.Contains(pull.StatusName(s.Status)) && s.Time <= hit.Time
                                                 && s.Time.AddSeconds(s.Duration) > hit.Time).Select(s => pull.StatusName(s.Status)).FirstOrDefault();
-            thrown.Add($"{pull.Name} at {Spread.F(pull.Clock(hit.Time))} s: {name} on {pull.Who(hit.Target)}{(hit.Target == pull.Self ? ", who logged the pull" : "")}: "
-                       + $"seen up to {Spread.F(seen.Max())} y along the line from him" + (held is null ? "" : $", under {held}"));
+            thrown.Add($"{who}{(hit.Target == pull.Self ? ", who logged the pull" : "")}: seen up to {Spread.F(seen.Max())} y along the line from him"
+                       + (held is not null ? $", under {held}" : hit.KnockbackRow is null ? "; its hit names no throw, and it held nothing against one" : ""));
             if (held is not null)
             {
                 anchored++;
                 continue;
             }
-            throws.Add(seen.Max());
+            if (hit.KnockbackRow is not null) throws.Add(seen.Max());
         }
     }
 
@@ -264,7 +292,7 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
             at("kick", kick[0].Time);
             var chaser = pull.Hits.Where(h => h.Action == P1ActionId.AlphaSword).Select(h => (uint?)h.Source).FirstOrDefault();
             kicks.Add($"{pull.Name}: J Kick from Brute Justice at {(pull.Where(kick[0].Source, kick[0].Time) is { } bj ? TeaPull.Spot(bj) : "an unknown spot")}"
-                      + $", facing {Spread.F(pull.Positions.At(kick[0].Source, kick[0].Time)?.Heading ?? float.NaN)} rad; Cruise Chaser then at "
+                      + (pull.Positions.At(kick[0].Source, kick[0].Time)?.Heading is { } turned ? $", facing {Spread.F(turned)} rad" : "") + "; Cruise Chaser then at "
                       + (chaser is { } c && pull.Where(c, kick[0].Time) is { } cc ? TeaPull.Spot(cc) : "an unknown spot")
                       + $"; it hits {kick.Count(h => h.HitSomeone)} players and kills {kick.Count(h => h.HitSomeone && pull.Outcome(h) == HitOutcome.Killed)}");
             if (pull.Where(kick[0].Source, kick[0].Time) is { } lands) kickSpots.Add(TeaPull.Spot(lands));
@@ -289,10 +317,12 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         yield return Series("J Kick, after the first pair", [("kick", SimSource.EventTime(TeaSource.LimitCut, "TeaP1Actions.JKick"))], firstPair.Seconds);
         yield return Series("The numbers show, the first before the first pair", [("numbers", SimSource.EventTime(TeaSource.LimitCut, "() => ShowNumber(number));"))], firstPair.Seconds);
 
-        var spacing = new Spread(numberSpacing);
-        yield return new LogFinding(Section, "The numbers' spacing, one marker to the next",
-            SimSource.Line(TeaSource.Constants, "float NumberSpacing ="), $"{P1Duration.NumberSpacing} s", spacing.Describe(" s", "0.000"),
-            LogFinding.Compare(spacing, P1Duration.NumberSpacing, 0.02))
+        var (firstTwo, spacing) = (new Spread(firstTwoApart), new Spread(numberSpacing));
+        yield return new LogFinding(Section, "The numbers' spacing: the first two, then each later marker after the one before",
+            SimSource.Line(TeaSource.Constants, "float NumberSpacing ="), $"the first two together, then {P1Duration.NumberSpacing} s",
+            firstTwo.Count == 0 ? "no samples" : $"the first two {firstTwo.Describe(" s", "0.000")} apart; each later one {spacing.Describe(" s", "0.000")} on",
+            firstTwo.Count == 0 ? Verdict.NotInTheseLogs : firstTwo.Max > 0.02 ? Verdict.Differs
+            : spacing.Count == 0 ? Verdict.Inconclusive : LogFinding.Compare(spacing, P1Duration.NumberSpacing, 0.01))
         {
             Details = numbers,
         };
@@ -424,9 +454,16 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
         var atTheRim = new Spread(thrownOut);
         yield return new LogFinding(Section, "The rim: a player one of his hits throws past it",
             SimSource.Line(TeaSource.Zone, "world.EnforceArenaBoundary("), $"no wall: a throw goes its full length, and whoever ends beyond {P1Geometry.ArenaRadius} y dies",
-            atTheRim.Count == 0 ? "nobody died of a throw"
-                : $"{atTheRim.Count} players a hit left alive were dead within 2 s with no other hit of the fight's; the rim lay {atTheRim.Describe(" y")} on along the line from him",
-            atTheRim.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Matches);
+            thrownPastTheRim == 0 ? "no player a hit left alive was seen thrown by a row that ends past the rim"
+                                    + (notSeenThrown.Count == 0 ? "" : $"; {notSeenThrown.Count} whose hit named such a row lived on and were not seen to slide")
+                : $"{diedPastTheRim} of {thrownPastTheRim} players a hit left alive, whose throw by the row it names ends a yalm and more past the rim, were dead within "
+                  + "2 s with no other hit of the fight's" + (diedPastTheRim == 0 ? "" : $"; the rim lay {atTheRim.Describe(" y")} on along the line from him")
+                  + (hitAgainPastTheRim == 0 ? "" : $"; {hitAgainPastTheRim} more, hit again before they died, are left out")
+                  + (notSeenThrown.Count == 0 ? "" : $"; {notSeenThrown.Count} more lived on and were not seen to slide: something held them that the log does not show"),
+            thrownPastTheRim == 0 ? Verdict.NotInTheseLogs : diedPastTheRim == thrownPastTheRim ? Verdict.Matches : Verdict.Differs)
+        {
+            Details = [.. livedPastTheRim, .. notSeenThrown],
+        };
 
         var attacks = new Spread(firstAttacks);
         yield return new LogFinding(Section, "J Kick: where Brute Justice casts it from",
@@ -460,13 +497,15 @@ internal sealed class TeaP1LimitCutPullLogs : ITeaPullLogMeasures
     }
 
     // The events of a kind against their literals, each as its time after the first pair's.
-    private LogFinding Series(string name, IEnumerable<(string Key, (string Where, float? Seconds) Sim)> rows, float? anchor)
+    // Every row's line is named, the first with its file, so a literal the scenario no longer holds shows as ":?".
+    internal LogFinding Series(string name, IEnumerable<(string Key, (string Where, float? Seconds) Sim)> rows, float? anchor)
     {
         var list = rows.ToList();
         var sims = list.Select(r => r.Sim.Seconds - anchor).ToList();
         var measured = list.Select(r => Offset(r.Key)).ToList();
         var worst = list.Select((_, i) => measured[i].Count == 0 || sims[i] is not { } sim ? 0 : Math.Abs(measured[i].Mean - sim)).DefaultIfEmpty(0).Max();
-        return new LogFinding(Section, name, list[0].Sim.Where, string.Join(", ", sims.Select(s => s is { } value ? Spread.F(value) : "not found")) + " s",
+        var lines = list[0].Sim.Where + string.Concat(list.Skip(1).Select(r => ", " + r.Sim.Where[r.Sim.Where.LastIndexOf(':')..]));
+        return new LogFinding(Section, name, lines, string.Join(", ", sims.Select(s => s is { } value ? Spread.F(value) : "not found in the scenario")) + " s",
             measured.All(m => m.Count == 0) ? "no samples"
                 : string.Join(", ", measured.Select(m => m.Count == 0 ? "none" : m.Count == 1 ? Spread.F(m.Mean) : $"{Spread.F(m.Mean)} ({Spread.F(m.Min)} to {Spread.F(m.Max)})"))
                   + $" s, over {measured.Max(m => m.Count)} pulls",

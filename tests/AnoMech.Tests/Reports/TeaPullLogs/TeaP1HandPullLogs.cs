@@ -316,17 +316,29 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
         };
     }
 
+    // The sim's distance is held only by slams on both sides of it: with every slam on one side, any distance past
+    // them would fit as well.
     private LogFinding Slam(string name, uint state, string constant, string sim, Func<Glow, bool> simKills)
     {
         // A slam that lands once the Living Liquid has fallen shows nothing: the fight is over.
         var slams = glows.Where(g => g.State == state && g.ApartAtTheSlam is not null && g.Hit > 0 && !g.AfterTheLiquidFell).ToList();
         var late = glows.Count(g => g.State == state && g.AfterTheLiquidFell);
         var asTheSim = slams.Count(g => simKills(g) ? 2 * g.Killed >= g.Hit : g.Killed == 0);
+        var killed = slams.Where(g => 2 * g.Killed >= g.Hit).Select(g => g.ApartAtTheSlam!.Value).ToList();
+        var spared = slams.Where(g => g.Killed == 0).Select(g => g.ApartAtTheSlam!.Value).ToList();
+        var room = slams.Count == 0 ? ""
+            : killed.Count == 0 ? ". None killed, so where the line lies is not shown"
+            : spared.Count == 0 ? ". All killed, so where the line lies is not shown"
+            : spared.Max() < killed.Min() ? $". The line lies between {Spread.F(spared.Max())} and {Spread.F(killed.Min())} y"
+            : killed.Max() < spared.Min() ? $". The line lies between {Spread.F(killed.Max())} and {Spread.F(spared.Min())} y"
+            : ". No one distance parts the slams that killed from those that did not";
         return new LogFinding(Section, $"{name}: the bosses' distance as it lands, and whom it killed", SimSource.Line(TeaSource.Constants, constant), sim,
             (slams.Count == 0 ? "no such slam"
                 : string.Join("; ", slams.Select(g => $"{Spread.F(g.ApartAtTheSlam!.Value)} y apart: killed {g.Killed} of {g.Hit}")))
+            + room
             + (late == 0 ? "" : $"; {late} more landed after the Living Liquid had fallen and are left out"),
-            slams.Count == 0 ? Verdict.NotInTheseLogs : asTheSim == slams.Count ? Verdict.Matches : Verdict.Differs)
+            slams.Count == 0 ? Verdict.NotInTheseLogs : asTheSim != slams.Count ? Verdict.Differs
+            : killed.Count > 0 && spared.Count > 0 ? Verdict.Matches : Verdict.Inconclusive)
         {
             Details = slams.Select(g => $"{g.Pull} at {Spread.F(g.Clock)} s: shown with the bosses {Spread.F(g.Apart)} y apart{g.Note}").ToList(),
         };

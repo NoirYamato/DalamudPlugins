@@ -374,8 +374,7 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
         yield return new LogFinding(Section, "The bosses' walking speed: over the full steps between two of a boss's own move lines",
             SimSource.Line(TeaSource.Constants, "float BossWalkSpeed ="), $"{P1Rules.BossWalkSpeed} y/s",
             speeds.Count == 0 ? "no boss walked"
-                : $"the Living Liquid median {Spread.F(new Spread(liquidSpeeds).Median)} y/s ({new Spread(liquidSpeeds).Describe(" y/s")}); "
-                  + $"the Liquid Hand median {Spread.F(new Spread(handSpeeds).Median)} y/s ({new Spread(handSpeeds).Describe(" y/s")})",
+                : $"the Living Liquid {Median(liquidSpeeds, " y/s", "no full step")}; the Liquid Hand {Median(handSpeeds, " y/s", "no full step")}",
             speeds.Count == 0 ? Verdict.NotInTheseLogs : Math.Abs(speeds.Median - P1Rules.BossWalkSpeed) <= 0.5 ? Verdict.Matches : Verdict.Differs);
 
         var (liquidStop, handStop) = (LiquidHitbox + PlayerHitbox + P1Rules.BossStopsPastTheHitboxes, HandHitbox + PlayerHitbox + P1Rules.BossStopsPastTheHitboxes);
@@ -384,15 +383,18 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             SimSource.Line(TeaSource.Constants, "float BossStopsPastTheHitboxes ="),
             $"the Living Liquid {Spread.F(liquidStop, "0.0")} y and the Liquid Hand {Spread.F(handStop, "0.0")} y: {P1Rules.BossStopsPastTheHitboxes} y past the two hitboxes",
             liquidStops.Count + handStops.Count + liquidAutos.Count + handAutos.Count == 0 ? "no boss walked or attacked"
-                : $"the Liquid {(liquidRests.Count == 0 ? "no such walk" : $"median {Spread.F(liquidRests.Median)} y ({liquidRests.Describe(" y")})")}, the Hand "
-                  + $"{(handRests.Count == 0 ? "no such walk" : $"median {Spread.F(handRests.Median)} y ({handRests.Describe(" y")})")}; as an auto-attack goes off, "
-                  + $"with tanks who walk in: the Liquid median {Spread.F(new Spread(liquidAutos).Median)} y (n={liquidAutos.Count}), the Hand median "
-                  + $"{Spread.F(new Spread(handAutos).Median)} y (n={handAutos.Count}). The boss's spot is the server's, its target's the client's",
+                : $"the Liquid {Median(liquidStops, " y", "no such walk")}, the Hand {Median(handStops, " y", "no such walk")}; as an auto-attack goes off, "
+                  + $"with tanks who walk in: the Liquid {Median(liquidAutos, " y", "none")}, the Hand {Median(handAutos, " y", "none")}. "
+                  + "The boss's spot is the server's, its target's the client's",
             liquidStops.Count + handStops.Count == 0 ? liquidAutos.Count + handAutos.Count == 0 ? Verdict.NotInTheseLogs : Verdict.Inconclusive
             : (handRests.Count == 0 || Math.Abs(handRests.Median - handStop) <= 0.3) && (liquidRests.Count == 0 || Math.Abs(liquidRests.Median - liquidStop) <= 0.3)
                 ? handRests.Count >= 5 ? Verdict.Matches : Verdict.Inconclusive
                 : Verdict.Differs);
     }
+
+    // "median 4.09 y (4.10 y (n=26, 3.80 to 4.60, sd 0.20))", or `none` with no sample.
+    private static string Median(List<double> values, string unit, string none)
+        => values.Count == 0 ? none : $"median {Spread.F(new Spread(values).Median)}{unit} ({new Spread(values).Describe(unit)})";
 
     // "a x3, b x1"
     internal static string Tally(IEnumerable<string> values)

@@ -28,9 +28,32 @@ public class TeaP1HandPullLogsTests
             Assert.That(findings.Named("The Hand's form as it glows").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That(findings.Named("Which action each form slams with").Measured, Is.EqualTo("state 20 with Hand of Parting (18476)"));
             Assert.That(findings.Named("Which action each form slams with").Verdict, Is.EqualTo(Verdict.Matches));
-            Assert.That(findings.Named("The slam of state 20").Measured, Is.EqualTo("1.00 y apart: killed 0 of 1"));
-            Assert.That(findings.Named("The slam of state 20").Verdict, Is.EqualTo(Verdict.Matches));
+            Assert.That(findings.Named("The slam of state 20").Measured, Is.EqualTo("1.00 y apart: killed 0 of 1. None killed, so where the line lies is not shown"));
+            Assert.That(findings.Named("The slam of state 20").Verdict, Is.EqualTo(Verdict.Inconclusive));
             Assert.That(findings.Named("From the glow to the slam").Measured, Is.EqualTo("5.10 s (n=1)"));
+        });
+    }
+
+    // One slam lands with the Hand beside the Liquid and kills nobody; in the next pull the Hand never leaves the
+    // centre, 18 y away, and its slam kills.
+    [Test]
+    public void ASlamsDistanceIsHeldOnlyBySlamsOnBothSidesOfIt()
+    {
+        string[] Slam(Vector2 handAt, int hpLeft) =>
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            Moved(29.7, Hand, Centre, 0f), ModelState(29.7, Hand, P1ModelState.HandPalm), Placed(34, Hand, handAt, 0f),
+            ModelState(34.7, Hand, 0),
+            Hit(34.8, Hand, P1ActionId.HandOfParting, Player(1), sourceAt: handAt, sequence: 4, aoe: true),
+            EffectResult(35.3, Player(1), 4, hpLeft, Centre),
+        ];
+        var slam = Findings(new TeaP1HandPullLogs(), Of(Slam(BesideTheLiquid, 20000), [LiquidStands(x: Far.X, y: Far.Y)]),
+                            Of(Slam(Centre, 0), [LiquidStands(x: Far.X, y: Far.Y)])).Named("The slam of state 20");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(slam.Measured, Is.EqualTo("1.00 y apart: killed 0 of 1; 18.00 y apart: killed 1 of 1. The line lies between 1.00 and 18.00 y"));
+            Assert.That(slam.Verdict, Is.EqualTo(Verdict.Matches));
         });
     }
 
