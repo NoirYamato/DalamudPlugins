@@ -28,6 +28,13 @@ public class ReviewModelTests
     private static ReviewModel Model(MitPlan plan, IReadOnlyList<ImportDiagnostic>? diagnostics = null) =>
         new(plan, Top(), Catalog(), true, ReviewOrigin.Importer, diagnostics);
 
+    /// <summary>The importer's notes on <see cref="Plan"/>'s Pantokrator cell (four hits): a recast fit and a caret note.</summary>
+    private static List<ImportDiagnostic> FittedPantokrator() =>
+    [
+        new(DiagnosticSeverity.Info, "recast-fit", "Temperance at p1.pantokrator is planned 50.0 s after the Temperance at p1.program_loop (recast 60.0 s): it is pressed 3.0 s before its hit instead of 5.0 s, so that its NOW cue comes when Temperance is ready again.", "'TOP – White Mage'!C18"),
+        new(DiagnosticSeverity.Info, "caret-note", "The remark under it applies to the whole cell.", "'TOP – White Mage'!C18"),
+    ];
+
     /// <summary>The offset the scheduler presses an entry at (press − hit of its first reminder).</summary>
     private static double SchedulerOffset(PlanEntry entry)
     {
@@ -84,6 +91,97 @@ public class ReviewModelTests
         Assert.True(row.Edited);
         Assert.True(row.Version > version);
         Assert.True(model.Revision > revision);
+    }
+
+    /// <summary>
+    /// The importer's recast-fit info gives the offset the recast fit wrote ("it is pressed 1.5 s before its hit instead of
+    /// 7.2 s"): once the player resets or drags that offset, or anchors the entry to another mechanic or another hit, it no
+    /// longer describes the entry, like the importer's notes about sheet times. Its other notes, such as a caret note, stay.
+    /// </summary>
+    [Theory]
+    [InlineData("automatic")]
+    [InlineData("drag")]
+    [InlineData("mechanic")]
+    [InlineData("hit")]
+    public void ChangingAFittedPressDropsTheRecastFitInfo(string edit)
+    {
+        var model = Model(Plan(), FittedPantokrator());
+        var row = model.Rows[1];
+        Assert.Contains(row.ImportIssues, i => i.Code == "recast-fit");
+
+        switch (edit)
+        {
+            case "automatic":
+                model.SetOffset(row, null);
+                break;
+            case "drag":
+                model.SetOffset(row, -2.9);
+                break;
+            case "mechanic":
+                model.SetMechanic(row, "p1.program_loop");
+                break;
+            case "hit":
+                model.SetHitIndex(row, 1);
+                break;
+        }
+
+        Assert.True(row.Edited);
+        Assert.DoesNotContain(row.ImportIssues, i => i.Code == "recast-fit");
+        Assert.Contains(row.ImportIssues, i => i.Code == "caret-note");
+    }
+
+    [Fact]
+    public void SettingTheHitAnEntryIsAlreadyAnchoredToChangesNothing()
+    {
+        // The first hit is no hit index (null) as well as hit index 0: choosing it again keeps the row as imported.
+        var model = Model(Plan(), FittedPantokrator());
+        var row = model.Rows[1];
+
+        model.SetHitIndex(row, 0);
+
+        Assert.Null(row.Entry.HitIndex);
+        Assert.False(row.Edited);
+        Assert.Contains(row.ImportIssues, i => i.Code == "recast-fit");
+    }
+
+    /// <summary>
+    /// The same on the rows of LPDU TEA the recast fit moves: reset to automatic timing, each loses its info and keeps its
+    /// other notes, and the rows not reset yet keep theirs. 'LL/BJCC'!G52, the White Mage's Asylum at Gavel, is then pressed
+    /// 7.2 s before its hit, where its info said 1.5 s.
+    /// </summary>
+    [Fact]
+    public void ResettingAFittedPressInTheTeaSheetDropsItsRecastFitInfo()
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var tea = data.GetFight("tea")!;
+        var result = new PlanImporter().Import(FixtureSheets.LpduTea(), new ImportOptions { Fight = tea, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        var model = new ReviewModel(result.Plan, tea, data.Actions, true, ReviewOrigin.Importer, result.Diagnostics, result.PhaseZeros, result.PhaseSpread);
+        static bool Fitted(ReviewRow row) => row.ImportIssues.Any(i => i.Code == "recast-fit");
+        ReviewRow Row(string src) => Assert.Single(model.Rows, r => r.Entry.Src == src);
+
+        var gavel = Row("'LLBJCC'!G52");
+        Assert.Equal(-1.5, gavel.Entry.Offset);
+        Assert.Contains("it is pressed 1.5 s before its hit instead of 7.2 s", Assert.Single(gavel.ImportIssues, i => i.Code == "recast-fit").Message, StringComparison.Ordinal);
+
+        var fitted = model.Rows.Count(Fitted);
+        foreach (var src in new[] { "'LLBJCC'!G52", "'LLBJCC'!E46", "'Alex PrimePA'!G23", "'Alex PrimePA'!H45" })
+        {
+            var row = Row(src);
+            Assert.True(Fitted(row), src);
+            var others = row.ImportIssues.Where(i => i.Code != "recast-fit").ToList();
+
+            model.SetOffset(row, null);
+
+            Assert.Null(row.Entry.Offset);
+            Assert.Equal(others, row.ImportIssues);
+            fitted--;
+            Assert.Equal(fitted, model.Rows.Count(Fitted));
+        }
+
+        Assert.Equal(-7.2, model.AutoOffset(gavel), 6);
+        Assert.Equal(356.5 - 7.2, model.PressTime(gavel)!.Value, 6);
+        Assert.Contains(gavel.ImportIssues, i => i.Code == "caret-note");
     }
 
     [Fact]

@@ -1,3 +1,7 @@
+using MitCue.Core;
+using MitCue.Core.Actions;
+using MitCue.Core.Data;
+using MitCue.Core.Plans;
 using MitCue.Core.Reminders;
 using MitCue.PluginTests.Support;
 using MitCue.Runtime;
@@ -176,5 +180,72 @@ public class OverlayModelTests
 
         Assert.Equal(["Divine Benison", "Plenary Indulgence"], model.Rows.Select(r => r.Labels.Name).ToList());
         Assert.Equal(1, model.MoreCount);
+    }
+
+    [Theory]
+    [InlineData(-2.0)]
+    [InlineData(null)]
+    public void PassageOfArmsIsListedAfterTheOtherCallsOfItsCellWhereverTheCellListsIt(double? offset)
+    {
+        // Review finding: the overlay re-sorted its rows by press time, then item index, so "Passage of Arms + Reprisal"
+        // (both pressed 2 s before the raidwide at 30, with a written or an automatic offset) listed Passage of Arms first,
+        // and a player who pressed down the list ended the channel with the Reprisal. The overlay keeps the scheduler's
+        // order (TimingRules.IsPressedLast needs the real catalog).
+        var entry = new PlanEntry
+        {
+            Id = "e1",
+            Mechanic = "p1.raid",
+            Offset = offset,
+            Who = new WhoSpec { Job = Job.PLD },
+            Do = [PlanItem.ForAction(Kit.PassageOfArms, "Passage of Arms"), PlanItem.ForAction(Kit.Reprisal, "Reprisal")],
+        };
+        var actions = ActionCatalog.Load(new EmbeddedDataSource().ReadText("actions/actions.yaml"));
+        var session = Kit.Session(Kit.Fight(), [entry], new ScriptedSyncEngine(), actions, Job.PLD);
+        var driver = new SessionDriver(session, 1000);
+        driver.CombatEdge(true);
+        driver.RunTo(1027);
+
+        var model = Build(new Configuration(), session);
+
+        Assert.Equal([28.0, 28.0], session.Visible.Select(r => r.PressAt));
+        Assert.Equal(["Reprisal", "Passage of Arms"], session.Visible.Select(r => r.Item.Name));
+        Assert.Equal(["Reprisal", "Passage of Arms"], model.Rows.Select(r => r.Labels.Name));
+        Assert.All(model.Rows, r => Assert.Equal(ReminderState.Due, r.State));
+    }
+
+    [Fact]
+    public void RowsPressedAtTheSameTimeKeepThePlansOrderBesideAFinishedRowAndOnceFinished()
+    {
+        // Review finding: the re-sort was not stable. With three rows it swapped a Divine Benison and a Plenary Indulgence
+        // of two entries pressed at the same time, next to a finished Temperance; and finished rows, picked latest first,
+        // stayed in that reversed order whenever the re-sort found them equal.
+        var session = Kit.Session(
+            Kit.Fight(),
+            [
+                Kit.Entry("p1.raid", -10, Kit.Temperance, "Temperance"), // press 20, used at 20
+                Kit.Entry("p1.raid", -3, Kit.DivineBenison, "Divine Benison"), // press 27, used at 27
+                Kit.Entry("p1.raid", -3, Kit.PlenaryIndulgence, "Plenary Indulgence"), // press 27, used at 27
+            ],
+            new ScriptedSyncEngine());
+        var driver = new SessionDriver(session, 1000);
+        driver.CombatEdge(true);
+        driver.RunTo(1020);
+        session.OnOwnUse(Kit.Temperance, driver.Clock);
+        driver.RunTo(1021);
+
+        var model = Build(new Configuration(), session);
+
+        Assert.Equal(["Temperance", "Divine Benison", "Plenary Indulgence"], model.Rows.Select(r => r.Labels.Name));
+        Assert.Equal([ReminderState.Done, ReminderState.Upcoming, ReminderState.Upcoming], model.Rows.Select(r => r.State));
+
+        driver.RunTo(1027);
+        session.OnOwnUse(Kit.DivineBenison, driver.Clock);
+        session.OnOwnUse(Kit.PlenaryIndulgence, driver.Clock);
+        driver.RunTo(1028);
+
+        model = Build(new Configuration(), session);
+
+        Assert.Equal(["Divine Benison", "Plenary Indulgence"], model.Rows.Select(r => r.Labels.Name));
+        Assert.All(model.Rows, r => Assert.Equal(ReminderState.Done, r.State));
     }
 }
