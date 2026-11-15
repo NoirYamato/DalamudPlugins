@@ -1134,7 +1134,12 @@ actions:
     target: self
     gcd: true
     cast: 0
-    recast: 2.5
+    # recast: the GCD the game locks after Eukrasia, about 1 s, not the Action sheet's Recast100ms (25, 2.5 s): in
+    # cactbot's sample log docs/logs/TheAbyssalFractureExtreme.log (a level-90 Sage, actor 10FF0006), 36 of the 37
+    # in-combat Eukrasia -> Eukrasian action pairs are 0.98-1.07 s apart (the other is a 2.1 s wait), and guides list
+    # Eukrasia as a 1 s GCD. "(Late)" and multi-hit coverage leave a Eukrasian action this much before its effect
+    # (TimingRules.TimeToEffect). Hand-set: keep it when the file is regenerated.
+    recast: 1
     cooldown_group: 58
     sync: {80: 0, 90: 0, 100: 0}
     follow_ups:

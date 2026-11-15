@@ -350,7 +350,7 @@ public static class TimingRules
     /// <summary>
     /// Seconds from pressing <paramref name="action"/> to its effect: its cast, plus the recast of a GCD that is pressed right
     /// before it to make it usable (<see cref="ActionInfo.FollowUpOf"/> a GCD without a cooldown of its own, a recast under
-    /// 3 s: Eukrasia's 2.5 s before Eukrasian Prognosis; not Macrocosmos, pressed long before Microcosmos). The importer's
+    /// 3 s: Eukrasia's 1 s before Eukrasian Prognosis; not Macrocosmos, pressed long before Microcosmos). The importer's
     /// "(Late)" has that much in place 1 s before the hit, and so does multi-hit coverage (<see cref="ForEntry"/>).
     /// </summary>
     /// <param name="action">The action.</param>
@@ -559,7 +559,7 @@ public static class TimingRules
     /// The latest offset multi-hit coverage may give an entry with these timing actions (see <see cref="ForEntry"/>): an
     /// item pressed before the hit that takes time to its effect (<see cref="TimeToEffect"/>: a cast, or the GCD a follow-up
     /// needs first) has it in place 1 s before the hit, as "(Late)" presses it ("Succor": −3 s, "Eukrasian Prognosis":
-    /// −3.5 s), and an item with a lead of its own that is no mitigation keeps that lead (Earthly Star −10 s, to mature;
+    /// −2 s), and an item with a lead of its own that is no mitigation keeps that lead (Earthly Star −10 s, to mature;
     /// Neutral Sect −4.5 s, for its Helios). +∞ when no item limits it.
     /// </summary>
     private static double LatestCoveringOffset(IReadOnlyList<ActionInfo?> timing, IActionCatalog actions, int syncLevel)

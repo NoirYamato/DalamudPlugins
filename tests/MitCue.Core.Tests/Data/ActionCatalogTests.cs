@@ -184,6 +184,12 @@ public class ActionCatalogTests
         var wings = A("Passage of Arms");  // a channel any action ends: pressed last
         Assert.Equal((ActionKind.PartyMit, UseTiming.Before, 2.0), (wings.Kind, wings.When, wings.Lead!.Value));
 
+        // The GCD the game locks after Eukrasia: 1 s (combat logs), not the Action sheet's 2.5 s; the Eukrasian actions 1.5 s.
+        var eukrasia = A("Eukrasia");
+        Assert.Equal((true, 58, 1.0), (eukrasia.IsGcd, eukrasia.CooldownGroup, eukrasia.RecastAt(90)));
+        Assert.Equal(eukrasia.Id, A("Eukrasian Prognosis").FollowUpOf);
+        Assert.Equal(1.5, A("Eukrasian Prognosis").RecastAt(90));
+
         var caress = A("Divine Caress");
         Assert.Equal(3881u, caress.RequiresStatus);
         Assert.Equal(16536u, caress.FollowUpOf);

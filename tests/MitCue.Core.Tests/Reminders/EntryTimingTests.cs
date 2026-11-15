@@ -601,8 +601,8 @@ public class EntryTimingTests
     /// <summary>Sacred Soil: 15 s party mitigation (−4.5 s).</summary>
     private static readonly ActionInfo Soil = Kit.Act(188, "Sacred Soil", ActionKind.PartyMit, duration: 15, jobs: [Job.SCH]);
 
-    /// <summary>Eukrasia: a GCD (2.5 s) without a cooldown of its own, which Eukrasian Prognosis needs first.</summary>
-    private static readonly ActionInfo Eukrasia = new() { Id = 24290, Name = "Eukrasia", Kind = ActionKind.Other, Jobs = [Job.SGE], IsGcd = true, Recast = 2.5 };
+    /// <summary>Eukrasia: a GCD without a cooldown of its own (the game locks it for 1 s), which Eukrasian Prognosis needs first.</summary>
+    private static readonly ActionInfo Eukrasia = new() { Id = 24290, Name = "Eukrasia", Kind = ActionKind.Other, Jobs = [Job.SGE], IsGcd = true, Recast = 1 };
 
     /// <summary>Eukrasian Prognosis: an instant shield (−4 s), usable after Eukrasia.</summary>
     private static readonly ActionInfo EukrasianPrognosis = new()
@@ -616,10 +616,20 @@ public class EntryTimingTests
         FollowUpOf = Eukrasia.Id,
     };
 
-    /// <summary>Hits 6.1 s apart at 100, 12 s apart at 300, 8.4 s apart at 500 and 9.5 s apart at 700 (sync 90).</summary>
+    /// <summary>
+    /// Hits 6.1 s apart at 100, 12 s apart at 300, 8.4 s apart at 500, 9.5 s apart at 700, 11 s apart at 900 and 11.5 s apart
+    /// at 1100 (sync 90).
+    /// </summary>
     private static EntryTiming Limited(string mechanic, params ActionInfo[] actions)
     {
-        var fight = Kit.Fight(90, Kit.Mech("p1.two", 100, 100, 106.1), Kit.Mech("p1.far", 300, 300, 312), Kit.Mech("p1.near", 500, 500, 508.4), Kit.Mech("p1.mid", 700, 700, 709.5));
+        var fight = Kit.Fight(
+            90,
+            Kit.Mech("p1.two", 100, 100, 106.1),
+            Kit.Mech("p1.far", 300, 300, 312),
+            Kit.Mech("p1.near", 500, 500, 508.4),
+            Kit.Mech("p1.mid", 700, 700, 709.5),
+            Kit.Mech("p1.late", 900, 900, 911),
+            Kit.Mech("p1.later", 1100, 1100, 1111.5));
         var catalog = new FakeCatalog([.. Kit.Catalogued, TenSecondMit, Soil, Eukrasia, EukrasianPrognosis]);
         return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, catalog);
     }
@@ -646,9 +656,13 @@ public class EntryTimingTests
         Assert.Equal(695, mid.Items[0].Earliest, Kit.Tolerance);                                        // 709.5 − 15 + 0.5
         Assert.Equal(-4.6, Limited("p1.near", Kit.Temperance, Soil, Kit.Adloquium).AutomaticOffset, Kit.Tolerance);
 
-        // A follow-up of a GCD (Eukrasian Prognosis after Eukrasia's 2.5 s) is in place 1 s before the hit too: −3.5 s at the latest.
+        // A follow-up of a GCD (Eukrasian Prognosis after Eukrasia's 1 s) is in place 1 s before the hit too: −2 s at the
+        // latest, so the Soil covers a hit 11 s later (911 − 15 + 2 − 900), not one 11.5 s later.
         Assert.Equal(-4.5, Limited("p1.far", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-3.5, Limited("p1.mid", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-2, Limited("p1.late", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Limited("p1.later", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-1.5, Limited("p1.later", Soil).AutomaticOffset, Kit.Tolerance);                        // alone it would
 
         // An item with a lead of its own is not pressed later for a later hit: Earthly Star matures (beside the 10 s
         // mitigation as late as that still lasts through the first hit, −7.5 s), Neutral Sect leaves time for its Helios.

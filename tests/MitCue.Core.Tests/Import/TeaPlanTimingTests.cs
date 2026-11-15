@@ -345,6 +345,22 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// 'LL/BJCC'!F23 "EukProg/Kerachole" on Protean 2 (109.1), 28 s after F19's Kerachole at Splash (77.1), recast 30 s:
+    /// ready at 107.1, the cell is pressed 2 s before the hit, as late as "(Late)" would press it (Eukrasia, a GCD the game
+    /// locks for 1 s, then the Eukrasian Prognosis 1 s before the hit), so that Kerachole is ready.
+    /// </summary>
+    [Fact]
+    public void RecastFit_TheSagesProtean2KeracholeWaitsForItsRecast()
+    {
+        var splash = Assert.Single(Reminders("'LL/BJCC'!F19"), r => r.Item.Name == "Kerachole");
+        var f23 = Reminders("'LL/BJCC'!F23");
+        Assert.Equal(["Eukrasian Prognosis", "Kerachole"], f23.Select(r => r.Item.Name));
+        Assert.All(f23, r => Assert.Equal(109.1 - 2, r.PressAt, 1e-9));
+        Assert.Equal(splash.PressAt + 30, f23[1].PressAt, 1e-9);
+        Assert.Equal(-2.0, f23[0].Entry.Offset);
+    }
+
+    /// <summary>
     /// <c>check --job WHM --slot H1</c>: no recast conflict for Asylum or Plenary Indulgence. The one left is the sheet's
     /// Divine Benison at Doll Feeds and Protean 1, 21.6 s apart with one charge at level 80, which is ready again only
     /// after Protean 1.
