@@ -318,7 +318,7 @@ public class TeaP1LivingLiquidTankTests
     }
 
     // -- An Embolus and a boss --
-    // An orb waits on the east tornado and at 6.67 sets off west along the arena's middle line, through where the
+    // An orb waits on the east tornado and at 6.55 sets off west along the arena's middle line, through where the
     // Living Liquid stood at Pressurize, at 20 y/s here. Everyone stands far north, and one boss is moved beside its
     // way: it bursts on a boss whose hitbox comes within a yalm of it.
     [TestCase(TeaP1Boss.LivingLiquid, 4.3f, true)]

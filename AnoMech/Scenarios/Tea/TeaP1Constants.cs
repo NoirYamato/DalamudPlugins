@@ -178,7 +178,7 @@ public static class TeaP1Constants
         // The client is shown a new set of Liquid Rages 1.2 to 1.6 s after the Cascade that brings it lands.
         public const float TornadoesAppearAfterCascade = 1.4f;
         public const float EmbolusAfterPressurize = 0.7f;
-        public const float EmbolusSetsOffAfterPressurize = 5.67f;
+        public const float EmbolusSetsOffAfterPressurize = 5.55f;
         public const float HandLeavesAfterTheLiquid = 1.3f;
         public const float LiquidCorpseFade = 3f;
         public const float LivingLiquidDamageDelay = 1f;            // UNVERIFIED: for the waves, Sluice and Drainage

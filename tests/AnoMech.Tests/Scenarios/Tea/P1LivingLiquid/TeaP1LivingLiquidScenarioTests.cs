@@ -682,7 +682,7 @@ public class TeaP1LivingLiquidScenarioTests
 
     // -- Emboli --
 
-    // Pressurize at 33.2 from two tornadoes; at 33.9 an orb shows on each and waits there; at 38.87 each sets off
+    // Pressurize at 33.2 from two tornadoes; at 33.9 an orb shows on each and waits there; at 38.75 each sets off
     // through where its boss stood at 33.2, here at 6 y/s. They go as the Liquid falls.
     [TestCase(TeaP1Tornado.West, TeaP1Boss.LiquidHand, TeaP1Tornado.East, TeaP1Boss.LivingLiquid)]
     [TestCase(TeaP1Tornado.West, TeaP1Boss.LiquidHand, TeaP1Tornado.Middle, TeaP1Boss.LivingLiquid)]
@@ -702,7 +702,7 @@ public class TeaP1LivingLiquidScenarioTests
                 foreach (var boss in Enum.GetValues<TeaP1Boss>()) bosses[boss] = fight.Position(boss);
             if (p.Crossed(33.8f)) before = fight.Emboli.Count;
             if (p.Crossed(33.95f)) shown = fight.Emboli.Select(e => e.Position).ToArray();
-            if (p.Crossed(38.8f)) waiting = fight.Emboli.Select(e => e.Position).ToArray();
+            if (p.Crossed(38.7f)) waiting = fight.Emboli.Select(e => e.Position).ToArray();
             if (p.Crossed(39.5f)) onItsWay = fight.Emboli.Select(e => e.Position).ToArray();
             if (p.Crossed(42f)) after = fight.Emboli.Count(e => e.IsActive);
         });
@@ -718,7 +718,7 @@ public class TeaP1LivingLiquidScenarioTests
                 var toward = Vector3.Normalize(bosses[aims[orb]] - from);
                 Assert.That(Vector3.Distance(shown[orb], from), Is.LessThan(0.01f), $"orb {orb + 1} shows at {shown[orb]}");
                 Assert.That(Vector3.Distance(waiting[orb], from), Is.LessThan(0.01f), $"orb {orb + 1} still waits at {waiting[orb]}");
-                Assert.That(Vector3.Distance(onItsWay[orb], from + toward * 6f * (39.5f - 38.87f)), Is.LessThan(0.3f), $"orb {orb + 1} on its way at {onItsWay[orb]}");
+                Assert.That(Vector3.Distance(onItsWay[orb], from + toward * 6f * (39.5f - 38.75f)), Is.LessThan(0.3f), $"orb {orb + 1} on its way at {onItsWay[orb]}");
             }
             Assert.That(after, Is.Zero, "they go as the Liquid falls");
             var pressurizes = watch.Sent("ability", P1ActionId.Pressurize);

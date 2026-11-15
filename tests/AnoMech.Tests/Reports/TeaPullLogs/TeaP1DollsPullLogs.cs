@@ -20,6 +20,7 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
     private readonly List<string> pressurizes = [], emboli = [], bursts = [];
     private readonly Dictionary<string, int> leftOut = [];
     private readonly List<double> embolusAppears = [], embolusOffItsTornado = [], embolusSetsOff = [], embolusSetsOffAfterPressurize = [], embolusSpeeds = [], embolusAim = [], embolusPastItsSpot = [];
+    private readonly List<double> embolusFirstMoveLine = [], embolusFirstMoveLineOut = [];
     private readonly List<double> burstNearestPlayer = [], burstFromTheLiquid = [], burstFromTheHand = [], embolusStopsOut = [], embolusLasts = [];
     private int pressurizeVolleys, pressurizesOfTwo, pairs, pairsOneForEachBoss;
 
@@ -117,7 +118,8 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             P1BNpcBaseId.LivingLiquid => "the Living Liquid", P1BNpcBaseId.LiquidHand => "the Liquid Hand", P1BNpcBaseId.LiquidRage => "a Liquid Rage",
             _ => "something else",
         };
-        feeds.Add($"{pull.Name} at {Spread.F(pull.Clock(feed.Time))} s: a doll at {Spread.F(share, "0.0")} % of its hit points, {Spread.F(apart)} y from {eater}, "
+        feeds.Add($"{pull.Name} at {Spread.F(pull.Clock(feed.Time))} s: a doll at {(double.IsNaN(share) ? "unknown hit points" : $"{Spread.F(share, "0.0")} % of its hit points")}, "
+                  + $"{(float.IsNaN(apart) ? "an unknown distance" : $"{Spread.F(apart)} y")} from {eater}, "
                   + $"is fed to it; " + (burst.Count == 0 ? "no Reducible Complexity follows"
                       : $"Reducible Complexity ({burst[0].Action}) {Spread.F(PullLog.Seconds(feed.Time, burst[0].Time))} s later kills {killed} of {living.Count}"));
     }
@@ -168,17 +170,25 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
                 var path = "never moves";
                 if (moves.Count >= 2)
                 {
-                    embolusSetsOff.Add(PullLog.Seconds(orb.Time, moves[0].Time));
-                    embolusSetsOffAfterPressurize.Add(PullLog.Seconds(time, moves[0].Time));
+                    embolusFirstMoveLine.Add(PullLog.Seconds(time, moves[0].Time));
+                    embolusFirstMoveLineOut.Add(Vector2.Distance(at, moves[0].Position));
                     var seconds = PullLog.Seconds(moves[0].Time, moves[^1].Time);
                     var speed = seconds > 1 ? Vector2.Distance(moves[0].Position, moves[^1].Position) / seconds : double.NaN;
-                    if (!double.IsNaN(speed)) embolusSpeeds.Add(speed);
+                    if (!double.IsNaN(speed))
+                    {
+                        embolusSpeeds.Add(speed);
+                        // Its first move line shows it already on its way: it set off that stretch earlier.
+                        var underWay = Vector2.Distance(at, moves[0].Position) / speed;
+                        embolusSetsOff.Add(PullLog.Seconds(orb.Time, moves[0].Time) - underWay);
+                        embolusSetsOffAfterPressurize.Add(PullLog.Seconds(time, moves[0].Time) - underWay);
+                    }
                     var went = Vector2.Distance(at, moves[^1].Position);
                     var past = went - Vector2.Distance(at, spot);
                     var stillMoving = pull.End is not { } end || PullLog.Seconds(moves[^1].Time, end) < 1.5;
                     if (!stillMoving || past > 0) embolusPastItsSpot.Add(past);
                     if (!stillMoving) embolusStopsOut.Add(Vector2.Distance(moves[^1].Position, TeaPull.Centre));
-                    path = $"sets off {Spread.F(PullLog.Seconds(orb.Time, moves[0].Time))} s after appearing, {Spread.F(speed)} y/s, {Spread.F(went)} y by its last move line "
+                    path = $"its first move line {Spread.F(PullLog.Seconds(orb.Time, moves[0].Time))} s after appearing, "
+                           + $"{(double.IsNaN(speed) ? "too few move lines for its speed" : $"{Spread.F(speed)} y/s")}, {Spread.F(went)} y by its last move line "
                            + $"at {Spread.F(pull.Clock(moves[^1].Time))} s ({(stillMoving ? "the pull's end" : "then no more")}), at {TeaPull.Spot(moves[^1].Position)}, "
                            + $"{Spread.F(Vector2.Distance(moves[^1].Position, TeaPull.Centre))} y from the centre; the spot it left for was "
                            + $"{Spread.F(Vector2.Distance(at, spot))} y away";
@@ -206,9 +216,10 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             if (!double.IsNaN(player)) burstNearestPlayer.Add(player);
             if (!double.IsNaN(fromTheLiquid)) burstFromTheLiquid.Add(fromTheLiquid);
             if (!double.IsNaN(fromTheHand)) burstFromTheHand.Add(fromTheHand);
-            bursts.Add($"{pull.Name} at {Spread.F(pull.Clock(time))} s: Outburst from an Embolus at {TeaPull.Spot(at)}; the nearest living player "
-                       + $"{Spread.F(player)} y from it, the Living Liquid's centre {Spread.F(fromTheLiquid)} y, the Liquid Hand's {Spread.F(fromTheHand)} y; "
-                       + $"{pull.Living(time).Count()} players alive");
+            static string Away(double distance) => double.IsNaN(distance) ? "at no known distance" : $"{Spread.F(distance)} y from it";
+            bursts.Add($"{pull.Name} at {Spread.F(pull.Clock(time))} s: Outburst from an Embolus at {TeaPull.Spot(at)}; "
+                       + (double.IsNaN(player) ? "no living player near" : $"the nearest living player {Away(player)}")
+                       + $", the Living Liquid's centre {Away(fromTheLiquid)}, the Liquid Hand's {Away(fromTheHand)}; {pull.Living(time).Count()} players alive");
         }
         outbursts.Observe(pull, pull.Hits.Where(h => h.Action == P1ActionId.Outburst), h => $"Outburst at {Spread.F(pull.Clock(h.Time))} s");
     }
@@ -300,8 +311,11 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         var afterPressurize = new Spread(embolusSetsOffAfterPressurize);
         yield return new LogFinding(Section, "An Embolus sets off, after Pressurize",
             SimSource.Line(TeaSource.Constants, "float EmbolusSetsOffAfterPressurize ="), $"{P1Duration.EmbolusSetsOffAfterPressurize} s",
-            setsOff.Count == 0 ? "no Embolus seen to move" : $"{afterPressurize.Describe(" s")}; after it appears: {setsOff.Describe(" s")}",
-            LogFinding.Compare(afterPressurize, P1Duration.EmbolusSetsOffAfterPressurize, 0.1));
+            setsOff.Count == 0 ? "no Embolus seen to move"
+                : $"{afterPressurize.Describe(" s")}; after it appears: {setsOff.Describe(" s")}. Its first move line comes "
+                  + $"{new Spread(embolusFirstMoveLine).Describe(" s")} after Pressurize with it already {new Spread(embolusFirstMoveLineOut).Describe(" y")} out, "
+                  + "which at its own speed puts the set-off that much earlier",
+            LogFinding.Compare(afterPressurize, P1Duration.EmbolusSetsOffAfterPressurize, 0.05));
 
         var speed = new Spread(embolusSpeeds);
         yield return new LogFinding(Section, "An Embolus's speed, from its first move line to its last",

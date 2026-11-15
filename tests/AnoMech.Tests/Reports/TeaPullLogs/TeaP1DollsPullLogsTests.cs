@@ -10,7 +10,8 @@ public class TeaP1DollsPullLogsTests
     private const uint Doll1 = 0x40000061, Doll2 = 0x40000062, Orb1 = 0x40000071, Orb2 = 0x40000072;
 
     // The Liquid stands on the centre and the Hand 10 y south of it. The north tornado's Embolus appears 0.4 s after
-    // Pressurize, sets off 5.3 s later at 2 y/s for where the Liquid stood, 15 y away, and goes on 7 y past it.
+    // Pressurize and goes at 2 y/s for where the Liquid stood, 15 y away, and on 7 y past it. Its first move line, 5.6 s
+    // after Pressurize, has it 0.1 y out already: it set off 0.05 s before.
     [Test]
     public void AnEmbolusWaitsThenGoesOnPastItsSpot()
     {
@@ -21,14 +22,16 @@ public class TeaP1DollsPullLogsTests
             Hit(40, RageNorth, P1ActionId.Pressurize, RageNorth), Hit(40, RageWest, P1ActionId.Pressurize, RageWest),
             Enemy(40.4, Orb1, P1BNpcBaseId.Embolus, north, 0f, 3853782, 3853782),
             Enemy(40.4, Orb2, P1BNpcBaseId.Embolus, new Vector2(85f, 100f), 0.98f, 3853782, 3853782),
-            .. Enumerable.Range(0, 12).Select(k => Moved(45.7 + k, Orb1, north + new Vector2(0f, 0.1f + 2 * k), 0f)),
+            .. Enumerable.Range(0, 12).Select(k => Moved(45.6 + k, Orb1, north + new Vector2(0f, 0.1f + 2 * k), 0f)),
         ], [LiquidStands(x: 100f, y: 100f)]));
 
         Assert.Multiple(() =>
         {
             Assert.That(findings.Named("Pressurize: which tornadoes cast it").Measured, Does.StartWith("1 of 1 come from two tornadoes; left out: East x1"));
             Assert.That(findings.Named("An Embolus appears on its tornado").Measured, Does.StartWith("0.40 s (n=2"));
-            Assert.That((findings.Named("An Embolus sets off").Measured, findings.Named("An Embolus sets off").Verdict), Is.EqualTo(("5.70 s (n=1); after it appears: 5.30 s (n=1)", Verdict.Matches)));
+            Assert.That(findings.Named("An Embolus sets off").Measured, Does.StartWith("5.55 s (n=1); after it appears: 5.15 s (n=1). Its first move line comes 5.60 s (n=1) "
+                                                                                       + "after Pressurize with it already 0.10 y (n=1) out"));
+            Assert.That(findings.Named("An Embolus sets off").Verdict, Is.EqualTo(Verdict.Matches));
             Assert.That((findings.Named("An Embolus's speed").Measured, findings.Named("An Embolus's speed").Verdict), Is.EqualTo(("2.00 y/s (n=1)", Verdict.Matches)));
             Assert.That(findings.Named("Where an Embolus heads").Measured, Does.Contain("in 1 of 1 pairs one heads for each boss"));
             Assert.That(findings.Named("An Embolus goes on past the spot it left for").Measured, Does.StartWith("7.10 y (n=1)"));
