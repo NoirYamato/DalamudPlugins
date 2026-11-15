@@ -70,8 +70,9 @@ internal sealed class LlmPromptInput
 
     /// <summary>
     /// True when the plan text (<see cref="SourceText"/>) numbers its Seraph calls ("Seraph1", "Seraph2"), so that MitCue's
-    /// importer reads a plain "Seraph" in it as "Seraph1" too: Summon Seraph, then Consolation
-    /// (<see cref="ImportAnalysis.SeraphNumbered"/>). False when it does not, or when that is not known.
+    /// importer reads a plain "Seraph" in it as "Seraph1" too: Summon Seraph, then Consolation; one while that Seraph is
+    /// still out as "Seraph2", the other Consolation (<see cref="ImportAnalysis.SeraphNumbered"/>). False when it does not,
+    /// or when that is not known.
     /// </summary>
     public bool SeraphNumbered { get; init; }
 }
@@ -204,11 +205,14 @@ internal static class LlmPrompt
     /// <summary>
     /// The rule for a plain "Seraph" in a sheet that numbers its Seraph calls (<see cref="LlmPromptInput.SeraphNumbered"/>):
     /// it means "Seraph1", as PlanImporter reads it per document, while the alias list gives the summon alone (Carry the
-    /// Clear writes its Consolations apart).
+    /// Clear writes its Consolations apart); and one while the Seraph summoned before is still out means "Seraph2", as
+    /// the importer reads a party buff planned again while it lasts (its follow-up: LPDU TEA's "Seraph/Fey Illum" at J
+    /// Wave 7).
     /// </summary>
     private const string SeraphRule =
         "This sheet numbers its Seraph calls (\"Seraph1\" = Summon Seraph -> Consolation, \"Seraph2\" = the second Consolation): a plain \"Seraph\" in it means \"Seraph1\" too, " +
-        "Summon Seraph then Consolation (`seq: true`), as MitCue's importer reads it: do the same.";
+        "Summon Seraph then Consolation (`seq: true`); but a plain \"Seraph\" while the Seraph summoned by the one before is still out (it stays 22 s) means \"Seraph2\", the other Consolation " +
+        "(\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination). MitCue's importer reads them so: do the same.";
 
     /// <summary>
     /// The YAML inside an AI answer: the ```yaml block (or the first fenced block that looks like a plan), else the text
