@@ -311,6 +311,13 @@ public sealed partial class PlanImporter
         };
 
         /// <summary>
+        /// The place words before a role or slot word that a colon follows that still let it head what follows, as "Tanks:"
+        /// does: "For the tanks: …", "To the melee: …" (<see cref="NamesAPlayer"/>). Another one places it: "Soil on the
+        /// melee: …".
+        /// </summary>
+        private static readonly HashSet<string> HeadingPlaceWords = new(StringComparer.OrdinalIgnoreCase) { "for", "to" };
+
+        /// <summary>
         /// The first part of a role word written in two ("co-tank", "off-tank", "main tank", "non-tanks"): a place word before
         /// it still places the role word (<see cref="IsPlacement"/>).
         /// </summary>
@@ -2394,20 +2401,26 @@ public sealed partial class PlanImporter
         /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
         /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
         /// is no player spoken to ("press Soil/Kera on the melee", "under the MT/OT", "the tank buster",
-        /// <see cref="IsPlacement"/>), unless a colon follows it: then it heads what follows, whatever word comes before it,
-        /// as "Tanks:" does ("For the tanks: …", "Tip for melee: …", "To the melee: …"). Nor is the job whose own action the
-        /// note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of several jobs (a role action
-        /// such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the first tower set, then PLD
+        /// <see cref="IsPlacement"/>), unless a colon follows it and no place word but "for" or "to" places it
+        /// (<see cref="HeadingPlaceWords"/>): then it heads what follows, as "Tanks:" does ("For the tanks: …", "Tip for
+        /// melee: …", "To the melee: …"; "Soil on the melee: …" places the Soil). Nor is the job whose own action the note
+        /// names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of several jobs (a role action such
+        /// as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the first tower set, then PLD
         /// provokes …" speaks to the PLD. A note over several columns that speaks to no other player is about using the
         /// actions it names (<see cref="BannerNote"/>).
         /// </summary>
         private bool NamesAPlayer(string text)
         {
-            if (HeadingColon().Matches(text).Any(m => PlayerWords.Contains(m.Groups["who"].Value)))
-                return true;
-
             // "/", "&" and "+" list player words as "or" does (IsPlacement): "on the MT/OT", "under the tanks & healers".
-            var words = Regex.Split(Regex.Replace(text, "[/&+]", " or "), @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            static string[] Words(string part) => Regex.Split(Regex.Replace(part, "[/&+]", " or "), @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            foreach (var who in HeadingColon().Matches(text).Select(m => m.Groups["who"]).Where(g => PlayerWords.Contains(g.Value)))
+            {
+                var heading = Words(text[..(who.Index + who.Length)]);
+                if (PlaceWordOf(heading, heading.Length - 1) is not { } place || HeadingPlaceWords.Contains(place))
+                    return true;
+            }
+
+            var words = Words(text);
             if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
                 return true;
             var pressers = this.NamedByWord(text).Where(w => w.Jobs.Count == 1).SelectMany(w => w.Jobs).ToHashSet();
@@ -2424,20 +2437,29 @@ public sealed partial class PlanImporter
         private static bool IsPlacement(string[] words, int i)
         {
             var next = i + 1 < words.Length && words[i + 1].Equals("s", StringComparison.OrdinalIgnoreCase) ? i + 2 : i + 1; // "the OT's buster"
-            if (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
-                return true;
+            return (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase)) || PlaceWordOf(words, i) is not null;
+        }
+
+        /// <summary>
+        /// The place word that makes the role or slot word at <paramref name="i"/> where or for whom to press
+        /// (<see cref="IsPlacement"/>): the one before it ("on the melee", "under the tanks", "on the co-tank"), or before the
+        /// word of its kind that "and"/"or" lists it with ("on melee and ranged", "for the MT and OT"); null when none does.
+        /// </summary>
+        private static string? PlaceWordOf(string[] words, int i)
+        {
             var j = i - 1;
             if (j >= 0 && RolePrefixes.Contains(words[j]))
                 j--;
             while (j >= 0 && Determiners.Contains(words[j]))
                 j--;
             if (j < 0)
-                return false;
+                return null;
             if (PlaceWords.Contains(words[j]))
-                return true;
+                return words[j];
             return (words[j].Equals("and", StringComparison.OrdinalIgnoreCase) || words[j].Equals("or", StringComparison.OrdinalIgnoreCase))
                 && j > 0 && PlayerWords.Contains(words[j - 1]) && Slots.TryNormalize(words[j - 1], out _) == Slots.TryNormalize(words[i], out _)
-                && IsPlacement(words, j - 1);
+                ? PlaceWordOf(words, j - 1)
+                : null;
         }
 
         /// <summary>

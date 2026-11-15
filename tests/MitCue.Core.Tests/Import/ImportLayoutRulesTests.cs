@@ -818,10 +818,14 @@ public class ImportLayoutRulesTests
     [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
     [InlineData("Press Soil for the melee as the first tether resolves!")] // "for" places a role word that heads nothing
     [InlineData("A tip for the tank buster: press Soil as the first tether resolves!")]
+    [InlineData("Soil on the melee: stack in the middle as the first tether resolves!")] // a colon after a placed role word
+    [InlineData("Mit on the tanks: Soil as the first tether resolves!")]
+    [InlineData("Soil under the MT/OT: as the first tether resolves!")]
     public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
     {
         // Where or when to press ("on the melee", "under the tanks", "before the tank buster") and the job that presses it
-        // ("SCH:") are no players spoken to: the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
+        // ("SCH:") are no players spoken to, nor is a role word that a place word other than "for" or "to" places before a
+        // colon ("Soil on the melee: …"): the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
         var r = Import(PlacingTab(tip));
 
         Assert.Equal(["'P1'!D2"], r.Plan.Entries.Where(e => e.Detail == tip).Select(e => e.Src!));

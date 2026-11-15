@@ -239,8 +239,9 @@ Rules worth knowing:
   entries, as a note in each column. A role or slot word that says where or for whom to press speaks to no one ("on the
   melee", "under the tanks", "on melee and ranged", "on the MT/OT", "under the tanks/healers", "on the co-tank", "the
   tank buster", "the OT's buster": a `/`, `&` or `+` between such words lists them as "or" does), unless a colon follows
-  it: then it heads the note, as in "Tanks: …", whatever word comes before it ("For the tanks: …", "Tip for melee: …",
-  "To the melee: …"). Nor does the job whose own action the note names ("SCH: … press Soil …"). A word that names
+  it and no place word but "for" or "to" places it: then it heads the note, as in "Tanks: …" ("For the tanks: …", "Tip
+  for melee: …", "To the melee: …", "For the MT and OT: …"; "Soil on the melee: …" and "WHM on the tank: …" place the
+  actions). Nor does the job whose own action the note names ("SCH: … press Soil …"). A word that names
   actions of several jobs does not say whose it is: "WAR Rampart the first tower set, then PLD provokes …" speaks to
   the PLD (Rampart is every tank's, as "Invuln" names one action of each). A merged note reads the same whichever of
   its columns are imported: imported alone, the Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1
