@@ -355,6 +355,12 @@ public sealed partial class PlanImporter
         private readonly Dictionary<(PlanEntry Entry, uint Action), ImportDiagnostic> keptPresses = [];
 
         /// <summary>
+        /// Each press a later call was read as still active from (<see cref="MarkStillActive"/>), with that call's mechanic:
+        /// the look after the recast fit keeps it a press, since that call needs it.
+        /// </summary>
+        private readonly Dictionary<(PlanEntry Entry, uint Action), string> servingPresses = [];
+
+        /// <summary>
         /// The plan's seats (<see cref="Seats"/>) for the steps after the cells (<see cref="BuildPlan"/>), whose moves keep
         /// what each seat that sees an entry needs (<see cref="KeepsItsSeats"/>). Who an entry is for no longer changes then.
         /// </summary>
@@ -2557,7 +2563,9 @@ public sealed partial class PlanImporter
         /// (<see cref="KeepsItsSeats"/>). Otherwise the later call stays a press, and <c>check</c> reports the recast the
         /// sheet asks for. After the recast fit has pressed earlier entries later (<see cref="FitRecasts"/>), it looks
         /// again at the calls after those (<paramref name="fitted"/>): one that such a press now serves as it is is read
-        /// as still active too, its info in place of the one that kept it a press; nothing moves then.
+        /// as still active too, its info in place of the one that kept it a press; nothing moves then. A call whose own
+        /// press a later call was read as still active from stays a press, with an info that says so: that call needs it,
+        /// and the moved press need not last through it (<see cref="servingPresses"/>).
         /// </remarks>
         /// <param name="ordered">The entries in press order.</param>
         /// <param name="fitted">The entries the recast fit moved, for that second look; null for the first.</param>
@@ -2620,12 +2628,22 @@ public sealed partial class PlanImporter
                             var why = follow is null ? "that one does not last through this hit" : $"its follow-up {follow.Name} would be used after it is over";
                             var when = blocked is not null ? $"at its press, and pressed later {blocked}"
                                 : prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it";
-                            this.Diag(DiagnosticSeverity.Info, "still-active",
+                            this.KeepPress(e, id, new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
                                 $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {why} {when}: both stay presses.",
-                                e.Src);
-                            this.keptPresses[(e, id)] = this.diagnostics[^1];
+                                e.Src));
                         }
 
+                        last[key] = (d, e.Offset is null);
+                        continue;
+                    }
+
+                    // After the recast fit, a press that a later call was read as still active from stays a press: that call
+                    // needs it, and the press the fit moved need not last through it. check reports the recast.
+                    if (fitted is not null && this.servingPresses.TryGetValue((e, id), out var served))
+                    {
+                        this.KeepPress(e, id, new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
+                            $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, as the recast fit presses that one {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit, but the {action.Name} at {served} is read as still active from this one: both stay presses.",
+                            e.Src));
                         last[key] = (d, e.Offset is null);
                         continue;
                     }
@@ -2645,6 +2663,7 @@ public sealed partial class PlanImporter
 
                     e.Seq &= e.Do.Count > 1;
                     changed = true;
+                    this.servingPresses.TryAdd((earlier, id), e.Mechanic);
                     var moved = movedFrom is { } from
                         ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it {(follow is null ? "lasts through this one" : $"still lasts when {follow.Name} is used")}."
                         : fitted is not null ? $" The recast fit presses that one {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit."
@@ -2661,6 +2680,19 @@ public sealed partial class PlanImporter
             }
 
             return changed;
+        }
+
+        /// <summary>
+        /// Writes the <c>still-active</c> info of a call that stays a press (<see cref="MarkStillActive"/>), in place of the
+        /// one it has.
+        /// </summary>
+        private void KeepPress(PlanEntry entry, uint action, ImportDiagnostic info)
+        {
+            if (this.keptPresses.TryGetValue((entry, action), out var kept) && this.diagnostics.IndexOf(kept) is var at and >= 0)
+                this.diagnostics[at] = info;
+            else
+                this.diagnostics.Add(info);
+            this.keptPresses[(entry, action)] = info;
         }
 
         /// <summary>
@@ -2801,8 +2833,9 @@ public sealed partial class PlanImporter
         /// allows. A press that moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW
         /// cue: in a chain of moves each NOW cue still comes when its action is ready for a player who presses at the press
         /// times (each link keeps its due lead). After each round, a call after a press the fit moved that this press now
-        /// serves as it is is read as still active (<see cref="MarkStillActive"/>): its note holds no charge, so the plan
-        /// is replayed again. A <c>recast-fit</c> info names each entry that moved, with the gap before the fit.
+        /// serves as it is is read as still active (<see cref="MarkStillActive"/>), unless a later call was read as still
+        /// active from its own press: its note holds no charge, so the plan is replayed again. A <c>recast-fit</c> info
+        /// names each entry that moved, with the gap before the fit.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts)
         {

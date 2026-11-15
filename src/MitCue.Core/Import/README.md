@@ -265,10 +265,13 @@ Rules worth knowing:
   which says what a later press would break), and `check` reports the recast. After each round of the recast fit, a
   call after a press the fit moved that this press now serves as it is is read as still active too (TEA's `Asylum
   (Late)` at Double Rocket Punch, 18.8 s after the Gavel Asylum that the fit presses 1.5 s before its hit), its info in
-  place of the one that kept it a press. An optional earlier press (in brackets, with a condition, one choice of an
-  either/or) may not happen, so it keeps no buff up. A limit break written for one role in columns of different slots
-  at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those columns are imported: a tank
-  who imports only their own column gets it optional too.
+  place of the one that kept it a press, unless a later call was read as still active from that call's own press: the
+  moved press need not last through that one, so both stay presses, with an info that says so, and `check` reports the
+  recast (the same sheet with `Asylum` again at Super Jump, 1.1 s after the Double Rocket Punch press and after the
+  Gavel Asylum ends). An optional earlier press (in brackets, with a condition, one choice of an either/or) may
+  not happen, so it keeps no buff up. A limit break written for one role in columns of different slots at one mechanic
+  is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those columns are imported: a tank who imports
+  only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,

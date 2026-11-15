@@ -569,6 +569,75 @@ public class ImportRecastFitTests
         Assert.Empty(Conflicts(r, tea, Job.WHM, "H1"));
     }
 
+    [Theory]
+    [InlineData(240.0)]
+    [InlineData(245.0)]
+    public void AfterTheFit_ACallThatALaterCallIsStillActiveFrom_StaysAPress(double charlie)
+    {
+        // As the sheet plans them, Bravo's "Temperance (Late)" (230.5) comes after Alpha's Temperance (210) ends, and Charlie's
+        // is still active from Bravo's. The fit then presses Alpha 1 s before its hit (215, until 233.5 from its NOW cue),
+        // which would serve Bravo but not Charlie: Charlie needs Bravo's press, which stays, and check reports it.
+        var fight = Fight(80, ("Zed", 100), ("Alpha", 216), ("Bravo", 231.5), ("Charlie", charlie));
+        var r = Import(Sheet("P1", "White Mage", "Zed\tTemperance", "Alpha\tTemperance", "Bravo\tTemperance (Late)", "Charlie\tTemperance"), fight);
+
+        Assert.Equal(-1.0, At(r, "p1.alpha", "Temperance").Offset);
+        Assert.Equal(["Temperance"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Names());
+        Assert.Equal(["note:Temperance (still active)"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.charlie").Names());
+        AssertEveryStillActiveNoteIsServed(r, fight, Job.WHM, "Temperance");
+        Assert.Equal<uint?>(RepoFiles.Action("Temperance").Id, Assert.Single(Conflicts(r, fight, Job.WHM)).ActionId);
+        Assert.Equal(
+            "Temperance at p1.bravo is planned 15.5 s after the Temperance at p1.alpha, which lasts 20.0 s (recast 120.0 s), as the recast fit presses that one 1.0 s before its hit, but the Temperance at p1.charlie is read as still active from this one: both stay presses.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active" && d.Message.StartsWith("Temperance at p1.bravo ", StringComparison.Ordinal)).Message);
+    }
+
+    [Fact]
+    public void Tea_AfterTheFit_TheDoubleRocketPunchAsylumThatTheSuperJumpOneIsStillActiveFrom_StaysAPress()
+    {
+        // TEA P2, with "Asylum" again at Super Jump (382.1), 1.1 s after the Double Rocket Punch press: still active from that
+        // one. The Gavel Asylum that the fit presses 1.5 s before its hit lasts until 379, past Double Rocket Punch but not
+        // Super Jump: the Double Rocket Punch Asylum stays a press.
+        var tea = PlanImports.Tea;
+        var r = Import(Sheet("P2", "White Mage", "Photon\tAsylum", "Gavel\tAsylum", "Double Rocket Punch\tAsylum (Late)", "Super Jump\tAsylum"), tea);
+
+        Assert.Equal(-1.5, At(r, "p2.gavel", "Asylum").Offset);
+        Assert.Equal(["Asylum"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p2.double_rocket_punch").Names());
+        Assert.Equal(["note:Asylum (still active)"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p2.super_jump").Names());
+        AssertEveryStillActiveNoteIsServed(r, tea, Job.WHM, "Asylum", "H1");
+        Assert.Single(Conflicts(r, tea, Job.WHM, "H1"));
+    }
+
+    [Fact]
+    public void AfterTheFit_ASeraphThatALaterConsolationIsReadFrom_StaysASummon()
+    {
+        // Plain "Seraph" four times (a Scholar at level 80): Charlie's is the Consolation, Seraph summoned at Bravo still out.
+        // The fit presses Alpha's Summon Seraph later, which would make Bravo's the Consolation too, but then Charlie's
+        // would be used 23.5 s after Alpha's summon, when Seraph is gone: Bravo stays the summon.
+        var fight = Fight(80, ("Zed", 98), ("Alpha", 216), ("Bravo", 238), ("Charlie", 242.5));
+        var r = Import(Sheet("P1", "Scholar", "Zed\tSeraph", "Alpha\tSeraph", "Bravo\tSeraph", "Charlie\tSeraph"), fight);
+
+        Assert.Equal(["Summon Seraph"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo").Names());
+        Assert.Equal(["Consolation"], Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.charlie").Names());
+        Assert.Empty(FollowUpsWithoutTrigger(r, fight, Job.SCH));
+    }
+
+    /// <summary>
+    /// Every "X (still active)" note of a seat comes while the last press of <paramref name="action"/> before it, used on its
+    /// NOW cue, still lasts through the note's hit.
+    /// </summary>
+    private static void AssertEveryStillActiveNoteIsServed(ImportResult r, FightDefinition fight, Job job, string action, string? slot = null)
+    {
+        var info = RepoFiles.Action(action);
+        var duration = TimingRules.CoverageDuration(info, fight.SyncLevel) ?? info.DurationAt(fight.SyncLevel) ?? 0;
+        var reminders = Reminders(r, fight, job, slot);
+        foreach (var note in reminders.Where(x => x.Item.Note == action + " (still active)"))
+        {
+            var press = Assert.Single(reminders.Where(x => x.Item.Action == info.Id && x.PressAt <= note.PressAt).TakeLast(1));
+            Assert.True(
+                TimingRules.DueAt(press.PressAt, press.DueNotBefore, Defaults) >= TimingRules.EarliestCoveringUse(Math.Max(note.Hit, note.PressAt), duration) - 0.005,
+                $"{note.Mechanic.Id}: the {action} pressed at {press.PressAt} does not last through {note.Hit}");
+        }
+    }
+
     [Fact]
     public void AnEntrySeveralSeatsSee_TakesTheLatestPressAnyOfThemNeeds()
     {
