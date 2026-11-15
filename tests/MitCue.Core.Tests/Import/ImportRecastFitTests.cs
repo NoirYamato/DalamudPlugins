@@ -17,10 +17,14 @@ public class ImportRecastFitTests
 {
     private static readonly ReminderOptions Defaults = new();
 
-    private static ImportResult Import(string tsv, FightDefinition fight, SlashReading slashes = SlashReading.Auto)
+    private static ImportResult Import(string tsv, FightDefinition fight, SlashReading slashes = SlashReading.Auto) =>
+        Import(fight, slashes, ("Pasted", tsv));
+
+    /// <summary>A sheet of several tabs (name, rows).</summary>
+    private static ImportResult Import(FightDefinition fight, SlashReading slashes, params (string Name, string Tsv)[] tabs)
     {
-        var tab = SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', "Pasted");
-        return new PlanImporter().Import(new SheetDocument { Title = "Test sheet", Tabs = [tab] }, new ImportOptions
+        var sheetTabs = tabs.Select(t => SheetReaders.FromDelimited(t.Tsv.ReplaceLineEndings("\n"), '\t', t.Name)).ToList();
+        return new PlanImporter().Import(new SheetDocument { Title = "Test sheet", Tabs = sheetTabs }, new ImportOptions
         {
             Fight = fight,
             Actions = RepoFiles.Actions,
@@ -334,6 +338,47 @@ public class ImportRecastFitTests
         Assert.Equal(("MT", (Job?)null, -1.0), (mt.Who.Slot, mt.Who.Job, mt.Offset!.Value));
         Assert.Null(At(r, "p1.alpha", "Reprisal").Offset);
         Assert.Empty(Conflicts(r, fight, Job.WAR, "MT"));
+    }
+
+    [Fact]
+    public void ATeamCompositionColumn_IsReplayedForThePartyThatPlaysIt()
+    {
+        // Two tank-pair tabs, "WAR/DRK" and "WAR/PLD". Without a party the plugin gives a Warrior the first pair's column;
+        // next to a Paladin it gives "WAR/PLD WAR", whose Reprisal on Alpha (100, at 97) is ready again at 157: Bravo's
+        // (159) waits until then and is pressed 1 s before its hit.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", 159));
+        var r = Import(fight, SlashReading.Auto,
+            ("WAR/DRK", "P1\tWAR\tDRK\nAlpha\tRampart\tRampart\nBravo\tVengeance\tShadow Wall"),
+            ("WAR/PLD", "P1\tWAR\tPLD\nAlpha\tReprisal\tRampart\nBravo\tReprisal\tSentinel"));
+
+        Assert.Equal("WAR/DRK WAR", ColumnSuggestion.Suggest(r.Plan, Job.WAR, null).AssigneeKey);
+        var pick = ColumnSuggestion.Suggest(r.Plan, Job.WAR, null, [Job.WAR, Job.PLD]);
+        Assert.Equal("WAR/PLD WAR", pick.AssigneeKey);
+        Assert.Equal(-1.0, Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo" && e.Who.Assignee == "WAR/PLD WAR").Offset);
+        Assert.DoesNotContain(
+            PlanChecker.Check(fight, RepoFiles.Actions, r.Plan, ColumnSuggestion.Context(pick, Job.WAR, null, fight.SyncLevel)),
+            f => f.Code == "recast-conflict");
+    }
+
+    [Fact]
+    public void TheJobsOwnColumn_IsReplayedForAPartyThatPlaysNoComposition()
+    {
+        // A combined "WHM + SCH" tab first, then a "White Mage" tab with the same mechanics (as in Carry the Clear). Without
+        // a party, or next to a Scholar, the plugin gives a White Mage the combined tab's column, and the White Mage tab is
+        // the same seat written twice; next to a Sage the party plays no composition of the sheet, and it gives the White
+        // Mage tab, whose Asylum on Alpha (100, at 92.8) is ready again at 182.8: Bravo's (188) waits until then.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", 188));
+        var r = Import(fight, SlashReading.Auto,
+            ("WHM + SCH", "P1\tWhite Mage\tScholar\nAlpha\tTemperance\tSoil\nBravo\tBenison\tSoil"),
+            ("White Mage", "P1\tWhite Mage\nAlpha\tAsylum\nBravo\tAsylum"));
+
+        Assert.Equal("WHM + SCH White Mage", ColumnSuggestion.Suggest(r.Plan, Job.WHM, null).AssigneeKey);
+        var pick = ColumnSuggestion.Suggest(r.Plan, Job.WHM, null, [Job.WHM, Job.SGE]);
+        Assert.Equal("White Mage", pick.AssigneeKey);
+        Assert.Equal(-3.7, Assert.Single(r.Plan.Entries, e => e.Mechanic == "p1.bravo" && e.Who.Assignee == "White Mage").Offset);
+        Assert.DoesNotContain(
+            PlanChecker.Check(fight, RepoFiles.Actions, r.Plan, ColumnSuggestion.Context(pick, Job.WHM, null, fight.SyncLevel)),
+            f => f.Code == "recast-conflict");
     }
 
     [Theory]

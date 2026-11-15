@@ -2576,19 +2576,33 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The seats of <paramref name="plan"/> as <c>check</c> and the plugin read it: every job, in each slot of its role
         /// and in none, with the entries of the automatic column choice (<see cref="ColumnSuggestion.Suggest"/>,
-        /// <see cref="PlanSelection.For"/>); each job's distinct sets of entries once.
+        /// <see cref="PlanSelection.For"/>), without a party and with each party that can change that choice (the plugin
+        /// passes the player's party): the jobs a team-composition column of the job names (LPDU's "WAR/PLD WAR" for a
+        /// Warrior next to a Paladin), and every two-job party (another job's seat,
+        /// <see cref="ColumnSuggestion.PartySeats"/>; a party that plays none of the compositions). Each job's distinct sets
+        /// of entries once.
         /// </summary>
         private List<(Job Job, HashSet<PlanEntry> Entries)> Seats(MitPlan plan)
         {
+            var jobs = Jobs.All.Where(j => j is not (Job.BLU or Job.BST)).ToList();
             var seats = new List<(Job Job, HashSet<PlanEntry> Entries)>();
-            foreach (var job in Jobs.All.Where(j => j is not (Job.BLU or Job.BST)))
+            foreach (var job in jobs)
             {
-                foreach (var slot in new string?[] { null }.Concat(Slots.Standard.Where(s => Slots.Fits(s, job))))
+                var parties = new List<IReadOnlyCollection<Job>?> { null };
+                parties.AddRange(plan.Assignees.Where(a => a.Job == job && ColumnSuggestion.IsComposition(a)).Select(a => LayoutDetector.JobsFromTabName(a.Key)));
+                parties.AddRange(jobs.Where(other => other != job).Select(other => new[] { job, other }));
+                var contexts = new HashSet<PlayerContext>();
+                foreach (var party in parties)
                 {
-                    var me = ColumnSuggestion.Context(ColumnSuggestion.Suggest(plan, job, slot), job, slot, this.level);
-                    var entries = PlanSelection.For(plan, me).ToHashSet();
-                    if (entries.Count > 0 && !seats.Exists(s => s.Job == job && s.Entries.SetEquals(entries)))
-                        seats.Add((job, entries));
+                    foreach (var slot in new string?[] { null }.Concat(Slots.Standard.Where(s => Slots.Fits(s, job))))
+                    {
+                        var me = ColumnSuggestion.Context(ColumnSuggestion.Suggest(plan, job, slot, party), job, slot, this.level);
+                        if (!contexts.Add(me))
+                            continue;
+                        var entries = PlanSelection.For(plan, me).ToHashSet();
+                        if (entries.Count > 0 && !seats.Exists(s => s.Job == job && s.Entries.SetEquals(entries)))
+                            seats.Add((job, entries));
+                    }
                 }
             }
 
