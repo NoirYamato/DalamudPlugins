@@ -203,8 +203,9 @@ Rules worth knowing:
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
   name a job's own action keep their jobs' entries, the others are one entry for everyone (`Dismantle + Feint`: a
   Machinist's Dismantle and the note "Feint"; `PLD Wings + Use Personals`: a Paladin's Passage of Arms and the note
-  "Use Personals"). The column is imported whatever columns are chosen, is not in `plan.assignees`, and is listed in
-  `ImportResult.AnyoneColumns`.
+  "Use Personals"). The cell's remark in parentheses or below a caret stays on every entry it splits into (`Dismantle +
+  Feint (on BJ)`: the Dismantle is on BJ too). The column is imported whatever columns are chosen, is not in
+  `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
 - **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
   column and section, after each of its items, so that it speaks for all of the cell (`Soil / Expedient` with `^ late`
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when

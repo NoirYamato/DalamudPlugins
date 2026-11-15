@@ -302,6 +302,26 @@ public class ImportLayoutRulesTests
             entries.Select(e => (e.Who.Job, e.Names().Single())).OrderBy(x => x.Item1 is null));
     }
 
+    [Theory]
+    [InlineData("Dismantle + Feint (on BJ)", "", Job.MCH, "on BJ", false)]
+    [InlineData("Feint + Dismantle (on BJ)", "", Job.MCH, "on BJ", false)]
+    [InlineData("Dismantle + Feint", "(^on BJ)", Job.MCH, "on BJ", false)]
+    [InlineData("Dismantle + Addle (stack)", "", Job.MCH, "stack", false)]
+    [InlineData("PLD Wings + Feint (if 7 people)", "", Job.PLD, "if 7 people", true)]
+    [InlineData("PLD Wings + Use Personals (on BJ)", "", Job.PLD, "on BJ", false)]
+    public void ExtrasColumn_RemarkAfterTheCell_ReachesTheJobsCallAndTheNote(string cell, string below, Job job, string remark, bool optional)
+    {
+        // Parentheses after an item's last call, or a caret below the cell, speak for the whole item: also for a job's own
+        // call that is an entry of its own beside the note for everyone, whichever comes last.
+        var entries = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", cell], ["Pantokrator", "", below])).Plan.At("'P1'!C2");
+
+        Assert.Equal(2, entries.Count);
+        var own = Assert.Single(entries, e => e.Who.Job is not null);
+        Assert.Equal((job, remark, optional), (own.Who.Job!.Value, own.Note, own.Optional));
+        var note = Assert.Single(entries, e => e.Who.Job is null);
+        Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ExtrasColumn_SequenceWithASharedStep_StaysOneNote()
     {

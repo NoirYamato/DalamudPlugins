@@ -1336,6 +1336,10 @@ public sealed partial class PlanImporter
                 t.Target = t.InlineTarget ?? (t.OnAPlayer ? t.OwnTarget ?? itemTarget : null);
             }
 
+            // What the last token says in parentheses is the remark of the whole item ("Dismantle + Feint (on BJ)", or "(^on BJ)"
+            // below the cell): a group the item splits into without that token gets it too (below).
+            var remark = this.HintNotes(null, last.Token, last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming).ToList();
+
             // A target in parentheses that no action is used on ("Asylum (melee)", "Kera (party)": where to place it, whom
             // it is for) stays in the note, as any other parenthetical; a sequence keeps it as its target.
             if (!item.IsSequence)
@@ -1347,7 +1351,10 @@ public sealed partial class PlanImporter
                 }
 
                 if (itemTarget is not null && last.Kind == TokenKind.Actions && !tokens.Any(t => ReferenceEquals(t.Target, itemTarget)))
+                {
                     last.Notes.Add(itemTarget.Text);
+                    remark.Add(itemTarget.Text);
+                }
             }
 
             // Tokens with their own timing, job filter, condition or target ("Kera after 1st Hit" next to "Eprog + Panhaima",
@@ -1356,18 +1363,25 @@ public sealed partial class PlanImporter
             // apart from those that do ("Dismantle + Feint": a Machinist's Dismantle and the note "Feint"; "PLD Wings + Use
             // Personals": a Paladin's Passage of Arms and the note "Use Personals").
             var anyone = header.Kind == AssigneeKind.Anyone;
+            var same = (TokenState t) => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value);
             var groups = item.IsSequence
                 ? [tokens]
-                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value,
-                        anyone && t.Timing.JobCondition is null && (t.Kind != TokenKind.Actions || SharedByJobs(t, candidates))))
+                : tokens.GroupBy(t => (same(t), anyone && t.Timing.JobCondition is null && (t.Kind != TokenKind.Actions || SharedByJobs(t, candidates))))
                     .Select(g => g.ToList()).ToList();
             var shared = new ItemShared(
                 Times: ItemTimes(item),
                 Condition: itemCondition,
                 StepNotes: StepTimeNotes(item),
-                Optional: statement?.Optional ?? false);
+                Optional: statement?.Optional ?? false,
+                Remark: []);
             for (var g = 0; g < groups.Count; g++)
-                this.ImportGroup(row, cell, key, item, groups[g], g, shared, candidates, header);
+            {
+                // A group apart from the last token's only because of whose its calls are keeps the item's remark ("Dismantle +
+                // Feint (on BJ)": the Machinist's Dismantle is on BJ too; "PLD Wings + Feint (if 7 people)": the Paladin's
+                // optional call says why). One with a timing, condition or target of its own keeps its own words.
+                var apart = anyone && !groups[g].Contains(last) && same(groups[g][0]) == same(last);
+                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = remark } : shared, candidates, header);
+            }
         }
 
         /// <summary>
@@ -1436,7 +1450,11 @@ public sealed partial class PlanImporter
         /// <param name="Condition">A condition in parentheses after the item's last token ("Soil + Expedient (if needed)").</param>
         /// <param name="StepNotes">Times of later sequence steps that the entry's single press time cannot keep ("Adlo 2:50").</param>
         /// <param name="Optional">The item comes from a note that says the action "can" be used.</param>
-        private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional);
+        /// <param name="Remark">
+        /// What the item's last token says in parentheses, for a group of a column for anyone that the item splits into without
+        /// that token (<see cref="ImportItem"/>); empty for the others.
+        /// </param>
+        private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional, IReadOnlyList<string> Remark);
 
         /// <summary>
         /// Part words after an action name the hits they mean: in "Succor Proteans + Soil + Spreadlo Stack" on Wave Cannon 1
@@ -1843,7 +1861,7 @@ public sealed partial class PlanImporter
             if (target is null)
                 entries = entries.SelectMany(e => this.SplitByInferredTarget(e, row, anchor, header)).ToList();
             var footnote = group.Any(t => t.Token.Footnote) ? this.Footnote(row, cell, group) : null;
-            var notesText = this.EntryNote(group, footnote, groupIndex == 0 ? shared.StepNotes : []);
+            var notesText = this.EntryNote(group, footnote, [.. shared.Remark, .. groupIndex == 0 ? shared.StepNotes : []]);
             var conditional = group.Any(t => t.Condition is not null) || shared.Condition is not null;
             var optional = group.All(t => t.Token.Optional) || conditional || shared.Optional;
             var whenReady = group.Any(t => t.Token.WhenReady);
@@ -2052,7 +2070,11 @@ public sealed partial class PlanImporter
             }
         }
 
-        private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> stepNotes)
+        /// <summary>
+        /// The note of an entry: the notes of its tokens (each after its head when the group has several), the notes it shares
+        /// with the rest of its item (<paramref name="itemNotes"/>: the item's remark, later steps' times) and its footnote.
+        /// </summary>
+        private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> itemNotes)
         {
             var parts = new List<string>();
             var withNotes = group.Where(t => t.Notes.Count > 0).ToList();
@@ -2062,7 +2084,7 @@ public sealed partial class PlanImporter
                 parts.Add(group.Count > 1 && t.Token.Head.Length > 0 ? t.Token.Head + " " + text : text);
             }
 
-            parts.AddRange(stepNotes);
+            parts.AddRange(itemNotes);
             if (footnote is not null)
                 parts.Add(footnote);
             var note = string.Join("; ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
