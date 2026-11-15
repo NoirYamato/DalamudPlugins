@@ -300,19 +300,19 @@ calls come before their action is ready again after the same player's call befor
   from its NOW cue as `still-active` reads it (Seraph's 22 s for a Consolation); and for the later steps of a
   sequence, and a sequence whose later steps are GCDs or casts (`Zoe → Eukrasian Prognosis → Holos →
   Kerachole`): only instant oGCDs woven in after the first step (`Kerachole → Holos`) let it move. A move never
-  lands at or after a Passage of Arms of another entry (another cell's, or another call of its own cell split by
-  ` / `) that a seat sees with the entry, up to that one's hit: once nothing else moves, the press goes, for every
-  seat, 0.1 s before that Passage of Arms if the action is ready by then, else it stays. An optional call still
-  waits. An entry several seats see takes the latest press any of them needs; the earliest press without a charge
-  moves first, then the plan is replayed again, until nothing moves. After each round, `still-active` looks again
-  at the calls after the presses moved so far (`docs/DESIGN.md` §6 step 4).
+  lands at or after a Passage of Arms of another call (another cell's, or one a spaced ` / ` splits off) that a seat
+  sees with the entry, up to that one's hit: once nothing else moves, the press goes, for every seat, 0.1 s before
+  that Passage of Arms if the action is ready by then, else it stays. An optional call still waits. An entry several
+  seats see takes the latest press any of them needs; the earliest press without a charge moves first, then the plan
+  is replayed again, until nothing moves. After each round, `still-active` looks again at the calls after the presses
+  moved so far (`docs/DESIGN.md` §6 step 4).
 - **What it gives.** The moved offset is written into the plan, so the review shows it as set and `mitcue plan`
   without `*`; `check` then reports it as `recast-tight`. The info gives the gap between the two items' presses
   before the fit (*Asylum at p2.gavel is planned 85.8 s after the Asylum at p2.photon_1 (recast 90.0 s): it is
   pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.*), ending
   *as late as "(Late)" would press it, once … is ready again* when the `(Late)` bound stops it, *as late as the
   2.0 s lead of Passage of Arms allows, once … is ready again* when an action's own lead does, or *just before
-  the Passage of Arms at …, which is pressed last, once … is ready again* when another entry's Passage of Arms
+  the Passage of Arms at …, which is pressed last, once … is ready again* when another call's Passage of Arms
   does, and with *which is pressed later too* when the earlier press moved as well.
 
 | Cell | Call | Before the fit | After |

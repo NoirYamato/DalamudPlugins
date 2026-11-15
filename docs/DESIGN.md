@@ -630,14 +630,16 @@ previews, which have no cooldown provider.
    words with none of `,` `;` `.` `!` `?`, and so does its part in parentheses, unless that
    is a timing hint (`(from phase start)`). A merged banner of a later phase whose name
    reads as a title also starts that phase, whatever its part in parentheses holds, when
-   the next labelled row is a mechanic of that phase (its label, simplified or a prefix of
-   it, not a near miss) and none of the current phase's (TOP's `P2 (Party Synergy,
-   Limitless Synergy)`; TEA's `P3: Alexander Prime (Inception, Wormhole, J Waves)` above
-   Inception, not above `JKick`, which P2 has too). A merged remark that starts with a
-   phase stays a note (`P1: MT invulns the second Wave Cannon, OT takes boss after`,
-   `P1 (MT invulns …)`), and a title whose name, or part in parentheses other than a timing
-   hint, is not the fight's name for its phase gets a `phase-title` info. An unlabelled
-   column of prose beside the labels holds the rows' notes.
+   the next labelled row reads as a mechanic of that phase (its label, simplified, a
+   prefix of it, or a near miss of it: `Inceptoin`) and as none of the current phase's
+   (TOP's `P2 (Party Synergy, Limitless Synergy)` above Solar Ray or `Solar Rya`; TEA's
+   `P3: Alexander Prime (Inception, Wormhole, J Waves)` above Inception or `Inceptoin
+   (Crystals Boom)`, not above `JKick` or its near miss `JKik`, which P2 has too). A
+   merged remark that starts with a phase stays a note (`P1: MT invulns the second Wave
+   Cannon, OT takes boss after`, `P1 (MT invulns …)`), and a title whose name, or part in
+   parentheses other than a timing hint, is not the fight's name for its phase gets a
+   `phase-title` info. An unlabelled column of prose beside the labels holds the rows'
+   notes.
 3. **Cell parsing.** Split into items: ` / ` separates independent actions (each may have
    its own time), `+` and `,` join simultaneous actions, `→`/`->` make a sequence, `X/Y`
    without spaces means either/or (often across jobs: `Kera/Soil`). Extract `(1:18)`,
@@ -706,7 +708,7 @@ previews, which have no cooldown provider.
    would press it, never after the lead of a `when: before` action that is no heal (Neutral
    Sect 4.5 s, Passage of Arms 2 s), never so that another of its items is pressed earlier
    than without it, and never so that a seat that sees it loses what the recast fit keeps
-   for it (step 7: a Passage of Arms of another entry stays the last press before its hit,
+   for it (step 7: a Passage of Arms of another call stays the last press before its hit,
    a follow-up stays in its trigger's window); like `(Late)`'s, the offset is written into
    the plan, so the review and `mitcue plan` show it as set, not automatic. Otherwise both
    stay presses, and `check` reports the recast. A `still-active` info says which, with the
@@ -789,8 +791,8 @@ previews, which have no cooldown provider.
    leave a window after its trigger that it is in now, the trigger's longest effect counted
    from its press, as `check` counts it, or from its NOW cue, as step 4 reads it (a
    Consolation more than 22 s after the Summon Seraph before it, or before it). Nor is it
-   pressed at or after a Passage of Arms of another entry (another cell's, or another call
-   of its own cell split by ` / `) that a seat sees with it and that is not before it now,
+   pressed at or after a Passage of Arms of another call (another cell's, or one a spaced
+   ` / ` splits off) that a seat sees with it and that is not before it now,
    up to that Passage of Arms' hit, whichever hit the entry is for (TEA's Hand of Pain 4
    hits 0.1 s before Protean 2): once nothing else moves (that Passage of Arms may wait
    for its own recast first), it is pressed 0.1 s before the Passage of Arms, for every
