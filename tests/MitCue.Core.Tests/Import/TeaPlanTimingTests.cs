@@ -267,23 +267,34 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
-    /// "Indom → Succor" on J Wave 5, a sequence: the Indomitability heals after wave 4 (720.2); the Succor, which alone could
-    /// be cast from 718.4 on, comes after it and turns due with it, as the cell orders them.
+    /// A sequence on a J wave whose first step is a heal, which alone would wait for the wave before + 0.3 s, before the
+    /// Succor or Adloquium that times the cell and may be cast 1.8 s earlier: "Indom → Succor" on J Waves 5 and 6,
+    /// "Lustrate → Adlo" and "Indom → Adlo". The heal comes with the cast, in the cell's order, so that the cast still
+    /// lands between the waves, as "(Late)" has it: a second before the wave at the latest. "Succor → Soil" keeps the Soil
+    /// after the wave before.
     /// </summary>
-    [Fact]
-    public void JWave5_TheStepsOfASequenceComeInTheCellsOrder()
+    [Theory]
+    [InlineData("p3.j_wave_5", "Indomitability", "Succor", 718.4, 718.2, 718.4, 718.2)]
+    [InlineData("p3.j_wave_6", "Indomitability", "Succor", 721.4, 721.2, 721.4, 721.2)]
+    [InlineData("p3.j_wave_7", "Lustrate", "Adloquium", 724.4, 724.2, 724.4, 724.2)]
+    [InlineData("p3.j_wave_9", "Indomitability", "Adloquium", 730.4, 730.2, 730.4, 730.2)]
+    [InlineData("p3.j_wave_11", "Succor", "Sacred Soil", 736.4, 736.2, 738.2, 738.2)]
+    public void JWaves_TheStepsOfASequenceComeInTheCellsOrder_TheCastStillLandsBetweenTheWaves(
+        string mechanic, string first, string second, double firstPress, double firstDue, double secondPress, double secondDue)
     {
-        var options = new ReminderOptions();
         var entry = new PlanEntry
         {
-            Mechanic = "p3.j_wave_5",
+            Mechanic = mechanic,
             Who = new WhoSpec { Job = Job.SCH },
             Seq = true,
-            Do = [PlanItem.ForAction(RepoFiles.Action("Indomitability").Id, "Indomitability"), PlanItem.ForAction(RepoFiles.Action("Succor").Id, "Succor")],
+            Do = [PlanItem.ForAction(RepoFiles.Action(first).Id, first), PlanItem.ForAction(RepoFiles.Action(second).Id, second)],
         };
-        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, options);
-        Assert.Equal(["Indomitability", "Succor"], s.All.Select(r => r.Item.Name));
-        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), (Math.Round(r.PressAt, 6), Math.Round(TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 6))));
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal([first, second], s.All.Select(r => r.Item.Name));
+        Assert.Equal([(firstPress, firstDue), (secondPress, secondDue)], s.All.Select(PressAndDue));
+        var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
+        var lands = TimingRules.DueAt(cast.PressAt, cast.DueNotBefore, new ReminderOptions()) + RepoFiles.Action(cast.Item.Name!).CastTime;
+        Assert.InRange(lands, cast.Hit - 3 + 0.3 - 1e-6, cast.Hit - 1);
     }
 
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>

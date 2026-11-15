@@ -138,30 +138,32 @@ public static class TimingRules
     /// its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
     /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
     /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
-    /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). A written press
-    /// keeps each floor it is at or after (a press the importer moved later, so that the action is ready again); one
-    /// before the entry's floor has none.
+    /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). With an automatic
+    /// press a step of a sequence, which comes before the step after it, has no later floor than that step: in "Indom →
+    /// Succor" on J Wave 5 the Indomitability, a heal that alone waits for wave 4 + 0.3 s, comes with the Succor 1.8 s
+    /// earlier, so that the Succor's cast still lands between waves 4 and 5. A written press keeps each floor it is at or
+    /// after (a press the importer moved later, so that the action is ready again); one before the entry's floor has none.
     /// </item>
     /// </list>
     /// <para>
     /// Every item is pressed at the entry's press time, except that with an automatic press an item waits for its own
     /// series floor or for a later hit it reaches on its own (<see cref="ItemTiming.PressAt"/>) and a step of a sequence
-    /// (<see cref="PlanEntry.Seq"/>) for the step before it ("Indom → Succor" on J Wave 5: the Succor waits for the
-    /// Indomitability after wave 4), and that an item pressed last (<see cref="IsPressedLast"/>: Passage of Arms, a channel
-    /// any other action ends) comes with the entry's last item; the automatic press is then the earliest of the items'
-    /// (<see cref="EntryTiming.AutomaticOffset"/>). Each item's use window is <see cref="UseWindow"/> of its own timing
-    /// action around its press time; a use before the item's series floor, when it has one, or with an automatic press one
-    /// that ends before a later hit the item covers, is early, and the item's reminder does not turn due before then
-    /// either. Nor does it turn due before its earliest use that is not early, when its press, automatic or written, is at
-    /// or after that use and the default due lead (1.5 s) would turn it due earlier: a press on the NOW cue is then not
-    /// early ("Rampart + Dark Mind + Oblation + TBN" on TOP's Cosmo Dive, pressed with Rampart's −6 s: The Blackest Night,
-    /// a 7 s shield, turns due 6 s before the hit, not 7.5 s; an 8 s Heart of Corundum 7 s before it). A written press
-    /// before that earliest use (the sheet asks for an early press) keeps its plain NOW cue, and a due lead of the player's
-    /// own longer than 1.5 s still applies to the other items. An item pressed last does not turn due before any other item
-    /// of the entry, and the scheduler lists it after them ("Passage of Arms + Reprisal" on Wave Cannon: both 0.5 s before
-    /// the first protean, due with the Reprisal, whose NOW cue waits for the Wild Charge, and listed after it). A step of a
-    /// sequence does not turn due before the step before it either, whatever the press, but is early only by its own
-    /// window.
+    /// (<see cref="PlanEntry.Seq"/>) for the step before it (which waits for no later series floor than it: "Indom →
+    /// Succor" on J Wave 5, both at the Succor's 718.4), and that an item pressed last (<see cref="IsPressedLast"/>:
+    /// Passage of Arms, a channel any other action ends) comes with the entry's last item; the automatic press is then the
+    /// earliest of the items' (<see cref="EntryTiming.AutomaticOffset"/>). Each item's use window is
+    /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when
+    /// it has one, or with an automatic press one that ends before a later hit the item covers, is early, and the item's
+    /// reminder does not turn due before then either. Nor does it turn due before its earliest use that is not early, when
+    /// its press, automatic or written, is at or after that use and the default due lead (1.5 s) would turn it due earlier:
+    /// a press on the NOW cue is then not early ("Rampart + Dark Mind + Oblation + TBN" on TOP's Cosmo Dive, pressed with
+    /// Rampart's −6 s: The Blackest Night, a 7 s shield, turns due 6 s before the hit, not 7.5 s; an 8 s Heart of Corundum
+    /// 7 s before it). A written press before that earliest use (the sheet asks for an early press) keeps its plain NOW
+    /// cue, and a due lead of the player's own longer than 1.5 s still applies to the other items. An item pressed last
+    /// does not turn due before any other item of the entry, and the scheduler lists it after them ("Passage of Arms +
+    /// Reprisal" on Wave Cannon: both 0.5 s before the first protean, due with the Reprisal, whose NOW cue waits for the
+    /// Wild Charge, and listed after it). A step of a sequence does not turn due before the step before it either, whatever
+    /// the press, but is early only by its own window.
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -208,16 +210,29 @@ public static class TimingRules
         if (floor.HasValue)
             automatic = Math.Max(automatic, floor.Value - hit);
 
-        // Each item's automatic press: the entry's, or later for an item that waits for its own series floor (ItemFloor:
-        // never earlier than the entry's, an instant shield beside the cast one that times the entry lands after the hit
-        // before it too; a buff or a note keeps the entry's) or for a later hit it reaches on its own, and a step of a
-        // sequence never before the step before it. An item pressed last (Passage of Arms, a channel any other action ends)
-        // comes with the entry's last item. The entry's automatic press is the earliest of them.
+        // Each item's series floor (ItemFloor: never earlier than the entry's, an instant shield beside the cast one that
+        // times the entry lands after the hit before it too; a buff or a note keeps the entry's). With an automatic press a
+        // step of a sequence, pressed before the step after it, waits for no later floor than that step.
+        var isAutomatic = entry.Offset is null;
         var floors = new double?[items.Count];
+        for (var i = 0; i < items.Count; i++)
+            floors[i] = previous.HasValue && floor.HasValue ? ItemFloor(previous.Value, floor.Value, timing, i) : null;
+        if (entry.Seq && isAutomatic)
+        {
+            for (var i = items.Count - 2; i >= 0; i--)
+            {
+                if (floors[i] is { } own && floors[i + 1] is { } next)
+                    floors[i] = Math.Min(own, next);
+            }
+        }
+
+        // Each item's automatic press: the entry's, or later for an item that waits for its own series floor or for a later
+        // hit it reaches on its own, and a step of a sequence never before the step before it. An item pressed last (Passage
+        // of Arms, a channel any other action ends) comes with the entry's last item. The entry's automatic press is the
+        // earliest of them.
         var automaticPresses = new double[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
-            floors[i] = previous.HasValue && floor.HasValue ? ItemFloor(previous.Value, floor.Value, timing, i) : null;
             automaticPresses[i] = Math.Max(hit + automatic, Math.Max(floors[i] ?? double.NegativeInfinity, reach[i] ?? double.NegativeInfinity));
             if (entry.Seq && i > 0)
                 automaticPresses[i] = Math.Max(automaticPresses[i], automaticPresses[i - 1]);
@@ -229,7 +244,6 @@ public static class TimingRules
                 automaticPresses[i] = automaticPresses.Max();
         }
 
-        var isAutomatic = entry.Offset is null;
         var automaticPress = items.Count > 0 ? automaticPresses.Min() : hit + automatic;
         var pressAt = entry.Offset is { } offset ? hit + offset : automaticPress;
         var notBefore = AtOrAfter(pressAt, floor);

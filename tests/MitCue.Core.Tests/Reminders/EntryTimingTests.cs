@@ -1005,27 +1005,34 @@ public class EntryTimingTests
     public void Series_AStepOfASequenceIsNeitherPressedNorDueBeforeTheStepBeforeIt()
     {
         // "Tetragrammaton → Adloquium" on wave 3 (106): timed by the Adloquium (a heal gives no lead), whose cast may start at
-        // 101.5; the heal waits for wave 2 (103) + 0.3, and the Adloquium after it, due with it. Not a sequence, the Adloquium
-        // keeps 101.5.
+        // 101.5. Alone the heal would wait for wave 2 (103) + 0.3; as the step before the Adloquium it waits for no later
+        // floor than the Adloquium's, so both are pressed at 101.5 and due at 101.3, in the cell's order, the Adloquium's
+        // cast landing after wave 2. Not a sequence, the heal waits for 103.3 and the Adloquium keeps 101.5. The other way
+        // round, the heal after the Adloquium waits for its own floor.
         var options = new ReminderOptions();
         var seq = Wave3(null, true, Kit.Tetragrammaton, Kit.Adloquium);
-        Assert.Equal([103.3, 103.3], seq.Items.Select(i => i.PressAt));
-        Assert.Equal([103.3, 103.3], seq.Items.Select(i => i.DueAt(options)));
-        Assert.Equal(101.3, seq.Items[1].Earliest, Kit.Tolerance);     // used before the heal, it still lands after wave 2
-        Assert.Equal(103.3, seq.PressAt, Kit.Tolerance);               // the automatic press: the earliest item's
+        Assert.Equal([101.5, 101.5], seq.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 101.3], seq.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.3, 101.3], seq.Items.Select(i => i.Earliest));
+        Assert.Equal(101.5, seq.PressAt, Kit.Tolerance);
         var plain = Wave3(null, false, Kit.Tetragrammaton, Kit.Adloquium);
         Assert.Equal([103.3, 101.5], plain.Items.Select(i => i.PressAt));
         Assert.Equal([103.3, 101.3], plain.Items.Select(i => i.DueAt(options)));
+        var after = Wave3(null, true, Kit.Adloquium, Kit.Tetragrammaton);
+        Assert.Equal([101.5, 103.3], after.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 103.3], after.Items.Select(i => i.DueAt(options)));
 
-        // A written press is every step's: the Adloquium turns due with the heal, not at its own floor.
+        // A written press is every step's, and each keeps the floor it is at or after: the Adloquium turns due with the heal,
+        // not at its own floor.
         var written = Wave3(-2.7, true, Kit.Tetragrammaton, Kit.Adloquium);
         Assert.Equal([103.3, 103.3], written.Items.Select(i => i.PressAt));
         Assert.Equal([103.3, 103.3], written.Items.Select(i => i.DueAt(options)));
         Assert.Equal([101.8, 103.3], Wave3(-2.7, false, Kit.Adloquium, Kit.Tetragrammaton).Items.Select(i => i.DueAt(options)));
 
-        // The scheduler: nothing is due before 103.3, and an Adloquium cast before then is still on time.
+        // The scheduler: nothing of the written sequence is due before 103.3, and an Adloquium cast before then is still on
+        // time.
         var fight = SeriesFight();
-        var entry = Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Adloquium));
+        var entry = Kit.Entry("p1.wave_3", -2.7, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Adloquium));
         entry.Seq = true;
         var s = new ReminderScheduler(fight, [entry], new FakeCatalog(Kit.Catalogued), options);
         var adloquium = Assert.Single(s.All, r => r.ItemIndex == 1);
