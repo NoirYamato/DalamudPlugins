@@ -201,6 +201,7 @@ Same-name rows that matter at runtime (listed under `related` in the YAML):
 
 GCD = `ActionCategory` 2 or 3 and (`CooldownGroup` or `AdditionalCooldownGroup` = 58). Macrocosmos and
 Pneuma are GCD spells with their own long recast (group 23 plus 58). Eukrasian GCDs have `Recast100ms = 15`.
+Eukrasia has 25, but the game locks the GCD for only about 1 s after it, which `actions.yaml` gives (section 6).
 
 `PrimaryCostType` values seen on these actions:
 
@@ -258,6 +259,7 @@ actions:
 | `when` | before / after | when it differs from the kind default, or to give a `lead` (Neutral Sect, Passage of Arms) | **new**: press before the damage (pre-placed heals: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos; Neutral Sect and Passage of Arms, for their `lead`) or after (healer LBs) |
 | `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: alone, the action is pressed at `hit − lead`; in a cell with other actions, the lead pulls the cell's press earlier to `hit − lead` when that is earlier, but no earlier than `−(D − 2.5 s)` for another action with a lasting effect D (DESIGN §5.1 rule 2: `Earthly Star + CU` −7.5 s, beside the 10 s Collective Unconscious; `Neutral Sect + Earthly Star` −10 s). Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel: mitigation with a lead is pressed with the last item of its cell (`Reprisal + Wings`: both −3 s), turns due no earlier than any other and is listed after them. A positive number |
 | `barrier_cast` | s | Neutral Sect (1.5) | **new**: the cast of the GCD that puts up the action's barrier after it (Neutral Sect's Aspected Helios or Helios Conjunction). A call for a later hit of a series that lists the action anywhere is pressed no earlier than the hit before it + 0.3 s minus that cast, as a call led by a shield is minus the shield's cast, so that the barrier lands after that hit; the call's other actions keep their own floors (DESIGN §5.1 rule 4: on J Wave 5, Neutral Sect at 718.7, Earthly Star at 720.2). A positive number |
+| `instant_next_cast` | bool | Swiftcast (`true`) | **new**: the action makes the next spell instant. A call for a later hit of a series that lists it counts no cast before the hit before it + 0.3 s, neither a shield's nor a `barrier_cast`: the instant spell's shield lands on its press, so the call waits for that floor (DESIGN §5.1 rule 4: "Swiftcast/Succor" on J Wave 5, both at 720.2; pressed at 718.4, the instant Succor would be spent on wave 4) |
 | `lb` | 1, 2, 3 | limit breaks | **new**: tier |
 | `effects` | list of {name, duration} | several effects, or a level-dependent one | **new**: all durations; `name` is a hand-written label |
 | `replaced_by` | {id, name, level, trait} | trait upgrades | `ReplacedBy`, `ReplacedAtLevel` |
@@ -284,8 +286,15 @@ Loader rules:
   action's time before the hit when it is alone in its cell (Earthly Star −10 s, Neutral Sect −4.5 s, Passage of
   Arms −2 s); in a cell with other actions it pulls the cell's press earlier, as far as their lasting effects allow
   (DESIGN §5.1 rule 2; Passage of Arms is pressed with the cell's last action). A `barrier_cast` lowers a series
-  floor wherever the cell lists the action (Neutral Sect's 1.5 s Helios). For a `when: before` action the use
-  window counts its longest effect (Neutral Sect: the 30 s Helios barrier).
+  floor wherever the cell lists the action (Neutral Sect's 1.5 s Helios); an `instant_next_cast` action (Swiftcast)
+  takes the casts out of its cell's series floors. For a `when: before` action the use window counts its longest
+  effect (Neutral Sect: the 30 s Helios barrier).
+- `recast` is the game's, except Eukrasia's `recast: 1`, hand-set (keep it when the file is regenerated): the GCD the
+  game locks after Eukrasia is about 1 s, not `Recast100ms`'s 2.5 s. In cactbot's sample log
+  `docs/logs/TheAbyssalFractureExtreme.log` (a level-90 Sage), 36 of the 37 in-combat Eukrasia → Eukrasian action
+  pairs are 0.98–1.07 s apart (the other is a 2.1 s wait), and guides list Eukrasia as a 1 s GCD. `(Late)` and
+  multi-hit coverage leave a Eukrasian action that much before its effect (DESIGN §5.1 rule 3, §6 step 3:
+  `Eukrasian Prognosis (Late)` −2 s).
 - `lead` and `barrier_cast`, when present, are positive numbers of seconds; anything else fails the load, which
   `mitcue validate` reports (*action 16559 'Neutral Sect': 'barrier_cast' must be a positive number of seconds, not
   0.*).
@@ -312,7 +321,7 @@ class ActionDto
     public CostDto? Cost { get; set; }  public int? Mp { get; set; }  public uint? RequiresStatus { get; set; }
     public Dictionary<int, double>? Duration { get; set; }  public Dictionary<int, double?> Sync { get; set; } = new();
     public string? When { get; set; }  public double? Lead { get; set; }  public double? BarrierCast { get; set; }
-    public int? Lb { get; set; }
+    public bool InstantNextCast { get; set; }  public int? Lb { get; set; }
     public List<EffectDto>? Effects { get; set; }  public RefDto? ReplacedBy { get; set; }  public RefDto? UpgradeOf { get; set; }
     public List<RefDto>? FollowUps { get; set; }  public RefDto? FollowUpOf { get; set; }  public string? Requires { get; set; }
     public List<RefDto>? Related { get; set; }  public int Icon { get; set; }  public string? Notes { get; set; }
@@ -434,7 +443,7 @@ TEA = 80, TOP = 90, DMU = 100. Generated from `actions.yaml`.
 | id | Action | Jobs | Lv | Kind | Target | GCD | Cast | Cost | L80 | L90 | L100 | Upgrade / follow-up |
 |---:|---|---|---:|---|---|:-:|---:|---|---|---|---|---|
 | 24286 | Prognosis | SGE | 10 | heal | party | G | 2 | 700 MP | · / 2.5s | · / 2.5s | · / 2.5s | then Eukrasian Prognosis, Eukrasian Prognosis II |
-| 24290 | Eukrasia | SGE | 30 | other | self | G |  |  | · / 2.5s | · / 2.5s | · / 2.5s | then Eukrasian Diagnosis, Eukrasian Prognosis, Eukrasian Prognosis II |
+| 24290 | Eukrasia | SGE | 30 | other | self | G |  |  | · / 1s | · / 1s | · / 1s | then Eukrasian Diagnosis, Eukrasian Prognosis, Eukrasian Prognosis II |
 | 24291 | Eukrasian Diagnosis | SGE | 30 | shield | single | G |  |  | 30s / 1.5s | 30s / 1.5s | 30s / 1.5s | follow-up of Eukrasia |
 | 24292 | Eukrasian Prognosis | SGE | 30 | shield | party | G |  |  | 30s / 1.5s | 30s / 1.5s | – | → Eukrasian Prognosis II (96); follow-up of Eukrasia |
 | 37034 | Eukrasian Prognosis II | SGE | 96 | shield | party | G |  |  | – | – | 30s / 1.5s | upgrade of Eukrasian Prognosis; follow-up of Eukrasia |
@@ -972,6 +981,7 @@ actions. If the old-format history ever stops matching, the trait sheet alone co
 
 - Don't treat `Recast100ms` or `MaxCharges` as level-100 values: traits change them (section 8). In game, the local
   player's real values come from `ActionManager` (`clientstructs.md`); the co-healer's come from this KB.
+- Eukrasia's `Recast100ms` (2.5 s) is not the GCD the game locks after it (about 1 s, section 6).
 - Don't filter player actions on `IsPlayerAction` alone (section 4).
 - Divine Benison has **1 charge in TEA** and 2 in TOP and DMU; Tetragrammaton has 2 only in DMU; Reprisal, Feint and
   Addle last 10 s in TEA and TOP; Troubadour, Tactician and Shield Samba have a 120 s recast in TEA and give 10% until 98.
@@ -1014,9 +1024,10 @@ BossMod, and `kind` was reviewed by hand against the tooltips (no change needed)
 4. **actions.yaml against Action.csv, all 178 entries:** name, level, icon, cast, base recast and
    `recast`/`recast_by_level`, cooldown groups, GCD flag, MP, job resource, `requires_status`, `jobs` (against
    ClassJobCategory), charges at every level (against the tooltip's "Maximum Charges" or `MaxCharges`) and `sync`
-   80/90/100 (against the tooltip durations evaluated at that level). **0 mismatches.** The only `sync` values not
-   literally in a tooltip are the declared overrides: Earthly Star 20 (10 + 10) and the three tank LB3s (12 s,
-   still UNVERIFIED). Every level map starts at the learned level; every charge action has
+   80/90/100 (against the tooltip durations evaluated at that level). **0 mismatches.** One value differs on
+   purpose since then: Eukrasia's `recast` is 1 s, hand-set (section 6), where `Recast100ms` gives 2.5 s. The
+   only `sync` values not literally in a tooltip are the declared overrides: Earthly Star 20 (10 + 10) and the
+   three tank LB3s (12 s, still UNVERIFIED). Every level map starts at the learned level; every charge action has
    AdditionalCooldownGroup 71–73. Percentages in the effect labels agree with the tooltips (Intervention's "−20%" is
    the tooltip's 10% plus "an additional 10%"); notes checked against
    tooltips include Liturgy of the Bell, Earthly Star, Macrocosmos, Seraphism, Dissipation, Aetherflow, Rhizomata,

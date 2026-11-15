@@ -313,13 +313,15 @@ calls come before their action is ready again after the same player's call befor
 | `LL/BJCC` G52 | White Mage: Asylum at Gavel, 85.8 s after G40's (recast 90 s) | −7.2 s | −1.5 s |
 | `Alex Prime/PA` G23 | White Mage: Plenary Indulgence at J Wave 7, 59.2 s after G13's (recast 60 s) | −2.7 s | −1.0 s, the `(Late)` bound |
 | `LL/BJCC` E46 | Scholar: Sacred Soil at Water 2, 29.4 s after E42's (recast 30 s) | −4.5 s | −2.4 s |
+| `LL/BJCC` F23 | Sage: Eukrasian Prognosis and Kerachole at Protean 2, 28.0 s after F19's Kerachole (recast 30 s) | −4.0 s | −2.0 s, the `(Late)` bound (after Eukrasia's 1 s) |
 | `Alex Prime/PA` H45 | Astrologian: "CU (if up)", optional, at Irresistible Grace 1, 58.9 s after H43's (recast 60 s) | −3.0 s | −1.0 s, the `(Late)` bound |
 
-The sheet's other recast conflicts stay for `check`: the action is ready only after the bound (`LL/BJCC` E23's Soil
-at Protean 2, ready 2.5 s before the hit while the cell's Succor caps the press at −3 s; F23's Kerachole beside a
-Eukrasian Prognosis, capped at −3.5 s), or the press is a later step of a sequence (the Sage's Kerachole at Doll
-Feeds, the last step of `ZoeEukProg/Holos/Kerachole`), or the call before it is optional: that one keeps nothing
-on recast for the fit, but `check` counts it and warns that *an optional use is involved* (`Alex Prime/PA` H47, the
+F23's Kerachole is ready exactly at that bound, so `check` reports it as `recast-tight` with 0 s to spare, and its
+NOW cue comes 1.5 s before Kerachole is ready. The sheet's other recast conflicts stay for `check`: the action is
+ready only after the bound (`LL/BJCC` E23's Soil at Protean 2, ready 2.5 s before the hit while the cell's Succor
+caps the press at −3 s), or the press is a later step of a sequence (the Sage's Kerachole at Doll Feeds, the last
+step of `ZoeEukProg/Holos/Kerachole`), or the call before it is optional: that one keeps nothing on recast for the
+fit, but `check` counts it and warns that *an optional use is involved* (`Alex Prime/PA` H47, the
 Astrologian's CU at Irresistible Grace 2, after H45's *CU (if up)*; `LL/BJCC` K19, the Machinist's Tactician at
 Splash, after K13's *if MCH* one at Doll Feeds; `Alex Prime/PA` C21, the Paladin's Divine Veil at J Wave 5, after
 C13's *if 7 people* one at Incinerating Heat). In LPDU's TOP sheet the fit moves only `P5` I9, the M2 Feint at

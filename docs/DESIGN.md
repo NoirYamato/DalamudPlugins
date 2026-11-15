@@ -161,10 +161,11 @@ mechanics:
     entry: "Cosmo Memory"                 # cactbot entry at that time (validated in tests)
     kind: raidwide                        # raidwide|tankbuster|multihit|stack|spread|mixed|lb_check|enrage|other|marker
     aliases: ["Cosmo Memory", "CM"]
-    # optional timing fields (none in top.yaml), for the calls planned here without a time (§5.1):
+    # optional timing fields, for the calls planned here without a time (§5.1; top.yaml has only sub_hits):
     # press: after                        # pressed after the hit, like heals (TEA's Photons)
     # heal_lead: 4                        # heals this many s before the hit (TEA's Double Rocket Punch)
     # series: true                        # a later hit's calls wait for the hit before (TEA's J Waves)
+    # sub_hits: [110.1, 112.1, …]         # later damage that is no timeline entry (TOP's Kyrios cleaves)
 calibration:                              # known sheets' phase zero points (timeline seconds of sheet 0:00)
   carry_the_clear: { p1: 0.9, p2: 201.8, ... }
 row_offsets:                              # per sheet: seconds from a mechanic's first hit to what its row time marks
@@ -177,11 +178,18 @@ phase starts, the boss becoming targetable).
 The timing fields change the automatic press time of the calls planned on the mechanic
 without a time (§5.1). `press: after` is for a hit that makes what was pressed before it
 pointless, `heal_lead` (seconds) for a hit the heals must top the targets up for, and
-`series: true` for hits that are one raidwide repeated a few seconds apart. The loader
-accepts only `after` for `press`, a positive `heal_lead` and never both on one mechanic,
-and `series` only with two or more hits; `mitcue validate` reports any of them on a marker.
-`tea.yaml` has `press: after` on both Photons, `heal_lead: 4` on Double Rocket Punch and
-`series: true` on `p3.j_waves`.
+`series: true` for hits that are one raidwide repeated a few seconds apart. `sub_hits`
+lists later damage times of the mechanic that are no timeline entries (cactbot shows them
+as one entry): they have no hit index, plans and the importer anchor on `hits` only, and
+only multi-hit coverage counts them (§5.1 rule 3). The loader accepts only `after` for
+`press`, a positive `heal_lead` and never both on one mechanic, `series` only with two or
+more hits, and `sub_hits` only after `hit`, in time order and none of them one of `hits`;
+`mitcue validate` reports any of them on a marker. `tea.yaml` has `press: after` on both
+Photons, `heal_lead: 4` on Double Rocket Punch, `series: true` on `p3.j_waves` and
+`sub_hits` on the first Splash (the five Splashes after the first, 1.1 s apart, the last
+as Drainage hits at 86.6: BossMod's six casts in cactbot's 5.6 s), `top.yaml` `sub_hits` on
+`p1.wave_cannon_kyrios` (the four Diffuse Wave Cannon Kyrios cleaves after the first,
+2.1, 4.1, 6.2 and 8.3 s later: BossMod).
 
 `calibration` and `row_offsets` are keyed by sheet (the importer's calibration preset,
 §6). `row_offsets` names mechanics whose rows in that sheet time another event than the
@@ -309,10 +317,15 @@ also the timing fields of §5.1: `when` (the side of the hit when it differs fro
 kind's: pre-placed heals before, healer LBs after; also `before` on Neutral Sect and
 Passage of Arms, whose kinds are pressed before the hit anyway, so that their `lead`
 counts), `lead` (seconds before the hit for a `when: before` action: Earthly Star 10,
-Neutral Sect 4.5, Passage of Arms 2) and `barrier_cast` (the cast of the GCD that puts up
+Neutral Sect 4.5, Passage of Arms 2), `barrier_cast` (the cast of the GCD that puts up
 the action's barrier after it: Neutral Sect's 1.5 s Aspected Helios or Helios
-Conjunction). `lead` and `barrier_cast` must be positive numbers of seconds, or the
-catalog does not load (`mitcue validate` reports it).
+Conjunction) and `instant_next_cast` (`true` for an action that makes the next spell
+instant: Swiftcast, so that a call that lists it counts no cast before a series floor,
+§5.1 rule 4). `lead` and `barrier_cast` must be positive numbers of seconds, or the
+catalog does not load (`mitcue validate` reports it). Eukrasia's `recast` is hand-set to
+1 s, the GCD the game locks after it (in cactbot's sample log of a Sage, 36 of 37 Eukrasia
+→ Eukrasian action pairs are 0.98–1.07 s apart), not the game data's 2.5 s: `(Late)` and
+multi-hit coverage leave a Eukrasian action 1 s for it (§5.1 rule 3, §6 step 3).
 The fields and the loader's rules: docs/research/actions.md §6.
 
 `aliases.yaml`: lowercase shorthand → action(s) (optionally per job), role phrases with
@@ -415,21 +428,26 @@ Then, in this order:
    entry (its series floor, rule 4).
 3. **Several hits.** An entry for the whole of a mechanic with several hits (no hit index,
    or the first) that is pressed before the hit also covers the later hits its mitigation
-   can reach. A party or tank mitigation or invuln item of duration D (its longest effect
+   can reach: its `hits` and its `sub_hits` (§3.1), damage that is no timeline entry (the
+   four later cleaves of TOP's Diffuse Wave Cannon Kyrios, the five later Splashes of TEA's
+   first). A party or tank mitigation or invuln item of duration D (its longest effect
    for `when: before`) covers the last later hit `hR` with `hR − hit ≤ D − 1.5`: it is
    pressed at `hR − D + 2`, but no later than 0.5 s before the first hit, and its NOW cue
    never comes before `hR − D + 0.5`, whatever the due lead (§5.2): a use on the NOW cue
    then outlasts `hR` by 0.5 s, and still comes at least 1 s before the first hit. Within
    `hR − hit ≤ D − 2.5` that press is the entry's, and the item that needs the latest press
    times the entry (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of
-   −3 s). An item that reaches a later hit only pressed 0.5 s before the first is pressed
-   then on its own, while the entry's other items keep their press (TOP's P6 Wave Cannon,
-   the Wild Charge 8.3 s after the first protean: a 10 s Oblation at −0.5 s turns due 1.2 s
-   before the first protean, and the Shadow Wall and The Blackest Night of its cell keep
-   −4.5 s). Coverage presses no item later than the entry's other items allow: an item
-   pressed before the hit that takes time to its effect (a cast, or the GCD a follow-up
-   needs first) has it in place 1 s before the first hit, as `(Late)` does (§6 step 3:
-   "Soil + Succor" −3 s at the latest, "Kerachole + Eukrasian Prognosis" −3.5 s), and an
+   −3 s; TEA's first Splash, its sixth hit 5.5 s after the first: a 10 s Reprisal, Feint or
+   Addle at −2.5 s). An item that reaches a later hit only pressed 0.5 s before the first
+   is pressed then on its own, while the entry's other items keep their press (TOP's P6
+   Wave Cannon, the Wild Charge 8.3 s after the first protean: a 10 s Oblation at −0.5 s
+   turns due 1.2 s before the first protean, and the Shadow Wall and The Blackest Night of
+   its cell keep −4.5 s; a 10 s invuln on Diffuse Wave Cannon Kyrios, the fifth cleave
+   8.3 s after the first, is pressed at −0.5 s and turns due 1.2 s before the first cleave
+   too). Coverage presses no item later than the entry's other items allow: an item pressed
+   before the hit that takes time to its effect (a cast, or the GCD a follow-up needs first)
+   has it in place 1 s before the first hit, as `(Late)` does (§6 step 3: "Soil + Succor"
+   −3 s at the latest, "Kerachole + Eukrasian Prognosis" −2 s, after Eukrasia's 1 s), and an
    item with a lead of its own that is no mitigation keeps it (Earthly Star 10 s, Neutral
    Sect 4.5 s). A later hit that would need a later press, the entry's or the item's own,
    is not covered ("Soil + Succor" on TOP's Pantokrator keeps the Succor's −4.5 s and
@@ -588,7 +606,7 @@ previews, which have no cooldown provider.
    a mechanic with `press: after`, §5.1) gets the offset that presses it just before it, so
    that its longest cast, or the GCD a follow-up needs first, ends 1 s before the hit
    (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` and
-   `Eukrasian Diagnosis (Late)` −3.5 s after Eukrasia's 2.5 s), but only when that presses
+   `Eukrasian Diagnosis (Late)` −2 s after Eukrasia's 1 s, §3.3), but only when that presses
    no item earlier than without it (`Rampart + Reprisal (Late)` on TOP's Wave Cannon 2
    keeps the Reprisal's −0.5 s, for the Wild Charge, and the Rampart's −6 s); the offset is
    written into the plan, unlike §5.1's automatic times. A target in parentheses goes only
@@ -704,8 +722,9 @@ previews, which have no cooldown provider.
    without `*`, and the review as set, not automatic. The info gives the gap between the
    two items' presses before the fit, with "which is pressed later too" when the earlier
    press moved as well. In the bundled plans the fit moves LPDU TEA's Gavel Asylum
-   (−1.5 s), J Wave 7 Plenary (−1 s), Water 2 Sacred Soil (−2.4 s) and Irresistible
-   Grace 1 "CU (if up)" (−1 s), and LPDU TOP's M2 Feint at Omega (−1 s).
+   (−1.5 s), J Wave 7 Plenary (−1 s), Water 2 Sacred Soil (−2.4 s), the Sage's Protean 2
+   "EukProg/Kerachole" (−2 s, the `(Late)` bound, when Kerachole is ready again) and
+   Irresistible Grace 1 "CU (if up)" (−1 s), and LPDU TOP's M2 Feint at Omega (−1 s).
    The plan lists its entries in press order, as §5.1 times them (ties in sheet order),
    also when step 4 changed an entry's actions or the recast fit moved its press, and
    numbers them `e001`, `e002` … in that order: a change of the timing rules renumbers a

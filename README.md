@@ -173,7 +173,10 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
   later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). An action that
   reaches a later hit only when pressed at the last moment is pressed on its own, 0.5 s before the first hit,
   and turns NOW only 1 to 2 s before it, while the other actions of its call keep their time (TOP's P6 Wave
-  Cannon: a 10 s Reprisal, Feint or invuln then lasts through the Wild Charge). In TEA:
+  Cannon: a 10 s Reprisal, Feint or invuln then lasts through the Wild Charge). Hits that the fight's timeline
+  shows as one count too: a tank's invuln for TOP's Diffuse Wave Cannon Kyrios, five cleaves over 8.3 s, is
+  pressed 0.5 s before the first and turns NOW 1.2 s before it, so that it lasts through the fifth, and a 10 s
+  Reprisal, Feint or Addle on TEA's first Splash, six hits over 5.5 s, 2.5 s before the first. In TEA:
   - the calls on Photon, which drops HP to 1, are its heal-up, 1 s after it. They still turn NOW 1.5 s before
     that, just before Photon lands: wait for the HP drop before an instant heal;
   - heals on Double Rocket Punch (the White Mage's Benediction) go out 4 s before it, once the second Photon
@@ -189,8 +192,9 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
   is ready again waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that
   time. A plan you imported with 0.1.0.6 or older gets these waits only when you import it again. On the TEA
   plan: the White Mage's Asylum on Gavel (1.5 s before it instead of 7.2 s) and Plenary Indulgence on J Wave 7,
-  the Scholar's Sacred Soil on Water 2, and the Astrologian's *CU (if up)* on Irresistible Grace 1. On the LPDU
-  TOP plan: the M2 Feint at Omega (1 s before it instead of 3 s).
+  the Scholar's Sacred Soil on Water 2, the Sage's Eukrasian Prognosis and Kerachole on Protean 2 (2 s before
+  it instead of 4 s), and the Astrologian's *CU (if up)* on Irresistible Grace 1. On the LPDU TOP plan: the M2
+  Feint at Omega (1 s before it instead of 3 s).
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:
@@ -397,7 +401,7 @@ MitCue reads a sheet with a row per mechanic (with or without times) and a colum
 of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell that
 points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call meant
 for before the hit just before it, so that its cast, or the GCD it needs first, ends 1 s before the hit
-(`Reprisal (Late)` 1 s before it, `Succor (Late)` 3 s, `Eukrasian Prognosis (Late)` 3.5 s, after Eukrasia),
+(`Reprisal (Late)` 1 s before it, `Succor (Late)` 3 s, `Eukrasian Prognosis (Late)` 2 s, after Eukrasia's 1 s),
 unless that would press one of its actions earlier than without it. A second call for one of your actions on
 the party, an area or yourself (one with a single charge: Temperance, Sacred Soil, a tank's Rampart) that
 comes less than the action's own duration after your earlier call (press to press: 20 s for Temperance,
@@ -429,7 +433,8 @@ does a call whose wait would press another of its actions earlier than without i
 TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge) or a follow-up later than its trigger allows (a
 Consolation more than 22 s after Summon Seraph); in game the reminder then shows *ready in N s*. `mitcue
 check` reports a call that waited as tight (*only 1.5 s to spare*, or less when `(Late)` or a lead stopped
-it: 0.9 s for the J Wave 7 Plenary), and one that could not wait as a recast conflict. The full rules:
+it: 0.9 s for the J Wave 7 Plenary, none for the Sage's Protean 2 call), and one that could not wait as a recast
+conflict. The full rules:
 [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops

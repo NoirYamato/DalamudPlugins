@@ -7,8 +7,8 @@ fixtures and readers in `docs/research/sheets-import.md`.
 
 | File | Content |
 |---|---|
-| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), the `carry_the_clear` calibration, and one `timeline_additions` sync, the P2 Cosmo Memory raidwide (7B24 at 320.2, from BossMod, §3; **UNVERIFIED** against a log; with it `mitcue timeline top` lists 283 entries, 208 with a sync). Complete and verified, except that sync's time. |
-| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), 17 `timeline_additions` (the J Waves, §6.2, and the first Tetrashatter, §6.3) and timing fields on four mechanics (§6.2, §6.3). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
+| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), the `carry_the_clear` calibration, and one `timeline_additions` sync, the P2 Cosmo Memory raidwide (7B24 at 320.2, from BossMod, §3; **UNVERIFIED** against a log; with it `mitcue timeline top` lists 283 entries, 208 with a sync), and `sub_hits` on `p1.wave_cannon_kyrios`, its four later cleaves (from BossMod, §2). Complete and verified, except that sync's time and those cleaves. |
+| `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), 17 `timeline_additions` (the J Waves, §6.2, and the first Tetrashatter, §6.3) and timing fields on five mechanics (§2, §6.2, §6.3). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
 | `data/fights/dmu.yaml` | Dancing Mad (Ultimate): 63 mechanics (1 marker), 145 aliases (12 unverified). First draft, no calibration. |
 
 ## 0. Results
@@ -17,14 +17,15 @@ fixtures and readers in `docs/research/sheets-import.md`.
   - Every `hit`/`entry` pair is an entry of the cactbot timeline (same name, same time ±0.05 s), or of the fight
     file's `timeline_additions` (TEA's J Waves and first Tetrashatter, §6.2, §6.3).
   - Every value in `hits` is the time of a timeline entry, `timeline_additions` included (TOP's Cosmo Memory
-    raidwide, the second hit of `p2.limitless`, §3).
+    raidwide, the second hit of `p2.limitless`, §3). `sub_hits` are not: damage times from BossMod, each after
+    `hit`, ascending and none of `hits` (§2).
   - `hits[0] == hit`, and `hits` is ascending and has no duplicates.
   - Every hit lies inside its mechanic's phase (`PhaseAt(hit) == phase`).
   - Ids are unique and carry their phase as a prefix, and mechanics are ordered by `hit`.
   - The files load with a YAML parser (PyYAML 6.0.3) and use only the §3.1 keys: `fight, name, territory,
     sync_level, timeline, phases, mechanics, calibration` (TOP also `row_offsets`; all three also
     `timeline_additions`); phases `id, name, start`; mechanics `id, name, phase, hit, hits, entry, kind, aliases`
-    (TEA also the timing fields `press`, `heal_lead` and `series`, `docs/DESIGN.md` §3.1).
+    (TEA also the timing fields `press`, `heal_lead` and `series`, TEA and TOP `sub_hits`, `docs/DESIGN.md` §3.1).
 - **TOP sheet coverage.**
   - All 47 mechanic rows of Carry the Clear map to a TOP mechanic. Their columns A and B are identical in the three
     tabs.
@@ -104,9 +105,17 @@ the calibration analysis. They are described precisely enough to become the data
   - The YAML comment `# anchor:` and §5.1 give the delay to the real hit. Examples: Latent Defect +1.0 s,
     P2 Cosmo Memory +1.4 s, Blue Screen +1.0 s.
 - **`hits`** lists every damage time that is itself a timeline entry, so "after the n-th hit" hints can use
-  `Mechanic.HitAt(n)`. Sub-hits that cactbot does not list are not invented (the Splash sub-hits in TEA, the four
-  later Diffuse Wave Cannon Kyrios cleaves in TOP), except as `timeline_additions` entries (TEA's 16 J Waves, the
-  hits of `p3.j_waves`; TOP's Cosmo Memory raidwide, the second hit of `p2.limitless`).
+  `Mechanic.HitAt(n)`. Sub-hits that cactbot does not list are hits only as `timeline_additions` entries (TEA's 16
+  J Waves, the hits of `p3.j_waves`; TOP's Cosmo Memory raidwide, the second hit of `p2.limitless`).
+- **`sub_hits`** lists later damage times of a mechanic that are no timeline entries, for multi-hit coverage only
+  (`docs/DESIGN.md` §3.1, §5.1 rule 3): no hint or plan anchors on them. Two mechanics have them, both from BossMod
+  and **UNVERIFIED** against a log:
+  - TOP `p1.wave_cannon_kyrios`: `[110.1, 112.1, 114.2, 116.3]`, the four Diffuse Wave Cannon Kyrios cleaves after
+    the first (`TOPStates.cs` `P1WaveCannons`: 2.1, 4.1, 6.2 and 8.3 s later; cactbot's `x5` entry lasts 8 s), which
+    the tanks' invulns must last through;
+  - TEA `p1.splash_1`: `[82.2, 83.3, 84.4, 85.5, 86.6]`, the five Splashes after the first (`TEAStates.cs`
+    `P1SplashDrainageCascade`: six casts 1.1 s apart, the last as Drainage resolves; cactbot's `Splash x6` lasts
+    5.6 s), which the row's party mitigation must last through.
 - **Umbrella and part mechanics.**
   - Where one sheet row covers several hits that another sheet lists one by one, both exist: an umbrella (for
     example `p1.pantokrator`, all four stacks) and its parts (`p1.panto_stack1..4`).
@@ -188,7 +197,7 @@ where they are anchors.
 | 93.3 | Guided Missile Kyrios 3 | 7B0E | Ability | 7B0E Guided Missile Kyrios (0 s, r5) | hit of `p1.pantokrator`, `p1.panto_stack3` |
 | 99.3 | Condensed Wave Cannon Kyrios 4 | 7B0F | Ability | 7B0F Condensed Wave Cannon Kyrios (0 s, r50) | ANCHOR of `p1.panto_stack4` (also a hit of `p1.pantokrator`) |
 | 99.3 | Guided Missile Kyrios 4 | 7B0E | Ability | 7B0E Guided Missile Kyrios (0 s, r5) | hit of `p1.pantokrator`, `p1.panto_stack4` |
-| 108.0 | Diffuse Wave Cannon Kyrios x5 | 7B10 | none (`#Ability` comment) | 7B10 Diffuse Wave Cannon Kyrios (0 s, r60) | hit of `p1.wave_cannon_kyrios` |
+| 108.0 | Diffuse Wave Cannon Kyrios x5 | 7B10 | none (`#Ability` comment) | 7B10 Diffuse Wave Cannon Kyrios (0 s, r60) | hit of `p1.wave_cannon_kyrios`; its four later cleaves (BossMod: +2.1, +4.1, +6.2, +8.3 s) are the mechanic's `sub_hits` (§2) |
 | 108.0 | Wave Cannon Kyrios 1 | 7B11 | Ability | 7B11 Wave Cannon Kyrios (0 s, r50) | ANCHOR of `p1.wave_cannon_kyrios` |
 | 116.8 | Wave Cannon Kyrios 2 | 7B11 | Ability | 7B11 Wave Cannon Kyrios (0 s, r50) | hit of `p1.wave_cannon_kyrios` |
 | 127.7 | Atomic Ray Enrage | 7AF8 | Ability | 7AF8 Atomic Ray (5 s, r100) | ANCHOR of `p1.atomic_ray` |
@@ -883,6 +892,8 @@ Examples:
    - The label resolves to `p1.pantokrator` (81.3), but the target is `p1.wave_cannon_kyrios` (108.0).
    - `Diffuse Wave Cannon` is an alias of that mechanic. The importer should re-anchor a cell whose text names
      another mechanic of the same phase, and show it in review.
+   - With the mechanic's `sub_hits` (§2), the 10 s invuln is pressed 0.5 s before the first cleave (107.5) and turns
+     NOW 1.2 s before it (106.8), so that it lasts through the fifth (116.3) (`docs/DESIGN.md` §5.1 rule 3).
 3. **LPDU P5 second `Hello World` → `p5.omega_hello_world_1`** (945.4, with the monitors).
    - Omega has two Hello World sets: 945.4, and 963.4 with the blasters. The order rule takes the first after the
      Omega raidwide.
@@ -1158,8 +1169,10 @@ Evidence and **UNVERIFIED** points:
 - The player-timed anchors (`p1.doll_feeds`, `p2.hidden_mines`, `p3.inception_crystals`) and their timing are
   judgment calls (§6.3); the damage itself has no cactbot entry (the first Tetrashatter is a timeline addition) and is
   **UNVERIFIED** against a log.
+- `p1.splash_1` has the five later Splashes as `sub_hits` (§2), so the sheet's 10 s Splash calls (Reprisal, Feint,
+  Addle, Dismantle) are pressed 2.5 s before the first (78.6) and last through the sixth (86.6).
 - `p1.splash_2`: cactbot names it "Splash x6", but BossMod's states count 4 hits there (6 at `p1.splash_1`). Which
-  is right is **UNVERIFIED**.
+  is right is **UNVERIFIED**, so it has no `sub_hits`; LPDU's sheet plans nothing for it.
 - `p2.photon_1` ("Photon (everyone to 1 HP)") sets every player to 1 HP (4837 `PhotonAOE`), `p2.photon_2` ("Photon
   (tanks to 1 HP)") the two tanks only (community guides; BossMod's second Photon state carries a Tankbuster hint,
   and Double Rocket Punch follows 8 s later). Mitigation has no effect: both have `press: after`, so the calls
@@ -1563,6 +1576,8 @@ filled. This is **UNVERIFIED** and irrelevant to the catalog.
 | `p6.magic_number_1` | p6 | lb_check | 1366.7 | 1366.7 | Magic Number | 4 |
 | `p6.magic_number_2` | p6 | lb_check | 1382.8 | 1382.8 | Magic Number | 4 |
 | `p6.run_mi_enrage` | p6 | enrage | 1421.9 | 1421.9 | Run: \*\*\*\*mi\* Enrage | 6 |
+
+`p1.wave_cannon_kyrios` also has `sub_hits: [110.1, 112.1, 114.2, 116.3]`, its four later cleaves (§2).
 
 ## Verification
 

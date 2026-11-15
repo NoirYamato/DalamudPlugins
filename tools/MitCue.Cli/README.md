@@ -14,7 +14,7 @@ without either, the copy built into MitCue.Core is used. Plans can be YAML, JSON
 | Command | What it does |
 |---|---|
 | `fights` | The fights: key, name, territory, sync level, phases, mechanics, timeline file. |
-| `mechanics <fight> [--phase p2] [--kind raidwide] [--find text]` | Phases, calibration presets and mechanics (hit as phase m:ss and timeline seconds, kind, cactbot entry, hits, aliases). |
+| `mechanics <fight> [--phase p2] [--kind raidwide] [--find text]` | Phases, calibration presets and mechanics (hit as phase m:ss and timeline seconds, kind, cactbot entry, hits, aliases; not the fight file's `sub_hits`). |
 | `timeline <fight\|file.txt> [--syncs]` | The parsed cactbot timeline, with a fight's `timeline_additions` appended (TOP: 283 entries, 208 with a sync): entries with syncs, non-default windows, jumps; labels; parser warnings. |
 | `import <source> --fight <key> [...]` | A sheet (.xlsx, fixture folder, .csv/.tsv/.json, or a public Google Sheets link) to plan YAML, with the importer's diagnostics by severity and each phase's fitted zero point and spread. |
 | `plan <plan> --job <job> [--slot] [--assignee]` | The player's checklist in press-time order: phase time, offset from the hit (`*` = no time in the plan: the automatic press time, `docs/DESIGN.md` §5.1; an offset the importer wrote, such as its recast fit's, is a time in the plan), action, mechanic, target and notes, flags. |
@@ -97,9 +97,10 @@ Notes:
   cactbot syncs DMU's P2 and P4 starts only on ActorControl lines, which the plugin does not see; `dmu.yaml`'s
   `timeline_additions` sync them on cast starts instead, so pushes there are followed without `--all-events` too.
 - `validate` compares each file of the data copy built into MitCue.Core with the folder's; a difference (a stale
-  build) is a warning to rebuild. A fight file's timing field (`press`, `heal_lead`, `series`) on a marker is a
-  problem: a marker has no damage to time the calls against. So is an `actions.yaml` `lead` or `barrier_cast` that
-  is not a positive number of seconds: the action catalog does not load.
+  build) is a warning to rebuild. A fight file's timing field (`press`, `heal_lead`, `series`, `sub_hits`) on a
+  marker is a problem: a marker has no damage to time the calls against. So are `sub_hits` that are not after
+  `hit`, in time order and none of `hits` (the fight file does not load), and an `actions.yaml` `lead` or
+  `barrier_cast` that is not a positive number of seconds: the action catalog does not load.
 - `import` of a Google Sheets link downloads the whole workbook (`export?format=xlsx`; pick tabs with `--tabs`) and
   restores the tab names the xlsx export changes ("P1/P2" becomes "P1P2") from the sheet's htmlview page, so plan
   provenance and the importer's column names (LPDU's "WAR/DRK" pairs) match the sheet. `--tabs` matches names ignoring
