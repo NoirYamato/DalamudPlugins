@@ -256,7 +256,8 @@ actions:
 | `duration` | {level: s} | when the action has a lasting effect at some level | `DurationByLevel`. 0 = no lasting effect from that level on (e.g. Equilibrium `{58: 0, 84: 15}`) |
 | `sync` | {80, 90, 100: s or null} | always | copy of `duration` at the three sync levels; `null` = not learned yet, or replaced by an upgrade, at that level |
 | `when` | before / after | when it differs from the kind default, or to give a `lead` (Neutral Sect, Passage of Arms) | **new**: press before the damage (pre-placed heals: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos; Neutral Sect and Passage of Arms, for their `lead`) or after (healer LBs) |
-| `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: the press is `hit − lead`. Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel |
+| `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: the press is `hit − lead`, wherever the cell lists the action (DESIGN §5.1 rule 2). Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel: mitigation with a lead is pressed with the last item of its cell, turns due no earlier than any other and is listed after them. A positive number |
+| `barrier_cast` | s | Neutral Sect (1.5) | **new**: the cast of the GCD that puts up the action's barrier after it (Neutral Sect's Aspected Helios or Helios Conjunction). A call for a later hit of a series is pressed no earlier than the hit before it + 0.3 s minus that cast, as a shield is minus its own cast, so that the barrier lands after that hit (DESIGN §5.1 rule 4). A positive number |
 | `lb` | 1, 2, 3 | limit breaks | **new**: tier |
 | `effects` | list of {name, duration} | several effects, or a level-dependent one | **new**: all durations; `name` is a hand-written label |
 | `replaced_by` | {id, name, level, trait} | trait upgrades | `ReplacedBy`, `ReplacedAtLevel` |
@@ -280,8 +281,12 @@ Loader rules:
   `level ≤ syncLevel`, and not replaced at `syncLevel`.
 - Timing defaults (DESIGN §5.1) with `when`: party_mit, tank_mit, shield, regen, invuln and buff are pressed before
   the hit; heal after unless `when: before`; tank LBs before, healer LBs after (`when: after`). A `lead` sets the
-  time before the hit (Earthly Star −10 s, Neutral Sect −4.5 s, Passage of Arms −2 s). For a `when: before` action the
+  time before the hit (Earthly Star −10 s, Neutral Sect −4.5 s, Passage of Arms −2 s) wherever the cell lists the
+  action, and a `barrier_cast` lowers a series floor (Neutral Sect's 1.5 s Helios). For a `when: before` action the
   use window counts its longest effect (Neutral Sect: the 30 s Helios barrier).
+- `lead` and `barrier_cast`, when present, are positive numbers of seconds; anything else fails the load, which
+  `mitcue validate` reports (*action 16559 'Neutral Sect': 'barrier_cast' must be a positive number of seconds, not
+  0.*).
 - YamlDotNet: `UnderscoredNamingConvention` maps the snake_case keys to PascalCase properties. Integer-keyed maps
   deserialize into `Dictionary<int, double>` / `Dictionary<int, int>`; `sync` needs `Dictionary<int, double?>`.
 
@@ -304,7 +309,8 @@ class ActionDto
     public Dictionary<int, double>? RecastByLevel { get; set; }  public Dictionary<int, int>? Charges { get; set; }
     public CostDto? Cost { get; set; }  public int? Mp { get; set; }  public uint? RequiresStatus { get; set; }
     public Dictionary<int, double>? Duration { get; set; }  public Dictionary<int, double?> Sync { get; set; } = new();
-    public string? When { get; set; }  public double? Lead { get; set; }  public int? Lb { get; set; }
+    public string? When { get; set; }  public double? Lead { get; set; }  public double? BarrierCast { get; set; }
+    public int? Lb { get; set; }
     public List<EffectDto>? Effects { get; set; }  public RefDto? ReplacedBy { get; set; }  public RefDto? UpgradeOf { get; set; }
     public List<RefDto>? FollowUps { get; set; }  public RefDto? FollowUpOf { get; set; }  public string? Requires { get; set; }
     public List<RefDto>? Related { get; set; }  public int Icon { get; set; }  public string? Notes { get; set; }

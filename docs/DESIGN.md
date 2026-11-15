@@ -291,7 +291,14 @@ while the job-less calls of a job-less column ("MT", "H2") stay for whoever play
 `actions.yaml`: id, name, jobs, level, recast, charges, resource cost, effect duration per
 sync level (80/90/100), kind (party_mit, shield, regen, heal, tank_mit, invuln, buff, lb,
 movement, other), upgrades/replacements. Built from game data; in-game, Lumina provides
-names/icons and ActionManager the real (trait-adjusted) recast and charges.
+names/icons and ActionManager the real (trait-adjusted) recast and charges. **As built:**
+also the timing fields of §5.1: `when` (the side of the hit when it differs from the
+kind's: pre-placed heals before, healer LBs after), `lead` (seconds before the hit for a
+`when: before` action: Earthly Star 10, Neutral Sect 4.5, Passage of Arms 2) and
+`barrier_cast` (the cast of the GCD that puts up the action's barrier after it: Neutral
+Sect's 1.5 s Aspected Helios or Helios Conjunction). `lead` and `barrier_cast` must be
+positive numbers of seconds, or the catalog does not load (`mitcue validate` reports it).
+The fields and the loader's rules: docs/research/actions.md §6.
 
 `aliases.yaml`: lowercase shorthand → action(s) (optionally per job), role phrases with
 per-job expansion ("party mit", "short cd"), and note-only phrases ("everything",
@@ -343,8 +350,8 @@ and `the Spire|the Ewer`, whichever was drawn (`AliasExpansion.OptionsOf`).
 ### 5.1 Planned press time
 
 For each applicable entry: `hit` = the anchor mechanic's hit time (or the n-th hit when
-an "after the n-th hit" hint was parsed); `press = hit + offset`. The entry's items share
-the press time; each has its own use window (§5.2).
+an "after the n-th hit" hint was parsed); `press = hit + offset`, the press of every item
+of the entry. Each item has its own use window (§5.2).
 
 When `offset` is not given (plans without times), the press time is automatic. One
 function computes it (`TimingRules.ForEntry`), and the scheduler, the importer, the CLI's
@@ -366,45 +373,95 @@ first known option): the action's `when` field (`actions.yaml`, docs/research/ac
 
 Then, in this order:
 
-1. **The mechanic** (fight file fields, §3.1). With `press: after`, the press is
+1. **The mechanic and the other actions.** With `press: after` (§3.1), the press is
    `hit + max(default, 1)`: the calls are the heal-up after a hit that makes what was
    pressed before it pointless (TEA's Photons set HP to 1), mitigation and shields too; a
-   healer LB keeps its +2. The reminder still turns due `dueLead` before the press (§5.2),
-   so with the default 1.5 s a +1 press turns due 0.5 s before the hit (Photon: 262.0, about
-   0.8 s before its HP drop). Otherwise, with `heal_lead: L`, an entry timed by a heal used
-   after the hit is pressed at `hit − L` (Double Rocket Punch: 4 s, to top up the tanks the
-   second Photon left at 1 HP).
-2. **Several actions.** Otherwise an entry timed by a heal used after the hit, or by a
-   buff, movement or other action, takes the earliest default of its actions that are
-   pressed before the hit, when that is earlier: "Bless/Whisper/Succor" is pressed with
+   healer LB keeps its +2, and no rule below applies. The reminder still turns due
+   `dueLead` before the press (§5.2), so with the default 1.5 s a +1 press turns due 0.5 s
+   before the hit (Photon: 262.0, about 0.8 s before its HP drop). Otherwise, with
+   `heal_lead: L`, an entry timed by a heal used after the hit is pressed at `hit − L`
+   (Double Rocket Punch: 4 s, to top up the tanks the second Photon left at 1 HP).
+   Otherwise an entry timed by a heal used after the hit, or by a buff, movement or other
+   action, takes the earliest default of its actions that are pressed before the hit, when
+   that is earlier, and that action times it: "Bless/Whisper/Succor" is pressed with
    Whispering Dawn's −6.3 s, so that the Succor lands before the hit, and
    "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's −6 s. An entry timed by mitigation,
    a shield, a regen or an invuln keeps its action's default.
+2. **Own leads.** An item with a lead of its own (`when: before` with a `lead`, §3.3)
+   pulls the press to `hit − lead` wherever the cell lists it, when that is earlier: "CU +
+   Neutral Sect" is pressed with Neutral Sect's −4.5 s, time for its Helios, like "Neutral
+   Sect + CU". No lead, a pulled one or the timing action's own, presses the entry earlier
+   than `−(D − 2.5)` for another item with a lasting effect of D seconds (mitigation, a
+   shield, a regen, an invuln, a tank LB, or a pre-placed heal's longest effect), which
+   then, used on the NOW cue, still outlasts the hit by 1 s: "CU + Earthly Star" and
+   "Earthly Star + CU" are pressed at −7.5 s beside the 10 s Collective Unconscious, and the
+   star matures 2.5 s after the hit, for its heal; Neutral Sect keeps its 4.5 s beside
+   anything that lasts 7 s or more. The action whose lead pulled the press then times the
+   entry (its series floor, rule 4).
 3. **Several hits.** An entry for the whole of a mechanic with several hits (no hit index,
    or the first) that is pressed before the hit also covers the later hits its mitigation
-   can reach. For each party or tank mitigation or invuln item of duration D (its longest
-   effect for `when: before`), the last later hit `hR` with `hR − hit ≤ D − 2.5` is
-   covered: the press is no earlier than `hR − D + 2`, so that the effect, even used on the
-   NOW cue with the default 1.5 s due lead (§5.2), outlasts `hR` by 0.5 s, and the press
-   stays at least 0.5 s before the first hit; with a longer due lead, a use on the NOW cue
-   can end before `hR + 0.5` and is then early. The item that needs the latest press times
-   the entry (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s).
+   can reach. A party or tank mitigation or invuln item of duration D (its longest effect
+   for `when: before`) covers the last later hit `hR` with `hR − hit ≤ D − 1.5`: it is
+   pressed at `hR − D + 2`, but no later than 0.5 s before the first hit, and its NOW cue
+   never comes before `hR − D + 0.5`, whatever the due lead (§5.2): a use on the NOW cue
+   then outlasts `hR` by 0.5 s, and still comes at least 1 s before the first hit. Within
+   `hR − hit ≤ D − 2.5` that press is the entry's, and the item that needs the latest press
+   times the entry (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of
+   −3 s). An item that reaches a later hit only pressed 0.5 s before the first is pressed
+   then on its own, while the entry's other items keep their press (TOP's P6 Wave Cannon,
+   the Wild Charge 8.3 s after the first protean: a 10 s Oblation at −0.5 s turns due 1.2 s
+   before the first protean, and the Shadow Wall and The Blackest Night of its cell keep
+   −4.5 s). Coverage presses no item later than the entry's other items allow: an item
+   pressed before the hit that takes time to its effect (a cast, or the GCD a follow-up
+   needs first) has it in place 1 s before the first hit, as `(Late)` does (§6 step 3:
+   "Soil + Succor" −3 s at the latest, "Kerachole + Eukrasian Prognosis" −3.5 s), and an
+   item with a lead of its own that is no mitigation keeps it (Earthly Star 10 s, Neutral
+   Sect 4.5 s). A later hit that would need a later press, the entry's or the item's own,
+   is not covered ("Soil + Succor" on TOP's Pantokrator keeps the Succor's −4.5 s and
+   covers the second line stack, not the third).
 4. **Series.** When the hit is a later hit of a mechanic with `series: true` (on that
    mechanic with a hit index, or on one whose hit is that hit: `p3.j_wave_5` is the fifth
-   J Wave), the press is no earlier than the hit before it + 0.3 s, minus the cast time for
-   an entry timed by a shield with a cast, so that the shield lands then; nor does the
-   reminder turn due earlier (§5.2). The J Waves come 3 s apart, closer than most default
-   leads: a shield pressed earlier would be spent on the wave before, and mitigation would
-   end before the last, strongest waves it should cover.
+   J Wave), the press is no earlier than the hit before it + 0.3 s, minus the time the
+   timing action's effect takes to land after the press: a shield's cast, or the cast of
+   the GCD that puts up its barrier (`barrier_cast`, §3.3: Neutral Sect's 1.5 s Helios),
+   so that the shield or barrier lands then; nor does the reminder turn due earlier
+   (§5.2). The J Waves come 3 s apart, closer than most default leads: a shield pressed
+   earlier would be spent on the wave before, and mitigation would end before the last,
+   strongest waves it should cover. An item with a `barrier_cast` lowers the entry's floor
+   to its own wherever the cell lists it (Neutral Sect beside Earthly Star, Temperance or
+   Excogitation, which time the entry: on J Wave 5, Neutral Sect at 718.7, the other
+   action at 720.2); a shield's cast does not. Each item also has the floor of its own
+   action, never earlier than the entry's, and an automatic press presses it, and turns it
+   due, no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor (a 2 s cast:
+   pressed at 718.4, due at its floor, 718.2), the instant Sacred Soil, Summon Seraph and
+   Consolation wait for J Wave 4, at 720.2, as they would alone.
 
-The importer writes no offset for these rules: a plan's untimed entries follow any change
-of them.
+Every item is pressed at the entry's press, except that with an automatic press an item
+waits for its own series floor (rule 4) or for a later hit it reaches on its own (rule 3),
+and that mitigation with a lead of its own (Passage of Arms: any other action ends its
+channel) is pressed with the entry's last item, turns due no earlier than any other item,
+and is listed after them, in the overlay and in `mitcue plan`: "Passage of Arms +
+Reprisal" on Wave Cannon is pressed 0.5 s before the first protean, turns due with the
+Reprisal, whose NOW cue waits for the Wild Charge, and is listed after it. The entry's
+automatic press is the earliest of its items' presses: the plan's order (§6 step 7) and
+the review (step 8) use it, and the review lists the items pressed later.
+
+A written press is every item's, and keeps each series floor it is at or after: its
+reminders turn due no earlier, and a use before the floor is early (§5.2). One before the
+entry's floor keeps none.
+
+The importer writes no offset for these rules, so a plan's untimed entries follow any
+change of them. It writes one only for `(Late)` (§6 step 3) and where a step after the
+cells presses an entry later than they do (`still-active`, step 4).
 
 ### 5.2 States
 
 - **Upcoming:** `press − lookahead ≤ now < due` (defaults: lookahead 15 s, dueLead 1.5 s).
-- **Due (NOW):** from `due` until `latest`, where `due = press − dueLead`, but for an
-  automatic press on a later hit of a series never before the series floor (§5.1 rule 4);
+- **Due (NOW):** from `due` until `latest`, where `due = press − dueLead` (the item's
+  press, §5.1), but never before the item's due floor: its series floor when its press,
+  automatic or written, is at or after it (§5.1 rule 4); with an automatic press,
+  `hR − D + 0.5` for an item that covers a later hit `hR` (rule 3); and, for mitigation
+  with a lead of its own (Passage of Arms), the due floors of its entry's other items.
   `latest = hit − 0.3` for mitigation, shields and pre-placed heals (`when: before`), and
   `press + 5` for heals used after the damage and anything planned after the hit (never
   before `press + 0.5`). Sound plays once on entering Due. A press that the series floor
@@ -415,10 +472,9 @@ of them.
   `earliest` is flagged *early*. For `when: before` actions D is the longest of their
   effects (Horoscope Helios 30 s, Neutral Sect's Helios barrier 30 s), so a pre-placed heal
   still active at the hit (Bell up to 19 s, Excogitation up to 44 s before it) is on time,
-  not early. With an automatic press, `earliest` is also no earlier than the series floor
-  and, for an item that covers a later hit `hR` (§5.1 rule 3), than `hR − D + 0.5`, but
-  never after the press: a use before the series floor, or one that ends before `hR + 0.5`,
-  is early.
+  not early. `earliest` is also no earlier than the item's due floor (above), but never
+  after the press: a use before the series floor, or one that ends before `hR + 0.5`, is
+  early.
 - **Missed:** `latest` passed without a matching use (not counted for optional entries).
 - **Skipped:** the timeline jumped past the entry (phase push) before it became due.
   Exception — **phase-end reminders**: entries anchored to a phase's enrage/end mechanic
@@ -558,7 +614,8 @@ previews, which have no cooldown provider.
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
    fixes become personal aliases; save. **As built** (the import window, PLUGIN.md §1.7):
    each entry with the importer's diagnostics and the plugin's checks, and the automatic
-   offset and press time the overlay will use (§5.1); the user can change the mechanic,
+   offset and press time the overlay will use (§5.1), with the press of each item pressed
+   later than the entry ("Pressed later: …"); the user can change the mechanic,
    hit, offset, flags, target, note and items, and delete entries; replacing a note with an
    action offers to save the shorthand as a personal alias; the plan is saved as a user
    plan, made the active plan when *Make it my active plan …* is ticked (it is by default

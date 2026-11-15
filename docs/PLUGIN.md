@@ -301,10 +301,11 @@ At the end, if anything was done, missed or skipped, the summary goes to chat wh
 **Reminders.** The core `ReminderScheduler` turns your plan entries into reminders: Pending, then Upcoming,
 then Due (NOW), and finally Done, Missed, Skipped, or Passed for notes and optional entries. The timing rules
 are in [DESIGN.md](DESIGN.md) §5: an entry without a time gets the automatic press time of
-`TimingRules.ForEntry`, the one the import review and the CLI show too. Done and missed rows stay visible for
-3 s, or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show reminders
-skipped by a phase push**. At the lookahead time the cooldown provider is asked whether the action will be
-ready, which produces *ready in N s* and *no Lily*.
+`TimingRules.ForEntry`, the one the import review and the CLI show too, item by item (an item may wait for a
+series floor or a later hit of its own, and Passage of Arms comes after the others). Done and missed rows stay
+visible for 3 s, or vanish at once with **Track done/missed** off; skipped rows show for 3 s only with **Show
+reminders skipped by a phase push**. At the lookahead time the cooldown provider is asked whether the action
+will be ready, which produces *ready in N s* and *no Lily*.
 
 **Recognising your presses.**
 
@@ -394,7 +395,10 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    trial's reading); the lists and their entry counts keep the trial's reading.
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
    checks, which run again after each edit. An entry without a time shows the automatic offset and press time
-   the overlay will use (`TimingRules.ForEntry`). The player can change the mechanic, hit, offset, flags,
+   the overlay will use (`TimingRules.ForEntry`), and its details list the items the overlay presses later than
+   the entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own,
+   and Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil,
+   Summon Seraph, Consolation at 12:00.2 (-2.7 s)*). The player can change the mechanic, hit, offset, flags,
    target, note and items, and delete entries (with undo). Replacing a note with an action offers to remember
    it: `PersonalAliases` saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to
    the alias dictionary for later imports.

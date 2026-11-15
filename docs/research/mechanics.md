@@ -1260,14 +1260,17 @@ anchor on and to sync:
   is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
 - **Series.** `p3.j_waves` has `series: true`: a call without a time for wave n > 1 (on `p3.j_wave_n`, or on the
   umbrella with a hit index) is pressed no earlier than wave n − 1 + 0.3 s, and turns NOW no earlier
-  (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast, both are earlier by its cast time, so that
-  the shield lands then. Most default leads (3–6 s; Passage of Arms 2 s) are as long as the 3 s between waves or
-  longer, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before the last, strongest
-  waves it should cover. Most calls on LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and
-  732.2, and turn NOW then, with no lead. Passage of Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9)
-  and turns NOW at 726.2. The Scholar's calls led by a Succor (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5,
-  with its Sacred Soil, Summon Seraph and Consolation; `Succor`, E25, at J Wave 9) keep −4.5 s (718.4, 730.4) and
-  turn NOW at 718.2 and 730.2, 1.7 s before the wave before them, so that the Succor lands just after it.
+  (`docs/DESIGN.md` §5.1, §5.2); for a shield with a cast, or Neutral Sect with the cast of the Helios that puts up
+  its barrier (`barrier_cast: 1.5` in `actions.yaml`), both are earlier by that cast, so that the shield or barrier
+  lands then. Each action of a call has its own floor, never earlier than the call's. Most default leads (3–6 s;
+  Passage of Arms 2 s) are as long as the 3 s between waves or longer, so a shield would be spent on wave n − 1,
+  and 15–20 s mitigation would end before the last, strongest waves it should cover. Most calls on LPDU's "Jwaves
+  (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and 732.2, and turn NOW then, with no lead. Passage of
+  Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9) and turns NOW at 726.2. The Astrologian's Neutral
+  Sect (H21, J Wave 5) is pressed and turns NOW at 718.7, so that its Helios lands 0.3 s after wave 4. The
+  Scholar's Succors (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5; `Succor`, E25, at J Wave 9) keep −4.5 s
+  (718.4, 730.4) and turn NOW at 718.2 and 730.2, 1.7 s before the wave before them, so that the Succor lands just
+  after it; E21's instant Sacred Soil, Summon Seraph and Consolation wait for wave 4 (720.2).
 
 ### 6.3 Judgment calls (TEA)
 
@@ -1278,7 +1281,7 @@ anchor on and to sync:
    3 (56.7). The entry before the second Exhaust, Hand of Pain 1 (42.8), would press the row's Sacred Soil and
    Kerachole well within their 30 s recast of the Cascade row's (~15 s). On the second Exhaust the Scholar's Soil
    comes 30.8 s after the Cascade one. The Sage's Kerachole, the last step of `ZoeEukProg/Holos/Kerachole`
-   ('LL/BJCC'!F13), shares the sequence's press time, which Holos's −6 s sets (`docs/DESIGN.md` §5.1 rule 2): 28.8 s
+   ('LL/BJCC'!F13), shares the sequence's press time, which Holos's −6 s sets (`docs/DESIGN.md` §5.1 rule 1): 28.8 s
    after the Cascade row's Kerachole (F11). `mitcue check plans/tea-lpdu.yaml --job SGE` reports that as a recast
    conflict, though in game the Kerachole comes after the sequence's first three steps. The row's automatic press
    times (about 44–47 s) cover the feeds from ~45 s on; an early melee pair lands before most of them.

@@ -161,12 +161,17 @@ ready. A call for the end of a phase (*as P1 dies*) turns NOW when a push ends t
 Plan entries without a time get an automatic press time (details in [docs/DESIGN.md](docs/DESIGN.md) §5.1):
 
 - **From the action:** mitigation, regens and shields before the hit, by their duration and cast time; heals
-  1 s after it. Passage of Arms comes last, 2 s before the hit, since any other action ends it; Neutral Sect
-  4.5 s before, so that its Aspected Helios lands in time.
+  1 s after it. Neutral Sect 4.5 s before, so that its Aspected Helios lands in time, also in a call that lists
+  it after another action (*CU + Neutral Sect*). Passage of Arms comes last, since any other action ends it:
+  2 s before the hit, or with the last of the other actions of its call, and it turns NOW no earlier than they
+  do and is listed after them.
 - **From the call:** a call with several actions that starts with a heal or a buff is pressed early enough for
   the others: *Bless/Whisper/Succor* with Whispering Dawn's lead, so that the Succor lands before the hit.
 - **From the mechanic:** mitigation for a mechanic with several hits is pressed late enough to last through the
-  later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). In TEA:
+  later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). An action that
+  reaches a later hit only when pressed at the last moment is pressed on its own, 0.5 s before the first hit,
+  and turns NOW only 1 to 2 s before it, while the other actions of its call keep their time (TOP's P6 Wave
+  Cannon: a 10 s Reprisal, Feint or invuln then lasts through the Wild Charge). In TEA:
   - the calls on Photon, which drops HP to 1, are its heal-up, 1 s after it. They still turn NOW 1.5 s before
     that, just before Photon lands: wait for the HP drop before an instant heal;
   - heals on Double Rocket Punch (the White Mage's Benediction) go out 4 s before it, once the second Photon
@@ -174,6 +179,8 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     Excogitation, 8 s);
   - a call for a later J Wave waits for the wave before it, so it turns NOW with less of a lead, or none. A
     call that starts with a Succor (a 2 s cast) turns NOW 1.7 s before that wave, so that the Succor lands
+    just after it, while the instant actions of the same call (the Scholar's Sacred Soil, Summon Seraph and
+    Consolation) still wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
     just after it.
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
