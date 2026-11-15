@@ -692,53 +692,53 @@ entries:
     src: "'P3'!B4"
   - id: e098
     mechanic: p3.latent_2
-    who: {slot: MT, job: PLD, assignee: MT}
-    do:
-      - {action: 17, name: Sentinel}
-    src: "'General Tank Mit til P5'!B9"
-  - id: e099
-    mechanic: p3.latent_2
-    who: {slot: MT, job: WAR, assignee: MT}
-    do:
-      - {action: 44, name: Vengeance}
-    src: "'General Tank Mit til P5'!B9"
-  - id: e100
-    mechanic: p3.latent_2
-    who: {slot: MT, job: DRK, assignee: MT}
-    do:
-      - {action: 3636, name: Shadow Wall}
-    src: "'General Tank Mit til P5'!B9"
-  - id: e101
-    mechanic: p3.latent_2
-    who: {slot: MT, job: GNB, assignee: MT}
-    do:
-      - {action: 16148, name: Nebula}
-    src: "'General Tank Mit til P5'!B9"
-  - id: e102
-    mechanic: p3.latent_2
-    who: {slot: MT, job: PLD, assignee: MT}
-    do:
-      - {action: 3540, name: Divine Veil}
-    src: "'P3'!B4"
-  - id: e103
-    mechanic: p3.latent_2
-    who: {slot: MT, job: WAR, assignee: MT}
-    do:
-      - {action: 7388, name: Shake It Off}
-    src: "'P3'!B4"
-  - id: e104
-    mechanic: p3.latent_2
-    who: {slot: H2, job: SGE, assignee: H2 SGE}
-    do:
-      - {action: 24311, name: Panhaima}
-    src: "'P3'!G4"
-  - id: e105
-    mechanic: p3.latent_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
       - {action: 16559, name: Neutral Sect}
     src: "'P3'!E4"
+  - id: e099
+    mechanic: p3.latent_2
+    who: {slot: MT, job: PLD, assignee: MT}
+    do:
+      - {action: 17, name: Sentinel}
+    src: "'General Tank Mit til P5'!B9"
+  - id: e100
+    mechanic: p3.latent_2
+    who: {slot: MT, job: WAR, assignee: MT}
+    do:
+      - {action: 44, name: Vengeance}
+    src: "'General Tank Mit til P5'!B9"
+  - id: e101
+    mechanic: p3.latent_2
+    who: {slot: MT, job: DRK, assignee: MT}
+    do:
+      - {action: 3636, name: Shadow Wall}
+    src: "'General Tank Mit til P5'!B9"
+  - id: e102
+    mechanic: p3.latent_2
+    who: {slot: MT, job: GNB, assignee: MT}
+    do:
+      - {action: 16148, name: Nebula}
+    src: "'General Tank Mit til P5'!B9"
+  - id: e103
+    mechanic: p3.latent_2
+    who: {slot: MT, job: PLD, assignee: MT}
+    do:
+      - {action: 3540, name: Divine Veil}
+    src: "'P3'!B4"
+  - id: e104
+    mechanic: p3.latent_2
+    who: {slot: MT, job: WAR, assignee: MT}
+    do:
+      - {action: 7388, name: Shake It Off}
+    src: "'P3'!B4"
+  - id: e105
+    mechanic: p3.latent_2
+    who: {slot: H2, job: SGE, assignee: H2 SGE}
+    do:
+      - {action: 24311, name: Panhaima}
+    src: "'P3'!G4"
   - id: e106
     mechanic: p3.latent_3
     who: {slot: H1, job: WHM, assignee: H1 WHM}
@@ -2682,81 +2682,6 @@ entries:
     src: "'P6'!F5"
   - id: e379
     mechanic: p6.wave_cannon_2
-    who: {slot: H2, job: SGE, assignee: H2 SGE}
-    do:
-      - {action: 24298, name: Kerachole}
-      - {action: 24292, name: Eukrasian Prognosis}
-      - {action: 24310, name: Holos}
-    src: "'P6'!G5"
-  - id: e380
-    mechanic: p6.wave_cannon_2
-    who: {job: WAR, assignee: WAR/DRK WAR}
-    do:
-      - {action: 44, name: Vengeance}
-      - {action: 25751, name: Bloodwhetting}
-    src: "'WAR/DRK'!B12"
-  - id: e381
-    mechanic: p6.wave_cannon_2
-    who: {job: DRK, assignee: WAR/DRK DRK}
-    do:
-      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
-    target: Co-Tank
-    src: "'WAR/DRK'!C12"
-  - id: e382
-    mechanic: p6.wave_cannon_2
-    who: {job: WAR, assignee: WAR/GNB WAR}
-    do:
-      - {action: 44, name: Vengeance}
-      - {action: 25751, name: Bloodwhetting}
-    src: "'WAR/GNB'!B12"
-  - id: e383
-    mechanic: p6.wave_cannon_2
-    who: {job: WAR, assignee: WAR/PLD WAR}
-    do:
-      - {action: 44, name: Vengeance}
-      - {action: 25751, name: Bloodwhetting}
-    src: "'WAR/PLD'!B12"
-  - id: e384
-    mechanic: p6.wave_cannon_2
-    who: {job: PLD, assignee: GNB/PLD PLD}
-    do:
-      - {action: 17, name: Sentinel}
-      - {action: 25746, name: Holy Sheltron}
-    src: "'GNB/PLD'!C12"
-  - id: e385
-    mechanic: p6.wave_cannon_2
-    who: {job: PLD, assignee: CM LB Tank}
-    do:
-      - {action: 7535, name: Reprisal}
-    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
-    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
-    src: "'P6'!B5"
-  - id: e386
-    mechanic: p6.wave_cannon_2
-    who: {job: WAR, assignee: CM LB Tank}
-    do:
-      - {action: 7535, name: Reprisal}
-    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
-    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
-    src: "'P6'!B5"
-  - id: e387
-    mechanic: p6.wave_cannon_2
-    who: {job: DRK, assignee: CM LB Tank}
-    do:
-      - {action: 7535, name: Reprisal}
-    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
-    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
-    src: "'P6'!B5"
-  - id: e388
-    mechanic: p6.wave_cannon_2
-    who: {job: GNB, assignee: CM LB Tank}
-    do:
-      - {action: 7535, name: Reprisal}
-    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
-    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
-    src: "'P6'!B5"
-  - id: e389
-    mechanic: p6.wave_cannon_2
     who: {slot: H1, job: AST, assignee: H1 AST}
     do:
       - {action: 3613, name: Collective Unconscious}
@@ -2764,6 +2689,81 @@ entries:
     note: Neutralsect shields for proteans
     detail: "Discuss who goes mid to heal during Meteors and LB3 order during the cutscene!!\nAST can shift Neutralsect to CD1 and Meteors, mostly done with SCH\nFor Tanks and DPS:"
     src: "'P6'!E5"
+  - id: e380
+    mechanic: p6.wave_cannon_2
+    who: {slot: H2, job: SGE, assignee: H2 SGE}
+    do:
+      - {action: 24298, name: Kerachole}
+      - {action: 24292, name: Eukrasian Prognosis}
+      - {action: 24310, name: Holos}
+    src: "'P6'!G5"
+  - id: e381
+    mechanic: p6.wave_cannon_2
+    who: {job: WAR, assignee: WAR/DRK WAR}
+    do:
+      - {action: 44, name: Vengeance}
+      - {action: 25751, name: Bloodwhetting}
+    src: "'WAR/DRK'!B12"
+  - id: e382
+    mechanic: p6.wave_cannon_2
+    who: {job: DRK, assignee: WAR/DRK DRK}
+    do:
+      - {any: [{action: 7393, name: The Blackest Night}, {action: 25754, name: Oblation}]}
+    target: Co-Tank
+    src: "'WAR/DRK'!C12"
+  - id: e383
+    mechanic: p6.wave_cannon_2
+    who: {job: WAR, assignee: WAR/GNB WAR}
+    do:
+      - {action: 44, name: Vengeance}
+      - {action: 25751, name: Bloodwhetting}
+    src: "'WAR/GNB'!B12"
+  - id: e384
+    mechanic: p6.wave_cannon_2
+    who: {job: WAR, assignee: WAR/PLD WAR}
+    do:
+      - {action: 44, name: Vengeance}
+      - {action: 25751, name: Bloodwhetting}
+    src: "'WAR/PLD'!B12"
+  - id: e385
+    mechanic: p6.wave_cannon_2
+    who: {job: PLD, assignee: GNB/PLD PLD}
+    do:
+      - {action: 17, name: Sentinel}
+      - {action: 25746, name: Holy Sheltron}
+    src: "'GNB/PLD'!C12"
+  - id: e386
+    mechanic: p6.wave_cannon_2
+    who: {job: PLD, assignee: CM LB Tank}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B5"
+  - id: e387
+    mechanic: p6.wave_cannon_2
+    who: {job: WAR, assignee: CM LB Tank}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B5"
+  - id: e388
+    mechanic: p6.wave_cannon_2
+    who: {job: DRK, assignee: CM LB Tank}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B5"
+  - id: e389
+    mechanic: p6.wave_cannon_2
+    who: {job: GNB, assignee: CM LB Tank}
+    do:
+      - {action: 7535, name: Reprisal}
+    note: "*Press 10s Mit when doing the side dodge to catch both Proteans and the Stack or about 1/5th into the cast, never too early or you won't catch the Stack!"
+    detail: "Tanks Follow LB3 Prio!!!\nAdjust Rep order accordingly\nWAR > DRK > PLD > GNB\nTalk About LB3 order during the cutscene!!"
+    src: "'P6'!B5"
   - id: e390
     mechanic: p6.wave_cannon_2
     who: {slot: M2, assignee: M2}

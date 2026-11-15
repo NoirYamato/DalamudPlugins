@@ -183,10 +183,13 @@ public class EntryTimingTests
     /// <summary>A 10 s party mitigation at level 90 (Reprisal): −3 s.</summary>
     private static readonly ActionInfo TenSecondMit = Kit.Act(7535, "Reprisal", ActionKind.PartyMit, duration: 10, jobs: [Job.PLD]);
 
+    /// <summary>Passage of Arms: party mitigation with a lead of its own (2 s, a channel any action ends, pressed last).</summary>
+    private static readonly ActionInfo PassageOfArms = Kit.Act(7385, "Passage of Arms", ActionKind.PartyMit, duration: 18, jobs: [Job.PLD], when: UseTiming.Before, lead: 2);
+
     private static EntryTiming Several(params ActionInfo[] actions)
     {
         var fight = Kit.TestFight();
-        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", null, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog([.. Kit.Catalogued, TenSecondMit]));
+        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", null, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog([.. Kit.Catalogued, TenSecondMit, PassageOfArms]));
     }
 
     [Fact]
@@ -213,6 +216,29 @@ public class EntryTimingTests
         Assert.Equal(-4.5, Several(Kit.MedicaII, Kit.Temperance).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-2, Several(Kit.HallowedGround, Kit.Rampart).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-6, Several(Kit.Bell, Kit.Excogitation).AutomaticOffset, Kit.Tolerance);           // a pre-placed heal first keeps its own
+    }
+
+    [Fact]
+    public void Several_AnItemsOwnLeadCountsWhereverTheCellListsIt()
+    {
+        // "CU + Neutral Sect": Neutral Sect's 4.5 s for its Helios, as "Neutral Sect + CU"; the 10 s mitigation pressed then
+        // still lasts through the hit from the NOW cue.
+        Assert.Equal(-4.5, Several(TenSecondMit, Kit.NeutralSect).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Several(Kit.NeutralSect, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Several(Kit.Swiftcast, Kit.NeutralSect).AutomaticOffset, Kit.Tolerance);   // a buff first, as before
+        Assert.Equal(-3, Several(TenSecondMit, PassageOfArms).AutomaticOffset, Kit.Tolerance);       // a later lead pulls nothing
+
+        // Never so early that another item, used on the NOW cue, no longer lasts through the hit: −(10 − 2.5) for the 10 s
+        // mitigation beside Earthly Star (whose −10 s still times an entry it comes first in).
+        var star = Several(TenSecondMit, Kit.EarthlyStar);
+        Assert.Equal(-7.5, star.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(TimingRules.EarliestCoveringUse(100, 10), star.DueAt(new ReminderOptions()), Kit.Tolerance);
+        Assert.Equal(-10, Several(Kit.EarthlyStar, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-10, Several(Kit.Tetragrammaton, Kit.EarthlyStar).AutomaticOffset, Kit.Tolerance); // a heal has no effect to keep
+
+        // After heal_lead too, but not on a press: after mechanic (the calls are the heal-up).
+        Assert.Equal(-4.5, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.NeutralSect)), HealLeadFight()).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(1, Kit.Timing(Kit.Entry("p1.drop", null, Kit.Do(Kit.Temperance), Kit.Do(Kit.NeutralSect)), PressAfterFight()).AutomaticOffset, Kit.Tolerance);
     }
 
     [Fact]

@@ -50,6 +50,8 @@ public static class TimingRules
     private const double CoverageMargin = 0.5;       // a later hit is covered when the effect outlasts it by this much...
     private const double CoverageLead = 2;           // ...also pressed on the NOW cue: the default due lead (1.5 s) + 0.5 s
     private const double CoverageSpanMargin = 2.5;   // the press is then still 0.5 s before the first hit
+    private const double OwnLeadGuard = 2.5;         // an item's own lead pulls an entry no earlier than D − 2.5 s for its
+                                                     // other items: on the NOW cue (1.5 s before) they outlast the hit by 1 s
 
     // §5.2 use window.
     private const double ExpiryMargin = 1;           // an effect must outlast the hit by this much
@@ -83,6 +85,14 @@ public static class TimingRules
     /// Whispering Dawn's −6.3 s, so the Succor lands before the hit; "Reci/Deploy/Soil/Fey Illum" with Fey Illumination's
     /// −6 s, time for the whole combo. An entry timed by mitigation, a shield, a regen or an invuln keeps its action's
     /// lead ("Reprisal/Party Mit": Reprisal's −3 s still covers the mechanic's second hit).
+    /// </item>
+    /// <item>
+    /// An item's own lead (<see cref="ActionInfo.Lead"/> of a <see cref="UseTiming.Before"/> action) pulls the press
+    /// earlier wherever the cell lists it: "CU + Neutral Sect" at Neutral Sect's −4.5 s, time for its Helios, like
+    /// "Neutral Sect + CU". It never pulls it so early that another item's lasting effect D (mitigation, a shield, a regen,
+    /// an invuln, a pre-placed heal) used on the NOW cue ends before the hit: no earlier than −(D − 2.5 s) ("CU + Earthly
+    /// Star": −7.5 s; "Earthly Star + CU", timed by the star, keeps its −10 s). Not on a <see cref="Mechanic.PressAfter"/>
+    /// mechanic.
     /// </item>
     /// <item>
     /// Several hits (the entry for the whole mechanic, no hit index): mitigation pressed before the first hit (party or
@@ -290,8 +300,9 @@ public static class TimingRules
         };
 
     /// <summary>
-    /// The automatic offset of an entry whose items have these timing actions, before a series' floor (see
-    /// <see cref="ForEntry"/>), and the action it is the default of (null for a note or an unknown action).
+    /// The automatic offset of an entry whose items have these timing actions, before multi-hit coverage and a series'
+    /// floor (the first two rules of <see cref="ForEntry"/>), and the action it is the default or the lead of (null for a
+    /// note or an unknown action).
     /// </summary>
     private static (double Offset, ActionInfo? Timing) AutomaticOffset(IReadOnlyList<ActionInfo?> timing, Mechanic mechanic, int syncLevel)
     {
@@ -311,19 +322,62 @@ public static class TimingRules
         if (mechanic.PressAfter)
             return (Math.Max(offset, HealDelay), first);
 
-        // Heals that top the targets up for the hit (the tanks at 1 HP before a tankbuster).
+        (double Offset, ActionInfo? Timing) timed = (offset, first);
         if (mechanic.HealLead is { } healLead && IsUsedAfterHit(first))
-            return (-healLead, first);
-
-        // A heal or a buff gives no lead of its own: an action of the entry that goes before the hit times it.
-        if (first != null && (IsUsedAfterHit(first) || first.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other)
+        {
+            // Heals that top the targets up for the hit (the tanks at 1 HP before a tankbuster).
+            timed = (-healLead, first);
+        }
+        else if (first != null && (IsUsedAfterHit(first) || first.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other)
             && EarliestPreHit(timing, syncLevel) is { } earliest && earliest.Offset < offset)
         {
-            return (earliest.Offset, earliest.Action);
+            // A heal or a buff gives no lead of its own: an action of the entry that goes before the hit times it.
+            timed = (earliest.Offset, earliest.Action);
         }
 
-        return (offset, first);
+        return WithOwnLeads(timing, timed, syncLevel);
     }
+
+    /// <summary>
+    /// The second rule of <see cref="ForEntry"/>: <paramref name="timed"/>, pulled earlier to the lead of an item that has
+    /// one of its own (<see cref="OwnLead"/>) wherever the cell lists it ("CU + Neutral Sect": Neutral Sect's −4.5 s), but
+    /// no earlier than the entry's other items with a lasting effect D allow (<see cref="CoveringDuration"/>: −(D − 2.5 s),
+    /// so that used on the NOW cue they still outlast the hit by 1 s: "CU + Earthly Star" at −7.5 s). The action whose lead
+    /// pulled it then times the entry.
+    /// </summary>
+    private static (double Offset, ActionInfo? Timing) WithOwnLeads(IReadOnlyList<ActionInfo?> timing, (double Offset, ActionInfo? Timing) timed, int syncLevel)
+    {
+        for (var i = 0; i < timing.Count; i++)
+        {
+            if (OwnLead(timing[i]) is not { } lead || -lead >= timed.Offset)
+                continue;
+            var offset = -lead;
+            for (var j = 0; j < timing.Count; j++)
+            {
+                if (j != i && CoveringDuration(timing[j], syncLevel) is { } duration)
+                    offset = Math.Max(offset, OwnLeadGuard - duration);
+            }
+
+            if (offset < timed.Offset)
+                timed = (offset, timing[i]);
+        }
+
+        return timed;
+    }
+
+    /// <summary>The lead of a <see cref="UseTiming.Before"/> action with a positive one of its own (<see cref="ActionInfo.Lead"/>), else null.</summary>
+    private static double? OwnLead(ActionInfo? action) =>
+        action is { When: UseTiming.Before, Lead: { } lead } && lead > 0 && double.IsFinite(lead) ? lead : null;
+
+    /// <summary>
+    /// The duration an action's effect must last through the hit with when it is pressed before it: mitigation, shields,
+    /// regens, invulns and tank limit breaks, and the longest effect of a pre-placed heal (<see cref="UseTiming.Before"/>),
+    /// when known; null for buffs, movement, other actions, heals used after the hit and notes.
+    /// </summary>
+    private static double? CoveringDuration(ActionInfo? action, int syncLevel) =>
+        action is null || IsUsedAfterHit(action) || action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other
+            ? null
+            : action.When == UseTiming.Before ? LongestEffect(action, syncLevel) : KnownDuration(action, syncLevel);
 
     /// <summary>The first action with the earliest default offset before the hit (see <see cref="EarliestPreHitOffset"/>).</summary>
     private static (ActionInfo Action, double Offset)? EarliestPreHit(IEnumerable<ActionInfo?> actions, int syncLevel)
@@ -432,7 +486,7 @@ public static class TimingRules
     /// <summary>Seconds before the hit for a <see cref="UseTiming.Before"/> action, see <see cref="DefaultOffset"/>.</summary>
     private static double BeforeHitLead(ActionInfo action, int syncLevel)
     {
-        if (action.Lead is { } lead && lead > 0 && double.IsFinite(lead))
+        if (OwnLead(action) is { } lead)
             return lead;
         return IsAfterHitKind(action) ? DurationLead(action, syncLevel) : -KindOffset(action, syncLevel);
     }
