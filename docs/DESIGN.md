@@ -26,7 +26,7 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
 | D3 | Build order | Our choice: runtime first (sync + overlay) with the two plans converted by our own importer, then the in-game importer UI. Plugin dependencies are allowed if useful. **As built:** runtime first, then the importer front half and the in-game import window, then the CLI, the importer back half and the converted plans; no plugin dependencies. |
 | D4 | Import | Public Google Sheets/Docs **links** (the plugin downloads them) **and paste**. A "copy conversion prompt" for any LLM is the fallback for layouts the importer cannot read. **As built:** all three routes are in the in-game import window (§6). |
 | D5 | Reminder behaviour | Defaults below, all changeable in a config window: show reminders 15 s ahead, sound when an action becomes due, track done/missed, own calls only (co-healer's calls optional), post-pull summary optional, no hotbar glow in v1. **As built:** each of these is a setting (§7); see F6 for the timings that are not. |
-| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. **Changed (2026-11-14):** also from the entry's other actions, the mechanic's later hits and the fight file's timing fields, in one function that the reminders, the importer, the CLI and the review share (§5.1). **Changed (2026-11-15):** at import, a call that would find its action not ready yet is pressed when it is ready again (the recast fit, §6 step 7). |
+| D6 | Plans without times | Timing is derived from each action's effect duration and kind; the user can adjust any entry during review. **Changed (2026-11-14):** also from the entry's other actions, the mechanic's later hits and the fight file's timing fields, in one function that the reminders, the importer, the CLI and the review share (§5.1). **Changed (2026-11-15):** at import, a call without a time in the sheet that would find its action not ready yet is pressed 1.5 s after the action is ready again, so that its NOW cue (the default due lead) comes then, but no later than `(Late)` and the actions' own leads allow (the recast fit, §6 step 7). |
 | D7 | Fights | TOP first (level 90). Next: **TEA** (The Epic of Alexander (Ultimate), level 80) and **DMU** (Dancing Mad (Ultimate), level 100). **As built (2026-11-11):** the fight data of all three ships. TEA and DMU are first drafts: no mitigation sheet has been mapped onto them, and no plans for them ship. TEA follows phase pushes; DMU's P2 and P4 starts use fallback syncs that are not yet checked against logs (§4). **Changed (2026-11-14):** TEA's data has been mapped onto LPDU's sheet *[LPDU] TEA Heal/Mit* (mechanics and aliases for its rows; the 16 J Waves of the P3 DPS check and the first Inception crystal explosion added to the timeline; timing fields for the Photons, Double Rocket Punch and the J Waves, §3.1, §5.1), and the sheet ships as *LPDU TEA Heal/Mit*, TEA's only plan and so the automatic one of every job it names (§7). The TEA data is still not checked against logs; DMU has no plan yet. |
 | D8 | BossMod / cactbot as dependencies | **No runtime dependency.** cactbot is a browser overlay inside ACT/IINACT, so a Dalamud plugin cannot read its state; BossMod's IPC only exposes autorotation/AI/config controls, not fight timelines. Instead MitCue **bundles cactbot's timeline files** (Apache-2.0, attributed) and parses them itself. |
 
@@ -306,11 +306,13 @@ sync level (80/90/100), kind (party_mit, shield, regen, heal, tank_mit, invuln, 
 movement, other), upgrades/replacements. Built from game data; in-game, Lumina provides
 names/icons and ActionManager the real (trait-adjusted) recast and charges. **As built:**
 also the timing fields of §5.1: `when` (the side of the hit when it differs from the
-kind's: pre-placed heals before, healer LBs after), `lead` (seconds before the hit for a
-`when: before` action: Earthly Star 10, Neutral Sect 4.5, Passage of Arms 2) and
-`barrier_cast` (the cast of the GCD that puts up the action's barrier after it: Neutral
-Sect's 1.5 s Aspected Helios or Helios Conjunction). `lead` and `barrier_cast` must be
-positive numbers of seconds, or the catalog does not load (`mitcue validate` reports it).
+kind's: pre-placed heals before, healer LBs after; also `before` on Neutral Sect and
+Passage of Arms, whose kinds are pressed before the hit anyway, so that their `lead`
+counts), `lead` (seconds before the hit for a `when: before` action: Earthly Star 10,
+Neutral Sect 4.5, Passage of Arms 2) and `barrier_cast` (the cast of the GCD that puts up
+the action's barrier after it: Neutral Sect's 1.5 s Aspected Helios or Helios
+Conjunction). `lead` and `barrier_cast` must be positive numbers of seconds, or the
+catalog does not load (`mitcue validate` reports it).
 The fields and the loader's rules: docs/research/actions.md §6.
 
 `aliases.yaml`: lowercase shorthand → action(s) (optionally per job), role phrases with
@@ -464,9 +466,13 @@ reminders turn due no earlier, and a use before the floor is early (§5.2). One 
 entry's floor keeps none.
 
 The importer writes no offset for these rules, so a plan's untimed entries follow any
-change of them. It writes one only for `(Late)` (§6 step 3) and where a step after the
-cells presses an entry later than they do (`still-active`, step 4, and the recast fit,
-step 7).
+change of them. Besides the sheet's times, it writes one only for a hint that names the
+press (`after 1st Hit`, `after Solar Ray`: that hit + 0.5 s, §6 step 7), for a heal on one
+player's hit of a multi-hit mechanic, pressed before that hit with the lead of the entry's
+earliest action pressed before the hit, else 3 s before it (*NoirMit - WHM*'s `Solace +
+Benison` for `your 3rd/4th-in-line player`: Program Loop's fourth set, −4 s), for
+`(Late)` (§6 step 3) and where a step after the cells presses an entry later than they
+do (`still-active`, step 4, and the recast fit, step 7).
 
 ### 5.2 States
 
@@ -572,12 +578,14 @@ previews, which have no cooldown provider.
    never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`,
    `Stack/Spread`) or in `and/or`. In both readings, a `/` between two single letters is
    one word, spaced or not, which joins nothing (`N/A`, `N / A`); `MT/Co-tank` after an
-   action is one target (either of them); other words that name no action, joined by `/`
-   after an action, are its remark (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread");
-   and `X and/or Y` is either one. Also read since then: a cell that is one pair of
-   brackets (`(Shake)`: optional), a cell that points up (`(^on BJ)`: a remark on every
-   item of the cell above) and `(Late)`: an entry pressed before its hit (not one on a
-   mechanic with `press: after`, §5.1) gets the offset that presses it just before it, so
+   action is one target (either of them); other slot, job, target or mechanic words joined
+   by `/` after an action are its remark (`Kera Stack/Spread`: Kerachole, noted
+   "Stack/Spread"; `Rampart MT/TB`), other words not (`Kera Left/Right`: a note item
+   "Right" under "all of them", "Right" left out of the either/or under "either one", with
+   a warning); and `X and/or Y` is either one. Also read since then: a cell that is one
+   pair of brackets (`(Shake)`: optional), a cell that points up (`(^on BJ)`: a remark on
+   every item of the cell above) and `(Late)`: an entry pressed before its hit (not one on
+   a mechanic with `press: after`, §5.1) gets the offset that presses it just before it, so
    that its longest cast, or the GCD a follow-up needs first, ends 1 s before the hit
    (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` and
    `Eukrasian Diagnosis (Late)` −3.5 s after Eukrasia's 2.5 s), but only when that presses
@@ -592,31 +600,40 @@ previews, which have no cooldown provider.
    becomes a note. **As built (2026-11-14):** a sheet that numbers its Seraph calls
    (`Seraph1`: Summon Seraph → Consolation) means the same by a plain `Seraph` (LPDU's TEA
    sheet; a `seraph-reading` info says so); elsewhere a plain `Seraph` is Summon Seraph
-   alone. After the cells, a party buff the same player plans again while the earlier press
-   still serves the later call becomes its follow-up (Summon Seraph → Consolation; at level
-   100 Temperance → Divine Caress, Neutral Sect → Sun Sign) or, for a buff without one, a
-   note ("Temperance (still active)"). Both calls are timed as the reminders time them
+   alone. After the cells, an action the same player uses on the party, an area or
+   themselves (a party buff or party mitigation such as Temperance, Sacred Soil or Summon
+   Seraph, or a tank's own Rampart; one charge at the level, a recast longer than its
+   effect), planned again from another row less than its own duration after the earlier
+   press (item press to item press: Temperance, Neutral Sect and Rampart 20 s, Summon
+   Seraph 22 s), while the earlier press still serves the later call, becomes its
+   follow-up (Summon Seraph → Consolation; at level 100 Temperance → Divine Caress,
+   Neutral Sect → Sun Sign) or, for an action without one, a note ("Temperance (still
+   active)", "Rampart (still active)"). Both calls are timed as the reminders time them
    (§5.1), each at its own item's press, used on that item's NOW cue (§5.2, the default due
    lead). A note needs the earlier effect, lasting as long as the reminders count it
-   covering a hit (a `when: before` action's longest effect: Neutral Sect named again
-   within its 30 s barrier is the note "Neutral Sect (still active)"), to outlast the later
-   hit, or the later press when that comes after the hit, by 1 s. A follow-up needs the
-   buff only when it is used: it is pressed within `check`'s follow-up window after the
-   buff, the buff's longest effect (Seraph's 22 s: LPDU TEA's plain "Seraph" at J Wave 7,
-   6 s after the one at J Wave 5, is its Consolation alone). An earlier press without a time
-   in the sheet that falls short gets an offset that presses it later, so that it serves
-   both (LPDU TEA's Hidden Mines Temperance: `offset: -3.5`, through Water 2), no later
-   than `(Late)` would press it, never after the lead of a `when: before` action that is no
-   heal (Neutral Sect 4.5 s, Passage of Arms 2 s), and never so that another of its items
-   is pressed earlier than without it; like `(Late)`'s, the offset is written into the
-   plan, so the review and `mitcue plan` show it as set, not automatic. Otherwise both stay
-   presses, and `check` reports the recast. A `still-active` info says which, with the gap
-   between the two items' presses ("… but its follow-up Consolation would be used after it
-   is over …: both stay presses"; a move ends "… so that it still lasts when Consolation is
-   used"). An optional earlier press (grey, in brackets, with a condition, or one choice of
-   an either/or) keeps no buff up. A limit break written for one role in several seats'
-   columns at one mechanic is optional in each, also when only some of those columns are
-   imported. A target taken from the row (its notes, or "tank" on a tankbuster) goes to
+   covering a hit (a `when: before` action's longest effect: Neutral Sect's 30 s barrier),
+   to outlast the later hit, or the later press when that comes after the hit, by 1 s. A
+   follow-up needs the action only when it is used: it is pressed within `check`'s
+   follow-up window after the earlier press's NOW cue, the action's longest effect
+   (Seraph's 22 s: LPDU TEA's plain "Seraph" at J Wave 7, 6 s after the one at J Wave 5, is
+   its Consolation alone; at level 100 Divine Grace's and Suntouched's 30 s). An earlier
+   press without a time in the sheet that falls short gets an offset that presses it
+   later, so that it serves both (LPDU TEA's Hidden Mines Temperance: `offset: -3.5`,
+   through Water 2), no later than `(Late)` would press it, never after the lead of a
+   `when: before` action that is no heal (Neutral Sect 4.5 s, Passage of Arms 2 s), and
+   never so that another of its items is pressed earlier than without it; like `(Late)`'s,
+   the offset is written into the plan, so the review and `mitcue plan` show it as set,
+   not automatic. Otherwise both stay presses, and `check` reports the recast. A
+   `still-active` info says which, with the gap between the two items' presses ("… but its
+   follow-up Consolation would be used after it is over …: both stay presses"; a move ends
+   "… so that it still lasts when Consolation is used"). A call planned again at or after
+   the action's own duration stays a press without an info, whatever the barrier or the
+   follow-up window: a Neutral Sect named again 20–30 s later is no note, and at level 100
+   a Temperance or Neutral Sect then is no Divine Caress or Sun Sign. An optional earlier
+   press (grey, in brackets, with a condition, or one choice of an either/or) keeps no buff
+   up. A limit break written for one role in several seats' columns at one mechanic is
+   optional in each, also when only some of those columns are imported. A target taken
+   from the row (its notes, or "tank" on a tankbuster) goes to
    single-target actions only, and the item's other actions get an entry of their own. A
    note over several columns that names actions and speaks to no other player ("A tip for
    Soil/Kera timing …") is the detail of the entries in its columns and section that press
@@ -642,8 +659,10 @@ previews, which have no cooldown provider.
    +1.4 s, Hello World rounds +1.0 s, Blind Faith, P6 enrage…). This needs no phase zero and
    is immune to drift. Only items without a usable row time use `offset = (zero + t) − hit`.
    Otherwise the offset stays automatic (§5.1); parsed hints adjust the anchor (e.g. after
-   the 1st hit). Items described as happening at a phase's end are anchored to that phase's
-   enrage/end mechanic and flagged `at_phase_end` (§5.2). **As built:** δ per sheet and
+   the 1st hit), and one that names the press writes it (`after 1st Hit`: that hit + 0.5 s;
+   `after Solar Ray`: the mechanic's last hit + 0.5 s, stored as `hit_index`). Items
+   described as happening at a phase's end are anchored to that phase's enrage/end
+   mechanic and flagged `at_phase_end` (§5.2). **As built:** δ per sheet and
    mechanic is the fight file's `row_offsets` (§3.1). For Carry the Clear they are Blue
    Screen +1.0 s, the Omega row +1.1 s, Blind Faith −1.2 s and the P6 enrage −14.0 s; P2
    Cosmo Memory and the Hello World rounds need none, because the catalog anchors them at
@@ -673,10 +692,11 @@ previews, which have no cooldown provider.
    TEA's "CU (if up)" on Irresistible Grace 1). A press with a time in the sheet counts but
    never moves; an offset the importer wrote itself (step 4's) may move. A when-ready call
    ("on CD") keeps its press and still counts: its reminder already waits for the action in
-   game. A sequence moves for its first step only (`check` times every step at the entry's
-   press; in game the later steps follow it), and only when its later steps are instant
-   oGCDs woven in right after it (`Kerachole → Holos`): one with a later GCD or cast
-   (`Zoe → Eukrasian Prognosis → Holos → Kerachole`, `Recitation → Succor`) keeps its
+   game. A sequence moves for its first step only (`check` times every step at its own
+   press, §5.1: the entry's, unless the step waits for a series floor or a later hit of its
+   own; in game the later steps follow the first), and only when its later steps are
+   instant oGCDs woven in right after it (`Kerachole → Holos`): one with a later GCD or
+   cast (`Zoe → Eukrasian Prognosis → Holos → Kerachole`, `Recitation → Succor`) keeps its
    press. An entry several seats see takes the latest press any of them needs. The
    earliest press without a charge moves first, then the plan is replayed again, until
    nothing moves; a moved press is replayed at its press time, so in a chain of moves each
@@ -714,12 +734,12 @@ and holds the loaded sheet's text when one is loaded; the YAML is read out of th
 (text around its code block is ignored). Its rule for `X/Y` between one job's actions is
 the importer's per-document reading (step 3), and with the sheet's text it says which
 reading MitCue's importer uses for that sheet: the import options' *Slashes* choice, else
-the sheet's own. When the trial import found that the sheet numbers its Seraph calls
-(`ImportResult.SeraphNumbered`) and the prompt converts the Scholar's calls (or every
-job's), it also states the per-document Seraph reading (step 4): a plain `Seraph` there is
-`Seraph1`, Summon Seraph then Consolation, and one while the Seraph summoned before is
-still out (22 s) is `Seraph2`, the other Consolation; its alias list alone reads a plain
-`Seraph` as Summon Seraph.
+the sheet's own. When the prompt holds the sheet's text, the trial import found that the
+sheet numbers its Seraph calls (`ImportResult.SeraphNumbered`) and the prompt converts the
+Scholar's calls (or every job's), it also states the per-document Seraph reading (step 4):
+a plain `Seraph` there is `Seraph1`, Summon Seraph then Consolation, and one while the
+Seraph summoned before is still out (22 s) is `Seraph2`, the other Consolation; its alias
+list alone reads a plain `Seraph` as Summon Seraph.
 
 Code: steps 1–7 are the core's `SheetReaders`, `LayoutDetector`, `CellParser` and
 `PlanImporter` (`src/MitCue.Core/Import/README.md`); the CLI's `import` runs them on

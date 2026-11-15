@@ -1,4 +1,4 @@
-# Mechanic catalogs: TOP (verified), TEA and DMU (first drafts)
+# Mechanic catalogs: TOP (verified, except one added sync), TEA and DMU (first drafts)
 
 Research note for MitCue's fight catalogs (`data/fights/*.yaml`, schema in `docs/DESIGN.md` §3.1), written
 2026-11-11. Everything below was checked against the primary sources in §1. Anything that could not be checked
@@ -7,7 +7,7 @@ fixtures and readers in `docs/research/sheets-import.md`.
 
 | File | Content |
 |---|---|
-| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), the `carry_the_clear` calibration, and one `timeline_additions` sync, the P2 Cosmo Memory raidwide (7B24 at 320.2, §3; not checked against a log; with it `mitcue timeline top` lists 283 entries, 208 with a sync). Complete and verified. |
+| `data/fights/top.yaml` | The Omega Protocol (Ultimate): 79 mechanics (68 for damage, enrages and dodge rows, plus 11 markers), 323 aliases (16 marked unverified), the `carry_the_clear` calibration, and one `timeline_additions` sync, the P2 Cosmo Memory raidwide (7B24 at 320.2, from BossMod, §3; **UNVERIFIED** against a log; with it `mitcue timeline top` lists 283 entries, 208 with a sync). Complete and verified, except that sync's time. |
 | `data/fights/tea.yaml` | The Epic of Alexander (Ultimate): 83 mechanics (3 markers), 304 aliases (23 unverified), 17 `timeline_additions` (the J Waves, §6.2, and the first Tetrashatter, §6.3) and timing fields on four mechanics (§6.2, §6.3). First draft, mapped against LPDU's TEA sheet (§6.1, 2026-11-14); no calibration (the sheet has no times). |
 | `data/fights/dmu.yaml` | Dancing Mad (Ultimate): 63 mechanics (1 marker), 145 aliases (12 unverified). First draft, no calibration. |
 
@@ -404,7 +404,7 @@ and Rear Lasers repeats) and fail effects (Unmitigated Explosion, Patch and Hell
 | 7F75 | Optimized Bladedance, EffectRange 100 | `OptimizedBladedanceAOE`, tethered cone | `Optimized Bladedance x2`, same time |
 | 7B28 | Beyond Defense, EffectRange 5 | jump on one of the two closest players | not anchored |
 | 7B32 | Optimized Meteor, EffectRange 100 | flares, raidwide with falloff | `Optimized Meteor`, same time |
-| 7B23/7B24 | Cosmo Memory (7B24: 1.5 s cast, EffectRange 100) | 7B24 = `CosmoMemoryAOE`, raidwide | `Cosmo Memory` 7B22, about 1.4 s earlier; `top.yaml` adds `320.2 "Cosmo Memory raidwide" Ability { id: "7B24" } window 1,1` (`timeline_additions`): 7B24 is cast nowhere else (one Optical Unit, BossMod's `P2CosmoMemory` its only use), so the window moves the clock by at most 1 s |
+| 7B23/7B24 | Cosmo Memory (7B24: 1.5 s cast, EffectRange 100) | 7B24 = `CosmoMemoryAOE`, raidwide | `Cosmo Memory` 7B22, about 1.4 s earlier; `top.yaml` adds `320.2 "Cosmo Memory raidwide" Ability { id: "7B24" } window 1,1` (`timeline_additions`; the time is BossMod's, **UNVERIFIED** against a log): 7B24 is cast nowhere else (one Optical Unit, BossMod's `P2CosmoMemory` its only use), so the window moves the clock by at most 1 s |
 | 7B56/7B57 | Critical Synchronization Bug / Critical Overflow Bug | Hello World stacks / defamations | `Latent Defect N`, 1.0 s earlier |
 | 7B5A/7B5B | Critical Underflow / Performance Bug | rot explosions | – |
 | 7B5F/7B60 | Cascading Latent Defect / Latent Performance Defect | red/blue towers | `Latent Defect N`, 1.0 s earlier |
@@ -870,8 +870,8 @@ Examples:
 
 ### 4.6 Judgment calls (review with the plan authors if possible)
 
-1. **LPDU `Limitless` → `p2.limitless`** (flares 309.7 + the 7B24 Cosmo Memory raidwide 320.2), not the Bladedance
-   tankbusters (295.6).
+1. **LPDU `Limitless` → `p2.limitless`** (flares 309.7 + the 7B24 Cosmo Memory raidwide 320.2, BossMod's time,
+   **UNVERIFIED** against a log), not the Bladedance tankbusters (295.6).
    - The P1/P2 row assigns party mitigation, healer "Everything" and Magick Barrier.
    - Its note row says "15 sec Mit is used as the clone jumps". Beyond Defense is at 306.7, and 15 s from there
      covers the flares and the 7B24 Cosmo Memory raidwide (~320.2). With that raidwide as the mechanic's second hit,
@@ -1263,9 +1263,11 @@ anchor on and to sync:
   is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
 - **Series.** `p3.j_waves` has `series: true`: a call without a time for wave n > 1 (on `p3.j_wave_n`, or on the
   umbrella with a hit index) is pressed no earlier than wave n − 1 + 0.3 s, and turns NOW no earlier
-  (`docs/DESIGN.md` §5.1, §5.2); for a shield with a cast, or Neutral Sect with the cast of the Helios that puts up
-  its barrier (`barrier_cast: 1.5` in `actions.yaml`), both are earlier by that cast, so that the shield or barrier
-  lands then. Each action of a call has its own floor, never earlier than the call's. Most default leads (3–6 s;
+  (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast (the shield times the call), and for a
+  call that lists Neutral Sect anywhere (the cast of the Helios that puts up its barrier, `barrier_cast: 1.5` in
+  `actions.yaml`), both are earlier by that cast, so that the shield or barrier lands then. A cast shield beside
+  another action that times the call waits for the call's floor (`Soil + Succor` on J Wave 5: both at 720.2).
+  Each action of a call has its own floor, never earlier than the call's. Most default leads (3–6 s;
   Passage of Arms 2 s) are as long as the 3 s between waves or longer, so a shield would be spent on wave n − 1,
   and 15–20 s mitigation would end before the last, strongest waves it should cover. Most calls on LPDU's "Jwaves
   (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and 732.2, and turn NOW then, with no lead. Passage of
@@ -1317,13 +1319,13 @@ anchor on and to sync:
    heal-up, pressed 1 s after the hit like heals (`docs/DESIGN.md` §5.1), mitigation and shields too (the sheet's
    C32 tip: Soil/Kera "immediatly after Photon"). They still turn NOW 1.5 s before the press, at 262.0: 0.5 s before
    Photon's cast ends (262.5) and about 0.8 s before the HP drop (4837, ~262.8), so an instant heal used on the cue
-   is lost. An entry's actions are pressed together, so the White Mage's `Asylum/Plenary` ('LL/BJCC'!G40) moves
-   after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum's automatic press (G52, P2 2:29, 7.2 s before
-   Gavel), within Asylum's 90 s recast. The importer's recast fit (`docs/DESIGN.md` §6 step 7) therefore presses
-   the Gavel Asylum 1.5 s before its hit (P2 2:35, `offset: -1.5` in the plan), so that its NOW cue comes when
-   Asylum is ready again: `mitcue check plans/tea-lpdu.yaml --job WHM` reports it as tight (*Asylum planned at P2
-   1:04 and P2 2:35 (91.5 s apart), recast 90 s: only 1.5 s to spare.*). Keeping the regen before Photon would
-   need the cell split.
+   is lost. On a `press: after` mechanic every action of an entry is pressed 1 s after the hit, so the White Mage's
+   `Asylum/Plenary` ('LL/BJCC'!G40) moves after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum's
+   automatic press (G52, P2 2:29, 7.2 s before Gavel), within Asylum's 90 s recast. The importer's recast fit
+   (`docs/DESIGN.md` §6 step 7) therefore presses the Gavel Asylum 1.5 s before its hit (P2 2:35, `offset: -1.5`
+   in the plan), so that its NOW cue comes when Asylum is ready again: `mitcue check plans/tea-lpdu.yaml --job
+   WHM` reports it as tight (*Asylum planned at P2 1:04 and P2 2:35 (91.5 s apart), recast 90 s: only 1.5 s to
+   spare.*). Keeping the regen before Photon would need the cell split.
 9. **`Double Rocket Punch` → `p2.double_rocket_punch`, with `heal_lead: 4`.** The second Photon leaves both tanks at
    1 HP 8 s before the buster (374.8; its 4 s cast starts 3.4 s after the drop, BossMod). Heals used after the hit
    that are planned on the row without a time ('LL/BJCC'!G54 `Benison (Tank)/Benediction`: the Benediction) are

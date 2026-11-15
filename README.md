@@ -23,7 +23,9 @@ has been mapped onto DMU's yet. In TEA the fight clock follows phase pushes like
 first crystal explosion of Inception, which cactbot does not list; their times come from BossMod and TEA
 guides and have not been checked against real pulls yet. In DMU, cactbot marks the starts of P2 and P4 with an
 event MitCue cannot see, so MitCue uses boss casts there instead; those have not been checked against real
-pulls yet.
+pulls yet. In TOP, MitCue adds one boss event that cactbot leaves out, the P2 Cosmo Memory raidwide, and
+times LPDU's *Limitless* mitigation to last through it; its time comes from BossMod and has not been checked
+against real pulls yet, and it moves the fight clock by 1 s at most.
 
 More documentation: [docs/INSTALL.md](docs/INSTALL.md) (installing, updating, files),
 [docs/PLUGIN.md](docs/PLUGIN.md) (how the plugin works, in-game test checklist),
@@ -182,10 +184,13 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     just after it, while the instant actions of the same call (the Scholar's Sacred Soil, Summon Seraph and
     Consolation) still wait for the wave. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands
     just after it.
-- **From your earlier calls:** when a plan is imported, a call that would come before its action is ready again
-  waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that time. On the TEA
+- **From your earlier calls:** when a sheet is imported (from a link or pasted cells; not a plan pasted on the
+  AI route, a plan file or a share code), a call without a time in the sheet that would come before its action
+  is ready again waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that
+  time. A plan you imported with 0.1.0.6 or older gets these waits only when you import it again. On the TEA
   plan: the White Mage's Asylum on Gavel (1.5 s before it instead of 7.2 s) and Plenary Indulgence on J Wave 7,
-  the Scholar's Sacred Soil on Water 2, and the Astrologian's *CU (if up)* on Irresistible Grace 1.
+  the Scholar's Sacred Soil on Water 2, and the Astrologian's *CU (if up)* on Irresistible Grace 1. On the LPDU
+  TOP plan: the M2 Feint at Omega (1 s before it instead of 3 s).
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:
@@ -359,16 +364,20 @@ steps.
    *(automatic)*, MitCue reads all of them when no cell of the sheet joins actions another way (`+`, `,`, `&`,
    `;`, `|`, an arrow, a spaced ` / `, a line break or a gap of three or more spaces) and at least two cells
    list several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
-   (`Soil/Reci/Deploy/Whisper`), else either one. In both readings, words that name no action joined by `/`
-   after an action are its note (*Kera Stack/Spread*), and *N/A* is one word, also spaced (*N / A*), and joins
-   nothing. The cells of every tab count, whichever tabs and columns you import, and the review's notes about
-   the whole import say which reading was used. Click **Import and review**. If the result looks wrong, **Not
-   reading it right? Use the AI route**.
-3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
-   ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
-   (right-click for automatic timing), set the flags, change what to press, and delete entries. When you
-   replace a note with the action it stands for, **Remember ...** saves that shorthand as a personal alias,
-   so later imports read it.
+   (`Soil/Reci/Deploy/Whisper`), else either one. In both readings, slots, jobs, target or mechanic words
+   joined by `/` after an action are its note (*Kera Stack/Spread*, *Rampart MT/TB*), or its target when they
+   are all slots or tank words (*Benison MT/Co-tank*: either of them). Other words are not: *Kera Left/Right*
+   gives Kerachole and a note *Right* of its own when `/` means all of them, and drops *Right* when it means
+   either one, with a warning. *N/A* is one word, also spaced (*N / A*), and joins nothing. The cells of every
+   tab count, whichever tabs and columns you import, and the review's notes about the whole import say which
+   reading was used. Click **Import and review**. If the result looks wrong, **Not reading it right? Use the AI
+   route**.
+3. **Review:** every entry with its mechanic, timing (with *Pressed later* for the actions of a call that the
+   overlay presses after the call's own time, such as one that waits for the J Wave before it), actions, who it
+   is for, flags (*optional*, *when ready*, *at phase end*), problems and source cell. You can pick another
+   mechanic, drag the offset (right-click for automatic timing), set the flags, change what to press, and
+   delete entries. When you replace a note with the action it stands for, **Remember ...** saves that
+   shorthand as a personal alias, so later imports read it.
 4. **Save:** the plan name; **Save as** a new plan or in place of an earlier import of the same sheet (which
    keeps that plan's active-plan and column settings; an import that kept the export's tab names, such as
    `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
@@ -389,30 +398,38 @@ of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake
 points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call meant
 for before the hit just before it, so that its cast, or the GCD it needs first, ends 1 s before the hit
 (`Reprisal (Late)` 1 s before it, `Succor (Late)` 3 s, `Eukrasian Prognosis (Late)` 3.5 s, after Eukrasia),
-unless that would press one of its actions earlier than without it. A call for a party buff that your earlier
-press keeps up through its hit (pressed on its NOW cue, the buff lasts at least 1 s past that hit) becomes a
-note (*Temperance (still active)*; Neutral Sect counts for its 30 s Helios barrier); one for a buff with a
-follow-up becomes that follow-up while the buff is still up when the follow-up is used (Summon Seraph's
-Consolation; at level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign). When the earlier call has
-no time in the sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and
-writes that time into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines Temperance
-is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2. It never presses Neutral Sect later
-than 4.5 s or Passage of Arms later than 2 s before the hit, nor another action of that call earlier.
-Otherwise both stay calls. An optional call (grey, in brackets, with a condition, or one choice of an
-either/or) keeps no buff up.
+unless that would press one of its actions earlier than without it. A second call for one of your actions on
+the party, an area or yourself (one with a single charge: Temperance, Sacred Soil, a tank's Rampart) that
+comes less than the action's own duration after your earlier call (press to press: 20 s for Temperance,
+Neutral Sect and Rampart, 22 s for Summon Seraph) becomes a note if your earlier press keeps the effect up
+through its hit (pressed on its NOW cue, the effect lasts at least 1 s past that hit; for Neutral Sect its
+30 s Helios barrier counts): *Temperance (still active)*. For an action with a follow-up it becomes that
+follow-up, if the earlier press still allows it when the follow-up is used (Summon Seraph's Consolation; at
+level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign). A second call that comes later than that
+stays a call, even within Neutral Sect's 30 s barrier or the 30 s in which Divine Caress and Sun Sign can be
+used. When the earlier call has no time in the sheet and would wear off too soon, MitCue presses it later if
+that keeps the effect up, and writes that time into the plan (the review shows it as set, not automatic):
+LPDU TEA's Hidden Mines Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2.
+It never presses Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the hit, nor another
+action of that call earlier. Otherwise both stay calls. An optional call (grey, in brackets, with a condition,
+or one choice of an either/or) keeps nothing up.
 
 A call without a time in the sheet that would come before its action is ready again, after your earlier
 presses of it (counted with the action's charges, as `mitcue check` counts them), waits for it: MitCue presses
-it when the action is ready plus 1.5 s, so that it turns NOW as the action comes back (LPDU TEA's Gavel
-Asylum: 1.5 s before Gavel instead of 7.2 s), but never later than `(Late)` would press it, nor than the
-action's own lead allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s). That time is written
-into the plan: the review shows it as set, not automatic, with a note that says why (*… so that its NOW cue
-comes when Asylum is ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold
-its action back from later calls, though it waits for it itself; a call with a time in the sheet, or marked
-*on cooldown*, keeps its time; and a sequence (`→`) waits only when its later steps are instant actions woven
-in after the first (*Kerachole → Holos*). When the action would be ready too late, the call keeps its time,
-and in game the reminder shows *ready in N s*. `mitcue check` reports a call that waited as tight (*only 1.5 s
-to spare*), and one that could not wait as a recast conflict. The full rules:
+it when the action is ready plus 1.5 s, so that with the default **Turn "NOW" this early** (1.5 s) it turns NOW
+as the action comes back (LPDU TEA's Gavel Asylum: 1.5 s before Gavel instead of 7.2 s), but never later than
+`(Late)` would press it, nor than the lead of any action of the call allows (Neutral Sect 4.5 s, Earthly Star
+10 s, Passage of Arms 2 s: *Reprisal + Wings* waits only until 2 s before the hit). That time is written into
+the plan: the review shows it as set, not automatic, with a note that says why (*… so that its NOW cue comes
+when Asylum is ready again.*), and `mitcue plan` shows it without `*`. An optional call does not hold its
+action back from later calls, though it waits for it itself; a call with a time in the sheet, or marked *on
+cooldown*, keeps its time; and a sequence (`→`) waits only when its later steps are instant actions woven in
+after the first (*Kerachole → Holos*). When the action would be ready too late, the call keeps its time, and so
+does a call whose wait would press another of its actions earlier than without it (*Rampart + Reprisal* on
+TOP's Wave Cannon 2, whose Reprisal waits for the Wild Charge) or a follow-up later than its trigger allows (a
+Consolation more than 22 s after Summon Seraph); in game the reminder then shows *ready in N s*. `mitcue
+check` reports a call that waited as tight (*only 1.5 s to spare*, or less when `(Late)` or a lead stopped
+it: 0.9 s for the J Wave 7 Plenary), and one that could not wait as a recast conflict. The full rules:
 [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops

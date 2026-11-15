@@ -304,8 +304,9 @@ calls come before their action is ready again after the same player's call befor
   without `*`; `check` then reports it as `recast-tight`. The info gives the gap between the two items' presses
   before the fit (*Asylum at p2.gavel is planned 85.8 s after the Asylum at p2.photon_1 (recast 90.0 s): it is
   pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.*), ending
-  *as late as "(Late)" would press it, once … is ready again* when the bound stops it, and with *which is pressed
-  later too* when the earlier press moved as well.
+  *as late as "(Late)" would press it, once … is ready again* when the `(Late)` bound stops it, or *as late as the
+  2.0 s lead of Passage of Arms allows, once … is ready again* when an action's own lead does, and with *which is
+  pressed later too* when the earlier press moved as well.
 
 | Cell | Call | Before the fit | After |
 |---|---|---|---|
@@ -317,8 +318,12 @@ calls come before their action is ready again after the same player's call befor
 The sheet's other recast conflicts stay for `check`: the action is ready only after the bound (`LL/BJCC` E23's Soil
 at Protean 2, ready 2.5 s before the hit while the cell's Succor caps the press at −3 s; F23's Kerachole beside a
 Eukrasian Prognosis, capped at −3.5 s), or the press is a later step of a sequence (the Sage's Kerachole at Doll
-Feeds, the last step of `ZoeEukProg/Holos/Kerachole`). In LPDU's TOP sheet the fit moves only `P5` I9, the M2 Feint
-at Omega (89 s after the one at Sigma: −3.0 s to −1.0 s, the `(Late)` bound); its "on CD" party mitigation at Sigma
+Feeds, the last step of `ZoeEukProg/Holos/Kerachole`), or the call before it is optional: that one keeps nothing
+on recast for the fit, but `check` counts it and warns that *an optional use is involved* (`Alex Prime/PA` H47, the
+Astrologian's CU at Irresistible Grace 2, after H45's *CU (if up)*; `LL/BJCC` K19, the Machinist's Tactician at
+Splash, after K13's *if MCH* one at Doll Feeds; `Alex Prime/PA` C21, the Paladin's Divine Veil at J Wave 5, after
+C13's *if 7 people* one at Incinerating Heat). In LPDU's TOP sheet the fit moves only `P5` I9, the M2 Feint at
+Omega (89 s after the one at Sigma: −3.0 s to −1.0 s, the `(Late)` bound); its "on CD" party mitigation at Sigma
 and Omega keeps its press.
 
 ---

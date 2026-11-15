@@ -256,8 +256,8 @@ actions:
 | `duration` | {level: s} | when the action has a lasting effect at some level | `DurationByLevel`. 0 = no lasting effect from that level on (e.g. Equilibrium `{58: 0, 84: 15}`) |
 | `sync` | {80, 90, 100: s or null} | always | copy of `duration` at the three sync levels; `null` = not learned yet, or replaced by an upgrade, at that level |
 | `when` | before / after | when it differs from the kind default, or to give a `lead` (Neutral Sect, Passage of Arms) | **new**: press before the damage (pre-placed heals: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos; Neutral Sect and Passage of Arms, for their `lead`) or after (healer LBs) |
-| `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: the press is `hit − lead`, wherever the cell lists the action (DESIGN §5.1 rule 2). Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel: mitigation with a lead is pressed with the last item of its cell, turns due no earlier than any other and is listed after them. A positive number |
-| `barrier_cast` | s | Neutral Sect (1.5) | **new**: the cast of the GCD that puts up the action's barrier after it (Neutral Sect's Aspected Helios or Helios Conjunction). A call for a later hit of a series is pressed no earlier than the hit before it + 0.3 s minus that cast, as a shield is minus its own cast, so that the barrier lands after that hit (DESIGN §5.1 rule 4). A positive number |
+| `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: alone, the action is pressed at `hit − lead`; in a cell with other actions, the lead pulls the cell's press earlier to `hit − lead` when that is earlier, but no earlier than `−(D − 2.5 s)` for another action with a lasting effect D (DESIGN §5.1 rule 2: `Earthly Star + CU` −7.5 s, beside the 10 s Collective Unconscious; `Neutral Sect + Earthly Star` −10 s). Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel: mitigation with a lead is pressed with the last item of its cell (`Reprisal + Wings`: both −3 s), turns due no earlier than any other and is listed after them. A positive number |
+| `barrier_cast` | s | Neutral Sect (1.5) | **new**: the cast of the GCD that puts up the action's barrier after it (Neutral Sect's Aspected Helios or Helios Conjunction). A call for a later hit of a series that lists the action anywhere is pressed no earlier than the hit before it + 0.3 s minus that cast, as a call led by a shield is minus the shield's cast, so that the barrier lands after that hit; the call's other actions keep their own floors (DESIGN §5.1 rule 4: on J Wave 5, Neutral Sect at 718.7, Earthly Star at 720.2). A positive number |
 | `lb` | 1, 2, 3 | limit breaks | **new**: tier |
 | `effects` | list of {name, duration} | several effects, or a level-dependent one | **new**: all durations; `name` is a hand-written label |
 | `replaced_by` | {id, name, level, trait} | trait upgrades | `ReplacedBy`, `ReplacedAtLevel` |
@@ -280,10 +280,12 @@ Loader rules:
   TEA → Heart of Stone). `ForJob(job, syncLevel)` returns entries whose `jobs` contain the job, with
   `level ≤ syncLevel`, and not replaced at `syncLevel`.
 - Timing defaults (DESIGN §5.1) with `when`: party_mit, tank_mit, shield, regen, invuln and buff are pressed before
-  the hit; heal after unless `when: before`; tank LBs before, healer LBs after (`when: after`). A `lead` sets the
-  time before the hit (Earthly Star −10 s, Neutral Sect −4.5 s, Passage of Arms −2 s) wherever the cell lists the
-  action, and a `barrier_cast` lowers a series floor (Neutral Sect's 1.5 s Helios). For a `when: before` action the
-  use window counts its longest effect (Neutral Sect: the 30 s Helios barrier).
+  the hit; heal after unless `when: before`; tank LBs before, healer LBs after (`when: after`). A `lead` is the
+  action's time before the hit when it is alone in its cell (Earthly Star −10 s, Neutral Sect −4.5 s, Passage of
+  Arms −2 s); in a cell with other actions it pulls the cell's press earlier, as far as their lasting effects allow
+  (DESIGN §5.1 rule 2; Passage of Arms is pressed with the cell's last action). A `barrier_cast` lowers a series
+  floor wherever the cell lists the action (Neutral Sect's 1.5 s Helios). For a `when: before` action the use
+  window counts its longest effect (Neutral Sect: the 30 s Helios barrier).
 - `lead` and `barrier_cast`, when present, are positive numbers of seconds; anything else fails the load, which
   `mitcue validate` reports (*action 16559 'Neutral Sect': 'barrier_cast' must be a positive number of seconds, not
   0.*).
