@@ -126,16 +126,18 @@ public static class TimingRules
     /// <item>
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): nothing is
     /// pressed before the hit before it + 0.3 s, so that a shield is not spent on that hit and mitigation lasts through the
-    /// later ones; an action whose effect lands a while after its press is pressed that much earlier, a shield by its
-    /// cast, an action whose barrier comes from a cast after it by that cast (<see cref="ActionInfo.BarrierCast"/>: Neutral
-    /// Sect's 1.5 s Aspected Helios). The timing action's floor is the entry's, or the earlier floor of an item whose barrier
-    /// comes from a cast after it, as its lead counts wherever the cell lists it (Neutral Sect beside Earthly Star, which
-    /// times the entry; a shield beside the timing action waits for its floor): the automatic press is never before it,
-    /// and the entry's reminders do not turn due before it (<see cref="EntryTiming.DueNotBefore"/>). Each item has a floor
-    /// of its own action, never earlier than the entry's (<see cref="ItemTiming.DueNotBefore"/>), and an automatic press
-    /// presses it no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor's 2 s cast 1.8 s before wave 4 +
-    /// 0.3 s, the instant Sacred Soil and Consolation wait until then. A buff, movement or other action without a lead of
-    /// its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
+    /// later ones; an action whose effect lands a while after its press is pressed that much earlier, a shield by its cast,
+    /// an action whose barrier comes from a cast after it by that cast (<see cref="ActionInfo.BarrierCast"/>: Neutral
+    /// Sect's 1.5 s Aspected Helios), unless the entry lists an action that makes the next spell instant
+    /// (<see cref="ActionInfo.InstantNextCast"/>: "Swiftcast/Succor" waits for the hit before it + 0.3 s, so that the
+    /// instant Succor is not spent on it). The timing action's floor is the entry's, or the earlier floor of an item whose
+    /// barrier comes from a cast after it, as its lead counts wherever the cell lists it (Neutral Sect beside Earthly Star,
+    /// which times the entry; a shield beside the timing action waits for its floor): the automatic press is never before
+    /// it, and the entry's reminders do not turn due before it (<see cref="EntryTiming.DueNotBefore"/>). Each item has a
+    /// floor of its own action, never earlier than the entry's (<see cref="ItemTiming.DueNotBefore"/>), and an automatic
+    /// press presses it no earlier: in "Succor/Soil/Seraph" on J Wave 5, timed by the Succor's 2 s cast 1.8 s before wave
+    /// 4 + 0.3 s, the instant Sacred Soil and Consolation wait until then. A buff, movement or other action without a lead
+    /// of its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
     /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
     /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
     /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). With an automatic
@@ -642,15 +644,17 @@ public static class TimingRules
     /// (<see cref="SeriesFloor"/>), or the earlier one of an item whose barrier comes from a cast after it
     /// (<see cref="ActionInfo.BarrierCast"/>), since the lead for that cast counts wherever the cell lists it (Neutral Sect
     /// beside Earthly Star, which times the entry). A shield's cast does not lower it: a shield beside the timing action
-    /// waits for its floor, and its cast still lands before the next hit.
+    /// waits for its floor, and its cast still lands before the next hit. Nor does any cast when the entry lists an action
+    /// that makes the next spell instant (<see cref="CastsInstantly"/>).
     /// </summary>
     private static double EntryFloor(double previous, ActionInfo? timingAction, IReadOnlyList<ActionInfo?> timing)
     {
-        var floor = SeriesFloor(previous, timingAction);
+        var instant = CastsInstantly(timing);
+        var floor = SeriesFloor(previous, timingAction, instant);
         foreach (var action in timing)
         {
             if (action?.BarrierCast is > 0)
-                floor = Math.Min(floor, SeriesFloor(previous, action));
+                floor = Math.Min(floor, SeriesFloor(previous, action, instant));
         }
 
         return floor;
@@ -666,14 +670,15 @@ public static class TimingRules
     private static double ItemFloor(double previous, double entryFloor, IReadOnlyList<ActionInfo?> timing, int index)
     {
         var action = timing[index];
+        var instant = CastsInstantly(timing);
         if (!KeepsTheEntryFloor(action))
-            return Math.Max(entryFloor, SeriesFloor(previous, action));
+            return Math.Max(entryFloor, SeriesFloor(previous, action, instant));
 
         var floor = entryFloor;
         foreach (var followUp in timing)
         {
             if (action is not null && followUp?.FollowUpOf == action.Id && !KeepsTheEntryFloor(followUp))
-                floor = Math.Max(floor, SeriesFloor(previous, followUp));
+                floor = Math.Max(floor, SeriesFloor(previous, followUp, instant));
         }
 
         return floor;
@@ -691,10 +696,19 @@ public static class TimingRules
     /// <summary>
     /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the
     /// hit before it + 0.3 s, less the cast of a shield or of the GCD that puts up the action's barrier after it
-    /// (<see cref="ActionInfo.BarrierCast"/>), so that the barrier lands after that hit.
+    /// (<see cref="ActionInfo.BarrierCast"/>), so that the barrier lands after that hit; with no cast when the entry makes
+    /// it <paramref name="instant"/> (<see cref="CastsInstantly"/>).
     /// </summary>
-    private static double SeriesFloor(double previous, ActionInfo? action) =>
-        previous + AfterPreviousHit - (action is { Kind: ActionKind.Shield } shield ? shield.CastTime : action?.BarrierCast ?? 0);
+    private static double SeriesFloor(double previous, ActionInfo? action, bool instant) =>
+        previous + AfterPreviousHit - (instant ? 0 : action is { Kind: ActionKind.Shield } shield ? shield.CastTime : action?.BarrierCast ?? 0);
+
+    /// <summary>
+    /// True when the entry lists an action that makes the next spell instant (<see cref="ActionInfo.InstantNextCast"/>:
+    /// "Swiftcast/Succor"): its shield or barrier lands on the press, so a later hit of a series leaves it no cast
+    /// (<see cref="SeriesFloor"/>). Elsewhere a cast only presses an item earlier than it needs to be, which its effect
+    /// outlasts.
+    /// </summary>
+    private static bool CastsInstantly(IReadOnlyList<ActionInfo?> timing) => timing.Any(action => action?.InstantNextCast == true);
 
     /// <summary>
     /// The hit before <paramref name="hit"/> in a <see cref="Mechanic.Series"/> of the fight that has it as a later hit, or

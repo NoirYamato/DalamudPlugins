@@ -952,9 +952,9 @@ public class EntryTimingTests
     {
         // Wave 3 (106): "Recitation + Adloquium", either way round and as a sequence, is timed by the Adloquium's own −4.5 s
         // (101.5), its 2 s cast landing after wave 2 (103). The Recitation has nothing wave 2 could spend: it comes with the
-        // Adloquium, due with it at 101.3, not after wave 2 + 0.3 (the Adloquium would be cast without it). So does Swiftcast.
+        // Adloquium, due with it at 101.3, not after wave 2 + 0.3 (the Adloquium would be cast without it).
         var options = new ReminderOptions();
-        foreach (var t in new[] { Wave3(null, false, Recitation, Kit.Adloquium), Wave3(null, true, Recitation, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Recitation), Wave3(null, false, Kit.Swiftcast, Kit.Adloquium) })
+        foreach (var t in new[] { Wave3(null, false, Recitation, Kit.Adloquium), Wave3(null, true, Recitation, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Recitation) })
         {
             Assert.All(t.Items, i => Assert.Equal(101.5, i.PressAt, Kit.Tolerance));
             Assert.All(t.Items, i => Assert.Equal(101.3, i.DueAt(options), Kit.Tolerance));
@@ -968,6 +968,25 @@ public class EntryTimingTests
 
         // Alone, a buff times the entry, and its floor is its own (wave 2 + 0.3).
         Assert.Equal(103.3, Wave3(null, false, Recitation).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_AnEntryThatListsSwiftcast_LeavesItsShieldsNoCast()
+    {
+        // Wave 3 (106): Swiftcast makes the Adloquium instant, so its shield lands on the press. "Swiftcast + Adloquium", either
+        // way round and as a sequence, waits for wave 2 (103) + 0.3, both pressed and due then; an Adloquium used before then
+        // is spent on wave 2: early. So does Neutral Sect's Helios, its barrier cast instant. Alone, the Adloquium keeps its
+        // cast (101.5).
+        var options = new ReminderOptions();
+        foreach (var t in new[] { Wave3(null, false, Kit.Swiftcast, Kit.Adloquium), Wave3(null, true, Kit.Swiftcast, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Kit.Swiftcast), Wave3(null, false, Kit.Swiftcast, Kit.NeutralSect) })
+        {
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.PressAt, Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.DueAt(options), Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.Earliest, Kit.Tolerance));
+        }
+
+        Assert.Equal(101.5, Wave3(null, false, Kit.Adloquium).PressAt, Kit.Tolerance);
+        Assert.Equal(101.8, Wave3(null, false, Kit.NeutralSect).PressAt, Kit.Tolerance);
     }
 
     [Fact]

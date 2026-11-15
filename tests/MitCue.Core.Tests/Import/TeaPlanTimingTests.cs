@@ -195,17 +195,16 @@ public class TeaPlanTimingTests
 
     /// <summary>
     /// A Scholar's buff with the Succor or Adloquium it changes on J Wave 5 (722.9), as a sheet may write it (LPDU's E21 has
-    /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor", "Swiftcast/Succor" and
-    /// "Reci/Adlo/Deploy". The buff has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at
-    /// 718.2, so that the cast starts before wave 4 (719.9) and lands after it; Deployment Tactics, which spreads the
-    /// Adloquium's shield, waits for wave 4 + 0.3 s.
+    /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor" and "Reci/Adlo/Deploy". The buff
+    /// has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at 718.2, so that the cast
+    /// starts before wave 4 (719.9) and lands after it; Deployment Tactics, which spreads the Adloquium's shield, waits for
+    /// wave 4 + 0.3 s.
     /// </summary>
     [Theory]
     [InlineData(false, "Recitation", "Succor")]
     [InlineData(true, "Recitation", "Succor")]
     [InlineData(false, "Succor", "Recitation")]
     [InlineData(false, "Emergency Tactics", "Succor")]
-    [InlineData(false, "Swiftcast", "Succor")]
     [InlineData(false, "Recitation", "Adloquium", "Deployment Tactics")]
     public void JWave5_ABuffIsPressedWithTheCastItChanges(bool seq, params string[] cell)
     {
@@ -222,11 +221,33 @@ public class TeaPlanTimingTests
 
         s.Update(718.2);
         Assert.All(s.All.Where(r => r.Item.Name != "Deployment Tactics"), r => Assert.Equal(ReminderState.Due, r.State));
-        var buff = Assert.Single(s.All, r => r.Item.Name is "Recitation" or "Emergency Tactics" or "Swiftcast");
+        var buff = Assert.Single(s.All, r => r.Item.Name is "Recitation" or "Emergency Tactics");
         var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
         s.OnOwnAction(buff.ActionIds[0], 718.2);
         s.OnOwnAction(cast.ActionIds[0], 718.3);
         Assert.Equal((false, false), (buff.UsedEarly, cast.UsedEarly));
+    }
+
+    /// <summary>
+    /// "Swiftcast/Succor" on J Wave 5, either way round and as a sequence: Swiftcast makes the Succor instant, its shield up
+    /// on the press, so both wait for wave 4 + 0.3 s (720.2), pressed and due then, and a Succor before then is spent on
+    /// wave 4 (719.9): early. With its 2 s cast from 718.4, as without Swiftcast, the instant Succor would land on wave 4.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Swiftcast", "Succor")]
+    [InlineData(true, "Swiftcast", "Succor")]
+    [InlineData(false, "Succor", "Swiftcast")]
+    public void JWave5_SwiftcastAndTheSuccorItMakesInstantWaitForWave4(bool seq, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.SCH }, Seq = seq, Do = [.. cell.Select(a => PlanItem.ForAction(RepoFiles.Action(a).Id, a))] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), PressAndDue(r)));
+
+        var succor = Assert.Single(s.All, r => r.Item.Name == "Succor");
+        s.Update(719.8);
+        s.OnOwnAction(succor.ActionIds[0], 719.8);
+        Assert.True(succor.UsedEarly);
     }
 
     /// <summary>
