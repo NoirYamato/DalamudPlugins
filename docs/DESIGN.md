@@ -52,7 +52,8 @@ its date. How the plugin works in detail: [PLUGIN.md](PLUGIN.md). Research notes
   **Changed (final review, 2026-11-11):** of the timings, only the two lead times are
   settings: when a reminder appears (3–60 s) and when it turns NOW (0–10 s). Fixed are
   the end of the due window (0.3 s before the hit for mitigation, shields and pre-placed
-  heals, 5 s after the press for heals used after the hit, at least 8 s after a phase-end
+  heals planned before it; 5 s after the press for heals used after the hit and anything
+  planned after the hit, such as TEA's Photon heal-up; at least 8 s after a phase-end
   transition; §5.2), how long finished rows stay listed (3 s), and the pull rules (10 s
   out of combat ends a pull, a countdown stopped with more than 1 s left is cancelled,
   pre-pull reminders wait 20 s after a countdown; §4, PLUGIN.md §1.5). Sound, visibility
@@ -368,7 +369,9 @@ Then, in this order:
 1. **The mechanic** (fight file fields, §3.1). With `press: after`, the press is
    `hit + max(default, 1)`: the calls are the heal-up after a hit that makes what was
    pressed before it pointless (TEA's Photons set HP to 1), mitigation and shields too; a
-   healer LB keeps its +2. Otherwise, with `heal_lead: L`, an entry timed by a heal used
+   healer LB keeps its +2. The reminder still turns due `dueLead` before the press (§5.2),
+   so with the default 1.5 s a +1 press turns due 0.5 s before the hit (Photon: 262.0, about
+   0.8 s before its HP drop). Otherwise, with `heal_lead: L`, an entry timed by a heal used
    after the hit is pressed at `hit − L` (Double Rocket Punch: 4 s, to top up the tanks the
    second Photon left at 1 HP).
 2. **Several actions.** Otherwise an entry timed by a heal used after the hit, or by a
@@ -382,14 +385,15 @@ Then, in this order:
    can reach. For each party or tank mitigation or invuln item of duration D (its longest
    effect for `when: before`), the last later hit `hR` with `hR − hit ≤ D − 2.5` is
    covered: the press is no earlier than `hR − D + 2`, so that the effect, even used on the
-   NOW cue (§5.2), outlasts `hR` by 0.5 s, and the press stays at least 0.5 s before the
-   first hit. The item that needs the latest press times the entry (Optical Sight, hits
-   6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s).
+   NOW cue with the default 1.5 s due lead (§5.2), outlasts `hR` by 0.5 s, and the press
+   stays at least 0.5 s before the first hit; with a longer due lead, a use on the NOW cue
+   can end before `hR + 0.5` and is then early. The item that needs the latest press times
+   the entry (Optical Sight, hits 6.1 s apart: a 10 s Reprisal at −1.9 s instead of −3 s).
 4. **Series.** When the hit is a later hit of a mechanic with `series: true` (on that
    mechanic with a hit index, or on one whose hit is that hit: `p3.j_wave_5` is the fifth
    J Wave), the press is no earlier than the hit before it + 0.3 s, minus the cast time for
    an entry timed by a shield with a cast, so that the shield lands then; nor does the
-   reminder turn due earlier (§5.2). The J Waves come 3 s apart, closer than the default
+   reminder turn due earlier (§5.2). The J Waves come 3 s apart, closer than most default
    leads: a shield pressed earlier would be spent on the wave before, and mitigation would
    end before the last, strongest waves it should cover.
 
@@ -468,14 +472,15 @@ previews, which have no cooldown provider.
    whichever columns are chosen. Its cells are read call by call: a call that names a job's
    own action is an entry for those jobs (`PLD Wings`, `Dismantle`), with no assignee; the
    cell's other calls, notes and actions several jobs share (`Feint`), are one note for
-   everyone (`Dismantle + Feint`: the Machinist's Dismantle and the note "Feint"). A phase
-   title over the player columns starts its phase when a header row follows it (`P2: Brute
-   Justice / Cruise Chaser`), or, as a merged banner without one, when it reads as a title:
-   the fight's name for the phase, or at most four words with none of `,` `;` `.` `!` `?`.
-   A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT
-   takes boss after`) stays a note, and a title that is not the fight's name for its phase
-   gets a `phase-title` info. An unlabelled column of prose beside the labels holds the
-   rows' notes.
+   everyone (`Dismantle + Feint`: the Machinist's Dismantle and the note "Feint"); a
+   sequence with such a step stays one note for everyone, written with its arrows
+   (`PLD Wings → Addle`: no entry for the Paladin). A phase title over the player columns
+   starts its phase when a header row follows it (`P2: Brute Justice / Cruise Chaser`), or,
+   as a merged banner without one, when it reads as a title: the fight's name for the
+   phase, or at most four words with none of `,` `;` `.` `!` `?`. A merged remark that
+   starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss after`) stays
+   a note, and a title that is not the fight's name for its phase gets a `phase-title`
+   info. An unlabelled column of prose beside the labels holds the rows' notes.
 3. **Cell parsing.** Split into items: ` / ` separates independent actions (each may have
    its own time), `+` and `,` join simultaneous actions, `→`/`->` make a sequence, `X/Y`
    without spaces means either/or (often across jobs: `Kera/Soil`). Extract `(1:18)`,
@@ -494,10 +499,11 @@ previews, which have no cooldown provider.
    after an action is one target (either of them) and `X and/or Y` is either one. Also read
    since then: a cell that is one pair of brackets (`(Shake)`: optional), a cell that
    points up (`(^on BJ)`: a remark on every item of the cell above) and `(Late)`: an entry
-   pressed before its hit (not one on a mechanic with `press: after`, §5.1) is pressed just
-   before it, so that its longest cast ends 1 s before the hit (`Reprisal (Late)` −1 s,
-   `Succor (Late)` −3 s), but never earlier than without it. A target in parentheses goes
-   only to actions used on a player; elsewhere it stays in the note (`Asylum (melee)`:
+   pressed before its hit (not one on a mechanic with `press: after`, §5.1) gets the offset
+   that presses it just before it, so that its longest cast ends 1 s before the hit
+   (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s), but never earlier than without it; the
+   offset is written into the plan, unlike §5.1's automatic times. A target in parentheses
+   goes only to actions used on a player; elsewhere it stays in the note (`Asylum (melee)`:
    where to place it). The full grammar: `src/MitCue.Core/Import/README.md`.
 4. **Action resolution.** Alias dictionary → exact name → fuzzy match (typos such as
    *Nascant*, *Vengance*), restricted to the assignee's job and the fight's sync level.
@@ -509,19 +515,20 @@ previews, which have no cooldown provider.
    becomes its follow-up (Summon Seraph → Consolation) or a note ("Temperance (still
    active)"). It still lasts when the earlier press, used on its NOW cue (§5.2, the default
    due lead), outlasts the later hit, or the later press when that comes after the hit, by
-   1 s. An earlier press without a time in the sheet that falls short is pressed later so
-   that it covers both, no later than `(Late)` would press it (LPDU TEA's Hidden Mines
-   Temperance: −3.5 s, through Water 2); otherwise both stay presses (a `still-active`
-   info), and `check` reports the recast. An optional earlier press (in brackets, with a
-   condition, or one choice of an either/or) keeps no buff up. A limit break written for
-   one role in several seats' columns at one mechanic is optional in each, also when only
-   some of those columns are imported. A target taken from the row (its notes, or "tank" on
-   a tankbuster) goes to single-target actions only, and the item's other actions get an
-   entry of their own. A note over several columns that names actions and no player ("A tip
-   for Soil/Kera timing …") is the detail of the entries in its columns and section that
-   press one of them; one that names players by role, slot or job ("Tanks: …, then OT
-   provokes …") is the detail of all their entries. Either reads the same whichever of its
-   columns are imported.
+   1 s. An earlier press without a time in the sheet that falls short gets an offset that
+   presses it later, so that it covers both, no later than `(Late)` would press it (LPDU
+   TEA's Hidden Mines Temperance: `offset: -3.5`, through Water 2); like `(Late)`'s, the
+   offset is written into the plan, so the review and `mitcue plan` show it as set, not
+   automatic. Otherwise both stay presses (a `still-active` info), and `check` reports the
+   recast. An optional earlier press (grey, in brackets, with a condition, or one choice of
+   an either/or) keeps no buff up. A limit break written for one role in several seats'
+   columns at one mechanic is optional in each, also when only some of those columns are
+   imported. A target taken from the row (its notes, or "tank" on a tankbuster) goes to
+   single-target actions only, and the item's other actions get an entry of their own. A
+   note over several columns that names actions and no player ("A tip for Soil/Kera timing
+   …") is the detail of the entries in its columns and section that press one of them; one
+   that names players by role, slot or job ("Tanks: …, then OT provokes …") is the detail
+   of all their entries. Either reads the same whichever of its columns are imported.
 5. **Mechanic resolution.** Per-fight aliases + phase context + monotonic row order +
    timestamps. Same label in different phases (`Hello World`, `Solar Ray`, `Magic Number`)
    is disambiguated by phase and order.
@@ -546,7 +553,8 @@ previews, which have no cooldown provider.
    plan lists its entries in press order, as §5.1 times them (ties in sheet order), also
    when step 4 changed an entry's actions, and numbers them `e001`, `e002` … in that order:
    a change of the timing rules renumbers a plan imported again, as it did the bundled LPDU
-   plans' entries (2026-11-14). Nothing stores entry ids.
+   plans' entries (2026-11-14). No setting refers to an entry id, so the renumbering
+   changes nothing for players.
 8. **Review.** Every entry with a confidence level and diagnostics; the user fixes items,
    fixes become personal aliases; save. **As built** (the import window, PLUGIN.md §1.7):
    each entry with the importer's diagnostics and the plugin's checks, and the automatic
@@ -634,18 +642,18 @@ files and links; the plugin's import window adds downloading, the review and the
   guess like this, between slots of the role that the party does not settle, or the choice
   gives no slot while the plan has calls for whoever plays a slot of the role (the TEA
   Monk's seat's Feints), the choice stays, and the status line, chat (once per plan and
-  job), the preview and the Plans tab say so and name the setting that gives the seat: "My
-  usual party slot", or the slot's column under "My column"
-  (`ColumnSuggestion.SeatUnknown`). Columns for team compositions (keys naming two or more
-  jobs) are alternatives, never combined, and one composition split over per-phase tabs is
-  one seat: a Warrior on LPDU gets the tank pair with the party's co-tank ("WAR/PLD WAR"
-  next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none of the job's
-  compositions gets the job's column that is no composition, if there is one (Carry the
-  Clear's White Mage tab for a White Mage next to a Sage). A job's column that repeats the
-  calls of its composition column is the same seat written twice, whichever tab comes first
-  (Carry the Clear's White Mage tab and its combined tab). Calls in no column (the TEA
-  plan's "Extras": "PLD Wings", "Dismantle") belong to the jobs they name, whatever the
-  column. Plans are exported as share codes, not as files.
+  job each time the plugin loads), the preview and the Plans tab say so and name the
+  setting that gives the seat: "My usual party slot", or the slot's column under "My
+  column" (`ColumnSuggestion.SeatUnknown`). Columns for team compositions (keys naming two
+  or more jobs) are alternatives, never combined, and one composition split over per-phase
+  tabs is one seat: a Warrior on LPDU gets the tank pair with the party's co-tank
+  ("WAR/PLD WAR" next to a Paladin), else the first, "WAR/DRK WAR"; a party that plays none
+  of the job's compositions gets the job's column that is no composition, if there is one
+  (Carry the Clear's White Mage tab for a White Mage next to a Sage). A job's column that
+  repeats the calls of its composition column is the same seat written twice, whichever tab
+  comes first (Carry the Clear's White Mage tab and its combined tab). Calls in no column
+  (the TEA plan's "Extras": "PLD Wings", "Dismantle") belong to the jobs they name,
+  whatever the column. Plans are exported as share codes, not as files.
 - **Co-healer's calls** (as built): the plan's other columns of the player's role, except
   the player's own seat in another composition and the partner's columns for compositions
   without the player's job (a Warrior sees "WAR/DRK DRK", not "DRK/GNB DRK"), and in a

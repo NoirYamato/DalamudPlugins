@@ -97,12 +97,15 @@ the calibration analysis. They are described precisely enough to become the data
   - `hit` is the time of the timeline entry the mechanic is anchored on; `entry` is that entry's name.
   - The anchor is the **damage** a mitigation must cover.
   - Where cactbot has no entry for the damage itself (it is on the timeline's `-ii` ignore line, or not in the file
-    at all), the anchor is the entry that marks it: usually the boss cast end.
+    at all), the anchor is the entry that marks it, usually the boss cast end, or an entry the fight file adds for
+    the damage itself (`timeline_additions`, `docs/DESIGN.md` §3.1): TEA's J Waves (§6.2) and first Tetrashatter
+    (§6.3 item 3).
   - The YAML comment `# anchor:` and §5.1 give the delay to the real hit. Examples: Latent Defect +1.0 s,
     P2 Cosmo Memory +1.4 s, Blue Screen +1.0 s.
 - **`hits`** lists every damage time that is itself a timeline entry, so "after the n-th hit" hints can use
-  `Mechanic.HitAt(n)`. Sub-hits that cactbot does not list are not invented. Examples: the Splash sub-hits in TEA,
-  and the four later Diffuse Wave Cannon Kyrios cleaves in TOP.
+  `Mechanic.HitAt(n)`. Sub-hits that cactbot does not list are not invented (the Splash sub-hits in TEA, the four
+  later Diffuse Wave Cannon Kyrios cleaves in TOP), except as `timeline_additions` entries (TEA's 16 J Waves, the
+  hits of `p3.j_waves`).
 - **Umbrella and part mechanics.**
   - Where one sheet row covers several hits that another sheet lists one by one, both exist: an umbrella (for
     example `p1.pantokrator`, all four stacks) and its parts (`p1.panto_stack1..4`).
@@ -1257,10 +1260,14 @@ anchor on and to sync:
   is the landing alone (kind `raidwide`; the first draft gave it the waves, as kind `multihit`).
 - **Series.** `p3.j_waves` has `series: true`: a call without a time for wave n > 1 (on `p3.j_wave_n`, or on the
   umbrella with a hit index) is pressed no earlier than wave n − 1 + 0.3 s, and turns NOW no earlier
-  (`docs/DESIGN.md` §5.1, §5.2); a shield with a cast is started so that it lands then. The default leads (3–6 s) are
-  longer than the 3 s between waves, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before
-  the last, strongest waves it should cover. LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2
-  and 732.2; their Succors (a 2 s cast) keep −4.5 s and turn NOW at 718.2 and 730.2.
+  (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast, both are earlier by its cast time, so that
+  the shield lands then. Most default leads (3–6 s; Passage of Arms 2 s) are as long as the 3 s between waves or
+  longer, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before the last, strongest
+  waves it should cover. Most calls on LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and
+  732.2, and turn NOW then, with no lead. Passage of Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9)
+  and turns NOW at 726.2. The Scholar's calls led by a Succor (a 2 s cast: `Succor/Soil/Seraph`, E21, at J Wave 5,
+  with its Sacred Soil, Summon Seraph and Consolation; `Succor`, E25, at J Wave 9) keep −4.5 s (718.4, 730.4) and
+  turn NOW at 718.2 and 730.2, 1.7 s before the wave before them, so that the Succor lands just after it.
 
 ### 6.3 Judgment calls (TEA)
 
@@ -1269,8 +1276,12 @@ anchor on and to sync:
    (community guides): the melee dolls as the tanks centre the bosses after the first Exhaust (39.7; ~41–45 s) and
    the ranged ones after the second, or one doll at ~43–48 s, one after the second Exhaust and two after Fluid Swing
    3 (56.7). The entry before the second Exhaust, Hand of Pain 1 (42.8), would press the row's Sacred Soil and
-   Kerachole within their 30 s recast of the Cascade row's (~15 s). The row's automatic press times (about 44–47 s)
-   cover the feeds from ~45 s on; an early melee pair lands before most of them.
+   Kerachole well within their 30 s recast of the Cascade row's (~15 s). On the second Exhaust the Scholar's Soil
+   comes 30.8 s after the Cascade one. The Sage's Kerachole, the last step of `ZoeEukProg/Holos/Kerachole`
+   ('LL/BJCC'!F13), shares the sequence's press time, which Holos's −6 s sets (`docs/DESIGN.md` §5.1 rule 2): 28.8 s
+   after the Cascade row's Kerachole (F11). `mitcue check plans/tea-lpdu.yaml --job SGE` reports that as a recast
+   conflict, though in game the Kerachole comes after the sequence's first three steps. The row's automatic press
+   times (about 44–47 s) cover the feeds from ~45 s on; an early melee pair lands before most of them.
 2. **`Mines` → `p2.hidden_mines`** (kind `tankbuster`), anchored on Enumeration (4850, 292.7), the start of the soak
    window: once the Enumeration stacks and the ice puddle resolve, the tanks run over the two mines (4852 Hidden
    Mine, player-timed). An unsoaked mine explodes for the raid about 6.3 s after the ice (4853, ~299.8, BossMod).
@@ -1294,14 +1305,20 @@ anchor on and to sync:
 8. **`Photon` → `p2.photon_1`, with `press: after`**, like `p2.photon_2`, which no row names. Photon sets HP to 1 (the
    second, the tanks' only), so what is pressed before it is lost: the calls planned there without a time are the
    heal-up, pressed 1 s after the hit like heals (`docs/DESIGN.md` §5.1), mitigation and shields too (the sheet's
-   C32 tip: Soil/Kera "immediatly after Photon"). An entry's actions share one press time, so the White Mage's
-   `Asylum/Plenary` ('LL/BJCC'!G40) moves after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum (G52,
-   P2 2:29), within Asylum's 90 s recast: `mitcue check --job WHM` reports the conflict, and in game the Gavel Asylum
-   shows *ready in N s*. Keeping the regen before Photon would need the cell split.
+   C32 tip: Soil/Kera "immediatly after Photon"). They still turn NOW 1.5 s before the press, at 262.0: 0.5 s before
+   Photon's cast ends (262.5) and about 0.8 s before the HP drop (4837, ~262.8), so an instant heal used on the cue
+   is lost. An entry's actions share one press time, so the White Mage's `Asylum/Plenary` ('LL/BJCC'!G40) moves
+   after Photon as a whole (P2 1:04), 85.8 s before the Gavel Asylum (G52, P2 2:29), within Asylum's 90 s recast:
+   `mitcue check plans/tea-lpdu.yaml --job WHM` reports the conflict (*Asylum planned at P2 1:04 and P2 2:29
+   (85.8 s apart), recast 90 s.*), and in game the Gavel Asylum shows *ready in N s*. Keeping the regen before
+   Photon would need the cell split.
 9. **`Double Rocket Punch` → `p2.double_rocket_punch`, with `heal_lead: 4`.** The second Photon leaves both tanks at
-   1 HP 8 s before the buster (374.8; its 4 s cast starts 3.4 s after the drop, BossMod). Heals planned on the row
-   without a time ('LL/BJCC'!G54 `Benison (Tank)/Benediction`) are pressed 4 s before the hit, with the row's
-   shields, and turn NOW 5.5 s before it, after the drop (~367.1), instead of 1 s after the buster.
+   1 HP 8 s before the buster (374.8; its 4 s cast starts 3.4 s after the drop, BossMod). Heals used after the hit
+   that are planned on the row without a time ('LL/BJCC'!G54 `Benison (Tank)/Benediction`: the Benediction) are
+   pressed 4 s before the hit, with the row's shields, and turn NOW 5.5 s before it, after the drop (~367.1),
+   instead of 1 s after the buster. A heal placed before the damage keeps its own lead: the Scholar's Excogitation
+   (E54 `Soil/Excog (Tank)`) is pressed 8 s before the hit (366.8), as the second Photon's cast ends, and turns NOW
+   at 365.3, before the drop.
 
 ## 7. DMU (first draft)
 

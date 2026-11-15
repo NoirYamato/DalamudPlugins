@@ -255,7 +255,7 @@ actions:
 | `requires_status` | Status id | PrimaryCostType 10 | **new** |
 | `duration` | {level: s} | when the action has a lasting effect at some level | `DurationByLevel`. 0 = no lasting effect from that level on (e.g. Equilibrium `{58: 0, 84: 15}`) |
 | `sync` | {80, 90, 100: s or null} | always | copy of `duration` at the three sync levels; `null` = not learned yet, or replaced by an upgrade, at that level |
-| `when` | before / after | only when it differs from the kind default | **new**: press before the damage (pre-placed heals: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos; Neutral Sect and Passage of Arms, for their `lead`) or after (healer LBs) |
+| `when` | before / after | when it differs from the kind default, or to give a `lead` (Neutral Sect, Passage of Arms) | **new**: press before the damage (pre-placed heals: Liturgy of the Bell, Excogitation, Earthly Star, Horoscope, Macrocosmos; Neutral Sect and Passage of Arms, for their `lead`) or after (healer LBs) |
 | `lead` | s | Earthly Star (10), Neutral Sect (4.5), Passage of Arms (2) | **new**: with `when: before`, seconds before the hit: the press is `hit − lead`. Earthly Star must mature; Neutral Sect leaves time to cast the Aspected Helios that puts up its barrier (a buff's −3 s would not); Passage of Arms is pressed last, after the paladin's Divine Veil (−4 s) and Reprisal (−3 s), since any other action ends its channel |
 | `lb` | 1, 2, 3 | limit breaks | **new**: tier |
 | `effects` | list of {name, duration} | several effects, or a level-dependent one | **new**: all durations; `name` is a hand-written label |

@@ -242,9 +242,10 @@ in a pair column). `PlanStore.SeatHint` writes the text, *Your slot is a guess: 
 MT and OT). If you play OT, …* or *Your slot (M1 or M2) is not known, so its calls are not shown: …*, and
 names the fix: "My usual party slot", plus the slot's column under "My column" where that column has the job's
 calls (the plan has no column for the job), or only that column while the usual slot is another role's. The
-text ends the Status line, is printed in chat once per plan and job (`SessionManager`), ends the preview's
-start message, and is the tooltip of the Plans tab's column combo, which then reads *(suggested, a guess)* or
-*(suggested, no slot)*.
+text ends the Status line, is printed in chat once per plan and job while the plugin is loaded (`SessionManager`
+keeps the record in memory, so a reload or a game restart prints it again), ends the preview's start message,
+and is the tooltip of the Plans tab's column combo, which then reads *(suggested, a guess)* or *(suggested, no
+slot)*.
 
 **The co-healer's calls.** With **Also show my co-healer's calls** on, `PartnerSelection` adds the entries
 that are not the player's, from the player's role group (tank, healer or DPS), but not those for the player's
@@ -388,8 +389,9 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    **Import and review** runs the core `PlanImporter` with the chosen fight, tabs, columns, plan name,
    calibration preset and slash reading; the trial import builds its options the same way, with every tab and
    column (`ImportWindow.OptionsFor`), from the preset and slash reading of the moment it runs (a new source
-   sets **Slashes** back to automatic). A later change of either applies to **Import and review** only: the
-   lists and their entry counts keep the trial's reading.
+   sets **Slashes** back to automatic). A later change of either applies to **Import and review**, and a
+   **Slashes** choice also to the reading **Copy AI prompt** states (`PromptSlashes` takes the choice over the
+   trial's reading); the lists and their entry counts keep the trial's reading.
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
    checks, which run again after each edit. An entry without a time shows the automatic offset and press time
    the overlay will use (`TimingRules.ForEntry`). The player can change the mechanic, hit, offset, flags,
@@ -537,9 +539,11 @@ saw, the phase, and roughly the fight time. Attach the debug report and, for TOP
       "White Mage"`, as Scholar `"LPDU TEA Heal/Mit" as SCH, column "Scholar"`. With `/mitcue preview tea
       p3`, the DPS check's calls show their J Wave as the mechanic: the sheet's *Jwaves (4)* row is *J Wave 5
       (Brute Justice at 4 Damage Up stacks)*. As White Mage, its Temperance turns NOW only once J Wave 4 has
-      hit (P3 3:48), without the usual 1.5 s lead. With `/mitcue preview tea p2`, the *Photon* calls (White
-      Mage: Asylum and Plenary Indulgence; Scholar: Indomitability, Recitation, Deployment Tactics,
-      Dissipation) are its heal-up: **Debug** > *reminders* lists them with press 263.5 and hit 262.5.
+      hit (at 720.2, 12:00 on the clock), without the usual 1.5 s lead. With `/mitcue preview tea p2`, the
+      *Photon* calls (White Mage: Asylum and Plenary Indulgence; Scholar: Indomitability, Recitation,
+      Deployment Tactics, Dissipation) are its heal-up: **Debug** > *reminders* lists them with press 263.5
+      and hit 262.5. They still turn NOW 1.5 s before the press, at 262.0 (4:22 on the clock), just before
+      Photon lands.
 - [ ] `/mitcue preview dmu` says *No plan for Dancing Mad (Ultimate). Import one in /mitcue > Plans.*
 - [ ] **Overlay** tab:
   - [ ] dragging works and the position is kept after a reload;
@@ -597,10 +601,11 @@ Cooldown and resource warnings (*ready in N s*, *no Lily*) never appear in previ
       between actions of one job is read as 'and'. Set **Slashes** to *either one (TBN/Oblation)* and import
       again: the note says 'either one', and your column's `Asylum/Plenary` ('LL/BJCC'!G40, as White Mage) or
       `Soil/Reci/Deploy/Whisper` ('LL/BJCC'!E13, as Scholar) is one call with a choice of its actions instead
-      of two or four actions. The **(?)** next to **Slashes** gives the automatic rule and says that the cells
-      of every tab count. **< Back** to **Options**, **Not reading it right? Use the AI route**, then **Copy AI
-      prompt**: the prompt says *For the plan below, the player chose in MitCue's import options to read "/"
-      between actions of one job as either one: do the same.* Close the window without saving.
+      of two or four actions. Hovering the info icon (a circled *i*) next to **Slashes** shows the automatic
+      rule and says that the cells of every tab count. **< Back** to **Options**, **Not reading it right? Use
+      the AI route**, then **Copy AI prompt**: the prompt says *For the plan below, the player chose in
+      MitCue's import options to read "/" between actions of one job as either one: do the same.* Close the
+      window without saving.
 - [ ] Close the window during a download: it is cancelled, and reopening shows the window as you left it.
 - [ ] **Share codes**: **Make an imported share code my active plan as <JOB>** shows under the box, above
       **Import share code**, unticked. Tick it. **Copy share code** of your job's automatic plan

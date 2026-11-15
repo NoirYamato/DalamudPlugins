@@ -166,10 +166,15 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
 - **From the call:** a call with several actions that starts with a heal or a buff is pressed early enough for
   the others: *Bless/Whisper/Succor* with Whispering Dawn's lead, so that the Succor lands before the hit.
 - **From the mechanic:** mitigation for a mechanic with several hits is pressed late enough to last through the
-  later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). In TEA, the calls
-  on Photon, which drops HP to 1, are its heal-up, 1 s after it; heals on Double Rocket Punch go out 4 s before
-  it, once the second Photon has dropped the tanks to 1 HP; and a call for a later J Wave waits for the wave
-  before it, so it turns NOW with less of a lead, or none.
+  later hits it can reach (TEA's Optical Sight: a 10 s Reprisal 1.9 s before the first hit). In TEA:
+  - the calls on Photon, which drops HP to 1, are its heal-up, 1 s after it. They still turn NOW 1.5 s before
+    that, just before Photon lands: wait for the HP drop before an instant heal;
+  - heals on Double Rocket Punch (the White Mage's Benediction) go out 4 s before it, once the second Photon
+    has dropped the tanks to 1 HP; a heal placed ahead of the damage keeps its own lead (the Scholar's
+    Excogitation, 8 s);
+  - a call for a later J Wave waits for the wave before it, so it turns NOW with less of a lead, or none. A
+    call that starts with a Succor (a 2 s cast) turns NOW 1.7 s before that wave, so that the Succor lands
+    just after it.
 
 A pull ends on a wipe, a duty restart, a clear, when you leave the zone, or after 10 seconds out of combat
 with no enemy activity. The chat summary then reads, for example:
@@ -298,13 +303,14 @@ job (in green).
   column here. MitCue says when it has to guess your seat, or leaves a slot's calls out because it knows none:
   the Status line ends with *Your slot is a guess: MT (the plan has WAR calls in MT and OT). If you play OT,
   …* or *Your slot (M1 or M2) is not known, so its calls are not shown: …*, and the setting that fixes it;
-  chat says it once, and this column reads *(suggested, a guess)* or *(suggested, no slot)*, with the same
-  text when you hover it. Columns for team compositions (LPDU's tank pairs) are alternatives, and one
-  composition's columns in several phase tabs count as one: a tank gets the pair with the party's co-tank (a
-  Warrior next to a Paladin: *WAR/PLD WAR*; without a party, the first: *WAR/DRK WAR*), plus the calls of
-  their MT or OT slot, also those for any tank (Reprisal, Rampart), when **My usual party slot** is MT or OT.
-  A party that plays none of your job's compositions gets your job's column that is not for one, if the plan
-  has it. The *CM LB Tank* and *CM Rep Tank* columns are left out: pick one here to follow it instead.
+  chat says it once per plan and job each time MitCue loads, and this column reads *(suggested, a guess)* or
+  *(suggested, no slot)*, with the same text when you hover it. Columns for team compositions (LPDU's tank
+  pairs) are alternatives, and one composition's columns in several phase tabs count as one: a tank gets the
+  pair with the party's co-tank (a Warrior next to a Paladin: *WAR/PLD WAR*; without a party, the first:
+  *WAR/DRK WAR*), plus the calls of their MT or OT slot, also those for any tank (Reprisal, Rampart), when
+  **My usual party slot** is MT or OT. A party that plays none of your job's compositions gets your job's
+  column that is not for one, if the plan has it. The *CM LB Tank* and *CM Rep Tank* columns are left out:
+  pick one here to follow it instead.
 
 ### Importing a plan
 
@@ -331,13 +337,14 @@ steps.
    or *Utility*) is no choice: it is always imported, and the window says so (*Always imported: Extras - N
    calls for the jobs they name*). Its cells are read call by call: a call of a job's own action is that job's
    (*PLD Wings* is the Paladin's), and the rest of the cell, a note or an action several jobs share (*Feint*),
-   is one note for everyone. **Slashes** says what `X/Y` between two actions of one job means: *either one
-   (TBN/Oblation)* or *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of them when no cell of
-   the sheet joins actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line break) and at least
-   two cells list several actions of one job with `/`, one of them three or more, as LPDU's TEA sheet does
-   (`Soil/Reci/Deploy/Whisper`), else either one. The cells of every tab count, whichever tabs and columns you
-   import, and the review's notes about the whole import say which reading was used. Click
-   **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
+   is one note for everyone. A sequence (`→`) with a step several jobs share stays one note for everyone
+   (*PLD Wings → Addle*: no call for the Paladin). **Slashes** says what `X/Y` between two actions of one job
+   means: *either one (TBN/Oblation)* or *all of them (Soil/Succor)*. On *(automatic)*, MitCue reads all of
+   them when no cell of the sheet joins actions another way (`+`, `,`, `&`, an arrow, a spaced ` / ` or a line
+   break) and at least two cells list several actions of one job with `/`, one of them three or more, as
+   LPDU's TEA sheet does (`Soil/Reci/Deploy/Whisper`), else either one. The cells of every tab count,
+   whichever tabs and columns you import, and the review's notes about the whole import say which reading was
+   used. Click **Import and review**. If the result looks wrong, **Not reading it right? Use the AI route**.
 3. **Review:** every entry with its mechanic, timing, actions, who it is for, flags (*optional*, *when
    ready*, *at phase end*), problems and source cell. You can pick another mechanic, drag the offset
    (right-click for automatic timing), set the flags, change what to press, and delete entries. When you
@@ -348,7 +355,7 @@ steps.
    `P1P2`, counts as the same sheet); and **Make it my active plan for … as …**, ticked when the plan has
    calls for your job (this step counts them as the overlay will show them, in your current party). Notes for
    everyone, such as LPDU TEA's *Use Personals*, are shown to you too but are no call of your job: when only
-   they apply, this step says *Only 2 notes for everyone apply to you as NIN: check the columns you imported.*
+   they apply, this step says *Only 1 note for everyone applies to you as NIN: check the columns you imported.*
    and the box starts unticked. Unticked, the plan is only saved: your job keeps the plan it has where a
    bundled plan or your choice covers it (see [Which plan and column MitCue
    uses](#which-plan-and-column-mitcue-uses)), and the chat line after saving says which plan is active for
@@ -362,8 +369,13 @@ MitCue reads a sheet with a row per mechanic (with or without times) and a colum
 job of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell
 that points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call
 meant for before the hit just before it, so that its cast ends 1 s before the hit (`Reprisal (Late)` 1 s
-before it, `Succor (Late)` 3 s). A call for a party buff that is still up from your earlier press becomes a
-note (*Temperance (still active)*) or the buff's follow-up (Summon Seraph's Consolation). The full rules:
+before it, `Succor (Late)` 3 s). A call for a party buff that your earlier press keeps up through its hit
+(pressed on its NOW cue, the buff lasts at least 1 s past that hit) becomes a note (*Temperance (still
+active)*) or the buff's follow-up (Summon Seraph's Consolation). When the earlier call has no time in the
+sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and writes that time
+into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines Temperance is pressed
+3.5 s before its hit instead of 6 s, and lasts through Water 2. Otherwise both stay calls. An optional call
+(grey, in brackets, with a condition, or one choice of an either/or) keeps no buff up. The full rules:
 [src/MitCue.Core/Import/README.md](src/MitCue.Core/Import/README.md).
 
 Downloads, reading and importing run in the background: the window shows what it is doing, **Cancel** stops
