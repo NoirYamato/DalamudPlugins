@@ -154,16 +154,18 @@ internal sealed class ReviewModel
         entry.Mechanic = mechanicId;
         if (entry.HitIndex is { } hit && this.Fight.GetMechanic(mechanicId) is { } mechanic && hit >= Math.Max(1, mechanic.Hits.Count))
             entry.HitIndex = null;
-        row.ImportIssues.RemoveAll(i => i.Code.Contains("mechanic", StringComparison.OrdinalIgnoreCase));
+        row.ImportIssues.RemoveAll(i => i.Code.Contains("mechanic", StringComparison.OrdinalIgnoreCase) || IsRecastFit(i));
         this.Changed(row);
     }
 
-    /// <summary>Sets which hit of a multi-hit mechanic the offset is relative to (null = the first).</summary>
+    /// <summary>Sets which hit of a multi-hit mechanic the offset is relative to (null or 0 = the first).</summary>
     public void SetHitIndex(ReviewRow row, int? hitIndex)
     {
+        hitIndex = hitIndex is <= 0 ? null : hitIndex;
         if (row.Entry.HitIndex == hitIndex)
             return;
-        row.Entry.HitIndex = hitIndex is <= 0 ? null : hitIndex;
+        row.Entry.HitIndex = hitIndex;
+        row.ImportIssues.RemoveAll(IsRecastFit);
         this.Changed(row);
     }
 
@@ -176,7 +178,8 @@ internal sealed class ReviewModel
             return;
         row.Entry.Offset = offset;
         row.ImportIssues.RemoveAll(i =>
-            i.Code.Contains("time", StringComparison.OrdinalIgnoreCase) || i.Code.Contains("offset", StringComparison.OrdinalIgnoreCase));
+            i.Code.Contains("time", StringComparison.OrdinalIgnoreCase) || i.Code.Contains("offset", StringComparison.OrdinalIgnoreCase) ||
+            IsRecastFit(i));
         this.Changed(row);
     }
 
@@ -397,6 +400,13 @@ internal sealed class ReviewModel
     /// <summary>Entries that apply to a player (DESIGN §3.2 selection rule; no column chosen).</summary>
     public int CountFor(Job job, string? slot) =>
         job == Job.None ? 0 : this.Plan.Entries.Count(e => PlanSelection.Applies(e, new PlayerContext(job, this.Fight.SyncLevel, slot)));
+
+    /// <summary>
+    /// The importer's <c>recast-fit</c> info: the offset the recast fit wrote, from the entry's hit, so that the action is
+    /// ready again. Like the importer's notes about sheet times, it no longer describes the entry once its offset,
+    /// mechanic or hit changes.
+    /// </summary>
+    private static bool IsRecastFit(ReviewIssue issue) => string.Equals(issue.Code, "recast-fit", StringComparison.OrdinalIgnoreCase);
 
     private void Changed(ReviewRow row)
     {
