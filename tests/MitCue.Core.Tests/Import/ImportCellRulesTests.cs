@@ -191,6 +191,23 @@ public class ImportCellRulesTests
     }
 
     [Theory]
+    [InlineData("Sage", "Kera Left/Right", SlashReading.All, "Kerachole|note:Right", "Kera Left")] // a call of its own, a note
+    [InlineData("Sage", "Kera Left/Right", SlashReading.Either, "Kerachole", "Left")] // an either/or: "Right" left out
+    [InlineData("WAR", "Rampart Left/Right", SlashReading.All, "Rampart|note:Right", "Rampart Left")]
+    [InlineData("Sage", "Kera Left/Right + Holos", SlashReading.All, "Kerachole|note:Right|Holos", "Kera Left")]
+    [InlineData("Sage", "Kera Left/Right + Holos", SlashReading.Either, "Kerachole|Holos", "Kera Left")] // "Left/Right" is one word, its first one the note
+    public void OtherWordsJoinedBySlash_AfterAnAction_SplitLikeActions_ItsNoteNamesItOnce(string column, string cell, SlashReading slashes, string names, string note)
+    {
+        // Words after "/" that name no player and no part of a mechanic are read like actions. Under "all of them" the
+        // entry's note names the Kerachole by its action words, not by the parser's head guess "Kera Left": "Kera Left",
+        // not "Kera Left Left"; under "either one" it is "Kera Left" too, not "Kera Left/Right Left".
+        var entry = Assert.Single(Import(Sheet("P3", column, "Hello World\t" + cell), slashes).Plan.Entries);
+
+        Assert.Equal(names.Split('|'), entry.Names());
+        Assert.Equal(note, entry.Note);
+    }
+
+    [Theory]
     [InlineData(SlashReading.All)]
     [InlineData(SlashReading.Either)]
     public void AndOr_IsEitherOne_InEitherReading(SlashReading slashes)
@@ -669,6 +686,37 @@ public class ImportCellRulesTests
         Assert.Equal(lead, TimingRules.ForEntry(earlier, tea.GetMechanic(earlier.Mechanic)!, tea, RepoFiles.Actions).AutomaticOffset, 3);
         Assert.All(r.Plan.Entries, e => Assert.Contains(action, e.Names()));
         Assert.Contains("both stay presses", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PartyBuffNamedAgain_IsNeverPressedAfterAPassageOfArmsOfAnotherCell()
+    {
+        // Tank 1's Rampart on Alpha (100, at 94), with "PLD Wings" in Extras, and again on Bravo, 16.3 s later. Pressed 1.2 s
+        // before its hit, the Alpha Rampart would last through Bravo, but it would come after the Passage of Arms that a
+        // Paladin in MT presses there 2 s before the hit, last: a channel any other action ends. Both stay presses.
+        var fight = Fight(80, ("Alpha", [100], false), ("Bravo", [116.3], false));
+        var r = Import(Sheet("P1", "Tank 1\tTank 2\tExtras", "Alpha\tRampart\t\tPLD Wings", "Bravo\tRampart\t\t"), fight: fight);
+
+        Assert.Null(r.Plan.Entries.Single(e => e.Mechanic == "p1.alpha" && e.Names().Contains("Rampart")).Offset);
+        Assert.Equal(["Rampart"], r.Plan.Entries.Single(e => e.Mechanic == "p1.bravo").Names());
+        Assert.Equal(
+            "Rampart at p1.bravo is planned 16.3 s after the Rampart at p1.alpha, which lasts 20.0 s (recast 90.0 s), but that one does not last through this hit at its press, and pressed later it would come after the Passage of Arms at p1.alpha, which is pressed last: both stay presses.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message);
+    }
+
+    [Fact]
+    public void PartyBuffNamedAgain_WhoseFollowUpWouldComeBeforeTheEarlierPress_StaysAPress()
+    {
+        // "Seraph (Late)" on Alpha (100) summons Seraph 1 s before its hit; "Seraph" on Bravo, 2 s later, read as the
+        // Consolation, would be pressed 4.5 s before its own hit (97.5), before that summon: no Seraph is out for it. Both
+        // stay Summon Seraph, and check reports the recast.
+        var fight = Fight(80, ("Alpha", [100], false), ("Bravo", [102], false));
+        var r = Import(Sheet("P1", "Scholar", "Alpha\tSeraph (Late)", "Bravo\tSeraph"), fight: fight);
+
+        Assert.All(r.Plan.Entries, e => Assert.Equal(["Summon Seraph"], e.Names()));
+        Assert.Equal(
+            "Summon Seraph at p1.bravo is planned 0.0 s after the Summon Seraph at p1.alpha, which lasts 22.0 s (recast 120.0 s), but its follow-up Consolation would be used before that one is pressed: both stay presses.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message);
     }
 
     [Fact]

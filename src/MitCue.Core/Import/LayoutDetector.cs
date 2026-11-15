@@ -307,6 +307,7 @@ public sealed partial class LayoutDetector
         private int? mech;
         private int? time;
         private int? phaseCol;
+        private MechanicResolver? mechanics;
 
         public TabScan(LayoutDetector owner, SheetTab tab)
         {
@@ -650,13 +651,17 @@ public sealed partial class LayoutDetector
                 // A phase title over the player columns ("P2: Brute Justice / Cruise Chaser" merged across D:L above a repeated
                 // header): the row's only text, with no label or time, names the current or a later phase, and has a header row
                 // below it before the next row with a label or time, or is a banner (merged across columns) that reads as a
-                // title, its part in parentheses too (ReadsAsTitle). A merged remark that starts with a phase ("P1: MT invulns
-                // the second Wave Cannon, OT takes boss after", "P1 (MT invulns …)") stays a note; a title that is not the
-                // fight's for its phase is reported (IsFightsTitle), so that a short remark taken for one is not lost unseen.
+                // title, its part in parentheses too (ReadsAsTitle), or a banner of a later phase whose name reads as a title
+                // and whose next labelled row confirms that phase, whatever its part in parentheses holds (NextLabelStarts:
+                // "P3: Alexander Prime (Inception, Wormhole, J Waves)" above Inception). A merged remark that starts with a
+                // phase ("P1: MT invulns the second Wave Cannon, OT takes boss after", "P1 (MT invulns …)") stays a note; a
+                // title that is not the fight's for its phase is reported (IsFightsTitle), so that a remark in it, or a short
+                // remark taken for one, is not lost unseen.
                 if (assignments.Count > 0 && label is null && timeText is null && texts.Count == 1
                     && TryParseSection(texts[0].Text, out var tn, out var tname, out var thint)
                     && (tn == current?.Number || this.StartsLaterPhase(tn, current))
-                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column) && this.ReadsAsTitle(tn, tname, thint))))
+                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column)
+                        && (this.ReadsAsTitle(tn, tname, thint) || (tn != current?.Number && this.IsTitle(tn, tname) && this.NextLabelStarts(r, tn, current))))))
                 {
                     var titled = tname is not null || thint is not null;
                     if (tn != current?.Number)
@@ -820,6 +825,28 @@ public sealed partial class LayoutDetector
         /// </summary>
         private bool ReadsAsTitle(int number, string? name, string? hint) =>
             this.IsTitle(number, name) && (hint is null || TimingHintRegex().IsMatch(hint) || this.IsTitle(number, hint));
+
+        /// <summary>
+        /// The next row with a label below row <paramref name="r"/> is a mechanic of phase <paramref name="number"/> (its
+        /// label, simplified or a prefix of it; not a near miss) and none of the <paramref name="current"/> phase: a banner
+        /// of that phase there starts it ("P3: Alexander Prime (Inception, Wormhole, J Waves)" above Inception), while the
+        /// same text above a mechanic of the current phase, or one that both phases have (TEA's "JKick"), stays a note.
+        /// </summary>
+        private bool NextLabelStarts(int r, int number, PhaseSection? current)
+        {
+            if (this.owner.Fight is not { } fight || this.mech is not { } m)
+                return false;
+            for (var next = r + 1; next < this.nRows; next++)
+            {
+                if (this.tab.IsRowHidden(next) || this.Txt(next, m) is not { } label)
+                    continue;
+                var mechanics = this.mechanics ??= new MechanicResolver(fight);
+                return mechanics.Candidates(label, this.owner.PhaseId(number)).Match is MechanicMatch.Exact or MechanicMatch.Simplified or MechanicMatch.Prefix
+                    && (current is null || mechanics.Candidates(label, current.Id).Match is MechanicMatch.None or MechanicMatch.OtherPhase);
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// A phase section is the fight's title for its phase: its name and its part in parentheses, unless that is a timing

@@ -183,6 +183,64 @@ public class ImportLayoutRulesTests
         Assert.Equal(reported, layout.Diagnostics.Any(x => x.Code == "phase-title"));
     }
 
+    [Theory]
+    [InlineData("P2: Omega-M/F (MT pulls the boss north, OT takes adds)")]
+    [InlineData("P2 (Party Synergy, Limitless Synergy)")]
+    [InlineData("P2 (times relative to boss targetable)")]
+    [InlineData("P2: Omega-M/F (all times from boss targetable)")]
+    public void MergedPhaseTitleWithARemarkInParentheses_AboveTheNextPhasesMechanic_StartsThePhase(string title)
+    {
+        // Above a mechanic of the current phase the same text stays a note (MergedRemarkInParenthesesAfterAPhase_StaysANote);
+        // above one of the later phase it names, and of no other, it starts that phase, whatever its parentheses hold, and
+        // the remark is reported.
+        var tab = Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", title, ""],
+            ["Solar Ray", "Rep", ""]);
+        var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
+
+        Assert.Equal("HDDSD", Kinds(layout));
+        Assert.Equal("11122", Phases(layout));
+        var d = Assert.Single(layout.Diagnostics, x => x.Code == "phase-title");
+        Assert.Equal((DiagnosticSeverity.Info, "'Mit'!B4"), (d.Severity, d.Src));
+        Assert.DoesNotContain(Import(tab).Diagnostics, x => x.Code is "mechanic-phase" or "unresolved-token" or "note-row");
+    }
+
+    [Theory]
+    [InlineData("Inception (Crystals Boom)", "HSDDSDD", "-222333")]
+    [InlineData("JKick", "HSDDNDD", "-222222")] // a label P2 has too: no proof that P3 starts
+    public void TeaPhaseTitleWithAListInParentheses_StartsP3_WhenTheNextLabelIsP3s(string next, string kinds, string phases)
+    {
+        // LPDU's "P3: Alexander Prime (Inception, Wormhole, J Waves)", merged over the player columns with no header below.
+        // Above Inception it starts P3, so that the "JKick" after it is J Storm (P3) and not P2's J Kick, 8 minutes earlier.
+        var tab = Tab(
+            "TEA",
+            [new CellRange(1, 1, 1, 2), new CellRange(4, 1, 4, 2)],
+            ["", "Tank 1", "Scholar"],
+            ["", "P2: Brute Justice / Cruise Chaser", ""],
+            ["JKick", "Reprisal", "Soil"],
+            ["Double Rocket Punch", "Reprisal", ""],
+            ["", "P3: Alexander Prime (Inception, Wormhole, J Waves)", ""],
+            [next, "Reprisal", "Soil"],
+            ["JKick", "", "Soil"]);
+        var layout = new LayoutDetector(PlanImports.Tea).Detect(tab);
+        Assert.Equal(kinds, Kinds(layout));
+        Assert.Equal(phases, Phases(layout));
+        if (next == "JKick")
+            return;
+
+        var r = new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [tab] },
+            new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date });
+        Assert.Equal("p3.j_storm", Assert.Single(r.Plan.Entries, e => e.Src == "'TEA'!C7").Mechanic);
+        Assert.DoesNotContain(r.Diagnostics, x => x.Code is "mechanic-phase" or "row-order");
+        Assert.Single(r.Diagnostics, x => x.Code == "phase-title" && x.Src == "'TEA'!B5");
+    }
+
     [Fact]
     public void RemarkInParenthesesAboveAHeader_IsReported()
     {
@@ -388,6 +446,63 @@ public class ImportLayoutRulesTests
         Assert.Equal((job, remark, optional), (own.Who.Job!.Value, own.Note, own.Optional));
         var note = Assert.Single(entries, e => e.Who.Job is null);
         Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(SlashReading.All, "note:Feint + Right", "Feint Left")]
+    [InlineData(SlashReading.Either, "note:Feint", "Left")]
+    public void ExtrasColumn_ACallWithWordsAfterIt_AndAnother_NamesItByItsActionWords(SlashReading slashes, string name, string remark)
+    {
+        // "Feint Left/Right" read as "and": "Feint Left", an action several jobs share, and "Right", a note. Everyone's note
+        // is "Feint + Right", noted "Feint Left", not "Feint Left + Right" noted "Feint Left Left". Read as "either one":
+        // "Feint", noted "Left" ("Right" is left out), not "Feint Left/Right".
+        var r = new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "Feint Left/Right"])] },
+            new ImportOptions { Fight = PlanImports.Top, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date, Slashes = slashes });
+
+        var note = Assert.Single(r.Plan.Entries);
+        Assert.Equal((name, remark), (note.Names().Single(), note.Note));
+    }
+
+    [Fact]
+    public void NoteNamingAnAction_ItsWordsAfterTheAction_AreItsNoteOnce()
+    {
+        // A note read as the Warrior's Rampart: its entry is noted "Rampart the first tower set", not "Rampart the first the
+        // first tower set" (the parser's head guess, "Rampart the first", and the words after the action).
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", "WAR: Rampart the first tower set, then PLD provokes and takes the boss after Pantokrator", ""],
+            ["Program Loop", "Rampart", "Reprisal"]));
+
+        var war = Assert.Single(r.Plan.Entries, e => e.Who.Job == Job.WAR && e.Src == "'P1'!B2");
+        Assert.Equal("Rampart the first tower set", war.Note);
+    }
+
+    [Theory]
+    [InlineData("Dismantle (on BJ) + Feint (on CC)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]
+    [InlineData("Feint (on CC) + Dismantle (on BJ)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]
+    [InlineData("Dismantle (Stack) + Addle (Spread)", "", Job.MCH, "Stack", "note:Addle", "Spread")]
+    [InlineData("Dismantle (BJ) + Addle (CC)", "", Job.MCH, "BJ", "note:Addle", "CC")]
+    [InlineData("Use Personals (on CC) + PLD Wings (on BJ)", "", Job.PLD, "on BJ", "note:Use Personals (on CC)", null)]
+    [InlineData("Dismantle (MT) + Feint (on BJ)", "", Job.MCH, "MT", "note:Feint", "on BJ")]
+    [InlineData("Dismantle (Stack) + Feint (Spread)", "(^on BJ)", Job.MCH, "Stack; on BJ", "note:Feint", "Spread; on BJ")]
+    [InlineData("Dismantle (Stack) + Feint", "(^on BJ)", Job.MCH, "Stack; on BJ", "note:Feint", "on BJ")] // a caret speaks for every call
+    [InlineData("Dismantle (on BJ) + Feint (late)", "", Job.MCH, "on BJ; late", "note:Feint", "late")] // so do a timing
+    [InlineData("PLD Wings (on BJ) + Feint (if 7 people)", "", Job.PLD, "on BJ; if 7 people", "note:Feint", "if 7 people")] // and a condition
+    [InlineData("Dismantle (on CD) + Feint (on BJ)", "", Job.MCH, "on BJ", "note:Feint", "on BJ")] // "on CD" says nothing of its own
+    public void ExtrasColumn_CallWithWordsOfItsOwn_KeepsThem_AndTakesOnlyWhatSpeaksForEveryCall(string cell, string below, Job job, string ownNote, string other, string? otherNote)
+    {
+        // Parentheses after each call are that call's own: the last call's do not speak for a call that says something of
+        // its own, except a timing or a condition, and a caret below the cell speaks for all of it.
+        var entries = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", cell], ["Pantokrator", "", below])).Plan.At("'P1'!C2");
+
+        Assert.Equal(2, entries.Count);
+        var own = Assert.Single(entries, e => e.Who.Job is not null);
+        Assert.Equal((job, ownNote), (own.Who.Job!.Value, own.Note));
+        var note = Assert.Single(entries, e => e.Who.Job is null);
+        Assert.Equal((other, otherNote), (note.Names().Single(), note.Note));
     }
 
     [Fact]
@@ -648,10 +763,55 @@ public class ImportLayoutRulesTests
     }
 
     [Theory]
+    [InlineData("For tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("For the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("To the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("Note for the tanks: Rampart the first tower set, then Reprisal after Pantokrator")]
+    [InlineData("For the MT and OT: Rampart the first tower set, then Reprisal after Pantokrator")]
+    public void NoteMergedAcrossColumns_AddressingPlayersBeforeAColon_GoesToEveryEntryOfItsColumns(string note)
+    {
+        // A role or slot word right before a colon heads the note, as "Tanks:" does, though "for" or "to" before it would
+        // place it elsewhere ("press Soil for the melee"): the MT gets it on every entry, Holmgang too, and the OT, with no
+        // entry in P1, a note entry.
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", note, ""],
+            ["Program Loop", "Rampart", ""],
+            ["Pantokrator", "Reprisal", ""],
+            ["Wave Cannon Kyrios", "Holmgang", ""]));
+
+        Assert.Equal(["'P1'!B3", "'P1'!B4", "'P1'!B5"], r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "OT" && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
+    [InlineData("M1", "M2", "Feint", "Tip for melee: Feint the first raidwide, Bloodbath after Pantokrator")]
+    [InlineData("M1", "M2", "Feint", "To the melee: Feint the first raidwide, Bloodbath after Pantokrator")]
+    [InlineData("R1", "R2", "Addle", "For the ranged: Addle the first raidwide and the Kyrios")]
+    public void NoteMergedAcrossColumns_AddressingSlotsBeforeAColon_GivesAnEmptyColumnItsNote(string first, string empty, string action, string note)
+    {
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", first, empty],
+            ["", note, ""],
+            ["Program Loop", action, ""]));
+
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == empty && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
     [InlineData("Press Soil as the first tether resolves on the melee and cover the stacks!")]
     [InlineData("Press Soil under the tanks as the first tether resolves!")]
     [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
     [InlineData("Press Soil under the MT or OT as the first tether resolves!")]
+    [InlineData("Press Soil under the MT/OT as the first tether resolves!")] // "/", "&" and "+" list as "or" does
+    [InlineData("Press Soil under the tanks/healers as the first tether resolves!")]
+    [InlineData("Press Soil on melee / ranged as the first tether resolves!")]
+    [InlineData("Press Soil under the MT & OT as the first tether resolves!")]
+    [InlineData("Press Soil under the MT+OT as the first tether resolves!")]
     [InlineData("Press Soil as the first tether resolves, before the tank buster!")]
     [InlineData("Press Soil under the co-tank as the first tether resolves!")] // a role word in two
     [InlineData("Press Soil under the off-tank as the first tether resolves!")]
@@ -659,10 +819,16 @@ public class ImportLayoutRulesTests
     [InlineData("Press Soil on the non-tanks as the first tether resolves!")]
     [InlineData("Press Soil as the first tether resolves, before the OT's buster!")]
     [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
+    [InlineData("Press Soil for the melee as the first tether resolves!")] // "for" places a role word that heads nothing
+    [InlineData("A tip for the tank buster: press Soil as the first tether resolves!")]
+    [InlineData("Soil on the melee: stack in the middle as the first tether resolves!")] // a colon after a placed role word
+    [InlineData("Mit on the tanks: Soil as the first tether resolves!")]
+    [InlineData("Soil under the MT/OT: as the first tether resolves!")]
     public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
     {
         // Where or when to press ("on the melee", "under the tanks", "before the tank buster") and the job that presses it
-        // ("SCH:") are no players spoken to: the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
+        // ("SCH:") are no players spoken to, nor is a role word that a place word other than "for" or "to" places before a
+        // colon ("Soil on the melee: …"): the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
         var r = Import(PlacingTab(tip));
 
         Assert.Equal(["'P1'!D2"], r.Plan.Entries.Where(e => e.Detail == tip).Select(e => e.Src!));
@@ -672,6 +838,7 @@ public class ImportLayoutRulesTests
     [Theory]
     [InlineData("Press Soil on the melee and OT provokes after it!")]
     [InlineData("Press Soil on the melee, then the co-tank provokes after it!")]
+    [InlineData("Press Soil on the melee, then the MT/OT swap after it!")]
     public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns(string note)
     {
         // "on the melee" places the Soil, but "OT provokes" speaks to the OT ("and" lists only a word of the same kind, a role

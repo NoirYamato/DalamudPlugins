@@ -156,6 +156,13 @@ public sealed partial class PlanImporter
         /// <summary>The text after the action words, without the target and "on CD" ("after 1st Hit", "Stack"), or null.</summary>
         public string? Rest { get; set; }
 
+        /// <summary>
+        /// The action words as written, which a note names the token by: the head without the words at its end that the text
+        /// after the matched action starts with ("Kera" in "Kera Left/Right" read as "and": its "Kera Left" is Kerachole, and
+        /// "Left" its note; "Rampart" in "Rampart the first tower set"); the head when none does.
+        /// </summary>
+        public required string Words { get; set; }
+
         /// <summary>Timing from the text written after the action ("Kera after 1st Hit", "Spreadlo Stack").</summary>
         public HintTiming InlineTiming { get; set; } = HintTiming.None;
 
@@ -227,14 +234,25 @@ public sealed partial class PlanImporter
     /// <param name="EarlierAction">That press's action (the same action, or one that shares its recast).</param>
     /// <param name="Charges">The charges of the action at the sync level.</param>
     /// <param name="AtLate">
-    /// The new press is the latest the entry allows ("(Late)", or an action's own lead): the action is ready less than the
-    /// due lead before it.
+    /// The new press is the latest the entry allows ("(Late)", an action's own lead, or just before an item pressed last of
+    /// another entry): the action is ready less than the due lead before it.
     /// </param>
     /// <param name="Lead">The action whose own lead before the hit is that latest press, or null when "(Late)" is.</param>
-    private sealed record RecastMove(Reminder Use, ActionInfo Action, double Offset, double From, Reminder Earlier, ActionInfo EarlierAction, int Charges, bool AtLate, ActionInfo? Lead)
+    /// <param name="Before">
+    /// The item pressed last of another entry that the new press comes just before, when that is the latest press.
+    /// </param>
+    private sealed record RecastMove(Reminder Use, ActionInfo Action, double Offset, double From, Reminder Earlier, ActionInfo EarlierAction, int Charges, bool AtLate, ActionInfo? Lead, PressedLast? Before)
     {
         public PlanEntry Entry => this.Use.Entry;
     }
+
+    /// <summary>
+    /// An item pressed last of another entry (Passage of Arms, <see cref="TimingRules.IsPressedLast"/>) that a move of the
+    /// recast fit stops just before (<see cref="Run.BeforePressedLast"/>).
+    /// </summary>
+    /// <param name="Entry">The item's entry.</param>
+    /// <param name="Action">The item's action.</param>
+    private sealed record PressedLast(PlanEntry Entry, ActionInfo Action);
 
     /// <summary>One entry of a group of tokens, before its timing (<see cref="Run.ImportGroup"/>).</summary>
     /// <param name="Job">The job it is for, or null for every job of the column.</param>
@@ -293,6 +311,13 @@ public sealed partial class PlanImporter
         };
 
         /// <summary>
+        /// The place words before a role or slot word that a colon follows that still let it head what follows, as "Tanks:"
+        /// does: "For the tanks: …", "To the melee: …" (<see cref="NamesAPlayer"/>). Another one places it: "Soil on the
+        /// melee: …".
+        /// </summary>
+        private static readonly HashSet<string> HeadingPlaceWords = new(StringComparer.OrdinalIgnoreCase) { "for", "to" };
+
+        /// <summary>
         /// The first part of a role word written in two ("co-tank", "off-tank", "main tank", "non-tanks"): a place word before
         /// it still places the role word (<see cref="IsPlacement"/>).
         /// </summary>
@@ -309,6 +334,12 @@ public sealed partial class PlanImporter
 
         /// <summary>Times this close are one (a press and the moment a charge is ready again).</summary>
         private const double SameTime = 1e-6;
+
+        /// <summary>
+        /// How long before an item pressed last of another entry the recast fit presses an entry that would come after it
+        /// (<see cref="BeforePressedLast"/>): one step of the 0.1 s it writes offsets to.
+        /// </summary>
+        private const double JustBefore = 0.1;
 
         /// <summary>
         /// A guard for <see cref="FitRecasts"/>: every round moves an entry later, up to the latest press it allows.
@@ -340,6 +371,24 @@ public sealed partial class PlanImporter
         /// shared whichever of them are imported (<see cref="MarkSharedLimitBreaks"/>).
         /// </summary>
         private readonly List<(string Mechanic, Role Role, string Column, string? Slot)> otherLimitBreaks = [];
+
+        /// <summary>
+        /// The <c>still-active</c> info of each call that stays a press (<see cref="MarkStillActive"/>): when the recast fit
+        /// presses the earlier one later and that one then serves the call too, its info replaces this one.
+        /// </summary>
+        private readonly Dictionary<(PlanEntry Entry, uint Action), ImportDiagnostic> keptPresses = [];
+
+        /// <summary>
+        /// Each press a later call was read as still active from (<see cref="MarkStillActive"/>), with that call's mechanic:
+        /// the look after the recast fit keeps it a press, since that call needs it.
+        /// </summary>
+        private readonly Dictionary<(PlanEntry Entry, uint Action), string> servingPresses = [];
+
+        /// <summary>
+        /// The plan's seats (<see cref="Seats"/>) for the steps after the cells (<see cref="BuildPlan"/>), whose moves keep
+        /// what each seat that sees an entry needs (<see cref="KeepsItsSeats"/>). Who an entry is for no longer changes then.
+        /// </summary>
+        private Lazy<List<(Job Job, HashSet<PlanEntry> Entries)>> seats = new(() => []);
         private CellParser cells = CellParser.Default;
         private SlashReading documentSlashes = SlashReading.Either;
         private bool seraphNumbered;
@@ -366,6 +415,10 @@ public sealed partial class PlanImporter
         // "tank: …", "the low tank: …", "MT: …" at the start of a sentence.
         [GeneratedRegex(@"^\s*(?<who>(?:the\s+|a\s+|your\s+)?[\p{L}\p{N}/-]+(?:\s+[\p{L}\p{N}/-]+)?)\s*:(?!\d)", RegexOptions.CultureInvariant)]
         private static partial Regex WhoColon();
+
+        // The word right before a colon, which heads what follows: "Tanks:", "For the tanks:", "Tip for melee:" (not "1:30").
+        [GeneratedRegex(@"(?<who>[\p{L}\p{N}]+)\s*:(?!\d)", RegexOptions.CultureInvariant)]
+        private static partial Regex HeadingColon();
 
         public ImportResult Execute()
         {
@@ -1352,7 +1405,7 @@ public sealed partial class PlanImporter
                     : byJob.Values.Any(r => r.Kind == TokenKind.OtherJob) ? TokenKind.OtherJob
                     : byJob.Values.All(r => r.Kind == TokenKind.Empty) ? TokenKind.Empty
                     : TokenKind.Unresolved;
-                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1, JobsNamed = named };
+                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1, JobsNamed = named, Words = token.Head };
                 this.Describe(state, row, cell, header, candidates);
                 tokens.Add(state);
             }
@@ -1384,8 +1437,17 @@ public sealed partial class PlanImporter
             }
 
             // What the last token says in parentheses is the remark of the whole item ("Dismantle + Feint (on BJ)", or "(^on BJ)"
-            // below the cell): a group the item splits into without that token gets it too (below).
-            var remark = this.HintNotes(null, last.Token, last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming).ToList();
+            // below the cell): a group the item splits into without that token gets it too (below). Of it, a group whose calls
+            // say something of their own ("Dismantle (on BJ) + Feint (on CC)") takes only what speaks for every call: a timing
+            // or a condition, which its calls take too (above), and what a caret below the cell says (AttachCarets).
+            var lastTiming = last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming;
+            var remark = this.HintNotes(null, last.Token, lastTiming).ToList();
+            var carets = this.caretRemarks.TryGetValue((row.Tab, row.Row.Index, cell.Column.Index), out var below) ? below : [];
+            var forEveryCall = this.HintNotes(null, last.Token with
+            {
+                Hints = [.. last.Token.Hints.Where(h => carets.Contains(h.Trim(), StringComparer.OrdinalIgnoreCase) || HintParser.Condition(h) is not null
+                    || !HintParser.Parse(null, [h], this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId).IsNone)],
+            }, lastTiming).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // A target in parentheses that no action is used on ("Asylum (melee)", "Kera (party)": where to place it, whom
             // it is for) stays in the note, as any other parenthetical; a sequence keeps it as its target.
@@ -1425,9 +1487,13 @@ public sealed partial class PlanImporter
             {
                 // A group apart from the last token's only because of whose its calls are keeps the item's remark ("Dismantle +
                 // Feint (on BJ)": the Machinist's Dismantle is on BJ too; "PLD Wings + Feint (if 7 people)": the Paladin's
-                // optional call says why). One with a timing, condition or target of its own keeps its own words.
+                // optional call says why). One with a timing, condition or target of its own keeps its own words, and so does
+                // one whose calls say something of their own, an action call in its notes, a note for everyone in its text
+                // ("Dismantle (on BJ) + Feint (on CC)": the Dismantle is on BJ only; "(on CD)" says nothing of its own).
                 var apart = anyone && !groups[g].Contains(last) && same(groups[g][0]) == same(last);
-                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = remark } : shared, candidates, header);
+                var ownWords = groups[g].Any(t => t.Kind == TokenKind.Actions ? t.Notes.Count > 0 : t.Token.Target is not null || this.HintNotes(null, t.Token, HintTiming.None).Any());
+                var groupRemark = ownWords ? remark.Where(forEveryCall.Contains).ToList() : remark;
+                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = groupRemark } : shared, candidates, header);
             }
         }
 
@@ -1499,7 +1565,8 @@ public sealed partial class PlanImporter
         /// <param name="Optional">The item comes from a note that says the action "can" be used.</param>
         /// <param name="Remark">
         /// What the item's last token says in parentheses, for a group of a column for anyone that the item splits into without
-        /// that token (<see cref="ImportItem"/>); empty for the others.
+        /// that token (<see cref="ImportItem"/>), of it only what speaks for every call when the group's calls say something of
+        /// their own; empty for the others.
         /// </param>
         private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional, IReadOnlyList<string> Remark);
 
@@ -1557,6 +1624,7 @@ public sealed partial class PlanImporter
                     var resolved = t.ByJob.Values.Where(r => r.Kind == TokenKind.Actions).ToList();
                     var rest = resolved.Select(r => r.Rest).FirstOrDefault(r => r is not null);
                     t.Rest = this.CleanRest(rest, token);
+                    t.Words = ActionWords(token.Head, rest);
                     t.InlineTiming = HintParser.Parse(rest, [], this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId);
                     t.ParenTiming = HintParser.Parse(null, token.Hints, this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId);
                     t.Condition = HintParser.Condition(rest);
@@ -1674,6 +1742,29 @@ public sealed partial class PlanImporter
         /// <summary>The plan items of an alternative as groups of actions: its <see cref="ResolvedAlternative.Groups"/>, else one per action.</summary>
         private static IReadOnlyList<IReadOnlyList<ActionInfo>> ItemGroups(ResolvedAlternative alternative) =>
             alternative.Groups ?? alternative.Actions.Select(a => (IReadOnlyList<ActionInfo>)[a]).ToList();
+
+        /// <summary>
+        /// A token's action words as written (<see cref="TokenState.Words"/>): <paramref name="head"/>, the parser's guess,
+        /// without the words at its end that <paramref name="rest"/>, the text after the matched action, starts with; a word
+        /// of the head that joins alternatives with "/" counts as its first one, which the rest keeps when "/" is read as
+        /// either one ("Kera Left/Right": Kerachole, noted "Left").
+        /// </summary>
+        private static string ActionWords(string head, string? rest)
+        {
+            if (string.IsNullOrWhiteSpace(rest))
+                return head;
+            var heads = head.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var rests = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            static bool Same(string word, string after) =>
+                word.Equals(after, StringComparison.OrdinalIgnoreCase) || word.Split('/')[0].Equals(after, StringComparison.OrdinalIgnoreCase);
+            for (var k = Math.Min(heads.Length - 1, rests.Length); k > 0; k--)
+            {
+                if (heads.Skip(heads.Length - k).Zip(rests.Take(k)).All(p => Same(p.First, p.Second)))
+                    return string.Join(' ', heads.Take(heads.Length - k));
+            }
+
+            return head;
+        }
 
         /// <summary>The text after an action without its target and "on CD"/"when ready" words; null when nothing is left.</summary>
         private string? CleanRest(string? rest, ParsedToken token)
@@ -1865,7 +1956,7 @@ public sealed partial class PlanImporter
                 }
 
                 // The action words; what is written after them or in parentheses is in the entry's note, as for an action.
-                var words = group.Select(t => t.Kind == TokenKind.Actions && t.Token.Head.Length > 0 ? t.Token.Head : t.NoteText);
+                var words = group.Select(t => t.Kind == TokenKind.Actions && t.Words.Length > 0 ? t.Words : t.NoteText);
                 entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(item.IsSequence ? " → " : " + ", words))], false, []));
                 choices.Clear();
             }
@@ -2133,8 +2224,9 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// The note of an entry: the notes of its tokens (each after its head when the group has several), the notes it shares
-        /// with the rest of its item (<paramref name="itemNotes"/>: the item's remark, later steps' times) and its footnote.
+        /// The note of an entry: the notes of its tokens (each after its action words when the group has several,
+        /// <see cref="TokenState.Words"/>), the notes it shares with the rest of its item (<paramref name="itemNotes"/>: the
+        /// item's remark, later steps' times) and its footnote.
         /// </summary>
         private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> itemNotes)
         {
@@ -2143,7 +2235,7 @@ public sealed partial class PlanImporter
             foreach (var t in withNotes)
             {
                 var text = string.Join("; ", t.Notes);
-                parts.Add(group.Count > 1 && t.Token.Head.Length > 0 ? t.Token.Head + " " + text : text);
+                parts.Add(group.Count > 1 && t.Words.Length > 0 ? t.Words + " " + text : text);
             }
 
             parts.AddRange(itemNotes);
@@ -2312,15 +2404,27 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
         /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
-        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), nor is the
-        /// job whose own action the note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of
-        /// several jobs (a role action such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the
-        /// first tower set, then PLD provokes …" speaks to the PLD. A note over several columns that speaks to no other
-        /// player is about using the actions it names (<see cref="BannerNote"/>).
+        /// is no player spoken to ("press Soil/Kera on the melee", "under the MT/OT", "the tank buster",
+        /// <see cref="IsPlacement"/>), unless a colon follows it and no place word but "for" or "to" places it
+        /// (<see cref="HeadingPlaceWords"/>): then it heads what follows, as "Tanks:" does ("For the tanks: …", "Tip for
+        /// melee: …", "To the melee: …"; "Soil on the melee: …" places the Soil). Nor is the job whose own action the note
+        /// names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of several jobs (a role action such
+        /// as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the first tower set, then PLD
+        /// provokes …" speaks to the PLD. A note over several columns that speaks to no other player is about using the
+        /// actions it names (<see cref="BannerNote"/>).
         /// </summary>
         private bool NamesAPlayer(string text)
         {
-            var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            // "/", "&" and "+" list player words as "or" does (IsPlacement): "on the MT/OT", "under the tanks & healers".
+            static string[] Words(string part) => Regex.Split(Regex.Replace(part, "[/&+]", " or "), @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            foreach (var who in HeadingColon().Matches(text).Select(m => m.Groups["who"]).Where(g => PlayerWords.Contains(g.Value)))
+            {
+                var heading = Words(text[..(who.Index + who.Length)]);
+                if (PlaceWordOf(heading, heading.Length - 1) is not { } place || HeadingPlaceWords.Contains(place))
+                    return true;
+            }
+
+            var words = Words(text);
             if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
                 return true;
             var pressers = this.NamedByWord(text).Where(w => w.Jobs.Count == 1).SelectMany(w => w.Jobs).ToHashSet();
@@ -2330,26 +2434,36 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The role or slot word at <paramref name="i"/> says where or for whom to press, and speaks to no player: after a place
         /// word ("on the melee", "under the tanks", "on the co-tank"), before "buster" ("the tank buster", "the OT's buster"),
-        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT";
-        /// not "on the melee and OT provokes").
+        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT",
+        /// and "on the MT/OT", "under the tanks/healers", which <see cref="NamesAPlayer"/> reads as "or"; not "on the melee
+        /// and OT provokes").
         /// </summary>
         private static bool IsPlacement(string[] words, int i)
         {
             var next = i + 1 < words.Length && words[i + 1].Equals("s", StringComparison.OrdinalIgnoreCase) ? i + 2 : i + 1; // "the OT's buster"
-            if (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
-                return true;
+            return (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase)) || PlaceWordOf(words, i) is not null;
+        }
+
+        /// <summary>
+        /// The place word that makes the role or slot word at <paramref name="i"/> where or for whom to press
+        /// (<see cref="IsPlacement"/>): the one before it ("on the melee", "under the tanks", "on the co-tank"), or before the
+        /// word of its kind that "and"/"or" lists it with ("on melee and ranged", "for the MT and OT"); null when none does.
+        /// </summary>
+        private static string? PlaceWordOf(string[] words, int i)
+        {
             var j = i - 1;
             if (j >= 0 && RolePrefixes.Contains(words[j]))
                 j--;
             while (j >= 0 && Determiners.Contains(words[j]))
                 j--;
             if (j < 0)
-                return false;
+                return null;
             if (PlaceWords.Contains(words[j]))
-                return true;
+                return words[j];
             return (words[j].Equals("and", StringComparison.OrdinalIgnoreCase) || words[j].Equals("or", StringComparison.OrdinalIgnoreCase))
                 && j > 0 && PlayerWords.Contains(words[j - 1]) && Slots.TryNormalize(words[j - 1], out _) == Slots.TryNormalize(words[i], out _)
-                && IsPlacement(words, j - 1);
+                ? PlaceWordOf(words, j - 1)
+                : null;
         }
 
         /// <summary>
@@ -2486,16 +2600,26 @@ public sealed partial class PlanImporter
         /// The earlier press must still serve the later call as the reminders time both (<see cref="CoversLaterCall"/>),
         /// each at its own item's press and NOW cue (an item may be pressed later than its entry: an instant Sacred Soil
         /// beside a Succor on a later hit of a series waits for the hit before it): a note says that the effect covers the
-        /// later hit, a follow-up needs the action only when it is used (Seraph out for the Consolation). An earlier entry
-        /// without a time in the sheet is pressed later when that makes it serve both (TEA's Hidden Mines Temperance 3.5 s
-        /// before its hit instead of 6 s, so that it lasts through Water 2). Otherwise the later call stays a press, and
-        /// <c>check</c> reports the recast the sheet asks for.
+        /// later hit, a follow-up needs the action only when it is used (Seraph out for the Consolation, so summoned before
+        /// it, not after it). An earlier entry without a time in the sheet is pressed later when that makes it serve both
+        /// (TEA's Hidden Mines Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2), unless a
+        /// seat that sees it needs it where it is (<see cref="KeepsItsSeats"/>). Otherwise the later call stays a press,
+        /// and <c>check</c> reports the recast the sheet asks for. After the recast fit has pressed earlier entries later
+        /// (<see cref="FitRecasts"/>), it looks again at the calls after those (<paramref name="fitted"/>): one that such a
+        /// press now serves as it is is read as still active too, its info in place of the one that kept it a press;
+        /// nothing moves then. A call whose own press a later call was read as still active from stays a press, with an
+        /// info that says so: that call needs it, and the moved press need not last through it
+        /// (<see cref="servingPresses"/>).
         /// </remarks>
-        private void MarkStillActive(List<Draft> ordered)
+        /// <param name="ordered">The entries in press order.</param>
+        /// <param name="fitted">The entries the recast fit moved, for that second look; null for the first.</param>
+        /// <returns>True when a call was read as still active.</returns>
+        private bool MarkStillActive(List<Draft> ordered, IReadOnlySet<PlanEntry>? fitted = null)
         {
             // Per player and action: the last entry that presses it for sure, and whether its time is the importer's (no
             // time in the sheet), so that CoversLaterCall may press it later.
             var last = new Dictionary<(string? Assignee, string? Slot, Job? Job, uint Action), (Draft Draft, bool Movable)>();
+            var changed = false;
             foreach (var d in ordered.Where(d => d.Confident))
             {
                 var e = d.Entry;
@@ -2511,7 +2635,8 @@ public sealed partial class PlanImporter
                     if (!last.TryGetValue(key, out var prev) || (prev.Draft.Tab, prev.Draft.Row) == (d.Tab, d.Row)
                         || (prev.Draft.Entry.Mechanic, prev.Draft.Entry.HitIndex ?? 0) == (e.Mechanic, e.HitIndex ?? 0)
                         || e.Optional || e.Target is not null || action.Target is not (ActionTarget.Party or ActionTarget.Ground or ActionTarget.Self)
-                        || action.ChargesAt(this.level) > 1 || duration <= 0 || recast <= duration)
+                        || action.ChargesAt(this.level) > 1 || duration <= 0 || recast <= duration
+                        || (fitted is not null && !fitted.Contains(prev.Draft.Entry)))
                     {
                         if (!e.Optional)
                             last[key] = (d, e.Offset is null);
@@ -2532,20 +2657,43 @@ public sealed partial class PlanImporter
                     // when it is used, its own effect covering the hit (Consolation while Seraph is out).
                     var readAs = follow is null ? PlanItem.ForNote(action.Name + " (still active)")
                         : e.Do.Any(x => x.Action == follow.Id) ? null : PlanItem.ForAction(follow.Id, follow.Name);
+                    var used = follow is null ? press : this.PressReadAs(e, i, readAs, follow.Id);
                     var serves = follow is null
                         ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, press), TimingRules.CoverageDuration(action, this.level) ?? duration)
-                        : this.PressReadAs(e, i, readAs, follow.Id) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
-                    if (gap >= duration || !this.CoversLaterCall(earlier, id, prev.Movable, serves, out var movedFrom))
+                        : used - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+
+                    // A follow-up is used after the earlier press, not before it (a Consolation pressed before the Summon
+                    // Seraph it would need, which "(Late)" presses just before its own hit, finds none).
+                    var early = follow is not null && used < ItemOf(this.TimingOf(earlier), earlier, id).PressAt - SameTime;
+
+                    // After the recast fit nothing moves again, and a call that stays a press keeps its info.
+                    double? movedFrom = null;
+                    string? blocked = null;
+                    if (gap >= duration || early || !this.CoversLaterCall(earlier, id, prev.Movable && fitted is null, serves, out movedFrom, out blocked))
                     {
                         // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
-                        if (gap < duration)
+                        if (gap < duration && fitted is null)
                         {
                             var why = follow is null ? "that one does not last through this hit" : $"its follow-up {follow.Name} would be used after it is over";
-                            this.Diag(DiagnosticSeverity.Info, "still-active",
-                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {why} {(prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it")}: both stay presses.",
-                                e.Src);
+                            var when = blocked is not null ? $"at its press, and pressed later {blocked}"
+                                : prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it";
+                            var but = early ? $"its follow-up {follow!.Name} would be used before that one is pressed" : $"{why} {when}";
+                            this.KeepPress(e, id, new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
+                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {but}: both stay presses.",
+                                e.Src));
                         }
 
+                        last[key] = (d, e.Offset is null);
+                        continue;
+                    }
+
+                    // After the recast fit, a press that a later call was read as still active from stays a press: that call
+                    // needs it, and the press the fit moved need not last through it. check reports the recast.
+                    if (fitted is not null && this.servingPresses.TryGetValue((e, id), out var served))
+                    {
+                        this.KeepPress(e, id, new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
+                            $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, as the recast fit presses that one {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit, but the {action.Name} at {served} is read as still active from this one: both stay presses.",
+                            e.Src));
                         last[key] = (d, e.Offset is null);
                         continue;
                     }
@@ -2564,14 +2712,37 @@ public sealed partial class PlanImporter
                     }
 
                     e.Seq &= e.Do.Count > 1;
+                    changed = true;
+                    this.servingPresses.TryAdd((earlier, id), e.Mechanic);
                     var moved = movedFrom is { } from
                         ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it {(follow is null ? "lasts through this one" : $"still lasts when {follow.Name} is used")}."
+                        : fitted is not null ? $" The recast fit presses that one {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit."
                         : string.Empty;
-                    this.Diag(DiagnosticSeverity.Info, "still-active",
+                    var info = new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
                         $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(press - ItemOf(this.TimingOf(earlier), earlier, id).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
                         e.Src);
+                    var at = this.keptPresses.Remove((e, id), out var kept) ? this.diagnostics.IndexOf(kept) : -1;
+                    if (at >= 0)
+                        this.diagnostics[at] = info;
+                    else
+                        this.diagnostics.Add(info);
                 }
             }
+
+            return changed;
+        }
+
+        /// <summary>
+        /// Writes the <c>still-active</c> info of a call that stays a press (<see cref="MarkStillActive"/>), in place of the
+        /// one it has.
+        /// </summary>
+        private void KeepPress(PlanEntry entry, uint action, ImportDiagnostic info)
+        {
+            if (this.keptPresses.TryGetValue((entry, action), out var kept) && this.diagnostics.IndexOf(kept) is var at and >= 0)
+                this.diagnostics[at] = info;
+            else
+                this.diagnostics.Add(info);
+            this.keptPresses[(entry, action)] = info;
         }
 
         /// <summary>
@@ -2588,12 +2759,15 @@ public sealed partial class PlanImporter
         /// later so that it serves both, if it is then still pressed before its own hit, no later than "(Late)" would press
         /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>), and no other item of it earlier than
         /// without the move (<see cref="LastOffset"/>: the offset is every item's press, and an item may be pressed later
-        /// than the entry, for a later hit or a series floor of its own, or last); <paramref name="movedFrom"/> is then the
-        /// automatic offset of its item before.
+        /// than the entry, for a later hit or a series floor of its own, or last), and when every seat that sees it keeps
+        /// what it needs (<see cref="KeepsItsSeats"/>: no press after a Passage of Arms of another cell before its hit, no
+        /// follow-up out of its trigger's window), else <paramref name="blocked"/> says what the move would break;
+        /// <paramref name="movedFrom"/> is then the automatic offset of its item before.
         /// </summary>
-        private bool CoversLaterCall(PlanEntry earlier, uint action, bool movable, double from, out double? movedFrom)
+        private bool CoversLaterCall(PlanEntry earlier, uint action, bool movable, double from, out double? movedFrom, out string? blocked)
         {
             movedFrom = null;
+            blocked = null;
             var before = this.TimingOf(earlier);
             var item = ItemOf(before, earlier, action);
             if (item.DueAt(DefaultReminders) >= from - OffsetPrecision)
@@ -2606,7 +2780,7 @@ public sealed partial class PlanImporter
 
             // The offset is every item's press: never one earlier than without the move (an item that waits for a later hit
             // or a series floor of its own, or comes last), which would lose what it waits for.
-            if (offset < LastOffset(before) - OffsetPrecision)
+            if (offset < LastOffset(before) - OffsetPrecision || !this.KeepsItsSeats(earlier, offset, this.TimingOf, out blocked))
                 return false;
             movedFrom = item.PressAt - before.Hit;
             earlier.Offset = offset;
@@ -2682,10 +2856,14 @@ public sealed partial class PlanImporter
         /// when the move would press another of its items earlier than without it: the offset is every item's press,
         /// and an item may be pressed later than the entry (<see cref="TimingRules.ForEntry"/>: a later hit or a
         /// series floor of its own, or last), so "Rampart + Reprisal" on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s
-        /// before the first protean, for the Wild Charge; and when it would press a follow-up of the entry later than
-        /// <c>check</c> allows after its trigger (<see cref="KeepsItsFollowUps"/>: a Consolation, which
-        /// <see cref="MarkStillActive"/> may have read from a second Seraph, more than 22 s after the Summon Seraph before
-        /// it). The offset is written rounded up to 0.1 s, so the press is never before the action is ready.
+        /// before the first protean, for the Wild Charge; and when a seat that sees the entry needs it where it is
+        /// (<see cref="KeepsItsSeats"/>): a follow-up, the entry's own or one whose trigger it presses, would leave the
+        /// window after its trigger (a Consolation, which <see cref="MarkStillActive"/> may have read from a second Seraph,
+        /// more than 22 s after the Summon Seraph before it, or before it). Nor is it pressed at or after a Passage of Arms
+        /// of another cell that a seat sees with it, before that one's hit (<see cref="BeforePressedLast"/>: LPDU TEA's "PLD
+        /// Wings" in Extras, beside the tank column's Reprisal): once nothing else moves (that Passage of Arms may wait for
+        /// its own recast first), it is pressed 0.1 s before it, if the action is ready by then, else the entry stays. The
+        /// offset is written rounded up to 0.1 s, so the press is never before the action is ready.
         /// </summary>
         /// <remarks>
         /// The recast is <c>check</c>'s (<see cref="RecastReplay"/>: recasts and charges at the sync level, one charge
@@ -2697,52 +2875,77 @@ public sealed partial class PlanImporter
         /// its press too, and still keeps its action on recast: its reminder already waits for the action in game (it stays
         /// due while the action is on cooldown), and a move would only push the calls after it later (LPDU TOP's P5 party
         /// mitigation "on CD" at Sigma and Omega, which the Blind Faith calls follow). A sequence moves for its first
-        /// step only: its later steps follow it in game, so one that <c>check</c> (which times every step at the entry's
-        /// press) finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
-        /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
+        /// step only: its later steps follow it in game, so one that <c>check</c> (which times each step at its item's
+        /// press, the entry's unless the item waits for a series floor or a later hit of its own) finds without a charge
+        /// may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian Prognosis → Holos →
+        /// Kerachole). It moves only when its later steps are woven in right after the first
         /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
         /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
         /// replayed again, until nothing moves: moves only go later, for every item, up to the latest press the entry
         /// allows. A press that moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW
         /// cue: in a chain of moves each NOW cue still comes when its action is ready for a player who presses at the press
-        /// times (each link keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before
-        /// the fit.
+        /// times (each link keeps its due lead). After each round, a call after a press the fit moved that this press now
+        /// serves as it is is read as still active (<see cref="MarkStillActive"/>), unless a later call was read as still
+        /// active from its own press: its note holds no charge, so the plan is replayed again. A <c>recast-fit</c> info
+        /// names each entry that moved, with the gap before the fit.
         /// </remarks>
-        private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
+        private void FitRecasts(List<Draft> drafts)
         {
             var movable = drafts.Where(d => !d.Written && !d.Entry.WhenReady).Select(d => d.Entry).ToHashSet();
             if (movable.Count == 0)
                 return;
 
-            var seats = this.Seats(new MitPlan { Fight = this.fight.Key, Assignees = assignees, Entries = drafts.Select(d => d.Entry).ToList() });
+            // Each item's press as the plan has it before the fit, for the infos, as check replays it.
+            var planned = new Dictionary<PlanItem, double>(ReferenceEqualityComparer.Instance);
+            foreach (var d in drafts)
+            {
+                var timing = this.TimingOf(d.Entry);
+                for (var i = 0; i < d.Entry.Do.Count; i++)
+                    planned[d.Entry.Do[i]] = timing.Items[i].PressAt;
+            }
 
-            // Each press as the plan has it before the fit, for the infos: each item's, as check replays it.
-            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry));
             var moved = new Dictionary<PlanEntry, RecastMove>();
             for (var round = 0; round < MaxFitRounds; round++)
             {
-                // Every seat's presses in the order the scheduler gives them, as check reads the plan this builds.
-                var order = InPressOrder(drafts.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt })).Select(d => d.Entry).ToList();
-                var moves = seats.SelectMany(s => this.RecastMoves(s.Job, order.Where(s.Entries.Contains).ToList(), movable)).ToList();
+                // Every seat's presses in the order the scheduler gives them, as check reads the plan this builds. A move
+                // is every seat's: it keeps what each seat that sees the entry needs (several seats propose the same one).
+                var timings = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry));
+                var order = InPressOrder(drafts.Select(d => d with { Press = timings[d.Entry].PressAt })).Select(d => d.Entry).ToList();
+                var kept = new Dictionary<(PlanEntry Entry, double Offset), bool>();
+                bool Keeps(PlanEntry entry, double offset) =>
+                    kept.TryGetValue((entry, offset), out var keeps) ? keeps : kept[(entry, offset)] = this.KeepsItsSeats(entry, offset, e => timings[e], out _);
+                (double Offset, PressedLast? Before) Latest(PlanEntry entry, double offset) => this.BeforePressedLast(entry, offset, e => timings[e]);
+                List<RecastMove> Moves(Func<PlanEntry, double, (double Offset, PressedLast? Before)> latest) =>
+                    this.seats.Value.SelectMany(s => this.RecastMoves(s.Job, order.Where(s.Entries.Contains).ToList(), movable, Keeps, latest)).ToList();
+
+                // A press that would come after a Passage of Arms of another cell stops just before it only once nothing else
+                // moves: that Passage of Arms may wait for its own recast first, and then no longer be in the way.
+                var moves = Moves((_, offset) => (offset, null));
                 if (moves.Count == 0)
-                    break;
+                    moves = Moves(Latest);
 
                 // The earliest press that finds no charge first: a later one may wait for it.
-                var first = moves.Min(m => m.Use.PressAt);
+                var first = moves.Select(m => m.Use.PressAt).DefaultIfEmpty().Min();
                 foreach (var move in moves.Where(m => m.Use.PressAt <= first + SameTime).GroupBy(m => m.Entry).Select(g => g.MaxBy(m => m.Offset)!))
                 {
                     move.Entry.Offset = move.Offset;
                     moved[move.Entry] = moved.TryGetValue(move.Entry, out var before) ? move with { From = before.From } : move;
                 }
+
+                // A later call that a press moved so far now serves as it is is still active (MarkStillActive): its note holds
+                // no charge, and its entry may be pressed at another time, so the plan is replayed again.
+                var stillActive = moved.Count > 0
+                    && this.MarkStillActive(InPressOrder(drafts.Select(d => d with { Press = this.TimingOf(d.Entry).PressAt })), moved.Keys.ToHashSet());
+                if (moves.Count == 0 && !stillActive)
+                    break;
             }
 
+            // The gap as the sheet plans both presses (an item read as still active during the fit: as it was then).
+            double Planned(Reminder r) => planned.TryGetValue(r.Item, out var press) ? press : r.PressAt;
             foreach (var d in drafts)
             {
                 if (moved.TryGetValue(d.Entry, out var move))
-                {
-                    var gap = planned[move.Entry].Items[move.Use.ItemIndex].PressAt - planned[move.Earlier.Entry].Items[move.Earlier.ItemIndex].PressAt;
-                    this.ReportRecastFit(move, gap, moved.ContainsKey(move.Earlier.Entry));
-                }
+                    this.ReportRecastFit(move, Planned(move.Use) - Planned(move.Earlier), moved.ContainsKey(move.Earlier.Entry));
             }
         }
 
@@ -2784,10 +2987,11 @@ public sealed partial class PlanImporter
 
         /// <summary>
         /// For one seat (<paramref name="job"/>, its entries in plan order): in each chain of presses that share a recast,
-        /// the first press that finds no charge and can be pressed later (<see cref="MoveFor"/>). The presses after it are
-        /// replayed again once it has moved.
+        /// the first press that finds no charge and can be pressed later (<see cref="MoveFor"/>, no later than
+        /// <paramref name="latest"/> allows), where every seat that sees it keeps what it needs (<paramref name="keeps"/>,
+        /// <see cref="KeepsItsSeats"/>). The presses after it are replayed again once it has moved.
         /// </summary>
-        private IEnumerable<RecastMove> RecastMoves(Job job, List<PlanEntry> entries, HashSet<PlanEntry> movable)
+        private IEnumerable<RecastMove> RecastMoves(Job job, List<PlanEntry> entries, HashSet<PlanEntry> movable, Func<PlanEntry, double, bool> keeps, Func<PlanEntry, double, (double Offset, PressedLast? Before)> latest)
         {
             var reminders = new ReminderScheduler(this.fight, entries, this.options.Actions, DefaultReminders).All;
             var uses = new List<(Reminder Reminder, ActionInfo Action)>();
@@ -2807,8 +3011,7 @@ public sealed partial class PlanImporter
                 {
                     var r = chain[i].Reminder;
                     if (!states[i].HasCharge && movable.Contains(r.Entry) && IsPressedAtTheEntrysPress(r)
-                        && this.MoveFor(chain, presses, i, states[i].ReadyAt, charges) is { } move
-                        && this.KeepsItsFollowUps(job, r.Entry, r.Hit + move.Offset, reminders))
+                        && this.MoveFor(chain, presses, i, states[i].ReadyAt, charges, latest) is { } move && keeps(r.Entry, move.Offset))
                     {
                         yield return move;
                         break;
@@ -2818,27 +3021,28 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// False when pressing every item of <paramref name="entry"/> at <paramref name="press"/> would take a follow-up of
-        /// it out of the window after the last press of its trigger that <c>check</c> allows
-        /// (<see cref="PlanChecker.FollowUpWindow"/>, on the seat's <paramref name="reminders"/>): a Consolation more than
-        /// 22 s after the Summon Seraph before it finds Seraph gone, also one that <see cref="MarkStillActive"/> read from
-        /// a second Seraph. True when it is out of it already.
+        /// True when pressing every item of <paramref name="entry"/> at <paramref name="offset"/>, later than now (a move of
+        /// the recast fit or of still-active), keeps what each seat that sees it needs (<see cref="Seats"/>: the offset is
+        /// every seat's), on the presses <paramref name="timingOf"/> gives the other entries: no action of it then comes at
+        /// or after an item of another entry that is pressed last (<see cref="TimingRules.IsPressedLast"/>: Passage of Arms,
+        /// a channel any other action ends; LPDU TEA's "PLD Wings" in Extras beside a tank column's Reprisal), pressed before
+        /// its hit and not before the entry's actions now, and before that hit (<see cref="PassesPressedLast"/>);
+        /// and no follow-up of the seat, the entry's own or one whose trigger the entry presses (a Consolation after a
+        /// Summon Seraph, Divine Caress after Temperance), leaves a window after its trigger that it is in now
+        /// (<see cref="LosesAFollowUp"/>). Else false, with what the move would break for one of them in
+        /// <paramref name="broken"/>.
         /// </summary>
-        private bool KeepsItsFollowUps(Job job, PlanEntry entry, double press, IReadOnlyList<Reminder> reminders)
+        private bool KeepsItsSeats(PlanEntry entry, double offset, Func<PlanEntry, EntryTiming> timingOf, out string? broken)
         {
-            foreach (var r in reminders)
+            broken = null;
+            var timings = new Dictionary<PlanEntry, EntryTiming>();
+            EntryTiming Of(PlanEntry e) => timings.TryGetValue(e, out var timing) ? timing : timings[e] = timingOf(e);
+            var after = this.TimingAt(entry, offset);
+            foreach (var (job, seat) in this.seats.Value)
             {
-                if (!ReferenceEquals(r.Entry, entry) || r.Item.Action is not { } id || r.Item.Any != null
-                    || RecastReplay.Usable(this.options.Actions, id, job, this.level) is not { FollowUpOf: { } triggerId }
-                    || this.options.Actions.Get(triggerId) is not { } trigger || PlanChecker.FollowUpWindow(trigger, this.level) is not { } window)
-                {
-                    continue;
-                }
-
-                var triggers = reminders.Where(x => x.Item.ActionIds().Any(t => t == trigger.Id
-                    || (this.options.Actions.Get(t) is { } a && this.options.Actions.ResolveAt(a, this.level).Id == trigger.Id))).Select(x => x.PressAt).ToList();
-                bool Within(double at) => triggers.Any(t => t <= at + SameTime && at - t <= window + SameTime);
-                if (Within(r.PressAt) && !Within(press))
+                if (seat.Contains(entry))
+                    broken = this.PassesPressedLast(entry, after, seat, Of) ?? this.LosesAFollowUp(job, entry, after, seat, Of);
+                if (broken is not null)
                     return false;
             }
 
@@ -2846,9 +3050,153 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// True when the reminder's item is pressed at its entry's press time in game: every item of an entry, except the
-        /// later steps of a sequence, which follow its first step (<c>check</c> times them at the entry's press too, so a
-        /// step it finds without a charge may well have one when its turn comes).
+        /// What pressing <paramref name="entry"/> as <paramref name="after"/> times it breaks at a Passage of Arms of
+        /// <paramref name="seat"/> (<see cref="KeepsItsSeats"/>): an item pressed last of another entry, pressed before its
+        /// hit and not before the entry's actions now (<see cref="PressedLastAfter"/>), that an action of it would then
+        /// come at or after, before that hit (the player would end its channel before the hit it is for, whichever hit the
+        /// entry is for: TEA's Hand of Pain 4 hits 0.1 s before Protean 2). Null when it breaks none.
+        /// </summary>
+        private string? PassesPressedLast(PlanEntry entry, EntryTiming after, HashSet<PlanEntry> seat, Func<PlanEntry, EntryTiming> timingOf)
+        {
+            var actions = Enumerable.Range(0, entry.Do.Count).Where(i => entry.Do[i].ActionIds().Any()).ToList();
+            if (actions.Count == 0)
+                return null;
+            var then = actions.Max(i => after.Items[i].PressAt);
+            foreach (var (x, last, hit) in this.PressedLastAfter(entry, seat, timingOf))
+            {
+                if (then > last.PressAt - OffsetPrecision && then < hit)
+                    return $"it would come after the {last.Action!.Name} at {x.Mechanic}, which is pressed last";
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// The items pressed last (<see cref="TimingRules.IsPressedLast"/>: Passage of Arms, a channel any other action
+        /// ends) of the other entries of <paramref name="seat"/>, each pressed before its entry's hit and not before the
+        /// actions of <paramref name="entry"/> now, with that hit: from the item's press to the hit, a press of the entry
+        /// would end the channel (<see cref="PassesPressedLast"/>, <see cref="BeforePressedLast"/>).
+        /// </summary>
+        private IEnumerable<(PlanEntry Entry, ItemTiming Last, double Hit)> PressedLastAfter(PlanEntry entry, HashSet<PlanEntry> seat, Func<PlanEntry, EntryTiming> timingOf)
+        {
+            var actions = Enumerable.Range(0, entry.Do.Count).Where(i => entry.Do[i].ActionIds().Any()).ToList();
+            if (actions.Count == 0)
+                yield break;
+            var before = timingOf(entry);
+            var now = actions.Max(i => before.Items[i].PressAt);
+            foreach (var x in seat)
+            {
+                if (ReferenceEquals(x, entry) || !x.Do.Any(i => TimingRules.IsPressedLast(this.TimingActionOf(i))))
+                    continue;
+                var timing = timingOf(x);
+                foreach (var last in timing.Items.Where(i => TimingRules.IsPressedLast(i.Action) && i.PressAt < timing.Hit && i.PressAt >= now - SameTime))
+                    yield return (x, last, timing.Hit);
+            }
+        }
+
+        /// <summary>
+        /// The latest offset at or before <paramref name="offset"/> that presses <paramref name="entry"/> at no item pressed
+        /// last of another entry that a seat sees with it, from that item's press to its hit (<see cref="PressedLastAfter"/>):
+        /// the offset itself, else 0.1 s before that item's press, on the 0.1 s the fit writes offsets to (LPDU TEA's
+        /// "PLD Wings" in Extras, 2 s before the hit, beside Tank 1's Reprisal: 2.1 s before it at the latest), with the
+        /// item's entry and action.
+        /// </summary>
+        private (double Offset, PressedLast? Before) BeforePressedLast(PlanEntry entry, double offset, Func<PlanEntry, EntryTiming> timingOf)
+        {
+            var hit = timingOf(entry).Hit;
+            var channels = this.seats.Value.Where(s => s.Entries.Contains(entry)).SelectMany(s => this.PressedLastAfter(entry, s.Entries, timingOf)).ToList();
+            (double Offset, PressedLast? Before) latest = (offset, null);
+            for (var changed = true; changed;)
+            {
+                changed = false;
+                foreach (var (x, last, lastHit) in channels)
+                {
+                    if (hit + latest.Offset > last.PressAt - OffsetPrecision && hit + latest.Offset < lastHit)
+                    {
+                        latest = (Math.Floor(Math.Round((last.PressAt - JustBefore - hit) * 10, 6)) / 10, new PressedLast(x, last.Action!));
+                        changed = true;
+                    }
+                }
+            }
+
+            return latest;
+        }
+
+        /// <summary>
+        /// What pressing <paramref name="entry"/> as <paramref name="after"/> times it breaks at a follow-up of
+        /// <paramref name="seat"/> (<paramref name="job"/>'s; <see cref="KeepsItsSeats"/>): one of the entry's, or of another
+        /// entry whose trigger the entry presses, that is within a window after a press of its trigger now and would then
+        /// not be. The window is the trigger's longest effect (<see cref="PlanChecker.FollowUpWindow"/>: Seraph is out for
+        /// 22 s), counted as <c>check</c> counts it, from the trigger's press, and as <see cref="MarkStillActive"/> reads a
+        /// follow-up (<see cref="CoversLaterCall"/>), from its NOW cue: a Consolation more than 22 s after the Summon
+        /// Seraph before it, or after a Seraph summoned on its NOW cue, finds Seraph gone; one pressed before its Summon
+        /// Seraph finds none yet. Null when it breaks none.
+        /// </summary>
+        private string? LosesAFollowUp(Job job, PlanEntry entry, EntryTiming after, HashSet<PlanEntry> seat, Func<PlanEntry, EntryTiming> timingOf)
+        {
+            foreach (var f in seat)
+            {
+                for (var k = 0; k < f.Do.Count; k++)
+                {
+                    if (f.Do[k].Action is not { } id || f.Do[k].Any != null
+                        || RecastReplay.Usable(this.options.Actions, id, job, this.level) is not { FollowUpOf: { } triggerId } followUp
+                        || this.options.Actions.Get(triggerId) is not { } trigger || PlanChecker.FollowUpWindow(trigger, this.level) is not { } window)
+                    {
+                        continue;
+                    }
+
+                    // Only a follow-up that moves, or whose trigger the entry presses, changes.
+                    bool IsTrigger(PlanItem item) => item.ActionIds().Any(t => t == trigger.Id
+                        || (this.options.Actions.Get(t) is { } a && this.options.Actions.ResolveAt(a, this.level).Id == trigger.Id));
+                    var moves = ReferenceEquals(f, entry);
+                    if (!moves && !entry.Do.Any(IsTrigger))
+                        continue;
+
+                    // Each press of the trigger in the seat, now and with the move.
+                    var triggers = new List<(ItemTiming Now, ItemTiming Then)>();
+                    foreach (var x in seat)
+                    {
+                        for (var j = 0; j < x.Do.Count; j++)
+                        {
+                            if (IsTrigger(x.Do[j]))
+                                triggers.Add((timingOf(x).Items[j], ReferenceEquals(x, entry) ? after.Items[j] : timingOf(x).Items[j]));
+                        }
+                    }
+
+                    // check's window from the trigger's press, and still-active's from its NOW cue.
+                    bool Within(double at, bool then, bool fromCue) => triggers.Any(t => (then ? t.Then : t.Now) is var p
+                        && p.PressAt <= at + SameTime && at - (fromCue ? p.DueAt(DefaultReminders) : p.PressAt) <= window + SameTime);
+                    var now = timingOf(f).Items[k].PressAt;
+                    var then = moves ? after.Items[k].PressAt : now;
+                    if ((Within(now, false, false) && !Within(then, true, false)) || (Within(now, false, true) && !Within(then, true, true)))
+                        return $"the {followUp.Name} at {f.Mechanic} would come outside the {ImportText.Seconds(window)} s after {trigger.Name}";
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>The timing of <paramref name="entry"/> pressed at <paramref name="offset"/>; the entry is left as it was.</summary>
+        private EntryTiming TimingAt(PlanEntry entry, double offset)
+        {
+            var was = entry.Offset;
+            entry.Offset = offset;
+            var timing = this.TimingOf(entry);
+            entry.Offset = was;
+            return timing;
+        }
+
+        /// <summary>
+        /// The action that times <paramref name="item"/> (<see cref="ItemTiming.Action"/>): its action, or the first option
+        /// of an either/or, that the catalog knows; null for a note.
+        /// </summary>
+        private ActionInfo? TimingActionOf(PlanItem item) => item.ActionIds().Select(this.options.Actions.Get).FirstOrDefault(a => a is not null);
+
+        /// <summary>
+        /// True when the reminder's item is pressed when <c>check</c> times it, at its item's press (the entry's, unless the
+        /// item waits for a series floor or a later hit of its own): every item of an entry, except the later steps of a
+        /// sequence, which follow its first step in game, so a step that <c>check</c> finds without a charge at its item's
+        /// press may well have one when its turn comes.
         /// </summary>
         private static bool IsPressedAtTheEntrysPress(Reminder r) =>
             !r.Entry.Seq || r.ItemIndex == r.Entry.Do.FindIndex(i => i.ActionIds().Any());
@@ -2868,12 +3216,14 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The later press of the <paramref name="index"/>th press of <paramref name="chain"/> (replayed as
         /// <paramref name="presses"/>), which finds no charge before <paramref name="readyAt"/>: then plus the default due
-        /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>). Null when the entry is
-        /// not pressed before its hit, is a sequence whose later steps need time of their own
-        /// (<see cref="LaterStepsAreWoven"/>), the action is ready only after that, or that press would be earlier than
-        /// another item of the entry is pressed without it (<see cref="LastOffset"/>).
+        /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>), nor at an item pressed
+        /// last of another entry that a seat sees with it, before that item's hit (<paramref name="latest"/>,
+        /// <see cref="BeforePressedLast"/>: then just before it). Null when the entry is not pressed before its hit, is a
+        /// sequence whose later steps need time of their own (<see cref="LaterStepsAreWoven"/>), the action is ready only
+        /// after that, or that press would be earlier than another item of the entry is pressed without it
+        /// (<see cref="LastOffset"/>).
         /// </summary>
-        private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges)
+        private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges, Func<PlanEntry, double, (double Offset, PressedLast? Before)> latest)
         {
             var (use, action) = chain[index];
             var offset = use.PressAt - use.Hit;
@@ -2881,8 +3231,8 @@ public sealed partial class PlanImporter
             if (use.PressAt >= use.Hit || !this.LaterStepsAreWoven(use.Entry) || readyAt - use.Hit > late + SameTime)
                 return null;
             var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
-            var later = ImportText.Round(Math.Min(due, late));
-            if (later <= offset + OffsetPrecision)
+            var (later, before) = latest(use.Entry, ImportText.Round(Math.Min(due, late)));
+            if (later <= offset + OffsetPrecision || readyAt - use.Hit > later + SameTime)
                 return null;
 
             // The offset is every item's press: never one earlier than without the move (an item that waits for a later
@@ -2894,7 +3244,7 @@ public sealed partial class PlanImporter
             // comes back first.
             var spent = Enumerable.Range(0, index).Where(j => presses[j].Spends).ToList();
             var (earlier, earlierAction) = chain[spent[Math.Max(0, spent.Count - charges)]];
-            return new RecastMove(use, action, later, ImportText.Round(offset), earlier, earlierAction, charges, due > late, lead);
+            return new RecastMove(use, action, ImportText.Round(later), ImportText.Round(offset), earlier, earlierAction, charges, due > later + OffsetPrecision, lead, before);
         }
 
         /// <summary>
@@ -2931,6 +3281,7 @@ public sealed partial class PlanImporter
                 which.Add("is pressed later too");
             var earlier = $"the {move.EarlierAction.Name} at {move.Earlier.Entry.Mechanic}" + (which.Count > 0 ? ", which " + string.Join(" and ", which) : string.Empty);
             var when = !move.AtLate ? $"so that its NOW cue comes when {move.Action.Name} is ready again"
+                : move.Before is { } last ? $"just before the {last.Action.Name} at {last.Entry.Mechanic}, which is pressed last, once {move.Action.Name} is ready again"
                 : move.Lead is { Lead: { } lead } ? $"as late as the {ImportText.Seconds(lead)} s lead of {move.Lead.Name} allows, once {move.Action.Name} is ready again"
                 : $"as late as \"(Late)\" would press it, once {move.Action.Name} is ready again";
             this.Diag(DiagnosticSeverity.Info, "recast-fit",
@@ -2960,9 +3311,10 @@ public sealed partial class PlanImporter
             }
 
             var ordered = InPressOrder(this.drafts);
+            this.seats = new(() => this.Seats(new MitPlan { Fight = this.fight.Key, Assignees = assignees, Entries = ordered.Select(d => d.Entry).ToList() }));
             this.MarkStillActive(ordered);
             this.MarkSharedLimitBreaks(ordered);
-            this.FitRecasts(ordered, assignees);
+            this.FitRecasts(ordered);
 
             // A follow-up or a note that MarkStillActive put in an entry, or a press the recast fit moved, changes its press
             // time: the plan lists its entries in the order the scheduler presses them.
