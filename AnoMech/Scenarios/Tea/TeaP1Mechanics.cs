@@ -200,12 +200,12 @@ public sealed class TeaP1LivingLiquid
     private readonly Vector3[] lastSeenAt = new Vector3[2];
     private readonly SimCharacter?[] targets = new SimCharacter?[2];
     private readonly bool[] walksAfterItsTarget = new bool[2];
+    private readonly bool[] hasYetToBeShownItsTarget = new bool[2];
 
     private readonly List<(TeaP1Tornado From, SimTether Tether)> drainageTethers = [];
     private readonly List<SimEnemy> emboli = [];
     private bool embolusBurst;
     private bool fallen;
-    private bool theHandHasYetToBeShownItsTarget;
     private float timelineEndsAt;
 
     public TeaP1LivingLiquid(SimWorld world, TeaP1Presses presses)
@@ -283,20 +283,11 @@ public sealed class TeaP1LivingLiquid
         lastSeenAt[(int)boss] = placement.Position;
     }
 
-    // The split, from an event: the client has the new actor only some frames later and drops what is written to it
-    // before, so the Hand is shown its target again once it is there. Its first cast comes long after. UNVERIFIED:
-    // that it starts on the off tank's seat; the fight's goes to whoever holds its enmity.
+    // The split, from an event; the Hand's first cast comes long after. UNVERIFIED: that it starts on the off tank's
+    // seat; the fight's goes to whoever holds its enmity.
     private void TheHandAppears()
     {
         Spawn(TeaP1Boss.LiquidHand, new Placement(P1Geometry.HandAppearsOn, 0f));
-        theHandHasYetToBeShownItsTarget = Hand is { PacketSpawnPending: true };
-        TurnTo(TeaP1Boss.LiquidHand);
-    }
-
-    private void ShowTheHandItsTargetOnceItIsThere()
-    {
-        if (!theHandHasYetToBeShownItsTarget || Hand is { PacketSpawnPending: true }) return;
-        theHandHasYetToBeShownItsTarget = false;
         TurnTo(TeaP1Boss.LiquidHand);
     }
 
@@ -331,11 +322,21 @@ public sealed class TeaP1LivingLiquid
         if (world.Party.Get(PartyRole.OffTank) is { } offTank) SetTarget(TeaP1Boss.LiquidHand, offTank);
     }
 
+    // The client has a spawned actor only some frames after its spawn and drops what is written to it before: a boss
+    // turned to its target that early is shown it again once it is there.
     private void TurnTo(TeaP1Boss boss)
     {
         if (bosses[(int)boss] is not { } enemy || !enemy.IsAlive() || targets[(int)boss] is not { } target || !target.IsAlive()) return;
+        hasYetToBeShownItsTarget[(int)boss] = enemy.PacketSpawnPending;
         enemy.SetTarget(target, follow: false);
         enemy.KeepFacing(target);
+    }
+
+    private void ShowEachBossItsTargetOnceItIsThere()
+    {
+        foreach (var boss in Enum.GetValues<TeaP1Boss>())
+            if (hasYetToBeShownItsTarget[(int)boss] && bosses[(int)boss] is { PacketSpawnPending: false })
+                TurnTo(boss);
     }
 
     // A Provoke on either boss gives it to whoever pressed it, P1Duration.ProvokeTakesHold after the press.
@@ -766,7 +767,7 @@ public sealed class TeaP1LivingLiquid
         Position(TeaP1Boss.LivingLiquid);
         Position(TeaP1Boss.LiquidHand);
         if (fallen) return;
-        ShowTheHandItsTargetOnceItIsThere();
+        ShowEachBossItsTargetOnceItIsThere();
         EachBossWalksAfterATargetOutOfReach();
         Tornadoes.KillWhoeverEntersAPuddle();
         Dolls.Tick();

@@ -71,7 +71,9 @@ public sealed class TeaP1JagdDoll
 //
 // No damage is played, so a doll's health is scripted from its tether and no doll dies. UNVERIFIED: that a doll nobody
 // has hit is never fed (seen only in a doll's first 0.75 s), that one can be fed from its first hit, before its tether
-// shows, and that an auto-attack alone tethers none (the run hears no auto-attack).
+// shows, that an auto-attack alone tethers none (the run hears no auto-attack), that a doll fed with a quarter of its
+// health or more kills everyone, where the fight's hits hard enough to kill most of a party, and that an explosion
+// reaches the sheet's 8 y past a player's hitbox.
 public sealed class TeaP1JagdDolls
 {
     internal const string LuminousAetheroplasmBurst =
