@@ -11,14 +11,14 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
     private const float DollHitbox = 0.8f, PlayerHitbox = 0.5f;
     private const float ExhaustReach = 8f + DollHitbox;
     private const float StandsStillWithin = 0.3f;
-    private const double FedBeyondTheLineBy = 0.1, FedShortOfTheLineBy = 0.25;
+    private const double FedBeyondTheLineBy = 0.1, FedShortOfTheLineBy = 0.25, TethersWithin = 0.15;
     private const int FeedsThatShowTheLine = 20;
 
     private readonly List<double> dollStandOff = [], untouchedPasses = [], untouchedPassesAfterTargetable = [];
     private readonly List<string> untouchedDetails = [];
     private int untouchedDolls, untouchedFed;
 
-    private readonly List<double> dollRadii = [], tetherAfterTargetable = [], exhaustAfterTargetable = [], exhaustAgain = [], exhaustHit = [], exhaustMissed = [];
+    private readonly List<double> dollRadii = [], tetherAfterTargetable = [], tetherAfterItsHit = [], exhaustAfterTargetable = [], exhaustAgain = [], exhaustHit = [], exhaustMissed = [];
     private readonly List<double> aetheroplasm = [], fedAfterTether = [], fedApart = [], dollSpeeds = [];
     private readonly List<string> dollBearings = [], dollBearingsFromTheOpenQuarter = [], tetherDetails = [], feeds = [], stacks = [];
     private readonly List<(double Share, int Hit, int Killed)> fed = [];
@@ -64,7 +64,11 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
                 dollTethers++;
                 if (targetable is { } shown) tetherAfterTargetable.Add(PullLog.Seconds(shown, tether.Time));
                 var first = pull.Hits.Where(h => h.Target == doll.Actor && ActorIds.IsPlayer(h.Source)).Cast<ActHit?>().FirstOrDefault();
-                if (first?.Source == tether.Target) tethersToTheFirstToActOnIt++;
+                if (first?.Source == tether.Target)
+                {
+                    tethersToTheFirstToActOnIt++;
+                    tetherAfterItsHit.Add(PullLog.Seconds(first.Value.Time, tether.Time));
+                }
                 tetherDetails.Add($"{pull.Name}: a doll tethers {pull.Who(tether.Target)} at {Spread.F(pull.Clock(tether.Time))} s; the first player's action on it: "
                                   + (first is { } f ? $"{pull.Who(f.Source)}'s {pull.ActionName(f.Action)} at {Spread.F(pull.Clock(f.Time))} s" : "none"));
             }
@@ -286,13 +290,17 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
             : Math.Abs(radii.Mean - P1Geometry.JagdDollRing) <= 0.1 && dollBearings.All(b => P1Geometry.JagdDollBearings.Any(own => Spread.F(own, "0.0") == b)) ? Verdict.Matches
             : Verdict.Differs);
 
-        var tethers = new Spread(tetherAfterTargetable);
+        var (tethers, afterItsHit) = (new Spread(tetherAfterTargetable), new Spread(tetherAfterItsHit));
         yield return new LogFinding(Section, "Whom a doll tethers", SimSource.Line(TeaSource.Dolls, "doll.Holder = strike.By;"),
             $"the first player whose weaponskill or spell on it is heard, {P1Duration.DollTethersAfterItsFirstHit} s after the press; an auto-attack is not heard",
             dollTethers == 0 ? "no doll's tether"
                 : $"{tethersToTheFirstToActOnIt} of {dollTethers} tethers go to the first player whose action hit the doll, {tethers.Describe(" s")} after the dolls "
-                  + "turn targetable",
-            dollTethers == 0 ? Verdict.NotInTheseLogs : 20 * tethersToTheFirstToActOnIt >= 19 * dollTethers ? Verdict.Matches : Verdict.Differs)
+                  + "turn targetable"
+                  + (afterItsHit.Count == 0 ? "" : $" and a median {Spread.F(afterItsHit.Median)} s after that action ({afterItsHit.Describe(" s")})"),
+            dollTethers == 0 ? Verdict.NotInTheseLogs
+            : 20 * tethersToTheFirstToActOnIt < 19 * dollTethers ? Verdict.Differs
+            : afterItsHit.Count > 0 && Math.Abs(afterItsHit.Median - P1Duration.DollTethersAfterItsFirstHit) > TethersWithin ? Verdict.Differs
+            : Verdict.Matches)
         {
             Details = tetherDetails,
         };

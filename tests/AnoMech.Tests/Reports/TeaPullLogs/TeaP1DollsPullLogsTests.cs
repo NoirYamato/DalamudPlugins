@@ -147,6 +147,45 @@ public class TeaP1DollsPullLogsTests
         Assert.That(feeding.Verdict, differs ? Is.EqualTo(Verdict.Differs) : Is.Not.EqualTo(Verdict.Differs));
     }
 
+    // Twenty feeds show where the line lies: with none of them within a quarter yalm of it, it is drawn too far out.
+    [TestCase(4.2f, true)]
+    [TestCase(4.5f, false)]
+    public void TwentyFeedsWithNoneNearTheFeedLineSayItLiesNearer(float farthest, bool differs)
+    {
+        var spot = new Vector2(102.68f, 106.47f);
+        var dolls = Enumerable.Range(0, 20).Select(k => 0x40000080u + (uint)k).ToList();
+        var feeding = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            .. dolls.SelectMany(doll => new[]
+            {
+                Enemy(32.6, doll, TeaLogIds.JagdDoll, spot, 0f, 43540, 43540), NameToggle(33.4, doll, true),
+                Hit(34.0, Player(1), 31, doll), Tether(34.6, doll, Player(1), TeaLogIds.DollTether),
+            }),
+            Moved(39.0, Hand, spot + new Vector2(farthest, 0f), 0f),
+            .. dolls.Select(doll => Tether(40.0, doll, Hand, TeaLogIds.FeedTether)),
+        ], [LiquidStands()])).Named("Feeding a doll");
+
+        Assert.That(feeding.Measured, Does.Contain("n=20").And.Contain($"the farthest {Spread.F(farthest)} y"));
+        Assert.That(feeding.Verdict, differs ? Is.EqualTo(Verdict.Differs) : Is.Not.EqualTo(Verdict.Differs));
+    }
+
+    // The tether shows this long after the first player's action on the doll; the sim's is 0.6 s after the press.
+    [TestCase(0.62, true)]
+    [TestCase(0.9, false)]
+    public void ADollsTetherIsHeldToTheDelayAfterItsFirstHit(double after, bool matches)
+    {
+        var tethers = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, new Vector2(102.68f, 106.47f), 0f, 43540, 43540), NameToggle(33.4, Doll1, true),
+            Hit(34.0, Player(1), 31, Doll1), Tether(34.0 + after, Doll1, Player(1), TeaLogIds.DollTether),
+        ])).Named("Whom a doll tethers");
+
+        Assert.That(tethers.Measured, Does.StartWith("1 of 1 tethers go to the first player whose action hit the doll")
+                                          .And.Contain($"a median {Spread.F(after)} s after that action"));
+        Assert.That(tethers.Verdict, Is.EqualTo(matches ? Verdict.Matches : Verdict.Differs));
+    }
+
     // A boss that walks past a doll a player has acted on already says nothing of the rule.
     [Test]
     public void ABossThatPassesADollAfterItsFirstHitIsLeftOut()
