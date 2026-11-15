@@ -1400,8 +1400,17 @@ public sealed partial class PlanImporter
             }
 
             // What the last token says in parentheses is the remark of the whole item ("Dismantle + Feint (on BJ)", or "(^on BJ)"
-            // below the cell): a group the item splits into without that token gets it too (below).
-            var remark = this.HintNotes(null, last.Token, last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming).ToList();
+            // below the cell): a group the item splits into without that token gets it too (below). Of it, a group whose calls
+            // say something of their own ("Dismantle (on BJ) + Feint (on CC)") takes only what speaks for every call: a timing
+            // or a condition, which its calls take too (above), and what a caret below the cell says (AttachCarets).
+            var lastTiming = last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming;
+            var remark = this.HintNotes(null, last.Token, lastTiming).ToList();
+            var carets = this.caretRemarks.TryGetValue((row.Tab, row.Row.Index, cell.Column.Index), out var below) ? below : [];
+            var forEveryCall = this.HintNotes(null, last.Token with
+            {
+                Hints = [.. last.Token.Hints.Where(h => carets.Contains(h.Trim(), StringComparer.OrdinalIgnoreCase) || HintParser.Condition(h) is not null
+                    || !HintParser.Parse(null, [h], this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId).IsNone)],
+            }, lastTiming).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             // A target in parentheses that no action is used on ("Asylum (melee)", "Kera (party)": where to place it, whom
             // it is for) stays in the note, as any other parenthetical; a sequence keeps it as its target.
@@ -1441,9 +1450,13 @@ public sealed partial class PlanImporter
             {
                 // A group apart from the last token's only because of whose its calls are keeps the item's remark ("Dismantle +
                 // Feint (on BJ)": the Machinist's Dismantle is on BJ too; "PLD Wings + Feint (if 7 people)": the Paladin's
-                // optional call says why). One with a timing, condition or target of its own keeps its own words.
+                // optional call says why). One with a timing, condition or target of its own keeps its own words, and so does
+                // one whose calls say something of their own, an action call in its notes, a note for everyone in its text
+                // ("Dismantle (on BJ) + Feint (on CC)": the Dismantle is on BJ only; "(on CD)" says nothing of its own).
                 var apart = anyone && !groups[g].Contains(last) && same(groups[g][0]) == same(last);
-                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = remark } : shared, candidates, header);
+                var ownWords = groups[g].Any(t => t.Kind == TokenKind.Actions ? t.Notes.Count > 0 : t.Token.Target is not null || this.HintNotes(null, t.Token, HintTiming.None).Any());
+                var groupRemark = ownWords ? remark.Where(forEveryCall.Contains).ToList() : remark;
+                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = groupRemark } : shared, candidates, header);
             }
         }
 
@@ -1515,7 +1528,8 @@ public sealed partial class PlanImporter
         /// <param name="Optional">The item comes from a note that says the action "can" be used.</param>
         /// <param name="Remark">
         /// What the item's last token says in parentheses, for a group of a column for anyone that the item splits into without
-        /// that token (<see cref="ImportItem"/>); empty for the others.
+        /// that token (<see cref="ImportItem"/>), of it only what speaks for every call when the group's calls say something of
+        /// their own; empty for the others.
         /// </param>
         private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional, IReadOnlyList<string> Remark);
 

@@ -448,6 +448,31 @@ public class ImportLayoutRulesTests
         Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("Dismantle (on BJ) + Feint (on CC)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]
+    [InlineData("Feint (on CC) + Dismantle (on BJ)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]
+    [InlineData("Dismantle (Stack) + Addle (Spread)", "", Job.MCH, "Stack", "note:Addle", "Spread")]
+    [InlineData("Dismantle (BJ) + Addle (CC)", "", Job.MCH, "BJ", "note:Addle", "CC")]
+    [InlineData("Use Personals (on CC) + PLD Wings (on BJ)", "", Job.PLD, "on BJ", "note:Use Personals (on CC)", null)]
+    [InlineData("Dismantle (MT) + Feint (on BJ)", "", Job.MCH, "MT", "note:Feint", "on BJ")]
+    [InlineData("Dismantle (Stack) + Feint (Spread)", "(^on BJ)", Job.MCH, "Stack; on BJ", "note:Feint", "Spread; on BJ")]
+    [InlineData("Dismantle (Stack) + Feint", "(^on BJ)", Job.MCH, "Stack; on BJ", "note:Feint", "on BJ")] // a caret speaks for every call
+    [InlineData("Dismantle (on BJ) + Feint (late)", "", Job.MCH, "on BJ; late", "note:Feint", "late")] // so do a timing
+    [InlineData("PLD Wings (on BJ) + Feint (if 7 people)", "", Job.PLD, "on BJ; if 7 people", "note:Feint", "if 7 people")] // and a condition
+    [InlineData("Dismantle (on CD) + Feint (on BJ)", "", Job.MCH, "on BJ", "note:Feint", "on BJ")] // "on CD" says nothing of its own
+    public void ExtrasColumn_CallWithWordsOfItsOwn_KeepsThem_AndTakesOnlyWhatSpeaksForEveryCall(string cell, string below, Job job, string ownNote, string other, string? otherNote)
+    {
+        // Parentheses after each call are that call's own: the last call's do not speak for a call that says something of
+        // its own, except a timing or a condition, and a caret below the cell speaks for all of it.
+        var entries = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", cell], ["Pantokrator", "", below])).Plan.At("'P1'!C2");
+
+        Assert.Equal(2, entries.Count);
+        var own = Assert.Single(entries, e => e.Who.Job is not null);
+        Assert.Equal((job, ownNote), (own.Who.Job!.Value, own.Note));
+        var note = Assert.Single(entries, e => e.Who.Job is null);
+        Assert.Equal((other, otherNote), (note.Names().Single(), note.Note));
+    }
+
     [Fact]
     public void ExtrasColumn_SequenceWithASharedStep_StaysOneNote()
     {

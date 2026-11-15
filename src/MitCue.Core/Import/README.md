@@ -214,8 +214,10 @@ Rules worth knowing:
   name a job's own action keep their jobs' entries, the others are one entry for everyone (`Dismantle + Feint`: a
   Machinist's Dismantle and the note "Feint"; `PLD Wings + Use Personals`: a Paladin's Passage of Arms and the note
   "Use Personals"). The cell's remark in parentheses or below a caret stays on every entry it splits into (`Dismantle +
-  Feint (on BJ)`: the Dismantle is on BJ too). The column is imported whatever columns are chosen, is not in
-  `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
+  Feint (on BJ)`: the Dismantle is on BJ too); a call with words of its own keeps them, and takes from the last call's
+  parentheses only a timing or condition and what a caret below the cell says (`Dismantle (on BJ) + Feint (on CC)`: the
+  Dismantle is on BJ only; `Dismantle (on BJ) + Feint (late)`: late too). The column is imported whatever columns are
+  chosen, is not in `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
 - **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
   column and section, after each of its items, so that it speaks for all of the cell (`Soil / Expedient` with `^ late`
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when
