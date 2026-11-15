@@ -237,20 +237,21 @@ Rules worth knowing:
   name Soil and Kera; a `note-row` info says so).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
   Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
-  later call as the reminders time both (`TimingRules.ForEntry`), used on its NOW cue (the default due lead). A note says
-  that the earlier effect covers the later hit: it outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as
-  the reminders count it covering one (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s
-  barrier). A follow-up needs the action only when it is used, its own effect covering the hit: it is pressed within
-  `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
-  Water 2). An earlier press without a time in the sheet that falls short is pressed later so that it serves both
-  (TEA's Hidden Mines Temperance −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead
-  of a `when: before` action that is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), and never so that another of
-  its items is pressed earlier than without it (the offset is every item's press: a Reprisal that waits for a later
-  hit keeps its press); otherwise both stay presses (a `still-active` info), and `check` reports the recast. An
-  optional earlier press (in brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff
-  up. A limit break written for one role in columns of different slots at one mechanic is optional, noted "or Tank 2"
-  (`shared-limit-break`), whichever of those columns are imported: a tank who imports only their own column gets it
-  optional too.
+  later call as the reminders time both (`TimingRules.ForEntry`), each at the press of its own item, used on that item's
+  NOW cue (the default due lead; an item may be pressed later than its entry: an instant Sacred Soil beside a Succor on
+  a later hit of a series waits for the hit before it). A note says that the earlier effect covers the later hit: it
+  outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as the reminders count it covering one
+  (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s barrier). A follow-up needs the
+  action only when it is used, its own effect covering the hit: it is pressed within `check`'s follow-up window, the
+  action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after Water 2). An earlier press
+  without a time in the sheet that falls short is pressed later so that it serves both (TEA's Hidden Mines Temperance
+  −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead of a `when: before` action that
+  is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), and never so that another of its items is pressed earlier than
+  without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press); otherwise both
+  stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in brackets, with a
+  condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written for one role in
+  columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those
+  columns are imported: a tank who imports only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,

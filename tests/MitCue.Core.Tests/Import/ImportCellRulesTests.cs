@@ -690,6 +690,42 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void PartyBuffNamedAgain_AnItemPressedLaterThanItsEntry_IsTimedAsItsOwnReminder()
+    {
+        // A later hit of a series: "Succor + Soil" on Wave 2 is timed by the Succor's 2 s cast, 98.5, and the instant Soil
+        // waits for wave 1 + 0.3 s (its NOW cue 100.3). Used then, its 15 s last 1.8 s past Bravo, where it is named
+        // again: a note, and one Sacred Soil. Taken at the entry's NOW cue (98.3), it would fall short, and no press up to
+        // the Succor's "(Late)" -3 s would help: both would stay presses, two Soils 8.7 s apart.
+        var fight = Fight(90, ("Waves", [100, 103], true), ("Wave 1", [100], false), ("Wave 2", [103], false), ("Bravo", [113.5], false));
+        var r = Import(Sheet("P1", "Scholar", "Wave 2\tSuccor + Soil", "Bravo\tSoil"), fight: fight);
+
+        var wave = r.Plan.Entries.Single(e => e.Mechanic == "p1.wave_2");
+        Assert.Null(wave.Offset);
+        var timing = TimingRules.ForEntry(wave, fight.GetMechanic(wave.Mechanic)!, fight, RepoFiles.Actions);
+        Assert.Equal([98.3, 100.3], timing.Items.Select(i => Math.Round(i.DueAt(new ReminderOptions()), 3)));
+        Assert.Equal(["note:Sacred Soil (still active)"], r.Plan.Entries.Single(e => e.Mechanic == "p1.bravo").Names());
+        Assert.Contains("is planned 8.7 s after the Sacred Soil at p1.wave_2", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SeraphNamedAgain_ItsConsolationPressedLaterThanItsEntry_KeepsSeraphOutUntilThen()
+    {
+        // "Succor + Seraph" on Wave 2 reads its Seraph as the Consolation for the Seraph at Alpha, an instant that waits for
+        // wave 1 + 0.3 s (100.3) while the Succor times the entry (98.5). Summoned on its NOW cue at its automatic -3 s
+        // (77.5), Seraph would be gone 0.8 s before that: the Seraph at Alpha is pressed 2.2 s before its hit, so that it is
+        // still out when the Consolation is used.
+        var fight = Fight(90, ("Alpha", [82], false), ("Waves", [100, 103], true), ("Wave 1", [100], false), ("Wave 2", [103], false));
+        var r = Import(Sheet("P1", "Scholar", "Alpha\tSeraph", "Wave 2\tSuccor + Seraph"), fight: fight);
+
+        Assert.Equal(-2.2, r.Plan.Entries.Single(e => e.Mechanic == "p1.alpha").Offset);
+        var wave = r.Plan.Entries.Single(e => e.Mechanic == "p1.wave_2");
+        Assert.Equal(["Succor", "Consolation"], wave.Names());
+        var timing = TimingRules.ForEntry(wave, fight.GetMechanic(wave.Mechanic)!, fight, RepoFiles.Actions);
+        Assert.Equal([98.5, 100.3], timing.Items.Select(i => Math.Round(i.PressAt, 3)));
+        Assert.Contains("pressed 2.2 s before its hit instead of 3.0 s, so that it still lasts when Consolation is used", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void LimitBreakInTwoColumns_IsOptional_ForWhoeverHasIt()
     {
         var r = Import(Sheet("P5", "Tank 1\tTank 2\tH1", "Run: Dynamis\tLB3\tLB3\tLB3"));

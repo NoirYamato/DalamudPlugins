@@ -2483,11 +2483,13 @@ public sealed partial class PlanImporter
         /// either/or) may not be pressed, so it keeps no buff up.
         /// </summary>
         /// <remarks>
-        /// The earlier press must still serve the later call as the reminders time both (<see cref="CoversLaterCall"/>): a
-        /// note says that the effect covers the later hit, a follow-up needs the action only when it is used (Seraph out for
-        /// the Consolation). An earlier entry without a time in the sheet is pressed later when that makes it serve both
-        /// (TEA's Hidden Mines Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2). Otherwise
-        /// the later call stays a press, and <c>check</c> reports the recast the sheet asks for.
+        /// The earlier press must still serve the later call as the reminders time both (<see cref="CoversLaterCall"/>),
+        /// each at its own item's press and NOW cue (an item may be pressed later than its entry: an instant Sacred Soil
+        /// beside a Succor on a later hit of a series waits for the hit before it): a note says that the effect covers the
+        /// later hit, a follow-up needs the action only when it is used (Seraph out for the Consolation). An earlier entry
+        /// without a time in the sheet is pressed later when that makes it serve both (TEA's Hidden Mines Temperance 3.5 s
+        /// before its hit instead of 6 s, so that it lasts through Water 2). Otherwise the later call stays a press, and
+        /// <c>check</c> reports the recast the sheet asks for.
         /// </remarks>
         private void MarkStillActive(List<Draft> ordered)
         {
@@ -2498,6 +2500,7 @@ public sealed partial class PlanImporter
             {
                 var e = d.Entry;
                 var timing = this.TimingOf(e); // as the sheet plans it, before an item of it is read as still active
+                var left = 0; // items left out so far: item i is item i + left as the sheet plans it
                 for (var i = 0; i < e.Do.Count; i++)
                 {
                     if (e.Do[i].Action is not { } id || this.options.Actions.Get(id) is not { } action)
@@ -2515,9 +2518,12 @@ public sealed partial class PlanImporter
                         continue;
                     }
 
+                    // Each press is its item's: an item may be pressed later than its entry (TimingRules.ForEntry: a series
+                    // floor of its own, a later hit it reaches on its own), and its reminder is the one the player answers.
                     var earlier = prev.Draft.Entry;
                     var lasts = $"the {action.Name} at {earlier.Mechanic}, which lasts {ImportText.Seconds(duration)} s (recast {ImportText.Seconds(recast)} s)";
-                    var gap = timing.PressAt - this.TimingOf(earlier).PressAt;
+                    var press = timing.Items[i + left].PressAt;
+                    var gap = press - ItemOf(this.TimingOf(earlier), earlier, id).PressAt;
                     var follow = action.FollowUps.Select(f => this.options.Actions.Get(f.Id))
                         .FirstOrDefault(f => f is not null && f.AvailableAt(this.level) && (e.Who.Job is not { } job || f.UsableBy(job)));
 
@@ -2527,9 +2533,9 @@ public sealed partial class PlanImporter
                     var readAs = follow is null ? PlanItem.ForNote(action.Name + " (still active)")
                         : e.Do.Any(x => x.Action == follow.Id) ? null : PlanItem.ForAction(follow.Id, follow.Name);
                     var serves = follow is null
-                        ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, timing.PressAt), TimingRules.CoverageDuration(action, this.level) ?? duration)
-                        : this.PressReadAs(e, i, readAs) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
-                    if (gap >= duration || !this.CoversLaterCall(earlier, prev.Movable, serves, out var movedFrom))
+                        ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, press), TimingRules.CoverageDuration(action, this.level) ?? duration)
+                        : this.PressReadAs(e, i, readAs, follow.Id) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+                    if (gap >= duration || !this.CoversLaterCall(earlier, id, prev.Movable, serves, out var movedFrom))
                     {
                         // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
                         if (gap < duration)
@@ -2548,6 +2554,7 @@ public sealed partial class PlanImporter
                     if (readAs is null)
                     {
                         e.Do.RemoveAt(i--);
+                        left++;
                         now = $"left out (its follow-up {follow!.Name} is already there)";
                     }
                     else
@@ -2561,16 +2568,17 @@ public sealed partial class PlanImporter
                         ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it {(follow is null ? "lasts through this one" : $"still lasts when {follow.Name} is used")}."
                         : string.Empty;
                     this.Diag(DiagnosticSeverity.Info, "still-active",
-                        $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(timing.PressAt - this.TimingOf(earlier).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
+                        $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(press - ItemOf(this.TimingOf(earlier), earlier, id).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
                         e.Src);
                 }
             }
         }
 
         /// <summary>
-        /// Whether the <paramref name="earlier"/> press still serves a later call of its action, as the reminders time both
-        /// (<see cref="TimingRules.ForEntry"/>): used when its reminder turns due (the default due lead,
-        /// <see cref="EntryTiming.DueAt"/>), it is no earlier than <paramref name="from"/>, the earliest use that serves the
+        /// Whether the <paramref name="earlier"/> press of <paramref name="action"/> still serves a later call of it, as
+        /// the reminders time both (<see cref="TimingRules.ForEntry"/>): used when the reminder of its item turns due (the
+        /// default due lead, <see cref="ItemTiming.DueAt"/>; an item may turn due later than its entry, for a series floor
+        /// or a later hit of its own), it is no earlier than <paramref name="from"/>, the earliest use that serves the
         /// later call (<see cref="MarkStillActive"/>). For a note that is the earliest use whose effect outlasts the later
         /// hit, or the later press when that comes after the hit, by the expiry margin, for as long as the reminders count
         /// it covering a hit (<see cref="TimingRules.EarliestCoveringUse"/>, <see cref="TimingRules.CoverageDuration"/>:
@@ -2580,14 +2588,15 @@ public sealed partial class PlanImporter
         /// later so that it serves both, if it is then still pressed before its own hit, no later than "(Late)" would press
         /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>), and no other item of it earlier than
         /// without the move (<see cref="LastOffset"/>: the offset is every item's press, and an item may be pressed later
-        /// than the entry, for a later hit or a series floor of its own, or last); <paramref name="movedFrom"/> is then its
-        /// automatic offset before.
+        /// than the entry, for a later hit or a series floor of its own, or last); <paramref name="movedFrom"/> is then the
+        /// automatic offset of its item before.
         /// </summary>
-        private bool CoversLaterCall(PlanEntry earlier, bool movable, double from, out double? movedFrom)
+        private bool CoversLaterCall(PlanEntry earlier, uint action, bool movable, double from, out double? movedFrom)
         {
             movedFrom = null;
             var before = this.TimingOf(earlier);
-            if (before.DueAt(DefaultReminders) >= from - OffsetPrecision)
+            var item = ItemOf(before, earlier, action);
+            if (item.DueAt(DefaultReminders) >= from - OffsetPrecision)
                 return true;
 
             // Pressed later, with its reminder due at the earliest use that still serves the later call.
@@ -2599,23 +2608,31 @@ public sealed partial class PlanImporter
             // or a series floor of its own, or comes last), which would lose what it waits for.
             if (offset < LastOffset(before) - OffsetPrecision)
                 return false;
-            movedFrom = before.Offset;
+            movedFrom = item.PressAt - before.Hit;
             earlier.Offset = offset;
             return true;
         }
 
         /// <summary>
-        /// The press time of <paramref name="entry"/> with its <paramref name="index"/>th item read as <paramref name="item"/>,
-        /// or left out when that is null (<see cref="MarkStillActive"/>); the entry is left as it was.
+        /// The timing of the (first) item of <paramref name="entry"/> that presses <paramref name="action"/>, which it has
+        /// (<see cref="MarkStillActive"/>), from the entry's <paramref name="timing"/>.
         /// </summary>
-        private double PressReadAs(PlanEntry entry, int index, PlanItem? item)
+        private static ItemTiming ItemOf(EntryTiming timing, PlanEntry entry, uint action) => timing.Items[entry.Do.FindIndex(i => i.Action == action)];
+
+        /// <summary>
+        /// The press time of the <paramref name="followUp"/> of <paramref name="entry"/> with its <paramref name="index"/>th
+        /// item read as <paramref name="item"/>, or left out when that is null and the entry has the follow-up already
+        /// (<see cref="MarkStillActive"/>): its item's own press (<see cref="ItemTiming.PressAt"/>). The entry is left as it
+        /// was.
+        /// </summary>
+        private double PressReadAs(PlanEntry entry, int index, PlanItem? item, uint followUp)
         {
             var was = entry.Do[index];
             if (item is null)
                 entry.Do.RemoveAt(index);
             else
                 entry.Do[index] = item;
-            var press = this.TimingOf(entry).PressAt;
+            var press = ItemOf(this.TimingOf(entry), entry, followUp).PressAt;
             if (item is null)
                 entry.Do.Insert(index, was);
             else
