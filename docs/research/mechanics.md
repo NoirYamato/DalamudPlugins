@@ -1284,14 +1284,21 @@ anchor on and to sync:
   (`docs/DESIGN.md` §5.1, §5.2); for a call led by a shield with a cast (the shield times the call), and for a call
   that lists Neutral Sect anywhere (the cast of the Helios that puts up its barrier, `barrier_cast: 1.5` in
   `actions.yaml`), both are earlier by that cast, so that the shield or barrier lands then, unless the call lists
-  Swiftcast (`instant_next_cast`), which makes the spell instant (`Swiftcast/Succor` on J Wave 5: both at 720.2). A
-  cast shield beside another action that times the call waits for the call's floor (`Soil + Succor` on J Wave 5:
-  both at 720.2). Each action of a call has its own floor, never earlier than the call's; a buff, movement or other
-  action without a lead of its own (Recitation, Emergency Tactics, Dissipation, Protraction), a note or an unknown
-  action keeps the call's floor and comes with the cast it changes (`Reci → Succor` on J Wave 5: both at 718.4), but
-  a Summon Seraph waits with the Consolation of its call. With an automatic press, a step of a sequence waits for no
-  later floor than the step after it (`Indom → Succor` on J Wave 5: both at 718.4, so that the Succor still lands
-  between the waves). Most default leads (3–6 s; Passage of Arms 2 s) are as long as the 3 s between waves or
+  Swiftcast or Lightspeed (`instant_next_cast`), which make the spell instant (on J Wave 5, `Swiftcast/Succor` and
+  `Lightspeed + Neutral Sect`: both at 720.2; Neutral Sect alone at 718.7). A cast shield beside another action that
+  times the call waits for the call's floor (`Soil + Succor` on J Wave 5: both at 720.2). Each action of a call has
+  its own floor, never earlier than the call's; a buff, movement or other action without a lead of its own
+  (Recitation, Emergency Tactics, Dissipation, Protraction), a note or an unknown action keeps the call's floor and
+  comes with the cast it changes (`Reci → Succor` on J Wave 5: both at 718.4). A trigger of follow-ups keeps its own
+  floor, so that its window still reaches them: in `Seraph + Succor` on J Wave 5, Summon Seraph is at 720.2 and the
+  Succor at 718.4, and a Consolation seven waves later (J Wave 12, 741.2) still finds Seraph out; beside Neutral Sect
+  (718.7), Minor Arcana, Play II and Play III wait for 720.2, and so does the Arrow of a call that lists its Play II.
+  With an automatic press, a step of a sequence that keeps the call's floor, or a heal used after the hit, waits for
+  no later floor than the step after it (`Indom → Succor` on J Wave 5: both at 718.4, NOW at 718.2, so that the Succor
+  still lands between the waves); any other step keeps its own floor, and the steps after it wait for it (on J Wave 5,
+  `Seraph → Consolation → Succor` and `Intersection → Neutral Sect`: all at 720.2, so that wave 4 does not take the
+  Consolation or the Intersection; `Indom → Consolation → Adlo` on J Wave 7: all at 726.2). Most default leads (3–6 s;
+  Passage of Arms 2 s) are as long as the 3 s between waves or
   longer, so a shield would be spent on wave n − 1, and 15–20 s mitigation would end before the last, strongest
   waves it should cover. Most calls on LPDU's "Jwaves (4)", "(6)" and "(8)" rows are pressed at 720.2, 726.2 and
   732.2, and turn NOW then, with no lead. Passage of Arms ('Alex Prime/PA'!M23) keeps its −2 s at J Wave 7 (726.9)

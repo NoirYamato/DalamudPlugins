@@ -196,10 +196,15 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     call timed by its Succor (a 2 s cast), one that starts with the Succor or with a buff, a note or a heal
     used after the damage before it, turns NOW 1.7 s before that wave, so that the Succor lands just after
     it. Its buffs and notes come with the Succor (*Reci → Succor*), and so does such a heal as a step before
-    it (*Indom → Succor*), while its other instant actions still wait for the wave (the Scholar's Sacred Soil,
-    and Summon Seraph with its Consolation). A call that starts with mitigation or a regen waits for the
-    wave, its Succor too (*Soil → Succor*, *Whisper → Succor*), and so does one with *Swiftcast*, which makes
-    the Succor instant. Neutral Sect turns NOW 1.2 s before it, so that its Helios lands just after it.
+    it (*Indom → Succor*), while its other instant actions still wait for the wave (the Scholar's Sacred Soil
+    and Consolation). So does Summon Seraph, so that Seraph (22 s) is still out for a Consolation seven waves
+    later: after *Seraph + Succor* on J Wave 5, a *Seraph* call on J Wave 12 is read as that Consolation. A call
+    that starts with mitigation or a regen waits for the wave, its Succor too (*Soil → Succor*, *Whisper →
+    Succor*), and so does one with *Swiftcast* or *Lightspeed*, which make the next spell instant (*Lightspeed +
+    Neutral Sect*). In a sequence (`→`), the steps after one that waits for the wave wait too (*Seraph →
+    Consolation → Succor*, *Intersection → Neutral Sect*). Neutral Sect turns NOW 1.2 s before the wave, so that
+    its Helios lands just after it; *Play II*, *Play III* or *Minor Arcana* beside it waits for the wave, and so
+    does *the Arrow* with the *Play II* it comes from.
 - **From your earlier calls:** when a sheet is imported (from a link or pasted cells; not a plan pasted on the
   AI route, a plan file or a share code), a call without a time in the sheet that would come before its action
   is ready again waits until it is (see [Importing a plan](#importing-a-plan)), and the plan then holds that
