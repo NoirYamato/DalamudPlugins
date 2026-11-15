@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -43,6 +44,11 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
     private static readonly Vector3 BruteJusticeLandsAt = new(-6f, 0f, 0f);
 
+    // Number 1 has the least time of the eight: he first lands 1.8 s after the third pair, behind wherever it is then.
+    internal const string NumberOneHasTheLeastTime =
+        "You are number 1: Cruise Chaser lands behind you 1.8 s after the third pair of Hawk Blasters, wherever you are and whichever way you face then, "
+        + "and cleaves through you from there. Sprint to where you take his cleave, and be turned before he lands";
+
     internal int BusyHelperPeak => helpers.PeakBusy;
 
     public void Run(SimWorld worldParam, int? selectedAi)
@@ -62,10 +68,12 @@ public sealed class TeaP1LimitCutScenario : IScenario
 
         SpawnActors();
 
+        world.Events.Add(5.95f, TellAHumanNumberOneHowLittleTimeItHas);
+        // The first two show together.
         for (var k = 0; k < state.Numbers.Count; k++)
         {
             var number = k + 1;
-            world.Events.Add(5.95f + k * P1Duration.NumberSpacing, () => ShowNumber(number));
+            world.Events.Add(5.95f + Math.Max(0, k - 1) * P1Duration.NumberSpacing, () => ShowNumber(number));
         }
         world.Events.Add(8.0f, () => HawkBlasterPair(0));
         world.Events.Add(10.2f, () => HawkBlasterPair(1));
@@ -133,6 +141,12 @@ public sealed class TeaP1LimitCutScenario : IScenario
     {
         if (party.Get(state.Numbers[number - 1]) is { } member && member.IsAlive())
             member.AttachLockonVfx(P1LockonId.LimitCutNumbers[number - 1]);
+    }
+
+    private void TellAHumanNumberOneHowLittleTimeItHas()
+    {
+        if (party.Player is { } player && player.IsAlive() && !party.IsBotDriven(player) && ReferenceEquals(party.Get(state.Numbers[0]), player))
+            world.Announce(NumberOneHasTheLeastTime);
     }
 
     private void HawkBlasterPair(int index)

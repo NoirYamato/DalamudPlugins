@@ -20,7 +20,7 @@ namespace AnoMech.Tests;
 // moves the player's seat into one mistake. The numbers are the stage's (#1 M1, #2 R1, #3 MT, #4 M2, #5 R2, #6 H1,
 // #7 H2, #8 OT) and the first blasters stand west and east unless a test says otherwise (x east, z south):
 //
-//   5.95-6.27  the numbers.
+//   5.95-6.22  the numbers, the first two together.
 //   8.0 / 10.2 / 12.4 / 14.6   Hawk Blaster pairs W+E, NW+SE, N+S, NE+SW; again at 19.0 / 21.2 / 23.45 / 25.6.
 //   16.8 / 27.8   the middle blaster. A blast kills at once; the death shows a second later.
 //   15.4 #1 cleaved on the north spot, 16.9 #2 charged there; 20.05 #3 and 21.55 #4 south-west;
@@ -126,7 +126,34 @@ public class TeaP1LimitCutScenarioTests
         Assert.That(run.Passed, run.ToString);
         Assert.That(markers.Select(m => m.Lockon), Is.EqualTo(new uint[] { 79, 80, 81, 82, 83, 84, 85, 86 }));
         Assert.That(markers.Select(m => m.On), Is.EqualTo(Stage.Numbers));
-        Assert.That(markers.Select(m => m.At), Is.EqualTo(Enumerable.Range(0, 8).Select(k => 5.95f + 0.045f * k)).Within(0.03f));
+        Assert.That(markers.Select(m => m.At), Is.EqualTo(Enumerable.Range(0, 8).Select(k => 5.95f + 0.045f * Math.Max(0, k - 1))).Within(0.02f));
+    }
+
+    // He first lands 1.8 s after the third pair, the least any number is given: a human number 1 is told so as the
+    // numbers show, and nobody else is told anything.
+    [Test]
+    public void OnlyAHumanNumberOneIsToldHowLittleTimeItHas()
+    {
+        List<string> Told(PartyRole player, bool human)
+        {
+            List<string> chat = [];
+            var run = new Stage { HumanUntil = human ? 60f : null }.Run(player, stopAt: 7f, probe: p =>
+            {
+                if (p.Crossed(6.9f)) chat = p.Chat.Where(line => !line.Contains("Starting: ")).ToList();
+            });
+            Assert.That(run.Passed, run.ToString);
+            return chat;
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Told(MeleeDpsA, human: true), Is.EqualTo(new[] { $"[{Plugin.DisplayName}] {TeaP1LimitCutScenario.NumberOneHasTheLeastTime}" }));
+            Assert.That(Told(MeleeDpsA, human: false), Is.Empty);
+            Assert.That(Told(PhysRangedDps, human: true), Is.Empty);
+            Assert.That(Told(MainTank, human: true), Is.Empty);
+            Assert.That(TeaP1LimitCutScenario.NumberOneHasTheLeastTime, Does.Contain("1.8 s after the third pair"));
+            Assert.That(15.4f - P1Duration.CruiseChaserLandsBeforeAlphaSword - 12.4f, Is.EqualTo(1.8f).Within(0.05f));
+        });
     }
 
     // Each cleave catches its odd number alone and each charge its even number alone, so nobody is hit twice.
