@@ -58,8 +58,10 @@ public sealed class EntryTiming
 /// <param name="DueNotBefore">
 /// The item's reminder does not turn due before this (timeline seconds), whatever the due lead (see
 /// <see cref="Reminder.DueNotBefore"/>): the latest of the item's series floor, with an automatic press the earliest use
-/// that still reaches a later hit the item covers, and its earliest use that is not early when the press is at or after it
-/// but the default due lead would turn it due before (The Blackest Night beside Rampart); for an item pressed last
+/// that still reaches a later hit the item covers, and its earliest use that is not early
+/// (<see cref="TimingRules.UseWindow"/>: the hit − D + 1 s for its known duration D, never after the press) when the
+/// default due lead would turn it due before it, for an automatic press and a written one at or after the hit − D + 1 s
+/// (The Blackest Night beside Rampart; a written press before it keeps its plain NOW cue); for an item pressed last
 /// (Passage of Arms), no earlier than the entry's other items' (up to its press), and for a step of a sequence, no earlier
 /// than the step before it; null when it has none.
 /// </param>

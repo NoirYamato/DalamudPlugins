@@ -266,10 +266,15 @@ public class EntryTimingTests
     /// <summary>Heart of Corundum: 8 s tank mitigation (−2.4 s on its own).</summary>
     private static readonly ActionInfo EightSecondMit = Kit.Act(25758, "Heart of Corundum", ActionKind.TankMit, duration: 8, jobs: [Job.GNB]);
 
+    /// <summary>Raw Intuition: 6 s tank mitigation (−2 s on its own).</summary>
+    private static readonly ActionInfo SixSecondMit = Kit.Act(3551, "Raw Intuition", ActionKind.TankMit, duration: 6, jobs: [Job.WAR]);
+
+    private static FakeCatalog RampartCatalog => new([.. Kit.Catalogued, SevenSecondShield, EightSecondMit, SixSecondMit]);
+
     private static EntryTiming BesideRampart(double? offset, params ActionInfo[] actions)
     {
         var fight = Kit.TestFight();
-        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", offset, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, new FakeCatalog([.. Kit.Catalogued, SevenSecondShield, EightSecondMit]));
+        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", offset, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, RampartCatalog);
     }
 
     [Fact]
@@ -309,6 +314,33 @@ public class EntryTimingTests
         Assert.Equal(ReminderState.Due, shield.State);
         s.OnOwnAction(SevenSecondShield.Id, 94);
         Assert.Equal((ReminderState.Done, false), (shield.State, shield.UsedEarly));
+    }
+
+    [Fact]
+    public void NowCue_AnAutomaticPressBeforeTheEarliestCoveringUse_TurnsDueAtThePress()
+    {
+        // "Rampart + Raw Intuition" on a raidwide at 100: both pressed with Rampart's −6 s (94), before 100 − 6 + 1 = 95, so
+        // the 6 s call's earliest use is its press: it turns due then, not at 92.5, whatever the due lead, and a press on that
+        // cue is on time. Written at −6 s (the sheet asks for that early press), it keeps its plain NOW cue.
+        var options = new ReminderOptions();
+        var t = BesideRampart(null, Kit.Rampart, SixSecondMit);
+        Assert.Equal([94.0, 94.0], t.Items.Select(i => i.PressAt));
+        Assert.Equal([92.5, 94.0], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal((94.0, 94.0), (t.Items[1].DueNotBefore!.Value, t.Items[1].Earliest));
+        Assert.Equal(94, t.Items[1].DueAt(new ReminderOptions { DueLead = 3 }), Kit.Tolerance);
+        var written = BesideRampart(-6, Kit.Rampart, SixSecondMit).Items[1];
+        Assert.Null(written.DueNotBefore);
+        Assert.Equal(92.5, written.DueAt(options), Kit.Tolerance);
+
+        // The scheduler: due at 94, and a press on that cue is on time.
+        var s = new ReminderScheduler(Kit.TestFight(), [Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Rampart), Kit.Do(SixSecondMit))], RampartCatalog, options);
+        var mitigation = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(93.9);
+        Assert.Equal(ReminderState.Upcoming, mitigation.State);
+        s.Update(94);
+        Assert.Equal(ReminderState.Due, mitigation.State);
+        s.OnOwnAction(SixSecondMit.Id, 94);
+        Assert.Equal((ReminderState.Done, false), (mitigation.State, mitigation.UsedEarly));
     }
 
     // ---- several hits: mitigation covers the later hits it can reach ------------------------------------------------

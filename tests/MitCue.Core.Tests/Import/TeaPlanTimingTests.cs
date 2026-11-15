@@ -318,6 +318,36 @@ public class TeaPlanTimingTests
         Assert.InRange(lands, cast.Hit - 3 + 0.3 - 1e-6, cast.Hit - 1);
     }
 
+    /// <summary>
+    /// A tank's short cooldown beside Rampart on Fluid Swing 1 (11.4), as a TEA sheet may write it: both pressed with
+    /// Rampart's −6 s (5.4). The 6 s Raw Intuition and Sheltron (level 80), pressed before 11.4 − 6 + 1, turn due at their
+    /// press, not 1.5 s before it, when a press on the cue would end 1.5 s before the hit and be early; The Blackest Night
+    /// (7 s) turns due then too, its earliest use. A press on the NOW cue is on time.
+    /// </summary>
+    [Theory]
+    [InlineData(Job.WAR, "Raw Intuition")]
+    [InlineData(Job.PLD, "Sheltron")]
+    [InlineData(Job.DRK, "The Blackest Night")]
+    public void FluidSwing_AShortCooldownBesideRampart_TurnsDueAtItsPress(Job job, string action)
+    {
+        var entry = new PlanEntry
+        {
+            Mechanic = "p1.fluid_swing_1",
+            Who = new WhoSpec { Job = job },
+            Do = [PlanItem.ForAction(RepoFiles.Action("Rampart").Id, "Rampart"), PlanItem.ForAction(RepoFiles.Action(action).Id, action)],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        var rampart = Assert.Single(s.All, r => r.Item.Name == "Rampart");
+        var shortOne = Assert.Single(s.All, r => r.Item.Name == action);
+        Assert.Equal((5.4, 3.9), PressAndDue(rampart));
+        Assert.Equal((5.4, 5.4), PressAndDue(shortOne));
+
+        s.Update(5.4);
+        Assert.Equal(ReminderState.Due, shortOne.State);
+        s.OnOwnAction(shortOne.ActionIds[0], 5.4);
+        Assert.Equal((ReminderState.Done, false), (shortOne.State, shortOne.UsedEarly));
+    }
+
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>
     [Fact]
     public void JWaves_TheFirstWaveKeepsItsLead()

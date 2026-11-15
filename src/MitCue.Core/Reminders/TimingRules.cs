@@ -156,16 +156,17 @@ public static class TimingRules
     /// earliest of the items' (<see cref="EntryTiming.AutomaticOffset"/>). Each item's use window is
     /// <see cref="UseWindow"/> of its own timing action around its press time; a use before the item's series floor, when
     /// it has one, or with an automatic press one that ends before a later hit the item covers, is early, and the item's
-    /// reminder does not turn due before then either. Nor does it turn due before its earliest use that is not early, when
-    /// its press, automatic or written, is at or after that use and the default due lead (1.5 s) would turn it due earlier:
-    /// a press on the NOW cue is then not early ("Rampart + Dark Mind + Oblation + TBN" on TOP's Cosmo Dive, pressed with
-    /// Rampart's −6 s: The Blackest Night, a 7 s shield, turns due 6 s before the hit, not 7.5 s; an 8 s Heart of Corundum
-    /// 7 s before it). A written press before that earliest use (the sheet asks for an early press) keeps its plain NOW
-    /// cue, and a due lead of the player's own longer than 1.5 s still applies to the other items. An item pressed last
-    /// does not turn due before any other item of the entry, and the scheduler lists it after them ("Passage of Arms +
-    /// Reprisal" on Wave Cannon: both 0.5 s before the first protean, due with the Reprisal, whose NOW cue waits for the
-    /// Wild Charge, and listed after it). A step of a sequence does not turn due before the step before it either, whatever
-    /// the press, but is early only by its own window.
+    /// reminder does not turn due before then either. Nor does it turn due before its earliest use that is not early
+    /// (<see cref="UseWindow"/>: the hit − D + 1 s for its known duration D, never after the press) when the default due
+    /// lead (1.5 s) would turn it due earlier, so that a press on the NOW cue is not early ("Rampart + Dark Mind +
+    /// Oblation + TBN" on TOP's Cosmo Dive, pressed with Rampart's −6 s: The Blackest Night, a 7 s shield, turns due 6 s
+    /// before the hit, not 7.5 s; an 8 s Heart of Corundum 7 s before it; a 6 s Raw Intuition beside Rampart, pressed
+    /// before the hit − D + 1 s, at its press). A written press holds it only at or after the hit − D + 1 s: one before it
+    /// (the sheet asks for an early press) keeps its plain NOW cue. A due lead of the player's own longer than 1.5 s still
+    /// applies to the other items. An item pressed last does not turn due before any other item of the entry, and the
+    /// scheduler lists it after them ("Passage of Arms + Reprisal" on Wave Cannon: both 0.5 s before the first protean, due
+    /// with the Reprisal, whose NOW cue waits for the Wild Charge, and listed after it). A step of a sequence does not turn
+    /// due before the step before it either, whatever the press, but is early only by its own window.
     /// </para>
     /// </remarks>
     public static EntryTiming ForEntry(PlanEntry entry, Mechanic mechanic, FightDefinition fight, IActionCatalog actions, ReminderOptions? options = null)
@@ -251,14 +252,15 @@ public static class TimingRules
         var notBefore = AtOrAfter(pressAt, floor);
 
         // Each item's press (a written one is every item's), and the time its reminder does not turn due before: a written
-        // press keeps each series floor it is at or after, and no press turns due before an earliest use it is at or after.
+        // press keeps each series floor it is at or after, and no press turns due before its earliest use that is not
+        // early, a written one only when it is at or after the earliest use that covers the hit.
         var presses = new double[items.Count];
         var dueFloors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
         {
             presses[i] = isAutomatic ? automaticPresses[i] : pressAt;
             var itemNotBefore = floors[i] is { } own ? AtOrAfter(presses[i], own) ?? notBefore : notBefore;
-            dueFloors[i] = Later(Later(isAutomatic ? covers[i] : null, itemNotBefore), OnTimeCue(timing[i], level, hit, presses[i]));
+            dueFloors[i] = Later(Later(isAutomatic ? covers[i] : null, itemNotBefore), OnTimeCue(timing[i], level, hit, presses[i], isAutomatic));
         }
 
         // An item pressed last turns due no earlier than any other: the others' NOW cues may be held (a series floor, a
@@ -617,17 +619,21 @@ public static class TimingRules
 
     /// <summary>
     /// The earliest use of an item pressed at <paramref name="press"/> that is not early (<see cref="UseWindow"/>: the hit −
-    /// D + 1 s for its known duration D), when the press is at or after it but the default due lead (1.5 s) would turn the
-    /// reminder due before it: the reminder turns due no earlier, so that a press on its NOW cue is not early (The Blackest
-    /// Night, a 7 s shield, pressed with Rampart 6 s before the hit). Null otherwise, also for a press before that earliest
-    /// use (the sheet asks for an early press), which keeps its plain NOW cue.
+    /// D + 1 s for its known duration D, never after the press), when the default due lead (1.5 s) would turn the reminder
+    /// due before it: the reminder turns due no earlier, so that a press on its NOW cue is not early (The Blackest Night, a
+    /// 7 s shield, pressed with Rampart 6 s before the hit: due 6 s before it; a 6 s Raw Intuition beside Rampart, pressed
+    /// before the hit − D + 1 s: at its press). Null otherwise, also for a written press before the hit − D + 1 s (the
+    /// sheet asks for an early press), which keeps its plain NOW cue.
     /// </summary>
-    private static double? OnTimeCue(ActionInfo? action, int syncLevel, double hit, double press)
+    private static double? OnTimeCue(ActionInfo? action, int syncLevel, double hit, double press, bool isAutomatic)
     {
         if (CoverageDuration(action, syncLevel) is not { } duration)
             return null;
         var earliest = EarliestCoveringUse(hit, duration);
-        return press >= earliest - WrittenPrecision && press - DefaultOptions.DueLead < earliest ? Math.Min(earliest, press) : null;
+        if (!isAutomatic && press < earliest - WrittenPrecision)
+            return null;
+        earliest = Math.Min(earliest, press);
+        return press - DefaultOptions.DueLead < earliest ? earliest : null;
     }
 
     /// <summary>The later of two optional times (null when both are).</summary>
