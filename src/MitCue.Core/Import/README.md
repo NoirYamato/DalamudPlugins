@@ -254,7 +254,9 @@ Rules worth knowing:
   its press; in game the later steps follow), and only when its later steps are instant oGCDs woven in right after it
   (`Kerachole → Holos`): a later GCD or cast (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the
   hit, so such a sequence keeps its press. An entry several seats see takes the latest press any of them needs; the
-  earliest press without a charge moves first, then the plan is replayed again, until nothing moves.
+  earliest press without a charge moves first, then the plan is replayed again, until nothing moves. A press that
+  moved is replayed at its press time, as `check` replays every press: in a chain of moves each NOW cue still comes
+  when the action is ready for a player who presses at the press times (each link keeps its due lead).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

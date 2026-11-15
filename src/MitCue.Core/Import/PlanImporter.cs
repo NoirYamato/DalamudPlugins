@@ -2538,8 +2538,10 @@ public sealed partial class PlanImporter
         /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
         /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
         /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
-        /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A
-        /// <c>recast-fit</c> info names each entry that moved, with the gap the plan had before the fit.
+        /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A press that
+        /// moved is replayed at its press time, as <c>check</c> replays every press, not at its NOW cue: in a chain of
+        /// moves each NOW cue still comes when its action is ready for a player who presses at the press times (each link
+        /// keeps its due lead). A <c>recast-fit</c> info names each entry that moved, with the gap before the fit.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
