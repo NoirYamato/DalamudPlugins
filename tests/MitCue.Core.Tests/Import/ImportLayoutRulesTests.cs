@@ -448,6 +448,35 @@ public class ImportLayoutRulesTests
         Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void ExtrasColumn_ACallWithWordsAfterIt_AndAnother_NamesItByItsActionWords()
+    {
+        // "Feint Left/Right" read as "and": "Feint Left", an action several jobs share, and "Right", a note. Everyone's note
+        // is "Feint + Right", noted "Feint Left", not "Feint Left + Right" noted "Feint Left Left".
+        var r = new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", "Feint Left/Right"])] },
+            new ImportOptions { Fight = PlanImports.Top, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date, Slashes = SlashReading.All });
+
+        var note = Assert.Single(r.Plan.Entries);
+        Assert.Equal(("note:Feint + Right", "Feint Left"), (note.Names().Single(), note.Note));
+    }
+
+    [Fact]
+    public void NoteNamingAnAction_ItsWordsAfterTheAction_AreItsNoteOnce()
+    {
+        // A note read as the Warrior's Rampart: its entry is noted "Rampart the first tower set", not "Rampart the first the
+        // first tower set" (the parser's head guess, "Rampart the first", and the words after the action).
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", "WAR: Rampart the first tower set, then PLD provokes and takes the boss after Pantokrator", ""],
+            ["Program Loop", "Rampart", "Reprisal"]));
+
+        var war = Assert.Single(r.Plan.Entries, e => e.Who.Job == Job.WAR && e.Src == "'P1'!B2");
+        Assert.Equal("Rampart the first tower set", war.Note);
+    }
+
     [Theory]
     [InlineData("Dismantle (on BJ) + Feint (on CC)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]
     [InlineData("Feint (on CC) + Dismantle (on BJ)", "", Job.MCH, "on BJ", "note:Feint", "on CC")]

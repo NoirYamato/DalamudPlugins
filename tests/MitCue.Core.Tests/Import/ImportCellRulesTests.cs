@@ -191,6 +191,21 @@ public class ImportCellRulesTests
     }
 
     [Theory]
+    [InlineData("Sage", "Kera Left/Right", SlashReading.All, "Kerachole|note:Right", "Kera Left")] // a call of its own, a note
+    [InlineData("Sage", "Kera Left/Right", SlashReading.Either, "Kerachole", "Left")] // an either/or: "Right" left out
+    [InlineData("WAR", "Rampart Left/Right", SlashReading.All, "Rampart|note:Right", "Rampart Left")]
+    public void OtherWordsJoinedBySlash_AfterAnAction_SplitLikeActions_ItsNoteNamesItOnce(string column, string cell, SlashReading slashes, string names, string note)
+    {
+        // Words after "/" that name no player and no part of a mechanic are read like actions. Under "all of them" the
+        // entry's note names the Kerachole by its action words, not by the parser's head guess "Kera Left": "Kera Left",
+        // not "Kera Left Left".
+        var entry = Assert.Single(Import(Sheet("P3", column, "Hello World\t" + cell), slashes).Plan.Entries);
+
+        Assert.Equal(names.Split('|'), entry.Names());
+        Assert.Equal(note, entry.Note);
+    }
+
+    [Theory]
     [InlineData(SlashReading.All)]
     [InlineData(SlashReading.Either)]
     public void AndOr_IsEitherOne_InEitherReading(SlashReading slashes)

@@ -198,10 +198,14 @@ Rules worth knowing:
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
   `and/or`. In both readings, a `/` between two single letters is one word, spaced or not (`N/A`, and `N / A`, which
   joins nothing), slots and tank target words joined by `/` after an action are one target, either of them (`Benison
-  MT/Co-tank`), other words that name no action joined by `/` after an action are its remark (`Kera Stack/Spread`:
-  Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil and/or Expedient`). An
-  alternative that means nothing is an `unresolved-token` warning; an either/or with a choice of several actions
-  (`Spread-Lo/Soil`) gives one optional entry per choice (`either-or-split`).
+  MT/Co-tank`, `Rampart MT/OT`), other words that each name a player or a part of a mechanic (slots, jobs, target words
+  such as `tank` or `melee`, mechanic words such as `Stack`, `TB` or `Tower`) joined by `/` after an action are its
+  remark (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil
+  and/or Expedient`). Any other word after a `/` is read like an action: "all of them" makes it a call of its own, a
+  note when it names none (`Kera Left/Right`: Kerachole, noted "Left", and the note "Right"), "either one" an
+  alternative (`Kera Left/Right`: Kerachole, noted "Left"; "Right" is left out). An alternative that means nothing is an
+  `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry
+  per choice (`either-or-split`).
 - **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).

@@ -156,6 +156,13 @@ public sealed partial class PlanImporter
         /// <summary>The text after the action words, without the target and "on CD" ("after 1st Hit", "Stack"), or null.</summary>
         public string? Rest { get; set; }
 
+        /// <summary>
+        /// The action words as written, which a note names the token by: the head without the words at its end that the text
+        /// after the matched action starts with ("Kera" in "Kera Left/Right" read as "and": its "Kera Left" is Kerachole, and
+        /// "Left" its note; "Rampart" in "Rampart the first tower set"); the head when none does.
+        /// </summary>
+        public required string Words { get; set; }
+
         /// <summary>Timing from the text written after the action ("Kera after 1st Hit", "Spreadlo Stack").</summary>
         public HintTiming InlineTiming { get; set; } = HintTiming.None;
 
@@ -1368,7 +1375,7 @@ public sealed partial class PlanImporter
                     : byJob.Values.Any(r => r.Kind == TokenKind.OtherJob) ? TokenKind.OtherJob
                     : byJob.Values.All(r => r.Kind == TokenKind.Empty) ? TokenKind.Empty
                     : TokenKind.Unresolved;
-                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1, JobsNamed = named };
+                var state = new TokenState { Token = token, ByJob = byJob, Kind = kind, IsLast = i == parsedTokens.Count - 1, JobsNamed = named, Words = token.Head };
                 this.Describe(state, row, cell, header, candidates);
                 tokens.Add(state);
             }
@@ -1587,6 +1594,7 @@ public sealed partial class PlanImporter
                     var resolved = t.ByJob.Values.Where(r => r.Kind == TokenKind.Actions).ToList();
                     var rest = resolved.Select(r => r.Rest).FirstOrDefault(r => r is not null);
                     t.Rest = this.CleanRest(rest, token);
+                    t.Words = ActionWords(token.Head, rest);
                     t.InlineTiming = HintParser.Parse(rest, [], this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId);
                     t.ParenTiming = HintParser.Parse(null, token.Hints, this.mechanics, row.PhaseId, row.Mechanic, this.detector.PhaseId);
                     t.Condition = HintParser.Condition(rest);
@@ -1704,6 +1712,25 @@ public sealed partial class PlanImporter
         /// <summary>The plan items of an alternative as groups of actions: its <see cref="ResolvedAlternative.Groups"/>, else one per action.</summary>
         private static IReadOnlyList<IReadOnlyList<ActionInfo>> ItemGroups(ResolvedAlternative alternative) =>
             alternative.Groups ?? alternative.Actions.Select(a => (IReadOnlyList<ActionInfo>)[a]).ToList();
+
+        /// <summary>
+        /// A token's action words as written (<see cref="TokenState.Words"/>): <paramref name="head"/>, the parser's guess,
+        /// without the words at its end that <paramref name="rest"/>, the text after the matched action, starts with.
+        /// </summary>
+        private static string ActionWords(string head, string? rest)
+        {
+            if (string.IsNullOrWhiteSpace(rest))
+                return head;
+            var heads = head.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var rests = rest.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            for (var k = Math.Min(heads.Length - 1, rests.Length); k > 0; k--)
+            {
+                if (heads.Skip(heads.Length - k).SequenceEqual(rests.Take(k), StringComparer.OrdinalIgnoreCase))
+                    return string.Join(' ', heads.Take(heads.Length - k));
+            }
+
+            return head;
+        }
 
         /// <summary>The text after an action without its target and "on CD"/"when ready" words; null when nothing is left.</summary>
         private string? CleanRest(string? rest, ParsedToken token)
@@ -1895,7 +1922,7 @@ public sealed partial class PlanImporter
                 }
 
                 // The action words; what is written after them or in parentheses is in the entry's note, as for an action.
-                var words = group.Select(t => t.Kind == TokenKind.Actions && t.Token.Head.Length > 0 ? t.Token.Head : t.NoteText);
+                var words = group.Select(t => t.Kind == TokenKind.Actions && t.Words.Length > 0 ? t.Words : t.NoteText);
                 entries.Add(new EntryParts(null, [PlanItem.ForNote(string.Join(item.IsSequence ? " → " : " + ", words))], false, []));
                 choices.Clear();
             }
@@ -2163,8 +2190,9 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// The note of an entry: the notes of its tokens (each after its head when the group has several), the notes it shares
-        /// with the rest of its item (<paramref name="itemNotes"/>: the item's remark, later steps' times) and its footnote.
+        /// The note of an entry: the notes of its tokens (each after its action words when the group has several,
+        /// <see cref="TokenState.Words"/>), the notes it shares with the rest of its item (<paramref name="itemNotes"/>: the
+        /// item's remark, later steps' times) and its footnote.
         /// </summary>
         private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> itemNotes)
         {
@@ -2173,7 +2201,7 @@ public sealed partial class PlanImporter
             foreach (var t in withNotes)
             {
                 var text = string.Join("; ", t.Notes);
-                parts.Add(group.Count > 1 && t.Token.Head.Length > 0 ? t.Token.Head + " " + text : text);
+                parts.Add(group.Count > 1 && t.Words.Length > 0 ? t.Words + " " + text : text);
             }
 
             parts.AddRange(itemNotes);
@@ -3030,9 +3058,10 @@ public sealed partial class PlanImporter
         private ActionInfo? TimingActionOf(PlanItem item) => item.ActionIds().Select(this.options.Actions.Get).FirstOrDefault(a => a is not null);
 
         /// <summary>
-        /// True when the reminder's item is pressed at its entry's press time in game: every item of an entry, except the
-        /// later steps of a sequence, which follow its first step (<c>check</c> times them at the entry's press too, so a
-        /// step it finds without a charge may well have one when its turn comes).
+        /// True when the reminder's item is pressed when <c>check</c> times it, at its item's press (the entry's, unless the
+        /// item waits for a series floor or a later hit of its own): every item of an entry, except the later steps of a
+        /// sequence, which follow its first step in game, so a step that <c>check</c> finds without a charge at its item's
+        /// press may well have one when its turn comes.
         /// </summary>
         private static bool IsPressedAtTheEntrysPress(Reminder r) =>
             !r.Entry.Seq || r.ItemIndex == r.Entry.Do.FindIndex(i => i.ActionIds().Any());
