@@ -243,12 +243,14 @@ Rules worth knowing:
   barrier). A follow-up needs the action only when it is used, its own effect covering the hit: it is pressed within
   `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
   Water 2). An earlier press without a time in the sheet that falls short is pressed later so that it serves both
-  (TEA's Hidden Mines Temperance −3.5 s, through Water 2), no later than `(Late)` would press it and never after the lead
-  of a `when: before` action that is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s); otherwise both stay presses (a
-  `still-active` info), and `check` reports the recast. An optional earlier press (in
-  brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
-  for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
-  whichever of those columns are imported: a tank who imports only their own column gets it optional too.
+  (TEA's Hidden Mines Temperance −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead
+  of a `when: before` action that is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), and never so that another of
+  its items is pressed earlier than without it (the offset is every item's press: a Reprisal that waits for a later
+  hit keeps its press); otherwise both stay presses (a `still-active` info), and `check` reports the recast. An
+  optional earlier press (in brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff
+  up. A limit break written for one role in columns of different slots at one mechanic is optional, noted "or Tank 2"
+  (`shared-limit-break`), whichever of those columns are imported: a tank who imports only their own column gets it
+  optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
   level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,

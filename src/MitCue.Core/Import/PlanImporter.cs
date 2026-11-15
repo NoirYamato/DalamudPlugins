@@ -2578,7 +2578,9 @@ public sealed partial class PlanImporter
         /// longest of the action's effects (Seraph is out for 22 s, for a Consolation pressed 4 s before its hit). When it
         /// falls short, an earlier entry the importer times (<paramref name="movable"/>: no time in the sheet) is pressed
         /// later so that it serves both, if it is then still pressed before its own hit, no later than "(Late)" would press
-        /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>); <paramref name="movedFrom"/> is then its
+        /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>), and no other item of it earlier than
+        /// without the move (<see cref="LastOffset"/>: the offset is every item's press, and an item may be pressed later
+        /// than the entry, for a later hit or a series floor of its own, or last); <paramref name="movedFrom"/> is then its
         /// automatic offset before.
         /// </summary>
         private bool CoversLaterCall(PlanEntry earlier, bool movable, double from, out double? movedFrom)
@@ -2591,6 +2593,11 @@ public sealed partial class PlanImporter
             // Pressed later, with its reminder due at the earliest use that still serves the later call.
             var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
             if (!movable || offset > this.LatestMoveOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList()))
+                return false;
+
+            // The offset is every item's press: never one earlier than without the move (an item that waits for a later hit
+            // or a series floor of its own, or comes last), which would lose what it waits for.
+            if (offset < LastOffset(before) - OffsetPrecision)
                 return false;
             movedFrom = before.Offset;
             earlier.Offset = offset;

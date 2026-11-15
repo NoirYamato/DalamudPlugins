@@ -37,6 +37,31 @@ public class ImportCellRulesTests
 
     private static ImportDiagnostic SlashReadingOf(ImportResult r) => Assert.Single(r.Diagnostics, d => d.Code == "slash-reading");
 
+    /// <summary>
+    /// A one-phase fight ("P1") at <paramref name="level"/> whose mechanics hit at the given times, each a series when
+    /// marked (its later hits are pressed after the hit before them, <see cref="Mechanic.Series"/>).
+    /// </summary>
+    private static FightDefinition Fight(int level, params (string Name, double[] Hits, bool Series)[] mechanics) => new()
+    {
+        Key = "test",
+        Name = "Test Fight",
+        Territory = 1,
+        SyncLevel = level,
+        TimelineFile = "test.txt",
+        Phases = [new Phase { Id = "p1", Name = "Phase One", Start = 0 }],
+        Mechanics = mechanics.Select(m => new Mechanic
+        {
+            Id = "p1." + m.Name.ToLowerInvariant().Replace(' ', '_'),
+            Name = m.Name,
+            Phase = "p1",
+            Hit = m.Hits[0],
+            Hits = m.Hits,
+            Kind = MechanicKind.Raidwide,
+            Aliases = [m.Name],
+            Series = m.Series,
+        }).ToList(),
+    };
+
     // ------------------------------------------------------------------ the parser
 
     [Fact]
@@ -643,6 +668,24 @@ public class ImportCellRulesTests
         Assert.Null(earlier.Offset);
         Assert.Equal(lead, TimingRules.ForEntry(earlier, tea.GetMechanic(earlier.Mechanic)!, tea, RepoFiles.Actions).AutomaticOffset, 3);
         Assert.All(r.Plan.Entries, e => Assert.Contains(action, e.Names()));
+        Assert.Contains("both stay presses", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PartyBuffNamedAgain_TheEarlierEntryIsNeverPressedSoThatAnotherOfItsItemsComesEarlier()
+    {
+        // "Rampart + Reprisal" on two hits 8.3 s apart, like TOP's Wave Cannon and its Wild Charge: the Rampart at its
+        // -6 s, the Reprisal on its own 0.5 s before the first hit, so that its 10 s last through the second. For the
+        // Rampart to last through Bravo, where it is named again, the entry would be pressed 3.5 s before its hit, and
+        // the Reprisal with it, 3 s earlier: short of the second hit. Both stay presses.
+        var fight = Fight(90, ("Alpha", [100, 108.3], false), ("Bravo", [114], false));
+        var r = Import(Sheet("P1", "MT", "Alpha\tRampart + Reprisal", "Bravo\tRampart"), fight: fight);
+
+        var alpha = r.Plan.Entries.Single(e => e.Mechanic == "p1.alpha");
+        Assert.Null(alpha.Offset);
+        var timing = TimingRules.ForEntry(alpha, fight.GetMechanic(alpha.Mechanic)!, fight, RepoFiles.Actions);
+        Assert.Equal([-6.0, -0.5], timing.Items.Select(i => Math.Round(i.PressAt - timing.Hit, 3)));
+        Assert.Equal(["Rampart"], r.Plan.Entries.Single(e => e.Mechanic == "p1.bravo").Names());
         Assert.Contains("both stay presses", Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message, StringComparison.Ordinal);
     }
 
