@@ -2328,8 +2328,8 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
         /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
-        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), unless a
-        /// colon follows it: then it heads what follows, whatever word comes before it,
+        /// is no player spoken to ("press Soil/Kera on the melee", "under the MT/OT", "the tank buster",
+        /// <see cref="IsPlacement"/>), unless a colon follows it: then it heads what follows, whatever word comes before it,
         /// as "Tanks:" does ("For the tanks: …", "Tip for melee: …", "To the melee: …"). Nor is the job whose own action the
         /// note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of several jobs (a role action
         /// such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the first tower set, then PLD
@@ -2341,7 +2341,8 @@ public sealed partial class PlanImporter
             if (HeadingColon().Matches(text).Any(m => PlayerWords.Contains(m.Groups["who"].Value)))
                 return true;
 
-            var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            // "/", "&" and "+" list player words as "or" does (IsPlacement): "on the MT/OT", "under the tanks & healers".
+            var words = Regex.Split(Regex.Replace(text, "[/&+]", " or "), @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
             if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
                 return true;
             var pressers = this.NamedByWord(text).Where(w => w.Jobs.Count == 1).SelectMany(w => w.Jobs).ToHashSet();
@@ -2351,8 +2352,9 @@ public sealed partial class PlanImporter
         /// <summary>
         /// The role or slot word at <paramref name="i"/> says where or for whom to press, and speaks to no player: after a place
         /// word ("on the melee", "under the tanks", "on the co-tank"), before "buster" ("the tank buster", "the OT's buster"),
-        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT";
-        /// not "on the melee and OT provokes").
+        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT",
+        /// and "on the MT/OT", "under the tanks/healers", which <see cref="NamesAPlayer"/> reads as "or"; not "on the melee
+        /// and OT provokes").
         /// </summary>
         private static bool IsPlacement(string[] words, int i)
         {

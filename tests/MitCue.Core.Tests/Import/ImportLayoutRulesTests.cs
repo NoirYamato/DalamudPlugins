@@ -692,6 +692,11 @@ public class ImportLayoutRulesTests
     [InlineData("Press Soil under the tanks as the first tether resolves!")]
     [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
     [InlineData("Press Soil under the MT or OT as the first tether resolves!")]
+    [InlineData("Press Soil under the MT/OT as the first tether resolves!")] // "/", "&" and "+" list as "or" does
+    [InlineData("Press Soil under the tanks/healers as the first tether resolves!")]
+    [InlineData("Press Soil on melee / ranged as the first tether resolves!")]
+    [InlineData("Press Soil under the MT & OT as the first tether resolves!")]
+    [InlineData("Press Soil under the MT+OT as the first tether resolves!")]
     [InlineData("Press Soil as the first tether resolves, before the tank buster!")]
     [InlineData("Press Soil under the co-tank as the first tether resolves!")] // a role word in two
     [InlineData("Press Soil under the off-tank as the first tether resolves!")]
@@ -714,6 +719,7 @@ public class ImportLayoutRulesTests
     [Theory]
     [InlineData("Press Soil on the melee and OT provokes after it!")]
     [InlineData("Press Soil on the melee, then the co-tank provokes after it!")]
+    [InlineData("Press Soil on the melee, then the MT/OT swap after it!")]
     public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns(string note)
     {
         // "on the melee" places the Soil, but "OT provokes" speaks to the OT ("and" lists only a word of the same kind, a role
