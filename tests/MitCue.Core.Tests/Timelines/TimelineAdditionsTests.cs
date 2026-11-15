@@ -189,6 +189,47 @@ public class TimelineAdditionsTests
         Assert.Equal(567.0, late.TimeAt(1567.0), 1e-9);
     }
 
+    /// <summary>
+    /// TOP's P2 Cosmo Memory raidwide (7B24, cast by the Optical Unit only there; cactbot's -ii line drops it) is added at
+    /// 320.2, p2.limitless' second hit: a narrow catch, active from 319.2 until 321.2, where a 7B24 syncs the timeline to
+    /// 320.2, a move of at most 1 s; a 7B24 outside the window moves nothing.
+    /// </summary>
+    [Fact]
+    public void Top_cosmo_memory_raidwide_moves_the_timeline_by_at_most_one_second()
+    {
+        var library = new FightLibrary(RepoFiles.Data);
+        var top = library.Get("top")!;
+        var timeline = library.LoadTimeline(top);
+        var entry = Assert.Single(timeline.Entries, e => e.Sync?.Matches(Ability(0, 0x7B24, "Optical Unit")) == true);
+        Assert.Equal(("Cosmo Memory raidwide", 320.2, 319.2, 321.2), (entry.Name, entry.Time, entry.SyncStart, entry.SyncEnd));
+        Assert.Equal(entry.Time, top.GetMechanic("p2.limitless")!.Hits[1]);
+        Assert.Equal(318.8, top.GetMechanic("p2.cosmo_memory")!.Hit);
+        Assert.DoesNotContain(timeline.Warnings, w => !Load(TimelineKit.Top).Warnings.Contains(w));
+        Assert.DoesNotContain(Load(TimelineKit.Top).Entries, e => e.Sync?.Matches(Ability(0, 0x7B24, "Optical Unit")) == true);
+
+        // Combat at clock 1000: timeline time = clock − 1000 until a sync moves it.
+        var early = new TimelinePlayer(timeline);
+        Assert.True(early.Process(Combat(1000))!.Started);
+        Assert.Null(early.Process(Ability(1319.0, 0x7B24, "Optical Unit")));                     // before the window
+        var synced = early.Process(Ability(1319.4, 0x7B24, "Optical Unit"));
+        Assert.Equal(319.4, synced!.FromTime, 1e-9);                                           // forward, 0.8 s
+        Assert.Equal(320.2, synced.ToTime, 1e-9);
+        Assert.Equal(321.0, early.TimeAt(1320.2), 1e-9);
+        var again = early.Process(Ability(1320.2, 0x7B24, "Optical Unit"));                     // a later line of it, in the window
+        Assert.Equal(320.2, again!.ToTime, 1e-9);
+        Assert.True(again.FromTime - again.ToTime <= 1 + 1e-9);
+
+        var late = new TimelinePlayer(timeline);
+        Assert.True(late.Process(Combat(1000))!.Started);
+        var back = late.Process(Ability(1321.0, 0x7B24, "Optical Unit"));
+        Assert.Equal(321.0, back!.FromTime, 1e-9);                                             // back, 0.8 s
+        Assert.Equal(320.2, back.ToTime, 1e-9);
+
+        var after = new TimelinePlayer(timeline);
+        Assert.True(after.Process(Combat(1000))!.Started);
+        Assert.Null(after.Process(Ability(1321.3, 0x7B24, "Optical Unit")));                     // after the window
+    }
+
     [Fact]
     public void FightLoader_reads_timeline_additions_and_rejects_lines_that_are_not_syncs()
     {

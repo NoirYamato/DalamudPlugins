@@ -674,8 +674,9 @@ mechanics:
     # 16, Tuufless TEA guide), so wave n hits at n-1 stacks, and sheets count by those stacks: LPDU "Jwaves (0-3)" =
     # waves 1-4, "Jwaves (4)" = wave 5 (TEA guide doc: "Asylum - 0 stacks", "Temperance + Neutral Sect - 4 / 5 stacks";
     # Tuufless: "After 6 stacks", "After 8 stacks"; Cruise Chaser's enrage, 731.7, finishes before the 8th stack).
-    # series: a call for wave n (on p3.j_wave_n, n > 1) is pressed after wave n-1 has hit (+0.3 s; a cast shield is
-    # started so that it lands then): the default leads (3-6 s) are longer than the 3 s between waves, so a shield
+    # series: a call for wave n (on p3.j_wave_n, n > 1) is pressed after wave n-1 has hit (+0.3 s; a cast shield, or
+    # Neutral Sect with the Helios cast that puts up its barrier (barrier_cast), is started so that it lands then): the
+    # default leads (3-6 s) are longer than the 3 s between waves, so a shield
     # would be spent on wave n-1 and 15-20 s mitigation would end before the last, strongest waves it should cover.
     name: "J Waves x16 (raidwides 3 s apart; each gives Brute Justice a Damage Up stack)"
     phase: p3

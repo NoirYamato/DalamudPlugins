@@ -110,8 +110,11 @@ public class TeaPlanTimingTests
     [InlineData("'Alex Prime/PA'!G21", "Temperance", 720.2, 720.2)]          // −6 s would be 716.9, wave 3
     [InlineData("'Alex Prime/PA'!C21", "Divine Veil", 720.2, 720.2)]         // instant shields
     [InlineData("'Alex Prime/PA'!F21", "Eukrasian Prognosis", 720.2, 720.2)]
-    [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 718.7, 718.7)]          // its Helios (1.5 s) lands at 720.2
     [InlineData("'Alex Prime/PA'!E21", "Succor", 718.4, 718.2)]              // its own −4.5 s lands at 720.4
+    [InlineData("'Alex Prime/PA'!E21", "Sacred Soil", 720.2, 720.2)]         // instant: not with the Succor's cast lead
+    [InlineData("'Alex Prime/PA'!E21", "Summon Seraph", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!E21", "Consolation", 720.2, 720.2)]
     [InlineData("'Alex Prime/PA'!E23", "Consolation", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!F23", "Eukrasian Prognosis", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!M23", "Passage of Arms", 726.9, 726.2)]     // its −2 s is after wave 6 anyway
@@ -129,6 +132,55 @@ public class TeaPlanTimingTests
         Assert.Equal(ReminderState.Upcoming, r.State);
         s.Update(Math.Max(dueFrom, press - new ReminderOptions().DueLead));
         Assert.Equal(ReminderState.Due, r.State);
+    }
+
+    /// <summary>
+    /// An Astrologian's "Earthly Star + Neutral Sect" on J Wave 5 (722.9), either way round, as a sheet may write it (LPDU
+    /// has 'Alex Prime/PA'!H21 "Neutral" alone), and a healers' cell with Temperance or Excogitation: the other action
+    /// times the cell, but Neutral Sect is still pressed and due at 718.7, so that the Helios it gives a barrier lands
+    /// after wave 4 (719.9) and before wave 5; the other action waits for wave 4 + 0.3 s.
+    /// </summary>
+    [Theory]
+    [InlineData("Neutral Sect", "Earthly Star")]
+    [InlineData("Earthly Star", "Neutral Sect")]
+    [InlineData("Temperance", "Neutral Sect")]
+    [InlineData("Neutral Sect", "Temperance")]
+    [InlineData("Excogitation", "Neutral Sect")]
+    [InlineData("Neutral Sect", "Excogitation")]
+    public void JWave5_NeutralSectBesideAnActionThatTimesTheCell_IsDueAt7187(string first, string second)
+    {
+        var fight = PlanImports.Tea;
+        var entry = new PlanEntry
+        {
+            Mechanic = "p3.j_wave_5",
+            Who = new WhoSpec { Job = Job.AST },
+            Do = [PlanItem.ForAction(RepoFiles.Action(first).Id, first), PlanItem.ForAction(RepoFiles.Action(second).Id, second)],
+        };
+        var s = new ReminderScheduler(fight, [entry], RepoFiles.Actions, new ReminderOptions());
+        var neutral = Assert.Single(s.All, r => r.Item.Name == "Neutral Sect");
+        var other = Assert.Single(s.All, r => r.Item.Name != "Neutral Sect");
+        Assert.Equal(718.7, neutral.PressAt, 1e-9);
+        Assert.Equal(718.7, TimingRules.DueAt(neutral.PressAt, neutral.DueNotBefore, new ReminderOptions()), 1e-9);
+        Assert.Equal(720.2, other.PressAt, 1e-9);
+    }
+
+    /// <summary>
+    /// 'Alex Prime/PA'!E21 "Succor/Soil/Seraph" ("Seraph" = Summon Seraph → Consolation) on J Wave 5: the Succor's cast may
+    /// start before wave 4 (719.9), the instant Soil, Summon Seraph and Consolation may not: a Consolation woven before
+    /// wave 4 is spent on it, and is early.
+    /// </summary>
+    [Fact]
+    public void JWaves_TheInstantItemsBesideACastShieldWaitForTheWaveBeforeIt()
+    {
+        var s = Scheduler("'Alex Prime/PA'!E21");
+        var succor = Assert.Single(s.All, r => r.Item.Name == "Succor");
+        var consolation = Assert.Single(s.All, r => r.Item.Name == "Consolation");
+        s.Update(718.4);
+        Assert.Equal((ReminderState.Due, ReminderState.Upcoming), (succor.State, consolation.State));
+        s.OnOwnAction(succor.ActionIds[0], 718.4);
+        s.OnOwnAction(consolation.ActionIds[0], 718.9);
+        Assert.False(succor.UsedEarly);
+        Assert.True(consolation.UsedEarly);
     }
 
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>
@@ -192,7 +244,9 @@ public class TeaPlanTimingTests
     /// <summary>
     /// 'LL/BJCC'!H48 "Neutral" on Whirlwind 2 (327.6) and 'Alex Prime/PA'!H47 "Neutral/CU" on Irresistible Grace 2 (1187.9):
     /// Neutral Sect is pressed 4.5 s before the hit, in time for the Neutral Aspected Helios (1.5 s cast) to put up its
-    /// barrier before the damage.
+    /// barrier before the damage. 'Alex Prime/PA'!H21 "Neutral" on J Wave 5 (722.9): pressed and due 1.5 s before wave 4
+    /// (719.9) + 0.3 s, so that the Helios cast from its NOW cue puts the barrier up after wave 4, and even after a whole
+    /// 2.5 s GCD before it, before wave 5.
     /// </summary>
     [Fact]
     public void NeutralSect_LeavesTimeForTheHeliosItsBarrierComesWith()
@@ -200,6 +254,14 @@ public class TeaPlanTimingTests
         var neutral = Reminders("'LL/BJCC'!H48", "'Alex Prime/PA'!H47").Where(r => r.Item.Name == "Neutral Sect").ToList();
         Assert.Equal(2, neutral.Count);
         Assert.All(neutral, r => Assert.Equal(r.Hit - 4.5, r.PressAt, 1e-9));
+
+        var wave5 = Assert.Single(Reminders("'Alex Prime/PA'!H21"), r => r.Item.Name == "Neutral Sect");
+        var helios = RepoFiles.Action("Aspected Helios").CastTime;
+        var now = TimingRules.DueAt(wave5.PressAt, wave5.DueNotBefore, new ReminderOptions());
+        Assert.Equal(719.9 + 0.3 - helios, wave5.PressAt, 1e-9);
+        Assert.Equal(719.9 + 0.3 - helios, now, 1e-9);
+        Assert.True(now + helios >= 719.9 + 0.3 - 1e-9);
+        Assert.True(now + 2.5 + helios < wave5.Hit);
     }
 
     /// <summary>

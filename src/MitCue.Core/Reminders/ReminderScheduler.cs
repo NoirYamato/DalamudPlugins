@@ -12,9 +12,12 @@ namespace MitCue.Core.Reminders;
 /// <remarks>
 /// <para>
 /// Building (docs/DESIGN.md §5.1): one <see cref="Reminder"/> per item of every entry whose
-/// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). All items of
-/// an entry share its press time, hit + offset, or the automatic press time without an explicit
-/// offset; each item has its own use window (<see cref="TimingRules.ForEntry"/>).
+/// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). The items of
+/// an entry are pressed at its press time, hit + offset, or the automatic press time without an
+/// explicit offset (an item may wait for a series floor or a later hit of its own); each item has its
+/// own use window and NOW cue floor (<see cref="TimingRules.ForEntry"/>). Reminders are listed by press
+/// time, then plan order, then item order, except that an item pressed last (Passage of Arms) comes
+/// after the other items of its entry.
 /// </para>
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or
@@ -343,7 +346,7 @@ public sealed class ReminderScheduler
             if (entry.Do is not { Count: > 0 } items)
                 continue;
 
-            // Items of one entry share the press time; each has its own use window (TimingRules.ForEntry).
+            // Each item has its own press time, use window and NOW cue floor (TimingRules.ForEntry).
             var timing = TimingRules.ForEntry(entry, mechanic, fight, actions, options);
             for (var i = 0; i < items.Count; i++)
             {
@@ -356,16 +359,17 @@ public sealed class ReminderScheduler
                     ItemIndex = i,
                     Mechanic = mechanic,
                     Hit = timing.Hit,
-                    PressAt = timing.PressAt,
+                    PressAt = timing.Items[i].PressAt,
                     Earliest = timing.Items[i].Earliest,
                     Latest = timing.Items[i].Latest,
-                    DueNotBefore = timing.DueNotBefore,
+                    DueNotBefore = timing.Items[i].DueNotBefore,
                 };
-                built.Add(new Track(reminder, entryIndex));
+                built.Add(new Track(reminder, entryIndex, TimingRules.IsPressedLast(timing.Items[i].Action)));
             }
         }
 
-        // (press time, entry order, item index) is a total order, so the unstable sort is deterministic.
+        // (press time, entry order, an item pressed last after the others, item index) is a total order, so the
+        // unstable sort is deterministic.
         built.Sort(CompareTracks);
         return built.ToArray();
     }
@@ -383,6 +387,9 @@ public sealed class ReminderScheduler
         if (c != 0)
             return c;
         c = a.EntryIndex.CompareTo(b.EntryIndex);
+        if (c != 0)
+            return c;
+        c = a.PressedLast.CompareTo(b.PressedLast);
         return c != 0 ? c : a.Reminder.ItemIndex.CompareTo(b.Reminder.ItemIndex);
     }
 
@@ -558,10 +565,11 @@ public sealed class ReminderScheduler
     /// <summary>A reminder plus the scheduler's private bookkeeping for it.</summary>
     private sealed class Track
     {
-        public Track(Reminder reminder, int entryIndex)
+        public Track(Reminder reminder, int entryIndex, bool pressedLast)
         {
             this.Reminder = reminder;
             this.EntryIndex = entryIndex;
+            this.PressedLast = pressedLast;
             this.ActionIds = reminder.ActionIds;
             this.PlannedLatest = reminder.Latest;
             this.Deadline = reminder.Latest;
@@ -571,6 +579,13 @@ public sealed class ReminderScheduler
 
         /// <summary>Position of the entry in the plan (tie-breaker for equal press times).</summary>
         public int EntryIndex { get; }
+
+        /// <summary>
+        /// The item is pressed last (<see cref="TimingRules.IsPressedLast"/>: Passage of Arms, a channel any other
+        /// action ends): listed after the other items of its entry pressed at the same time, wherever the cell lists
+        /// it.
+        /// </summary>
+        public bool PressedLast { get; }
 
         /// <summary>The end of the use window as built (<see cref="Reminder.Latest"/> before a phase transition moved it).</summary>
         public double PlannedLatest { get; }

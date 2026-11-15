@@ -1,3 +1,4 @@
+using System.Globalization;
 using MitCue.Core.Data;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
@@ -116,6 +117,8 @@ internal sealed class ActionDto
 
     public double? Lead { get; set; }
 
+    public double? BarrierCast { get; set; }
+
     public int? Lb { get; set; }
 
     public List<EffectDto>? Effects { get; set; }
@@ -151,6 +154,8 @@ internal sealed class ActionDto
 
         if (this.ReplacedBy is { } replaced && replaced.Level is null)
             throw new FormatException($"{context}: 'replaced_by' needs the 'level' of the upgrade.");
+        Seconds(this.Lead, "lead", context);
+        Seconds(this.BarrierCast, "barrier_cast", context);
 
         return new ActionInfo
         {
@@ -173,6 +178,7 @@ internal sealed class ActionDto
             DurationByLevel = this.Duration ?? [],
             When = ParseWhen(this.When, context),
             Lead = this.Lead,
+            BarrierCast = this.BarrierCast,
             LimitBreakTier = this.Lb,
             Effects = this.Effects?.Select(e => new ActionEffect(e.Name, e.Duration ?? [])).ToList() ?? [],
             ReplacedBy = this.ReplacedBy?.Id,
@@ -206,6 +212,13 @@ internal sealed class ActionDto
             target != ActionTarget.Unknown)
             return target;
         throw new FormatException($"{context}: unknown target '{text}' (expected self, single, party, ground or enemy).");
+    }
+
+    /// <summary>A field of seconds that is optional but, when given, a positive number (<c>lead</c>, <c>barrier_cast</c>).</summary>
+    private static void Seconds(double? value, string key, string context)
+    {
+        if (value is { } v && !(v > 0 && double.IsFinite(v)))
+            throw new FormatException($"{context}: '{key}' must be a positive number of seconds, not {v.ToString(CultureInfo.InvariantCulture)}.");
     }
 
     internal static UseTiming ParseWhen(string? text, string context) => Compact(text) switch

@@ -80,7 +80,10 @@ public sealed class Reminder
     /// <summary>Anchor hit time (timeline seconds).</summary>
     public required double Hit { get; init; }
 
-    /// <summary>Planned press time (timeline seconds).</summary>
+    /// <summary>
+    /// Planned press time (timeline seconds): the entry's, or later for an item that waits for a series floor or a later hit
+    /// of its own, or comes last (<see cref="ItemTiming.PressAt"/>).
+    /// </summary>
     public required double PressAt { get; init; }
 
     /// <summary>Earliest use that still covers the hit.</summary>
@@ -88,8 +91,10 @@ public sealed class Reminder
 
     /// <summary>
     /// Due no earlier than this (timeline seconds), whatever <see cref="ReminderOptions.DueLead"/>: a press for a later hit
-    /// of a series of hits, automatic or written at or after the hit before it, comes after that hit
-    /// (<see cref="TimingRules.ForEntry"/>). Null otherwise.
+    /// of a series of hits, automatic or written at or after the hit before it, comes after that hit, by the item's own
+    /// action; mitigation an automatic press times to also cover a later hit of its mechanic, not before the earliest use
+    /// that still reaches it; an item pressed last (Passage of Arms), not before the other items of its entry
+    /// (<see cref="TimingRules.ForEntry"/>, <see cref="ItemTiming.DueNotBefore"/>). Null otherwise.
     /// </summary>
     public double? DueNotBefore { get; init; }
 

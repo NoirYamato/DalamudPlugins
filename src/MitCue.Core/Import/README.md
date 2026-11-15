@@ -182,10 +182,10 @@ Rules worth knowing:
   that phase's enrage/end mechanic with `at_phase_end`). Hint text stays in `note`. Presses after a phase's last hit get
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
   `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
-  actions, a mechanic's several hits and the fight file's `press`, `heal_lead` and `series`); the importer writes no
-  offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan lists its
-  entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a press
-  moved.
+  actions and their own leads, a mechanic's hits and the fight file's `press`, `heal_lead` and `series`); the importer
+  writes no offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan
+  lists its entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a
+  press moved.
 - **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
   actions another way (`+`, `,`, `&`, arrows, ` / `, line breaks) and lists several actions of one job with `/` in two or
   more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all of them, lexed like `+`. Every plan tab counts,
@@ -216,7 +216,9 @@ Rules worth knowing:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
   pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
   1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
-  Eukrasia's 2.5 s), but never earlier than without it.
+  Eukrasia's 2.5 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
+  before the first protean, so that it lasts through the Wild Charge, and so does `Rampart + Reprisal (Late)`, whose
+  Rampart keeps its own −6 s).
 - **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
   those actions: the detail of the entries in their columns and section that press one of them (all their columns'
   entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
@@ -235,7 +237,9 @@ Rules worth knowing:
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.
 - **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
   one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
-  level, one charge recharging at a time, recast groups, recasts under 3 s left out) for any seat (every job, in each
+  level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
+  later than its entry's for an item that waits for a series floor or a later hit of its own, and the info gives the gap
+  between the two items' presses) for any seat (every job, in each
   slot of its role and in none, with the column the plugin chooses without a party and with any party that changes it:
   the jobs of a team-composition column, `WAR/PLD WAR` next to a Paladin, and every two-job party), is pressed when
   that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:
@@ -245,6 +249,9 @@ Rules worth knowing:
   own lead before the hit allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does
   its job: then just after the action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only
   after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.
+  It stays too when the move would press another item of the entry earlier than without it, since the offset is every
+  item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
+  (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge).
   Only firm presses keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an
   either/or), an either/or item or a note ("Temperance (still active)"); an optional call itself still waits
   ("CU (if up)"). A press with a time in the sheet counts but never moves; an offset the importer wrote

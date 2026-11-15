@@ -28,6 +28,13 @@ public class ReviewModelTests
     private static ReviewModel Model(MitPlan plan, IReadOnlyList<ImportDiagnostic>? diagnostics = null) =>
         new(plan, Top(), Catalog(), true, ReviewOrigin.Importer, diagnostics);
 
+    /// <summary>The offset the scheduler presses an entry at (press − hit of its first reminder).</summary>
+    private static double SchedulerOffset(PlanEntry entry)
+    {
+        var reminder = new ReminderScheduler(Top(), [entry], Catalog(), new ReminderOptions()).All[0];
+        return reminder.PressAt - reminder.Hit;
+    }
+
     [Fact]
     public void BuildsOneRowPerEntryWithChecks()
     {
@@ -121,9 +128,10 @@ public class ReviewModelTests
     {
         var model = Model(Plan());
         var row = model.Rows[0];
-        var temperance = Catalog().Get(Temperance);
 
-        Assert.Equal(TimingRules.DefaultOffset(temperance, 90), model.AutoOffset(row));
+        // Temperance (20 s) on Program Loop (tower sets 9 s apart) also covers the third set: 0.5 s before the first.
+        Assert.Equal(SchedulerOffset(row.Entry), model.AutoOffset(row), 6);
+        Assert.Equal(-0.5, model.AutoOffset(row), 6);
         Assert.Equal(28.2 + model.AutoOffset(row), model.PressTime(row)!.Value, 6);
         Assert.Equal(81.2 - 3, model.PressTime(model.Rows[1])!.Value, 6);
         Assert.Null(model.PressTime(model.Rows[2]));
@@ -141,8 +149,8 @@ public class ReviewModelTests
         var actions = ActionCatalog.Load(data.ReadText("actions/actions.yaml"));
         var plan = PlanSerializer.FromYaml(EmbeddedDataSource.Plans().ReadText("tea-lpdu.yaml"));
         var model = new ReviewModel(plan, tea, actions, true, ReviewOrigin.Yaml);
-        var scheduled = new ReminderScheduler(tea, plan.Entries, actions, new ReminderOptions()).All
-            .GroupBy(r => r.Entry).ToDictionary(g => g.Key, g => g.First());
+        var all = new ReminderScheduler(tea, plan.Entries, actions, new ReminderOptions()).All;
+        var scheduled = all.GroupBy(r => r.Entry).ToDictionary(g => g.Key, g => g.First());
 
         Assert.Equal(plan.Entries.Count, model.Rows.Count);
         foreach (var row in model.Rows)
@@ -153,7 +161,48 @@ public class ReviewModelTests
                 Assert.Equal(reminder.PressAt - reminder.Hit, model.AutoOffset(row), 6);
         }
 
+        // Each item as the scheduler presses it, also an item of a series call that waits for its own floor ('Alex
+        // Prime/PA'!E21: the Succor at 718.4, its instant Soil, Summon Seraph and Consolation after wave 4, at 720.2).
+        var rows = model.Rows.ToDictionary(r => r.Entry);
+        foreach (var r in all)
+            Assert.Equal(r.PressAt, model.ItemPressTimes(rows[r.Entry])![r.ItemIndex], 6);
+        var e21 = model.Rows.Single(r => r.Entry.Src == "'Alex Prime/PA'!E21");
+        Assert.Equal([718.4, 720.2, 720.2, 720.2], model.ItemPressTimes(e21)!.Select(t => Math.Round(t, 2)));
+        Assert.Equal(718.4, model.PressTime(e21)!.Value, 6);
+
         Assert.Contains(model.Rows, r => r.Entry.Offset is null);
+    }
+
+    /// <summary>
+    /// The same on the bundled LPDU TOP plan, whose Wave Cannon cells press a 10 s call later than the rest of the cell, so
+    /// that it lasts through the Wild Charge: the entry's press is its first item's, each item's is the scheduler's.
+    /// </summary>
+    [CoreFact]
+    public void OnTheBundledLpduTopPlanTheReviewTimesEveryItemLikeTheScheduler()
+    {
+        var data = new EmbeddedDataSource();
+        var top = new FightLibrary(data).Get("top")!;
+        var actions = ActionCatalog.Load(data.ReadText("actions/actions.yaml"));
+        var plan = PlanSerializer.FromYaml(EmbeddedDataSource.Plans().ReadText("top-lpdu.yaml"));
+        var model = new ReviewModel(plan, top, actions, true, ReviewOrigin.Yaml);
+        var all = new ReminderScheduler(top, plan.Entries, actions, new ReminderOptions()).All;
+        var rows = model.Rows.ToDictionary(r => r.Entry);
+
+        foreach (var g in all.GroupBy(r => r.Entry))
+        {
+            var first = g.Min(r => r.PressAt);
+            Assert.Equal(first, model.PressTime(rows[g.Key])!.Value, 6);
+            if (g.Key.Offset is null)
+                Assert.Equal(first - g.First().Hit, model.AutoOffset(rows[g.Key]), 6);
+            foreach (var r in g)
+                Assert.Equal(r.PressAt, model.ItemPressTimes(rows[g.Key])![r.ItemIndex], 6);
+        }
+
+        // 'DRK/GNB'!B12 on Wave Cannon 2: Rampart and The Blackest Night at −6 s, Dark Mind and Oblation 0.5 s before the
+        // first protean.
+        var b12 = model.Rows.Single(r => r.Entry.Src == "'DRK/GNB'!B12");
+        Assert.Equal([1263.9, 1269.4, 1269.4, 1263.9], model.ItemPressTimes(b12)!.Select(t => Math.Round(t, 2)));
+        Assert.Equal(-6, model.AutoOffset(b12), 6);
     }
 
     [Fact]
@@ -234,7 +283,7 @@ public class ReviewModelTests
         Assert.Equal(Temperance, Assert.Single(row.Entry.Do).Action);
         Assert.Empty(row.ImportIssues);
         Assert.True(row.Edited);
-        Assert.Equal(TimingRules.DefaultOffset(Catalog().Get(Temperance), 90), model.AutoOffset(row));
+        Assert.Equal(SchedulerOffset(row.Entry), model.AutoOffset(row), 6);
     }
 
     [Fact]

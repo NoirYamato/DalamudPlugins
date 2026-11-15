@@ -364,6 +364,14 @@ internal sealed class ReviewModel
     public double? PressTime(ReviewRow row) =>
         this.MechanicOf(row) is { } mechanic ? TimingRules.ForEntry(row.Entry, mechanic, this.Fight, this.TimingCatalog).PressAt : null;
 
+    /// <summary>
+    /// Each item's press time (timeline seconds), as the scheduler computes it: the entry's (<see cref="PressTime"/>), or
+    /// later for an item that waits for a series floor or a later hit of its own, or comes last
+    /// (<see cref="ItemTiming.PressAt"/>); null when the mechanic is unknown.
+    /// </summary>
+    public IReadOnlyList<double>? ItemPressTimes(ReviewRow row) =>
+        this.MechanicOf(row) is { } mechanic ? TimingRules.ForEntry(row.Entry, mechanic, this.Fight, this.TimingCatalog).Items.Select(i => i.PressAt).ToList() : null;
+
     /// <summary>The catalog automatic timing reads: none while the catalog is a stand-in.</summary>
     private IActionCatalog TimingCatalog => this.actionsLoaded ? this.actions : EmptyActionCatalog.Instance;
 

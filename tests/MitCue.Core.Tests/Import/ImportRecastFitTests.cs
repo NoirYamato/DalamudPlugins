@@ -113,6 +113,36 @@ public class ImportRecastFitTests
 
     // ---- the recast as check replays it -------------------------------------------------------------------------
 
+    [Fact]
+    public void AnItemOfASeriesCall_IsReplayedAtItsOwnPress()
+    {
+        // Waves Alpha to Delta at 100, 103, 106 and 109 (a series), and Late (136). "Succor + Soil" on Charlie is timed by
+        // the Succor's 2 s cast (101.5, its own -4.5 s), but the instant Soil waits until Bravo + 0.3 s (103.3), as check
+        // replays it. Late's Soil (131.5) is then 28.2 s after it, not the entry's 30 s, and waits until Soil is ready
+        // again (133.3): -1.2 s.
+        var single = Fight(90, ("Alpha", 100), ("Bravo", 103), ("Charlie", 106), ("Delta", 109), ("Late", 136));
+        var waves = new Mechanic { Id = "p1.waves", Name = "Waves", Phase = "p1", Hit = 100, Hits = [100, 103, 106, 109], Kind = MechanicKind.Multihit, Series = true, Aliases = ["Waves"] };
+        var fight = new FightDefinition
+        {
+            Key = single.Key,
+            Name = single.Name,
+            Territory = single.Territory,
+            SyncLevel = single.SyncLevel,
+            TimelineFile = single.TimelineFile,
+            Phases = single.Phases,
+            Mechanics = [waves, .. single.Mechanics],
+        };
+        var r = Import(Sheet("P1", "Scholar", "Charlie\tSuccor + Soil", "Late\tSoil"), fight);
+
+        var charlie = Timing(At(r, "p1.charlie", "Sacred Soil"), fight);
+        Assert.Equal((101.5, 103.3), (Math.Round(charlie.PressAt, 2), Math.Round(charlie.Items[1].PressAt, 2)));
+        Assert.Equal(-1.2, At(r, "p1.late", "Sacred Soil").Offset);
+        Assert.Empty(Conflicts(r, fight, Job.SCH));
+        Assert.Equal(
+            "Sacred Soil at p1.late is planned 28.2 s after the Sacred Soil at p1.charlie (recast 30.0 s): it is pressed 1.2 s before its hit instead of 4.5 s, so that its NOW cue comes when Sacred Soil is ready again.",
+            Assert.Single(Fits(r)).Message);
+    }
+
     [Theory]
     [InlineData(80, -1.0)] // one charge: ready at 126 (96 + 30), pressed at 127, 1 s before Bravo, as "(Late)" would
     [InlineData(90, null)] // two charges from level 88: the second Benison has one
@@ -228,6 +258,24 @@ public class ImportRecastFitTests
         Assert.Null(At(r, "p1.protean_1", "Divine Benison").Offset);
         Assert.Empty(Fits(r));
         Assert.Single(Conflicts(r, tea, Job.WHM));
+    }
+
+    [Fact]
+    public void WhenTheMoveWouldPressAnotherItemEarlier_ThePressStays()
+    {
+        // TOP's Wave Cannon 2 (protean 1269.9, Wild Charge 1278.2): "Rampart + Reprisal" presses the Rampart 6 s before
+        // the hit and the Reprisal on its own 0.5 s before it, so that it lasts through the Wild Charge. The Rampart pressed
+        // for Cosmo Arrow 1 (1176.2) is ready again at 1266.2: a move to 2.2 s before the hit would press the Reprisal
+        // 1.7 s earlier, short of the Wild Charge. The entry keeps its presses, and check reports the Rampart.
+        var top = PlanImports.Top;
+        var r = Import(Sheet("P6", "MT", "Cosmo Arrow 1\tRampart", "WC2\tRampart + Reprisal"), top);
+
+        var entry = At(r, "p6.wave_cannon_2", "Rampart");
+        Assert.Null(entry.Offset);
+        Assert.Empty(Fits(r));
+        var timing = Timing(entry, top);
+        Assert.Equal([-6.0, -0.5], timing.Items.Select(i => Math.Round(i.PressAt - timing.Hit, 3)));
+        Assert.Contains(Conflicts(r, top, Job.PLD, "MT"), f => f.ActionId == RepoFiles.Action("Rampart").Id);
     }
 
     [Theory]

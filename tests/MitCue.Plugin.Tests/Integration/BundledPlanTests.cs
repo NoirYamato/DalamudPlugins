@@ -521,8 +521,8 @@ public class BundledPlanTests
     }
 
     [Theory]
-    [InlineData(Job.SCH, "H2", new[] { "e017", "e078" })]
-    [InlineData(Job.WHM, "H1", new[] { "e016", "e077" })]
+    [InlineData(Job.SCH, "H2", new[] { "e017", "e063" })]
+    [InlineData(Job.WHM, "H1", new[] { "e016", "e062" })]
     public void OnLpduTheSuggestedColumnKeepsTheSlotsJoblessCalls(Job job, string slot, string[] jobless)
     {
         // Final review finding: the bundled LPDU plan has no saved column choice, and the suggestion (the job's column,

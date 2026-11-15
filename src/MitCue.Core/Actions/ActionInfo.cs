@@ -143,9 +143,20 @@ public sealed class ActionInfo
     /// <summary>
     /// For a <see cref="UseTiming.Before"/> action: seconds between the press and the damage (Earthly Star: 10, the star must
     /// mature; Neutral Sect: 4.5, time to cast the Aspected Helios that puts up its barrier; Passage of Arms: 2, a channel
-    /// any other action ends, so it is pressed last), or null.
+    /// any other action ends, so it is pressed last), or null. Mitigation, whose effect starts on the press, with a lead of
+    /// its own is pressed last: with the last item of its entry, due no earlier than any other
+    /// (<see cref="Reminders.TimingRules.ForEntry"/>), and listed after them
+    /// (<see cref="Reminders.ReminderScheduler"/>).
     /// </summary>
     public double? Lead { get; init; }
+
+    /// <summary>
+    /// For an action whose barrier comes from a cast after it (actions.yaml <c>barrier_cast</c>, positive): that cast in
+    /// seconds (Neutral Sect: the Aspected Helios or Helios Conjunction, 1.5 s), or null. A later hit of a series is
+    /// pressed that much before the hit before it + 0.3 s, as a cast shield is, so that the barrier lands after it
+    /// (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public double? BarrierCast { get; init; }
 
     /// <summary>Limit break tier (1, 2 or 3) for limit breaks, else null.</summary>
     public int? LimitBreakTier { get; init; }

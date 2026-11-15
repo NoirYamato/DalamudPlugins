@@ -577,6 +577,17 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void Late_WithMitigationThatCoversALaterHit_TheCastStillEndsBeforeTheHit()
+    {
+        // TOP Pantokrator: "Soil + Succor (Late)". Coverage of the later line stacks never presses the Succor so late that
+        // its 2 s cast ends after the first (it was −1 s, later than "(Late)"), so "(Late)" gives −3 s.
+        var entry = Assert.Single(Import(Sheet("P1", "Scholar", "Pantokrator\tSoil + Succor (Late)")).Plan.Entries);
+
+        Assert.Equal(["Sacred Soil", "Succor"], entry.Names());
+        Assert.Equal(-3.0, entry.Offset);
+    }
+
+    [Fact]
     public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt()
     {
         // A Sage's Eukrasian Prognosis (instant) needs Eukrasia first, a GCD of 2.5 s: "(Late)" presses Eukrasia 3.5 s before
@@ -591,12 +602,26 @@ public class ImportCellRulesTests
     [Fact]
     public void Late_NeverPressesEarlierThanWithoutIt()
     {
-        // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.9 s before the first hit, so that it
-        // lasts through the spreads at 1342.7; "(Late)" (-1 s) would be earlier.
+        // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.5 s before the first hit, so that it
+        // lasts through the last spreads at 1343.7; "(Late)" (-1 s) would be earlier.
         var entry = Assert.Single(Import(Sheet("P6", "MT", "Cosmo Meteor\tReprisal (Late)")).Plan.Entries);
 
         Assert.Null(entry.Offset);
-        Assert.Equal(-0.9, TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions).Offset, 3);
+        Assert.Equal(-0.5, TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions).Offset, 3);
+    }
+
+    [Fact]
+    public void Late_NeverPressesAnItemEarlierThanWithoutIt()
+    {
+        // TOP Wave Cannon 2 (protean 1269.9, Wild Charge 1278.2): a 10 s Reprisal reaches the Wild Charge only pressed on its
+        // own, 0.5 s before the first protean, while the Rampart beside it keeps the entry's −6 s. "(Late)" (−1 s for both)
+        // would press the Reprisal earlier: the entry keeps its automatic presses.
+        var entry = Assert.Single(Import(Sheet("P6", "MT", "WC2\tRampart + Reprisal (Late)")).Plan.Entries);
+
+        Assert.Equal(["Rampart", "Reprisal"], entry.Names());
+        Assert.Null(entry.Offset);
+        var timing = TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions);
+        Assert.Equal([-6.0, -0.5], timing.Items.Select(i => Math.Round(i.PressAt - timing.Hit, 3)));
     }
 
     [Fact]
