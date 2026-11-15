@@ -308,11 +308,12 @@ anywhere, since they hold other players' names.
     those.
   - The pull's findings are held against the sim: its timeline, the Liquid before the pull and the Hand's appearing,
     a Provoke taking hold (the Hand's set-off after the main tank's Provoke), the dolls' spots, tethers, Exhausts,
-    stand-off and walking speed, an untouched doll a boss passes, and the feed. The feed's distance is held as a
-    line, not a mean: dolls walk in across it, so the finding differs when a feed went out from beyond
-    `DollIsFedWithin`, and, with 20 feeds or more, when none came within a quarter yalm of it. The cleaves' damage
-    is listed with what covered it and reads inconclusive: a tank lived through each bare, so the sim asks for no
-    cooldown.
+    stand-off and walking speed, an untouched doll a boss passes, and the feed. A doll's tether is held to its delay
+    after the first player's action on it (the median within 0.15 s of `DollTethersAfterItsFirstHit`). The feed's
+    distance is held as a line, not a mean: dolls walk in across it, so the finding differs when a feed went out
+    from beyond `DollIsFedWithin`, and, with 20 feeds or more, when none came within a quarter yalm of it. The
+    cleaves' damage is listed with what covered it and reads inconclusive: a tank lived through a bare Fluid Swing,
+    no Fluid Strike was taken bare and no non-tank was hit by either, so the sim asks for no cooldown.
   - A pull carries what stood as it opened (`ActPull.Standing`: each combatant's 03 line, each object's 261 Add and
     the map effects since the last pull), which is where the Liquid's spot before the pull, the helpers and the
     entrance barrier are read from; a combatant of the pull before can linger there, so the report takes what joined
@@ -348,7 +349,11 @@ anywhere, since they hold other players' names.
   - The retune of both TEA scenarios took its values from this report; `tea-unverified.txt` now reads matches for
     them, "inconclusive" for what one or two pulls showed (those keep an UNVERIFIED mark with the bounds seen) and
     "measured, not in the sim" for health and the auto-attacks. The pull was built from the same report; nobody has
-    run it on the logs since, so the pull's findings are tested on made-up pulls only.
+    run it on the logs since, so the pull's findings are tested on made-up pulls only. Three of the pull's unmarked
+    constants were read off that report's rows by hand and have no "matches" yet: `ProvokeTakesHold` (0.67),
+    `DollStopsPastTheHitboxes` (a median 3.3 y) and `DollTethersAfterItsFirstHit` (0.6). Run `TeaUnverifiedValues`
+    on the logs before the next release and settle what it says of them; the six Provokes seen on the Living Liquid
+    are not measured, since the finding reads the Hand's set-off only.
 - ACT's folder may hold only recent logs: older ones have been moved out of it into an archive folder and renamed,
   and the reports read `Network_*.log` in the one folder they are given. TOP's logs went that way, so
   `TopUnverifiedValues` finds no TOP pull in ACT's folder now; point `PullLogs` at a folder that holds them.
@@ -1248,9 +1253,15 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
   which then finds them together; pressed after about 31.9, or never, the palm's slam finds the Hand still on its
   way: everyone dies either way. An off tank that never Provokes back loses nobody in the pull; the Hand then stays
   with the main tank and the last hand shows a fist.
-- The cleaves ask for no cooldown. A tank at full health lived through each bare in the fight (the hardest, with
-  nothing up, took three fifths of its health), so each is a plain tank buster: a non-tank seat in one dies, a tank
-  seat lives, whatever its job. No rule kills for both cleaves at once either. Each leaves Water Resistance Down, and
+  - The run's own Provoke, for a seat nobody presses for, is held to Provoke's reach as the client holds a human's:
+    the sheet's 25 y past the two hitboxes (`P1Rules.ProvokeReach`; `TeaP1Presses.ProvokeReaches`), 27.1 y between
+    a tank's centre and the Hand's. Out of reach it is none.
+  - A human's press heard in the gap before a frame settles ahead of the run's own hit or Provoke of that frame:
+    `TeaP1Presses.Strike` and `Provoke` catch up first, so a doll goes to whoever pressed first.
+- The cleaves ask for no cooldown. A tank at full health lived through a bare Fluid Swing in the fight (it took three
+  fifths of its health), so each is a plain tank buster: a non-tank seat in one dies, a tank seat lives, whatever its
+  job. UNVERIFIED, both halves: no non-tank was hit by either cleave, and no Fluid Strike was taken with nothing up.
+  No rule kills for both cleaves at once either. Each leaves Water Resistance Down, and
   what kills is the wave that follows: the main tank holds both bosses and is the middle tornado's closest player,
   so that tornado's unseen wave at 37.5 finds it carrying the cleaves' debuff. That is what its invulnerability is
   for; pressed from 27.5 to 37.5 it takes it through, and a main tank that leaves the tornado after the cleaves needs
@@ -1275,7 +1286,12 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     not its user and not the ground, pressed at something that is no party member. A press comes with the client's
     target whatever the button, so a cooldown, a heal, an invulnerability or a ground-targeted button pressed with a
     doll targeted is none. Thunderclap and its like, which can land on a party member or an enemy, count, on the
-    taking that the client refuses a party-only button aimed at an enemy before it is heard (UNVERIFIED). The
+    taking that the client refuses a party-only button aimed at an enemy before it is heard (UNVERIFIED). A button
+    that turns into another action comes with its own id, whose row is aimed at its user, so ten of them are let
+    through by id (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu, Iaijutsu, Tsubame-gaeshi, Masterful Blitz,
+    Continuation, Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's
+    Higanbana tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field)
+    pressed with a doll targeted. Once a release brings upstream's `283e864` those ids no longer come. The
     fight's doll also tethers on an auto-attack (8 of 150 tethers); the run hears no auto-attack, so a doll waits
     for the first weaponskill or spell: a known gap, and hearing them needs an event from upstream's
     `AutoAttackHandler`.
@@ -1299,10 +1315,14 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
   job, since each boss walks after its seat and no move reaches a human; its presses are its job's.
   - Main tank: the pull (turn the Liquid away, within 6 y of the middle as Cascade lands); the first hand (the rim
     beside the middle tornado, be that tornado's closest, the telegraph, and on a tank's job the Provoke as the palm
-    shows and the invulnerability between 28 and 37 s); from 42 s through the middle to 6 y past it, then within 4 y
-    of the Liquid, since an Embolus from the tornado right of the open quarter passes 7 y out on that side. On
-    another job it is told the run's presses instead: Provoke at 30.0 if a palm shows, invulnerability at 34.0.
-  - Off tank: take the Hand far out to the right of the open quarter until the palm; then wait beside the Liquid,
+    shows and the invulnerability between 28 and 37 s); only from 42 s, once the melee have fed, through the middle
+    to 6 y past it, then within 4 y of the Liquid, since an Embolus from the tornado right of the open quarter
+    passes 7 y out on that side. Led in sooner, the way in is inside two dolls' reach until the first Exhaust, a doll
+    the Liquid passes is fed, and the Embolus of 40.4 heads for wherever the Liquid stands then. On another job it is
+    told the run's presses instead: Provoke at 30.0 if a palm shows, or as soon after as the Hand is in reach,
+    invulnerability at 34.0.
+  - Off tank: take the Hand far out to the right of the open quarter until the palm, but within about 12 y of the
+    middle, since the main tank Provokes it from the rim and Provoke reaches 25 y; then wait beside the Liquid,
     not near the middle, which is inside two dolls' reach until the first Exhaust; Provoke back between the busters
     (the run does at 38.0 for another job) and lead the Hand onto the middle only from 42 s, once the melee have
     fed.
@@ -1310,8 +1330,11 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     reaches, keep it more than 5 y from both bosses until it is under a quarter, then draw it through a boss from
     the far side, clear of the water. M1 is also told to hit by 38 s: on every layout the tanks lead the bosses to
     the middle past the south-west doll's spot from 42.5, which feeds a hit doll there, and its health falls by
-    the script, so a first hit from about 39.0 wipes the run at 44.7. The bosses pass no other doll's spot.
-  - A healer: wait far out until the first Exhaust.
+    the script, so a first hit from about 39.0 wipes the run at 44.7. The bosses pass no other doll's spot. A ranged
+    is also told its tornado and the side to bait it from: the open quarter's side, at the rim, so both waves run
+    out of the arena; baited from the inner side they cross it, and whoever both hit dies.
+  - A healer: wait far out until the first Exhaust, then come in on the open quarter's side of the middle: the
+    bosses stand on it from 46 s and their busters at 55 s cleave toward the tanks, on the middle tornado's side.
 - The strat (`TeaP1LivingLiquidLpduAi.Pull.cs`), with no `arrivalTime` anywhere. What it does on sight is looked at
   every 0.25 s and sent once per decision: a walk sent again while its bot rounds a puddle would pick its side
   afresh.
@@ -1325,6 +1348,13 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     its doll, away from the tornado beside it; 34.0 the main tank's invulnerability; from 34.25 each damage dealer
     hits its doll once it is in reach (3.5 y, 25 y) with both bosses 5.2 y or more from it; 38.0 the off tank
     Provokes back.
+  - Each Provoke waits for the Hand to stand within its reach, looked at every 0.25 s: the main tank's to 34.25,
+    the off tank's to 55.0. With bots alone both go out on the first look (the Hand 25.9 y from the main tank). A
+    human off tank that takes the Hand past about 12.7 y from the middle on the bots' bearing, as the guides' 14.1 y
+    does, leaves the main tank's bot no Provoke, and the palm finds the bosses apart.
+  - From 38.5 to 45.0 a melee leaves a doll of a melee's quarter alone, whatever stands by it: hit then, it would
+    still be whole as the tanks lead the bosses in past it from 42.5. It arises only when a boss kept the melee
+    from its doll until then (a human main tank's Liquid at rest within 5.2 y of it, led away early).
   - From 36.0 a bot whose doll someone else hit takes that one's own, a melee walking to it first. When the taker
     is not a melee the doll goes out to it, into reach of whoever stands by the taker's own, so the melee waits out
     the first Exhaust and goes from 38.75. A melee takes no doll from 47.0 and goes north without one: hit later it
@@ -1360,17 +1390,25 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     - the main tank's Provoke at 27.8 (the fist), at 32.4 or never (the palm): everyone; its invulnerability at 27,
       at 37.6 or never: it alone, of the unseen wave; staying in the telegraph without Arm's Length: it alone, past
       the rim; 3 y along the rim, no longer the tornado's closest: R2 or M1 on most rolls, the count held; 6.5 y
-      from the Liquid on the middle, on the line of the orb that heads for it: everyone;
+      from the Liquid on the middle, on the line of the orb that heads for it: everyone; never turning the Liquid at
+      the pull: the six behind it, of the first Fluid Swing; leading the Liquid in at 36.6: it explodes on the
+      cardinal layouts and feeds M1's doll too soon on the diagonal ones; leading it in at 37.6: the melee feed in
+      time, but the Embolus of 40.4 heads for where the Liquid stands then and bursts on the bosses, at a sprint on
+      every layout at 51.6, at a walk on two of eight at about 59, the count held;
     - an off tank that waits on the middle once the Hand has left: it explodes at the first Exhaust with both
       melee; one that leads the Hand in at 37.5: it explodes on the cardinal layouts and feeds M1's doll too soon
       on the diagonal ones (a quarter second later Hand of Pain holds the Hand back and nobody dies); one that
-      keeps the Hand near the Liquid: a fist, and everyone at the slam or of the Hand's Embolus; one that never
+      keeps the Hand near the Liquid: a fist, and everyone at the slam or of the Hand's Embolus; one that takes the
+      Hand 14.1 y out, past the main tank's Provoke: everyone at the slam (12 y out loses nobody); one that never
       Provokes back: everyone at the last hand;
     - a melee 2 y toward the other melee's doll: it explodes; M1 hitting 5 s late: everyone at 44.7 (M2 loses
-      nobody); a melee feeding 2 s after its tether: everyone, or M2 exploding on its way; a damage dealer that
-      never hits its doll loses nobody;
-    - a ranged staying in its telegraph: it alone, past the rim; a healer in the middle from the dolls' appearing:
-      it and both melee, but H1 on a cardinal layout.
+      nobody); a melee feeding 2 s after its tether: everyone, or M2 exploding on its way; a melee that hits both
+      melee dolls: it explodes, and the other melee's bot, left without one, goes north; a damage dealer that never
+      hits its doll loses nobody;
+    - a ranged staying in its telegraph: it alone, past the rim; a ranged baiting from its tornado's inner side
+      (bearing 310 from the east one, mirrored for the west): H1 alone, of both waves; a healer in the middle from
+      the dolls' appearing: it and both melee, but H1 on a cardinal layout; a healer that comes in 3 y on the tanks'
+      side of the middle: it alone, of the second busters.
     - Losing nobody, each its own test: a tank on another job (the run presses), cooldowns pressed with a doll
       targeted, the sim not resolving the tank's actions, the main tank a yalm along the rim, baiting from where
       some guides draw it (the Liquid then rests 5.24 y from the south-west doll's spot at the nearest, just past
@@ -1384,7 +1422,8 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
   later roll of a seed is unchanged), `TeaP1LivingLiquidSecondRunTests` and `TeaP1LivingLiquidHelperBudgetTests`.
 - UNVERIFIED for the pull, in `TeaP1Constants` unless said: the doll's appearance; where the feed line lies; a
   doll's set-off distance, its scripted health (4 s to a quarter, the floor) and that the bar follows; that a Provoke
-  takes hold on the Liquid as on the Hand; the cleaves' half-angle. In the pieces: that the Hand starts on the off
+  takes hold on the Liquid as on the Hand; the cleaves' half-angle. In `TeaP1Actions`: that a cleave kills a non-tank
+  seat and that a bare Fluid Strike leaves a tank alive. In the pieces: that the Hand starts on the off
   tank's seat (the fight's goes to whoever holds its enmity); that a doll nobody has hit is never fed and one can be
   fed from its first hit; that a doll fed at a quarter or more kills everyone, where the fight's kills most; the
   explosion's 8.5 y; that every weaponskill or spell aimed at a doll tethers it and one that only clips it does not;
