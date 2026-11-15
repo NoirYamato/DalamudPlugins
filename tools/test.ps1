@@ -72,7 +72,7 @@ $Buckets = @(
     @{ Name = 'tea-p1-human'; Terms = @('FullyQualifiedName~TeaP1LimitCutLpduHumanTests'); Seconds = 181; Human = $true }
     @{ Name = 'tea-p1-protean-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidProtean1LpduHumanTests'); Seconds = 55; Human = $true }
     @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 90; Human = $true }
-    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 42 }
+    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 63 }
     @{ Name = 'link-interruption'; Terms = @('FullyQualifiedName~LinkInterruptionTests'); Seconds = 89 }
     @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 58 }
     @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 25 }
