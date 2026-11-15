@@ -254,8 +254,9 @@ Rules worth knowing:
   a later hit of a series waits for the hit before it). A note says that the earlier effect covers the later hit: it
   outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as the reminders count it covering one
   (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s barrier). A follow-up needs the
-  action only when it is used, its own effect covering the hit: it is pressed within `check`'s follow-up window, the
-  action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after Water 2). An earlier press
+  action only when it is used, its own effect covering the hit: it is pressed after the earlier press, within
+  `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
+  Water 2; not a Consolation pressed 4.5 s before its hit after a `Seraph (Late)` 2 s earlier). An earlier press
   without a time in the sheet that falls short is pressed later so that it serves both (TEA's Hidden Mines Temperance
   −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead of a `when: before` action that
   is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), never so that another of its items is pressed earlier than

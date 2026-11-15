@@ -703,6 +703,21 @@ public class ImportCellRulesTests
     }
 
     [Fact]
+    public void PartyBuffNamedAgain_WhoseFollowUpWouldComeBeforeTheEarlierPress_StaysAPress()
+    {
+        // "Seraph (Late)" on Alpha (100) summons Seraph 1 s before its hit; "Seraph" on Bravo, 2 s later, read as the
+        // Consolation, would be pressed 4.5 s before its own hit (97.5), before that summon: no Seraph is out for it. Both
+        // stay Summon Seraph, and check reports the recast.
+        var fight = Fight(80, ("Alpha", [100], false), ("Bravo", [102], false));
+        var r = Import(Sheet("P1", "Scholar", "Alpha\tSeraph (Late)", "Bravo\tSeraph"), fight: fight);
+
+        Assert.All(r.Plan.Entries, e => Assert.Equal(["Summon Seraph"], e.Names()));
+        Assert.Equal(
+            "Summon Seraph at p1.bravo is planned 0.0 s after the Summon Seraph at p1.alpha, which lasts 22.0 s (recast 120.0 s), but its follow-up Consolation would be used before that one is pressed: both stay presses.",
+            Assert.Single(r.Diagnostics, d => d.Code == "still-active").Message);
+    }
+
+    [Fact]
     public void PartyBuffNamedAgain_TheEarlierEntryIsNeverPressedSoThatAnotherOfItsItemsComesEarlier()
     {
         // "Rampart + Reprisal" on two hits 8.3 s apart, like TOP's Wave Cannon and its Wild Charge: the Rampart at its

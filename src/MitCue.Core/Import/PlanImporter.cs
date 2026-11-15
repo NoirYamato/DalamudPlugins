@@ -2557,15 +2557,16 @@ public sealed partial class PlanImporter
         /// The earlier press must still serve the later call as the reminders time both (<see cref="CoversLaterCall"/>),
         /// each at its own item's press and NOW cue (an item may be pressed later than its entry: an instant Sacred Soil
         /// beside a Succor on a later hit of a series waits for the hit before it): a note says that the effect covers the
-        /// later hit, a follow-up needs the action only when it is used (Seraph out for the Consolation). An earlier entry
-        /// without a time in the sheet is pressed later when that makes it serve both (TEA's Hidden Mines Temperance 3.5 s
-        /// before its hit instead of 6 s, so that it lasts through Water 2), unless a seat that sees it needs it where it is
-        /// (<see cref="KeepsItsSeats"/>). Otherwise the later call stays a press, and <c>check</c> reports the recast the
-        /// sheet asks for. After the recast fit has pressed earlier entries later (<see cref="FitRecasts"/>), it looks
-        /// again at the calls after those (<paramref name="fitted"/>): one that such a press now serves as it is is read
-        /// as still active too, its info in place of the one that kept it a press; nothing moves then. A call whose own
-        /// press a later call was read as still active from stays a press, with an info that says so: that call needs it,
-        /// and the moved press need not last through it (<see cref="servingPresses"/>).
+        /// later hit, a follow-up needs the action only when it is used (Seraph out for the Consolation, so summoned before
+        /// it, not after it). An earlier entry without a time in the sheet is pressed later when that makes it serve both
+        /// (TEA's Hidden Mines Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2), unless a
+        /// seat that sees it needs it where it is (<see cref="KeepsItsSeats"/>). Otherwise the later call stays a press,
+        /// and <c>check</c> reports the recast the sheet asks for. After the recast fit has pressed earlier entries later
+        /// (<see cref="FitRecasts"/>), it looks again at the calls after those (<paramref name="fitted"/>): one that such a
+        /// press now serves as it is is read as still active too, its info in place of the one that kept it a press;
+        /// nothing moves then. A call whose own press a later call was read as still active from stays a press, with an
+        /// info that says so: that call needs it, and the moved press need not last through it
+        /// (<see cref="servingPresses"/>).
         /// </remarks>
         /// <param name="ordered">The entries in press order.</param>
         /// <param name="fitted">The entries the recast fit moved, for that second look; null for the first.</param>
@@ -2613,14 +2614,19 @@ public sealed partial class PlanImporter
                     // when it is used, its own effect covering the hit (Consolation while Seraph is out).
                     var readAs = follow is null ? PlanItem.ForNote(action.Name + " (still active)")
                         : e.Do.Any(x => x.Action == follow.Id) ? null : PlanItem.ForAction(follow.Id, follow.Name);
+                    var used = follow is null ? press : this.PressReadAs(e, i, readAs, follow.Id);
                     var serves = follow is null
                         ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, press), TimingRules.CoverageDuration(action, this.level) ?? duration)
-                        : this.PressReadAs(e, i, readAs, follow.Id) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+                        : used - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+
+                    // A follow-up is used after the earlier press, not before it (a Consolation pressed before the Summon
+                    // Seraph it would need, which "(Late)" presses just before its own hit, finds none).
+                    var early = follow is not null && used < ItemOf(this.TimingOf(earlier), earlier, id).PressAt - SameTime;
 
                     // After the recast fit nothing moves again, and a call that stays a press keeps its info.
                     double? movedFrom = null;
                     string? blocked = null;
-                    if (gap >= duration || !this.CoversLaterCall(earlier, id, prev.Movable && fitted is null, serves, out movedFrom, out blocked))
+                    if (gap >= duration || early || !this.CoversLaterCall(earlier, id, prev.Movable && fitted is null, serves, out movedFrom, out blocked))
                     {
                         // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
                         if (gap < duration && fitted is null)
@@ -2628,8 +2634,9 @@ public sealed partial class PlanImporter
                             var why = follow is null ? "that one does not last through this hit" : $"its follow-up {follow.Name} would be used after it is over";
                             var when = blocked is not null ? $"at its press, and pressed later {blocked}"
                                 : prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it";
+                            var but = early ? $"its follow-up {follow!.Name} would be used before that one is pressed" : $"{why} {when}";
                             this.KeepPress(e, id, new ImportDiagnostic(DiagnosticSeverity.Info, "still-active",
-                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {why} {when}: both stay presses.",
+                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {but}: both stay presses.",
                                 e.Src));
                         }
 
