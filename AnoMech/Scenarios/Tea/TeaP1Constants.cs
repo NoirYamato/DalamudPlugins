@@ -163,8 +163,9 @@ public static class TeaP1Constants
         // The four Jagd Dolls' spots, the same whatever the tornadoes' layout: degrees clockwise of true north.
         public const float JagdDollRing = 7f;
         public static readonly float[] JagdDollBearings = [67.5f, 157.5f, 247.5f, 337.5f];
-        // Between a doll's centre and a boss's; seen from 3.26 to 4.57 y.
-        public const float DollIsFedWithin = 4.14f;
+        // Between a doll's centre and a boss's. UNVERIFIED where the line lies: dolls walking in were fed from 3.26 to
+        // 4.57 y, most of them near the far end, so it is at least the farthest.
+        public const float DollIsFedWithin = 4.6f;
 
         // Where a run that starts after the pull puts the bosses, on relative bearings (degrees clockwise of the open
         // quarter): the Living Liquid on the centre, turned to its tank; the Liquid Hand beside it, toward its own.
@@ -257,10 +258,8 @@ public static class TeaP1Constants
         public const float HandShowsAPalmBeyond = 15.6f;
         public const float PalmNeedsThemWithin = 5.1f;
         public const float FistNeedsThemBeyond = 12f;
-        // UNVERIFIED, all three: one cooldown, in the engine's own terms.
+        // UNVERIFIED: one cooldown, in the engine's own terms.
         public const float DrainageMitigation = 0.2f;
-        public const float FluidSwingMitigation = 0.2f;
-        public const float FluidStrikeMitigation = 0.2f;
         public const float EmbolusSpeed = 1.92f;
 
         public const float DollWalkSpeed = 9f;

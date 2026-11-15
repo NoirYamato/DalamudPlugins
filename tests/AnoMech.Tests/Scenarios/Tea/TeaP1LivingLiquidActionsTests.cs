@@ -411,66 +411,16 @@ public class TeaP1LivingLiquidActionsTests
 
     private static readonly TimelineRunOptions HumanTankWithItsOwnActions = HumanMainTank with { UserActionsEnabled = true };
 
+    // A tank at full health lives through either cleave bare, so neither asks for a cooldown: not of a human on a
+    // tank's job with the sim resolving its actions, nor of one on another job that the Role setting seats there.
     [Test]
-    public void ACleaveKillsAHumanOnATanksJobWithoutACooldown([Values] bool swing,
-        [Values(JobId.Warrior, JobId.DarkKnight, JobId.Paladin, JobId.Gunbreaker)] JobId job)
+    public void ACleaveAsksAHumanInATankSeatForNoCooldown([Values] bool swing,
+        [Values(JobId.Warrior, JobId.DarkKnight, JobId.Paladin, JobId.Gunbreaker, JobId.WhiteMage, JobId.Bard)] JobId job)
     {
-        var run = Cleave(swing, HumanTankWithItsOwnActions, (_, _) => { }, out _, out _, job);
+        var run = Cleave(swing, HumanTankWithItsOwnActions, (_, _) => { }, out var hit, out _, job);
 
-        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
-        Assert.That(run.Deaths[0].Cause, Does.Contain("not enough mitigation"));
-    }
-
-    [Test]
-    public void ACooldownTakesAHumanTankThroughACleave([Values] bool swing,
-        [Values(JobId.Warrior, JobId.DarkKnight, JobId.Paladin, JobId.Gunbreaker)] JobId job)
-    {
-        var run = Cleave(swing, HumanTankWithItsOwnActions,
-            (world, _) => TopP6HumanMitigation.Press(world, 1.5f, [TopP6HumanMitigation.Rampart]), out _, out _, job);
-
+        Assert.That(hit, Is.EquivalentTo(new[] { MainTank }));
         Assert.That(run.Passed, run.ToString);
-    }
-
-    // Camouflage takes a tenth off, half of what a cleave asks.
-    [Test]
-    public void AShortCooldownAloneDoesNotTakeAHumanTankThroughACleave([Values] bool swing)
-    {
-        var up = false;
-        var run = Cleave(swing, HumanTankWithItsOwnActions, (world, _) =>
-        {
-            TopP6HumanMitigation.Press(world, 1.5f, [TopP6HumanMitigation.Camouflage]);
-            world.Events.Add(1.9f, () => up = world.Party.Get(MainTank)!.HasStatus(1832));
-        }, out _, out _, JobId.Gunbreaker);
-
-        Assert.That(up, "Camouflage is up as the cleave goes off");
-        Assert.That(run.Deaths.Select(d => d.Role), Is.EqualTo(new[] { MainTank }), run.ToString);
-        Assert.That(run.Deaths[0].Cause, Does.Contain("not enough mitigation"));
-    }
-
-    // The Role setting can seat a human on any job in a tank's seat: it has none of a tank's cooldowns, and is asked
-    // for none.
-    [Test]
-    public void ACleaveAsksNoCooldownOfAHumanOnAnotherJobInATankSeat([Values] bool swing,
-        [Values(JobId.WhiteMage, JobId.Dragoon, JobId.Bard, JobId.BlackMage)] JobId job)
-    {
-        var run = Cleave(swing, HumanTankWithItsOwnActions, (_, _) => { }, out _, out _, job);
-
-        Assert.That(run.Passed, run.ToString);
-    }
-
-    [Test]
-    public void ACleaveAsksNoCooldownOfABotTankOrWithTheSettingOrTheModuleOff([Values] bool swing)
-    {
-        var bot = Cleave(swing, Bots with { UserActionsEnabled = true }, (_, _) => { }, out _, out _);
-        var settingOff = Cleave(swing, HumanTankWithItsOwnActions with { Configure = config => config.EnableTankMitigation = false }, (_, _) => { }, out _, out _, JobId.Warrior);
-        var moduleOff = Cleave(swing, HumanMainTank, (_, _) => { }, out _, out _, JobId.Warrior);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(bot.Passed, bot.ToString);
-            Assert.That(settingOff.Passed, settingOff.ToString);
-            Assert.That(moduleOff.Passed, moduleOff.ToString);
-        });
     }
 
     // Fluid Swing from the Living Liquid, or Fluid Strike from the Liquid Hand, at 2.0, at the main tank 5 y south of

@@ -25,7 +25,7 @@ namespace AnoMech.Tests;
 public class TeaP1LivingLiquidPullTests
 {
     private const string Died = " died: ";
-    private const uint HeavySwing = 31, Rampart = 7531;
+    private const uint HeavySwing = 31;
 
     private static readonly Stage ThePull = new() { First = Pull, Last = Pull };
 
@@ -367,10 +367,8 @@ public class TeaP1LivingLiquidPullTests
         var run = stage.Run(MainTank, stopAt: 40f, probe: p =>
         {
             var fight = Stage.Fight(p);
-            if (p.Crossed(9f) && resolved) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (p.Crossed(30f)) Press(P1PlayerActionId.Provoke, Id(fight.Hand));
             if (p.Crossed(33f)) Press(P1PlayerActionId.ArmsLength);
-            if (p.Crossed(35.5f) && resolved) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (!p.Crossed(pressedAt)) return;
             if (resolved) TopP6HumanMitigation.PressNow(p.World, [P1PlayerActionId.Holmgang]);
             else Press(P1PlayerActionId.Holmgang);
@@ -389,10 +387,8 @@ public class TeaP1LivingLiquidPullTests
         var run = stage.Run(MainTank, stopAt: 40f, probe: p =>
         {
             var fight = Stage.Fight(p);
-            if (p.Crossed(9f) && resolved) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (p.Crossed(30f)) Press(P1PlayerActionId.Provoke, Id(fight.Hand));
             if (p.Crossed(33f)) Press(P1PlayerActionId.ArmsLength);
-            if (p.Crossed(35.5f) && resolved) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (p.Time >= 37.5f || p.Time + ScenarioRun.FrameSeconds < 37.5f) return;
             if (resolved) TopP6HumanMitigation.PressNow(p.World, [press]);
             else Press(press);
@@ -433,49 +429,26 @@ public class TeaP1LivingLiquidPullTests
         Assert.That((tankCarries, meleeCarries), Is.EqualTo((true, true)), "the tank still carried the cleaves' debuff, and the wave went at the melee");
     }
 
-    // -- A human tank's own mitigation under the cleaves --
-
-    [TestCase(false, P1ActionId.FluidSwing, 11.1f)]
-    [TestCase(true, null, 0f)]
-    public void TheFirstFluidSwingAsksAHumanTankOnATanksJobForACooldown(bool rampart, uint? diesOf, float at)
-    {
-        var run = Human(new Stage { First = Pull, Last = Pull, UserActionsEnabled = true }).Run(MainTank, stopAt: 13f, probe: p =>
-        {
-            if (rampart && p.Crossed(9f)) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
-        });
-
-        if (diesOf is { } action) TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, action, at, "");
-        else Assert.That(run.Passed, run.ToString);
-    }
-
+    // -- A human tank under the cleaves --
+    // A tank at full health lives through each cleave bare. With the sim resolving its actions and tank mitigation
+    // required, a human main tank on a tank's job that keeps both bosses takes all five of the pull's with no cooldown
+    // but the invulnerability the tornado's wave asks for.
     [Test]
-    public void ATankSeatOnAnotherJobIsAskedForNoCooldown()
+    public void TheCleavesAskAHumanTankOnATanksJobForNoCooldown()
     {
-        var run = Human(new Stage { First = Pull, Last = Pull, UserActionsEnabled = true }).Run(MainTank, stopAt: 13f, probe: p =>
+        var watch = new Rules.Watch();
+        var run = Human(new Stage { First = Pull, Last = Pull, UserActionsEnabled = true, NoProvokeBack = true }).Run(MainTank, probe: p =>
         {
-            if (p.Crossed(0.1f)) ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)JobId.Bard;
-        });
-
-        Assert.That(run.Passed, run.ToString);
-    }
-
-    // One cooldown covers both of the pair at 36.4 and 36.5; Holmgang, pressed after them, is for the wave.
-    [TestCase(true)]
-    [TestCase(false)]
-    public void OneCooldownCoversBothOfThePairedCleaves(bool rampart)
-    {
-        var run = Human(new Stage { First = Pull, Last = Pull, UserActionsEnabled = true }).Run(MainTank, stopAt: 40f, probe: p =>
-        {
+            watch.See(p);
             var fight = Stage.Fight(p);
-            if (p.Crossed(9f)) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (p.Crossed(30f)) Press(P1PlayerActionId.Provoke, Id(fight.Hand));
             if (p.Crossed(33f)) Press(P1PlayerActionId.ArmsLength);
-            if (rampart && p.Crossed(35.5f)) TopP6HumanMitigation.PressNow(p.World, [Rampart]);
             if (p.Crossed(37f)) TopP6HumanMitigation.PressNow(p.World, [P1PlayerActionId.Holmgang]);
         });
 
-        if (rampart) Assert.That(run.Passed, run.ToString);
-        else TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MainTank, P1ActionId.FluidSwing, 37.4f, "");
+        Assert.That(run.Passed, run.ToString);
+        AssertSent(watch.Sent("ability", P1ActionId.FluidSwing), (10.1f, "MainTank"), (36.4f, "MainTank"), (55.55f, "MainTank"));
+        AssertSent(watch.Sent("ability", P1ActionId.FluidStrike), (36.5f, "MainTank"), (55.8f, "MainTank"));
     }
 
     // -- The tornadoes' waves --
@@ -574,25 +547,27 @@ public class TeaP1LivingLiquidPullTests
         var stage = ThePull;
         var tethered = new List<bool>();
         PartyRole?[] holders = [];
-        float standsOff = 0f, hitboxes = 0f;
+        float standsOff = 0f;
         Vector3 meleesDoll = default, itsSpot = default;
+        var midWalk = new List<Vector3>();
         var run = stage.Run(MainTank, stopAt: 38.2f, probe: p =>
         {
             if (p.Time < 34f) return;
             var doll = Doll(p, stage, PhysRangedDps);
             if (p.Crossed(34.8f) || p.Crossed(35f)) tethered.Add(doll.TetheredAt is not null);
             if (p.Crossed(34.6f)) Stage.Scenario(p).Presses!.Strike(p.Member(RegenHealer)!, doll.Enemy);
+            if (p.Crossed(35.1f) || p.Crossed(35.5f)) midWalk.Add(doll.Enemy.Position);
             if (!p.Crossed(38f)) return;
             holders = Stage.DollOf.Keys.Select(seat => Rules.Seat(Doll(p, stage, seat).Holder) == seat ? seat : (PartyRole?)null).ToArray();
             standsOff = Vector3.Distance(doll.Enemy.Position, p.Member(PhysRangedDps)!.Position);
-            hitboxes = doll.Enemy.HitboxRadius + p.Member(PhysRangedDps)!.HitboxRadius;
             (meleesDoll, itsSpot) = (Doll(p, stage, MeleeDpsA).Enemy.Position, Doll(p, stage, MeleeDpsA).Spot);
         });
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(tethered, Is.EqualTo(new[] { false, true }), "0.6 s after the hit at 34.3");
         Assert.That(holders, Is.EqualTo(Stage.DollOf.Keys.Cast<PartyRole?>()), "each kept its first hitter: H1's later hit on R1's changed nothing");
-        Assert.That(standsOff, Is.EqualTo(hitboxes + P1Rules.DollStopsPastTheHitboxes).Within(0.1f), "it stops 2 y past their hitboxes");
+        Assert.That(Vector3.Distance(midWalk[0], midWalk[1]), Is.EqualTo(0.4f * 9f).Within(0.3f), "it walks at 9 y/s");
+        Assert.That(standsOff, Is.EqualTo(3.3f).Within(0.1f), "it stops 2 y past their hitboxes");
         Assert.That(Vector3.Distance(meleesDoll, itsSpot), Is.LessThan(0.01f), "a doll whose holder stands beside it stays where it appeared");
     }
 
@@ -618,11 +593,12 @@ public class TeaP1LivingLiquidPullTests
     }
 
     // The human M1 presses one button with its doll targeted at 34.3. Only a weaponskill or a spell that is aimed at
-    // an enemy is a hit: a press comes with the client's target whatever the button.
+    // one target other than its user is a hit: a press comes with the client's target whatever the button.
     [TestCase(31u, true, TestName = "{m}(Heavy Swing)")]
     [TestCase(16u, true, TestName = "{m}(Shield Bash)")]
     [TestCase(7533u, true, TestName = "{m}(Provoke)")]
     [TestCase(119u, true, TestName = "{m}(Stone)")]
+    [TestCase(25762u, true, TestName = "{m}(Thunderclap)")]
     [TestCase(7531u, false, TestName = "{m}(Rampart)")]
     [TestCase(7548u, false, TestName = "{m}(Arm's Length)")]
     [TestCase(7568u, false, TestName = "{m}(Esuna)")]
@@ -800,13 +776,13 @@ public class TeaP1LivingLiquidPullTests
     // -- Feeding --
     // M1's doll, tethered at 34.9 and under a quarter from 38.9, is put beside a boss at 40.0, on its far side from the
     // other boss, with M1 near enough that it does not walk: toward the Living Liquid, or on the main tank's spot,
-    // since the Hand's far side is the middle tornado's water.
+    // since the Hand's far side is the middle tornado's water. The line is 4.6 y between their centres.
 
-    [TestCase(TeaP1Boss.LivingLiquid, 4.0f, true)]
-    [TestCase(TeaP1Boss.LivingLiquid, 4.3f, false)]
-    [TestCase(TeaP1Boss.LiquidHand, 4.0f, true)]
-    [TestCase(TeaP1Boss.LiquidHand, 4.3f, false)]
-    public void AHitDollThatComesWithinFourYalmsOfABossIsFedToIt(TeaP1Boss boss, float fromItsCentre, bool fed)
+    [TestCase(TeaP1Boss.LivingLiquid, 4.4f, true)]
+    [TestCase(TeaP1Boss.LivingLiquid, 4.8f, false)]
+    [TestCase(TeaP1Boss.LiquidHand, 4.4f, true)]
+    [TestCase(TeaP1Boss.LiquidHand, 4.8f, false)]
+    public void AHitDollThatComesWithinTheFeedLineOfABossIsFedToIt(TeaP1Boss boss, float fromItsCentre, bool fed)
     {
         var stage = new Stage { First = Pull, Last = Pull, NoFeedBy = [MeleeDpsA, MeleeDpsB] };
         var watch = new Rules.Watch();
@@ -838,7 +814,7 @@ public class TeaP1LivingLiquidPullTests
         }
         Assert.That(soon, Is.EqualTo(((TeaP1Boss?)boss, false, true)), "fed: no longer targetable");
         Assert.That(later.Active, Is.False, "gone after its Reducible Complexity");
-        Assert.That(complexity.Select(sent => sent.At), Is.EqualTo(new[] { 40f + P1Duration.ReducibleComplexityAfterTheFeed }).Within(0.05f));
+        Assert.That(complexity.Select(sent => sent.At), Is.EqualTo(new[] { 41.07f }).Within(0.05f), "1.07 s after the feed");
     }
 
     [Test]
@@ -866,7 +842,69 @@ public class TeaP1LivingLiquidPullTests
         Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(PerRole.All), run.ToString);
         Assert.That(run.Deaths.Select(d => d.ActionId), Is.All.EqualTo((uint?)P1ActionId.ReducibleComplexity), run.ToString);
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1JagdDolls.ADollWasFedTooSoon), run.ToString);
-        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(36.9f + P1Duration.ReducibleComplexityAfterTheFeed).Within(0.05f), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(37.97f).Within(0.05f), run.ToString);
+    }
+
+    // The line is a quarter of its health. M1's doll, tethered at 34.9, holds 26 % at 38.85 and 24 % at 38.95.
+    [TestCase(38.85f, true)]
+    [TestCase(38.95f, false)]
+    public void ADollFedJustOverAQuarterKillsEveryoneAndOneJustUnderNobody(float fedAt, bool everyoneDies)
+    {
+        var stage = new Stage { First = Pull, Last = Pull, NoFeedBy = [MeleeDpsA] };
+        TeaP1Boss? fedTo = null;
+        var run = stage.Run(MainTank, stopAt: 40.5f, probe: p =>
+        {
+            if (p.Time < 34f) return;
+            var doll = Doll(p, stage, MeleeDpsA);
+            if (p.Crossed(fedAt))
+            {
+                var liquid = Stage.Fight(p).Position(TeaP1Boss.LivingLiquid);
+                doll.Enemy.SetPosition(liquid + new Vector3(0f, 0f, -3f));
+                p.Member(MeleeDpsA)!.SetPosition(liquid + new Vector3(0f, 0f, -5f));
+            }
+            if (p.Crossed(fedAt + 0.1f)) fedTo = doll.FedTo;
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(fedTo, Is.EqualTo(TeaP1Boss.LivingLiquid));
+        if (!everyoneDies)
+        {
+            Assert.That(run.Deaths, Is.Empty, run.ToString);
+            return;
+        }
+        Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(PerRole.All), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1JagdDolls.ADollWasFedTooSoon), run.ToString);
+        Assert.That(run.Deaths.Select(d => d.Time), Is.All.EqualTo(fedAt + 1.07f).Within(0.05f), run.ToString);
+    }
+
+    // The bar's stand-in until it is seen to follow in the client: the human's own doll says in chat when it is ready,
+    // once, as it passes a quarter 4 s after its tether. M1 hits at 34.3; the stage feeds its doll at 40.0.
+    [TestCase("its own doll", true)]
+    [TestCase("another seat's doll", false)]
+    [TestCase("as a bot", false)]
+    public void AHumansOwnDollSaysOnceInChatWhenItIsUnderAQuarter(string holds, bool said)
+    {
+        const string ready = "Your Jagd Doll is under a quarter of its health";
+        var asAHuman = holds != "as a bot";
+        var stage = asAHuman ? Human(ThePull) : ThePull;
+        var lines = new List<(float At, string Line)>();
+        var seen = 0;
+        var run = stage.Run(asAHuman && holds == "its own doll" ? MeleeDpsA : asAHuman ? RegenHealer : MeleeDpsA, stopAt: 42.4f, probe: p =>
+        {
+            if (p.Crossed(34.3f) && holds == "its own doll") Press(HeavySwing, Id(Doll(p, stage, MeleeDpsA).Enemy));
+            lines.AddRange(p.Chat.Skip(seen).Select(line => (p.Time, line)));
+            seen = p.Chat.Count;
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        var readies = lines.Where(line => line.Line.Contains(ready)).ToList();
+        if (!said)
+        {
+            Assert.That(readies, Is.Empty);
+            return;
+        }
+        Assert.That(readies, Has.Count.EqualTo(1));
+        Assert.That(readies[0].At, Is.EqualTo(34.3f + 0.6f + 4f).Within(0.1f));
     }
 
     // The south-west doll stands 3 y from the Living Liquid from 35.0, untouched: nothing feeds it. Hit at 36.0, it is
@@ -993,6 +1031,23 @@ public class TeaP1LivingLiquidPullTests
         Assert.That(run.Deaths.Select(d => d.Role), Is.EquivalentTo(PerRole.All), run.ToString);
         Assert.That(run.Deaths.Select(d => d.Cause), Is.All.Contain(TeaP1LivingLiquid.EmbolusTouched), run.ToString);
         Assert.That(run.Deaths.Select(d => d.Time), Is.All.InRange(45.95f, 46.8f), run.ToString);
+    }
+
+    // At 6 y/s here: both are out of the arena by 51.5, and each stays active through the 1.3 s of its fade.
+    [Test]
+    public void AnEmbolusThatLeavesTheArenaIsFadedOutOnce()
+    {
+        var watch = new Rules.Watch();
+        var active = -1;
+        var run = new Stage { First = Pull, Last = Pull, EmbolusSpeed = 6f }.Run(MainTank, stopAt: 54f, probe: p =>
+        {
+            watch.See(p);
+            if (p.Crossed(53.5f)) active = Stage.Fight(p).Emboli.Count(embolus => embolus.IsActive);
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(active, Is.Zero, "both have left");
+        Assert.That(watch.Spawned(P1BNpcBaseId.Embolus).Select(watch.Fades), Is.EqualTo(new[] { 1, 1 }));
     }
 
     // -- The second busters --

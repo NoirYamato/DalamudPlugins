@@ -41,7 +41,7 @@ public partial class TeaP1LivingLiquidLpduMarginTests
     private const string CleaveOthers = "The pull, every cleave: the nearest other seat outside it (deg)";
     private const string ExhaustOne = "Exhaust 1: a seat's second-nearest doll past its reach (y)";
     private const string ExhaustTwo = "Exhaust 2: a seat's second-nearest doll past its reach (y)";
-    private const string HitDollFromABoss = "A hit doll with a quarter of its health or more: from either boss less the 4.14 y that feeds it (y)";
+    private const string HitDollFromABoss = "A hit doll with a quarter of its health or more: from either boss less the 4.6 y that feeds it (y)";
     private const string FirstEmboliSeats = "The pull's Emboli: the nearest seat's hitbox less their 1 y (y)";
     private const string FirstEmboliBosses = "The pull's Emboli: the nearest boss's hitbox less their 1 y (y)";
 
@@ -96,8 +96,9 @@ public partial class TeaP1LivingLiquidLpduMarginTests
         (ExhaustOne, 0.3f),
         // Each ranged's doll rests 3.3 y short of its tornado's bait, 13 y east or west of the middle.
         (ExhaustTwo, 3.2f),
-        // The bots hit a doll only with both bosses 5.2 y from it, and neither boss walks until the melee's are fed.
-        (HitDollFromABoss, 1.0f),
+        // The bots hit a doll only with both bosses 5.2 y from it, 0.6 y past the line, and neither boss walks until
+        // the melee's are fed.
+        (HitDollFromABoss, 0.55f),
         // The orb from the east tornado passes the main tank's hold, 3.9 y south-east of the Liquid, 2.8 y off at the
         // least, and the Liquid stands up to half a yalm off the middle.
         (FirstEmboliSeats, 0.7f),

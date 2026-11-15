@@ -120,9 +120,31 @@ public class TeaP1DollsPullLogsTests
             Hit(35.0, Player(1), 31, Doll1), Tether(35.6, Doll1, Player(1), TeaLogIds.DollTether),
         ], [LiquidStands()])).Named("A doll nobody has acted on yet");
 
-        Assert.That(untouched.Measured, Does.StartWith($"1 of 1 dolls had a boss within 4.14 y before any player acted on them, the nearest 1.50 y; {(fedMeanwhile ? 1 : 0)} of them were fed. "
+        Assert.That(untouched.Measured, Does.StartWith($"1 of 1 dolls had a boss within 4.6 y before any player acted on them, the nearest 1.50 y; {(fedMeanwhile ? 1 : 0)} of them were fed. "
                                                        + "The latest such pass came 0.30 s after the doll turned targetable"));
         Assert.That(untouched.Verdict, Is.EqualTo(fedMeanwhile ? Verdict.Differs : Verdict.Matches));
+    }
+
+    // The feed tether goes out with the doll this far from the Liquid Hand. Dolls walk in across the line, so it is
+    // held to the farthest feed: one that goes out from beyond it differs.
+    [TestCase(4.5f, false)]
+    [TestCase(4.0f, false)]
+    [TestCase(4.9f, true)]
+    public void TheFeedLineIsHeldToTheFarthestFeed(float apart, bool differs)
+    {
+        var spot = new Vector2(102.68f, 106.47f);
+        var feeding = Findings(new TeaP1DollsPullLogs(), Of(
+        [
+            Enemy(19.5, Hand, P1BNpcBaseId.LiquidHand, Centre, 0f, 1300000, LiquidMaxHp),
+            Enemy(32.6, Doll1, TeaLogIds.JagdDoll, spot, 0f, 43540, 43540), NameToggle(33.4, Doll1, true),
+            Hit(34.0, Player(1), 31, Doll1), Tether(34.6, Doll1, Player(1), TeaLogIds.DollTether),
+            Moved(39.0, Hand, spot + new Vector2(apart, 0f), 0f),
+            Tether(40.0, Doll1, Hand, TeaLogIds.FeedTether),
+        ], [LiquidStands()])).Named("Feeding a doll");
+
+        Assert.That(feeding.Sim, Does.StartWith("a doll a player has hit is fed once it is within 4.6 y of a boss's centre"));
+        Assert.That(feeding.Measured, Does.Contain($"the farthest {Spread.F(apart)} y"));
+        Assert.That(feeding.Verdict, differs ? Is.EqualTo(Verdict.Differs) : Is.Not.EqualTo(Verdict.Differs));
     }
 
     // A boss that walks past a doll a player has acted on already says nothing of the rule.
@@ -139,6 +161,6 @@ public class TeaP1DollsPullLogsTests
         ], [LiquidStands()])).Named("A doll nobody has acted on yet");
 
         Assert.That((untouched.Measured, untouched.Verdict),
-                    Is.EqualTo(("no boss came within 4.14 y of any of 1 dolls before a player acted on it", Verdict.Inconclusive)));
+                    Is.EqualTo(("no boss came within 4.6 y of any of 1 dolls before a player acted on it", Verdict.Inconclusive)));
     }
 }

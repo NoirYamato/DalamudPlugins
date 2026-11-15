@@ -165,15 +165,15 @@ public static class TeaP1Actions
     public static readonly EnemyAction ReducibleComplexity = new(P1ActionId.ReducibleComplexity) { Effects = [Damage()] };
 
     // -- The cleaves --
-    // Each boss's cleave at its target: a non-tank seat in it dies, and a human tank on a tank's job needs a cooldown
-    // (P1Rules.FluidSwingMitigation, FluidStrikeMitigation). Both leave Water Resistance Down as a wave does, and
-    // neither hits a carrier of it any harder.
+    // Each boss's cleave at its target: a non-tank seat in it dies. A tank is asked for no cooldown: one at full
+    // health lives through either bare. Both leave Water Resistance Down as a wave does, and neither hits a carrier of
+    // it any harder.
     public static readonly EnemyAction FluidSwing = new(P1ActionId.FluidSwing)
     {
         Area = new() { Size = P1Geometry.CleaveHalfAngle },
         Effects =
         [
-            Damage(TankBuster.MinMit(P1Rules.FluidSwingMitigation), split: new TankJobsOnly()),
+            Damage(TankBuster),
             ApplyStatus(P1StatusId.WaterResistanceDown, P1Duration.WaterResistanceDown),
         ],
         Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
@@ -185,7 +185,7 @@ public static class TeaP1Actions
         Area = new() { Size = P1Geometry.CleaveHalfAngle },
         Effects =
         [
-            Damage(TankBuster.MinMit(P1Rules.FluidStrikeMitigation), split: new TankJobsOnly()),
+            Damage(TankBuster),
             ApplyStatus(P1StatusId.WaterResistanceDown, P1Duration.WaterResistanceDown),
         ],
         Timing = new() { DamageDelay = P1Duration.LivingLiquidDamageDelay },
@@ -200,14 +200,6 @@ public static class TeaP1Actions
         SimPartyNpc bot => bot.ClassJob,
         _ => 0,
     }).IsTank();
-
-    // The cast's MinMit, asked only of a player on a tank's job: anyone else takes the plain tank buster. The engine
-    // asks it of the human whatever its job.
-    private sealed record TankJobsOnly : Distribution
-    {
-        internal override (Hit? Hit, string? Reason) Assign(EnemyActionContext ctx, IReadOnlyList<SimCharacter> hits, int index, SimCharacter target)
-            => (OnATankJob(target) ? null : (Hit)TankBuster, null);
-    }
 
     // Each hit leaves both vulnerabilities, and the next one inside the longer of them kills. The push starts with
     // the hit: the client slides its own player the moment the effect arrives. It goes its full length, past the rim

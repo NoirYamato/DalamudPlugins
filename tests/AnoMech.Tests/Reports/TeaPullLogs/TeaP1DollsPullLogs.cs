@@ -11,6 +11,8 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
     private const float DollHitbox = 0.8f, PlayerHitbox = 0.5f;
     private const float ExhaustReach = 8f + DollHitbox;
     private const float StandsStillWithin = 0.3f;
+    private const double FedBeyondTheLineBy = 0.1, FedShortOfTheLineBy = 0.25;
+    private const int FeedsThatShowTheLine = 20;
 
     private readonly List<double> dollStandOff = [], untouchedPasses = [], untouchedPassesAfterTargetable = [];
     private readonly List<string> untouchedDetails = [];
@@ -333,17 +335,21 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
         var readyUnder = 100 * P1Rules.DollIsReadyUnder;
         yield return new LogFinding(Section, "Feeding a doll: its hit points as its tether goes to a boss, and what its Reducible Complexity does",
             SimSource.Line(TeaSource.Constants, "float DollIsFedWithin ="),
-            $"a doll a player has hit is fed within {P1Geometry.DollIsFedWithin} y of a boss's centre; Reducible Complexity {P1Duration.ReducibleComplexityAfterTheFeed} s later, "
+            $"a doll a player has hit is fed once it is within {P1Geometry.DollIsFedWithin} y of a boss's centre; Reducible Complexity {P1Duration.ReducibleComplexityAfterTheFeed} s later, "
             + $"harmless with the doll under {Spread.F(readyUnder, "0")} % of its health and killing everyone from there up. Its health is scripted: no damage is played",
             feeds.Count == 0 ? "no doll fed"
-                : $"{feeds.Count} dolls fed, {apart.Describe(" y")} from the boss's centre as the tether goes out; Reducible Complexity "
+                : $"{feeds.Count} dolls fed, {apart.Describe(" y")} from the boss's centre as the tether goes out, the farthest {Spread.F(apart.Max)} y; Reducible Complexity "
                   + $"{complexity.Describe(" s")} later. "
                   + (light.Count == 0 ? "None hit lightly" : $"With the doll at {Spread.F(light.Min(f => f.Share), "0.0")} to {Spread.F(light.Max(f => f.Share), "0.0")} % "
                                                              + $"its hardest hit was {light.Max(f => f.Hardest)} at the most (n={light.Count})")
                   + (heavy.Count == 0 ? "; none hit hard" : $"; at {Spread.F(heavy.Min(f => f.Share), "0.0")} % and over it was {heavy.Min(f => f.Hardest)} at the least "
                                                             + $"(n={heavy.Count})"),
             feeds.Count == 0 ? Verdict.NotInTheseLogs
-            : LogFinding.Compare(apart, P1Geometry.DollIsFedWithin, 0.25) == Verdict.Differs || LogFinding.Compare(complexity, P1Duration.ReducibleComplexityAfterTheFeed, 0.1) == Verdict.Differs
+            // A line, not a mean: dolls walk in across it, so it lies at the farthest feed or a little past it, and
+            // only many feeds show how far out that is.
+            : apart.Max > P1Geometry.DollIsFedWithin + FedBeyondTheLineBy
+              || (apart.Count >= FeedsThatShowTheLine && apart.Max < P1Geometry.DollIsFedWithin - FedShortOfTheLineBy)
+              || LogFinding.Compare(complexity, P1Duration.ReducibleComplexityAfterTheFeed, 0.1) == Verdict.Differs
               || light.Any(f => f.Share >= readyUnder) || heavy.Any(f => f.Share < readyUnder) ? Verdict.Differs
             // The line is held only by feeds on both sides of it.
             : light.Count > 0 && heavy.Count > 0 ? Verdict.Matches

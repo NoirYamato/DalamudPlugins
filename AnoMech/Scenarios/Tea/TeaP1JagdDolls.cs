@@ -69,17 +69,18 @@ public sealed class TeaP1JagdDoll
 // has hit is fed to a boss it comes close to: harmlessly once its health is under a quarter, and killing everyone
 // before.
 //
-// No damage is played, so a doll's health is scripted from its tether and no doll dies. UNVERIFIED: that a doll nobody
-// has hit is never fed (seen only in a doll's first 0.75 s), that one can be fed from its first hit, before its tether
-// shows, that an auto-attack alone tethers none (the run hears no auto-attack), that a doll fed with a quarter of its
-// health or more kills everyone, where the fight's hits hard enough to kill most of a party, and that an explosion
-// reaches the sheet's 8 y past a player's hitbox.
+// No damage is played, so a doll's health is scripted from its tether and no doll dies. The fight's doll also tethers
+// whoever's auto-attack lands on it first; the run hears no auto-attack, so here a doll waits for a weaponskill or a
+// spell. UNVERIFIED: that a doll nobody has hit is never fed (seen only in a doll's first 0.75 s), that one can be fed
+// from its first hit, before its tether shows, that a doll fed with a quarter of its health or more kills everyone,
+// where the fight's hits hard enough to kill most of a party, and that an explosion reaches the sheet's 8 y past a
+// player's hitbox.
 public sealed class TeaP1JagdDolls
 {
     internal const string LuminousAetheroplasmBurst =
         "A player hit by two Jagd Dolls' Exhausts at once explodes and kills everyone within 8.5 y: each Exhaust reaches 8.8 y round its doll";
     internal const string ADollWasFedTooSoon =
-        "A Jagd Doll reached a boss with a quarter of its health or more left: one that comes within 4 y of the Living Liquid or the Liquid Hand is fed to it, and above a quarter that kills everyone";
+        "A Jagd Doll reached a boss with a quarter of its health or more left: one that comes within 4.6 y of the Living Liquid or the Liquid Hand is fed to it, and above a quarter that kills everyone";
 
     private const float StopsWithin = 0.05f;
 

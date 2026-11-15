@@ -204,6 +204,7 @@ public sealed class TeaP1LivingLiquid
 
     private readonly List<(TeaP1Tornado From, SimTether Tether)> drainageTethers = [];
     private readonly List<SimEnemy> emboli = [];
+    private readonly HashSet<SimEnemy> emboliLeaving = [];
     private bool embolusBurst;
     private bool fallen;
     private float timelineEndsAt;
@@ -693,12 +694,12 @@ public sealed class TeaP1LivingLiquid
     private void BurstATouchedEmbolus()
     {
         if (embolusBurst) return;
-        foreach (var embolus in emboli.Where(embolus => embolus.IsActive))
+        foreach (var embolus in emboli.Where(embolus => embolus.IsActive && !emboliLeaving.Contains(embolus)))
         {
             var at = embolus.Position;
             if (Apart(at, Vector3.Zero) >= P1Geometry.EmbolusLeavesBeyond - StopsWithin)
             {
-                embolus.FadeOut();
+                FadeOut(embolus);
                 continue;
             }
             var touched = world.Party.ActiveMembers().Any(member => Touches(member, at))
@@ -712,6 +713,12 @@ public sealed class TeaP1LivingLiquid
     }
 
     private static bool Touches(SimCharacter who, Vector3 embolus) => Apart(who.Position, embolus) <= who.HitboxRadius + P1Geometry.EmbolusRadius;
+
+    // Once: a fading Embolus is still active until its fade has played.
+    private void FadeOut(SimEnemy embolus)
+    {
+        if (embolus.IsActive && emboliLeaving.Add(embolus)) embolus.FadeOut();
+    }
 
     // -- The Jagd Dolls --
     public void JagdDollsAppear(float at, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
@@ -751,7 +758,7 @@ public sealed class TeaP1LivingLiquid
             Liquid?.Defeat(P1Duration.LiquidCorpseFade);
             Tornadoes.Leave();
             Dolls.Leave();
-            foreach (var embolus in emboli.Where(embolus => embolus.IsActive)) embolus.FadeOut();
+            foreach (var embolus in emboli) FadeOut(embolus);
         }, file, line);
         At(at + P1Duration.HandLeavesAfterTheLiquid, () =>
         {

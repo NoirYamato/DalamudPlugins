@@ -312,8 +312,8 @@ internal sealed class TeaP1HandPullLogs : ITeaPullLogMeasures
             : cleaveLeaves.Count > 0 && cleaveLeaves.Keys.All(k => k.Contains($"({P1StatusId.WaterResistanceDown})", StringComparison.Ordinal)) ? Verdict.Matches : Verdict.Differs);
 
         yield return new LogFinding(Section, "The cleaves' damage and what covered it",
-            SimSource.Line(TeaSource.Constants, "float FluidSwingMitigation ="),
-            $"a human tank on a tank's job needs {P1Rules.FluidSwingMitigation} of mitigation under Fluid Swing and {P1Rules.FluidStrikeMitigation} under Fluid Strike",
+            SimSource.Line(TeaSource.Actions, "A tank is asked for no cooldown"),
+            "a tank seat lives through a cleave whatever it holds: neither asks for a cooldown",
             cleaves.Count == 0 ? "no cleave hit anyone"
                 : $"{cleaves.Count} hits: " + string.Join("; ", cleaveDamage.OrderBy(d => d.Key).Select(d => $"{d.Key} {new Spread(d.Value).Describe("", "0")}"))
                   + $"; {cleavesUnderAnInvulnerability} under an invulnerability left out. Each is below with the hit points it took and the statuses that covered it",

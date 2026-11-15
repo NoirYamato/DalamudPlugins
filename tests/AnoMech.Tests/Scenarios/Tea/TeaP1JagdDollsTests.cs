@@ -97,6 +97,88 @@ public class TeaP1JagdDollsTests
         Assert.That(run.Elapsed, Is.InRange(25f, 30.5f), "the run ends by itself after its last line");
     }
 
+    // M1, 4.0 y from the doll it hits at 1.5, is inside the 4.3 y a doll lets its holder stand: the doll stays. At 3.1
+    // M1 steps to 4.6 y, and the doll walks until it is 3.3 y from it.
+    [Test]
+    public void ADollSetsOffOnlyOnceItsHolderIsAYalmPastWhereItStops()
+    {
+        Vector3 spot = default, stayed = default;
+        var standsOff = float.NaN;
+        var run = Dolls((world, fight, presses) =>
+        {
+            fight.JagdDollsAppear(1f);
+            fight.JagdDollsTurnTargetable(1.1f);
+            world.Events.Add(1.3f, () =>
+            {
+                spot = fight.Dolls.All[0].Spot;
+                TimelineRun.Place(world, MeleeDpsA, spot.X + 4.0f, spot.Z);
+            });
+            world.Events.Add(1.5f, () => presses.Strike(world.Party.Get(MeleeDpsA)!, fight.Dolls.All[0].Enemy));
+            world.Events.Add(3.0f, () => stayed = fight.Dolls.All[0].Enemy.Position);
+            world.Events.Add(3.1f, () => TimelineRun.Place(world, MeleeDpsA, spot.X + 4.6f, spot.Z));
+            world.Events.Add(4.5f, () => standsOff = Vector3.Distance(fight.Dolls.All[0].Enemy.Position, world.Party.Get(MeleeDpsA)!.Position));
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(Vector3.Distance(stayed, spot), Is.LessThan(0.01f), "tethered since 2.1, with its holder 4.0 y off");
+        Assert.That(standsOff, Is.EqualTo(3.3f).Within(0.1f));
+    }
+
+    // M1 hits a doll 11.8 y from it at 1.5 and dies at 2.6, with the doll, tethered at 2.1, on its way. The doll stops
+    // there and its tether goes. It still Exhausts, at 4.0, and a boss put beside it at 4.5 is still fed it.
+    [Test]
+    public void ADollWhoseHolderDiesStopsWhereItIsLosesItsTetherAndIsStillADoll()
+    {
+        var stands = new List<Vector3>();
+        var tethered = new List<bool>();
+        TeaP1Boss? fedTo = null;
+        Vector3 spot = default;
+        var run = Dolls((world, fight, presses) =>
+        {
+            fight.JagdDollsAppear(1f);
+            fight.JagdDollsTurnTargetable(1.1f);
+            world.Events.Add(1.5f, () => presses.Strike(world.Party.Get(MeleeDpsA)!, fight.Dolls.All[0].Enemy));
+            world.Events.Add(2.5f, () => tethered.Add(fight.Dolls.All[0].Tether is not null));
+            world.Events.Add(2.6f, () => world.Party.Get(MeleeDpsA)!.Die(P1ActionId.Splash));
+            foreach (var at in new[] { 2.8f, 4.4f })
+                world.Events.Add(at, () =>
+                {
+                    spot = fight.Dolls.All[0].Spot;
+                    stands.Add(fight.Dolls.All[0].Enemy.Position);
+                    tethered.Add(fight.Dolls.All[0].Tether is not null);
+                });
+            fight.Exhausts(4f);
+            world.Events.Add(4.5f, () => fight.Liquid!.SetPosition(fight.Dolls.All[0].Enemy.Position + new Vector3(0f, 0f, -3f)));
+            world.Events.Add(4.7f, () => fedTo = fight.Dolls.All[0].FedTo);
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That(tethered, Is.EqualTo(new[] { true, false, false }), "at 2.5, 2.8 and 4.4");
+        Assert.That(Vector3.Distance(stands[0], spot), Is.InRange(2f, 7f), "it had set off");
+        Assert.That(stands[1], Is.EqualTo(stands[0]), "and stands where its holder died on it");
+        Assert.That(run.Sent("ability", P1ActionId.Exhaust).Count(sent => MathF.Abs(sent.Time - 4f) < 0.1f), Is.EqualTo(4), "all four Exhaust at 4.0");
+        Assert.That(fedTo, Is.EqualTo(TeaP1Boss.LivingLiquid));
+    }
+
+    // M1 dies 0.3 s after its hit, before the tether would show 0.6 s after it.
+    [Test]
+    public void ADollWhoseFirstHitterDiesBeforeItsTetherShowsTethersNobody()
+    {
+        float? tetheredAt = 0f;
+        var hit = false;
+        var run = Dolls((world, fight, presses) =>
+        {
+            fight.JagdDollsAppear(1f);
+            fight.JagdDollsTurnTargetable(1.1f);
+            world.Events.Add(1.5f, () => presses.Strike(world.Party.Get(MeleeDpsA)!, fight.Dolls.All[0].Enemy));
+            world.Events.Add(1.8f, () => world.Party.Get(MeleeDpsA)!.Die(P1ActionId.Splash));
+            world.Events.Add(3f, () => (tetheredAt, hit) = (fight.Dolls.All[0].TetheredAt, fight.Dolls.All[0].HasBeenHit));
+        });
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That((tetheredAt, hit), Is.EqualTo(((float?)null, true)));
+    }
+
     [Test]
     public void ExhaustFromAPlayerAndReducibleComplexityOnlyShowTheirHits()
     {
