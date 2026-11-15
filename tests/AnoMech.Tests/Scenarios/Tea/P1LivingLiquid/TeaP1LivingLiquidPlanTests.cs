@@ -8,7 +8,9 @@ namespace AnoMech.Tests;
 
 // What LPDU asks of each seat where Living Liquid leaves a choice, written from the strat's rule: each tank takes the
 // Drainage tether from the tornado on its own side (the main tank the east one's, the off tank the west one's) and
-// the middle one's when its side has none; each healer cleanses itself, then H1 down the party list and H2 up it.
+// the middle one's when its side has none; each healer cleanses itself, then H1 down the party list and H2 up it. At
+// the pull the main tank holds both bosses but for the first hand, and each damage dealer takes the Jagd Doll of its
+// own quarter: R1 north-east, M2 south-east, M1 south-west, R2 north-west.
 public class TeaP1LivingLiquidPlanTests
 {
     private static readonly JobId[] HealerJobs = [JobId.WhiteMage, JobId.Scholar, JobId.Astrologian, JobId.Sage];
@@ -60,7 +62,7 @@ public class TeaP1LivingLiquidPlanTests
         var plan = Plan(seat, job);
 
         Assert.That(plan.HumanCleanses, Is.False);
-        Assert.That(plan.ChatLines(_ => true).Single(), Does.Contain("none").And.Contain("the run cleanses for your seat"));
+        Assert.That(plan.ChatLines(AfterThePull).Single(), Does.Contain("none").And.Contain("the run cleanses for your seat"));
     }
 
     [Test]
@@ -77,7 +79,7 @@ public class TeaP1LivingLiquidPlanTests
             Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(CascadeTwo).Single(), Does.StartWith("Your Liquid Hand:"));
             Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLines(CascadeTwo).Single(), Does.StartWith("Your Throttle cleanses: yourself first, then R2, R1"));
             Assert.That(Plan(ShieldHealer, JobId.Scholar).ChatLines(ProteanOne), Is.Empty);
-            Assert.That(Plan(CasterDps, JobId.BlackMage).ChatLines(_ => true), Is.Empty);
+            Assert.That(Plan(CasterDps, JobId.BlackMage).ChatLines(AfterThePull), Is.Empty);
         });
     }
 
@@ -91,7 +93,7 @@ public class TeaP1LivingLiquidPlanTests
     [Test]
     public void TheMainTankAloneIsToldToHaveTheLiquidOnTheMiddleForProteanTwo()
     {
-        var whole = Plan(MainTank, JobId.Warrior).ChatLines(_ => true);
+        var whole = Plan(MainTank, JobId.Warrior).ChatLines(AfterThePull);
         var fromCascadeTwo = Plan(MainTank, JobId.Warrior).ChatLines(CascadeTwo);
 
         Assert.Multiple(() =>
@@ -126,7 +128,7 @@ public class TeaP1LivingLiquidPlanTests
     public void EachTankIsToldToWalkOnThroughTheMiddleForTheLastHand()
     {
         var mainTanks = Plan(MainTank, JobId.Warrior).ChatLines(CascadeTwo);
-        var offTanks = Plan(OffTank, JobId.Paladin).ChatLines(_ => true);
+        var offTanks = Plan(OffTank, JobId.Paladin).ChatLines(AfterThePull);
 
         Assert.Multiple(() =>
         {
@@ -139,9 +141,119 @@ public class TeaP1LivingLiquidPlanTests
                 .And.Contain("walk on through the middle until it stands on the Living Liquid"));
             Assert.That(Plan(MainTank, JobId.Warrior).ChatLines(ProteanOne).Where(line => line.Contains("palm")), Is.Empty);
             Assert.That(Plan(OffTank, JobId.Paladin).ChatLines(ProteanOne).Where(line => line.Contains("palm")), Is.Empty);
-            Assert.That(Plan(MeleeDpsA, JobId.Dragoon).ChatLines(_ => true), Is.Empty);
+            Assert.That(Plan(MeleeDpsA, JobId.Dragoon).ChatLines(AfterThePull), Is.Empty);
         });
     }
+
+    // -- The pull --
+
+    [Test]
+    public void AHumanTanksInATanksSeatOnATanksJob([Values(MainTank, OffTank)] PartyRole seat,
+        [Values(JobId.Warrior, JobId.Paladin, JobId.DarkKnight, JobId.Gunbreaker)] JobId job)
+        => Assert.That(Plan(seat, job).HumanTanks, Is.True);
+
+    [Test]
+    public void AHumanOnAnotherJobInATanksSeatIsHeldToNoneOfATanksPresses([Values(MainTank, OffTank)] PartyRole seat,
+        [Values(JobId.Monk, JobId.WhiteMage, JobId.Bard, JobId.BlackMage)] JobId job)
+    {
+        var plan = Plan(seat, job);
+
+        Assert.That(plan.HumanTanks, Is.False);
+        Assert.That(plan.ChatLines(ThePull).Single(), Is.EqualTo("Your Provokes and invulnerability: none, since your job has none: the run presses them for your seat"));
+    }
+
+    [Test]
+    public void ATankOutsideATanksSeatTanksNothing([Values(RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps)] PartyRole seat)
+        => Assert.That(Plan(seat, JobId.Warrior).HumanTanks, Is.False);
+
+    // With the open quarter north, as the dolls stand whatever the layout: one in each quarter.
+    [Test]
+    public void EachDamageDealerTakesTheDollOfItsOwnQuarter()
+    {
+        var plan = Plan();
+
+        Assert.That(new[] { PhysRangedDps, MeleeDpsB, MeleeDpsA, CasterDps }.Select(plan.DollOf),
+            Is.EqualTo(new TeaP1Quarter?[] { TeaP1Quarter.Northeast, TeaP1Quarter.Southeast, TeaP1Quarter.Southwest, TeaP1Quarter.Northwest }));
+        Assert.That(new[] { MainTank, OffTank, RegenHealer, ShieldHealer }.Select(plan.DollOf), Is.All.Null);
+    }
+
+    // The main tank holds both bosses but for the first hand, and no move of the strat's reaches a human.
+    [Test]
+    public void TheMainTankIsToldItsPullItsFirstHandAndWhereToHoldTheLiquidAfterIt()
+    {
+        var lines = Plan(MainTank, JobId.Warrior).ChatLines(ThePull);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines, Has.Count.EqualTo(3));
+            Assert.That(lines[0], Does.StartWith("Your pull: the Living Liquid comes to 6 y from you and cleaves toward you at 10 s, so turn it away from the party")
+                .And.Contain("Be within 6 y of the middle when Cascade lands at 18 s"));
+            Assert.That(lines[1], Does.StartWith("Your first hand: take the Living Liquid to the rim beside the middle tornado, on the side of the tornado left of the open quarter")
+                .And.Contain("Provoke the Liquid Hand as it shows its palm, at about 29 to 31 s")
+                .And.Contain("step out of it and back, or hold your ground with Arm's Length, and be its closest player again by 37 s")
+                .And.Contain("Your invulnerability by 37 s: both busters leave Water Resistance Down, and the tornado's unseen wave follows"));
+            Assert.That(lines[2], Does.StartWith("Your Living Liquid from 42 s: lead it onto the middle and stand within 4 y of it, between the middle tornado and the one right of the open quarter")
+                .And.Contain("an Embolus from the tornado right of the open quarter passes 7 y from the middle on that side at about 52 s"));
+        });
+    }
+
+    [Test]
+    public void TheOffTankIsToldToTakeTheHandAwayAndToProvokeItBack()
+    {
+        var line = Plan(OffTank, JobId.Paladin).ChatLines(ThePull).Single();
+
+        Assert.That(line, Does.StartWith("Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm")
+            .And.Contain("Provoke it back after the busters at 36 s and before the next at 55 s")
+            .And.Contain("stand between the middle tornado and the one left of the open quarter"));
+    }
+
+    [TestCase(PhysRangedDps, JobId.Bard, "north-east", "Your tornado: the one right of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back")]
+    [TestCase(CasterDps, JobId.BlackMage, "north-west", "Your tornado: the one left of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back")]
+    [TestCase(MeleeDpsA, JobId.Dragoon, "south-west", "Your spot beside it: on your doll or a step away from the tornado beside it, not toward it")]
+    [TestCase(MeleeDpsB, JobId.Monk, "south-east", "Your spot beside it: on your doll or a step away from the tornado beside it, not toward it")]
+    public void ADamageDealerIsToldItsDollAndWhereToStand(PartyRole seat, JobId job, string quarter, string stands)
+    {
+        var lines = Plan(seat, job).ChatLines(ThePull);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines, Has.Count.EqualTo(2));
+            Assert.That(lines[0], Does.StartWith($"Your Jagd Doll: the one {quarter} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell")
+                .And.Contain("each reaches 8.8 y, and two at once kill")
+                .And.Contain("Keep it more than 4 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone")
+                .And.Contain("stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle"));
+            Assert.That(lines[1], Does.StartWith(stands));
+        });
+    }
+
+    // The middle is inside both melee dolls' reach while they stand where they appeared.
+    [TestCase(RegenHealer, JobId.WhiteMage, "stay far out, in the open quarter, until their first Exhaust at 38 s")]
+    [TestCase(ShieldHealer, JobId.Scholar, "stay far out, between the middle tornado and the one right of the open quarter, until their first Exhaust at 38 s")]
+    public void AHealerIsToldToStayOutOfTheMiddleUntilTheFirstExhaust(PartyRole seat, JobId job, string waits)
+    {
+        var line = Plan(seat, job).ChatLines(ThePull).Single();
+
+        Assert.That(line, Does.StartWith("Your wait for the Jagd Dolls: " + waits)
+            .And.Contain("then come to the middle: until then it is inside two dolls' reach, and two Exhausts at once kill"));
+    }
+
+    [Test]
+    public void ThePullsLinesComeFirstAndOnlyInARunThatPlaysIt([Values] PartyRole seat)
+    {
+        var job = (JobId)PartyPresets.Standard[(int)seat].ClassJob;
+        var (thePulls, later, whole) = (Plan(seat, job).ChatLines(ThePull), Plan(seat, job).ChatLines(AfterThePull), Plan(seat, job).ChatLines(_ => true));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(thePulls, Is.Not.Empty);
+            Assert.That(whole, Is.EqualTo(thePulls.Concat(later)));
+            Assert.That(later.Intersect(thePulls), Is.Empty);
+        });
+    }
+
+    private static bool ThePull(TeaP1LivingLiquidPart part) => part == TeaP1LivingLiquidPart.Pull;
+
+    private static bool AfterThePull(TeaP1LivingLiquidPart part) => part != TeaP1LivingLiquidPart.Pull;
 
     private static bool ProteanOne(TeaP1LivingLiquidPart part) => part == TeaP1LivingLiquidPart.Protean1;
 

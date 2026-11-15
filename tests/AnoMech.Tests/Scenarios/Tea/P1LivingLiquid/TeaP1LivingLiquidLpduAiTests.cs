@@ -20,6 +20,9 @@ namespace AnoMech.Tests;
 // each in the frame of the tornadoes standing then, and a spot hung off the Living Liquid from where it stands as the
 // move is called. Bots walk there, so each cue is read once they have arrived. Where the strat differs from the stage:
 //
+//   - in the pull (TeaP1LivingLiquidLpduAiTests.Pull.cs) each melee draws its doll through the nearer boss as soon as
+//     it is under a quarter, each ranged after the second Exhaust, and each tank takes its hold once its boss has come
+//     to rest on the middle, where the stage has fixed times for all three;
 //   - each tank fetches its own Drainage tether from 17.75 and walks it back to its spot (the main tank's 3.9 y
 //     south-east of the middle, the off tank's at (-5.4, 5.4)): the east tornado's is the main tank's and the west
 //     one's the off tank's, and the middle one's goes to the tank whose side has none;
@@ -30,7 +33,7 @@ namespace AnoMech.Tests;
 //     0.25 y since, for a human main tank who is still leading it back: with bots alone it never has;
 //   - the off tank walks to the west tornado from 25.4 with no wait on the way;
 //   - both healers cleanse at 11.2, 13.7, 16.2 and 18.7, each itself first, then H1 down the party list and H2 up it.
-public class TeaP1LivingLiquidLpduAiTests
+public partial class TeaP1LivingLiquidLpduAiTests
 {
     internal const int LpduStrat = 0;
 
@@ -49,6 +52,7 @@ public class TeaP1LivingLiquidLpduAiTests
         public TeaP1OpenQuarter Open2 { get; init; } = TeaP1OpenQuarter.North;
         public IReadOnlyList<TeaP1DrainageRoll>? Drainage { get; init; }
         public IReadOnlyList<PartyRole>? Throttled { get; init; }
+        public IReadOnlyList<TeaP1EmbolusRoll>? FirstEmboli { get; init; }
         public IReadOnlyList<TeaP1EmbolusRoll>? Emboli { get; init; }
         public float? EmbolusSpeed { get; init; }
 
@@ -61,9 +65,9 @@ public class TeaP1LivingLiquidLpduAiTests
         public bool Plays(TeaP1LivingLiquidPart part) => part >= First && part <= Last;
 
         // A part's time on the run's clock.
-        public float P1(float time) => time;
-        public float C2(float time) => time + (First == Protean1 ? Stage.CascadeTwo : 0f);
-        public float At(TeaP1LivingLiquidPart part, float time) => part == Protean1 ? P1(time) : C2(time);
+        public float P1(float time) => time + (First == Pull ? Stage.ProteanOne : 0f);
+        public float C2(float time) => P1(time) + (First == Cascade2 ? 0f : Stage.CascadeTwo);
+        public float At(TeaP1LivingLiquidPart part, float time) => part switch { Pull => time, Protean1 => P1(time), _ => C2(time) };
 
         public TeaP1TornadoLayout Frame1 => new(Open1);
         public TeaP1TornadoLayout Frame2 => new(Open2);
@@ -77,6 +81,7 @@ public class TeaP1LivingLiquidLpduAiTests
             overrides.Tornadoes2 = Open2;
             overrides.Drainage = Drainage;
             overrides.Throttled = Throttled;
+            overrides.FirstEmboli = FirstEmboli;
             overrides.Emboli = Emboli;
             overrides.EmbolusSpeed = EmbolusSpeed;
             overrides.PlayerPressesItsOwnActions = PlayerPressesItsOwnActions;
@@ -87,11 +92,12 @@ public class TeaP1LivingLiquidLpduAiTests
                + (Drainage is null ? "" : $", tethers {string.Join(" and ", Drainage.Select(roll => $"{roll.From} on {roll.FirstTarget}"))}");
     }
 
-    internal static ScenarioRun Play(Roll roll, PartyRole player, int seed, Action<ScenarioProbe>? probe = null, float? stopAt = null)
+    internal static ScenarioRun Play(Roll roll, PartyRole player, int seed, Action<ScenarioProbe>? probe = null, float? stopAt = null, params Takeover[] takeovers)
         => ScenarioRun.Execute(typeof(TeaP1LivingLiquidScenario), LpduStrat, seed, new ScenarioRunOptions
         {
             PlayerRole = player,
             StopAt = stopAt,
+            Takeovers = takeovers,
             Configure = roll.PlayersJob is { } job ? _ => ((FakeBattleCharas)Natives.BattleCharas).Player.ClassJob = (byte)job : null,
             Overrides = o => roll.Pin((TeaP1LivingLiquidStateOverrides)o),
             Probe = probe,
@@ -106,6 +112,17 @@ public class TeaP1LivingLiquidLpduAiTests
 
     private static readonly Arrival[] Arrivals =
     [
+        new(Pull, 0.05f, 1.4f),
+        new(Pull, 2.0f, 3.9f),
+        new(Pull, 14.3f, 15.5f),
+        new(Pull, 24.0f, 29.2f),
+        new(Pull, 30.75f, 36.3f),
+        new(Pull, 32.5f, 35.05f),
+        new(Pull, 33.5f, 37.4f),
+        new(Pull, 35.15f, 37.4f),
+        new(Pull, 42.5f, 45.9f, [OffTank]),
+        new(Pull, 42.5f, 47.0f, [RegenHealer, ShieldHealer, MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps]),
+        new(Pull, 53.5f, 55.4f),
         new(Protean1, 0.05f, 1.4f),
         new(Protean1, 1.5f, 4.7f),
         new(Protean1, 5.3f, 9.8f),
@@ -168,7 +185,7 @@ public class TeaP1LivingLiquidLpduAiTests
 
         Assert.That(run.Passed, () => $"{run}{Environment.NewLine}{context}");
         Assert.That(problems, Is.Empty, context);
-        Assert.That(read, Is.EqualTo((roll.Plays(Protean1) ? 40 : 0) + (roll.Plays(Cascade2) ? 54 : 0)), "every cue was read");
+        Assert.That(read, Is.EqualTo((roll.Plays(Pull) ? 34 : 0) + (roll.Plays(Protean1) ? 40 : 0) + (roll.Plays(Cascade2) ? 54 : 0)), "every cue was read");
     }
 
     // -- The bosses --

@@ -24,7 +24,7 @@ namespace AnoMech.Tests;
 // frame's walk (0.15 y, or the 1.5 degrees that is from a bait), which the debug-driven player's seat can stop short
 // by. A run that falls under one has a bot off its spot or late to it. From Cascade 2 on the Liquid can stand up to a
 // yalm off the middle (the ceilings below): Protean 2's spots hang off it, and their floors were held with it there.
-public class TeaP1LivingLiquidLpduMarginTests
+public partial class TeaP1LivingLiquidLpduMarginTests
 {
     private static int Seeds => Math.Max(2, TestContext.Parameters.Get("MarginSeeds", 2));
 
@@ -152,9 +152,9 @@ public class TeaP1LivingLiquidLpduMarginTests
             Assert.Multiple(() =>
             {
                 Assert.That(Problems.Distinct().Take(15), Is.Empty);
-                foreach (var (check, atLeast) in Floors)
+                foreach (var (check, atLeast) in Floors.Concat(ThePullsFloors))
                     if (Least.TryGetValue(check, out var least)) Assert.That(least.Value, Is.GreaterThanOrEqualTo(atLeast), $"{check} [{least.Where}]");
-                foreach (var (check, atMost) in Ceilings)
+                foreach (var (check, atMost) in Ceilings.Concat(ThePullsCeilings))
                     if (Most.TryGetValue(check, out var most)) Assert.That(most.Value, Is.LessThanOrEqualTo(atMost), $"{check} [{most.Where}]");
                 foreach (var check in alsoMeasured)
                     Assert.That(Least.ContainsKey(check) || Most.ContainsKey(check), $"{check} was measured");
@@ -183,7 +183,7 @@ public class TeaP1LivingLiquidLpduMarginTests
         [(TeaP1Tornado.West, OffTank), (TeaP1Tornado.Middle, MeleeDpsA), (TeaP1Tornado.East, MeleeDpsB)];
 
     // One run's measuring, called every frame.
-    private sealed class Measure(Roll roll, Margins margins, string where)
+    private sealed partial class Measure(Roll roll, Margins margins, string where)
     {
         private readonly Watch watch = new();
         private readonly Dictionary<string, List<Cone>> cones = [];
@@ -194,15 +194,16 @@ public class TeaP1LivingLiquidLpduMarginTests
         {
             watch.See(p);
             var fight = Stage.Fight(p);
+            if (roll.Plays(Pull)) ThePull(p, fight);
             if (roll.Plays(Protean1))
             {
-                Protean(p, fight, 4.8f, 9.9f, 13.0f, P1Telegraph, P1Set1Pick, P1Set1Cones, P1Sluices, P1Set2Pick, P1Set2Cones);
+                Protean(p, fight, roll.P1(4.8f), roll.P1(9.9f), roll.P1(13.0f), P1Telegraph, P1Set1Pick, P1Set1Cones, P1Sluices, P1Set2Pick, P1Set2Cones);
                 if (p.Crossed(roll.P1(4.85f)))
                 {
                     margins.AtMost(FacingOffSouth, DegreesOff(fight, roll.Frame1.Facing(180f)), where);
                     margins.AtMost(LiquidOffAtProteanOne, Flat(fight.Position(TeaP1Boss.LivingLiquid)).Length(), where);
                 }
-                if (p.Time <= roll.P1(24.65f)) Puddles(p, fight, P1Puddles);
+                if (p.Time >= roll.P1(0f) && p.Time <= roll.P1(24.65f)) Puddles(p, fight, P1Puddles);
                 if (p.Crossed(roll.P1(24.65f))) Drainage(p, fight);
             }
             if (!roll.Plays(Cascade2)) return;
@@ -233,12 +234,12 @@ public class TeaP1LivingLiquidLpduMarginTests
         {
             Protean(p, fight, roll.C2(18.15f), roll.C2(23.25f), roll.C2(26.3f), P2Telegraph, P2Set1Pick, P2Set1Cones, P2Sluices, P2Set2Pick, P2Set2Cones);
 
-            if (p.Crossed(roll.C2(24.2f))) cones[TornadoTelegraphs] = Tornadoes(p, AimedAt, TornadoAim);
+            if (p.Crossed(roll.C2(24.2f))) cones[TornadoTelegraphs] = Tornadoes(p, roll.Frame2, AimedAt, TornadoAim, BaiterToItsPuddle);
             if (p.Crossed(roll.C2(24.2f + WaveDecidesAfter)) && cones.TryGetValue(TornadoTelegraphs, out var telegraphed))
                 foreach (var (seat, at) in Living(p))
                 foreach (var cone in telegraphed)
                     margins.AtLeast(TornadoTelegraphs, Outside(at, cone), $"{seat}, {where}");
-            if (p.Crossed(roll.C2(29.25f)) && Tornadoes(p, UnseenAt, TornadoWavesPick) is var unseen)
+            if (p.Crossed(roll.C2(29.25f)) && Tornadoes(p, roll.Frame2, UnseenAt, TornadoWavesPick, BaiterToItsPuddle) is var unseen)
                 foreach (var (seat, at) in Living(p))
                 foreach (var cone in unseen.Where(cone => cone.Baiter != seat))
                     margins.AtLeast(TornadoWavesCones, Outside(at, cone), $"{seat} in the wave at {cone.Baiter}, {where}");
@@ -288,16 +289,16 @@ public class TeaP1LivingLiquidLpduMarginTests
             return byDistance.Skip(4).Select(seat => seat.At).ToList();
         }
 
-        private List<Cone> Tornadoes(ScenarioProbe p, (TeaP1Tornado Tornado, PartyRole Baiter)[] meant, string pick)
+        private List<Cone> Tornadoes(ScenarioProbe p, TeaP1TornadoLayout frame, (TeaP1Tornado Tornado, PartyRole Baiter)[] meant, string pick, string puddle)
         {
             var fired = new List<Cone>();
             foreach (var (tornado, baiter) in meant)
             {
-                var centre = Flat(roll.Frame2.Centre(tornado));
+                var centre = Flat(frame.Centre(tornado));
                 var byDistance = Living(p).OrderBy(seat => Vector2.Distance(seat.At, centre)).ToList();
                 if (byDistance[0].Seat != baiter) margins.Problems.Add($"{pick}: the {tornado} tornado's closest is {byDistance[0].Seat} ({where})");
                 margins.AtLeast(pick, Vector2.Distance(byDistance[1].At, centre) - Vector2.Distance(byDistance[0].At, centre), $"{tornado}: {byDistance[1].Seat} against {byDistance[0].Seat}, {where}");
-                margins.AtLeast(BaiterToItsPuddle, Vector2.Distance(byDistance[0].At, centre) - P1Geometry.PuddleRadius, $"{byDistance[0].Seat}, {where}");
+                margins.AtLeast(puddle, Vector2.Distance(byDistance[0].At, centre) - P1Geometry.PuddleRadius, $"{byDistance[0].Seat}, {where}");
                 fired.Add(new Cone(centre, Vector2.Normalize(byDistance[0].At - centre), byDistance[0].Seat));
             }
             return fired;
@@ -327,9 +328,11 @@ public class TeaP1LivingLiquidLpduMarginTests
             var hits = watch.Sent("ability", P1ActionId.ProteanWaveFromTheLiquid, P1ActionId.ProteanWaveAtAPlayer, P1ActionId.ProteanWaveStraightAhead,
                                   P1ActionId.ProteanWaveAtTheClosest, P1ActionId.TornadoWave, P1ActionId.TornadoWaveUnseen)
                 .SelectMany(wave => wave.Hits.Select(seat => (Seat: seat, wave.At, wave.ActionId))).ToList();
+            var afterThePull = roll.Plays(Pull) ? roll.P1(0f) : 0f;
+            if (roll.Plays(Pull)) ThePullsHits(hits.Where(hit => hit.At < afterThePull).Select(hit => hit.Seat).ToList());
             foreach (var seat in PerRole.All)
             {
-                var taken = hits.Where(hit => hit.Seat == seat).OrderBy(hit => hit.At).ToList();
+                var taken = hits.Where(hit => hit.Seat == seat && hit.At >= afterThePull).OrderBy(hit => hit.At).ToList();
                 var meant = (roll.Plays(Protean1) ? 1 : 0) + (roll.Plays(Cascade2) ? seat is OffTank or MeleeDpsA or MeleeDpsB ? 2 : 1 : 0);
                 if (taken.Count != meant)
                     margins.Problems.Add($"{seat} took {taken.Count} waves, not {meant}: {string.Join(", ", taken.Select(hit => $"{hit.ActionId} at {F(hit.At)}"))} ({where})");

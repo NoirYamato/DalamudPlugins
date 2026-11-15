@@ -12,7 +12,7 @@ using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 
-public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
+public partial class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
 {
     public string Name => "[LPDU] Light PF";
     public string? Group => "EU";
@@ -60,9 +60,12 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
         ai = new AiManager(world);
         walkingItsTetherBack.Clear();
         theStacksWereTakenRound = null;
+        ForgetThePull();
         var parts = state.Parts;
-        if (parts.First == Protean1) world.Events.Add(0f, () => PutEveryoneOn(TheTanksBesideTheBossesWithFourNorthAndTheRangedFarOut()));
+        if (parts.First == Pull) world.Events.Add(0f, () => PutEveryoneOn(EveryoneBehindTheMainTankWithTheLiquidFarNorth()));
+        else if (parts.First == Protean1) world.Events.Add(0f, () => PutEveryoneOn(TheTanksBesideTheBossesWithFourNorthAndTheRangedFarOut()));
         else world.Events.Add(0f, () => PutEveryoneOn(EveryoneInsideTheReachOfAnyNewPuddle()));
+        if (parts.Plays(Pull)) ThePullIntoTheCentre();
         if (parts.Plays(Protean1)) ProteanOneIntoDrainage(parts.Start(Protean1));
         if (parts.Plays(Cascade2)) CascadeTwoIntoTheKill(parts.Start(Cascade2), afterDrainage: parts.Plays(Protean1));
     }
@@ -113,14 +116,15 @@ public class TeaP1LivingLiquidLpduAi : IScenarioAi<TeaP1LivingLiquidState>
         }
     }
 
-    private IAiMove TheTanksBesideTheBossesWithFourNorthAndTheRangedFarOut()
-    {
-        var liquid = TheLiquidIn(state.Tornadoes1);
-        return Turned(state.Tornadoes1,
-            (MainTank, Off(liquid, WellInsideTheLiquidsReach, 135f)), (OffTank, new(-3.0f, 3.0f)),
+    private IAiMove TheTanksBesideTheBossesWithFourNorthAndTheRangedFarOut() => Turned(state.Tornadoes1, WhereProteanOneStarts());
+
+    private (PartyRole Seat, Vector2 Spot)[] WhereProteanOneStarts()
+        =>
+        [
+            (MainTank, Off(TheLiquidIn(state.Tornadoes1), WellInsideTheLiquidsReach, 135f)), (OffTank, new(-3.0f, 3.0f)),
             (RegenHealer, new(-1.1f, -4.2f)), (ShieldHealer, new(1.1f, -5.2f)), (MeleeDpsA, new(-0.3f, -5.6f)), (MeleeDpsB, new(0.4f, -4.3f)),
-            (PhysRangedDps, new(11.0f, -7.8f)), (CasterDps, new(-10.3f, -8.1f)));
-    }
+            (PhysRangedDps, new(11.0f, -7.8f)), (CasterDps, new(-10.3f, -8.1f)),
+        ];
 
     private IAiMove TheSixLineUpNorthOfTheLiquid()
     {
