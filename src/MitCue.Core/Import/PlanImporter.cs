@@ -2085,7 +2085,7 @@ public sealed partial class PlanImporter
         /// The offset "(Late)" gives an entry with these actions: <see cref="LateOffset"/>, minus the longest time one of them
         /// takes from its press to its effect (<see cref="TimeToEffect"/>), so that each effect is in place that long before
         /// the hit ("Reprisal (Late)": −1 s; "Succor (Late)", a 2 s cast: −3 s; "Eukrasian Prognosis (Late)", after Eukrasia's
-        /// 2.5 s: −3.5 s).
+        /// 1 s: −2 s).
         /// </summary>
         private double LateOffsetOf(IEnumerable<ActionInfo> actions) => LateOffset - actions.Select(this.TimeToEffect).DefaultIfEmpty(0).Max();
 

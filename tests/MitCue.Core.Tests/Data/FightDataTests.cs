@@ -153,7 +153,29 @@ public partial class FightDataTests(ITestOutputHelper output)
         }
     }
 
-    /// <summary>The timing fields (press, heal_lead, series) time the calls planned on a mechanic against its damage: never on a marker.</summary>
+    /// <summary>
+    /// Sub hits are damage times after the mechanic's first hit that are no timeline entries (only coverage counts them): in
+    /// time order, none of them a hit.
+    /// </summary>
+    [Fact]
+    public void SubHits_AreAfterTheFirstHit_InTimeOrder_AndNoHits()
+    {
+        var withSubHits = 0;
+        foreach (var (path, fight) in Fights)
+        {
+            foreach (var m in fight.Mechanics.Where(m => m.SubHits.Count > 0))
+            {
+                withSubHits++;
+                Assert.True(m.SubHits[0] > m.Hit, $"{path}: {m.Id} sub hit {m.SubHits[0]} is not after its hit {m.Hit}");
+                Assert.True(m.SubHits.Zip(m.SubHits.Skip(1)).All(p => p.First < p.Second), $"{path}: {m.Id} sub hits are not in time order");
+                Assert.DoesNotContain(m.SubHits, m.Hits.Contains);
+            }
+        }
+
+        Assert.True(withSubHits >= 2, "TOP's Diffuse Wave Cannon Kyrios and TEA's first Splash have sub hits");
+    }
+
+    /// <summary>The timing fields (press, heal_lead, series, sub_hits) time the calls planned on a mechanic against its damage: never on a marker.</summary>
     [Fact]
     public void TimingFields_AreOnlyOnDamage()
     {
@@ -164,6 +186,7 @@ public partial class FightDataTests(ITestOutputHelper output)
                 Assert.False(m.PressAfter, $"{path}: {m.Id} is a marker with press: after");
                 Assert.Null(m.HealLead);
                 Assert.False(m.Series, $"{path}: {m.Id} is a marker with series: true");
+                Assert.Empty(m.SubHits);
             }
         }
     }

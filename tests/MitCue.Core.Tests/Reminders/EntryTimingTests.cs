@@ -258,6 +258,91 @@ public class EntryTimingTests
         Assert.Equal(-6, Kit.Timing(Kit.Entry("p1.buster", null, Kit.Do(Kit.Swiftcast), Kit.Do(Kit.Temperance)), leadFight).AutomaticOffset, Kit.Tolerance);
     }
 
+    // ---- the NOW cue never comes before the earliest use ------------------------------------------------------------
+
+    /// <summary>The Blackest Night: a 7 s shield (−4 s on its own).</summary>
+    private static readonly ActionInfo SevenSecondShield = Kit.Act(7393, "The Blackest Night", ActionKind.Shield, duration: 7, jobs: [Job.DRK]);
+
+    /// <summary>Heart of Corundum: 8 s tank mitigation (−2.4 s on its own).</summary>
+    private static readonly ActionInfo EightSecondMit = Kit.Act(25758, "Heart of Corundum", ActionKind.TankMit, duration: 8, jobs: [Job.GNB]);
+
+    /// <summary>Raw Intuition: 6 s tank mitigation (−2 s on its own).</summary>
+    private static readonly ActionInfo SixSecondMit = Kit.Act(3551, "Raw Intuition", ActionKind.TankMit, duration: 6, jobs: [Job.WAR]);
+
+    private static FakeCatalog RampartCatalog => new([.. Kit.Catalogued, SevenSecondShield, EightSecondMit, SixSecondMit]);
+
+    private static EntryTiming BesideRampart(double? offset, params ActionInfo[] actions)
+    {
+        var fight = Kit.TestFight();
+        return TimingRules.ForEntry(Kit.Entry("p1.raidwide", offset, [.. actions.Select(Kit.Do)]), fight.GetMechanic("p1.raidwide")!, fight, RampartCatalog);
+    }
+
+    [Fact]
+    public void NowCue_NeverBeforeTheEarliestUse_WhenThePressIsAtOrAfterIt()
+    {
+        // "Rampart + TBN" on a raidwide at 100: Rampart's −6 s times both. A 7 s shield pressed at 94 is on time from 94
+        // (100 − 7 + 1), so it turns due then, not at 92.5, and a press on its NOW cue lasts 1 s past the hit; Rampart (20 s)
+        // keeps its NOW cue. An 8 s call turns due at 93, 1 s before its press.
+        var options = new ReminderOptions();
+        var t = BesideRampart(null, Kit.Rampart, SevenSecondShield, EightSecondMit);
+        Assert.Equal(-6, t.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal([94.0, 94.0, 94.0], t.Items.Select(i => i.PressAt));
+        Assert.Equal([92.5, 94.0, 93.0], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([81.0, 94.0, 93.0], t.Items.Select(i => i.Earliest));
+        Assert.Null(t.Items[0].DueNotBefore);
+        Assert.All(t.Items, i => Assert.True(i.Earliest <= i.DueAt(options) + Kit.Tolerance));
+
+        // The same for a written press at or after that use; one before it (the sheet asks for an early press) keeps its
+        // plain NOW cue.
+        Assert.Equal(94, BesideRampart(-6, Kit.Rampart, SevenSecondShield).Items[1].DueAt(options), Kit.Tolerance);
+        Assert.Equal(94, BesideRampart(-5.5, Kit.Rampart, SevenSecondShield).Items[1].DueAt(options), Kit.Tolerance);
+        var early = BesideRampart(-8, Kit.Rampart, SevenSecondShield).Items[1];
+        Assert.Null(early.DueNotBefore);
+        Assert.Equal(90.5, early.DueAt(options), Kit.Tolerance);
+
+        // Whatever the player's due lead: a longer one still turns Rampart due earlier, but not the shield.
+        var longLead = new ReminderOptions { DueLead = 3 };
+        Assert.Equal([91.0, 94.0, 93.0], t.Items.Select(i => i.DueAt(longLead)));
+
+        // The scheduler: the shield is due at 94, and a press on that cue is on time.
+        var fight = Kit.TestFight();
+        var s = new ReminderScheduler(fight, [Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Rampart), Kit.Do(SevenSecondShield))], new FakeCatalog([.. Kit.Catalogued, SevenSecondShield]), options);
+        var shield = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(93.9);
+        Assert.Equal(ReminderState.Upcoming, shield.State);
+        s.Update(94);
+        Assert.Equal(ReminderState.Due, shield.State);
+        s.OnOwnAction(SevenSecondShield.Id, 94);
+        Assert.Equal((ReminderState.Done, false), (shield.State, shield.UsedEarly));
+    }
+
+    [Fact]
+    public void NowCue_AnAutomaticPressBeforeTheEarliestCoveringUse_TurnsDueAtThePress()
+    {
+        // "Rampart + Raw Intuition" on a raidwide at 100: both pressed with Rampart's −6 s (94), before 100 − 6 + 1 = 95, so
+        // the 6 s call's earliest use is its press: it turns due then, not at 92.5, whatever the due lead, and a press on that
+        // cue is on time. Written at −6 s (the sheet asks for that early press), it keeps its plain NOW cue.
+        var options = new ReminderOptions();
+        var t = BesideRampart(null, Kit.Rampart, SixSecondMit);
+        Assert.Equal([94.0, 94.0], t.Items.Select(i => i.PressAt));
+        Assert.Equal([92.5, 94.0], t.Items.Select(i => i.DueAt(options)));
+        Assert.Equal((94.0, 94.0), (t.Items[1].DueNotBefore!.Value, t.Items[1].Earliest));
+        Assert.Equal(94, t.Items[1].DueAt(new ReminderOptions { DueLead = 3 }), Kit.Tolerance);
+        var written = BesideRampart(-6, Kit.Rampart, SixSecondMit).Items[1];
+        Assert.Null(written.DueNotBefore);
+        Assert.Equal(92.5, written.DueAt(options), Kit.Tolerance);
+
+        // The scheduler: due at 94, and a press on that cue is on time.
+        var s = new ReminderScheduler(Kit.TestFight(), [Kit.Entry("p1.raidwide", null, Kit.Do(Kit.Rampart), Kit.Do(SixSecondMit))], RampartCatalog, options);
+        var mitigation = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(93.9);
+        Assert.Equal(ReminderState.Upcoming, mitigation.State);
+        s.Update(94);
+        Assert.Equal(ReminderState.Due, mitigation.State);
+        s.OnOwnAction(SixSecondMit.Id, 94);
+        Assert.Equal((ReminderState.Done, false), (mitigation.State, mitigation.UsedEarly));
+    }
+
     // ---- several hits: mitigation covers the later hits it can reach ------------------------------------------------
 
     /// <summary>Two hits 6.1 s apart at 100 (Optical Sight), two 7 s apart at 200, two 12 s apart at 300 (sync 90).</summary>
@@ -598,11 +683,47 @@ public class EntryTimingTests
         Assert.Equal(ReminderState.Due, Assert.Single(s.All).State);
     }
 
+    /// <summary>
+    /// A first hit at 100 with sub hits (damage times that are no timeline entries) 2.1, 4.1, 6.2 and 8.3 s later and a hit
+    /// 8.8 s later (TOP's Diffuse Wave Cannon Kyrios), and a hit at 200 with five sub hits 1.1 s apart (TEA's first
+    /// Splash) (sync 90).
+    /// </summary>
+    private static FightDefinition SubHitFight() => Kit.Fight(
+        90,
+        new Mechanic { Id = "p1.cleaves", Name = "cleaves", Phase = "p1", Hit = 100, Hits = [100, 108.8], SubHits = [102.1, 104.1, 106.2, 108.3] },
+        new Mechanic { Id = "p1.splash", Name = "splash", Phase = "p1", Hit = 200, Hits = [200], SubHits = [201.1, 202.2, 203.3, 204.4, 205.5] });
+
+    [Fact]
+    public void Coverage_SubHitsAreLaterHitsToo_WithoutAHitIndex()
+    {
+        // The fifth cleave (108.3) is 8.3 s after the first, within 10 − 1.5 s: the invuln is pressed 0.5 s before the first
+        // and turns due at 108.3 − 10 + 0.5, so that a press on its NOW cue still lasts 0.5 s past it; 108.8 is out of reach.
+        var options = new ReminderOptions();
+        var fight = SubHitFight();
+        EntryTiming Timing(PlanEntry entry) => TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, ChargeCatalog);
+        var invuln = Timing(Kit.Entry("p1.cleaves", null, Kit.Do(Kit.HallowedGround)));
+        Assert.Equal(-0.5, invuln.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(98.8, invuln.Items[0].DueAt(options), Kit.Tolerance);
+        Assert.Equal(98.8, invuln.Items[0].Earliest, Kit.Tolerance);
+
+        // The sixth splash 5.5 s after the first: a 10 s call at 205.5 − 10 + 2, early before 205.5 − 10 + 0.5.
+        var splash = Timing(Kit.Entry("p1.splash", null, Kit.Do(TenSecondMit)));
+        Assert.Equal(-2.5, splash.AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(196, splash.Items[0].Earliest, Kit.Tolerance);
+
+        // Sub hits have no index: hit index 1 is the second hit (108.8).
+        Assert.Equal(108.8, Timing(Kit.Entry("p1.cleaves", -2, Kit.Do(Kit.HallowedGround)).AtHit(1)).Hit, Kit.Tolerance);
+
+        // Without them only the hits count: the invuln keeps its own −2 s.
+        var bare = Kit.Fight(90, new Mechanic { Id = "p1.cleaves", Name = "cleaves", Phase = "p1", Hit = 100, Hits = [100, 108.8] });
+        Assert.Equal(-2, TimingRules.ForEntry(Kit.Entry("p1.cleaves", null, Kit.Do(Kit.HallowedGround)), bare.GetMechanic("p1.cleaves")!, bare, ChargeCatalog).AutomaticOffset, Kit.Tolerance);
+    }
+
     /// <summary>Sacred Soil: 15 s party mitigation (−4.5 s).</summary>
     private static readonly ActionInfo Soil = Kit.Act(188, "Sacred Soil", ActionKind.PartyMit, duration: 15, jobs: [Job.SCH]);
 
-    /// <summary>Eukrasia: a GCD (2.5 s) without a cooldown of its own, which Eukrasian Prognosis needs first.</summary>
-    private static readonly ActionInfo Eukrasia = new() { Id = 24290, Name = "Eukrasia", Kind = ActionKind.Other, Jobs = [Job.SGE], IsGcd = true, Recast = 2.5 };
+    /// <summary>Eukrasia: a GCD without a cooldown of its own (the game locks it for 1 s), which Eukrasian Prognosis needs first.</summary>
+    private static readonly ActionInfo Eukrasia = new() { Id = 24290, Name = "Eukrasia", Kind = ActionKind.Other, Jobs = [Job.SGE], IsGcd = true, Recast = 1 };
 
     /// <summary>Eukrasian Prognosis: an instant shield (−4 s), usable after Eukrasia.</summary>
     private static readonly ActionInfo EukrasianPrognosis = new()
@@ -616,10 +737,20 @@ public class EntryTimingTests
         FollowUpOf = Eukrasia.Id,
     };
 
-    /// <summary>Hits 6.1 s apart at 100, 12 s apart at 300, 8.4 s apart at 500 and 9.5 s apart at 700 (sync 90).</summary>
+    /// <summary>
+    /// Hits 6.1 s apart at 100, 12 s apart at 300, 8.4 s apart at 500, 9.5 s apart at 700, 11 s apart at 900 and 11.5 s apart
+    /// at 1100 (sync 90).
+    /// </summary>
     private static EntryTiming Limited(string mechanic, params ActionInfo[] actions)
     {
-        var fight = Kit.Fight(90, Kit.Mech("p1.two", 100, 100, 106.1), Kit.Mech("p1.far", 300, 300, 312), Kit.Mech("p1.near", 500, 500, 508.4), Kit.Mech("p1.mid", 700, 700, 709.5));
+        var fight = Kit.Fight(
+            90,
+            Kit.Mech("p1.two", 100, 100, 106.1),
+            Kit.Mech("p1.far", 300, 300, 312),
+            Kit.Mech("p1.near", 500, 500, 508.4),
+            Kit.Mech("p1.mid", 700, 700, 709.5),
+            Kit.Mech("p1.late", 900, 900, 911),
+            Kit.Mech("p1.later", 1100, 1100, 1111.5));
         var catalog = new FakeCatalog([.. Kit.Catalogued, TenSecondMit, Soil, Eukrasia, EukrasianPrognosis]);
         return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, catalog);
     }
@@ -646,9 +777,13 @@ public class EntryTimingTests
         Assert.Equal(695, mid.Items[0].Earliest, Kit.Tolerance);                                        // 709.5 − 15 + 0.5
         Assert.Equal(-4.6, Limited("p1.near", Kit.Temperance, Soil, Kit.Adloquium).AutomaticOffset, Kit.Tolerance);
 
-        // A follow-up of a GCD (Eukrasian Prognosis after Eukrasia's 2.5 s) is in place 1 s before the hit too: −3.5 s at the latest.
+        // A follow-up of a GCD (Eukrasian Prognosis after Eukrasia's 1 s) is in place 1 s before the hit too: −2 s at the
+        // latest, so the Soil covers a hit 11 s later (911 − 15 + 2 − 900), not one 11.5 s later.
         Assert.Equal(-4.5, Limited("p1.far", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-3.5, Limited("p1.mid", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-2, Limited("p1.late", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-4.5, Limited("p1.later", Soil, EukrasianPrognosis).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-1.5, Limited("p1.later", Soil).AutomaticOffset, Kit.Tolerance);                        // alone it would
 
         // An item with a lead of its own is not pressed later for a later hit: Earthly Star matures (beside the 10 s
         // mitigation as late as that still lasts through the first hit, −7.5 s), Neutral Sect leaves time for its Helios.
@@ -817,6 +952,145 @@ public class EntryTimingTests
         s.OnOwnAction(Kit.DivineBenison.Id, 102.0);
         Assert.False(adloquium.UsedEarly);
         Assert.True(benison.UsedEarly);
+    }
+
+    /// <summary>Recitation: a buff (15 s) the next Adloquium or Succor consumes.</summary>
+    private static readonly ActionInfo Recitation = Kit.Act(16542, "Recitation", ActionKind.Buff, duration: 15, jobs: [Job.SCH]);
+
+    /// <summary>Summon Seraph: a buff (22 s) whose follow-up is Consolation.</summary>
+    private static readonly ActionInfo SummonSeraph = Kit.Act(16545, "Summon Seraph", ActionKind.Buff, duration: 22, jobs: [Job.SCH]);
+
+    /// <summary>Consolation: an instant shield, usable while Seraph is out.</summary>
+    private static readonly ActionInfo Consolation = new()
+    {
+        Id = 16546,
+        Name = "Consolation",
+        Kind = ActionKind.Shield,
+        Jobs = [Job.SCH],
+        DurationByLevel = new Dictionary<int, double> { [1] = 30 },
+        FollowUpOf = SummonSeraph.Id,
+    };
+
+    private static EntryTiming Wave3(double? offset, bool seq, params ActionInfo[] actions)
+    {
+        var fight = SeriesFight();
+        var entry = Kit.Entry("p1.wave_3", offset, [.. actions.Select(Kit.Do)]);
+        entry.Seq = seq;
+        return TimingRules.ForEntry(entry, fight.GetMechanic("p1.wave_3")!, fight, new FakeCatalog([.. Kit.Catalogued, Recitation, SummonSeraph, Consolation]));
+    }
+
+    [Fact]
+    public void Series_ABuffKeepsTheEntrysFloor_ATriggerWaitsWithItsFollowUp()
+    {
+        // Wave 3 (106): "Recitation + Adloquium", either way round and as a sequence, is timed by the Adloquium's own −4.5 s
+        // (101.5), its 2 s cast landing after wave 2 (103). The Recitation has nothing wave 2 could spend: it comes with the
+        // Adloquium, due with it at 101.3, not after wave 2 + 0.3 (the Adloquium would be cast without it).
+        var options = new ReminderOptions();
+        foreach (var t in new[] { Wave3(null, false, Recitation, Kit.Adloquium), Wave3(null, true, Recitation, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Recitation) })
+        {
+            Assert.All(t.Items, i => Assert.Equal(101.5, i.PressAt, Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(101.3, i.DueAt(options), Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(101.3, i.Earliest, Kit.Tolerance));
+        }
+
+        // "Summon Seraph + Consolation + Adloquium": the Seraph waits with its Consolation (an instant shield) for wave 2 + 0.3.
+        var seraph = Wave3(null, false, SummonSeraph, Consolation, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3, 101.5], seraph.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3, 101.3], seraph.Items.Select(i => i.DueAt(options)));
+
+        // Alone, a buff times the entry, and its floor is its own (wave 2 + 0.3).
+        Assert.Equal(103.3, Wave3(null, false, Recitation).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_AnEntryThatListsSwiftcast_LeavesItsShieldsNoCast()
+    {
+        // Wave 3 (106): Swiftcast makes the Adloquium instant, so its shield lands on the press. "Swiftcast + Adloquium", either
+        // way round and as a sequence, waits for wave 2 (103) + 0.3, both pressed and due then; an Adloquium used before then
+        // is spent on wave 2: early. So does Neutral Sect's Helios, its barrier cast instant. Alone, the Adloquium keeps its
+        // cast (101.5).
+        var options = new ReminderOptions();
+        foreach (var t in new[] { Wave3(null, false, Kit.Swiftcast, Kit.Adloquium), Wave3(null, true, Kit.Swiftcast, Kit.Adloquium), Wave3(null, false, Kit.Adloquium, Kit.Swiftcast), Wave3(null, false, Kit.Swiftcast, Kit.NeutralSect) })
+        {
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.PressAt, Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.DueAt(options), Kit.Tolerance));
+            Assert.All(t.Items, i => Assert.Equal(103.3, i.Earliest, Kit.Tolerance));
+        }
+
+        Assert.Equal(101.5, Wave3(null, false, Kit.Adloquium).PressAt, Kit.Tolerance);
+        Assert.Equal(101.8, Wave3(null, false, Kit.NeutralSect).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_ANoteKeepsTheEntrysFloor_AsAStepItHoldsNoStepBack()
+    {
+        // Wave 3 (106): "Adloquium + Stack middle", and an action the catalog does not know beside it, come with the
+        // Adloquium (101.5, due 101.3), not after wave 2 + 0.3: wave 2 has nothing of them to spend.
+        var options = new ReminderOptions();
+        var fight = SeriesFight();
+        EntryTiming Wave3Items(double? offset, bool seq, params PlanItem[] items)
+        {
+            var entry = Kit.Entry("p1.wave_3", offset, items);
+            entry.Seq = seq;
+            return Kit.Timing(entry, fight);
+        }
+
+        foreach (var t in new[] { Wave3Items(null, false, Kit.Do(Kit.Adloquium), Kit.Note("Stack middle")), Wave3Items(null, false, Kit.Do(Kit.Unlisted), Kit.Do(Kit.Adloquium)) })
+        {
+            Assert.Equal([101.5, 101.5], t.Items.Select(i => i.PressAt));
+            Assert.Equal([101.3, 101.3], t.Items.Select(i => i.DueAt(options)));
+        }
+
+        // "Stack middle → Adloquium": the note step does not hold the Adloquium back, with an automatic press or a written
+        // one (103.3: both turn due 1.5 s before it, the Adloquium's cast landing after wave 2).
+        var automatic = Wave3Items(null, true, Kit.Note("Stack middle"), Kit.Do(Kit.Adloquium));
+        Assert.Equal([101.5, 101.5], automatic.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 101.3], automatic.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.8, 101.8], Wave3Items(-2.7, true, Kit.Note("Stack middle"), Kit.Do(Kit.Adloquium)).Items.Select(i => i.DueAt(options)));
+
+        // Alone, a note times the entry: wave 2 + 0.3.
+        Assert.Equal(103.3, Wave3Items(null, false, Kit.Note("Stack middle")).PressAt, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Series_AStepOfASequenceIsNeitherPressedNorDueBeforeTheStepBeforeIt()
+    {
+        // "Tetragrammaton → Adloquium" on wave 3 (106): timed by the Adloquium (a heal gives no lead), whose cast may start at
+        // 101.5. Alone the heal would wait for wave 2 (103) + 0.3; as the step before the Adloquium it waits for no later
+        // floor than the Adloquium's, so both are pressed at 101.5 and due at 101.3, in the cell's order, the Adloquium's
+        // cast landing after wave 2. Not a sequence, the heal waits for 103.3 and the Adloquium keeps 101.5. The other way
+        // round, the heal after the Adloquium waits for its own floor.
+        var options = new ReminderOptions();
+        var seq = Wave3(null, true, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([101.5, 101.5], seq.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 101.3], seq.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.3, 101.3], seq.Items.Select(i => i.Earliest));
+        Assert.Equal(101.5, seq.PressAt, Kit.Tolerance);
+        var plain = Wave3(null, false, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([103.3, 101.5], plain.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 101.3], plain.Items.Select(i => i.DueAt(options)));
+        var after = Wave3(null, true, Kit.Adloquium, Kit.Tetragrammaton);
+        Assert.Equal([101.5, 103.3], after.Items.Select(i => i.PressAt));
+        Assert.Equal([101.3, 103.3], after.Items.Select(i => i.DueAt(options)));
+
+        // A written press is every step's, and each keeps the floor it is at or after: the Adloquium turns due with the heal,
+        // not at its own floor.
+        var written = Wave3(-2.7, true, Kit.Tetragrammaton, Kit.Adloquium);
+        Assert.Equal([103.3, 103.3], written.Items.Select(i => i.PressAt));
+        Assert.Equal([103.3, 103.3], written.Items.Select(i => i.DueAt(options)));
+        Assert.Equal([101.8, 103.3], Wave3(-2.7, false, Kit.Adloquium, Kit.Tetragrammaton).Items.Select(i => i.DueAt(options)));
+
+        // The scheduler: nothing of the written sequence is due before 103.3, and an Adloquium cast before then is still on
+        // time.
+        var fight = SeriesFight();
+        var entry = Kit.Entry("p1.wave_3", -2.7, Kit.Do(Kit.Tetragrammaton), Kit.Do(Kit.Adloquium));
+        entry.Seq = true;
+        var s = new ReminderScheduler(fight, [entry], new FakeCatalog(Kit.Catalogued), options);
+        var adloquium = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(103.2);
+        Assert.All(s.All, r => Assert.Equal(ReminderState.Upcoming, r.State));
+        s.OnOwnAction(Kit.Adloquium.Id, 102.0);
+        Assert.Equal((ReminderState.Done, false), (adloquium.State, adloquium.UsedEarly));
     }
 
     [Theory]

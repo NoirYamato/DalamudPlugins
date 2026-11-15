@@ -119,6 +119,8 @@ internal sealed class ActionDto
 
     public double? BarrierCast { get; set; }
 
+    public bool InstantNextCast { get; set; }
+
     public int? Lb { get; set; }
 
     public List<EffectDto>? Effects { get; set; }
@@ -179,6 +181,7 @@ internal sealed class ActionDto
             When = ParseWhen(this.When, context),
             Lead = this.Lead,
             BarrierCast = this.BarrierCast,
+            InstantNextCast = this.InstantNextCast,
             LimitBreakTier = this.Lb,
             Effects = this.Effects?.Select(e => new ActionEffect(e.Name, e.Duration ?? [])).ToList() ?? [],
             ReplacedBy = this.ReplacedBy?.Id,

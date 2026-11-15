@@ -21,7 +21,7 @@ internal static class Kit
     public static readonly ActionInfo MedicaII = Act(133, "Medica II", ActionKind.Regen, duration: 15, jobs: [Job.WHM]);                // −4.5 s
     public static readonly ActionInfo Rampart = Act(7531, "Rampart", ActionKind.TankMit, duration: 20, jobs: [Job.PLD, Job.WAR, Job.DRK, Job.GNB]); // −6 s
     public static readonly ActionInfo HallowedGround = Act(30, "Hallowed Ground", ActionKind.Invuln, duration: 10, jobs: [Job.PLD]);  // −2 s
-    public static readonly ActionInfo Swiftcast = Act(7561, "Swiftcast", ActionKind.Buff, duration: 10, jobs: [Job.WHM, Job.SCH, Job.AST, Job.SGE]); // −3 s
+    public static readonly ActionInfo Swiftcast = Act(7561, "Swiftcast", ActionKind.Buff, duration: 10, jobs: [Job.WHM, Job.SCH, Job.AST, Job.SGE], instantNextCast: true); // −3 s
 
     // Pre-placed heals (actions.yaml "when: before") and a healer LB ("when: after"), as in the real catalog.
     public static readonly ActionInfo Bell = Act(25862, "Liturgy of the Bell", ActionKind.Heal, duration: 20, jobs: [Job.WHM], when: UseTiming.Before);     // −6 s
@@ -74,7 +74,8 @@ internal static class Kit
         UseTiming when = UseTiming.Default,
         double? lead = null,
         ActionEffect[]? effects = null,
-        double? barrierCast = null) => new()
+        double? barrierCast = null,
+        bool instantNextCast = false) => new()
     {
         Id = id,
         Name = name,
@@ -85,6 +86,7 @@ internal static class Kit
         When = when,
         Lead = lead,
         BarrierCast = barrierCast,
+        InstantNextCast = instantNextCast,
         Effects = effects ?? [],
     };
 

@@ -7,8 +7,9 @@
 # anchored on the fixed entry that marks it; see the mechanic comments.
 # kind "marker" = MechanicKind.Marker (no damage). Aliases marked "# unverified" are community shorthand that was
 # not checked against a source; the others are cactbot or BossMod names and plain-text forms. The timing fields
-# press: after (p2.photon_1/2), heal_lead (p2.double_rocket_punch) and series: true (p3.j_waves) change the automatic
-# press times of the calls planned there (FightLoader, TimingRules.ForEntry); each is commented where it is used.
+# press: after (p2.photon_1/2), heal_lead (p2.double_rocket_punch), series: true (p3.j_waves) and sub_hits (p1.splash_1:
+# damage times that are no timeline entries, which only multi-hit coverage counts) change the automatic press times of
+# the calls planned there (FightLoader, TimingRules.ForEntry); each is commented where it is used.
 fight: tea
 name: The Epic of Alexander (Ultimate)
 territory: 887
@@ -187,10 +188,15 @@ mechanics:
       - "Proteans"
   - id: p1.splash_1
     # note: 6 hits ~1.1 s apart over 5.6 s (cactbot "duration 5.6"; sub-hits are not timeline entries)
+    # sub_hits: the five later Splashes, which the row's party mitigation must last through. BossMod (TEAStates.cs
+    # P1SplashDrainageCascade, @ 6e410ef8; TEAEnums: Splash 18866 "raidwide - 6 hits in succession"): "Splash start",
+    # then five more casts 1.1 s apart, the last as Drainage resolves (cactbot's Drainage: 86.6); cactbot's "Splash x6"
+    # entry lasts 5.6 s.
     name: "Splash x6 (raidwide multi-hit)"
     phase: p1
     hit: 81.1
     hits: [81.1]
+    sub_hits: [82.2, 83.3, 84.4, 85.5, 86.6]
     entry: "Splash x6"
     kind: multihit
     aliases:

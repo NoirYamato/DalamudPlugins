@@ -22,6 +22,16 @@ public class TeaPlanTimingTests
     private static ReminderScheduler Scheduler(params string[] cells) =>
         new(PlanImports.Tea, Entries(cells), RepoFiles.Actions, new ReminderOptions());
 
+    /// <summary>A TEA sheet of one pasted tab ("phase\tcolumn" then "row\tcell" lines), imported with the repository's data.</summary>
+    private static ImportResult Import(string tsv) =>
+        new PlanImporter().Import(
+            new SheetDocument { Title = "Test sheet", Tabs = [SheetReaders.FromDelimited(tsv.ReplaceLineEndings("\n"), '\t', "Pasted")] },
+            new ImportOptions { Fight = PlanImports.Tea, Actions = RepoFiles.Actions, Aliases = RepoFiles.Aliases, ImportedDate = PlanImports.Date });
+
+    /// <summary>The (press, NOW cue) of a reminder with the default options, to 1e-6 s.</summary>
+    private static (double Press, double Due) PressAndDue(Reminder r) =>
+        (Math.Round(r.PressAt, 6), Math.Round(TimingRules.DueAt(r.PressAt, r.DueNotBefore, new ReminderOptions()), 6));
+
     // ---- Photon: every player (the second time: both tanks) to 1 HP; the row's calls are the heal-up ---------------------
 
     /// <summary>
@@ -183,6 +193,161 @@ public class TeaPlanTimingTests
         Assert.True(consolation.UsedEarly);
     }
 
+    /// <summary>
+    /// A Scholar's buff with the Succor or Adloquium it changes on J Wave 5 (722.9), as a sheet may write it (LPDU's E21 has
+    /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor" and "Reci/Adlo/Deploy". The buff
+    /// has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at 718.2, so that the cast
+    /// starts before wave 4 (719.9) and lands after it; Deployment Tactics, which spreads the Adloquium's shield, waits for
+    /// wave 4 + 0.3 s.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Recitation", "Succor")]
+    [InlineData(true, "Recitation", "Succor")]
+    [InlineData(false, "Succor", "Recitation")]
+    [InlineData(false, "Emergency Tactics", "Succor")]
+    [InlineData(false, "Recitation", "Adloquium", "Deployment Tactics")]
+    public void JWave5_ABuffIsPressedWithTheCastItChanges(bool seq, params string[] cell)
+    {
+        var options = new ReminderOptions();
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.SCH }, Seq = seq, Do = [.. cell.Select(a => PlanItem.ForAction(RepoFiles.Action(a).Id, a))] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, options);
+        Assert.Equal(cell.Length, s.All.Count);
+        foreach (var r in s.All)
+        {
+            var (press, due) = r.Item.Name == "Deployment Tactics" ? (720.2, 720.2) : (718.4, 718.2);
+            Assert.Equal(press, r.PressAt, 1e-9);
+            Assert.Equal(due, TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 1e-9);
+        }
+
+        s.Update(718.2);
+        Assert.All(s.All.Where(r => r.Item.Name != "Deployment Tactics"), r => Assert.Equal(ReminderState.Due, r.State));
+        var buff = Assert.Single(s.All, r => r.Item.Name is "Recitation" or "Emergency Tactics");
+        var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
+        s.OnOwnAction(buff.ActionIds[0], 718.2);
+        s.OnOwnAction(cast.ActionIds[0], 718.3);
+        Assert.Equal((false, false), (buff.UsedEarly, cast.UsedEarly));
+    }
+
+    /// <summary>
+    /// "Swiftcast/Succor" on J Wave 5, either way round and as a sequence: Swiftcast makes the Succor instant, its shield up
+    /// on the press, so both wait for wave 4 + 0.3 s (720.2), pressed and due then, and a Succor before then is spent on
+    /// wave 4 (719.9): early. Pressed at 718.4, as a Succor cast in 2 s is, the instant one would be spent on wave 4.
+    /// </summary>
+    [Theory]
+    [InlineData(false, "Swiftcast", "Succor")]
+    [InlineData(true, "Swiftcast", "Succor")]
+    [InlineData(false, "Succor", "Swiftcast")]
+    public void JWave5_SwiftcastAndTheSuccorItMakesInstantWaitForWave4(bool seq, params string[] cell)
+    {
+        var entry = new PlanEntry { Mechanic = "p3.j_wave_5", Who = new WhoSpec { Job = Job.SCH }, Seq = seq, Do = [.. cell.Select(a => PlanItem.ForAction(RepoFiles.Action(a).Id, a))] };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((720.2, 720.2), PressAndDue(r)));
+
+        var succor = Assert.Single(s.All, r => r.Item.Name == "Succor");
+        s.Update(719.8);
+        s.OnOwnAction(succor.ActionIds[0], 719.8);
+        Assert.True(succor.UsedEarly);
+    }
+
+    /// <summary>
+    /// "Stack middle → Succor" on J Wave 5, a sequence: the note has nothing wave 4 could spend, so it comes with the Succor,
+    /// both pressed at 718.4 and due at 718.2, and does not hold the Succor back until after wave 4 (720.2), when its 2 s
+    /// cast would land 0.7 s before wave 5.
+    /// </summary>
+    [Fact]
+    public void JWave5_ANoteStepComesWithTheSuccor()
+    {
+        var entry = new PlanEntry
+        {
+            Mechanic = "p3.j_wave_5",
+            Who = new WhoSpec { Job = Job.SCH },
+            Seq = true,
+            Do = [PlanItem.ForNote("Stack middle"), PlanItem.ForAction(RepoFiles.Action("Succor").Id, "Succor")],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, r => Assert.Equal((718.4, 718.2), PressAndDue(r)));
+    }
+
+    /// <summary>
+    /// "Recitation > Succor" on J Wave 5 and "Recitation > Adloquium" on J Wave 7: the importer reads the second Recitation,
+    /// planned while the first lasts, as the note "Recitation (still active)", which as the first step does not hold the
+    /// Adloquium back either: both pressed at 724.4 and due at 724.2, the cast landing between waves 6 and 7.
+    /// </summary>
+    [Fact]
+    public void JWave7_AStillActiveNoteStepComesWithTheAdloquium()
+    {
+        var r = Import("P3\tScholar\nJwaves (4)\tRecitation > Succor\nJwaves (6)\tRecitation > Adloquium");
+        var wave7 = Assert.Single(r.Plan.Entries, e => e.Mechanic == "p3.j_wave_7");
+        Assert.True(wave7.Seq);
+        Assert.Equal("Recitation (still active)", wave7.Do[0].Note);
+        var s = new ReminderScheduler(PlanImports.Tea, [wave7], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal(2, s.All.Count);
+        Assert.All(s.All, x => Assert.Equal((724.4, 724.2), PressAndDue(x)));
+    }
+
+    /// <summary>
+    /// A sequence on a J wave whose first step is a heal, which alone would wait for the wave before + 0.3 s, before the
+    /// Succor or Adloquium that times the cell and may be cast 1.8 s earlier: "Indom → Succor" on J Waves 5 and 6,
+    /// "Lustrate → Adlo" and "Indom → Adlo". The heal comes with the cast, in the cell's order, so that the cast still
+    /// lands between the waves, as "(Late)" has it: a second before the wave at the latest. "Succor → Soil" keeps the Soil
+    /// after the wave before.
+    /// </summary>
+    [Theory]
+    [InlineData("p3.j_wave_5", "Indomitability", "Succor", 718.4, 718.2, 718.4, 718.2)]
+    [InlineData("p3.j_wave_6", "Indomitability", "Succor", 721.4, 721.2, 721.4, 721.2)]
+    [InlineData("p3.j_wave_7", "Lustrate", "Adloquium", 724.4, 724.2, 724.4, 724.2)]
+    [InlineData("p3.j_wave_9", "Indomitability", "Adloquium", 730.4, 730.2, 730.4, 730.2)]
+    [InlineData("p3.j_wave_11", "Succor", "Sacred Soil", 736.4, 736.2, 738.2, 738.2)]
+    public void JWaves_TheStepsOfASequenceComeInTheCellsOrder_TheCastStillLandsBetweenTheWaves(
+        string mechanic, string first, string second, double firstPress, double firstDue, double secondPress, double secondDue)
+    {
+        var entry = new PlanEntry
+        {
+            Mechanic = mechanic,
+            Who = new WhoSpec { Job = Job.SCH },
+            Seq = true,
+            Do = [PlanItem.ForAction(RepoFiles.Action(first).Id, first), PlanItem.ForAction(RepoFiles.Action(second).Id, second)],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal([first, second], s.All.Select(r => r.Item.Name));
+        Assert.Equal([(firstPress, firstDue), (secondPress, secondDue)], s.All.Select(PressAndDue));
+        var cast = Assert.Single(s.All, r => r.Item.Name is "Succor" or "Adloquium");
+        var lands = TimingRules.DueAt(cast.PressAt, cast.DueNotBefore, new ReminderOptions()) + RepoFiles.Action(cast.Item.Name!).CastTime;
+        Assert.InRange(lands, cast.Hit - 3 + 0.3 - 1e-6, cast.Hit - 1);
+    }
+
+    /// <summary>
+    /// A tank's short cooldown beside Rampart on Fluid Swing 1 (11.4), as a TEA sheet may write it: both pressed with
+    /// Rampart's −6 s (5.4). The 6 s Raw Intuition and Sheltron (level 80), pressed before 11.4 − 6 + 1, turn due at their
+    /// press, not 1.5 s before it, when a press on the cue would end 1.5 s before the hit and be early; The Blackest Night
+    /// (7 s) turns due then too, its earliest use. A press on the NOW cue is on time.
+    /// </summary>
+    [Theory]
+    [InlineData(Job.WAR, "Raw Intuition")]
+    [InlineData(Job.PLD, "Sheltron")]
+    [InlineData(Job.DRK, "The Blackest Night")]
+    public void FluidSwing_AShortCooldownBesideRampart_TurnsDueAtItsPress(Job job, string action)
+    {
+        var entry = new PlanEntry
+        {
+            Mechanic = "p1.fluid_swing_1",
+            Who = new WhoSpec { Job = job },
+            Do = [PlanItem.ForAction(RepoFiles.Action("Rampart").Id, "Rampart"), PlanItem.ForAction(RepoFiles.Action(action).Id, action)],
+        };
+        var s = new ReminderScheduler(PlanImports.Tea, [entry], RepoFiles.Actions, new ReminderOptions());
+        var rampart = Assert.Single(s.All, r => r.Item.Name == "Rampart");
+        var shortOne = Assert.Single(s.All, r => r.Item.Name == action);
+        Assert.Equal((5.4, 3.9), PressAndDue(rampart));
+        Assert.Equal((5.4, 5.4), PressAndDue(shortOne));
+
+        s.Update(5.4);
+        Assert.Equal(ReminderState.Due, shortOne.State);
+        s.OnOwnAction(shortOne.ActionIds[0], 5.4);
+        Assert.Equal((ReminderState.Done, false), (shortOne.State, shortOne.UsedEarly));
+    }
+
     /// <summary>'Alex Prime/PA'!G19 "Asylum" on "Jwaves (0-3)", wave 1: J Storm, 5.2 s before it, is no wave of the series.</summary>
     [Fact]
     public void JWaves_TheFirstWaveKeepsItsLead()
@@ -220,13 +385,15 @@ public class TeaPlanTimingTests
 
     /// <summary>
     /// 10 s mitigation on rows that cover a mechanic's later hits: 'Alex Prime/PA' row 39 on Optical Sight (938.6, 944.7)
-    /// and row 43 on Fate Calibration β (1081.5, 1082.5, 1088.6), 'LL/BJCC' row 23 on Protean 2 (109.1, 112.1, 115.1).
+    /// and row 43 on Fate Calibration β (1081.5, 1082.5, 1088.6), 'LL/BJCC' row 23 on Protean 2 (109.1, 112.1, 115.1) and
+    /// row 19 on the first Splash (81.1, then five more 1.1 s apart, the fight file's sub_hits: no timeline entries).
     /// Pressed so that even on the NOW cue it lasts 0.5 s past the last hit it can reach, and still before the first.
     /// </summary>
     [Theory]
     [InlineData("p4.optical_sight", 944.7)]
     [InlineData("p4.fate_beta", 1088.6)]
     [InlineData("p1.protean_2", 115.1)]
+    [InlineData("p1.splash_1", 86.6)]
     public void SeveralHits_TenSecondMitigationLastsThroughTheLaterHit(string mechanic, double lastHit)
     {
         var dueLead = new ReminderOptions().DueLead;
@@ -236,6 +403,36 @@ public class TeaPlanTimingTests
         {
             Assert.True(r.PressAt - dueLead + 10 >= lastHit + 0.5 - 1e-9, $"{r.Entry.Src} {r.Item.Name}: from the NOW cue ({r.PressAt - dueLead}) it ends at {r.PressAt - dueLead + 10}");
             Assert.True(r.PressAt <= r.Hit - 0.5 + 1e-9, $"{r.Entry.Src} {r.Item.Name}: press {r.PressAt}, first hit {r.Hit}");
+        });
+    }
+
+    /// <summary>
+    /// 'LL/BJCC' row 19 on the first Splash (six raidwide hits, 81.1 to 86.6): the 10 s Reprisal, Feint, Addle and Dismantle
+    /// are pressed 2.5 s before the first, so that from the NOW cue they last 0.5 s past the sixth, and a use before that
+    /// cue is early; the 15 s calls keep their −4.5 s, which reaches the sixth anyway, and only count as early before
+    /// 86.6 − 15 + 0.5.
+    /// </summary>
+    [Fact]
+    public void Splash1_TheCallsLastThroughTheSixthSplash()
+    {
+        Assert.Equal([82.2, 83.3, 84.4, 85.5, 86.6], PlanImports.Tea.GetMechanic("p1.splash_1")!.SubHits);
+        var options = new ReminderOptions();
+        var row = Reminders("'LL/BJCC'!C19", "'LL/BJCC'!J19", "'LL/BJCC'!L19", "'LL/BJCC'!M19", "'LL/BJCC'!K19", "'LL/BJCC'!D19");
+        var ten = row.Where(r => RepoFiles.Action(r.Item.Name!).DurationAt(80) == 10).ToList();
+        Assert.Equal(["Addle", "Dismantle", "Feint", "Reprisal"], ten.Select(r => r.Item.Name!).Distinct().Order());
+        Assert.All(ten, r =>
+        {
+            Assert.Equal(81.1 - 2.5, r.PressAt, 1e-9);
+            Assert.Equal(77.1, TimingRules.DueAt(r.PressAt, r.DueNotBefore, options), 1e-9);
+            Assert.Equal(77.1, r.Earliest, 1e-9);
+        });
+
+        var fifteen = row.Where(r => r.Item.Name is "Troubadour" or "Tactician" or "Dark Missionary" or "Heart of Light").ToList();
+        Assert.Equal(4, fifteen.Count);
+        Assert.All(fifteen, r =>
+        {
+            Assert.Equal(81.1 - 4.5, r.PressAt, 1e-9);
+            Assert.Equal(86.6 - 15 + 0.5, r.Earliest, 1e-9);
         });
     }
 
@@ -342,6 +539,22 @@ public class TeaPlanTimingTests
         Assert.Equal((727.9, 728.9 - 1), (wave7.PressAt, wave7.Hit + PlanImporter.LateOffset));
         Assert.True(wave7.PressAt >= heat.PressAt + 60);
         Assert.Equal(726.2, wave7.DueNotBefore!.Value, 1e-9);
+    }
+
+    /// <summary>
+    /// 'LL/BJCC'!F23 "EukProg/Kerachole" on Protean 2 (109.1), 28 s after F19's Kerachole at Splash (77.1), recast 30 s:
+    /// ready at 107.1, the cell is pressed 2 s before the hit, as late as "(Late)" would press it (Eukrasia, a GCD the game
+    /// locks for 1 s, then the Eukrasian Prognosis 1 s before the hit), so that Kerachole is ready.
+    /// </summary>
+    [Fact]
+    public void RecastFit_TheSagesProtean2KeracholeWaitsForItsRecast()
+    {
+        var splash = Assert.Single(Reminders("'LL/BJCC'!F19"), r => r.Item.Name == "Kerachole");
+        var f23 = Reminders("'LL/BJCC'!F23");
+        Assert.Equal(["Eukrasian Prognosis", "Kerachole"], f23.Select(r => r.Item.Name));
+        Assert.All(f23, r => Assert.Equal(109.1 - 2, r.PressAt, 1e-9));
+        Assert.Equal(splash.PressAt + 30, f23[1].PressAt, 1e-9);
+        Assert.Equal(-2.0, f23[0].Entry.Offset);
     }
 
     /// <summary>

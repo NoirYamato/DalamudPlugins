@@ -220,8 +220,8 @@ Rules worth knowing:
   nothing is above); a parenthetical that names the token's own per-job actions limits the jobs (`Party Mit (DM/HoL)`:
   DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
   pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
-  1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
-  Eukrasia's 2.5 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
+  1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −2 s after
+  Eukrasia's 1 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
   before the first protean, so that it lasts through the Wild Charge, and so does `Rampart + Reprisal (Late)`, whose
   Rampart keeps its own −6 s).
 - **Notes over several columns** that name actions and speak to no other player ("A tip for Soil/Kera timing …") are
@@ -262,7 +262,7 @@ Rules worth knowing:
   that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:
   TEA's Gavel Asylum, 85.8 s after the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of
   7.2 s. Never later than `(Late)` would press it (1 s before the hit, minus the entry's longest cast or the GCD a
-  follow-up needs first: a Sage's Eukrasian Prognosis stays 3.5 s before the hit at the latest), nor than an action's
+  follow-up needs first: a Sage's Eukrasian Prognosis stays 2 s before the hit at the latest), nor than an action's
   own lead before the hit allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does
   its job: then just after the action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only
   after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.

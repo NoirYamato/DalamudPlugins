@@ -44,6 +44,7 @@ public class FightLoaderTests
             kind: marker
           - id: p2.buster
             hits: [210.2, 213.4]
+            sub_hits: [211.0, 212.2]
             kind: tank_buster
             aliases: Buster
             heal_lead: 3.5
@@ -125,6 +126,10 @@ public class FightLoaderTests
         Assert.Equal(["Buster"], buster.Aliases);
         Assert.Equal(3.5, buster.HealLead);
         Assert.Null(later.HealLead); // heals after the hit by default
+        Assert.Equal([211.0, 212.2], buster.SubHits); // damage times without a timeline entry: not hits
+        Assert.Equal([210.2, 213.4], buster.Hits);
+        Assert.Equal(213.4, buster.HitAt(1));
+        Assert.Empty(multi.SubHits);
     }
 
     [Fact]
@@ -201,6 +206,12 @@ public class FightLoaderTests
     [InlineData("heal_lead: 3.5", "heal_lead: soon", "p2.buster", "'heal_lead'")]
     [InlineData("heal_lead: 3.5", "heal_lead: 3.5\n    press: after", "p2.buster", "contradict")]
     [InlineData("series: true", "series: maybe", "p1.multi", "'series'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [210.2, 212.2]", "p2.buster", "after 'hit'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [209.0, 212.2]", "p2.buster", "after 'hit'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [212.2, 211.0]", "p2.buster", "time order")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, 211.0]", "p2.buster", "time order")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, 213.4]", "p2.buster", "one of 'hits'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, soon]", "p2.buster", "'sub_hits'")]
     [InlineData("kind: raidwide\n    press: after", "kind: raidwide\n    press: after\n    series: true", "p2.later", "two hits")]
     public void Load_ReportsTheOffendingItemAndField(string find, string replace, string item, string field)
     {

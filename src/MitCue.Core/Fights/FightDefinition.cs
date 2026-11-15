@@ -46,6 +46,14 @@ public sealed class Mechanic
     /// <summary>All damage times when multi-hit (contains <see cref="Hit"/>).</summary>
     public IReadOnlyList<double> Hits { get; init; } = [];
 
+    /// <summary>
+    /// Fight file <c>sub_hits</c>: later damage times of the mechanic that are no timeline entries (cactbot shows TOP's
+    /// Diffuse Wave Cannon Kyrios, five cleaves over 8 s, as one entry), after <see cref="Hit"/>, in time order. They have no
+    /// hit index (plans and the importer anchor on <see cref="Hits"/> only): multi-hit coverage counts them as later hits
+    /// that mitigation for the whole mechanic must last through (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public IReadOnlyList<double> SubHits { get; init; } = [];
+
     /// <summary>cactbot entry name at <see cref="Hit"/> (validated against the timeline in tests).</summary>
     public string? Entry { get; init; }
 

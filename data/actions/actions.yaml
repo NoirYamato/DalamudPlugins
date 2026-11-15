@@ -1134,7 +1134,12 @@ actions:
     target: self
     gcd: true
     cast: 0
-    recast: 2.5
+    # recast: the GCD the game locks after Eukrasia, about 1 s, not the Action sheet's Recast100ms (25, 2.5 s): in
+    # cactbot's sample log docs/logs/TheAbyssalFractureExtreme.log (a level-90 Sage, actor 10FF0006), 36 of the 37
+    # in-combat Eukrasia -> Eukrasian action pairs are 0.98-1.07 s apart (the other is a 2.1 s wait), and guides list
+    # Eukrasia as a 1 s GCD. "(Late)" and multi-hit coverage leave a Eukrasian action this much before its effect
+    # (TimingRules.TimeToEffect). Hand-set: keep it when the file is regenerated.
+    recast: 1
     cooldown_group: 58
     sync: {80: 0, 90: 0, 100: 0}
     follow_ups:
@@ -1595,6 +1600,9 @@ actions:
     recast_by_level: {18: 60, 94: 40}
     duration: {18: 10}
     sync: {80: 10, 90: 10, 100: 10}
+    # instant_next_cast: the next spell is instant, so on a later hit of a series (TEA's J Waves) a call that lists
+    # Swiftcast waits for the hit before it + 0.3 s with its Succor too: cast instantly, it lands on its press.
+    instant_next_cast: true
     icon: 866
   - id: 7562
     name: "Lucid Dreaming"
