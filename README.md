@@ -384,22 +384,22 @@ steps.
    check **My column** after saving.
 
 MitCue reads a sheet with a row per mechanic (with or without times) and a column per player: a slot (`MT`,
-`H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each
-job of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell
-that points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call
-meant for before the hit just before it, so that its cast, or the GCD it needs first, ends 1 s before the hit
+`H2`, `Tank 1`), a job (`White Mage`), both (`H2 SCH`), or a role (`Phys Range`, `Caster`: calls for each job
+of the role). A call that is grey, or a cell that is wholly in brackets (`(Shake)`), is optional; a cell that
+points up (`(^on BJ)`) adds its remark to every call of the cell above it; and `(Late)` presses a call meant
+for before the hit just before it, so that its cast, or the GCD it needs first, ends 1 s before the hit
 (`Reprisal (Late)` 1 s before it, `Succor (Late)` 3 s, `Eukrasian Prognosis (Late)` 3.5 s, after Eukrasia),
-unless that would press one of its actions earlier than without it. A call for a party buff that your
-earlier press keeps up through its hit (pressed on its NOW cue, the buff lasts at least 1 s past that hit)
-becomes a note (*Temperance (still active)*; also Neutral Sect within its 30 s barrier); one for a buff with
-a follow-up becomes that follow-up while the buff is still up when the follow-up is used (Summon Seraph's
+unless that would press one of its actions earlier than without it. A call for a party buff that your earlier
+press keeps up through its hit (pressed on its NOW cue, the buff lasts at least 1 s past that hit) becomes a
+note (*Temperance (still active)*; Neutral Sect counts for its 30 s Helios barrier); one for a buff with a
+follow-up becomes that follow-up while the buff is still up when the follow-up is used (Summon Seraph's
 Consolation; at level 100, Temperance's Divine Caress and Neutral Sect's Sun Sign). When the earlier call has
 no time in the sheet and would wear off too soon, MitCue presses it later if that keeps the buff up, and
-writes that time into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines
-Temperance is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2. It never presses
-Neutral Sect later than 4.5 s or Passage of Arms later than 2 s before the hit, nor another action of that
-call earlier. Otherwise both stay calls. An optional call (grey, in brackets, with a condition, or one choice
-of an either/or) keeps no buff up.
+writes that time into the plan (the review shows it as set, not automatic): LPDU TEA's Hidden Mines Temperance
+is pressed 3.5 s before its hit instead of 6 s, and lasts through Water 2. It never presses Neutral Sect later
+than 4.5 s or Passage of Arms later than 2 s before the hit, nor another action of that call earlier.
+Otherwise both stay calls. An optional call (grey, in brackets, with a condition, or one choice of an
+either/or) keeps no buff up.
 
 A call without a time in the sheet that would come before its action is ready again, after your earlier
 presses of it (counted with the action's charges, as `mitcue check` counts them), waits for it: MitCue presses

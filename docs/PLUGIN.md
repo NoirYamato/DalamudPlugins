@@ -409,17 +409,18 @@ TOP's P2 is entered by the 7B40 cast at 203.4, not by the `MapEffect` at 200.0. 
    **Slashes** choice also to the reading **Copy AI prompt** states (`PromptSlashes` takes the choice over the
    trial's reading); the lists and their entry counts keep the trial's reading.
 3. **Review.** `ReviewModel` holds one row per entry with the importer's diagnostics and `ReviewValidator`'s
-   checks, which run again after each edit. An entry without a time shows the automatic offset and press time
-   the overlay will use (`TimingRules.ForEntry`), and its details list the items the overlay presses later than
-   the entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own,
-   and Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil,
-   Summon Seraph, Consolation at 12:00.2 (-2.7 s)*). An offset the importer wrote shows as set (*-1.5 s*, not
-   *auto*): `(Late)`, a press it moved so that a buff still lasts (`still-active`), or one its recast fit moved
-   so that the action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on
-   the row. The player can change the mechanic, hit, offset, flags, target, note and items, and delete entries
-   (with undo). Replacing a note with an action offers to remember it: `PersonalAliases` saves it in
-   `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the alias dictionary for later
-   imports.
+   checks, which run again after each edit. An entry without a time shows the automatic offset and press time the
+   overlay will use (`TimingRules.ForEntry`), and its details list the items the overlay presses later than the
+   entry (`ReviewModel.ItemPressTimes`): an item that waits for a series floor or a later hit of its own, and
+   Passage of Arms, pressed with the last item (the Scholar's J Wave 5 call: *Pressed later: Sacred Soil, Summon
+   Seraph, Consolation at 12:00.2 (-2.7 s)*). An offset the importer wrote shows as set (*-1.5 s*, not *auto*):
+   `(Late)`, a press it moved so that a buff still lasts (`still-active`), or one its recast fit moved so that the
+   action is ready again (`recast-fit`, DESIGN.md §6 step 7), each of the last two with its note on the row. When
+   the action is ready only too late, the entry keeps its press: `mitcue check` reports the recast, and in game
+   the reminder shows *ready in N s*. The player can change the mechanic, hit, offset, flags, target, note and
+   items, and delete entries (with undo). Replacing a note with an action offers to remember it: `PersonalAliases`
+   saves it in `Configuration.UserAliases`, and `CoreData.ApplyUserAliases` adds it to the alias dictionary for
+   later imports.
 4. **Save.** `PlanStore.Save` writes the user plan. **Save as** offers the earlier imports of the same sheet
    and tabs, and pre-selects one when it is the only one with the same columns; tab names and column keys
    compare in their xlsx export form (`P1P2` = `P1/P2`, `WARDRK WAR` = `WAR/DRK WAR`), and the replaced

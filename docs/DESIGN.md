@@ -579,13 +579,13 @@ previews, which have no cooldown provider.
    item of the cell above) and `(Late)`: an entry pressed before its hit (not one on a
    mechanic with `press: after`, §5.1) gets the offset that presses it just before it, so
    that its longest cast, or the GCD a follow-up needs first, ends 1 s before the hit
-   (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −3.5 s after
-   Eukrasia's 2.5 s), but only when that presses no item earlier than without it
-   (`Rampart + Reprisal (Late)` on TOP's Wave Cannon 2 keeps the Reprisal's −0.5 s, for the
-   Wild Charge, and the Rampart's −6 s); the offset is written into the plan, unlike §5.1's
-   automatic times. A target in parentheses goes only to actions used on a player;
-   elsewhere it stays in the note (`Asylum (melee)`: where to place it). The full grammar:
-   `src/MitCue.Core/Import/README.md`.
+   (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` and
+   `Eukrasian Diagnosis (Late)` −3.5 s after Eukrasia's 2.5 s), but only when that presses
+   no item earlier than without it (`Rampart + Reprisal (Late)` on TOP's Wave Cannon 2
+   keeps the Reprisal's −0.5 s, for the Wild Charge, and the Rampart's −6 s); the offset is
+   written into the plan, unlike §5.1's automatic times. A target in parentheses goes only
+   to actions used on a player; elsewhere it stays in the note (`Asylum (melee)`: where to
+   place it). The full grammar: `src/MitCue.Core/Import/README.md`.
 4. **Action resolution.** Alias dictionary → exact name → fuzzy match (typos such as
    *Nascant*, *Vengance*), restricted to the assignee's job and the fight's sync level.
    Cross-job alternatives are split per job. Role phrases expand per job. Anything else
@@ -597,35 +597,37 @@ previews, which have no cooldown provider.
    100 Temperance → Divine Caress, Neutral Sect → Sun Sign) or, for a buff without one, a
    note ("Temperance (still active)"). Both calls are timed as the reminders time them
    (§5.1), each at its own item's press, used on that item's NOW cue (§5.2, the default due
-   lead). A note needs the earlier effect to outlast the later hit, or the later press when
-   that comes after the hit, by 1 s, for as long as the reminders count it covering a hit
-   (a `when: before` action's longest effect: Neutral Sect named again within its 30 s
-   barrier is the note "Neutral Sect (still active)"). A follow-up needs the buff only when
-   it is used: it is pressed within `check`'s follow-up window after the buff, the buff's
-   longest effect (Seraph's 22 s: LPDU TEA's plain "Seraph" at J Wave 7, 6 s after the one
-   at J Wave 5, is its Consolation alone). An earlier press without a time in the sheet
-   that falls short gets an offset that presses it later, so that it serves both (LPDU
-   TEA's Hidden Mines Temperance: `offset: -3.5`, through Water 2), no later than `(Late)`
-   would press it, never after the lead of a `when: before` action that is no heal (Neutral
-   Sect 4.5 s, Passage of Arms 2 s), and never so that another of its items is pressed
-   earlier than without it; like `(Late)`'s, the offset is written into the plan, so the
-   review and `mitcue plan` show it as set, not automatic. Otherwise both stay presses (a
-   `still-active` info), and `check` reports the recast. An optional earlier press (grey,
-   in brackets, with a condition, or one choice of an either/or) keeps no buff up. A limit
-   break written for one role in several seats' columns at one mechanic is optional in
-   each, also when only some of those columns are imported. A target taken from the row
-   (its notes, or "tank" on a tankbuster) goes to single-target actions only, and the
-   item's other actions get an entry of their own. A note over several columns that names
-   actions and speaks to no other player ("A tip for Soil/Kera timing …") is the detail of
-   the entries in its columns and section that press one of them; one that speaks to
-   players by role, slot or job ("Tanks: …, then OT provokes …") is the detail of all their
-   entries, and a note entry of its own in a column with no entry there. A role or slot
-   word that says where or for whom to press speaks to no one ("on the melee", "under the
-   tanks", "on melee and ranged", "on the co-tank", "the tank buster", "the OT's buster"),
-   nor does the job whose own action the note names ("SCH: … press Soil"); a job named
-   beside a word for several jobs' actions (Rampart, "Invuln") does: "WAR Rampart the first
-   tower set, then PLD provokes …" speaks to the PLD. Either note reads the same whichever
-   of its columns are imported.
+   lead). A note needs the earlier effect, lasting as long as the reminders count it
+   covering a hit (a `when: before` action's longest effect: Neutral Sect named again
+   within its 30 s barrier is the note "Neutral Sect (still active)"), to outlast the later
+   hit, or the later press when that comes after the hit, by 1 s. A follow-up needs the
+   buff only when it is used: it is pressed within `check`'s follow-up window after the
+   buff, the buff's longest effect (Seraph's 22 s: LPDU TEA's plain "Seraph" at J Wave 7,
+   6 s after the one at J Wave 5, is its Consolation alone). An earlier press without a time
+   in the sheet that falls short gets an offset that presses it later, so that it serves
+   both (LPDU TEA's Hidden Mines Temperance: `offset: -3.5`, through Water 2), no later
+   than `(Late)` would press it, never after the lead of a `when: before` action that is no
+   heal (Neutral Sect 4.5 s, Passage of Arms 2 s), and never so that another of its items
+   is pressed earlier than without it; like `(Late)`'s, the offset is written into the
+   plan, so the review and `mitcue plan` show it as set, not automatic. Otherwise both stay
+   presses, and `check` reports the recast. A `still-active` info says which, with the gap
+   between the two items' presses ("… but its follow-up Consolation would be used after it
+   is over …: both stay presses"; a move ends "… so that it still lasts when Consolation is
+   used"). An optional earlier press (grey, in brackets, with a condition, or one choice of
+   an either/or) keeps no buff up. A limit break written for one role in several seats'
+   columns at one mechanic is optional in each, also when only some of those columns are
+   imported. A target taken from the row (its notes, or "tank" on a tankbuster) goes to
+   single-target actions only, and the item's other actions get an entry of their own. A
+   note over several columns that names actions and speaks to no other player ("A tip for
+   Soil/Kera timing …") is the detail of the entries in its columns and section that press
+   one of them; one that speaks to players by role, slot or job ("Tanks: …, then OT
+   provokes …") is the detail of all their entries, and a note entry of its own in a column
+   with no entry there. A role or slot word that says where or for whom to press speaks to
+   no one ("on the melee", "under the tanks", "on melee and ranged", "on the co-tank", "the
+   tank buster", "the OT's buster"), nor does the job whose own action the note names
+   ("SCH: … press Soil"); a job named beside a word for several jobs' actions (Rampart,
+   "Invuln") does: "WAR Rampart the first tower set, then PLD provokes …" speaks to the
+   PLD. Either note reads the same whichever of its columns are imported.
 5. **Mechanic resolution.** Per-fight aliases + phase context + monotonic row order +
    timestamps. Same label in different phases (`Hello World`, `Solar Ray`, `Magic Number`)
    is disambiguated by phase and order.

@@ -95,7 +95,8 @@ Notes:
   `timeline_additions` sync them on cast starts instead, so pushes there are followed without `--all-events` too.
 - `validate` compares each file of the data copy built into MitCue.Core with the folder's; a difference (a stale
   build) is a warning to rebuild. A fight file's timing field (`press`, `heal_lead`, `series`) on a marker is a
-  problem: a marker has no damage to time the calls against.
+  problem: a marker has no damage to time the calls against. So is an `actions.yaml` `lead` or `barrier_cast` that
+  is not a positive number of seconds: the action catalog does not load.
 - `import` of a Google Sheets link downloads the whole workbook (`export?format=xlsx`; pick tabs with `--tabs`) and
   restores the tab names the xlsx export changes ("P1/P2" becomes "P1P2") from the sheet's htmlview page, so plan
   provenance and the importer's column names (LPDU's "WAR/DRK" pairs) match the sheet. `--tabs` matches names ignoring
