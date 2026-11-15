@@ -183,6 +183,36 @@ public class TeaP1LivingLiquidHandoverTests
         }
     }
 
+    // A start after the pull plays what it played before the pull existed. Each row was taken from that build, in a
+    // real run of the seed: the run's own stream by its next draw, and where the main tank's bot stands on a spot it
+    // takes with jitter, 9 s into Protean 1 and 11.5 s into Cascade 2. A roll drawn from the run's stream ahead of a
+    // later start's, or a move added to its bots, shows here.
+    [TestCase(Protean1, 1, 701796, "-0.276 4.410")]
+    [TestCase(Protean1, 2, 89001, "3.221 -2.760")]
+    [TestCase(Protean1, 3, 476206, "-3.142 2.862")]
+    [TestCase(Protean1, 7, 25025, "-4.169 -0.221")]
+    [TestCase(Protean1, 1234567, 684645, "3.243 -2.765")]
+    [TestCase(Cascade2, 1, 701796, "-2.666 2.715")]
+    [TestCase(Cascade2, 2, 89001, "-0.017 -3.854")]
+    [TestCase(Cascade2, 3, 476206, "2.862 2.762")]
+    [TestCase(Cascade2, 7, 25025, "-3.808 0.058")]
+    [TestCase(Cascade2, 1234567, 684645, "2.764 -2.676")]
+    public void ALaterStartPlaysASeedAsItDidBeforeThePullWasPlayed(TeaP1LivingLiquidPart from, int seed, int theStreamsNextDraw, string theMainTankStands)
+    {
+        var at = from == Protean1 ? 9.0f : 11.5f;
+        var (next, stands) = (-1, "");
+        var run = Start(from, seed, p =>
+        {
+            if (!p.Crossed(at)) return;
+            var tank = p.Member(MainTank)!.Position;
+            stands = string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{tank.X:F3} {tank.Z:F3}");
+            next = p.World.Rng.Next(1_000_000);
+        }, stopAt: at + 0.1f);
+
+        Assert.That(run.Failure, Is.Null, run.ToString);
+        Assert.That((next, stands), Is.EqualTo((theStreamsNextDraw, theMainTankStands)));
+    }
+
     [Test]
     public void EachStartClearsTheFightFromThereOn([Values(null, Protean1, Cascade2)] TeaP1LivingLiquidPart? from)
     {
