@@ -763,11 +763,17 @@ files and links; the plugin's import window adds downloading, the review and the
   usual slot is set at all, to set it first; a usual slot of another role gets the column
   hint too): one usual slot serves every job of its role, so changing it would take the
   slot calls of the player's main job away. **Changed (2026-11-14):** settings version 2.
-  On the first load of version 1 settings (MitCue up to 0.1.0.6), every fight and job
-  without a choice whose automatic plan differs from the one version 1 gave it is set to
-  the version 1 plan (`PlanStore.MigrateFromVersion1`): above all the player's own TEA
-  plan, the first by name that names the job, which the bundled TEA plan would otherwise
-  replace unasked.
+  On the first load of version 1 settings (MitCue up to 0.1.0.6) that reads every plan
+  file, every fight and job without a choice whose automatic plan differs from the one
+  version 1 gave it is set to the version 1 plan (`PlanStore.MigrateFromVersion1`): above
+  all the player's own TEA plan, the first by name that names the job, which the bundled
+  TEA plan would otherwise replace unasked. While a plan file cannot be read (another
+  program holds it, its cloud folder is offline, a link's target is gone) or the plans
+  folder cannot be listed, the update waits: nothing is chosen or saved, the file is listed
+  under Problems, and every load (a start, "Reload plans") tries again. Meanwhile each job
+  keeps the plan version 1 gave it from the plans that can be read, so the bundled TEA plan
+  goes only to jobs that had none. A file that reads but is no valid plan does not hold the
+  update up.
   "My column" without a choice is the job's column, which also shows the job-less calls
   of the player's slot (LPDU's H2 Scholar gets "H2 SCH" with the job-less "H2" calls of
   P1/P2), or, when the job's calls are in several of its columns (one per phase or tab),

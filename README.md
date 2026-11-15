@@ -293,7 +293,10 @@ job (in green).
   An update from 0.1.0.6 or older keeps the plan each job had. Where the new rules would give a job another
   plan without a choice of yours, above all where a TEA plan of your own was the job's plan (no TEA plan came
   with MitCue then), MitCue chooses the old plan for that job, once: this table then shows it without
-  *(automatic)*. Your choices, *(no plan)* included, stay.
+  *(automatic)*. Your choices, *(no plan)* included, stay. If a plan file of yours cannot be read when MitCue
+  starts (another program holds it, or its cloud folder is offline), MitCue waits with this: **Problems** lists
+  the file, and MitCue tries again at every start and on **Reload plans**. Until then each job keeps the plan
+  it had, and *LPDU TEA Heal/Mit* goes only to jobs that had no TEA plan.
 - **My column:** the column you choose, or *(any column for my job)*. A column also shows other columns'
   calls for your slot: those for your job, and those for no job when the slot suits your role (a call in a
   column for a job, such as LPDU's *H1 AST*, is that job's even when it names no job). So on LPDU,

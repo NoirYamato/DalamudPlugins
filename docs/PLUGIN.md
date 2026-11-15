@@ -59,7 +59,7 @@ Everything runs on the game's main thread, in `IFramework.Update` or in Draw, wi
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | `Plugin` | `Plugin.cs` | Entry point (`IDalamudPlugin`). Gets Dalamud services through `[PluginService]`, creates every component, registers `/mitcue` (`import`, `overlay`, `preview`, `reset`, `debug`), runs the per-frame `Tick` and hosts the three windows |
-| `Configuration` | `Configuration.cs` | Settings, saved by Dalamud as `pluginConfigs/MitCue.json`, including the active plans, column choices and personal aliases. `Sanitize()` clamps values after loading. Collections use `ObjectCreationHandling.Replace`. Every change bumps `Revision`, and the runtime watches that number. `Version` is 2 since the first MitCue with a bundled TEA plan; `PlanStore` brings version 1 settings up to date once (§1.5) |
+| `Configuration` | `Configuration.cs` | Settings, saved by Dalamud as `pluginConfigs/MitCue.json`, including the active plans, column choices and personal aliases. `Sanitize()` clamps values after loading. Collections use `ObjectCreationHandling.Replace`. Every change bumps `Revision`, and the runtime watches that number. `Version` is 2 since the first MitCue with a bundled TEA plan; `PlanStore` brings version 1 settings up to date once, on the first load that reads every plan file (§1.5) |
 | `FrameContext` | `Runtime/FrameContext.cs` | Game state sampled once per tick: logged in, territory, client language, local entity id, job, effective (synced) level from `IPlayerState`, InCombat, bound by duty, countdown, this frame's events and uses, and the party's jobs (`IPartyList`) |
 | `GameEventSource` | `Game/GameEventSource.cs` | Turns game state into core `GameEvent`s stamped with MitCue's monotonic clock (§1.4) |
 | `ActionEffectHook` | `Game/ActionEffectHook.cs` | Read-only hook on `ActionEffectHandler.Receive`. Copies the caster, action, targets and sequence, then always calls the original |
@@ -191,13 +191,19 @@ its slot), or the **Active plan** combo. A share code of a bundled plan has that
 place, also in the automatic choice: it stays the automatic plan of the job the bundled plan is meant for, and
 a copy of *LPDU TEA Heal/Mit* that of every job it names.
 
-**Settings version 2.** `Configuration.Version` is 2 since the first MitCue with a bundled TEA plan. On the
-first load of version 1 settings (MitCue up to 0.1.0.6), `PlanStore.MigrateFromVersion1` works out, for every
-fight and job of the plans, the plan version 1 chose automatically (without the plans bundled since, LPDU TEA,
-and with a share code of a bundled plan among the player's own plans). Where the job has no choice and now
-gets another plan, that plan is chosen for it: above all the player's own TEA plan (the first by name that
-names the job), and also an own plan that version 1 put before a copy of a bundled plan. Choices stay, "no
-plan" included, and the settings are saved as version 2, so it happens once; new settings start at version 2.
+**Settings version 2.** `Configuration.Version` is 2 since the first MitCue with a bundled TEA plan. On the first
+load of version 1 settings (MitCue up to 0.1.0.6) that reads every plan file, `PlanStore.MigrateFromVersion1`
+works out, for every fight and job of the plans, the plan version 1 chose automatically (without the plans bundled
+since, LPDU TEA, and with a share code of a bundled plan among the player's own plans). Where the job has no
+choice and now gets another plan, that plan is chosen for it: above all the player's own TEA plan (the first by
+name that names the job), and also an own plan that version 1 put before a copy of a bundled plan. Choices stay,
+"no plan" included, and the settings are saved as version 2, so it happens once; new settings start at version 2.
+When the plans folder cannot be listed or a plan file cannot be read (`File.ReadAllText` throws: another program
+holds it, its cloud folder is offline, a link's target is gone), the migration waits: no choice is set, `Version`
+stays 1 and nothing is saved; **Problems** lists *Reading saved plan <file>*, and every `Reload` (the next start,
+**Reload plans**, a delete) tries again. Until then `ActivePlanFor` gives each job the plan version 1 gave it,
+from the plans that could be read (`Version1Plan`), so LPDU TEA goes only to jobs version 1 gave no plan. A file
+that reads but does not parse is no plan in any version and does not hold the migration up.
 
 **The column.** `PlanStore.MappingFor` takes the column chosen for that plan and job. Without a choice it
 uses the core's `ColumnSuggestion.Suggest`, which the CLI shares: the job's column (`JobColumn`: the job's
