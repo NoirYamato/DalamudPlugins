@@ -327,6 +327,96 @@ public class EntryTimingTests
         Assert.False(r.UsedEarly);
     }
 
+    /// <summary>
+    /// A first hit at 100 and a later one 8.3 s after it (TOP's Wave Cannon: two proteans, then the Wild Charge), and one
+    /// 8.8 s after it (sync 90).
+    /// </summary>
+    private static FightDefinition WildChargeFight() => Kit.Fight(90, Kit.Mech("p1.charge", 100, 100, 102, 108.3), Kit.Mech("p1.beyond", 300, 300, 308.8));
+
+    private static EntryTiming Charge(string mechanic, ReminderOptions? options, params ActionInfo[] actions)
+    {
+        var fight = WildChargeFight();
+        return TimingRules.ForEntry(Kit.Entry(mechanic, null, [.. actions.Select(Kit.Do)]), fight.GetMechanic(mechanic)!, fight, new FakeCatalog([.. Kit.Catalogued, TenSecondMit]), options);
+    }
+
+    [Fact]
+    public void Coverage_ALaterHitUpToD13_IsReachedWithAHeldNowCue()
+    {
+        // 108.3 is 8.3 s after the first hit: beyond 10 − 2.5 s, within 10 − 1.3 s. The press would have to wait until
+        // 108.3 − 10 + 2 = 100.3, after the first hit: it is 0.5 s before it instead, and the NOW cue waits until
+        // 108.3 − 10 + 0.5 = 98.8, so that a press on it still lasts 0.5 s past 108.3.
+        var options = new ReminderOptions();
+        foreach (var action in new[] { TenSecondMit, Kit.HallowedGround })
+        {
+            var t = Charge("p1.charge", null, action);
+            Assert.Equal(-0.5, t.AutomaticOffset, Kit.Tolerance);
+            Assert.Equal(98.8, t.Items[0].DueNotBefore!.Value, Kit.Tolerance);
+            Assert.Equal(98.8, t.Items[0].DueAt(options), Kit.Tolerance);
+            Assert.Equal(98.8, t.Items[0].Earliest, Kit.Tolerance);
+            Assert.Equal(100, t.Items[0].Latest, Kit.Tolerance);                     // press + 0.5: due for 1.2 s
+            Assert.True(t.Items[0].DueAt(options) + 10 >= 108.3 + 0.5 - Kit.Tolerance);
+        }
+
+        // 8.8 s is out of reach (10 − 1.3 = 8.7): mitigation keeps −3 s, the invuln −2 s, and neither waits.
+        Assert.Equal(-3, Charge("p1.beyond", null, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+        Assert.Equal(-2, Charge("p1.beyond", null, Kit.HallowedGround).AutomaticOffset, Kit.Tolerance);
+        Assert.Null(Charge("p1.beyond", null, Kit.HallowedGround).Items[0].DueNotBefore);
+
+        // The reach leaves the latest use before the hit: 1 s of it puts 8.3 s out of reach of 10 s.
+        Assert.Equal(-3, Charge("p1.charge", new ReminderOptions { MitigationLatestBeforeHit = 1 }, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Coverage_EachItemWaitsForItsOwnLaterHit_OthersKeepTheirNowCue()
+    {
+        // "Rampart + Reprisal" on 100/102/108.3: the 10 s Reprisal needs the press at −0.5 s and waits until 98.8; the 20 s
+        // Rampart reaches 108.3 from 90.3 on and turns due by the due lead (98.0).
+        var options = new ReminderOptions();
+        var t = Charge("p1.charge", null, Kit.Rampart, TenSecondMit);
+        Assert.Equal(99.5, t.PressAt, Kit.Tolerance);
+        Assert.Equal(98.0, t.Items[0].DueAt(options), Kit.Tolerance);
+        Assert.Equal(98.8, t.Items[1].DueAt(options), Kit.Tolerance);
+        Assert.Equal(88.8, t.Items[0].Earliest, Kit.Tolerance);                      // 108.3 − 20 + 0.5
+        Assert.Equal(98.8, t.Items[1].Earliest, Kit.Tolerance);
+
+        // The scheduler: a Reprisal on its NOW cue is on time, one before it is early (it would end before 108.3 + 0.5).
+        var fight = WildChargeFight();
+        var catalog = new FakeCatalog([.. Kit.Catalogued, TenSecondMit]);
+        var s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(Kit.Rampart), Kit.Do(TenSecondMit))], catalog, options);
+        var rampart = Assert.Single(s.All, r => r.ItemIndex == 0);
+        var reprisal = Assert.Single(s.All, r => r.ItemIndex == 1);
+        s.Update(98.0);
+        Assert.Equal((ReminderState.Due, ReminderState.Upcoming), (rampart.State, reprisal.State));
+        s.Update(98.8);
+        Assert.Equal(ReminderState.Due, reprisal.State);
+        s.OnOwnAction(TenSecondMit.Id, 98.8);
+        Assert.Equal(ReminderState.Done, reprisal.State);
+        Assert.False(reprisal.UsedEarly);
+
+        s = new ReminderScheduler(fight, [Kit.Entry("p1.charge", null, Kit.Do(TenSecondMit))], catalog, options);
+        s.OnOwnAction(TenSecondMit.Id, 98.0);
+        Assert.True(Assert.Single(s.All).UsedEarly);
+    }
+
+    [Fact]
+    public void Coverage_TheNowCueNeverComesBeforeTheEarliestUseThatReachesTheLaterHit_WhateverTheDueLead()
+    {
+        // Optical Sight's 6.1 s: a 10 s Reprisal at −1.9 s is due 1.5 s before by default (96.6, which still reaches 106.1);
+        // with a 3 s due lead it still turns due at 96.6, not at 95.1.
+        var fight = MultiHitFight();
+        var entry = Kit.Entry("p1.two", null, Kit.Do(TenSecondMit));
+        var t = Multi(entry);
+        Assert.Equal(96.6, t.Items[0].DueAt(new ReminderOptions()), Kit.Tolerance);
+        Assert.Equal(96.6, t.Items[0].DueAt(new ReminderOptions { DueLead = 3 }), Kit.Tolerance);
+        Assert.Equal(97.6, t.Items[0].DueAt(new ReminderOptions { DueLead = 0.5 }), Kit.Tolerance);  // a shorter lead is kept
+
+        var s = new ReminderScheduler(fight, [entry], new FakeCatalog([TenSecondMit]), new ReminderOptions { DueLead = 3 });
+        s.Update(95.2);
+        Assert.Equal(ReminderState.Upcoming, Assert.Single(s.All).State);
+        s.Update(96.6);
+        Assert.Equal(ReminderState.Due, Assert.Single(s.All).State);
+    }
+
     /// <summary>Sacred Soil: 15 s party mitigation (−4.5 s).</summary>
     private static readonly ActionInfo Soil = Kit.Act(188, "Sacred Soil", ActionKind.PartyMit, duration: 15, jobs: [Job.SCH]);
 

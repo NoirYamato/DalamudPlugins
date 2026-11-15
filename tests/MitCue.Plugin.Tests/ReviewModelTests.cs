@@ -28,6 +28,13 @@ public class ReviewModelTests
     private static ReviewModel Model(MitPlan plan, IReadOnlyList<ImportDiagnostic>? diagnostics = null) =>
         new(plan, Top(), Catalog(), true, ReviewOrigin.Importer, diagnostics);
 
+    /// <summary>The offset the scheduler presses an entry at (press − hit of its first reminder).</summary>
+    private static double SchedulerOffset(PlanEntry entry)
+    {
+        var reminder = new ReminderScheduler(Top(), [entry], Catalog(), new ReminderOptions()).All[0];
+        return reminder.PressAt - reminder.Hit;
+    }
+
     [Fact]
     public void BuildsOneRowPerEntryWithChecks()
     {
@@ -121,9 +128,10 @@ public class ReviewModelTests
     {
         var model = Model(Plan());
         var row = model.Rows[0];
-        var temperance = Catalog().Get(Temperance);
 
-        Assert.Equal(TimingRules.DefaultOffset(temperance, 90), model.AutoOffset(row));
+        // Temperance (20 s) on Program Loop (tower sets 9 s apart) also covers the third set: 0.5 s before the first.
+        Assert.Equal(SchedulerOffset(row.Entry), model.AutoOffset(row), 6);
+        Assert.Equal(-0.5, model.AutoOffset(row), 6);
         Assert.Equal(28.2 + model.AutoOffset(row), model.PressTime(row)!.Value, 6);
         Assert.Equal(81.2 - 3, model.PressTime(model.Rows[1])!.Value, 6);
         Assert.Null(model.PressTime(model.Rows[2]));
@@ -243,7 +251,7 @@ public class ReviewModelTests
         Assert.Equal(Temperance, Assert.Single(row.Entry.Do).Action);
         Assert.Empty(row.ImportIssues);
         Assert.True(row.Edited);
-        Assert.Equal(TimingRules.DefaultOffset(Catalog().Get(Temperance), 90), model.AutoOffset(row));
+        Assert.Equal(SchedulerOffset(row.Entry), model.AutoOffset(row), 6);
     }
 
     [Fact]

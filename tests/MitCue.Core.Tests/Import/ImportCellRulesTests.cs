@@ -602,12 +602,12 @@ public class ImportCellRulesTests
     [Fact]
     public void Late_NeverPressesEarlierThanWithoutIt()
     {
-        // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.9 s before the first hit, so that it
-        // lasts through the spreads at 1342.7; "(Late)" (-1 s) would be earlier.
+        // TOP Cosmo Meteor (hits 1335.6 … 1343.7): a 10 s Reprisal is already pressed 0.5 s before the first hit, so that it
+        // lasts through the last spreads at 1343.7; "(Late)" (-1 s) would be earlier.
         var entry = Assert.Single(Import(Sheet("P6", "MT", "Cosmo Meteor\tReprisal (Late)")).Plan.Entries);
 
         Assert.Null(entry.Offset);
-        Assert.Equal(-0.9, TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions).Offset, 3);
+        Assert.Equal(-0.5, TimingRules.ForEntry(entry, PlanImports.Top.GetMechanic(entry.Mechanic)!, PlanImports.Top, RepoFiles.Actions).Offset, 3);
     }
 
     [Fact]

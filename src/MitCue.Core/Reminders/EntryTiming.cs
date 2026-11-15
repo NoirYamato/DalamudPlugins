@@ -53,7 +53,8 @@ public sealed class EntryTiming
 /// <param name="Latest">The last useful moment (see <see cref="Reminder.Latest"/>).</param>
 /// <param name="DueNotBefore">
 /// The item's reminder does not turn due before this (timeline seconds), whatever the due lead (see
-/// <see cref="Reminder.DueNotBefore"/>): the item's series floor; null when it has none.
+/// <see cref="Reminder.DueNotBefore"/>): the later of the item's series floor and, with an automatic press, the earliest
+/// use that still reaches a later hit the item covers; null when it has neither.
 /// </param>
 public readonly record struct ItemTiming(ActionInfo? Action, double PressAt, double Earliest, double Latest, double? DueNotBefore)
 {
