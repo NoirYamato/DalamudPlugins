@@ -96,6 +96,39 @@ public class ImportCellRulesTests
     }
 
     [Theory]
+    [InlineData("Kera Stack/Spread", "Kera", "Stack/Spread")] // mechanic words
+    [InlineData("CU Stack/Spread", "CU", "Stack/Spread")]
+    [InlineData("Reprisal Tankbuster/Raidwide", "Reprisal", "Tankbuster/Raidwide")]
+    [InlineData("Rampart MT/TB", "Rampart", "MT/TB")] // a slot and a mechanic word
+    [InlineData("Addle Stack/Party", "Addle", "Stack/Party")] // a mechanic word and a target noun
+    [InlineData("Party Mit WAR/DRK", "Party Mit", "WAR/DRK")] // jobs
+    public void HintWordsJoinedBySlash_AfterAnAction_AreItsRemark_InEitherReading(string text, string head, string trailing)
+    {
+        foreach (var parser in new[] { And, CellParser.Default })
+        {
+            var token = Assert.Single(parser.Parse(text).Tokens);
+            Assert.Equal((head, trailing), (token.Head, token.Trailing));
+            Assert.Equal([head], token.Alternatives);
+        }
+    }
+
+    [Theory]
+    [InlineData("Sage", "Kera Stack/Spread", "Kerachole", "Stack/Spread", SlashReading.All)]
+    [InlineData("Sage", "Kera Stack/Spread", "Kerachole", "Stack/Spread", SlashReading.Either)]
+    [InlineData("WAR", "Rampart MT/TB", "Rampart", "MT/TB", SlashReading.All)]
+    [InlineData("WAR", "Rampart MT/TB", "Rampart", "MT/TB", SlashReading.Either)]
+    public void HintWordsJoinedBySlash_AfterAnAction_StayOneNote(string column, string cell, string action, string note, SlashReading slashes)
+    {
+        // Not "Kerachole" noted "Stack" and "Spread" left out of an either/or: both words are the action's remark.
+        var result = Import(Sheet("P3", column, "Hello World\t" + cell), slashes);
+        var entry = Assert.Single(result.Plan.Entries);
+        Assert.Equal([action], entry.Names());
+        Assert.Equal(note, entry.Note);
+        Assert.Null(entry.Target);
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == "unresolved-token");
+    }
+
+    [Theory]
     [InlineData(SlashReading.All)]
     [InlineData(SlashReading.Either)]
     public void AndOr_IsEitherOne_InEitherReading(SlashReading slashes)

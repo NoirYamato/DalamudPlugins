@@ -148,14 +148,14 @@ public sealed partial class CellParser
 
     /// <summary>
     /// True for a word the parser reads as part of a hint rather than an action: a connector ("after", "if", "use"), a
-    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), slots and target words joined by "/"
-    /// ("MT/Co-tank"), a count ("×2") or a number ("4", "1st").
+    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), words joined by "/" that name no action
+    /// ("MT/Co-tank", "Stack/Spread", <see cref="IsHintList"/>), a count ("×2") or a number ("4", "1st").
     /// </summary>
     internal static bool IsHintWord(string word)
     {
         var w = word.Trim('.', ',', ':', ';', '!', '?', '"', '\'', '(', ')', '[', ']');
         return w.Length > 0 && (Connectors.Contains(w) || Continuations.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w)
-            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
+            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
     }
 
     /// <summary>Parses plain text (no formatting).</summary>
@@ -240,6 +240,14 @@ public sealed partial class CellParser
 
     /// <summary>Slots and tank target words joined by "/", either of them ("MT/Co-tank", "Off-tank/MT", "MT/OT").</summary>
     private static bool IsPlayerList(string w) => w.Contains('/') && w.Split('/').All(p => SlotWord().IsMatch(p) || TargetWords.Contains(p));
+
+    /// <summary>
+    /// Words joined by "/" that each name no action: slots, jobs, target or mechanic words ("Stack/Spread", "MT/TB",
+    /// "MT/Co-tank", "WAR/DRK"). After an action they are its remark, in either reading of "/" ("Kera Stack/Spread":
+    /// Kerachole, and "Stack/Spread" its remark); only slots and tank target words become its target
+    /// (<see cref="IsPlayerList"/>).
+    /// </summary>
+    private static bool IsHintList(string w) => w.Contains('/') && w.Split('/').All(p => p.Length > 0 && (NamesAPlayer(p) || MechanicWords.Contains(p)));
 
     /// <summary>
     /// A parenthetical naming a player: one or two words that are slots or target words ("(MT)", "(Co-Tank)", "(Tank)",
@@ -1083,7 +1091,7 @@ public sealed partial class CellParser
             for (var i = 1; i < words.Count; i++)
             {
                 var w = words[i].Clean;
-                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || CountWord().IsMatch(w)
+                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || CountWord().IsMatch(w)
                     || (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < words.Count && words[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase)))
                 {
                     split = i;

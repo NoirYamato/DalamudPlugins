@@ -13,8 +13,9 @@ public sealed record ParsedTarget(string Value, string Text);
 /// Resolving a token (the back half's job): for each of <see cref="Alternatives"/> take the longest alias key that is
 /// a prefix of <see cref="WithTrailing"/>(alternative); the rest is trailing text (a hint such as "after 1st Hit", a
 /// count, a condition). The <see cref="Head"/>/<see cref="Trailing"/> split is a heuristic (it cuts at connector words
-/// like after/on/to/if and at mechanic words like Proteans/Stack/Co-Tank), so it may stop early ("Invuln Diffuse Wave
-/// Cannon" has no cue and stays whole) — matching against the head plus trailing text tolerates both.
+/// like after/on/to/if, at mechanic words like Proteans/Stack/Co-Tank and at such words joined by "/" like Stack/Spread),
+/// so it may stop early ("Invuln Diffuse Wave Cannon" has no cue and stays whole) — matching against the head plus
+/// trailing text tolerates both.
 /// </remarks>
 public sealed record ParsedToken
 {
