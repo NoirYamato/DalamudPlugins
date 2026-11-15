@@ -178,6 +178,9 @@ public class ActionCatalogTests
 
         var neutral = A("Neutral Sect"); // a buff pressed in time for the Aspected Helios that puts up its barrier
         Assert.Equal((ActionKind.Buff, UseTiming.Before, 4.5), (neutral.Kind, neutral.When, neutral.Lead!.Value));
+        Assert.Equal(A("Aspected Helios").CastTime, neutral.BarrierCast);     // the GCD that puts up the barrier, to 96
+        Assert.Equal(A("Helios Conjunction").CastTime, neutral.BarrierCast);  // and from 96 (level 100)
+        Assert.Null(A("Collective Unconscious").BarrierCast);
         var wings = A("Passage of Arms");  // a channel any action ends: pressed last
         Assert.Equal((ActionKind.PartyMit, UseTiming.Before, 2.0), (wings.Kind, wings.When, wings.Lead!.Value));
 
@@ -532,6 +535,9 @@ public class ActionCatalogTests
     [InlineData("recast: 60", "recast: sixty", "sixty")]
     [InlineData("schema: mitcue-actions/1", "schema: mitcue-actions/2", "mitcue-actions/2")]
     [InlineData("jobs: [PLD, WAR]", "jobs: [PLD, WAR", "YAML")]
+    [InlineData("icon: 806", "icon: 806\n    lead: 0", "'lead' must be a positive number")]
+    [InlineData("icon: 806", "icon: 806\n    barrier_cast: -1.5", "'barrier_cast' must be a positive number")]
+    [InlineData("icon: 806", "icon: 806\n    barrier_cast: .nan", "'barrier_cast' must be a positive number")]
     public void Load_ReportsWhatIsWrong(string find, string replace, string expectedInMessage)
     {
         var yaml = MinimalFile.Replace(find, replace, StringComparison.Ordinal);

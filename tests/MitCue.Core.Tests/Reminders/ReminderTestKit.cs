@@ -47,11 +47,22 @@ internal static class Kit
 
     public static readonly ActionInfo PulseOfLife = Act(208, "Pulse of Life", ActionKind.LimitBreak, jobs: [Job.WHM], when: UseTiming.After);           // +2 s
 
+    /// <summary>A buff with a lead of its own and a barrier from the 1.5 s Helios cast after it, as in the real catalog.</summary>
+    public static readonly ActionInfo NeutralSect = Act(                                                                                                  // −4.5 s (lead)
+        16559,
+        "Neutral Sect",
+        ActionKind.Buff,
+        duration: 20,
+        jobs: [Job.AST],
+        when: UseTiming.Before,
+        lead: 4.5,
+        barrierCast: 1.5);
+
     /// <summary>An action the test catalog does not know (timed like a note, still tracked as an action).</summary>
     public static readonly ActionInfo Unlisted = Act(999_999, "Unlisted", ActionKind.PartyMit, duration: 30);
 
     public static IReadOnlyList<ActionInfo> Catalogued { get; } =
-        [Temperance, Tetragrammaton, DivineBenison, Adloquium, MedicaII, Rampart, HallowedGround, Swiftcast, Bell, Excogitation, EarthlyStar, Horoscope, PulseOfLife];
+        [Temperance, Tetragrammaton, DivineBenison, Adloquium, MedicaII, Rampart, HallowedGround, Swiftcast, Bell, Excogitation, EarthlyStar, Horoscope, PulseOfLife, NeutralSect];
 
     public static ActionInfo Act(
         uint id,
@@ -62,7 +73,8 @@ internal static class Kit
         Job[]? jobs = null,
         UseTiming when = UseTiming.Default,
         double? lead = null,
-        ActionEffect[]? effects = null) => new()
+        ActionEffect[]? effects = null,
+        double? barrierCast = null) => new()
     {
         Id = id,
         Name = name,
@@ -72,6 +84,7 @@ internal static class Kit
         DurationByLevel = duration is { } d ? new Dictionary<int, double> { [1] = d } : new Dictionary<int, double>(),
         When = when,
         Lead = lead,
+        BarrierCast = barrierCast,
         Effects = effects ?? [],
     };
 

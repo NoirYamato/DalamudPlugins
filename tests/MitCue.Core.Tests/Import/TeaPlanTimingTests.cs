@@ -110,7 +110,7 @@ public class TeaPlanTimingTests
     [InlineData("'Alex Prime/PA'!G21", "Temperance", 720.2, 720.2)]          // −6 s would be 716.9, wave 3
     [InlineData("'Alex Prime/PA'!C21", "Divine Veil", 720.2, 720.2)]         // instant shields
     [InlineData("'Alex Prime/PA'!F21", "Eukrasian Prognosis", 720.2, 720.2)]
-    [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 720.2, 720.2)]
+    [InlineData("'Alex Prime/PA'!H21", "Neutral Sect", 718.7, 718.7)]          // its Helios (1.5 s) lands at 720.2
     [InlineData("'Alex Prime/PA'!E21", "Succor", 718.4, 718.2)]              // its own −4.5 s lands at 720.4
     [InlineData("'Alex Prime/PA'!E23", "Consolation", 726.2, 726.2)]
     [InlineData("'Alex Prime/PA'!F23", "Eukrasian Prognosis", 726.2, 726.2)]
@@ -192,7 +192,9 @@ public class TeaPlanTimingTests
     /// <summary>
     /// 'LL/BJCC'!H48 "Neutral" on Whirlwind 2 (327.6) and 'Alex Prime/PA'!H47 "Neutral/CU" on Irresistible Grace 2 (1187.9):
     /// Neutral Sect is pressed 4.5 s before the hit, in time for the Neutral Aspected Helios (1.5 s cast) to put up its
-    /// barrier before the damage.
+    /// barrier before the damage. 'Alex Prime/PA'!H21 "Neutral" on J Wave 5 (722.9): pressed and due 1.5 s before wave 4
+    /// (719.9) + 0.3 s, so that the Helios cast from its NOW cue puts the barrier up after wave 4, and even after a whole
+    /// 2.5 s GCD before it, before wave 5.
     /// </summary>
     [Fact]
     public void NeutralSect_LeavesTimeForTheHeliosItsBarrierComesWith()
@@ -200,6 +202,14 @@ public class TeaPlanTimingTests
         var neutral = Reminders("'LL/BJCC'!H48", "'Alex Prime/PA'!H47").Where(r => r.Item.Name == "Neutral Sect").ToList();
         Assert.Equal(2, neutral.Count);
         Assert.All(neutral, r => Assert.Equal(r.Hit - 4.5, r.PressAt, 1e-9));
+
+        var wave5 = Assert.Single(Reminders("'Alex Prime/PA'!H21"), r => r.Item.Name == "Neutral Sect");
+        var helios = RepoFiles.Action("Aspected Helios").CastTime;
+        var now = TimingRules.DueAt(wave5.PressAt, wave5.DueNotBefore, new ReminderOptions());
+        Assert.Equal(719.9 + 0.3 - helios, wave5.PressAt, 1e-9);
+        Assert.Equal(719.9 + 0.3 - helios, now, 1e-9);
+        Assert.True(now + helios >= 719.9 + 0.3 - 1e-9);
+        Assert.True(now + 2.5 + helios < wave5.Hit);
     }
 
     /// <summary>

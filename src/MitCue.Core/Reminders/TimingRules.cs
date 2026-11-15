@@ -97,7 +97,9 @@ public static class TimingRules
     /// <para>
     /// A later hit of a <see cref="Mechanic.Series"/> (on that mechanic, or on one whose hit is that hit): the automatic
     /// press is never before the hit before it + 0.3 s (for an entry timed by a shield with a cast: minus the cast, so the
-    /// shield lands then), and the reminder does not turn due before that either (<see cref="EntryTiming.DueNotBefore"/>).
+    /// shield lands then; by an action whose barrier comes from a cast after it, <see cref="ActionInfo.BarrierCast"/>:
+    /// minus that cast, Neutral Sect's 1.5 s Aspected Helios), and the reminder does not turn due before that either
+    /// (<see cref="EntryTiming.DueNotBefore"/>).
     /// A written press at or after that floor keeps it too (a press the importer moved later, so that the action is ready
     /// again); one before the floor has none.
     /// </para>
@@ -138,11 +140,11 @@ public static class TimingRules
             }
         }
 
-        // A later hit of a series: not before the hit before it (a cast shield lands then).
+        // A later hit of a series: not before the hit before it (a cast shield, or a barrier cast after the press, lands then).
         double? floor = null;
         if (PreviousSeriesHit(fight, hit) is { } previous)
         {
-            floor = previous + AfterPreviousHit - (timingAction is { Kind: ActionKind.Shield } shield ? shield.CastTime : 0);
+            floor = SeriesFloor(previous, timingAction);
             automatic = Math.Max(automatic, floor.Value - hit);
         }
 
@@ -350,6 +352,14 @@ public static class TimingRules
 
     /// <summary>The later of two optional times (null when both are).</summary>
     private static double? Later(double? a, double? b) => a is { } x && b is { } y ? Math.Max(x, y) : a ?? b;
+
+    /// <summary>
+    /// The floor of a press timed by <paramref name="action"/> on a later hit of a series (see <see cref="ForEntry"/>): the
+    /// hit before it + 0.3 s, less the cast of a shield or of the GCD that puts up the action's barrier after it
+    /// (<see cref="ActionInfo.BarrierCast"/>), so that the barrier lands after that hit.
+    /// </summary>
+    private static double SeriesFloor(double previous, ActionInfo? action) =>
+        previous + AfterPreviousHit - (action is { Kind: ActionKind.Shield } shield ? shield.CastTime : action?.BarrierCast ?? 0);
 
     /// <summary>
     /// The hit before <paramref name="hit"/> in a <see cref="Mechanic.Series"/> of the fight that has it as a later hit, or

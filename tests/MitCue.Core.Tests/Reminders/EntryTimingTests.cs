@@ -314,6 +314,7 @@ public class EntryTimingTests
     [InlineData(16536u, 103.3)]   // Temperance: −6 would be 100, before wave 2 (103): after it + 0.3
     [InlineData(7432u, 103.3)]    // Divine Benison: an instant shield at −4 would be spent on wave 2
     [InlineData(185u, 101.5)]     // Adloquium: its 2 s cast from −4.5 lands at 103.5, after wave 2: kept
+    [InlineData(16559u, 101.8)]   // Neutral Sect: its −4.5 s lead (101.5) would put the Helios barrier up before wave 2
     [InlineData(30u, 104.0)]      // Hallowed Ground: −2 is after wave 2 anyway
     [InlineData(3570u, 107.0)]    // a heal after the hit
     [InlineData(999999u, 103.3)]  // an unknown action, like a note
@@ -339,6 +340,22 @@ public class EntryTimingTests
         var mitigation = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.Temperance), Kit.Do(Kit.Adloquium)), fight);
         Assert.Equal(103.3, mitigation.DueNotBefore!.Value, Kit.Tolerance); // timed by Temperance: no cast to start early
         Assert.All(mitigation.Items, i => Assert.Equal(103.3, i.Earliest, Kit.Tolerance));
+    }
+
+    [Fact]
+    public void Series_AnActionWhoseBarrierComesFromACastAfterIt_IsPressedThatCastBeforeTheFloor()
+    {
+        // Neutral Sect on wave 3 (106): the barrier comes with the 1.5 s Helios cast after the press, so pressed (and due)
+        // at wave 2 (103) + 0.3 − 1.5 it lands just after wave 2, and even after a whole GCD before the cast, before wave 3.
+        var t = Kit.Timing(Kit.Entry("p1.wave_3", null, Kit.Do(Kit.NeutralSect)), SeriesFight());
+        Assert.Equal(101.8, t.PressAt, Kit.Tolerance);
+        Assert.Equal(101.8, t.DueNotBefore!.Value, Kit.Tolerance);
+        Assert.Equal(101.8, t.Items[0].Earliest, Kit.Tolerance);
+        Assert.True(t.DueAt(new ReminderOptions()) + Kit.NeutralSect.BarrierCast!.Value >= 103 + 0.3 - Kit.Tolerance);
+        Assert.True(t.DueAt(new ReminderOptions()) + 2.5 + Kit.NeutralSect.BarrierCast!.Value < 106);
+
+        // On the first wave it keeps its lead.
+        Assert.Equal(95.5, Kit.Timing(Kit.Entry("p1.wave_1", null, Kit.Do(Kit.NeutralSect)), SeriesFight()).PressAt, Kit.Tolerance);
     }
 
     [Fact]
