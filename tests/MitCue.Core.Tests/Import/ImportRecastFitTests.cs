@@ -308,8 +308,15 @@ public class ImportRecastFitTests
         var r = Import(Sheet("P1", "White Mage", "Alpha\tAsylum", "Bravo\tAsylum", "Charlie\tAsylum"), fight);
 
         Assert.Equal([null, -3.7, -1.0], new[] { "p1.alpha", "p1.bravo", "p1.charlie" }.Select(m => At(r, m, "Asylum").Offset));
-        Assert.Equal(2, Fits(r).Count);
         Assert.Empty(Conflicts(r, fight, Job.WHM));
+
+        // Each info gives the gap as the sheet plans both presses (88 s), and Charlie's says that Bravo's moved too.
+        Assert.Equal(
+            [
+                "Asylum at p1.bravo is planned 88.0 s after the Asylum at p1.alpha (recast 90.0 s): it is pressed 3.7 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.",
+                "Asylum at p1.charlie is planned 88.0 s after the Asylum at p1.bravo, which is pressed later too (recast 90.0 s): it is pressed 1.0 s before its hit instead of 7.2 s, as late as \"(Late)\" would press it, once Asylum is ready again.",
+            ],
+            Fits(r).Select(d => d.Message));
     }
 
     [Fact]

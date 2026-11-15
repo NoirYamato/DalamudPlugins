@@ -2539,7 +2539,7 @@ public sealed partial class PlanImporter
         /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
         /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
         /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A
-        /// <c>recast-fit</c> info names each entry that moved.
+        /// <c>recast-fit</c> info names each entry that moved, with the gap the plan had before the fit.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
@@ -2548,6 +2548,9 @@ public sealed partial class PlanImporter
                 return;
 
             var seats = this.Seats(new MitPlan { Fight = this.fight.Key, Assignees = assignees, Entries = drafts.Select(d => d.Entry).ToList() });
+
+            // Each press as the plan has it before the fit, for the infos.
+            var planned = drafts.ToDictionary(d => d.Entry, d => this.TimingOf(d.Entry).PressAt);
             var moved = new Dictionary<PlanEntry, RecastMove>();
             for (var round = 0; round < MaxFitRounds; round++)
             {
@@ -2569,7 +2572,7 @@ public sealed partial class PlanImporter
             foreach (var d in drafts)
             {
                 if (moved.TryGetValue(d.Entry, out var move))
-                    this.ReportRecastFit(move);
+                    this.ReportRecastFit(move, planned[move.Entry] - planned[move.Earlier.Entry], moved.ContainsKey(move.Earlier.Entry));
             }
         }
 
@@ -2705,15 +2708,21 @@ public sealed partial class PlanImporter
             return latest;
         }
 
-        /// <summary>The <c>recast-fit</c> info of an entry the recast fit moved (<see cref="FitRecasts"/>).</summary>
-        private void ReportRecastFit(RecastMove move)
+        /// <summary>
+        /// The <c>recast-fit</c> info of an entry the recast fit moved (<see cref="FitRecasts"/>): the gap to the press it
+        /// waits for as the sheet plans both (<paramref name="gap"/>), and whether that press moved too
+        /// (<paramref name="earlierMoved"/>: then it waits for it as moved).
+        /// </summary>
+        private void ReportRecastFit(RecastMove move, double gap, bool earlierMoved)
         {
             var recast = ImportText.Seconds(move.Action.RecastAt(this.level));
             var limit = move.Charges == 1 ? $"recast {recast} s" : $"{move.Charges} charges, recast {recast} s";
-            var earlier = move.EarlierAction.Id == move.Action.Id
-                ? $"the {move.Action.Name} at {move.Earlier.Entry.Mechanic}"
-                : $"the {move.EarlierAction.Name} at {move.Earlier.Entry.Mechanic}, which shares its recast";
-            var gap = move.Use.Hit + move.From - move.Earlier.PressAt;
+            var which = new List<string>();
+            if (move.EarlierAction.Id != move.Action.Id)
+                which.Add("shares its recast");
+            if (earlierMoved)
+                which.Add("is pressed later too");
+            var earlier = $"the {move.EarlierAction.Name} at {move.Earlier.Entry.Mechanic}" + (which.Count > 0 ? ", which " + string.Join(" and ", which) : string.Empty);
             var when = !move.AtLate ? $"so that its NOW cue comes when {move.Action.Name} is ready again"
                 : move.Lead is { Lead: { } lead } ? $"as late as the {ImportText.Seconds(lead)} s lead of {move.Lead.Name} allows, once {move.Action.Name} is ready again"
                 : $"as late as \"(Late)\" would press it, once {move.Action.Name} is ready again";
