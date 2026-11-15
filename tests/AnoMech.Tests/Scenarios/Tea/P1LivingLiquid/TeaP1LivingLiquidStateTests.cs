@@ -392,25 +392,27 @@ public class TeaP1LivingLiquidStateTests
     // -- Parts --
 
     [Test]
-    public void ARunPlaysBothPartsUnlessItStartsLater()
+    public void ARunPlaysAllThreePartsUnlessItStartsLater()
     {
         var whole = Roll(1).Parts;
+        var fromProteanOne = Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Protean1 }).Parts;
         var later = Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Cascade2 }).Parts;
 
         Assert.Multiple(() =>
         {
             Assert.That(whole, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
-            Assert.That((whole.Plays(Pull), whole.Plays(Protean1), whole.Plays(Cascade2)), Is.EqualTo((false, true, true)));
-            Assert.That((whole.Start(Protean1), whole.Start(Cascade2)), Is.EqualTo((0f, 23.9f)).Within(0.001f));
-            Assert.That((later.Plays(Protean1), later.Plays(Cascade2)), Is.EqualTo((false, true)));
+            Assert.That((whole.Plays(Pull), whole.Plays(Protean1), whole.Plays(Cascade2)), Is.EqualTo((true, true, true)));
+            Assert.That((whole.Start(Pull), whole.Start(Protean1), whole.Start(Cascade2)), Is.EqualTo((0f, 60.9f, 84.8f)));
+            Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Pull }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
+            Assert.That((fromProteanOne.Plays(Pull), fromProteanOne.Plays(Protean1), fromProteanOne.Plays(Cascade2)), Is.EqualTo((false, true, true)));
+            Assert.That((fromProteanOne.Start(Protean1), fromProteanOne.Start(Cascade2)), Is.EqualTo((0f, 23.9f)).Within(0.001f));
+            Assert.That((later.Plays(Pull), later.Plays(Protean1), later.Plays(Cascade2)), Is.EqualTo((false, false, true)));
             Assert.That(later.Start(Cascade2), Is.Zero);
-            Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Protean1 }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
             Assert.That((TeaP1LivingLiquidParts.FightClock(Pull), TeaP1LivingLiquidParts.FightClock(Protean1), TeaP1LivingLiquidParts.FightClock(Cascade2)),
                         Is.EqualTo((0f, 60.9f, 84.8f)));
         });
     }
 
-    // The pull is played only where a headless run pins it, until the strat plays it: Start from does not offer it.
     [Test]
     public void AHeadlessRunFromThePullPlaysItOnItsOwnClockWithTheLaterPartsAfterIt()
     {
@@ -425,17 +427,11 @@ public class TeaP1LivingLiquidStateTests
         });
     }
 
-    // A setup kept by hand could hold the pull's number before Start from offers it.
+    // Start from lists the parts in order; its first row, the pull, is also what no pick plays.
     [Test]
-    public void AKeptStartFromThePullStartsAtTheFirstPartOffered()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Pull }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
-            Assert.That(new[] { (TeaP1LivingLiquidPart?)null, Pull, Protean1, Cascade2 }.Select(TeaP1LivingLiquidSettingsWindow.StartFromIndex),
-                        Is.EqualTo(new[] { 0, 0, 0, 1 }), "the row's index into its labels");
-        });
-    }
+    public void StartFromsRowsAreThePartsInOrder()
+        => Assert.That(new[] { (TeaP1LivingLiquidPart?)null, Pull, Protean1, Cascade2 }.Select(TeaP1LivingLiquidSettingsWindow.StartFromIndex),
+                       Is.EqualTo(new[] { 0, 0, 1, 2 }));
 
     [Test]
     public void AHeadlessRunPinsBothEndsAndALastBeforeTheFirstIsTheFirst()

@@ -964,10 +964,12 @@ public class TeaP1LivingLiquidScenarioTests
         IScenario asScenario = scenario;
 
         var whole = asScenario.BgmSecondsAtStart;
+        overrides.StartFrom = Protean1;
+        var fromProteanOne = asScenario.BgmSecondsAtStart;
         overrides.StartFrom = Cascade2;
-        var later = asScenario.BgmSecondsAtStart;
+        var fromCascadeTwo = asScenario.BgmSecondsAtStart;
 
-        Assert.That((whole, later), Is.EqualTo((60.9f, 84.8f)));
+        Assert.That((whole, fromProteanOne, fromCascadeTwo), Is.EqualTo((0f, 60.9f, 84.8f)));
     }
 
     // -- The chat line, the settings, the catalog --
@@ -982,6 +984,10 @@ public class TeaP1LivingLiquidScenarioTests
     [TestCase(ShieldHealer, Cascade2, "Your Throttle cleanses: yourself first, then R2, R1, M2, M1, H1, OT, MT")]
     [TestCase(MeleeDpsA, Protean1)]
     [TestCase(CasterDps, Cascade2)]
+    [TestCase(OffTank, Pull, "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter", "Your Drainage tether: from the tornado left of the open quarter",
+        "Your Liquid Hand: it stays put while you are within 5 y of it")]
+    [TestCase(MeleeDpsA, Pull, "Your Jagd Doll: the one south-west of the middle with the open quarter north", "Your spot beside it: on your doll or a step away from the tornado beside it")]
+    [TestCase(RegenHealer, Pull, "Your wait for the Jagd Dolls: stay far out, in the open quarter", "Your Throttle cleanses: yourself first, then MT, OT, H2, M1, M2, R1, R2")]
     public void TheStartNamesTheHumansDutiesInThePartsItPlays(PartyRole seat, TeaP1LivingLiquidPart first, params string[] lines)
     {
         IReadOnlyList<string> chat = [];
