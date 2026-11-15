@@ -156,7 +156,7 @@ public sealed class TeaP1LimitCutScenario : IScenario
     }
 
     // Behind is the reverse of the way the player faces as he lands. The fight plays the same timeline on him at
-    // every landing.
+    // every landing; with a warp-in at the first landing alone the client left him unseen at the later ones.
     private void LandBehind(int number)
     {
         landedBehind = null;

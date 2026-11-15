@@ -120,22 +120,16 @@ public static class TeaP1Constants
     {
         public const float ArenaRadius = 20f;                       // no wall: whoever goes past it dies
         public const float HawkBlasterRadius = 14f;                 // on the cardinals and the diagonals alike
-        // UNVERIFIED. He reads a median 1.3 y behind where the logging client shows a running player, and the server has
-        // such a player a yalm or two further on.
-        public const float CruiseChaserLandsBehind = 3f;
+        public const float CruiseChaserLandsBehind = 3f;            // UNVERIFIED; between about 2 and 4 y
         public const float AlphaSwordHalfAngle = MathF.PI / 4f;     // not on the sheet
         public const float TornadoRingRadius = 15f;
-        // UNVERIFIED; at least about 7.4 y and under 9.0, by the three players seen to step into it.
-        public const float PuddleRadius = 7.6f;
-        // UNVERIFIED; not on the sheet. Nearly everyone a wave hit stood within 10 degrees of its axis, and nearly
-        // everyone it missed beyond 30.
+        public const float PuddleRadius = 7.6f;                     // UNVERIFIED; at least about 7.4 y and under 9.0
+        // UNVERIFIED, both, and not on the sheet: a wave's between about 10 and 30 degrees, a cleave's between 19 and 54.
         public const float ProteanWaveHalfAngle = MathF.PI / 12f;
-        // UNVERIFIED; not on the sheet. Whoever a cleave hit stood within 19 degrees of its axis, whoever it missed
-        // beyond 54.
         public const float CleaveHalfAngle = MathF.PI / 4f;
         public const float DrainageRadius = 6f;
-        // An Embolus bursts on whoever's hitbox comes within this of its centre: the Living Liquid, 3.5 y round,
-        // burst them from 3.8 to 4.5 y. UNVERIFIED for the Liquid Hand and for a player, neither seen to touch one.
+        // An Embolus bursts on whoever's hitbox comes within this of its centre: on the Living Liquid, 3.5 y round,
+        // from 4.5 y between their centres. UNVERIFIED for the Liquid Hand and for a player.
         public const float EmbolusRadius = 1f;
         public const float EmbolusLeavesBeyond = 21.5f;             // it goes on out of the arena and is gone there
 
@@ -192,8 +186,7 @@ public static class TeaP1Constants
 
     public static class P1Rules
     {
-        // The Knockback sheet's rows 2 and 3, which his two hits name: straight away from him. Alpha Sword's 5 y was
-        // seen; the charge threw everyone it threw out of the arena, 15 y and more.
+        // The Knockback sheet's rows 2 and 3, which his two hits name: straight away from him.
         public const float AlphaSwordKnockback = 5f;
         public const float AlphaSwordKnockbackSpeed = 10f;
         public const float SuperBlasstyChargeKnockback = 20f;
@@ -204,19 +197,18 @@ public static class TeaP1Constants
 
         public const float BossWalkSpeed = 9f;
         // A boss stands still while its target is within the second of these past their two hitboxes, centre to centre,
-        // and then walks until it is within the first. The Liquid Hand was seen to stop so, 4.1 y from its target.
-        // UNVERIFIED: the Living Liquid's stop, seen twice (6.0 y), and both set-offs, taken for the reach of an
-        // auto-attack: a boss let a target that stood still stay 4.4 and 7.0 y away.
+        // and then walks until it is within the first: the Liquid Hand stops 4.1 y from its target. UNVERIFIED: that the
+        // Living Liquid stops so too, between 5.8 and 6.0 y from its own, and both set-offs, taken for the reach of an
+        // auto-attack: at least 4.4 y for the Liquid Hand and 7.0 y for the Living Liquid.
         public const float BossStopsPastTheHitboxes = 2f;
         public const float BossSetsOffPastTheHitboxes = 3f;
-        // UNVERIFIED, both; that a telegraphed wave pushes straight away from where it came from. None was seen to hit
-        // anyone.
+        // UNVERIFIED, both, and that a telegraphed wave pushes straight away from where it came from.
         public const float ProteanWaveKnockback = 10f;
         public const float ProteanWaveKnockbackSpeed = 20f;
-        // Between the bosses' centres. Farther apart than the first as the Hand glows, it shows a palm, else a fist: it
-        // showed a fist up to 15.15 y and a palm from 16.13 y, UNVERIFIED where between. A palm's slam needs them
-        // within the second (their hitboxes touching): it killed nobody up to 2.87 y and everyone at 7.15 y. A fist's
-        // needs them beyond the third, UNVERIFIED: it killed up to 2.39 y, and nobody was seen to take one apart.
+        // Between the bosses' centres. Farther apart than the first as the Hand glows, it shows a palm, else a fist:
+        // UNVERIFIED where between 15.15 and 16.13 y. A palm's slam needs them within the second: UNVERIFIED where
+        // between 2.9 and 7.1 y, taken for their hitboxes touching. A fist's needs them beyond the third: UNVERIFIED,
+        // anywhere over 2.4 y.
         public const float HandShowsAPalmBeyond = 15.6f;
         public const float PalmNeedsThemWithin = 5.1f;
         public const float FistNeedsThemBeyond = 12f;

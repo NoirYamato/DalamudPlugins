@@ -62,13 +62,13 @@ public static class TeaP1Actions
     // -- Protean Wave --
     // Each is cast along its caster's facing, so its aim is whatever its caster was turned to as the cast started. A
     // wave on someone who carries the last one's Water Resistance Down kills, bots included; a first one never does.
-    // UNVERIFIED: that the telegraphed rows kill no more than that, since none was seen to hit anyone.
+    // UNVERIFIED: that the telegraphed rows kill no more than that.
     public static EnemyAction ProteanWaveFromTheLiquid(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveFromTheLiquid, world, presses);
 
     public static EnemyAction ProteanWaveAtAPlayer(SimWorld world, TeaP1Presses presses) => KnockingWave(P1ActionId.ProteanWaveAtAPlayer, world, presses);
 
     // The Living Liquid's own cone of an untelegraphed set kills whoever it hits, carrier or not. UNVERIFIED: that a
-    // tank's cooldowns do not take one through it; one tank was seen hit, and died.
+    // tank's cooldowns do not take one through it.
     public static readonly EnemyAction ProteanWaveStraightAhead = new(P1ActionId.ProteanWaveStraightAhead)
     {
         Area = new() { Size = P1Geometry.ProteanWaveHalfAngle },
