@@ -11,8 +11,9 @@ namespace AnoMech.Scenarios.Tea.P1LivingLiquid;
 public enum TeaP1DrainageStartsOn { TheTanks, Others }
 
 // One run's rolls, each drawn in the order the fight shows it and whether or not it is forced, so forcing one leaves
-// the others as the seed had them. UNVERIFIED: that the game draws each evenly, and that Cascade 2's tornadoes can
-// stand where the first did.
+// the others as the seed had them. The pull's own roll, its Emboli, is drawn from a stream of its own, so a seed keeps
+// every draw it made before the pull was played. UNVERIFIED: that the game draws each evenly,
+// and that Cascade 2's tornadoes can stand where the first did.
 public sealed class TeaP1LivingLiquidState
 {
     public const int DrainageTethers = 2;
@@ -31,7 +32,9 @@ public sealed class TeaP1LivingLiquidState
 
     public bool HasThrottle(PartyRole role) => Throttled.Contains(role);
 
-    // The second pair: the two tornadoes that cast Pressurize, each with the boss whose spot its Embolus heads for.
+    // The two tornadoes that cast each Pressurize, each with the boss whose spot its Embolus heads for: the pull's
+    // pair, and the pair before the last slam.
+    public IReadOnlyList<TeaP1EmbolusRoll> FirstEmboli { get; }
     public IReadOnlyList<TeaP1EmbolusRoll> Emboli { get; }
 
     // P1Rules.EmbolusSpeed; headless runs also play faster ones.
@@ -69,17 +72,26 @@ public sealed class TeaP1LivingLiquidState
         }.Build(rng, party);
         Throttled = overrides.Throttled is { } pinnedThrottled ? new RoleList(party, pinnedThrottled) : throttled;
 
-        var pressurizing = AllBut((TeaP1Tornado)rng.NextInt(3));
-        var firstAimsAtTheLiquid = rng.NextBool();
-        Emboli = overrides.Emboli ??
-        [
-            new TeaP1EmbolusRoll(pressurizing[0], firstAimsAtTheLiquid ? TeaP1Boss.LivingLiquid : TeaP1Boss.LiquidHand),
-            new TeaP1EmbolusRoll(pressurizing[1], firstAimsAtTheLiquid ? TeaP1Boss.LiquidHand : TeaP1Boss.LivingLiquid),
-        ];
+        var emboli = EmboliFrom(rng);
+        Emboli = overrides.Emboli ?? emboli;
+        FirstEmboli = overrides.FirstEmboli ?? EmboliFrom(rng.Fork(ThePullsRolls));
 
         EmbolusSpeed = overrides.EmbolusSpeed ?? P1Rules.EmbolusSpeed;
         Plan = TeaP1LivingLiquidPlan.For(party);
         PlayerPressesItsOwnActions = overrides.PlayerPressesItsOwnActions;
+    }
+
+    private const string ThePullsRolls = "tea-p1-the-pull";
+
+    private static IReadOnlyList<TeaP1EmbolusRoll> EmboliFrom(Rng rng)
+    {
+        var pressurizing = AllBut((TeaP1Tornado)rng.NextInt(3));
+        var firstAimsAtTheLiquid = rng.NextBool();
+        return
+        [
+            new TeaP1EmbolusRoll(pressurizing[0], firstAimsAtTheLiquid ? TeaP1Boss.LivingLiquid : TeaP1Boss.LiquidHand),
+            new TeaP1EmbolusRoll(pressurizing[1], firstAimsAtTheLiquid ? TeaP1Boss.LiquidHand : TeaP1Boss.LivingLiquid),
+        ];
     }
 
     private static TeaP1Tornado[] AllBut(TeaP1Tornado left) => Enum.GetValues<TeaP1Tornado>().Where(tornado => tornado != left).ToArray();

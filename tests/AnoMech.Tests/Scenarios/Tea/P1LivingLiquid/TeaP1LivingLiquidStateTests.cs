@@ -208,6 +208,59 @@ public class TeaP1LivingLiquidStateTests
         Assert.That(seen, Has.Count.EqualTo(6));
     }
 
+    // -- The pull's Emboli --
+
+    [Test]
+    public void TwoOfTheThreeTornadoesSendThePullsEmboliOneAtEachBoss()
+    {
+        var seen = new HashSet<string>();
+        var same = 0;
+        Assert.Multiple(() =>
+        {
+            foreach (var seed in Seeds.Take(200))
+            {
+                var state = Roll(seed);
+                var emboli = state.FirstEmboli;
+                Assert.That(emboli, Has.Count.EqualTo(2), $"seed {seed}");
+                Assert.That(emboli[0].From, Is.LessThan(emboli[1].From), $"seed {seed}");
+                Assert.That(emboli.Select(roll => roll.AimsAt), Is.EquivalentTo(Enum.GetValues<TeaP1Boss>()), $"seed {seed}");
+                seen.Add($"{emboli[0].From}+{emboli[1].From}, the first at the {emboli[0].AimsAt}");
+                if (emboli.SequenceEqual(state.Emboli)) same++;
+            }
+        });
+        Assert.That(seen, Has.Count.EqualTo(6));
+        Assert.That(same, Is.InRange(10, 70), "rolled apart from the second pair");
+    }
+
+    [Test]
+    public void ThePullsEmboliArePinnedApartFromTheSecondPair()
+    {
+        IReadOnlyList<TeaP1EmbolusRoll> pinned = [new(TeaP1Tornado.Middle, TeaP1Boss.LiquidHand), new(TeaP1Tornado.East, TeaP1Boss.LivingLiquid)];
+        var plain = Roll(5);
+        var with = Roll(5, new TeaP1LivingLiquidStateOverrides { FirstEmboli = pinned });
+
+        Assert.That(with.FirstEmboli, Is.EqualTo(pinned));
+        Assert.That(Describe(with), Is.EqualTo(Describe(plain)), "every other roll as the seed had it");
+        Assert.That(Roll(5, new TeaP1LivingLiquidStateOverrides { Emboli = pinned }).FirstEmboli, Is.EqualTo(plain.FirstEmboli));
+    }
+
+    // The pull's roll is drawn from a stream of its own, so each seed keeps the rolls it had before the pull was played,
+    // and the run's own stream, which Drainage draws from again when a rolled seat is dead, stands where it stood. Each
+    // row: the six rolls as Describe gives them, then the stream's next draw.
+    [TestCase(1, "Northeast | Middle,East | PhysRangedDps,MainTank | Southwest | RegenHealer,ShieldHealer,MeleeDpsA,MeleeDpsB,PhysRangedDps,CasterDps | West>LiquidHand,East>LivingLiquid | 701796")]
+    [TestCase(2, "West | West,East | RegenHealer,MeleeDpsB | North | OffTank,RegenHealer,ShieldHealer,MeleeDpsA,MeleeDpsB,CasterDps | Middle>LiquidHand,East>LivingLiquid | 89001")]
+    [TestCase(3, "East | West,Middle | MeleeDpsB,MeleeDpsA | Southeast | MainTank,OffTank,RegenHealer,ShieldHealer,PhysRangedDps,CasterDps | West>LiquidHand,Middle>LivingLiquid | 476206")]
+    [TestCase(7, "Southeast | West,Middle | MeleeDpsA,OffTank | West | MainTank,OffTank,RegenHealer,MeleeDpsA,MeleeDpsB,CasterDps | West>LiquidHand,East>LivingLiquid | 25025")]
+    [TestCase(1234567, "West | West,Middle | MainTank,CasterDps | Northeast | MainTank,OffTank,RegenHealer,MeleeDpsA,PhysRangedDps,CasterDps | West>LiquidHand,Middle>LivingLiquid | 684645")]
+    public void ASeedKeepsTheRollsItHadBeforeThePullWasPlayed(int seed, string released)
+    {
+        var rng = new Rng(seed);
+        var state = new TeaP1LivingLiquidState(rng, new SimParty(), new TeaP1LivingLiquidStateOverrides());
+
+        var rolls = string.Join(" | ", Describe(state).Take(6).Append($"{rng.Next(1_000_000)}"));
+        Assert.That(rolls, Is.EqualTo(released), rolls);
+    }
+
     // Every roll is drawn whether or not it is forced.
     [Test]
     public void ForcingOneRollLeavesTheOthersAsTheSeedHadThem()
@@ -347,12 +400,40 @@ public class TeaP1LivingLiquidStateTests
         Assert.Multiple(() =>
         {
             Assert.That(whole, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
-            Assert.That((whole.Plays(Protean1), whole.Plays(Cascade2)), Is.EqualTo((true, true)));
+            Assert.That((whole.Plays(Pull), whole.Plays(Protean1), whole.Plays(Cascade2)), Is.EqualTo((false, true, true)));
             Assert.That((whole.Start(Protean1), whole.Start(Cascade2)), Is.EqualTo((0f, 23.9f)).Within(0.001f));
             Assert.That((later.Plays(Protean1), later.Plays(Cascade2)), Is.EqualTo((false, true)));
             Assert.That(later.Start(Cascade2), Is.Zero);
             Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Protean1 }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
-            Assert.That((TeaP1LivingLiquidParts.FightClock(Protean1), TeaP1LivingLiquidParts.FightClock(Cascade2)), Is.EqualTo((60.9f, 84.8f)));
+            Assert.That((TeaP1LivingLiquidParts.FightClock(Pull), TeaP1LivingLiquidParts.FightClock(Protean1), TeaP1LivingLiquidParts.FightClock(Cascade2)),
+                        Is.EqualTo((0f, 60.9f, 84.8f)));
+        });
+    }
+
+    // The pull is played only where a headless run pins it, until the strat plays it: Start from does not offer it.
+    [Test]
+    public void AHeadlessRunFromThePullPlaysItOnItsOwnClockWithTheLaterPartsAfterIt()
+    {
+        var fromThePull = Roll(1, new TeaP1LivingLiquidStateOverrides { Parts = (Pull, Cascade2) }).Parts;
+        var thePullAlone = Roll(1, new TeaP1LivingLiquidStateOverrides { Parts = (Pull, Pull) }).Parts;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((fromThePull.Plays(Pull), fromThePull.Plays(Protean1), fromThePull.Plays(Cascade2)), Is.EqualTo((true, true, true)));
+            Assert.That((fromThePull.Start(Pull), fromThePull.Start(Protean1), fromThePull.Start(Cascade2)), Is.EqualTo((0f, 60.9f, 84.8f)));
+            Assert.That((thePullAlone.Plays(Pull), thePullAlone.Plays(Protean1)), Is.EqualTo((true, false)));
+        });
+    }
+
+    // A setup kept by hand could hold the pull's number before Start from offers it.
+    [Test]
+    public void AKeptStartFromThePullStartsAtTheFirstPartOffered()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(Roll(1, new TeaP1LivingLiquidStateOverrides { StartFrom = Pull }).Parts, Is.EqualTo(TeaP1LivingLiquidParts.Whole));
+            Assert.That(new[] { (TeaP1LivingLiquidPart?)null, Pull, Protean1, Cascade2 }.Select(TeaP1LivingLiquidSettingsWindow.StartFromIndex),
+                        Is.EqualTo(new[] { 0, 0, 0, 1 }), "the row's index into its labels");
         });
     }
 
@@ -366,10 +447,22 @@ public class TeaP1LivingLiquidStateTests
         Assert.That(clamped, Is.EqualTo(new TeaP1LivingLiquidParts(Cascade2, Cascade2)));
     }
 
-    // A kept setup holds a part as its number, and the pull is to come before these two.
+    // A kept setup holds a part as its number.
     [Test]
-    public void ThePartsKeepTheirNumbersWithZeroLeftForThePull()
-        => Assert.That(((int)Protean1, (int)Cascade2), Is.EqualTo((1, 2)));
+    public void ThePartsKeepTheirNumbers()
+        => Assert.That(((int)Pull, (int)Protean1, (int)Cascade2), Is.EqualTo((0, 1, 2)));
+
+    [Test]
+    public void AKeptStartFromIsTakenForAPartAndNothingElse()
+    {
+        foreach (var (kept, taken) in new[] { (0, true), (1, true), (2, true), (3, false) })
+        {
+            var overrides = new TeaP1LivingLiquidStateOverrides();
+
+            ScenarioSettingsSync.Apply(overrides, $"{{\"StartFrom\":{kept}}}");
+            Assert.That(overrides.StartFrom, Is.EqualTo(taken ? (TeaP1LivingLiquidPart?)kept : null), $"{kept}");
+        }
+    }
 
     // ScenarioSettingsSync is also how a setup is kept across restarts.
     [Test]
@@ -384,6 +477,7 @@ public class TeaP1LivingLiquidStateTests
             Parts = (Protean1, Protean1),
             Drainage = [new(TeaP1Tornado.West, CasterDps), new(TeaP1Tornado.East, MeleeDpsA)],
             Throttled = PerRole.All.Take(6).ToList(),
+            FirstEmboli = [],
             Emboli = [],
             EmbolusSpeed = 3f,
             PlayerPressesItsOwnActions = true,
@@ -405,6 +499,7 @@ public class TeaP1LivingLiquidStateTests
             Assert.That(peer.Parts, Is.Null);
             Assert.That(peer.Drainage, Is.Null);
             Assert.That(peer.Throttled, Is.Null);
+            Assert.That(peer.FirstEmboli, Is.Null);
             Assert.That(peer.Emboli, Is.Null);
             Assert.That(peer.EmbolusSpeed, Is.Null);
             Assert.That(peer.PlayerPressesItsOwnActions, Is.False);

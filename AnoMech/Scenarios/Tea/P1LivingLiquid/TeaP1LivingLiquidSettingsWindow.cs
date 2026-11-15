@@ -1,3 +1,4 @@
+using System;
 using AnoMech.Core.Game.Party;
 using Dalamud.Bindings.ImGui;
 
@@ -54,13 +55,17 @@ public sealed class TeaP1LivingLiquidSettingsWindow
     private void DrawStartFrom()
     {
         SettingsGrid.Row("Start from:");
-        var part = (int)(Overrides.StartFrom ?? TeaP1LivingLiquidParts.Whole.First) - (int)TeaP1LivingLiquidParts.Whole.First;
+        var part = StartFromIndex(Overrides.StartFrom);
         SettingsGrid.ItemWidth(140);
         if (ImGui.Combo("##tealllstart", ref part, PartLabels, PartLabels.Length))
             Overrides.StartFrom = part == 0 ? null : (TeaP1LivingLiquidPart)(part + (int)TeaP1LivingLiquidParts.Whole.First);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("A start puts the bosses in the middle on the two tanks and the party on its spots for that second of the fight. Cascade 2 starts with no tornado up.");
     }
+
+    // A kept Start from earlier than what is offered shows as the first part that is.
+    internal static int StartFromIndex(TeaP1LivingLiquidPart? startFrom)
+        => Math.Max(0, (int)(startFrom ?? TeaP1LivingLiquidParts.Whole.First) - (int)TeaP1LivingLiquidParts.Whole.First);
 
     private static TeaP1OpenQuarter? Tornadoes(TeaP1OpenQuarter? current, string id)
     {

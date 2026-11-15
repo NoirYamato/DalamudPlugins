@@ -845,7 +845,7 @@ public class TeaP1LivingLiquidScenarioTests
     // -- Starts and parts --
 
     [Test]
-    public void EitherStartPutsTheBossesInTheMiddleOnTheTanks([Values] TeaP1LivingLiquidPart first, [Values] TeaP1OpenQuarter open)
+    public void EitherStartPutsTheBossesInTheMiddleOnTheTanks([Values(Protean1, Cascade2)] TeaP1LivingLiquidPart first, [Values] TeaP1OpenQuarter open)
     {
         var stage = new Stage { First = first, Open1 = open };
         Vector3 liquid = default, hand = default;
@@ -909,7 +909,7 @@ public class TeaP1LivingLiquidScenarioTests
     [Test]
     public void TheBossesAndAProteanOneStartsTornadoesExistAsTheRunStarts()
     {
-        foreach (var first in Enum.GetValues<TeaP1LivingLiquidPart>())
+        foreach (var first in new[] { Protean1, Cascade2 })
         {
             var fake = FakeGame.Install();
             DalamudServices.Install(nameof(Plugin.Log), TraceLog.Create(() => 0f));

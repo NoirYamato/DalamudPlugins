@@ -24,6 +24,7 @@ public sealed class TeaP1LivingLiquidStateOverrides
     internal (TeaP1LivingLiquidPart First, TeaP1LivingLiquidPart Last)? Parts { get; set; }
     internal IReadOnlyList<TeaP1DrainageRoll>? Drainage { get; set; }
     internal IReadOnlyList<PartyRole>? Throttled { get; set; }
+    internal IReadOnlyList<TeaP1EmbolusRoll>? FirstEmboli { get; set; }
     internal IReadOnlyList<TeaP1EmbolusRoll>? Emboli { get; set; }
     internal float? EmbolusSpeed { get; set; }
     internal bool PlayerPressesItsOwnActions { get; set; }
