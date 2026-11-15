@@ -1006,10 +1006,9 @@ share.
   still, turned to its target, while that target is within 3 y past their two hitboxes (7.0 y from the Liquid's
   centre, 5.1 y from the Hand's), and beyond that walks after it at 9 y/s until it is within 2 y past them (6.0 y,
   4.1 y): `EachBossWalksAfterATargetOutOfReach`, from the scenario's `Tick`, since the engine's `Follow` walks up
-  to the hitboxes whatever the distance. The Hand's stop and the walk speed were
-  measured; the Liquid's stop was seen twice and both set-off distances are taken for an auto-attack's reach
-  (UNVERIFIED). A Provoke on either boss gives it to whoever pressed it (the pull, below); nothing else changes a
-  target.
+  to the hitboxes whatever the distance. The Hand's stop and the walk speed were measured; the Liquid's stop was seen
+  twice and both set-off distances are taken for an auto-attack's reach (UNVERIFIED). A Provoke on either boss gives
+  it to whoever pressed it (the pull, below); nothing else changes a target.
   - A main tank that steps more than 7 y from the Liquid drags it, and its tether fetch does: the bot's by up to
     2.7 y, most where its own tether is the second to come free (the west one starts on the main tank itself, or its
     own starts on the off tank). Protean 2's spots, round the Liquid and beside the tornadoes, are spaced for a
@@ -1083,9 +1082,9 @@ share.
   and which orb heads for which boss. The pull's own roll, its Emboli, is drawn from a fork of the run's stream
   (`rng.Fork`), never from the stream itself: a draw added there would shift every later roll of a seed, and the
   stream is drawn from again after the State (a tether rolled onto a dead seat). So a run from Protean 1 or Cascade 2
-  rolls and plays what it did before the pull existed. Settings: Start from; each part's Tornadoes (Auto or the open quarter);
-  Drainage tethers start on (Auto, The tanks, Others); Your Throttle (Auto, Yes, No). The per-seat Throttle rows
-  need a host's session, as Limit Cut's numbers do, and are reached only by tests.
+  rolls and plays what it did before the pull existed. Settings: Start from; each part's Tornadoes (Auto or the open
+  quarter); Drainage tethers start on (Auto, The tanks, Others); Your Throttle (Auto, Yes, No). The per-seat Throttle
+  rows need a host's session, as Limit Cut's numbers do, and are reached only by tests.
 - A start puts both bosses in the middle, the Liquid turned to relative south-east and the Hand beside it to the
   south-west, in the first tornadoes' frame, which a run from Cascade 2 never shows; the strat's 0 s teleport places
   the party, the player's seat included.
@@ -1137,15 +1136,13 @@ share.
   cleaves' half-angles, the telegraphed wave's knockback (10 y, its speed, straight away from its source), the puddle's
   first harmless second, the Liquid's 6.0 y stop and both set-off distances, where between 15.15 and 16.13 y the
   Hand's form changes and which form looks which, the palm's 5.1 y (between 2.9 and 7.1) and the fist's 12 y,
-  Drainage's 0.2 mitigation, the second after which a wave's, a Sluice's and Drainage's damage
-  shows, an Embolus's 1 y for the Hand and a player, and where a start puts the bosses. In the State, the actions
-  and the mechanics: the odds of every roll and whom the
-  tethers pick, that a holder can't take the second tether, that one Drainage circle kills a tank that holds no
-  tether, that a telegraphed wave leaves Water Resistance Down and kills no more than a second wave does, that a
-  tank's cooldowns don't take it
-  through the wave straight ahead, that the Warden's Paean's barrier stops Throttle, and when the second tornadoes
-  leave. In the plan: that the client's party list shows the seats in the order the cleanses go by (MT, OT, H1, H2,
-  M1, M2, R1, R2); it may sort each role by job.
+  Drainage's 0.2 mitigation, the second after which a wave's, a Sluice's and Drainage's damage shows, an Embolus's
+  1 y for the Hand and a player, and where a start puts the bosses. In the State, the actions and the mechanics: the
+  odds of every roll and whom the tethers pick, that a holder can't take the second tether, that one Drainage circle
+  kills a tank that holds no tether, that a telegraphed wave leaves Water Resistance Down and kills no more than a
+  second wave does, that a tank's cooldowns don't take it through the wave straight ahead, that the Warden's Paean's
+  barrier stops Throttle, and when the second tornadoes leave. In the plan: that the client's party list shows the
+  seats in the order the cleanses go by (MT, OT, H1, H2, M1, M2, R1, R2); it may sort each role by job.
 - No source fixes these strat values, so they are UNVERIFIED picks. Protean 1's spots, the six's Drainage stack, the
   last hand's and the kill's are the guide's drawing; these depart from it or fill what it leaves open, each for
   the margin named, and the margin suite's floors hold them:
@@ -1244,6 +1241,10 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
   Pressurize 40.4, its Emboli setting off at 45.95; Fluid Swing 55.55 and Fluid Strike 55.8. Not played: both
   bosses' and the dolls' auto-attacks (the animation of one every 3 s would stall a boss's walk), the Liquid's
   health halving at the split, Hand of Pain's check, a doll killed.
+- Rolls and settings: the pull plays the first tornadoes' layout, which Protean 1 goes on with (the Tornadoes row
+  under "The pull" in the settings), and rolls its own Emboli from the fork (above): the tornado without one and
+  which orb heads for which boss, six rolls. No setting forces them; tests pin them with the internal `FirstEmboli`.
+  The dolls' spots are no roll.
 - The Hand and the dolls are spawned from an event, and the client has a spawned actor only some frames later and
   drops what is written to it before: a boss turned to its target that early is shown it again once it is there, a
   boss still on its way reads no hitbox and does not walk, and a doll turns targetable on the first frame it is
@@ -1265,11 +1266,10 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
 - The cleaves ask for no cooldown. A tank at full health lived through a bare Fluid Swing in the fight (it took three
   fifths of its health), so each is a plain tank buster: a non-tank seat in one dies, a tank seat lives, whatever its
   job. UNVERIFIED, both halves: no non-tank was hit by either cleave, and no Fluid Strike was taken with nothing up.
-  No rule kills for both cleaves at once either. Each leaves Water Resistance Down, and
-  what kills is the wave that follows: the main tank holds both bosses and is the middle tornado's closest player,
-  so that tornado's unseen wave at 37.5 finds it carrying the cleaves' debuff. That is what its invulnerability is
-  for; pressed from 27.5 to 37.5 it takes it through, and a main tank that leaves the tornado after the cleaves needs
-  none.
+  No rule kills for both cleaves at once either. Each leaves Water Resistance Down, and what kills is the wave that
+  follows: the main tank holds both bosses and is the middle tornado's closest player, so that tornado's unseen wave
+  at 37.5 finds it carrying the cleaves' debuff. That is what its invulnerability is for; pressed from 27.5 to 37.5
+  it takes it through, and a main tank that leaves the tornado after the cleaves needs none.
 - The invulnerability is read as its four statuses (82, 409, 810, 1836), as every TEA rule reads it. With "Resolve
   your own actions" off, `TeaP1Presses` adds the status itself as it hears the press (30, 43, 3638, 16152), for
   10 s, in the call the sim's own resolving would add it from, so a press in the gap before a frame counts in that
@@ -1292,14 +1292,14 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     weaponskills and spells. A press comes with the client's target whatever the button, so a cooldown, a heal, an
     invulnerability or a ground-targeted button pressed with a doll targeted is none. Thunderclap and its like,
     which can land on a party member or an enemy, count, on the taking that the client refuses a party-only button
-    aimed at an enemy before it is heard (UNVERIFIED). A button
-    that turns into another action comes with its own id, whose row is aimed at its user, so ten of them are let
-    through by id (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu, Iaijutsu, Tsubame-gaeshi, Masterful Blitz,
-    Continuation, Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's
-    Higanbana tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field)
-    pressed with a doll targeted. Once a release brings upstream's `283e864` those ids no longer come. The
-    fight's doll also tethers on an auto-attack (8 of 150 tethers); the run hears no auto-attack, so a doll waits
-    for the first action: a known gap, and hearing them needs an event from upstream's `AutoAttackHandler`.
+    aimed at an enemy before it is heard (UNVERIFIED). A button that turns into another action comes with its own
+    id, whose row is aimed at its user, so ten of them are let through by id
+    (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu, Iaijutsu, Tsubame-gaeshi, Masterful Blitz, Continuation,
+    Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's Higanbana
+    tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field) pressed with a
+    doll targeted. Once a release brings upstream's `283e864` those ids no longer come. The fight's doll also
+    tethers on an auto-attack now and then; the run hears no auto-attack, so a doll waits for the first action: a
+    known gap, and hearing them needs an event from upstream's `AutoAttackHandler`.
   - No damage is played, so a doll's health is scripted: whole until its tether shows, a quarter 4 s later
     (`DollUnderAQuarterAfter`, UNVERIFIED: the party's doing), then down to a tenth, where it stays; no doll dies.
     The bar is sent in twentieths through the status list (UNVERIFIED that the client's follows), and a human's own
@@ -1449,10 +1449,9 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
       the bots' 5.2 y), not quite back from its step out, or leading the Liquid in up to 2 s late; the off tank
       leading the Hand in up to 5.5 s late, or drawing a Hand it took too far out back into the main tank's Provoke
       by 30.0 (the bot Provokes on a later look), or on another job waiting out of its own Provoke's reach until it
-      comes in (the run Provokes back on a later look); a damage dealer
-      taking the other's doll, a ranged taking a melee's, hits 2 and 3 s late, a caster's long cast, a melee on its
-      doll or half a yalm toward its tornado, feeds once the bosses rest on the middle; and the whole fight from
-      the pull.
+      comes in (the run Provokes back on a later look); a damage dealer taking the other's doll, a ranged taking a
+      melee's, hits 2 and 3 s late, a caster's long cast, a melee on its doll or half a yalm toward its tornado,
+      feeds once the bosses rest on the middle; and the whole fight from the pull.
 - Change a rule or a press of the pull only with the strat-free tests green: `TeaP1LivingLiquidPullTests` (each
   rule, one mistake at a time, on the stage's pull cues), `TeaP1JagdDollsTests` (the piece alone),
   `TeaP1PressesTests`, `TeaP1LivingLiquidActionsTests`, `TeaP1LivingLiquidStateTests` (the fork, and that every
