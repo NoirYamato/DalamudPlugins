@@ -250,7 +250,9 @@ Rules worth knowing:
   call ("on CD") is left to the runtime: it keeps its press and counts, since its reminder already waits for the
   action in game (LPDU TOP's P5 party mitigation on cooldown, which a move would only push into the Blind Faith
   calls). A sequence moves for its first step only (`check` times every step at its press; in game the later steps
-  follow). An entry several seats see takes the latest press any of them needs; the earliest press without a charge
+  follow), and only when its later steps are instant oGCDs woven in right after it (`Kerachole → Holos`): a later GCD
+  or cast (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the hit, so such a sequence keeps its
+  press. An entry several seats see takes the latest press any of them needs; the earliest press without a charge
   moves first, then the plan is replayed again, until nothing moves.
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',

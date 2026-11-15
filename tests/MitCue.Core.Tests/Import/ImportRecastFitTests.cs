@@ -365,4 +365,23 @@ public class ImportRecastFitTests
         Assert.True(bravo.Seq);
         Assert.Equal(offset, bravo.Offset);
     }
+
+    [Theory]
+    [InlineData("Sage", "Zoe", "Zoe → Holos", -2.5)]                      // Holos is woven right after Zoe: the NOW cue comes when Zoe is ready
+    [InlineData("Sage", "Zoe", "Zoe → EukProg → Holos → Kerachole", null)] // Eukrasia and Eukrasian Prognosis, two GCDs, come after Zoe
+    [InlineData("Scholar", "Recitation", "Recitation → Succor", null)]     // a 2 s cast after Recitation
+    public void ASequenceWithAGcdOrACastAfterItsFirstStep_KeepsItsPress(string column, string first, string cell, double? offset)
+    {
+        // Zoe and Recitation (buffs, 3 s before the hit, recast 90 s) on Alpha (100, at 97) are ready again at 187. Bravo's
+        // (191) sequence is pressed before that, 6 s before its hit (Holos's lead) or 4.5 s (Succor's). Moved for its first
+        // step, its later steps must still come before the hit: a woven oGCD does, a GCD or a cast after it would not.
+        var fight = Fight(90, ("Alpha", 100), ("Bravo", 191));
+        var r = Import(Sheet("P1", column, "Alpha\t" + first, "Bravo\t" + cell), fight);
+
+        var action = RepoFiles.Action(first == "Zoe" ? "Zoe" : "Recitation");
+        var bravo = At(r, "p1.bravo", action.Name);
+        Assert.True(bravo.Seq);
+        Assert.Equal(offset, bravo.Offset);
+        Assert.Equal(offset is null ? 1 : 0, Conflicts(r, fight, action.Jobs[0]).Count(f => f.ActionId == action.Id));
+    }
 }

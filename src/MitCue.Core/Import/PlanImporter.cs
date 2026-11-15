@@ -2535,9 +2535,11 @@ public sealed partial class PlanImporter
         /// mitigation "on CD" at Sigma and Omega, which the Blind Faith calls follow). A sequence moves for its first
         /// step only: its later steps follow it in game, so one that <c>check</c> (which times every step at the entry's
         /// press) finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
-        /// Prognosis → Holos → Kerachole). An entry several seats see takes the latest press any of them needs. The
-        /// earliest press that finds no charge moves first, then the plan is replayed again, until nothing moves: moves
-        /// only go later, up to the latest press the entry allows. A <c>recast-fit</c> info names each entry that moved.
+        /// Prognosis → Holos → Kerachole). It moves only when its later steps are woven in right after the first
+        /// (<see cref="LaterStepsAreWoven"/>): a later GCD or cast would land after the hit. An entry several seats see
+        /// takes the latest press any of them needs. The earliest press that finds no charge moves first, then the plan is
+        /// replayed again, until nothing moves: moves only go later, up to the latest press the entry allows. A
+        /// <c>recast-fit</c> info names each entry that moved.
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
@@ -2634,17 +2636,30 @@ public sealed partial class PlanImporter
             !r.Entry.Seq || r.ItemIndex == r.Entry.Do.FindIndex(i => i.ActionIds().Any());
 
         /// <summary>
+        /// True when the later steps of a sequence take no time of their own, so that it can wait as long as its first step
+        /// could: each is an instant oGCD, woven right after it (Kerachole → Holos, Summon Seraph → Consolation), as items
+        /// pressed together are. A later GCD or cast comes a GCD or the cast after the first step (the Sage's Zoe →
+        /// Eukrasian Prognosis → Holos → Kerachole, Recitation → Succor), which "(Late)" leaves no time for: such a
+        /// sequence keeps its press. True for an entry that is no sequence.
+        /// </summary>
+        private bool LaterStepsAreWoven(PlanEntry entry) =>
+            !entry.Seq || entry.Do.Skip(entry.Do.FindIndex(i => i.ActionIds().Any()) + 1)
+                .SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()
+                .All(a => !a.IsGcd && a.CastTime <= 0);
+
+        /// <summary>
         /// The later press of the <paramref name="index"/>th press of <paramref name="chain"/> (replayed as
         /// <paramref name="presses"/>), which finds no charge before <paramref name="readyAt"/>: then plus the default due
         /// lead, rounded up to 0.1 s, but no later than the entry allows (<see cref="LatestFitOf"/>). Null when the entry is
-        /// not pressed before its hit, or the action is ready only after that.
+        /// not pressed before its hit, is a sequence whose later steps need time of their own
+        /// (<see cref="LaterStepsAreWoven"/>), or the action is ready only after that.
         /// </summary>
         private RecastMove? MoveFor(List<(Reminder Reminder, ActionInfo Action)> chain, List<RecastUse> presses, int index, double readyAt, int charges)
         {
             var (use, action) = chain[index];
             var offset = use.PressAt - use.Hit;
             var (late, lead) = this.LatestFitOf(use.Entry.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList());
-            if (use.PressAt >= use.Hit || readyAt - use.Hit > late + SameTime)
+            if (use.PressAt >= use.Hit || !this.LaterStepsAreWoven(use.Entry) || readyAt - use.Hit > late + SameTime)
                 return null;
             var due = Math.Ceiling(Math.Round((readyAt + DefaultReminders.DueLead - use.Hit) * 10, 6)) / 10;
             var later = ImportText.Round(Math.Min(due, late));
