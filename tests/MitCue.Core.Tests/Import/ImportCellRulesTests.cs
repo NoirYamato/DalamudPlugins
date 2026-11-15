@@ -821,14 +821,17 @@ public class ImportCellRulesTests
         Assert.Equal(-3.0, entry.Offset);
     }
 
-    [Fact]
-    public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt()
+    [Theory]
+    [InlineData("EukProg (Late)", "Eukrasian Prognosis")]
+    [InlineData("EukDiag (Late)", "Eukrasian Diagnosis")]
+    public void Late_AFollowUpOfAGcd_LeavesTimeForTheGcdBeforeIt(string cell, string action)
     {
-        // A Sage's Eukrasian Prognosis (instant) needs Eukrasia first, a GCD the game locks for 1 s (not its sheet's 2.5 s):
-        // "(Late)" presses Eukrasia 2 s before the hit, so that the shield is up 1 s before it (at -1 s it would come at the hit).
-        var entry = Assert.Single(Import(Sheet("P3", "Sage", "Mega Holy\tEukProg (Late)"), fight: PlanImports.Tea).Plan.Entries);
+        // A Sage's Eukrasian Prognosis or Diagnosis (instant) needs Eukrasia first, a GCD the game locks for 1 s (not its
+        // sheet's 2.5 s): "(Late)" presses Eukrasia 2 s before the hit, so that the shield is up 1 s before it (at -1 s it
+        // would come at the hit).
+        var entry = Assert.Single(Import(Sheet("P3", "Sage", "Mega Holy\t" + cell), fight: PlanImports.Tea).Plan.Entries);
 
-        Assert.Equal(["Eukrasian Prognosis"], entry.Names());
+        Assert.Equal([action], entry.Names());
         Assert.Equal(1, RepoFiles.Action("Eukrasia").RecastAt(80));
         Assert.Equal(-2.0, entry.Offset);
         Assert.Equal(PlanImporter.LateOffset, entry.Offset!.Value + RepoFiles.Action("Eukrasia").RecastAt(80), 3);
