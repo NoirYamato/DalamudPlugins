@@ -139,17 +139,20 @@ public static class TimingRules
     /// 4 + 0.3 s, the instant Sacred Soil and Consolation wait until then. A buff, movement or other action without a lead
     /// of its own has no effect the hit before could spend, nor has a note or an action the catalog does not know: it keeps
     /// the entry's floor, so that it comes with the cast it changes or goes with ("Reci → Succor": the Recitation with the
-    /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it), and as the trigger of a follow-up
-    /// the entry lists it waits with it (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation). With an automatic
-    /// press a step of a sequence that the hit before has nothing of to spend either, a heal used after the hit or an item
-    /// that keeps the entry's floor, has no later floor than the step after it, which it comes before
-    /// (<see cref="ComesWithTheStepAfterIt"/>): in "Indom → Succor" on J Wave 5 the Indomitability, a heal that alone waits
-    /// for wave 4 + 0.3 s, comes with the Succor 1.8 s earlier, so that the Succor's cast still lands between waves 4 and 5.
-    /// Any other step keeps its own floor, and the steps after it wait for it, as in "Soil → Succor" (the Succor landing
-    /// 0.7 s before wave 5): the Consolation of "Seraph → Consolation → Succor" on J Wave 5 is not spent on wave 4, all
-    /// three pressed at 720.2, nor the Celestial Intersection of "Intersection → Neutral Sect", both at 720.2. A written
-    /// press keeps each floor it is at or after (a press the importer moved later, so that the action is ready again); one
-    /// before the entry's floor has none.
+    /// Succor, 1.8 s before wave 4 + 0.3 s; "Stack middle → Succor": the note with it). Not so a trigger of follow-ups
+    /// (<see cref="ActionInfo.FollowUps"/>), as they can be used only for a while after its press: it keeps its own floor,
+    /// so that its window still reaches them, in the entry (the Summon Seraph of "Succor/Soil/Seraph" with its Consolation)
+    /// or a later one (the Summon Seraph of "Seraph + Succor" on J Wave 5 at wave 4 + 0.3 s, 720.2, so that its 22 s reach
+    /// a Consolation after wave 11, 741.2). With an automatic press a step of a sequence that keeps the entry's floor, or a
+    /// heal used after the hit, which the hit before has nothing of to spend either, has no later floor than the step after
+    /// it, which it comes before (<see cref="ComesWithTheStepAfterIt"/>): in "Indom → Succor" on J Wave 5 the
+    /// Indomitability, a heal that alone waits for wave 4 + 0.3 s, comes with the Succor 1.8 s earlier, so that the
+    /// Succor's cast still lands between waves 4 and 5. Any other step keeps its own floor, and the steps after it wait for
+    /// it, as in "Soil → Succor" (the Succor landing 0.7 s before wave 5): the Consolation of "Seraph → Consolation →
+    /// Succor" on J Wave 5 is not spent on wave 4, all three pressed at 720.2, nor the Celestial Intersection of
+    /// "Intersection → Neutral Sect", both at 720.2, and the Summon Seraph of "Seraph → Succor" keeps its window, both at
+    /// 720.2. A written press keeps each floor it is at or after (a press the importer moved later, so that the action is
+    /// ready again); one before the entry's floor has none.
     /// </item>
     /// </list>
     /// <para>
@@ -220,9 +223,10 @@ public static class TimingRules
             automatic = Math.Max(automatic, floor.Value - hit);
 
         // Each item's series floor (ItemFloor: never earlier than the entry's, an instant shield beside the cast one that
-        // times the entry lands after the hit before it too; a buff or a note keeps the entry's). With an automatic press a
-        // step of a sequence that the hit before has nothing of to spend (a heal, a buff, a note), pressed before the step
-        // after it, waits for no later floor than that step; any other step keeps its own, and the steps after it wait.
+        // times the entry lands after the hit before it too; a buff or a note keeps the entry's, a trigger of follow-ups its
+        // own). With an automatic press a step of a sequence that the hit before has nothing of to spend (a heal, or an item
+        // that keeps the entry's floor), pressed before the step after it, waits for no later floor than that step; any
+        // other step keeps its own, and the steps after it wait.
         var isAutomatic = entry.Offset is null;
         var floors = new double?[items.Count];
         for (var i = 0; i < items.Count; i++)
@@ -678,40 +682,29 @@ public static class TimingRules
     /// entry's <paramref name="entryFloor"/>: its own action's (<see cref="SeriesFloor"/>). A note and a buff, movement or
     /// other action without a lead of its own (<see cref="KeepsTheEntryFloor"/>) keep the entry's floor, so that they come
     /// with the cast they change or go with (Recitation, Emergency Tactics or Swiftcast with a Succor, "Stack middle →
-    /// Succor"); the trigger of a follow-up the entry lists waits with it (Summon Seraph with its Consolation).
+    /// Succor"); a trigger of follow-ups keeps its own, so that its window reaches them, the entry's (Summon Seraph with its
+    /// Consolation) or a later entry's.
     /// </summary>
-    private static double ItemFloor(double previous, double entryFloor, IReadOnlyList<ActionInfo?> timing, int index)
-    {
-        var action = timing[index];
-        var instant = CastsInstantly(timing);
-        if (!KeepsTheEntryFloor(action))
-            return Math.Max(entryFloor, SeriesFloor(previous, action, instant));
-
-        var floor = entryFloor;
-        foreach (var followUp in timing)
-        {
-            if (action is not null && followUp?.FollowUpOf == action.Id && !KeepsTheEntryFloor(followUp))
-                floor = Math.Max(floor, SeriesFloor(previous, followUp, instant));
-        }
-
-        return floor;
-    }
+    private static double ItemFloor(double previous, double entryFloor, IReadOnlyList<ActionInfo?> timing, int index) =>
+        KeepsTheEntryFloor(timing[index]) ? entryFloor : Math.Max(entryFloor, SeriesFloor(previous, timing[index], CastsInstantly(timing)));
 
     /// <summary>
     /// True for an item the hit before a later hit of a series has nothing of to spend, so that it keeps the entry's series
     /// floor (<see cref="ItemFloor"/>): a note, an action the catalog does not know (<paramref name="action"/> null), and a
     /// buff, movement or other action without a lead of its own (its effect changes the next GCD, or the player). Not
-    /// Neutral Sect, whose barrier comes with the Helios cast after it (its lead).
+    /// Neutral Sect, whose barrier comes with the Helios cast after it (its lead), nor a trigger of follow-ups
+    /// (<see cref="ActionInfo.FollowUps"/>: Summon Seraph, whose Consolations can be used only for 22 s after it), whose
+    /// window for them would end earlier.
     /// </summary>
     private static bool KeepsTheEntryFloor(ActionInfo? action) =>
-        action is null || (OwnLead(action) is null && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
+        action is null || (OwnLead(action) is null && action.FollowUps.Count == 0 && action.Kind is ActionKind.Buff or ActionKind.Movement or ActionKind.Other);
 
     /// <summary>
     /// True for a step of a sequence that, with an automatic press, waits for no later series floor than the step after it
-    /// (<see cref="ForEntry"/>): one the hit before has nothing of to spend, a heal used after the hit
-    /// (<see cref="IsUsedAfterHit"/>) or an item that keeps the entry's floor (<see cref="KeepsTheEntryFloor"/>). Any other
-    /// step keeps its own floor, and the steps after it wait for it: a shield, mitigation, an invuln, a regen, a pre-placed
-    /// heal, Neutral Sect.
+    /// (<see cref="ForEntry"/>): a heal used after the hit (<see cref="IsUsedAfterHit"/>) or an item that keeps the entry's
+    /// floor (<see cref="KeepsTheEntryFloor"/>), which the hit before has nothing of to spend. Any other step keeps its own
+    /// floor, and the steps after it wait for it: a shield, mitigation, an invuln, a regen, a pre-placed heal, Neutral Sect,
+    /// a trigger of follow-ups.
     /// </summary>
     private static bool ComesWithTheStepAfterIt(ActionInfo? action) => IsUsedAfterHit(action) || KeepsTheEntryFloor(action);
 

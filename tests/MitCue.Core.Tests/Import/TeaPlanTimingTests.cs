@@ -198,6 +198,33 @@ public class TeaPlanTimingTests
     }
 
     /// <summary>
+    /// "Seraph + Succor", "Adlo + Seraph" and "Seraph > Succor" on J Wave 5 (722.9) and a Seraph call on J Wave 12 (743.9),
+    /// seven waves later, pressed after wave 11 (741.2). Summon Seraph's Consolations can be used only for 22 s after it,
+    /// so it keeps a floor of its own, wave 4 + 0.3 s (720.2), pressed and due then, and does not come with the Succor or
+    /// Adloquium (718.4, due 718.2), which as the next step of a sequence waits for it: its 22 s reach the later call. The
+    /// importer reads the second "Seraph" as the Consolation of the Seraph still out, and check finds no follow-up without
+    /// its trigger. With the cast, Seraph would leave at 740.2-740.4, before the Consolation's NOW cue, and the second
+    /// "Seraph" would stay a Summon Seraph 22.8 s after the first (recast 120 s).
+    /// </summary>
+    [Theory]
+    [InlineData("Seraph + Succor", "Seraph", "Succor", 718.4, 718.2)]
+    [InlineData("Adlo + Seraph", "Consolation", "Adloquium", 718.4, 718.2)]
+    [InlineData("Seraph > Succor", "Consolation", "Succor", 720.2, 720.2)]
+    public void JWave5_SummonSeraphBesideACastShield_ReachesAConsolationSevenWavesLater(string wave5, string wave12, string cast, double castPress, double castDue)
+    {
+        var r = Import($"P3\tScholar\nJwaves (4)\t{wave5}\nJwaves (11)\t{wave12}");
+        var later = Assert.Single(r.Plan.Entries, e => e.Mechanic == "p3.j_wave_12");
+        Assert.Equal("Consolation", Assert.Single(later.Do).Name);
+
+        var s = new ReminderScheduler(PlanImports.Tea, r.Plan.Entries, RepoFiles.Actions, new ReminderOptions());
+        Assert.Equal((720.2, 720.2), PressAndDue(Assert.Single(s.All, x => x.Item.Name == "Summon Seraph")));
+        Assert.Equal((castPress, castDue), PressAndDue(Assert.Single(s.All, x => x.Item.Name == cast)));
+        Assert.Equal((741.2, 741.2), PressAndDue(Assert.Single(s.All, x => x.Item.Name == "Consolation")));
+        var findings = PlanChecker.Check(PlanImports.Tea, RepoFiles.Actions, r.Plan.Entries, Job.SCH, 80);
+        Assert.DoesNotContain(findings, f => f.Code is "follow-up-without-trigger" or "recast-conflict");
+    }
+
+    /// <summary>
     /// A Scholar's buff with the Succor or Adloquium it changes on J Wave 5 (722.9), as a sheet may write it (LPDU's E21 has
     /// none): "Reci/Succor", "Reci → Succor", "Succor/Reci", "Emergency Tactics/Succor" and "Reci/Adlo/Deploy". The buff
     /// has nothing wave 4 could spend: it comes with the cast, both pressed at 718.4 and due at 718.2, so that the cast
