@@ -328,10 +328,15 @@ public class EntryTimingTests
     }
 
     /// <summary>
-    /// A first hit at 100 and a later one 8.3 s after it (TOP's Wave Cannon: two proteans, then the Wild Charge), and one
-    /// 8.8 s after it (sync 90).
+    /// A first hit at 100 and a later one 8.3 s after it (TOP's Wave Cannon: two proteans, then the Wild Charge), one 8.8 s
+    /// after it, one 8.5 s and one 8.6 s after it (sync 90).
     /// </summary>
-    private static FightDefinition WildChargeFight() => Kit.Fight(90, Kit.Mech("p1.charge", 100, 100, 102, 108.3), Kit.Mech("p1.beyond", 300, 300, 308.8));
+    private static FightDefinition WildChargeFight() => Kit.Fight(
+        90,
+        Kit.Mech("p1.charge", 100, 100, 102, 108.3),
+        Kit.Mech("p1.beyond", 300, 300, 308.8),
+        Kit.Mech("p1.edge", 500, 500, 508.5),
+        Kit.Mech("p1.short", 700, 700, 708.6));
 
     private static EntryTiming Charge(string mechanic, ReminderOptions? options, params ActionInfo[] actions)
     {
@@ -340,9 +345,9 @@ public class EntryTimingTests
     }
 
     [Fact]
-    public void Coverage_ALaterHitUpToD13_IsReachedWithAHeldNowCue()
+    public void Coverage_ALaterHitUpToD15_IsReachedWithAHeldNowCue()
     {
-        // 108.3 is 8.3 s after the first hit: beyond 10 − 2.5 s, within 10 − 1.3 s. The press would have to wait until
+        // 108.3 is 8.3 s after the first hit: beyond 10 − 2.5 s, within 10 − 1.5 s. The press would have to wait until
         // 108.3 − 10 + 2 = 100.3, after the first hit: it is 0.5 s before it instead, and the NOW cue waits until
         // 108.3 − 10 + 0.5 = 98.8, so that a press on it still lasts 0.5 s past 108.3.
         var options = new ReminderOptions();
@@ -357,13 +362,58 @@ public class EntryTimingTests
             Assert.True(t.Items[0].DueAt(options) + 10 >= 108.3 + 0.5 - Kit.Tolerance);
         }
 
-        // 8.8 s is out of reach (10 − 1.3 = 8.7): mitigation keeps −3 s, the invuln −2 s, and neither waits.
+        // 8.8 s is out of reach (10 − 1.5 = 8.5): mitigation keeps −3 s, the invuln −2 s, and neither waits.
         Assert.Equal(-3, Charge("p1.beyond", null, TenSecondMit).AutomaticOffset, Kit.Tolerance);
         Assert.Equal(-2, Charge("p1.beyond", null, Kit.HallowedGround).AutomaticOffset, Kit.Tolerance);
         Assert.Null(Charge("p1.beyond", null, Kit.HallowedGround).Items[0].DueNotBefore);
 
         // The reach leaves the latest use before the hit: 1 s of it puts 8.3 s out of reach of 10 s.
         Assert.Equal(-3, Charge("p1.charge", new ReminderOptions { MitigationLatestBeforeHit = 1 }, TenSecondMit).AutomaticOffset, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void Coverage_ALaterHitIsReachedOnlyWhenTheNowCueStillLeavesASecond()
+    {
+        // Pressed 0.5 s before the first hit, the call is due until the hit itself. 8.5 s after it: due from
+        // 508.5 − 10 + 0.5 = 499, a second before the hit. 8.6 s after it (within 10 − 1.3 s): due from 499.1 it would leave
+        // 0.9 s, so that hit is out of reach, and the calls keep their own leads without waiting.
+        var options = new ReminderOptions();
+        foreach (var action in new[] { TenSecondMit, Kit.HallowedGround })
+        {
+            var edge = Charge("p1.edge", null, action).Items[0];
+            Assert.Equal(499.5, edge.PressAt, Kit.Tolerance);
+            Assert.Equal(499, edge.DueAt(options), Kit.Tolerance);
+            Assert.Equal(1, edge.Latest - edge.DueAt(options), Kit.Tolerance);
+
+            var tooShort = Charge("p1.short", null, action);
+            Assert.Equal(TimingRules.DefaultOffset(action, 90), tooShort.AutomaticOffset, Kit.Tolerance);
+            Assert.Null(tooShort.Items[0].DueNotBefore);
+        }
+    }
+
+    /// <summary>
+    /// Real cells: TEA's Wormhole, whose #5 Alpha Sword comes 8.6 s after the Super Jump (650.9), DMU's first Maddening
+    /// Orchestra (1431.9, 1435.1, 1438.6: 6.7 s, for 8 s calls), and TOP's Omega (927.8 … 945.8, 946.4: 18.0 s and 18.6 s,
+    /// for 20 s calls). The calls reach what they can with their NOW cue at least a second before the first hit.
+    /// </summary>
+    [Theory]
+    [InlineData("tea", "p3.wormhole", "Reprisal", -2.2)]               // covers 656.7, not 659.5
+    [InlineData("tea", "p3.wormhole", "Plenary Indulgence", -2.2)]
+    [InlineData("dmu", "p5.maddening_orchestra_1", "Exaltation", -2.4)] // its own lead: 1438.6 is out of reach
+    [InlineData("dmu", "p5.maddening_orchestra_1", "Aquaveil", -2.4)]
+    [InlineData("top", "p5.omega_all", "Temperance", -0.5)]            // covers 945.8, not 946.4: due 1.5 s before
+    public void Coverage_RealCells_TheNowCueComesASecondBeforeTheFirstHit(string fightKey, string mechanic, string action, double offset)
+    {
+        var fight = fightKey switch
+        {
+            "top" => PlanImports.Top,
+            "tea" => PlanImports.Tea,
+            _ => FightLoader.Load(RepoFiles.Data.ReadText($"fights/{fightKey}.yaml"), $"fights/{fightKey}.yaml"),
+        };
+        var t = TimingRules.ForEntry(Kit.Entry(mechanic, null, Kit.Do(RepoFiles.Action(action))), fight.GetMechanic(mechanic)!, fight, RepoFiles.Actions);
+        Assert.Equal(offset, t.AutomaticOffset, 6);
+        var options = new ReminderOptions();
+        Assert.True(t.Items[0].Latest - t.Items[0].DueAt(options) >= 1 - 1e-9, $"due from {t.Items[0].DueAt(options)} to {t.Items[0].Latest}");
     }
 
     [Fact]
