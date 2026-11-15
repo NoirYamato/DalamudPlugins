@@ -2509,7 +2509,10 @@ public sealed partial class PlanImporter
         /// reminders' press times, for every seat as <c>check</c> and the plugin read the plan (<see cref="Seats"/>). Only a
         /// press the player makes for sure keeps an action on recast: not an optional entry (in brackets, with a condition,
         /// one choice of an either/or), an either/or item or a note ("Temperance (still active)"). An entry with a time in
-        /// the sheet keeps it, and an offset the importer wrote (still-active's) may move. A sequence moves for its first
+        /// the sheet keeps it, and an offset the importer wrote (still-active's) may move. A when-ready call ("on CD") keeps
+        /// its press too, and still keeps its action on recast: its reminder already waits for the action in game (it stays
+        /// due while the action is on cooldown), and a move would only push the calls after it later (LPDU TOP's P5 party
+        /// mitigation "on CD" at Sigma and Omega, which the Blind Faith calls follow). A sequence moves for its first
         /// step only: its later steps follow it in game, so one that <c>check</c> (which times every step at the entry's
         /// press) finds without a charge may well have one when its turn comes (TEA's Sage at Doll Feeds, Zoe → Eukrasian
         /// Prognosis → Holos → Kerachole). An entry several seats see takes the latest press any of them needs. The
@@ -2518,7 +2521,7 @@ public sealed partial class PlanImporter
         /// </remarks>
         private void FitRecasts(List<Draft> drafts, List<Assignee> assignees)
         {
-            var movable = drafts.Where(d => !d.Written).Select(d => d.Entry).ToHashSet();
+            var movable = drafts.Where(d => !d.Written && !d.Entry.WhenReady).Select(d => d.Entry).ToHashSet();
             if (movable.Count == 0)
                 return;
 

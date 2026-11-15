@@ -243,10 +243,12 @@ Rules worth knowing:
   after that, the press stays and `check` reports the recast. Only firm presses keep an action on recast: not an
   optional entry (in brackets, with a condition, one choice of an either/or), an either/or item or a note ("Temperance
   (still active)"); an optional call itself still waits ("CU (if up)"). A press with a time in the sheet counts but
-  never moves; an offset the importer wrote (`still-active`'s) may move. A sequence moves for its first step only
-  (`check` times every step at its press; in game the later steps follow). An entry several seats see takes the latest
-  press any of them needs; the earliest press without a charge moves first, then the plan is replayed again, until
-  nothing moves.
+  never moves; an offset the importer wrote (`still-active`'s) may move. A when-ready call ("on CD") is left to the
+  runtime: it keeps its press and counts, since its reminder already waits for the action in game (LPDU TOP's P5 party
+  mitigation on cooldown, which a move would only push into the Blind Faith calls). A sequence moves for its first
+  step only (`check` times every step at its press; in game the later steps follow). An entry several seats see takes
+  the latest press any of them needs; the earliest press without a charge moves first, then the plan is replayed again,
+  until nothing moves.
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

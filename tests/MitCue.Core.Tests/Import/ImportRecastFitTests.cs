@@ -176,6 +176,24 @@ public class ImportRecastFitTests
     }
 
     [Fact]
+    public void AWhenReadyCall_KeepsItsPress_AndKeepsItsActionOnRecast()
+    {
+        // Reprisal (recast 60 s, 3 s before the hit) on Alpha (100, at 97), "on CD" on Bravo (159) and again on Charlie (218).
+        // Bravo's reminder waits for Reprisal in game (it stays due while Reprisal is on cooldown): it keeps its press
+        // (156), and check says how late it would be pressed. Charlie's waits for Bravo's as planned: Reprisal is ready
+        // again at 216, so it is pressed 1 s before its hit.
+        var fight = Fight(80, ("Alpha", 100), ("Bravo", 159), ("Charlie", 218));
+        var r = Import(Sheet("P1", "Warrior", "Alpha\tReprisal", "Bravo\tReprisal on CD", "Charlie\tReprisal"), fight);
+
+        var bravo = At(r, "p1.bravo", "Reprisal");
+        Assert.True(bravo.WhenReady);
+        Assert.Null(bravo.Offset);
+        Assert.Equal(-1.0, At(r, "p1.charlie", "Reprisal").Offset);
+        Assert.StartsWith("Reprisal at p1.charlie is planned 59.0 s after the Reprisal at p1.bravo", Assert.Single(Fits(r)).Message, StringComparison.Ordinal);
+        Assert.EndsWith("(planned when ready: it would be pressed 1 s late).", Assert.Single(Conflicts(r, fight, Job.WAR)).Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ATimeInTheSheet_CountsButNeverMoves()
     {
         // P2's zero at 232.5 (Photon at 0:30, Gavel at 2:04). Asylum written at 0:31 (263.5) counts: the untimed one at
