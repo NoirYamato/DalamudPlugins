@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Numerics;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
@@ -20,6 +21,10 @@ namespace AnoMech.Tests;
 // On every tornado layout, at either pace and up to half a second late, nobody may die, every doll goes to the damage
 // dealer whose quarter it stands in and is fed, and the bosses end on their own tanks. What a rule of the fight kills
 // is each its own test, and says who dies of what; so is what a seat can get wrong and still lose nobody.
+//
+// Not played, since neither is a mistake here: a ranged that draws its doll to a boss 2 s after its tether (no boss
+// stands within 20 y of it, so the doll is ready before it gets there), and H2 a step nearer M2's doll (its spot far
+// out is 13 y or more from every second doll).
 public class TeaP1LivingLiquidPullLpduHumanTests
 {
     // Two rolls per layout; HumanSeeds asks for more, as SunnySeeds does for the soak.
@@ -36,7 +41,8 @@ public class TeaP1LivingLiquidPullLpduHumanTests
 
     private static bool Cardinal(TeaP1OpenQuarter open) => (int)open % 2 == 0;
 
-    private static Roll ThePull(TeaP1OpenQuarter open) => new() { First = Pull, Last = Pull, Open1 = open, PlayerPressesItsOwnActions = true };
+    // As the plugin has it: the seat a human from the first frame is all that tells the strat to press nothing for it.
+    private static Roll ThePull(TeaP1OpenQuarter open) => new() { First = Pull, Last = Pull, Open1 = open };
 
     private static PartyRole TheOther(PartyRole seat) => seat switch
     {
@@ -113,6 +119,10 @@ public class TeaP1LivingLiquidPullLpduHumanTests
 
     private static IEnumerable<string> Lost(ScenarioRun run) => run.Passed ? [] : [run.ToString()];
 
+    // The strat presses nothing for a human that can press it itself.
+    private static IEnumerable<string> PressedForTheHuman(PartyRole seat, Watched saw)
+        => saw.Provokes.Where(provoke => provoke.By == seat && !provoke.ByHuman).Select(provoke => $"the run Provoked for the human at {Secs(provoke.At)}");
+
     private static IEnumerable<string> NotEveryoneDied(ScenarioRun run, float at, string of, float within = 0.15f)
     {
         if (run.Failure is not null) yield return run.ToString();
@@ -135,7 +145,7 @@ public class TeaP1LivingLiquidPullLpduHumanTests
         {
             var roll = ThePull(open);
             var (run, human, saw) = Play(roll, new TeaP1LivingLiquidHumanPlay(seat, pace, late), seed);
-            runs.Add($"seed {seed}, {roll}", run, Faults(roll, human, run).Concat(LeftUndone(run, human, saw)));
+            runs.Add($"seed {seed}, {roll}", run, Faults(roll, human, run).Concat(LeftUndone(run, human, saw)).Concat(PressedForTheHuman(seat, saw)));
         }
 
         runs.AssertNoneLostBut();
@@ -153,7 +163,6 @@ public class TeaP1LivingLiquidPullLpduHumanTests
             Open1 = Layouts[i],
             Open2 = Layouts[(i + 1 + 2 * (seed % 3)) % 8],
             Drainage = Tethers(TetheringPairs[protean.Next(3)], StartsOn.TheStack, TheSix[first], TheSix[(first + 1 + protean.Next(5)) % 6]),
-            PlayerPressesItsOwnActions = true,
         };
     }
 
@@ -171,7 +180,7 @@ public class TeaP1LivingLiquidPullLpduHumanTests
             var late = ReactionTimes[i % 3];
             if (seat == PhysRangedDps && pace == TeaP1HumanPace.Walking && late == 0.5f) late = 0.25f;
             var (run, human, saw) = Play(roll, new TeaP1LivingLiquidHumanPlay(seat, pace, late), seed);
-            var faults = Faults(roll, human, run).Concat(LeftUndone(run, human, saw)).ToList();
+            var faults = Faults(roll, human, run).Concat(LeftUndone(run, human, saw)).Concat(PressedForTheHuman(seat, saw)).ToList();
             if (run.Passed && human.Open2Read != roll.Open2) faults.Add($"the human read the second open quarter as {human.Open2Read}");
             if (run.Passed && human.SawAPalm != true) faults.Add("the human saw no palm for the last hand");
             runs.Add($"seed {seed}, {roll}, {Secs(late)}s late", run, faults);
@@ -259,7 +268,7 @@ public class TeaP1LivingLiquidPullLpduHumanTests
     }
 
     // The status is what every rule reads, and the press puts it on whether or not the sim resolves the player's
-    // actions; with those off no buster asks for a cooldown.
+    // actions.
     [Test]
     public void AHumanTankPlaysThePullWithTheSimNotResolvingItsActions([Values(MainTank, OffTank)] PartyRole seat)
     {
@@ -497,7 +506,94 @@ public class TeaP1LivingLiquidPullLpduHumanTests
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
     }
 
+    // Some guides draw the main tank a little nearer the middle tornado, or a little farther along the rim, than the
+    // strat's bots stand: here 8.0 y from that tornado where the bots stand 8.4, and on (-9.1, 15.7). The Living Liquid
+    // then rests nearer the south-west doll's spot, and within 5.2 y of it M1's bot would leave that doll alone until
+    // the bosses have gone. From either spot it rests just beyond that on every layout, 5.24 y at the nearest: M1 hits
+    // its doll on its beat and every doll is fed, with the Liquid led in on time and 4 s late.
+    [Test]
+    public void AHumanMainTankWhoBaitsFromWhereSomeGuidesDrawItLosesNobody([Values(0f, 4f)] float leadsItInLate)
+    {
+        var runs = new TeaP1HumanRuns();
+        var nearest = float.MaxValue;
+        foreach (var baitsFrom in new[] { Stage.Off(Stage.South, 8.0f, 258f), new Vector2(-9.1f, 15.7f) })
+        foreach (var open in Layouts)
+        {
+            var roll = ThePull(open) with { FirstEmboli = [new(TeaP1Tornado.West, TeaP1Boss.LiquidHand), new(TeaP1Tornado.East, TeaP1Boss.LivingLiquid)] };
+            var play = new TeaP1LivingLiquidHumanPlay(MainTank, Paces[(int)open % 2], ReactionTimes[(int)open % 3]) { BaitsFrom = baitsFrom, LeadsTheLiquidInLate = leadsItInLate };
+            var liquidFromTheDoll = float.NaN;
+            float? hitAt = null;
+            var (run, human, saw) = Play(roll, play, 442, probe: p =>
+            {
+                if (p.Time < 34f || Stage.Fight(p).Dolls.In(roll.Frame1, TeaP1Quarter.Southwest) is not { } doll) return;
+                if (p.Crossed(34.2f)) liquidFromTheDoll = TeaP1LivingLiquid.Apart(Stage.Fight(p).Position(TeaP1Boss.LivingLiquid), doll.Spot);
+                hitAt = doll.HitAt;
+            });
+            nearest = MathF.Min(nearest, liquidFromTheDoll);
+            var faults = Faults(roll, human, run).Concat(LeftUndone(run, human, saw)).ToList();
+            if (run.Passed && hitAt is not <= 34.3f) faults.Add($"M1 hit its doll at {hitAt}");
+            runs.Add($"{roll}, from {baitsFrom}, the Liquid {Secs(liquidFromTheDoll)} y from the south-west doll", run, faults);
+        }
+
+        TestContext.Out.WriteLine($"the Liquid rested {Secs(nearest)} y from the south-west doll's spot at the nearest");
+        runs.AssertNoneLostBut();
+    }
+
     // -- The off tank --
+
+    // From the main tank's Provoke until it leads the Hand in, it has no boss. On the middle it stands inside both
+    // melee dolls' reach as they first Exhaust: it explodes and takes both melee along. The start's chat line has it
+    // wait beside the Living Liquid.
+    [Test]
+    public void AHumanOffTankWhoWaitsOnTheMiddleOnceTheHandHasLeftExplodesWithBothMeleeAtTheFirstExhaust()
+    {
+        var problems = new List<string>();
+        foreach (var open in Layouts)
+        {
+            var roll = ThePull(open);
+            var play = new TeaP1LivingLiquidHumanPlay(OffTank, Paces[(int)open % 2], ReactionTimes[(int)open % 3]) { WaitsOnTheMiddleOnceTheHandHasLeft = true };
+            var (run, human, _) = Play(roll, play, 459, mayLose: true);
+            problems.AddRange(Faults(roll, human, run).Select(fault => $"{roll}: {fault}"));
+            if (run.Failure is not null || !run.Deaths.Select(death => death.Role).Order().SequenceEqual(new[] { OffTank, MeleeDpsA, MeleeDpsB }.Order())
+                || run.Deaths.Any(death => MathF.Abs(death.Time - TheFirstExhaust) > 0.1f || !death.Cause.Contains(TeaP1JagdDolls.LuminousAetheroplasmBurst)))
+                problems.Add($"{roll}: the off tank and both melee did not die of its explosion at the first Exhaust: {run}");
+        }
+
+        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
+    }
+
+    // It Provokes the Hand back at 36.8, as soon as the busters have landed, and sets off for the middle at 37.5, with
+    // the melee still by their dolls. Where the two melee dolls stand either side of its way, both reach it as they
+    // first Exhaust: it explodes, and whoever stands within 8.5 y dies with it. Where they do not, the Hand follows it
+    // past M1's doll, which is fed with more than a quarter of its health left: everyone dies. Setting off a quarter
+    // second later it loses nobody: Hand of Pain's cast, from 38.6, holds the Hand where it is until the melee have
+    // fed. The start's chat line has it lead the Hand in from 42 s, once the melee have fed their dolls.
+    [Test]
+    public void AHumanOffTankWhoLeadsTheHandInBeforeTheMeleeHaveFedExplodesOrFeedsADollTooSoon()
+    {
+        var problems = new List<string>();
+        var (exploded, fedTooSoon) = (0, 0);
+        foreach (var open in Layouts)
+        {
+            var roll = ThePull(open);
+            var play = new TeaP1LivingLiquidHumanPlay(OffTank, TeaP1HumanPace.Walking, 0f) { ProvokesBackAt = 36.8f, LeadsTheHandInAt = 37.5f };
+            var (run, human, _) = Play(roll, play, 476, mayLose: true);
+            var context = roll.ToString();
+            problems.AddRange(Faults(roll, human, run).Select(fault => $"{context}: {fault}"));
+            TestContext.Out.WriteLine($"{context}: {string.Join(", ", run.Deaths.Select(death => $"{death.Role} at {Secs(death.Time)}"))}");
+            if (run.Failure is not null) problems.Add($"{context}: {run}");
+            else if (run.Deaths.Count > 0 && run.Deaths.All(death => MathF.Abs(death.Time - TheFirstExhaust) <= 0.1f && death.Cause.Contains(TeaP1JagdDolls.LuminousAetheroplasmBurst))
+                     && run.Deaths.Any(death => death.Role == OffTank))
+                exploded++;
+            else if (NotEveryoneDied(run, 39.4f, TeaP1JagdDolls.ADollWasFedTooSoon, within: 0.6f).Any())
+                problems.Add($"{context}: the off tank did not explode at the first Exhaust, nor did everyone die of a doll fed too soon: {run}");
+            else fedTooSoon++;
+        }
+
+        TestContext.Out.WriteLine($"exploded in {exploded} runs, a doll fed too soon in {fedTooSoon}");
+        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
+        Assert.That((exploded, fedTooSoon), Is.EqualTo((4, 4)), "the explosion where the open quarter is on a cardinal, the feed where it is on a diagonal");
+    }
 
     // Any time after the first busters and before the next: here just ahead of them.
     [Test]
@@ -626,6 +722,31 @@ public class TeaP1LivingLiquidPullLpduHumanTests
         runs.AssertNoneLostBut();
     }
 
+    // A ranged hits a melee's doll before that melee's bot does, from where it stands out of its tornado's telegraph,
+    // and the doll walks out to it, into reach of whoever stands by the ranged's own. The melee's bot waits out the
+    // first Exhaust by its own doll's spot, then takes the ranged's own and feeds it once the bosses are on the middle.
+    [Test]
+    public void ARangedWhoHitsAMeleesDollFirstLosesNobody([Values(PhysRangedDps, CasterDps)] PartyRole seat, [Values(MeleeDpsA, MeleeDpsB)] PartyRole whoseDoll)
+    {
+        var runs = new TeaP1HumanRuns();
+        var theMeleeTookTheRangeds = 0;
+        foreach (var open in Layouts)
+        {
+            var roll = ThePull(open);
+            var play = new TeaP1LivingLiquidHumanPlay(seat, Paces[(int)open % 2], ReactionTimes[(int)open % 3]) { HitsTheDollOf = whoseDoll, CastsFor = 0f };
+            var (run, human, saw) = Play(roll, play, 493);
+            var faults = Faults(roll, human, run).ToList();
+            if (run.Passed && saw.FedAt.Count != 4) faults.Add($"fed: {string.Join(", ", saw.FedAt.Keys)}");
+            if (saw.HeldBy.GetValueOrDefault(whoseDoll) != seat) faults.Add($"{whoseDoll}'s doll went to {saw.HeldBy.GetValueOrDefault(whoseDoll)}");
+            if (saw.HeldBy.GetValueOrDefault(seat) == whoseDoll) theMeleeTookTheRangeds++;
+            else if (saw.HeldBy.GetValueOrDefault(seat) is { } other) faults.Add($"{seat}'s own doll went to {other}");
+            runs.Add($"{roll}, {seat}'s own doll with {saw.HeldBy.GetValueOrDefault(seat)}", run, faults);
+        }
+
+        Assert.That(theMeleeTookTheRangeds, Is.EqualTo(runs.Runs), "runs in which the melee took the ranged's own doll");
+        runs.AssertNoneLostBut();
+    }
+
     // A doll nobody has hit is never fed, and one doll's Exhaust harms nobody: it stands where it appeared to the end.
     [Test]
     public void ADamageDealerWhoNeverHitsItsDollLosesNobody([Values(MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps)] PartyRole seat)
@@ -708,12 +829,14 @@ public class TeaP1LivingLiquidPullLpduHumanTests
     // nearer the middle tornado than the main tank and takes that tornado's unseen wave in its stead; where R2 stands
     // in that wave's line, beside its own tornado, it is hit by two at once and dies a moment before the rest. M2's
     // doll has twice as far to go: M2 is on its way, inside its own doll's reach and the other melee's, as the first
-    // Exhaust goes off, and explodes among the tanks.
+    // Exhaust goes off, and explodes among the tanks; on the one layout where its doll comes within the Living Liquid's
+    // 4.6 y just as that Exhaust goes off, the doll is fed there and everyone dies of it.
     [TestCase(MeleeDpsA, true)]
     [TestCase(MeleeDpsB, false)]
     public void AMeleeWhoWalksItsDollToTheBossesTwoSecondsAfterItsTetherKillsEveryoneOrExplodesOnTheWay(PartyRole seat, bool reachesABoss)
     {
         var problems = new List<string>();
+        var explodedOnTheWay = 0;
         foreach (var open in Layouts)
         {
             var roll = ThePull(open);
@@ -730,12 +853,19 @@ public class TeaP1LivingLiquidPullLpduHumanTests
                     || others.Any(death => death.Role != CasterDps || !death.Cause.Contains(TeaP1Actions.SecondWave)))
                     problems.Add($"{roll}: not everyone died of a doll fed too soon, or R2 alone of two waves before: {run}");
             }
-            else if (run.Deaths.All(death => death.Role != seat) || saw.FedAt.ContainsKey(seat)
+            else if (saw.FedAt.TryGetValue(seat, out var fedAt))
+            {
+                if (MathF.Abs(fedAt - TheFirstExhaust) > 0.1f || NotEveryoneDied(run, fedAt + P1Duration.ReducibleComplexityAfterTheFeed, TeaP1JagdDolls.ADollWasFedTooSoon).Any())
+                    problems.Add($"{roll}: its doll was fed at {Secs(fedAt)}, and not everyone died of that: {run}");
+            }
+            else if (run.Deaths.All(death => death.Role != seat)
                      || run.Deaths.Any(death => MathF.Abs(death.Time - TheFirstExhaust) > 0.1f || !death.Cause.Contains(TeaP1JagdDolls.LuminousAetheroplasmBurst)))
                 problems.Add($"{roll}: the human did not explode at the first Exhaust, or someone died of something else: {run}");
+            else explodedOnTheWay++;
         }
 
         Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems.Take(12)));
+        if (!reachesABoss) Assert.That(explodedOnTheWay, Is.EqualTo(7), "layouts on which M2 explodes on its way");
     }
 
     // A melee that waits by its doll until the bosses rest on the middle, and a ranged that goes in as soon as they do,

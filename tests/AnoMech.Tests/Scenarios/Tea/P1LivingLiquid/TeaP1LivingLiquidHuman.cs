@@ -137,6 +137,9 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // The main tank takes the Living Liquid this far along the rim from the strat's spot, away from the middle tornado.
     public float ParksAlongTheRim { get; init; }
 
+    // The main tank baits the middle tornado from here, in the first tornadoes' frame; null: the strat's spot.
+    public Vector2? BaitsFrom { get; init; }
+
     // A tank presses its cooldowns, its Arm's Length and its invulnerability with the nearest doll targeted.
     public bool PressesWithADollTargeted { get; init; }
 
@@ -158,7 +161,16 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // Shown a fist at the pull, the off tank walks to the Living Liquid's flank all the same.
     public bool WalksInOnAFist { get; init; }
 
+    // Once the Hand has left it, the off tank waits on the middle, not on the Living Liquid's flank.
+    public bool WaitsOnTheMiddleOnceTheHandHasLeft { get; init; }
+
+    // The off tank sets off for the middle at this time on the fight's clock; null: as Hand of Pain lands.
+    public float? LeadsTheHandInAt { get; init; }
+
     public TeaP1HumanHits Hits { get; init; }
+
+    // It hits the doll of this seat's quarter first, whatever its own kind; null: as Hits says.
+    public PartyRole? HitsTheDollOf { get; init; }
 
     // On top of the reaction time, for its first hit on its doll alone.
     public float HitsLate { get; init; }
@@ -187,13 +199,15 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
 // 2.5 s on the next seat of its order that still shows Throttle. Nothing presses for it.
 //
 // At the pull it also sees Cascade's bar, the Liquid Hand leaving the off tank, the tornadoes' telegraphs going off,
-// the dolls appearing and turning targetable, the first Fluid Strike, each Exhaust, Hand of Pain landing, its own
-// doll's health and whether a boss stands still. A main tank Provokes the Hand once it shows its palm, holds its
+// the dolls appearing and turning targetable, the first Fluid Strike, each Exhaust, Hand of Pain landing, the chat's
+// word that its own doll is ready and whether a boss stands still. A main tank Provokes the Hand once it shows its palm, holds its
 // ground in its tornado's telegraph and turns invulnerable; an off tank Provokes the Hand back after the busters; each
 // leads its boss onto the middle after Hand of Pain and takes its hold once the boss rests there. A damage dealer hits
-// its doll once it is targetable, in reach and no boss stands by it, a caster standing still for its cast, and draws
-// it through the nearer boss at rest, to a spot clear of the water. A healer waits far out until the first Exhaust.
-// With the sim resolving its actions, a tank also presses a cooldown ahead of each buster it is to take.
+// its doll once it is targetable, in reach and no boss stands by it, a caster standing still for its cast, and, once
+// the chat says the doll is under a quarter, draws it through the nearer boss at rest, to a spot clear of the water.
+// A healer waits far out until the first Exhaust.
+// No buster of the pull asks a tank for a cooldown; one that presses its buttons with a doll targeted presses one ahead
+// of each all the same.
 internal sealed class TeaP1LivingLiquidHuman
 {
     internal const int LpduStrat = 0;
@@ -227,6 +241,7 @@ internal sealed class TeaP1LivingLiquidHuman
     private const float ABossRestsOnTheMiddleWithin = 3f;
     private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141;
     private const uint Vengeance = 44, Sentinel = 17, ShadowWall = 3636, Nebula = 16148;
+    private const string ItsDollIsReady = "Your Jagd Doll is under a quarter of its health";
 
     // How often a run sees each of these in the pull, in Protean 1 and in Cascade 2.
     private static readonly Dictionary<string, int[]> SeenPerPart = new()
@@ -351,9 +366,11 @@ internal sealed class TeaP1LivingLiquidHuman
                     When: p => AtRest(Stage.Fight(p).Liquid));
                 break;
             case OffTank:
-                yield return new(HandLeft, 0.05f, _ => Frame1.ToArena(Stage.OffTanksFlank), IfItComes: true);
+                yield return new(HandLeft, 0.05f, _ => Frame1.ToArena(play.WaitsOnTheMiddleOnceTheHandHasLeft ? Vector2.Zero : Stage.OffTanksFlank), IfItComes: true);
                 if (play.WalksInOnAFist) yield return new(Glow, 0.5f, _ => SawAPalmAtThePull == false ? Frame1.ToArena(Stage.OffTanksFlank) : null);
-                yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
+                yield return play.LeadsTheHandInAt is { } leadsItIn
+                    ? new(Start, leadsItIn, p => Spot(p, Pull, 42.5f))
+                    : new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
                 yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain, p => Spot(p, Pull, 46.6f), Follows: true, When: p => AtRest(Stage.Fight(p).Hand));
                 break;
             case RegenHealer or ShieldHealer:
@@ -383,6 +400,7 @@ internal sealed class TeaP1LivingLiquidHuman
     {
         get
         {
+            if (play.BaitsFrom is { } from) return from;
             var bait = Stage.MainTanksBait;
             var bearing = MathF.Atan2(bait.X, -bait.Y) * 180f / MathF.PI;
             return Stage.Off(Vector2.Zero, bait.Length(), bearing + play.ParksAlongTheRim / bait.Length() * 180f / MathF.PI);
@@ -400,7 +418,7 @@ internal sealed class TeaP1LivingLiquidHuman
 
     private static bool AtRest(SimEnemy? boss) => boss is null or { MoveDestination: null };
 
-    private PartyRole WhoseDollItHits => play.Hits != TeaP1HumanHits.TheOthersDoll ? seat : TheOtherOfItsKind(seat);
+    private PartyRole WhoseDollItHits => play.HitsTheDollOf ?? (play.Hits != TeaP1HumanHits.TheOthersDoll ? seat : TheOtherOfItsKind(seat));
 
     private static PartyRole TheOtherOfItsKind(PartyRole damageDealer) => damageDealer switch
     {
@@ -720,7 +738,8 @@ internal sealed class TeaP1LivingLiquidHuman
         else if (Melee.Contains(seat) || Ranged.Contains(seat)) HitItsDoll(p, me, Stage.Fight(p));
     }
 
-    // A cooldown goes out a second and a half before each buster the tank is to take, where the sim asks for one.
+    // No cleave asks for a cooldown. A tank that presses its buttons with a doll targeted presses one ahead of each
+    // all the same, with the sim resolving its actions: none of them is a hit on the doll.
     private void PressATanksButtons(ScenarioProbe p, SimCharacter me, TeaP1LivingLiquid fight)
     {
         var job = (JobId)Natives.BattleCharas.LocalPlayer.ClassJob;
@@ -733,7 +752,7 @@ internal sealed class TeaP1LivingLiquidHuman
             Act(p, PartyPresets.SkipRoleForJob((uint)job) is RegenHealer or ShieldHealer or CasterDps ? P1PlayerActionId.Surecast : P1PlayerActionId.ArmsLength, aimed);
 
         if (!Stage.Scenario(p).State!.Plan.HumanTanks) return;
-        var resolved = p.Fake.UserActions.Enabled;
+        var cooldowns = play.PressesWithADollTargeted && p.Fake.UserActions.Enabled;
         var (invulnerability, cooldown) = job switch
         {
             JobId.Paladin => (P1PlayerActionId.HallowedGround, Sentinel),
@@ -744,7 +763,7 @@ internal sealed class TeaP1LivingLiquidHuman
         var theHandIsOnIt = fight.Hand is not null && ReferenceEquals(fight.Target(TeaP1Boss.LiquidHand), me);
         if (seat == MainTank)
         {
-            if (resolved && p.Time >= 8.5f && Once("cooldown 1")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+            if (cooldowns && p.Time >= 8.5f && Once("cooldown 1")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
             var provokesAt = play.ProvokesAt ?? (SawAPalmAtThePull == true && seen.TryGetValue(Glow, out var glowed) ? glowed + ProvokesAfterThePalm + late : (float?)null);
             if (!play.NeverProvokes && provokesAt is { } provokes && p.Time >= provokes && fight.Hand is { } hand && Once("provoke"))
             {
@@ -758,8 +777,8 @@ internal sealed class TeaP1LivingLiquidHuman
                 TurnedInvulnerableAt = p.Time;
                 Act(p, invulnerability, aimed, itsOwnEffects: true);
             }
-            if (resolved && p.Time >= 34.9f && TurnedInvulnerableAt is null && Once("cooldown 2")) Act(p, cooldown, aimed, itsOwnEffects: true);
-            if (resolved && p.Time >= 54.0f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? TopP6HumanMitigation.Rampart : cooldown, aimed, itsOwnEffects: true);
+            if (cooldowns && p.Time >= 34.9f && TurnedInvulnerableAt is null && Once("cooldown 2")) Act(p, cooldown, aimed, itsOwnEffects: true);
+            if (cooldowns && p.Time >= 54.0f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? TopP6HumanMitigation.Rampart : cooldown, aimed, itsOwnEffects: true);
             return;
         }
 
@@ -769,8 +788,8 @@ internal sealed class TeaP1LivingLiquidHuman
             ProvokedAt = p.Time;
             Act(p, P1PlayerActionId.Provoke, (ulong)itsBoss.GameObjectId);
         }
-        if (resolved && theHandIsOnIt && p.Time is >= 35.0f and < 36.5f && Once("cooldown 2")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
-        if (resolved && theHandIsOnIt && p.Time >= 54.3f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? cooldown : TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+        if (cooldowns && theHandIsOnIt && p.Time is >= 35.0f and < 36.5f && Once("cooldown 2")) Act(p, TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
+        if (cooldowns && theHandIsOnIt && p.Time >= 54.3f && Once("cooldown 3")) Act(p, pressed.Contains("cooldown 2") ? cooldown : TopP6HumanMitigation.Rampart, aimed, itsOwnEffects: true);
     }
 
     private uint ItsAttack => seat switch { MeleeDpsA => TrueThrust, MeleeDpsB => Bootshine, PhysRangedDps => HeavyShot, _ => Fire };
@@ -789,7 +808,7 @@ internal sealed class TeaP1LivingLiquidHuman
         }
         if (play.Hits == TeaP1HumanHits.NoDoll || HitADollAt is not null || !seen.TryGetValue(DollsTargetable, out var targetable)) return;
         var casts = play.CastsFor ?? (seat == CasterDps ? 2.5f : 0f);
-        var after = play.Hits == TeaP1HumanHits.TheOthersDoll ? HitsAnothersDollAfterItTurnsTargetable
+        var after = WhoseDollItHits != seat ? HitsAnothersDollAfterItTurnsTargetable
             : casts > 0f ? StartsItsCastAfterTheDollsTurnTargetable
             : HitsAfterTheDollsTurnTargetable;
         if (p.Time < targetable + after + late + play.HitsLate) return;
@@ -837,10 +856,11 @@ internal sealed class TeaP1LivingLiquidHuman
         WalkTo(at, Frame1.ToArena(past));
     }
 
+    // Its doll is ready once the chat says so: the line the run gives a human for its own doll.
     private bool ItIsTimeToFeed(ScenarioProbe p, TeaP1JagdDoll doll)
     {
         if (play.Feeds == TeaP1HumanFeeds.TwoSecondsAfterItsTether) return doll.TetheredAt is { } tethered && p.Time >= tethered + 2f;
-        if (doll.Health(p.Time) >= P1Rules.DollIsReadyUnder) return false;
+        if (!p.Chat.Any(said => said.Contains(ItsDollIsReady))) return false;
         if (!seen.TryGetValue(Exhaust, out var first) || p.Time < first + 0.25f) return false;
         itsDollLookedReadyAt ??= p.Time;
         if (p.Time < itsDollLookedReadyAt + late) return false;
