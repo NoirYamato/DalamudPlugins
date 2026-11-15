@@ -39,9 +39,10 @@ namespace AnoMech.Tests;
 // there of what comes next, and nobody else may.
 //
 // Cruise Chaser lands 1.2 s before each cleave, behind wherever his odd number is then. #1 has 1.8 s from the blast
-// on its spot to be there, so it and #2 sprint that walk, as the bots do.
+// on its spot to be there, so it and #2 sprint that walk, as the bots do, whatever their pace; a #1 and a #2 that
+// walk it are their own test.
 // Whatever its seat, number, pace, reaction time and stance, nobody may die but an even number that does not hold
-// its charge off.
+// its charge off, and a bot caught by the cleave of a #1 still short of its spot as he lands.
 public class TeaP1LimitCutLpduHumanTests
 {
     // Five fixed rolls per seat; HumanSeeds asks for more, as SunnySeeds does for the soak.
@@ -73,8 +74,15 @@ public class TeaP1LimitCutLpduHumanTests
             : number == 1 && late >= 0.5f ? Case.LateNumberOne
             : Case.HeldToNoDeath;
 
-    // Runs of the 40 on the usual rolls in which a #1 half a second late has its cleave catch a bot.
+    // Runs of the 40 on the usual rolls in which a #1 half a second late has its cleave catch a bot. The count hangs
+    // on where he lands against a number still walking (P1Geometry.CruiseChaserLandsBehind, and that he takes its
+    // facing), neither of which is measured: count again when either changes.
     private const int RunsALateNumberOneMayLose = 21;
+
+    // The same for a #1 that walks the leg onto its hit spot, where the bots and every other case here sprint it:
+    // 10.7 y in the 1.8 s between the blast that frees the spot and his landing. Setting off as the blast goes off it
+    // is there in time; a quarter second later it is not, in any run.
+    private const int RunsAWalkingNumberOneMayLoseFromAQuarterSecondLate = 40;
 
     private static IEnumerable<TestCaseData> Matrix(Case kind)
         => from number in Enumerable.Range(1, 8)
@@ -85,6 +93,12 @@ public class TeaP1LimitCutLpduHumanTests
            where KindOf(number, late, presses) == kind
            select new TestCaseData(number, pace, late, presses, stance)
                .SetName($"{{m}}(#{number}, {pace}, {late.ToString("F2", CultureInfo.InvariantCulture)}s late, {(presses ? "pressing" : "thrown")}, {stance})");
+
+    private static IEnumerable<TestCaseData> WalkingOntoItsHitSpotCases()
+        => from number in new[] { 1, 2 }
+           from late in ReactionTimes
+           from stance in StancesOf(number)
+           select new TestCaseData(number, late, stance).SetName($"{{m}}(#{number}, {late.ToString("F2", CultureInfo.InvariantCulture)}s late, {stance})");
 
     private static IEnumerable<TestCaseData> HeldToCases() => Matrix(Case.HeldToNoDeath);
     private static IEnumerable<TestCaseData> ThrownOutCases() => Matrix(Case.ThrownOut);
@@ -145,18 +159,45 @@ public class TeaP1LimitCutLpduHumanTests
         Assert.That(lostOnTheUsualRolls, Is.LessThanOrEqualTo(RunsALateNumberOneMayLose), "runs with a death on the usual rolls");
     }
 
+    // #2 is not charged until 4.4 s after the blast that frees its spot, and walking there loses nobody. Nor does a #1
+    // that walks off the moment the blast goes off. From a quarter second later a walking #1 is short of its spot as
+    // he lands, as a sprinting one is from half a second, and its cleave catches a bot in every run: the scenario's
+    // chat line tells a human number 1 to sprint.
+    [TestCaseSource(nameof(WalkingOntoItsHitSpotCases))]
+    public void ANumberOneOrTwoThatWalksOntoItsHitSpotLosesNoMoreRunsThanItDoes(int number, float late, Stance stance)
+    {
+        var tightest = new Clearances();
+        var (runs, lost, lostOnTheUsualRolls) = (0, 0, 0);
+        var problems = new List<string>();
+        var mayLose = number == 1 && late > 0.1f ? RunsAWalkingNumberOneMayLoseFromAQuarterSecondLate : 0;
+        var kind = mayLose > 0 ? Case.LateNumberOne : Case.HeldToNoDeath;
+        foreach (var seat in PerRole.All)
+        foreach (var seed in Seeds)
+        {
+            runs++;
+            problems.AddRange(Play(seat, number, Pace.Walking, late, presses: true, stance, seed, tightest, out var run, kind, walksOntoItsHitSpot: true));
+            if (run.Failure is not null || run.Passed) continue;
+            lost++;
+            if (seed <= 17 * UsualSeeds) lostOnTheUsualRolls++;
+        }
+
+        TestContext.Out.WriteLine($"{runs} runs, {lost} with a death, {lostOnTheUsualRolls} of them on the usual rolls; the human's tightest clearances: {tightest}");
+        Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
+        Assert.That(lostOnTheUsualRolls, Is.LessThanOrEqualTo(mayLose), "runs with a death on the usual rolls");
+    }
+
     // The problems of one run. One whose human is thrown out is still held to all the human reads and does before
     // that, and to losing nobody but the human: to the rim, or, thrown from 1.5 y inside its spot with 20 y of floor
     // ahead, to whatever finds it where it lands. A late #1's run may lose bots, and only to a second hit of Cruise
     // Chaser's.
     private static List<string> Play(PartyRole seat, int number, Pace pace, float late, bool presses, Stance stance, int seed,
-                                     Clearances tightest, out ScenarioRun run, Case kind = Case.HeldToNoDeath)
+                                     Clearances tightest, out ScenarioRun run, Case kind = Case.HeldToNoDeath, bool walksOntoItsHitSpot = false)
     {
         var rng = new Random(seed * 8 + (int)seat);
         var numbers = PerRole.All.Where(role => role != seat).OrderBy(_ => rng.Next()).ToList();
         numbers.Insert(number - 1, seat);
         var axis = (TeaP1FirstBlasters)rng.Next(4);
-        var guide = new Guide(seat, pace, late, presses, stance);
+        var guide = new Guide(seat, pace, late, presses, stance, walksOntoItsHitSpot);
         var problems = new List<string>();
         run = ScenarioRun.Execute(typeof(TeaP1LimitCutScenario), LpduStrat, seed, new ScenarioRunOptions
         {
@@ -202,7 +243,7 @@ public class TeaP1LimitCutLpduHumanTests
 
     // Each cue's walk sets off a reaction time after the cue is seen, from wherever the human is then; one marked
     // to follow the walk before it waits for that to arrive as well.
-    private sealed class Guide(PartyRole seat, Pace pace, float late, bool presses, Stance stance)
+    private sealed class Guide(PartyRole seat, Pace pace, float late, bool presses, Stance stance, bool walksOntoItsHitSpot = false)
     {
         private const float WalkSpeed = 6f, SprintSpeed = 7.8f, SprintsLegsOver = 12f;
         private const float PressBeforeItsHit = 2f;
@@ -362,7 +403,7 @@ public class TeaP1LimitCutLpduHumanTests
             if (leg.Follows && walking is not null) return;
             next++;
             var to = leg.To(at);
-            var sprints = leg.Sprints || (pace == Pace.Sprinting && Vector2.Distance(at, to) > SprintsLegsOver);
+            var sprints = (leg.Sprints && !walksOntoItsHitSpot) || (pace == Pace.Sprinting && Vector2.Distance(at, to) > SprintsLegsOver);
             walking = (p.Time, at, to, sprints ? SprintSpeed : WalkSpeed, leg.Turns);
         }
 
