@@ -37,8 +37,9 @@ public enum TeaP1HumanBringsItsBoss { ThroughTheMiddle, OntoTheMiddle, BesideThe
 // ground with Arm's Length, steps out of it along the rim and back, or stays and is thrown.
 public enum TeaP1HumanTelegraph { HoldsItsGround, StepsOutAndBack, Stays }
 
-// Which Jagd Doll a damage dealer hits: its own quarter's, the one of the other damage dealer of its kind, or none.
-public enum TeaP1HumanHits { ItsOwnDoll, TheOthersDoll, NoDoll }
+// Which Jagd Doll a damage dealer hits: its own quarter's, the one of the other damage dealer of its kind, none, or
+// the other's from range before that one's bot can and then its own.
+public enum TeaP1HumanHits { ItsOwnDoll, TheOthersDoll, NoDoll, TheOthersDollThenItsOwn }
 
 // Where a melee waits by its doll: half a yalm off it, away from the tornado beside it, as the strat does; on it; 2 y
 // toward the other melee's doll; or half a yalm toward the tornado beside it.
@@ -146,6 +147,24 @@ internal sealed record TeaP1LivingLiquidHumanPlay(PartyRole Seat, TeaP1HumanPace
     // The main tank sets off for the middle this long after the strat's beat.
     public float LeadsTheLiquidInLate { get; init; }
 
+    // The main tank sets off for the middle at this time on the fight's clock; null: as Hand of Pain lands.
+    public float? LeadsTheLiquidInAt { get; init; }
+
+    // The main tank never walks through the Living Liquid at the pull: it waits where the start put it, the party
+    // behind it.
+    public bool NeverTurnsTheLiquidAtThePull { get; init; }
+
+    // The off tank takes the Liquid Hand this far from the middle as it splits off, on this bearing; null: the strat's
+    // 11.5 y at 39.
+    public (float FromTheMiddle, float Bearing)? SplitsTo { get; init; }
+
+    // A ranged baits its tornado from 8.4 y on this bearing from it (R2's mirrored), and goes out to the strat's bait
+    // once the unseen wave has gone off; null: the strat's bait.
+    public float? BaitsItsTornadoFromBearing { get; init; }
+
+    // After the dolls' first Exhaust a healer comes in to here, in the first tornadoes' frame; null: the strat's spot.
+    public Vector2? ComesInTo { get; init; }
+
     // On the middle the main tank stands this far from the Living Liquid, between the middle tornado and the one right
     // of the open quarter; null: the strat's 3.9 y.
     public float? HoldsThisFarFromTheLiquid { get; init; }
@@ -239,7 +258,7 @@ internal sealed class TeaP1LivingLiquidHuman
     private const float AMeleeReaches = 3.5f, ARangedReaches = 25f, NoBossThisCloseToADollBeingHit = 5.2f;
     private const float PastTheBossADollIsDrawnThrough = 2.5f, AFeederKeepsFromEveryTornado = 8.3f, AFeederStaysWithinOfTheMiddle = 19.3f;
     private const float ABossRestsOnTheMiddleWithin = 3f;
-    private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141;
+    private const uint TrueThrust = 75, Bootshine = 53, HeavyShot = 97, Fire = 141, PiercingTalon = 90;
     private const uint Vengeance = 44, Sentinel = 17, ShadowWall = 3636, Nebula = 16148;
     private const string ItsDollIsReady = "Your Jagd Doll is under a quarter of its health";
 
@@ -283,7 +302,7 @@ internal sealed class TeaP1LivingLiquidHuman
     private bool pressedItsCooldown, pressedItsAntiKnockback, everHeld;
     private int crossing;
     private readonly HashSet<string> pressed = [];
-    private bool sawAForm, theHandWasOnIt, hadADoll, wentOnAfterItsDoll;
+    private bool sawAForm, theHandWasOnIt, hadADoll, wentOnAfterItsDoll, hitTheOthersDollToo;
     private float? castResolvesAt, itsDollLookedReadyAt;
     private ulong castsAt;
     private Vector2? drewItsDollThroughABossAt;
@@ -353,7 +372,7 @@ internal sealed class TeaP1LivingLiquidHuman
         switch (seat)
         {
             case MainTank:
-                yield return new(Start, 2.0f, p => Spot(p, Pull, 2.0f));
+                if (!play.NeverTurnsTheLiquidAtThePull) yield return new(Start, 2.0f, p => Spot(p, Pull, 2.0f));
                 yield return new(CascadeBar, 0.1f, p => Spot(p, Pull, 14.3f));
                 yield return new(FirstTornadoes, SplitsAfterTheTornadoes, _ => Frame1.ToArena(ItsBaitBesideTheMiddleTornado), Sprints: play.Pace == TeaP1HumanPace.Sprinting);
                 if (play.Telegraph == TeaP1HumanTelegraph.StepsOutAndBack)
@@ -361,7 +380,9 @@ internal sealed class TeaP1LivingLiquidHuman
                     yield return new(TornadoAim, 0.1f, _ => Frame1.ToArena(OutOfTheMiddleTornadosTelegraph));
                     yield return new(TornadoWavesFired, 0.05f, _ => Frame1.ToArena(BackOnItsBaitOrShortOfIt));
                 }
-                yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain + play.LeadsTheLiquidInLate, p => Spot(p, Pull, 42.5f));
+                yield return play.LeadsTheLiquidInAt is { } leadsTheLiquidIn
+                    ? new(Start, leadsTheLiquidIn, p => Spot(p, Pull, 42.5f))
+                    : new(HandOfPainLands, LeavesTheRimAfterHandOfPain + play.LeadsTheLiquidInLate, p => Spot(p, Pull, 42.5f));
                 yield return new(HandOfPainLands, TakesItsHoldAfterHandOfPain + play.LeadsTheLiquidInLate, ItsHoldBesideTheLiquid, Follows: true,
                     When: p => AtRest(Stage.Fight(p).Liquid));
                 break;
@@ -376,7 +397,7 @@ internal sealed class TeaP1LivingLiquidHuman
             case RegenHealer or ShieldHealer:
                 if (play.Waits == TeaP1HumanHealerWaits.InTheMiddle)
                     yield return new(DollsAppear, 0.9f, _ => Frame1.ToArena(seat == RegenHealer ? new Vector2(-1.0f, -1.9f) : new Vector2(-0.1f, -0.2f)));
-                yield return new(Exhaust, 0.2f, p => Spot(p, Pull, 42.5f));
+                yield return new(Exhaust, 0.2f, p => play.ComesInTo is { } comesInTo ? Frame1.ToArena(comesInTo) : Spot(p, Pull, 42.5f));
                 break;
             case MeleeDpsA or MeleeDpsB:
                 yield return new(DollsAppear, play.Hits == TeaP1HumanHits.TheOthersDoll ? 0.1f : 0.9f, _ => Frame1.ToArena(WhereItWaitsByItsDoll));
@@ -385,15 +406,22 @@ internal sealed class TeaP1LivingLiquidHuman
                 if (!play.StaysInItsTelegraph)
                 {
                     yield return new(TornadoAim, 0.1f, p => Spot(p, Pull, 32.5f));
-                    yield return new(TornadoWavesFired, 0.05f, p => Spot(p, Pull, 35.15f));
+                    yield return new(TornadoWavesFired, 0.05f, p => play.BaitsItsTornadoFromBearing is null ? Spot(p, Pull, 35.15f) : Frame1.ToArena(ItsBaitOnAnotherSide));
                 }
+                if (play.BaitsItsTornadoFromBearing is not null) yield return new(UnseenTornadoWaves, 0.1f, p => Spot(p, Pull, 35.15f));
                 yield return new(HandOfPainLands, LeavesTheRimAfterHandOfPain, p => Spot(p, Pull, 42.5f));
                 break;
         }
     }
 
     private Vector2? WhereItSplitsTo(ScenarioProbe p)
-        => seat == OffTank && play.HoldsTheHandNearTheLiquid ? Frame1.ToArena(Stage.Off(Vector2.Zero, 5.5f, 39f)) : Spot(p, Pull, 24.0f);
+        => seat == OffTank && play.HoldsTheHandNearTheLiquid ? Frame1.ToArena(Stage.Off(Vector2.Zero, 5.5f, 39f))
+            : seat == OffTank && play.SplitsTo is { } to ? Frame1.ToArena(Stage.Off(Vector2.Zero, to.FromTheMiddle, to.Bearing))
+            : Ranged.Contains(seat) && play.BaitsItsTornadoFromBearing is not null ? Frame1.ToArena(ItsBaitOnAnotherSide)
+            : Spot(p, Pull, 24.0f);
+
+    private Vector2 ItsBaitOnAnotherSide
+        => seat == PhysRangedDps ? Stage.Off(Stage.East, 8.4f, play.BaitsItsTornadoFromBearing!.Value) : Stage.Off(Stage.West, 8.4f, 360f - play.BaitsItsTornadoFromBearing!.Value);
 
     // The strat's spot at the rim beside the middle tornado, or one farther along the rim from that tornado.
     private Vector2 ItsBaitBesideTheMiddleTornado
@@ -805,6 +833,13 @@ internal sealed class TeaP1LivingLiquidHuman
             HitADollAt = p.Time;
             Act(p, ItsAttack, castsAt);
             return;
+        }
+        if (play.Hits == TeaP1HumanHits.TheOthersDollThenItsOwn && !hitTheOthersDollToo && seen.TryGetValue(DollsTargetable, out var up)
+            && p.Time >= up + HitsAnothersDollAfterItTurnsTargetable + late
+            && fight.Dolls.In(Frame1, Stage.DollOf[TheOtherOfItsKind(seat)]) is { IsUp: true, HasBeenHit: false } theOthers)
+        {
+            hitTheOthersDollToo = true;
+            Act(p, PiercingTalon, (ulong)theOthers.Enemy.GameObjectId);
         }
         if (play.Hits == TeaP1HumanHits.NoDoll || HitADollAt is not null || !seen.TryGetValue(DollsTargetable, out var targetable)) return;
         var casts = play.CastsFor ?? (seat == CasterDps ? 2.5f : 0f);

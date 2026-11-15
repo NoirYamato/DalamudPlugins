@@ -137,16 +137,21 @@ public sealed class TeaP1LivingLiquidPlan
                          + (HumanTanks
                              ? ". Your invulnerability between 28 and 37 s: both busters at 36 s leave Water Resistance Down, and the tornado's unseen wave on it kills at 37.5 s"
                              : "");
-            yield return "Your Living Liquid from 42 s: walk through the middle to 6 y past it, so that it stops on the middle, then stand within 4 y of it, "
+            yield return "Your Living Liquid from 42 s: lead it onto the middle only then, once the melee have fed their dolls: "
+                         + "until the Jagd Dolls' first Exhaust at 38 s the way in is inside two dolls' reach, a doll the Living Liquid passes is fed to it, "
+                         + "and at 40 s an Embolus sets its course for where the Living Liquid stands. "
+                         + "Walk through the middle to 6 y past it, so that it stops on the middle, then stand within 4 y of it, "
                          + "between the middle tornado and the one right of the open quarter, for the next busters at 55 s: "
                          + "an Embolus from the tornado right of the open quarter passes 7 y from the middle on that side at about 52 s";
             if (!HumanTanks)
                 yield return "Your Provoke and invulnerability: none, since your job has none: the run presses them for your seat. "
-                             + "It Provokes the Liquid Hand at 30 s if it shows a palm, which it does with the Living Liquid at the rim, and turns you invulnerable at 34 s";
+                             + "It Provokes the Liquid Hand at 30 s if it shows a palm, which it does with the Living Liquid at the rim, "
+                             + "or as soon after as the Hand stands within Provoke's 25 y of you, and turns you invulnerable at 34 s";
         }
         if (HumanSeat == OffTank)
         {
-            yield return "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm; the main tank Provokes it then. "
+            yield return "Your Liquid Hand at the pull: as it splits off, take it far out on the right-hand side of the open quarter, more than 17 y from the Living Liquid, until it shows its palm; the main tank Provokes it then, "
+                         + "from the rim beside the middle tornado, and Provoke reaches 25 y: keep the Hand within about 12 y of the middle. "
                          + "Once it has left you, wait beside the Living Liquid on the side of the tornado left of the open quarter, not near the middle: "
                          + "until the Jagd Dolls' first Exhaust at 38 s the middle is inside two dolls' reach, and two Exhausts at once kill";
             yield return "Your Liquid Hand from 42 s: "
@@ -171,13 +176,15 @@ public sealed class TeaP1LivingLiquidPlan
                          + "Keep it more than 5 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone. "
                          + "Then draw it through a boss: stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle";
             yield return HumanSeat is PhysRangedDps or CasterDps
-                ? $"Your tornado: the one {(HumanSeat == PhysRangedDps ? "right" : "left")} of the open quarter. Be its closest player for both of its waves, and step out of the telegraphed one and back"
+                ? $"Your tornado: the one {(HumanSeat == PhysRangedDps ? "right" : "left")} of the open quarter. Be its closest player for both of its waves, from the open quarter's side of it, at the rim, so that both run out of the arena along the rim: "
+                  + "baited from its inner side they cross the arena, and whoever both hit dies. Step out of the telegraphed one and back"
                 : "Your spot beside it: on your doll or a step away from the tornado beside it, not toward it: that tornado's waves go at its closest player, who should be the one baiting it";
         }
         if (IsHealer(HumanSeat))
         {
             var farOut = HumanSeat == RegenHealer ? "in the open quarter" : "between the middle tornado and the one right of the open quarter";
-            yield return $"Your wait for the Jagd Dolls: stay far out, {farOut}, until their first Exhaust at 38 s, then come to the middle: until then it is inside two dolls' reach, and two Exhausts at once kill";
+            yield return $"Your wait for the Jagd Dolls: stay far out, {farOut}, until their first Exhaust at 38 s: until then the middle is inside two dolls' reach, and two Exhausts at once kill. "
+                         + "Then come in on the open quarter's side of the middle: the bosses stand on it from 46 s, and their busters at 55 s cleave toward the tanks, on the middle tornado's side";
         }
     }
 
