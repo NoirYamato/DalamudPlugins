@@ -282,6 +282,22 @@ public sealed partial class PlanImporter
             "d2", "d3", "d4",
         };
 
+        /// <summary>
+        /// Words before a role or slot word that make it where or for whom to press, not a player spoken to: "press Soil on the
+        /// melee", "under the tanks", "for both ranged" (<see cref="IsPlacement"/>).
+        /// </summary>
+        private static readonly HashSet<string> PlaceWords = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "on", "onto", "under", "behind", "near", "beside", "at", "in", "into", "to", "toward", "towards", "for", "with", "from",
+            "between", "among", "around", "by", "of",
+        };
+
+        /// <summary>
+        /// The first part of a role word written in two ("co-tank", "off-tank", "main tank", "non-tanks"): a place word before
+        /// it still places the role word (<see cref="IsPlacement"/>).
+        /// </summary>
+        private static readonly HashSet<string> RolePrefixes = new(StringComparer.OrdinalIgnoreCase) { "co", "off", "main", "non" };
+
         /// <summary>The reminder settings a plan is timed for: the defaults (the "NOW" cue 1.5 s before the press).</summary>
         private static readonly ReminderOptions DefaultReminders = new();
 
@@ -777,9 +793,9 @@ public sealed partial class PlanImporter
                     continue;
                 }
 
-                // Over several columns, a note about using the actions it names (it names no player) is for whoever presses
-                // them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
-                if (spanned.Count > 1 && !NamesAPlayer(text) && this.NamedActions(text) is { Count: > 0 } named)
+                // Over several columns, a note about using the actions it names (it speaks to no other player) is for whoever
+                // presses them; one that speaks to players ("Tanks: Rampart …, then OT provokes …") is for its columns' players.
+                if (spanned.Count > 1 && this.NamedActions(text) is { Count: > 0 } named && !this.NamesAPlayer(text))
                 {
                     this.bannerNotes.Add(new BannerNote(note, columns, spanned.Except(columns).ToList(), text, named));
                     continue;
@@ -1366,6 +1382,10 @@ public sealed partial class PlanImporter
                 t.Target = t.InlineTarget ?? (t.OnAPlayer ? t.OwnTarget ?? itemTarget : null);
             }
 
+            // What the last token says in parentheses is the remark of the whole item ("Dismantle + Feint (on BJ)", or "(^on BJ)"
+            // below the cell): a group the item splits into without that token gets it too (below).
+            var remark = this.HintNotes(null, last.Token, last.InlineTiming.IsNone ? last.ParenTiming : last.InlineTiming).ToList();
+
             // A target in parentheses that no action is used on ("Asylum (melee)", "Kera (party)": where to place it, whom
             // it is for) stays in the note, as any other parenthetical; a sequence keeps it as its target.
             if (!item.IsSequence)
@@ -1377,7 +1397,10 @@ public sealed partial class PlanImporter
                 }
 
                 if (itemTarget is not null && last.Kind == TokenKind.Actions && !tokens.Any(t => ReferenceEquals(t.Target, itemTarget)))
+                {
                     last.Notes.Add(itemTarget.Text);
+                    remark.Add(itemTarget.Text);
+                }
             }
 
             // Tokens with their own timing, job filter, condition or target ("Kera after 1st Hit" next to "Eprog + Panhaima",
@@ -1386,18 +1409,25 @@ public sealed partial class PlanImporter
             // apart from those that do ("Dismantle + Feint": a Machinist's Dismantle and the note "Feint"; "PLD Wings + Use
             // Personals": a Paladin's Passage of Arms and the note "Use Personals").
             var anyone = header.Kind == AssigneeKind.Anyone;
+            var same = (TokenState t) => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value);
             var groups = item.IsSequence
                 ? [tokens]
-                : tokens.GroupBy(t => (t.Timing.Key, t.Timing.JobCondition, t.Condition is not null, t.Target?.Value,
-                        anyone && t.Timing.JobCondition is null && (t.Kind != TokenKind.Actions || SharedByJobs(t, candidates))))
+                : tokens.GroupBy(t => (same(t), anyone && t.Timing.JobCondition is null && (t.Kind != TokenKind.Actions || SharedByJobs(t, candidates))))
                     .Select(g => g.ToList()).ToList();
             var shared = new ItemShared(
                 Times: ItemTimes(item),
                 Condition: itemCondition,
                 StepNotes: StepTimeNotes(item),
-                Optional: statement?.Optional ?? false);
+                Optional: statement?.Optional ?? false,
+                Remark: []);
             for (var g = 0; g < groups.Count; g++)
-                this.ImportGroup(row, cell, key, item, groups[g], g, shared, candidates, header);
+            {
+                // A group apart from the last token's only because of whose its calls are keeps the item's remark ("Dismantle +
+                // Feint (on BJ)": the Machinist's Dismantle is on BJ too; "PLD Wings + Feint (if 7 people)": the Paladin's
+                // optional call says why). One with a timing, condition or target of its own keeps its own words.
+                var apart = anyone && !groups[g].Contains(last) && same(groups[g][0]) == same(last);
+                this.ImportGroup(row, cell, key, item, groups[g], g, apart ? shared with { Remark = remark } : shared, candidates, header);
+            }
         }
 
         /// <summary>
@@ -1466,7 +1496,11 @@ public sealed partial class PlanImporter
         /// <param name="Condition">A condition in parentheses after the item's last token ("Soil + Expedient (if needed)").</param>
         /// <param name="StepNotes">Times of later sequence steps that the entry's single press time cannot keep ("Adlo 2:50").</param>
         /// <param name="Optional">The item comes from a note that says the action "can" be used.</param>
-        private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional);
+        /// <param name="Remark">
+        /// What the item's last token says in parentheses, for a group of a column for anyone that the item splits into without
+        /// that token (<see cref="ImportItem"/>); empty for the others.
+        /// </param>
+        private sealed record ItemShared(IReadOnlyList<double> Times, string? Condition, IReadOnlyList<string> StepNotes, bool Optional, IReadOnlyList<string> Remark);
 
         /// <summary>
         /// Part words after an action name the hits they mean: in "Succor Proteans + Soil + Spreadlo Stack" on Wave Cannon 1
@@ -1873,7 +1907,7 @@ public sealed partial class PlanImporter
             if (target is null)
                 entries = entries.SelectMany(e => this.SplitByInferredTarget(e, row, anchor, header)).ToList();
             var footnote = group.Any(t => t.Token.Footnote) ? this.Footnote(row, cell, group) : null;
-            var notesText = this.EntryNote(group, footnote, groupIndex == 0 ? shared.StepNotes : []);
+            var notesText = this.EntryNote(group, footnote, [.. shared.Remark, .. groupIndex == 0 ? shared.StepNotes : []]);
             var conditional = group.Any(t => t.Condition is not null) || shared.Condition is not null;
             var optional = group.All(t => t.Token.Optional) || conditional || shared.Optional;
             var whenReady = group.Any(t => t.Token.WhenReady);
@@ -2067,6 +2101,17 @@ public sealed partial class PlanImporter
         private double TimeToEffect(ActionInfo action) => TimingRules.TimeToEffect(action, this.options.Actions, this.level);
 
         /// <summary>
+        /// The latest offset <see cref="CoversLaterCall"/> may press an entry with these actions at: "(Late)"'s
+        /// (<see cref="LateOffsetOf"/>), and never after the lead of an action pressed with a lead of its own for its hit
+        /// (<c>when: before</c>: Neutral Sect's 4.5 s leave time to cast the Aspected Helios that puts up its barrier, Passage
+        /// of Arms' 2 s make it the last press). A pre-placed heal's lead is about when it heals (Earthly Star's 10 s to
+        /// mature), which a still-active follow-up moves to the later call (Stellar Detonation).
+        /// </summary>
+        private double LatestMoveOffsetOf(IReadOnlyCollection<ActionInfo> actions) => Math.Min(
+            this.LateOffsetOf(actions),
+            actions.Where(a => a.When == UseTiming.Before && a.Lead is > 0 && a.Kind != ActionKind.Heal).Select(a => -a.Lead!.Value).DefaultIfEmpty(double.PositiveInfinity).Min());
+
+        /// <summary>
         /// A press planned after the last hit of a phase that another phase follows may never come: the timeline jumps to
         /// the next phase at that hit (Blue Screen, Blind Faith) or earlier (a pushed enrage). docs/research/mechanics.md §5.2:
         /// such actions belong to the next phase's start; the review shows them.
@@ -2086,7 +2131,11 @@ public sealed partial class PlanImporter
             }
         }
 
-        private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> stepNotes)
+        /// <summary>
+        /// The note of an entry: the notes of its tokens (each after its head when the group has several), the notes it shares
+        /// with the rest of its item (<paramref name="itemNotes"/>: the item's remark, later steps' times) and its footnote.
+        /// </summary>
+        private string? EntryNote(List<TokenState> group, string? footnote, IReadOnlyList<string> itemNotes)
         {
             var parts = new List<string>();
             var withNotes = group.Where(t => t.Notes.Count > 0).ToList();
@@ -2096,7 +2145,7 @@ public sealed partial class PlanImporter
                 parts.Add(group.Count > 1 && t.Token.Head.Length > 0 ? t.Token.Head + " " + text : text);
             }
 
-            parts.AddRange(stepNotes);
+            parts.AddRange(itemNotes);
             if (footnote is not null)
                 parts.Add(footnote);
             var note = string.Join("; ", parts.Distinct(StringComparer.OrdinalIgnoreCase));
@@ -2226,35 +2275,81 @@ public sealed partial class PlanImporter
         /// level; note-only phrases do not count. A word that also names some job's action ("to cover all": Cover) only
         /// matters when an entry presses it.
         /// </summary>
-        private HashSet<uint> NamedActions(string text)
+        private HashSet<uint> NamedActions(string text) =>
+            this.NamedByWord(text).SelectMany(w => w.Actions).SelectMany(a => new[] { a.Id, this.options.Actions.ResolveAt(a, this.level).Id }).ToHashSet();
+
+        /// <summary>
+        /// For each word of a note that names actions by alias (<see cref="NamedActions"/>): those actions, and the jobs whose
+        /// actions they are ("Soil": the Scholar's Sacred Soil; "Rampart", a role action, and "Invuln", one action of each
+        /// tank: every tank's).
+        /// </summary>
+        private IEnumerable<(List<ActionInfo> Actions, HashSet<Job> Jobs)> NamedByWord(string text)
         {
-            var found = new HashSet<uint>();
             var words = ImportText.NormalizedWords(text);
             for (var i = 0; i < words.Length; i++)
             {
                 if (words[i].Length < 3 || this.options.Aliases.MatchLongest(string.Join(' ', words, i, words.Length - i)) is not { } match)
                     continue;
+                var actions = new List<ActionInfo>();
+                var jobs = new HashSet<Job>();
                 foreach (var expansion in this.options.Aliases.Lookup(match.Key).Where(e => !e.NoteOnly))
                 {
                     foreach (var name in expansion.ActionNames)
                     {
                         if (this.options.Actions.FindByName(name, expansion.Job) is not { } action)
                             continue;
-                        found.Add(action.Id);
-                        found.Add(this.options.Actions.ResolveAt(action, this.level).Id);
+                        actions.Add(action);
+                        jobs.UnionWith(expansion.Job is { } job ? [job] : action.Jobs);
                     }
                 }
-            }
 
-            return found;
+                if (actions.Count > 0)
+                    yield return (actions, jobs);
+            }
         }
 
         /// <summary>
-        /// The text names players: by role or slot ("Tanks: …", "then OT provokes …", "healers") or by job ("WHM covers the
-        /// rest"). A note over several columns that names none is about using the actions it names (<see cref="BannerNote"/>).
+        /// The text speaks to players besides those who press the actions it names: by role or slot ("Tanks: …", "then OT
+        /// provokes …", "healers") or by job ("WHM covers the rest"). A role or slot word that says where or for whom to press
+        /// is no player spoken to ("press Soil/Kera on the melee", "the tank buster", <see cref="IsPlacement"/>), nor is the
+        /// job whose own action the note names, whom the tip is for ("SCH: … press Soil …"). A word that names actions of
+        /// several jobs (a role action such as Rampart, or "Invuln") does not say which of them presses it: "WAR Rampart the
+        /// first tower set, then PLD provokes …" speaks to the PLD. A note over several columns that speaks to no other
+        /// player is about using the actions it names (<see cref="BannerNote"/>).
         /// </summary>
-        private static bool NamesAPlayer(string text) =>
-            Regex.Split(text, @"[^\p{L}\p{N}]+").Any(PlayerWords.Contains) || LayoutDetector.JobsFromTabName(text).Count > 0;
+        private bool NamesAPlayer(string text)
+        {
+            var words = Regex.Split(text, @"[^\p{L}\p{N}]+").Where(w => w.Length > 0).ToArray();
+            if (Enumerable.Range(0, words.Length).Any(i => PlayerWords.Contains(words[i]) && !IsPlacement(words, i)))
+                return true;
+            var pressers = this.NamedByWord(text).Where(w => w.Jobs.Count == 1).SelectMany(w => w.Jobs).ToHashSet();
+            return LayoutDetector.JobsFromTabName(text).Any(job => !pressers.Contains(job));
+        }
+
+        /// <summary>
+        /// The role or slot word at <paramref name="i"/> says where or for whom to press, and speaks to no player: after a place
+        /// word ("on the melee", "under the tanks", "on the co-tank"), before "buster" ("the tank buster", "the OT's buster"),
+        /// or after "and"/"or" that lists it with such a word of its kind, role or slot ("on melee and ranged", "on MT or OT";
+        /// not "on the melee and OT provokes").
+        /// </summary>
+        private static bool IsPlacement(string[] words, int i)
+        {
+            var next = i + 1 < words.Length && words[i + 1].Equals("s", StringComparison.OrdinalIgnoreCase) ? i + 2 : i + 1; // "the OT's buster"
+            if (next < words.Length && words[next].StartsWith("bust", StringComparison.OrdinalIgnoreCase))
+                return true;
+            var j = i - 1;
+            if (j >= 0 && RolePrefixes.Contains(words[j]))
+                j--;
+            while (j >= 0 && Determiners.Contains(words[j]))
+                j--;
+            if (j < 0)
+                return false;
+            if (PlaceWords.Contains(words[j]))
+                return true;
+            return (words[j].Equals("and", StringComparison.OrdinalIgnoreCase) || words[j].Equals("or", StringComparison.OrdinalIgnoreCase))
+                && j > 0 && PlayerWords.Contains(words[j - 1]) && Slots.TryNormalize(words[j - 1], out _) == Slots.TryNormalize(words[i], out _)
+                && IsPlacement(words, j - 1);
+        }
 
         /// <summary>
         /// The actions the note names that cells of its section name in the columns it spans that are not imported: the
@@ -2387,10 +2482,11 @@ public sealed partial class PlanImporter
         /// either/or) may not be pressed, so it keeps no buff up.
         /// </summary>
         /// <remarks>
-        /// The earlier effect must still cover the later call as the reminders time both (<see cref="CoversLaterCall"/>);
-        /// an earlier entry without a time in the sheet is pressed later when that makes it cover both (TEA's Hidden Mines
-        /// Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2). Otherwise the later call stays
-        /// a press, and <c>check</c> reports the recast the sheet asks for.
+        /// The earlier press must still serve the later call as the reminders time both (<see cref="CoversLaterCall"/>): a
+        /// note says that the effect covers the later hit, a follow-up needs the action only when it is used (Seraph out for
+        /// the Consolation). An earlier entry without a time in the sheet is pressed later when that makes it serve both
+        /// (TEA's Hidden Mines Temperance 3.5 s before its hit instead of 6 s, so that it lasts through Water 2). Otherwise
+        /// the later call stays a press, and <c>check</c> reports the recast the sheet asks for.
         /// </remarks>
         private void MarkStillActive(List<Draft> ordered)
         {
@@ -2421,13 +2517,25 @@ public sealed partial class PlanImporter
                     var earlier = prev.Draft.Entry;
                     var lasts = $"the {action.Name} at {earlier.Mechanic}, which lasts {ImportText.Seconds(duration)} s (recast {ImportText.Seconds(recast)} s)";
                     var gap = timing.PressAt - this.TimingOf(earlier).PressAt;
-                    if (gap >= duration || !this.CoversLaterCall(earlier, prev.Movable, timing, duration, out var movedFrom))
+                    var follow = action.FollowUps.Select(f => this.options.Actions.Get(f.Id))
+                        .FirstOrDefault(f => f is not null && f.AvailableAt(this.level) && (e.Who.Job is not { } job || f.UsableBy(job)));
+
+                    // What the item is read as when the earlier press still serves it: its follow-up (left out when the entry has
+                    // it already), else a note. A note says that the effect covers this hit; a follow-up needs the action only
+                    // when it is used, its own effect covering the hit (Consolation while Seraph is out).
+                    var readAs = follow is null ? PlanItem.ForNote(action.Name + " (still active)")
+                        : e.Do.Any(x => x.Action == follow.Id) ? null : PlanItem.ForAction(follow.Id, follow.Name);
+                    var serves = follow is null
+                        ? TimingRules.EarliestCoveringUse(Math.Max(timing.Hit, timing.PressAt), TimingRules.CoverageDuration(action, this.level) ?? duration)
+                        : this.PressReadAs(e, i, readAs) - action.Effects.Select(x => x.DurationAt(this.level) ?? 0).Append(duration).Max();
+                    if (gap >= duration || !this.CoversLaterCall(earlier, prev.Movable, serves, out var movedFrom))
                     {
                         // Pressed again after the effect ends, or a second press the sheet asks for within the recast.
                         if (gap < duration)
                         {
+                            var why = follow is null ? "that one does not last through this hit" : $"its follow-up {follow.Name} would be used after it is over";
                             this.Diag(DiagnosticSeverity.Info, "still-active",
-                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but that one does not last through this hit {(prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it")}: both stay presses.",
+                                $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(gap)} s after {lasts}, but {why} {(prev.Movable ? "even pressed just before its own" : "at the time the sheet gives it")}: both stay presses.",
                                 e.Src);
                         }
 
@@ -2435,23 +2543,21 @@ public sealed partial class PlanImporter
                         continue;
                     }
 
-                    var follow = action.FollowUps.Select(f => this.options.Actions.Get(f.Id))
-                        .FirstOrDefault(f => f is not null && f.AvailableAt(this.level) && (e.Who.Job is not { } job || f.UsableBy(job)));
                     string now;
-                    if (follow is not null && e.Do.Any(x => x.Action == follow.Id))
+                    if (readAs is null)
                     {
                         e.Do.RemoveAt(i--);
-                        now = $"left out (its follow-up {follow.Name} is already there)";
+                        now = $"left out (its follow-up {follow!.Name} is already there)";
                     }
                     else
                     {
-                        e.Do[i] = follow is null ? PlanItem.ForNote(action.Name + " (still active)") : PlanItem.ForAction(follow.Id, follow.Name);
+                        e.Do[i] = readAs;
                         now = follow is null ? $"a note '{action.Name} (still active)'" : follow.Name;
                     }
 
                     e.Seq &= e.Do.Count > 1;
                     var moved = movedFrom is { } from
-                        ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it lasts through this one."
+                        ? $" That one is pressed {ImportText.Seconds(-earlier.Offset!.Value)} s before its hit instead of {ImportText.Seconds(-from)} s, so that it {(follow is null ? "lasts through this one" : $"still lasts when {follow.Name} is used")}."
                         : string.Empty;
                     this.Diag(DiagnosticSeverity.Info, "still-active",
                         $"{action.Name} at {e.Mechanic} is planned {ImportText.Seconds(timing.PressAt - this.TimingOf(earlier).PressAt)} s after {lasts}: it is still active, so it is read as {now}.{moved}",
@@ -2461,30 +2567,52 @@ public sealed partial class PlanImporter
         }
 
         /// <summary>
-        /// Whether the <paramref name="earlier"/> press of an action whose effect lasts <paramref name="duration"/> seconds
-        /// still covers a <paramref name="later"/> call of it, as the reminders time both (<see cref="TimingRules.ForEntry"/>):
-        /// used when its reminder turns due (the default due lead, <see cref="EntryTiming.DueAt"/>), the effect outlasts the
-        /// later hit, or the later press when that comes after the hit, by the expiry margin
-        /// (<see cref="TimingRules.EarliestCoveringUse"/>). When it falls short, an earlier entry the importer times
-        /// (<paramref name="movable"/>: no time in the sheet) is pressed later so that it covers both, if it is then still
-        /// pressed before its own hit, no later than "(Late)" would press it (<see cref="LateOffsetOf"/>);
-        /// <paramref name="movedFrom"/> is then its automatic offset before.
+        /// Whether the <paramref name="earlier"/> press still serves a later call of its action, as the reminders time both
+        /// (<see cref="TimingRules.ForEntry"/>): used when its reminder turns due (the default due lead,
+        /// <see cref="EntryTiming.DueAt"/>), it is no earlier than <paramref name="from"/>, the earliest use that serves the
+        /// later call (<see cref="MarkStillActive"/>). For a note that is the earliest use whose effect outlasts the later
+        /// hit, or the later press when that comes after the hit, by the expiry margin, for as long as the reminders count
+        /// it covering a hit (<see cref="TimingRules.EarliestCoveringUse"/>, <see cref="TimingRules.CoverageDuration"/>:
+        /// Neutral Sect's 30 s barrier); for a follow-up, the follow-up's press minus <c>check</c>'s follow-up window, the
+        /// longest of the action's effects (Seraph is out for 22 s, for a Consolation pressed 4 s before its hit). When it
+        /// falls short, an earlier entry the importer times (<paramref name="movable"/>: no time in the sheet) is pressed
+        /// later so that it serves both, if it is then still pressed before its own hit, no later than "(Late)" would press
+        /// it nor after an action's own lead (<see cref="LatestMoveOffsetOf"/>); <paramref name="movedFrom"/> is then its
+        /// automatic offset before.
         /// </summary>
-        private bool CoversLaterCall(PlanEntry earlier, bool movable, EntryTiming later, double duration, out double? movedFrom)
+        private bool CoversLaterCall(PlanEntry earlier, bool movable, double from, out double? movedFrom)
         {
             movedFrom = null;
             var before = this.TimingOf(earlier);
-            var from = TimingRules.EarliestCoveringUse(Math.Max(later.Hit, later.PressAt), duration);
             if (before.DueAt(DefaultReminders) >= from - OffsetPrecision)
                 return true;
 
-            // Pressed later, with its reminder due at the earliest use that still covers the later call.
+            // Pressed later, with its reminder due at the earliest use that still serves the later call.
             var offset = ImportText.Round(from + DefaultReminders.DueLead - before.Hit);
-            if (!movable || offset > this.LateOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>()))
+            if (!movable || offset > this.LatestMoveOffsetOf(earlier.Do.SelectMany(i => i.ActionIds()).Select(this.options.Actions.Get).OfType<ActionInfo>().ToList()))
                 return false;
             movedFrom = before.Offset;
             earlier.Offset = offset;
             return true;
+        }
+
+        /// <summary>
+        /// The press time of <paramref name="entry"/> with its <paramref name="index"/>th item read as <paramref name="item"/>,
+        /// or left out when that is null (<see cref="MarkStillActive"/>); the entry is left as it was.
+        /// </summary>
+        private double PressReadAs(PlanEntry entry, int index, PlanItem? item)
+        {
+            var was = entry.Do[index];
+            if (item is null)
+                entry.Do.RemoveAt(index);
+            else
+                entry.Do[index] = item;
+            var press = this.TimingOf(entry).PressAt;
+            if (item is null)
+                entry.Do.Insert(index, was);
+            else
+                entry.Do[index] = was;
+            return press;
         }
 
         /// <summary>

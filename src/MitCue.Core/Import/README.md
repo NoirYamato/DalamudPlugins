@@ -33,10 +33,12 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
   (`P2 — Omega-M/F  (from phase start)`, `Phase Two`), bare label rows (`P2`), a `Phase` column (`P2` or `2`), a
   phase title above the header, a phase title over the player columns that has a header row below it (TEA's
   `P2: Brute Justice / Cruise Chaser`) or is a merged banner that reads as a title (the fight's name for the phase, or
-  at most four words without `,` `;` `.` `!` `?`), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is
-  `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as
-  `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss
-  after`) stays a note; a title over the player columns whose name is not the fight's is reported (`phase-title`).
+  at most four words without `,` `;` `.` `!` `?`; its part in parentheses too, unless it is a timing hint such as
+  `(from phase start)`), a marker in front of a row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and labels
+  like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as `guessed-phase`). A merged
+  remark that starts with a phase (`P1: MT invulns the second Wave Cannon, OT takes boss after`, `P1 (MT invulns …)`)
+  stays a note; a title over the player columns whose name, or part in parentheses other than a timing hint, is not
+  the fight's is reported (`phase-title`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.
@@ -192,10 +194,12 @@ Rules worth knowing:
   whatever is imported; `ImportOptions.Slashes` overrides it, and the `slash-reading` info says which and why
   (`ImportResult.DocumentSlashes` is the document's own reading). "All of
   them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
-  `and/or`. In both readings, slots and tank target words joined by `/` after an action are one target, either of them
-  (`Benison MT/Co-tank`), and `and/or` is either one (`Soil and/or Expedient`). An alternative that means nothing is an
-  `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional entry
-  per choice (`either-or-split`).
+  `and/or`. In both readings, a `/` between two single letters is one word, spaced or not (`N/A`, and `N / A`, which
+  joins nothing), slots and tank target words joined by `/` after an action are one target, either of them (`Benison
+  MT/Co-tank`), other words that name no action joined by `/` after an action are its remark (`Kera Stack/Spread`:
+  Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil and/or Expedient`). An
+  alternative that means nothing is an `unresolved-token` warning; an either/or with a choice of several actions
+  (`Spread-Lo/Soil`) gives one optional entry per choice (`either-or-split`).
 - **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
   Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
   J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
@@ -207,8 +211,9 @@ Rules worth knowing:
   share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
   name a job's own action keep their jobs' entries, the others are one entry for everyone (`Dismantle + Feint`: a
   Machinist's Dismantle and the note "Feint"; `PLD Wings + Use Personals`: a Paladin's Passage of Arms and the note
-  "Use Personals"). The column is imported whatever columns are chosen, is not in `plan.assignees`, and is listed in
-  `ImportResult.AnyoneColumns`.
+  "Use Personals"). The cell's remark in parentheses or below a caret stays on every entry it splits into (`Dismantle +
+  Feint (on BJ)`: the Dismantle is on BJ too). The column is imported whatever columns are chosen, is not in
+  `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
 - **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
   column and section, after each of its items, so that it speaks for all of the cell (`Soil / Expedient` with `^ late`
   below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when
@@ -219,19 +224,28 @@ Rules worth knowing:
   Eukrasia's 2.5 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
   before the first protean, so that it lasts through the Wild Charge, and so does `Rampart + Reprisal (Late)`, whose
   Rampart keeps its own −6 s).
-- **Notes over several columns** that name actions and no player ("A tip for Soil/Kera timing …") are about using
-  those actions: the detail of the entries in their columns and section that press one of them (all their columns'
-  entries when none does). A note that names players by role, slot or job ("Tanks: Rampart the first tower set, then OT
-  provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their entries, as a
-  note in each column. A merged note reads the same whichever of its columns are imported: imported alone, the Scholar
-  column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported name Soil and
-  Kera; a `note-row` info says so).
+- **Notes over several columns** that name actions and speak to no other player ("A tip for Soil/Kera timing …") are
+  about using those actions: the detail of the entries in their columns and section that press one of them (all their
+  columns' entries when none does). A note that speaks to players by role, slot or job ("Tanks: Rampart the first tower
+  set, then OT provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their
+  entries, as a note in each column. A role or slot word that says where or for whom to press speaks to no one ("on the
+  melee", "under the tanks", "on melee and ranged", "on the co-tank", "the tank buster", "the OT's buster"), nor does
+  the job whose own action the note names ("SCH: … press Soil …"). A word that names actions of several jobs does not
+  say whose it is: "WAR Rampart the first tower set, then PLD provokes …" speaks to the PLD (Rampart is every tank's, as
+  "Invuln" names one action of each). A merged note reads the same whichever of its columns are imported: imported
+  alone, the Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1 column none (the columns not imported
+  name Soil and Kera; a `note-row` info says so).
 - **After the cells.** A party buff planned again by the same player while it still lasts is its follow-up (Summon
-  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`). "Still lasts" is the reminders' rule
-  (`TimingRules.ForEntry`, `EarliestCoveringUse`): used on its NOW cue (the default due lead), the earlier effect
-  outlasts the later hit by 1 s. An earlier press without a time in the sheet that falls short is pressed later so that
-  it covers both, no later than `(Late)` would press it (TEA's Hidden Mines Temperance −3.5 s, through Water 2);
-  otherwise both stay presses (a `still-active` info), and `check` reports the recast. An optional earlier press (in
+  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
+  later call as the reminders time both (`TimingRules.ForEntry`), used on its NOW cue (the default due lead). A note says
+  that the earlier effect covers the later hit: it outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as
+  the reminders count it covering one (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s
+  barrier). A follow-up needs the action only when it is used, its own effect covering the hit: it is pressed within
+  `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
+  Water 2). An earlier press without a time in the sheet that falls short is pressed later so that it serves both
+  (TEA's Hidden Mines Temperance −3.5 s, through Water 2), no later than `(Late)` would press it and never after the lead
+  of a `when: before` action that is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s); otherwise both stay presses (a
+  `still-active` info), and `check` reports the recast. An optional earlier press (in
   brackets, with a condition, one choice of an either/or) may not happen, so it keeps no buff up. A limit break written
   for one role in columns of different slots at one mechanic is optional, noted "or Tank 2" (`shared-limit-break`),
   whichever of those columns are imported: a tank who imports only their own column gets it optional too.

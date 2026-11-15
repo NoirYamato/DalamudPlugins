@@ -133,6 +133,74 @@ public class ImportLayoutRulesTests
         Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains("P2: MT pulls the boss north", StringComparison.Ordinal) == true);
     }
 
+    [Theory]
+    [InlineData("P1 (MT invulns the second Wave Cannon, OT takes boss after)", "P2 (MT pulls the boss north at the start of P2)")]
+    [InlineData("P1 - (MT invulns the second Wave Cannon.)", "P2: Omega-M/F (MT pulls the boss north, OT takes adds)")]
+    public void MergedRemarkInParenthesesAfterAPhase_StaysANote(string current, string later)
+    {
+        // The remark is the parenthetical, not a name: it is no title either, for the phase it is in or a later one.
+        var tab = Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2), new CellRange(5, 1, 5, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", current, ""],
+            ["Wave Cannon Kyrios", "Holmgang", ""],
+            ["", later, ""],
+            ["Atomic Ray", "Rep", ""]);
+        var layout = new LayoutDetector(PlanImports.Top).Detect(tab);
+
+        Assert.Equal("HDDNDND", Kinds(layout));
+        Assert.Equal("1111111", Phases(layout));
+
+        var r = Import(tab);
+        Assert.DoesNotContain(r.Diagnostics, d => d.Code is "mechanic-phase" or "phase-title");
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains(current, StringComparison.Ordinal) == true);
+        Assert.Contains(r.Plan.Entries, e => e.Detail?.Contains(later, StringComparison.Ordinal) == true);
+    }
+
+    [Theory]
+    [InlineData("P2 — Omega-M/F (from phase start)", false)]
+    [InlineData("P2 (from boss targetable; always 4:46 long)", false)]
+    [InlineData("P2 (Omega-M/F)", false)]
+    [InlineData("P2 (tanks swap)", true)]
+    public void MergedPhaseTitleWithAHint_WithoutAHeaderBelow_StartsThePhase(string title, bool reported)
+    {
+        // A timing hint, the fight's name or a short name in parentheses still reads as a title; a hint that is neither a
+        // timing hint nor the fight's name is reported, as a short remark would read the same.
+        var layout = new LayoutDetector(PlanImports.Top).Detect(Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", title, ""],
+            ["Solar Ray", "Rep", ""]));
+
+        Assert.Equal("HDDSD", Kinds(layout));
+        Assert.Equal("11122", Phases(layout));
+        Assert.Equal(reported, layout.Diagnostics.Any(x => x.Code == "phase-title"));
+    }
+
+    [Fact]
+    public void RemarkInParenthesesAboveAHeader_IsReported()
+    {
+        // With a header row below it the row is a title whatever it says, but a remark in it is not lost unseen.
+        var layout = new LayoutDetector(PlanImports.Top).Detect(Tab(
+            "Mit",
+            [new CellRange(3, 1, 3, 2)],
+            ["P1", "MT", "OT"],
+            ["Program Loop", "Rep", ""],
+            ["Pantokrator", "", "Rep"],
+            ["", "P1 (MT invulns the second Wave Cannon, OT takes boss after)", ""],
+            ["", "MT", "OT"],
+            ["Wave Cannon Kyrios", "Holmgang", ""]));
+
+        var d = Assert.Single(layout.Diagnostics, x => x.Code == "phase-title");
+        Assert.Equal((DiagnosticSeverity.Info, "'Mit'!B4"), (d.Severity, d.Src));
+    }
+
     [Fact]
     public void MergedPhaseTitle_WithoutAHeaderBelow_StartsThePhase_WhenItReadsAsATitle()
     {
@@ -300,6 +368,26 @@ public class ImportLayoutRulesTests
         Assert.Equal(
             [(Job.PLD, "Passage of Arms"), ((Job?)null, "note:Use Personals")],
             entries.Select(e => (e.Who.Job, e.Names().Single())).OrderBy(x => x.Item1 is null));
+    }
+
+    [Theory]
+    [InlineData("Dismantle + Feint (on BJ)", "", Job.MCH, "on BJ", false)]
+    [InlineData("Feint + Dismantle (on BJ)", "", Job.MCH, "on BJ", false)]
+    [InlineData("Dismantle + Feint", "(^on BJ)", Job.MCH, "on BJ", false)]
+    [InlineData("Dismantle + Addle (stack)", "", Job.MCH, "stack", false)]
+    [InlineData("PLD Wings + Feint (if 7 people)", "", Job.PLD, "if 7 people", true)]
+    [InlineData("PLD Wings + Use Personals (on BJ)", "", Job.PLD, "on BJ", false)]
+    public void ExtrasColumn_RemarkAfterTheCell_ReachesTheJobsCallAndTheNote(string cell, string below, Job job, string remark, bool optional)
+    {
+        // Parentheses after an item's last call, or a caret below the cell, speak for the whole item: also for a job's own
+        // call that is an entry of its own beside the note for everyone, whichever comes last.
+        var entries = Import(Tab("P1", [], ["P1", "MT", "Extras"], ["Program Loop", "", cell], ["Pantokrator", "", below])).Plan.At("'P1'!C2");
+
+        Assert.Equal(2, entries.Count);
+        var own = Assert.Single(entries, e => e.Who.Job is not null);
+        Assert.Equal((job, remark, optional), (own.Who.Job!.Value, own.Note, own.Optional));
+        var note = Assert.Single(entries, e => e.Who.Job is null);
+        Assert.Contains(remark, note.Names().Single() + " " + note.Note, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -538,6 +626,70 @@ public class ImportLayoutRulesTests
             r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
         Assert.Equal(lastColumn, r.Diagnostics.Count(d => d.Code == "note-row" && d.Message.Contains("kept as the detail of the '", StringComparison.Ordinal)));
     }
+
+    [Theory]
+    [InlineData("Swap: WAR Rampart the first tower set, then PLD provokes and takes the boss after Pantokrator")] // a role action
+    [InlineData("Swap: WAR Invuln the first tower set, then PLD provokes and takes the boss after Pantokrator")] // one action of each tank
+    [InlineData("Swap: WAR Holmgang the first tower set, then PLD provokes and takes the boss after Pantokrator")] // the Warrior's own
+    public void NoteMergedAcrossColumns_NamingAJobBesidesWhoseOwnActionItNames_GoesToEveryEntryOfItsColumns(string note)
+    {
+        // Rampart is every tank's, and "Invuln" names one action of each tank: neither says that the PLD presses it, so "PLD
+        // provokes" speaks to the PLD. The MT gets the note on both entries, and the OT, with no entry, a note entry.
+        var r = Import(Tab(
+            "P1",
+            [new CellRange(1, 1, 1, 2)],
+            ["P1", "MT", "OT"],
+            ["", note, ""],
+            ["Program Loop", "Rampart", ""],
+            ["Pantokrator", "Holmgang", ""]));
+
+        Assert.Equal(["'P1'!B3", "'P1'!B4"], r.Plan.Entries.Where(e => e.Detail == note).Select(e => e.Src!).Order());
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "OT" && e.Do.Any(i => i.Note == note));
+    }
+
+    [Theory]
+    [InlineData("Press Soil as the first tether resolves on the melee and cover the stacks!")]
+    [InlineData("Press Soil under the tanks as the first tether resolves!")]
+    [InlineData("Press Soil on melee and ranged as the first tether resolves!")]
+    [InlineData("Press Soil under the MT or OT as the first tether resolves!")]
+    [InlineData("Press Soil as the first tether resolves, before the tank buster!")]
+    [InlineData("Press Soil under the co-tank as the first tether resolves!")] // a role word in two
+    [InlineData("Press Soil under the off-tank as the first tether resolves!")]
+    [InlineData("Press Soil under the main tank as the first tether resolves!")]
+    [InlineData("Press Soil on the non-tanks as the first tether resolves!")]
+    [InlineData("Press Soil as the first tether resolves, before the OT's buster!")]
+    [InlineData("SCH: once the first debuff hits 14s press Soil and from there on CD")]
+    public void NoteMergedAcrossColumns_PlacingTheActionsItNames_GoesToTheEntriesThatPressThem(string tip)
+    {
+        // Where or when to press ("on the melee", "under the tanks", "before the tank buster") and the job that presses it
+        // ("SCH:") are no players spoken to: the tip stays with the Soil, and R1 (no entry in P1) gets no note entry.
+        var r = Import(PlacingTab(tip));
+
+        Assert.Equal(["'P1'!D2"], r.Plan.Entries.Where(e => e.Detail == tip).Select(e => e.Src!));
+        Assert.DoesNotContain(r.Plan.Entries, e => e.Do.Any(i => i.Note == tip));
+    }
+
+    [Theory]
+    [InlineData("Press Soil on the melee and OT provokes after it!")]
+    [InlineData("Press Soil on the melee, then the co-tank provokes after it!")]
+    public void NoteMergedAcrossColumns_PlacingTheActionsAndSpeakingToAPlayer_GoesToEveryEntryOfItsColumns(string note)
+    {
+        // "on the melee" places the Soil, but "OT provokes" speaks to the OT ("and" lists only a word of the same kind, a role
+        // with a role, a slot with a slot), as "the co-tank provokes" does: every entry of its columns, and a note entry for R1.
+        var r = Import(PlacingTab(note));
+
+        Assert.Equal(6, r.Plan.Entries.Count(e => e.Detail == note));
+        Assert.Contains(r.Plan.Entries, e => e.Who.Assignee == "R1" && e.Do.Any(i => i.Note == note));
+    }
+
+    /// <summary>P1 over MT, WHM, SCH and R1 (no entry), with <paramref name="note"/> merged over all four below Pantokrator.</summary>
+    private static SheetTab PlacingTab(string note) => Tab(
+        "P1",
+        [new CellRange(3, 1, 3, 4)],
+        ["P1", "MT", "H1 WHM", "H2 SCH", "R1"],
+        ["Program Loop", "Rep", "Temperance", "Soil", ""],
+        ["Pantokrator", "Rep", "Asylum", "Succor", ""],
+        ["", note, "", "", ""]);
 
     [Theory]
     [InlineData("Watch the clone positions before you move!!")] // names no action

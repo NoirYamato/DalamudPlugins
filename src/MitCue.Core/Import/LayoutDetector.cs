@@ -79,6 +79,10 @@ public sealed partial class LayoutDetector
     [GeneratedRegex(@"[\p{L}\p{N}]+")]
     private static partial Regex TitleWordRegex();
 
+    // A timing hint in a section's parentheses (PhaseSection.ZeroHint): "timer from pull", "from phase start; …".
+    [GeneratedRegex(@"^\s*(?:timer\s+)?from\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TimingHintRegex();
+
     [GeneratedRegex(@"(?:^|\s)=(?:\s|$)|\b(?:key|legend)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LegendRegex();
 
@@ -646,13 +650,13 @@ public sealed partial class LayoutDetector
                 // A phase title over the player columns ("P2: Brute Justice / Cruise Chaser" merged across D:L above a repeated
                 // header): the row's only text, with no label or time, names the current or a later phase, and has a header row
                 // below it before the next row with a label or time, or is a banner (merged across columns) that reads as a
-                // title (IsTitle). A merged remark that starts with a phase ("P1: MT invulns the second Wave Cannon, OT takes
-                // boss after") stays a note; a title whose name is not the fight's for its phase is reported, so that a short
-                // remark taken for one is not lost unseen.
+                // title, its part in parentheses too (ReadsAsTitle). A merged remark that starts with a phase ("P1: MT invulns
+                // the second Wave Cannon, OT takes boss after", "P1 (MT invulns …)") stays a note; a title that is not the
+                // fight's for its phase is reported (IsFightsTitle), so that a short remark taken for one is not lost unseen.
                 if (assignments.Count > 0 && label is null && timeText is null && texts.Count == 1
                     && TryParseSection(texts[0].Text, out var tn, out var tname, out var thint)
                     && (tn == current?.Number || this.StartsLaterPhase(tn, current))
-                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column) && this.IsTitle(tn, tname))))
+                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column) && this.ReadsAsTitle(tn, tname, thint))))
                 {
                     var titled = tname is not null || thint is not null;
                     if (tn != current?.Number)
@@ -661,7 +665,7 @@ public sealed partial class LayoutDetector
                         this.sections.Add(current);
                     }
 
-                    if (tname is not null && !this.IsPhaseName(tn, tname))
+                    if (!this.IsFightsTitle(tn, tname, thint))
                         this.Diag(DiagnosticSeverity.Info, "phase-title", $"Row {r + 1} ('{Quote(texts[0].Text)}') over the player columns is read as the title of P{tn}, not as a note.", texts[0].Src);
                     rows.Add(new RowLayout { Index = r, Kind = titled ? RowKind.Section : RowKind.PhaseLabel, Phase = current, Notes = notesJoined, Texts = texts, Src = texts[0].Src });
                     continue;
@@ -808,6 +812,22 @@ public sealed partial class LayoutDetector
         /// </summary>
         private bool IsTitle(int number, string? name) =>
             name is null || this.IsPhaseName(number, name) || (TitleWords(name).Count <= 4 && name.IndexOfAny([',', ';', '.', '!', '?']) < 0);
+
+        /// <summary>
+        /// A phase section reads as a title: its name (<see cref="IsTitle"/>) and its part in parentheses, unless that is a
+        /// timing hint ("P2 — Omega-M/F (from phase start)", "P2 (Omega-M/F)"; not "P1 (MT invulns the second Wave Cannon, OT
+        /// takes boss after)").
+        /// </summary>
+        private bool ReadsAsTitle(int number, string? name, string? hint) =>
+            this.IsTitle(number, name) && (hint is null || TimingHintRegex().IsMatch(hint) || this.IsTitle(number, hint));
+
+        /// <summary>
+        /// A phase section is the fight's title for its phase: its name and its part in parentheses, unless that is a timing
+        /// hint, are none or the fight's name for the phase (<see cref="IsPhaseName"/>). Another title over the player columns
+        /// is reported (<c>phase-title</c>): "P2 (tanks swap)" may be a remark.
+        /// </summary>
+        private bool IsFightsTitle(int number, string? name, string? hint) =>
+            (name is null || this.IsPhaseName(number, name)) && (hint is null || TimingHintRegex().IsMatch(hint) || this.IsPhaseName(number, hint));
 
         /// <summary>
         /// The name is the fight's for the phase: each of its words but "and", "the", "of" and "vs" is a word of the fight's

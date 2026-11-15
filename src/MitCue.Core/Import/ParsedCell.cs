@@ -13,8 +13,9 @@ public sealed record ParsedTarget(string Value, string Text);
 /// Resolving a token (the back half's job): for each of <see cref="Alternatives"/> take the longest alias key that is
 /// a prefix of <see cref="WithTrailing"/>(alternative); the rest is trailing text (a hint such as "after 1st Hit", a
 /// count, a condition). The <see cref="Head"/>/<see cref="Trailing"/> split is a heuristic (it cuts at connector words
-/// like after/on/to/if and at mechanic words like Proteans/Stack/Co-Tank), so it may stop early ("Invuln Diffuse Wave
-/// Cannon" has no cue and stays whole) — matching against the head plus trailing text tolerates both.
+/// like after/on/to/if, at mechanic words like Proteans/Stack/Co-Tank and at such words joined by "/" like Stack/Spread),
+/// so it may stop early ("Invuln Diffuse Wave Cannon" has no cue and stays whole) — matching against the head plus
+/// trailing text tolerates both.
 /// </remarks>
 public sealed record ParsedToken
 {
@@ -39,8 +40,8 @@ public sealed record ParsedToken
     /// <summary>
     /// Either/or alternatives of the head: "Kera/Soil" → [Kera, Soil], "TBN/Oblation" → [TBN, Oblation], "Kera or Soil"
     /// → [Kera, Soil]. A "/" is split when a letter follows it and a letter or digit precedes it ("Seraph1/Soil" →
-    /// [Seraph1, Soil]), but not between two slots ("R1/R2"), so "R1/2" and "3rd/4th" stay whole. [Head] when there is
-    /// no alternative, empty when <see cref="Head"/> is empty.
+    /// [Seraph1, Soil]), but not between two slots ("R1/R2") or two single letters ("N/A"), so "R1/2", "3rd/4th" and
+    /// "N/A" stay whole. [Head] when there is no alternative, empty when <see cref="Head"/> is empty.
     /// </summary>
     public required IReadOnlyList<string> Alternatives { get; init; }
 
@@ -182,8 +183,8 @@ public sealed record ParsedCell
 
     /// <summary>
     /// Separators that join parts with words in writing, other than a "/" between words: "+", ",", "&amp;", arrows, ";",
-    /// "|", a spaced " / ", and line breaks or wide gaps that split tokens. A sheet with none of them in any cell may use
-    /// "/" for "and" (<see cref="SlashReading"/>).
+    /// "|", a spaced " / " (not in "N / A", one word), and line breaks or wide gaps that split tokens. A sheet with none of
+    /// them in any cell may use "/" for "and" (<see cref="SlashReading"/>).
     /// </summary>
     public int Joins { get; init; }
 

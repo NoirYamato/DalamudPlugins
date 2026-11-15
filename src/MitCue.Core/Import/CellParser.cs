@@ -16,8 +16,8 @@ public sealed class CellParserOptions
     /// <summary>
     /// "X/Y" between two words means "and", like "X + Y" ("Soil/Reci/Deploy/Whisper": four tokens), instead of either/or.
     /// The importer decides it per document (<see cref="SlashReading"/>). A "/" between slots, jobs, target or mechanic
-    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), before a digit ("R1/2"), after "w" ("w/"),
-    /// in "and/or" or inside brackets never joins.
+    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), between two single letters ("N/A"), before
+    /// a digit ("R1/2"), after "w" ("w/"), in "and/or" or inside brackets never joins.
     /// </summary>
     public bool SlashJoins { get; init; }
 }
@@ -31,7 +31,8 @@ public sealed class CellParserOptions
 /// <list type="bullet">
 /// <item><c> / </c> (a slash with whitespace on a side), <c>;</c> and <c>|</c> separate independent <b>items</b>, each possibly with its
 /// own time: "Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)". An item that is only a time
-/// joins the item before it ("Kera 0:28 / 0:37").</item>
+/// joins the item before it ("Kera 0:28 / 0:37"). A slash with a single letter or digit on each side is one word, spaced
+/// or not ("N / A", like "N/A").</item>
 /// <item>Arrows separate the <b>steps</b> of a sequence: "Protraction + Recit → Adlo → Deploy (1:07)". That is any
 /// arrow character (→ ⇒ ⟶ ➔ ⇨ ➝ ⟹ …, the Unicode arrow blocks), "»", "-&gt;", "=&gt;", "--&gt;", "—&gt;", "~&gt;" and a
 /// bare "&gt;" or "&gt;&gt;" (but not "&gt;50%").</item>
@@ -148,14 +149,14 @@ public sealed partial class CellParser
 
     /// <summary>
     /// True for a word the parser reads as part of a hint rather than an action: a connector ("after", "if", "use"), a
-    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), slots and target words joined by "/"
-    /// ("MT/Co-tank"), a count ("×2") or a number ("4", "1st").
+    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), words joined by "/" that name no action
+    /// ("MT/Co-tank", "Stack/Spread", <see cref="IsHintList"/>), a count ("×2") or a number ("4", "1st").
     /// </summary>
     internal static bool IsHintWord(string word)
     {
         var w = word.Trim('.', ',', ':', ';', '!', '?', '"', '\'', '(', ')', '[', ']');
         return w.Length > 0 && (Connectors.Contains(w) || Continuations.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w)
-            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
+            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
     }
 
     /// <summary>Parses plain text (no formatting).</summary>
@@ -240,6 +241,14 @@ public sealed partial class CellParser
 
     /// <summary>Slots and tank target words joined by "/", either of them ("MT/Co-tank", "Off-tank/MT", "MT/OT").</summary>
     private static bool IsPlayerList(string w) => w.Contains('/') && w.Split('/').All(p => SlotWord().IsMatch(p) || TargetWords.Contains(p));
+
+    /// <summary>
+    /// Words joined by "/" that each name no action: slots, jobs, target or mechanic words ("Stack/Spread", "MT/TB",
+    /// "MT/Co-tank", "WAR/DRK"). After an action they are its remark, in either reading of "/" ("Kera Stack/Spread":
+    /// Kerachole, and "Stack/Spread" its remark); only slots and tank target words become its target
+    /// (<see cref="IsPlayerList"/>).
+    /// </summary>
+    private static bool IsHintList(string w) => w.Contains('/') && w.Split('/').All(p => p.Length > 0 && (NamesAPlayer(p) || MechanicWords.Contains(p)));
 
     /// <summary>
     /// A parenthetical naming a player: one or two words that are slots or target words ("(MT)", "(Co-Tank)", "(Tank)",
@@ -641,6 +650,12 @@ public sealed partial class CellParser
                         j++;
                     }
 
+                    if (j < n && s[j] == '/' && this.SpacedAbbreviation(j) is > 0 and var spaced)
+                    {
+                        i = spaced; // "N / A"
+                        continue;
+                    }
+
                     if (j < n && s[j] == '/' && (j + 1 >= n || char.IsWhiteSpace(s[j + 1])))
                     {
                         var k = j + 1;
@@ -653,6 +668,12 @@ public sealed partial class CellParser
 
                     this.Add(lineBreak || j - i >= 3 ? LexKind.Gap : LexKind.Space, i, j);
                     i = j;
+                    continue;
+                }
+
+                if (c == '/' && this.SpacedAbbreviation(i) is > 0 and var wordEnd)
+                {
+                    i = wordEnd; // "N/ A"
                     continue;
                 }
 
@@ -758,13 +779,43 @@ public sealed partial class CellParser
 
         private LexKind? LastKind => this.lexemes.Count == 0 ? null : this.lexemes[^1].Kind;
 
+        /// <summary>
+        /// "N / A" (or "N/ A", "N /A"): the "/" at <paramref name="slash"/> has spaces (not a line break) on a side and a single
+        /// letter or digit on each, the one before it at the end of the last word. Like "N/A" (<see cref="IsAbbreviation"/>)
+        /// it is one word, not two items and not a separator that joins words (<see cref="ParsedCell.Joins"/>): the word
+        /// before it is extended over it and the word after it. Returns where the lexer goes on, 0 when the "/" is no such
+        /// abbreviation.
+        /// </summary>
+        private int SpacedAbbreviation(int slash)
+        {
+            var s = this.s;
+            var a = slash;
+            while (a > 0 && IsSpace(s[a - 1]))
+                a--;
+            var b = slash + 1;
+            while (b < s.Length && IsSpace(s[b]))
+                b++;
+            if ((a == slash && b == slash + 1) || this.lexemes.Count == 0 || this.lexemes[^1] is not { Kind: LexKind.Word } before || before.End != a
+                || !char.IsLetterOrDigit(s[a - 1]) || (a >= 2 && char.IsLetterOrDigit(s[a - 2]))
+                || b >= s.Length || !char.IsLetterOrDigit(s[b]) || (b + 1 < s.Length && char.IsLetterOrDigit(s[b + 1])))
+                return 0;
+            var end = b + 1;
+            while (end < s.Length && !this.EndsWord(end, before.Start))
+                end++;
+            this.lexemes[^1] = before with { End = end };
+            return end;
+
+            static bool IsSpace(char c) => c is not ('\n' or '\r') && char.IsWhiteSpace(c);
+        }
+
         private void Add(LexKind kind, int start, int end) => this.lexemes.Add(new Lex(kind, start, end));
 
         /// <summary>
         /// A "/" that joins two tokens when slashes mean "and" (<see cref="CellParserOptions.SlashJoins"/>): a letter follows
         /// it, a letter, digit or closing bracket precedes it ("Seraph1/Soil", "Excog(OT)/Soil"), and the words around it
         /// (with their hyphens: "Co-tank") are not both slots, jobs, target or mechanic words ("MT/OT", "WAR/DRK",
-        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor "w/" (with) or "and/or".
+        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor single letters ("N/A", <see cref="IsAbbreviation"/>), nor "w/"
+        /// (with) or "and/or".
         /// </summary>
         private bool IsJoinSlash(int j)
         {
@@ -787,7 +838,7 @@ public sealed partial class CellParser
             var right = s[(j + 1)..b];
             var leftPart = left[(left.LastIndexOf('-') + 1)..];
             var rightPart = right.Split('-')[0];
-            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j)
+            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j) && !IsAbbreviation(s, j)
                 && !(NamesNoAction(left, leftPart) && NamesNoAction(right, rightPart));
 
             static bool NamesNoAction(string word, string part) =>
@@ -1083,7 +1134,7 @@ public sealed partial class CellParser
             for (var i = 1; i < words.Count; i++)
             {
                 var w = words[i].Clean;
-                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w) || CountWord().IsMatch(w)
+                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || CountWord().IsMatch(w)
                     || (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < words.Count && words[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase)))
                 {
                     split = i;
@@ -1201,7 +1252,8 @@ public sealed partial class CellParser
 
         /// <summary>
         /// "Kera/Soil" → [Kera, Soil]; "Seraph1/Soil" → [Seraph1, Soil]; "Kera or Soil" and "Kera and/or Soil" → [Kera, Soil].
-        /// A "/" before a digit ("R1/2", "3rd/4th") or between two slots ("R1/R2") does not split.
+        /// A "/" before a digit ("R1/2", "3rd/4th"), between two slots ("R1/R2") or between two single letters ("N/A",
+        /// <see cref="IsAbbreviation"/>) does not split.
         /// </summary>
         private static IReadOnlyList<string> SplitAlternatives(string head)
         {
@@ -1212,7 +1264,8 @@ public sealed partial class CellParser
             for (var i = 0; i < head.Length; i++)
             {
                 if (head[i] == '/' && i > 0 && i + 1 < head.Length && char.IsLetterOrDigit(head[i - 1]) && char.IsLetter(head[i + 1])
-                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i))
+                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i)
+                    && !IsAbbreviation(head, i))
                 {
                     parts.Add(head[start..i]);
                     start = i + 1;
@@ -1226,6 +1279,13 @@ public sealed partial class CellParser
             result = result.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
             return result.Count == 0 ? [head] : result;
         }
+
+        /// <summary>
+        /// The "/" at <paramref name="i"/> has a single letter or digit on each side ("N/A", "b/c"): an abbreviation, not two
+        /// actions (no action is named by one letter), so it neither joins tokens nor splits an either/or.
+        /// </summary>
+        private static bool IsAbbreviation(string s, int i) =>
+            (i < 2 || !char.IsLetterOrDigit(s[i - 2])) && (i + 2 >= s.Length || !char.IsLetterOrDigit(s[i + 2]));
 
         /// <summary>The "/" at <paramref name="i"/> is the one of "and/or".</summary>
         private static bool IsAndOr(string s, int i) =>
