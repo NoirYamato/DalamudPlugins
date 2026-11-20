@@ -37,7 +37,7 @@
         "Punchline":  "Mitigation plan reminders, synced to the fight.",
         "Description":  "Imports your raid\u0027s mitigation plan (Google Sheets or pasted text) and shows a small window telling you which of your actions to press next, synced to the boss. Reminder-only: it never presses anything for you.",
         "InternalName":  "MitCue",
-        "AssemblyVersion":  "0.1.0.6",
+        "AssemblyVersion":  "0.1.0.7",
         "RepoUrl":  "https://github.com/NoirYamato/DalamudPlugins/tree/mitcue",
         "ApplicableVersion":  "any",
         "Tags":  [
@@ -50,13 +50,13 @@
                  ],
         "DalamudApiLevel":  15,
         "IconUrl":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/mitcue.png",
-        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
-        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
-        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.6.zip",
+        "DownloadLinkInstall":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.7.zip",
+        "DownloadLinkTesting":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.7.zip",
+        "DownloadLinkUpdate":  "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/plugins/MitCue/MitCue-0.1.0.7.zip",
         "IsHide":  false,
         "IsTestingExclusive":  false,
         "DownloadCount":  0,
-        "LastUpdate":  "1794428326",
-        "Changelog":  "Copy AI prompt names your usual party slot only for the jobs of its role, and its example puts each job in a slot of its own role, so an AI that copies it no longer writes calls for a seat you never have on that job (a White Mage in MT, a Warrior in H1)."
+        "LastUpdate":  "1795182748",
+        "Changelog":  "Adds LPDU TEA Heal/Mit (LPDU\u0027s TEA healing and mitigation sheet) as a bundled plan. It is the automatic TEA plan for every job it has calls for (tanks and melee by My usual party slot); a TEA plan of your own that MitCue already used stays yours. Automatic call times are smarter: a cooldown called again waits until it is ready, heal-ups wait for the damage, J Wave calls never come before the wave before, mitigation for several hits lasts through all of them, and NOW never comes before a press would still cover the hit (this moves some LPDU TOP tank and party calls, and NoirMit\u0027s Sigma Temperance cue by 0.5 s). Imports read more sheets: \u0027/\u0027 between one job\u0027s actions means \u0027and\u0027 where a sheet writes it that way (Slashes in the import window overrides it), role and Extras columns, \u0027^\u0027 remarks and bracketed optional calls."
     }
 ]
