@@ -67,6 +67,13 @@ a few minutes to show up, because GitHub caches `repo.json` for up to about five
 Dalamud only offers an update when the new version number is higher than the installed one, and only from
 the repository you installed from.
 
+Updates keep your settings and plans. An update from 0.1.0.6 or older also keeps the plan each job used: where
+that was a TEA plan of your own, MitCue chooses it for that job, although a TEA plan now comes with MitCue
+(see [Which plan and column MitCue uses](../README.md#which-plan-and-column-mitcue-uses)). If a plan file
+cannot be read at the first start after the update (another program holds it, or its cloud folder is offline),
+MitCue lists it under **Problems** and waits: it tries again at every start and on **Reload plans**, and
+meanwhile each job keeps the plan it had, of the plans MitCue can read.
+
 **Keep the repository row exactly as it is and enabled.** Dalamud loads a plugin installed from a custom
 repository only while that repository is in the list, enabled, with the same URL. If the row is removed,
 disabled or edited, MitCue (and NoirMech) stop loading until the row is back as it was.
@@ -158,7 +165,7 @@ Notes:
 | `MitCue.dll` | the plugin | MitCue's own code (no license file yet) |
 | `MitCue.json` | its manifest; Dalamud needs it next to the DLL | |
 | `MitCue.deps.json` | the list of libraries MitCue uses | |
-| `MitCue.Core.dll` | MitCue's core library. The fight data, cactbot timelines, action data, shorthand aliases and the three bundled TOP plans are built into it | MitCue's own code; timelines: Apache License 2.0, cactbot contributors |
+| `MitCue.Core.dll` | MitCue's core library. The fight data, cactbot timelines, action data, shorthand aliases and the bundled plans (three for TOP, one for TEA) are built into it | MitCue's own code; timelines: Apache License 2.0, cactbot contributors |
 | `MitCue.Core.pdb`, `MitCue.Core.xml` | debug symbols and documentation of the core library | |
 | `YamlDotNet.dll` | reads and writes plans and data files (YAML) | MIT |
 | `DocumentFormat.OpenXml.dll`, `DocumentFormat.OpenXml.Framework.dll` | Open XML SDK: reads the `.xlsx` export of a Google Sheets link | MIT, © Microsoft Corporation |

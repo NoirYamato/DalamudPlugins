@@ -119,6 +119,9 @@ tests/fixtures/sheets/
   carry-the-clear/<tab>.json            3 tabs, "Carry the Clear: TOP Healing Plan"
   carry-the-clear/export/carry-the-clear.xlsx
   carry-the-clear/export/csv/<tab>.csv
+  lpdu-tea/<tab>.json       2 tabs, "[LPDU] TEA Heal/Mit" (added 2026-11-14, captured the same way)
+  lpdu-tea/export/lpdu-tea.xlsx
+  lpdu-tea/export/csv/<tab>.csv
 ```
 
 `<tab>` = tab name in lower case, with every run of characters outside `[a-z0-9]` replaced by `-` and
@@ -144,10 +147,13 @@ directory holds only tab JSON files plus the `export/` subfolder, so
 | `carry-the-clear/top-white-mage.json` | TOP – White Mage | 777100 | 0 | 68×5 | 8 | 0–4 |
 | `carry-the-clear/top-scholar.json` | TOP – Scholar | 777200 | 1 | 68×5 | 8 | 0–4 |
 | `carry-the-clear/top-whm-sch.json` | TOP – WHM + SCH | 777300 | 2 | 68×5 | 8 | 0–4 |
+| `lpdu-tea/ll-bjcc.json` | LL/BJCC | 1511755464 | 0 | 56×13 | 230 | – |
+| `lpdu-tea/alex-prime-pa.json` | Alex Prime/PA | 1867243471 | 1 | 47×13 | 180 | – |
 
 Totals: LPDU has 1,143 cells (513 with a value, 5 with rich text). Carry the Clear has 1,020 cells
 (676 with a value, 24 with rich text). Neither sheet has notes, strikethrough or formulas.
 LPDU has one numeric cell. Sheet locales are `en_GB` (LPDU) and `en_US` (Carry the Clear).
+LPDU's TEA sheet has 1,339 cells (254 with a value), with no rich text, notes or strikethrough.
 
 ### 2.2 JSON format
 
@@ -261,6 +267,73 @@ and passed to `python3 -I normalize_sheets.py <file> <out-dir>`. The script also
   D = `White Mage` (`#ebd2d3`), E = `Notes` (`#e0cfc1`) and no counts column. Row 16 holds `Damage Events`
   (A16) and the phase title (B16). Header cells C15:C16, D15:D16 and E15:E16 are merged. Rows 1–5 and
   columns I–U are hidden and empty.
+- **LPDU TEA:** each tab holds a table per phase, each under a phase title merged over the player columns
+  (`P2: Brute Justice / Cruise Chaser`, D28:L30) and its own header row, so one tab has two header rows. The
+  player headers are filled by role (tanks `#c9daf8`, healers `#d9ead3`, melee `#f4cccc`, ranged `#b4a7d6`,
+  `Extras` `#f9cb9c`). Label, header and assignment cells are merged with the row below them (most of the 230
+  and 180 merges). There is no grey text: optional calls are in brackets (`(Shake)`), and a remark about a cell is
+  a cell of its own below it (`(^on LL)`). Row labels and their mechanics: `docs/research/mechanics.md` §6.1.
+
+### 2.6 Untimed calls inside their recast (input for the importer's timing)
+
+LPDU's TEA sheet has no times, so the importer times every call (`docs/DESIGN.md` §5.1). Timed that way, some of its
+calls come before their action is ready again after the same player's call before them. The importer's **recast fit**
+(`docs/DESIGN.md` §6 step 7, a `recast-fit` info on the entry) handles them:
+
+- **Which presses move.** An entry without a time in the sheet (none in the cell, no hint that names its press) that
+  is pressed before its hit, when one of its actions has no charge at its press. Not a when-ready call ("on CD"): its
+  reminder already waits for the action in game.
+- **The replay.** `check`'s recast model (`RecastReplay`: recasts and charges at the sync level, one charge recharging
+  at a time, recast groups, recasts under 3 s left out), on each item's press as the reminders time it, for every seat
+  the plugin and `check` read: every job, in each slot of its role and in none, with the column suggested without a
+  party and with each party that changes it (the jobs of a team-composition column, every two-job party). Only firm
+  presses keep an action on recast: not an optional entry (grey, in brackets, with a condition, one choice of an
+  either/or), an either/or item or a note. A press with a time in the sheet, or a when-ready one, counts but never
+  moves; an offset the importer wrote itself (`still-active`'s) may move.
+- **The move.** The press becomes the moment the action is ready again plus the default due lead (1.5 s), rounded up
+  to 0.1 s, so that the NOW cue comes when the action is ready. It is never later than `(Late)` would press the entry
+  (1 s before the hit, minus its longest cast or the GCD a follow-up needs first) nor than an action's own lead
+  allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s). The press stays, and `check` reports the
+  recast, when the action is ready only after that; when the move would press another item of the entry earlier
+  than without it, or take a follow-up of a seat that sees the entry (its own, or one whose trigger it presses)
+  out of the window after its trigger that it is in now, counted from the trigger's press as `check` counts it or
+  from its NOW cue as `still-active` reads it (Seraph's 22 s for a Consolation); and for the later steps of a
+  sequence, and a sequence whose later steps are GCDs or casts (`Zoe → Eukrasian Prognosis → Holos →
+  Kerachole`): only instant oGCDs woven in after the first step (`Kerachole → Holos`) let it move. A move never
+  lands at or after a Passage of Arms of another call (another cell's, or one a spaced ` / ` splits off) that a seat
+  sees with the entry, up to that one's hit: once nothing else moves, the press goes, for every seat, 0.1 s before
+  that Passage of Arms if the action is ready by then, else it stays. An optional call still waits. An entry several
+  seats see takes the latest press any of them needs; the earliest press without a charge moves first, then the plan
+  is replayed again, until nothing moves. After each round, `still-active` looks again at the calls after the presses
+  moved so far (`docs/DESIGN.md` §6 step 4).
+- **What it gives.** The moved offset is written into the plan, so the review shows it as set and `mitcue plan`
+  without `*`; `check` then reports it as `recast-tight`. The info gives the gap between the two items' presses
+  before the fit (*Asylum at p2.gavel is planned 85.8 s after the Asylum at p2.photon_1 (recast 90.0 s): it is
+  pressed 1.5 s before its hit instead of 7.2 s, so that its NOW cue comes when Asylum is ready again.*), ending
+  *as late as "(Late)" would press it, once … is ready again* when the `(Late)` bound stops it, *as late as the
+  2.0 s lead of Passage of Arms allows, once … is ready again* when an action's own lead does, or *just before
+  the Passage of Arms at …, which is pressed last, once … is ready again* when another call's Passage of Arms
+  does, and with *which is pressed later too* when the earlier press moved as well.
+
+| Cell | Call | Before the fit | After |
+|---|---|---|---|
+| `LL/BJCC` G52 | White Mage: Asylum at Gavel, 85.8 s after G40's (recast 90 s) | −7.2 s | −1.5 s |
+| `Alex Prime/PA` G23 | White Mage: Plenary Indulgence at J Wave 7, 59.2 s after G13's (recast 60 s) | −2.7 s | −1.0 s, the `(Late)` bound |
+| `LL/BJCC` E46 | Scholar: Sacred Soil at Water 2, 29.4 s after E42's (recast 30 s) | −4.5 s | −2.4 s |
+| `LL/BJCC` F23 | Sage: Eukrasian Prognosis and Kerachole at Protean 2, 28.0 s after F19's Kerachole (recast 30 s) | −4.0 s | −2.0 s, the `(Late)` bound (after Eukrasia's 1 s) |
+| `Alex Prime/PA` H45 | Astrologian: "CU (if up)", optional, at Irresistible Grace 1, 58.9 s after H43's (recast 60 s) | −3.0 s | −1.0 s, the `(Late)` bound |
+
+F23's Kerachole is ready exactly at that bound, so `check` reports it as `recast-tight` with 0 s to spare, and its
+NOW cue comes 1.5 s before Kerachole is ready. The sheet's other recast conflicts stay for `check`: the action is
+ready only after the bound (`LL/BJCC` E23's Soil at Protean 2, ready 2.5 s before the hit while the cell's Succor
+caps the press at −3 s), or the press is a later step of a sequence (the Sage's Kerachole at Doll Feeds, the last
+step of `ZoeEukProg/Holos/Kerachole`), or the call before it is optional: that one keeps nothing on recast for the
+fit, but `check` counts it and warns that *an optional use is involved* (`Alex Prime/PA` H47, the
+Astrologian's CU at Irresistible Grace 2, after H45's *CU (if up)*; `LL/BJCC` K19, the Machinist's Tactician at
+Splash, after K13's *if MCH* one at Doll Feeds; `Alex Prime/PA` C21, the Paladin's Divine Veil at J Wave 5, after
+C13's *if 7 people* one at Incinerating Heat). In LPDU's TOP sheet the fit moves only `P5` I9, the M2 Feint at
+Omega (89 s after the one at Sigma: −3.0 s to −1.0 s, the `(Late)` bound); its "on CD" party mitigation at Sigma
+and Omega keeps its press.
 
 ---
 

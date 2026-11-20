@@ -386,7 +386,7 @@ These are conventions, not grammar, but plan-to-timeline matching will depend on
 | `--targetable--`, `--untargetable--`, `--middle--`, `--knockback--`, `--center--` | Positional or state markers, usually without a damage ability. |
 | `A/B` | One of the alternatives will happen, e.g. `Superliminal Steel/Optimized Blizzard III`. Simultaneous abilities get separate lines at the same time. |
 | `Name?` | Might not happen. Also used for previews after conditional jumps: `Ultimate Embrace?`. |
-| `Name xN` plus `duration` | A multi-hit ability; the follow-up hits are usually commented-out lines, e.g. `Sable Thread x6`, `Splash x6`. |
+| `Name xN` plus `duration` | A multi-hit ability. Its follow-up hits may be commented-out lines (`Sable Thread x6` in cactbot's `docs/TimelineGuide.md`) or not listed at all (TEA's `Splash x6`, TOP's `Diffuse Wave Cannon Kyrios x5`: MitCue takes their later hits from BossMod as `sub_hits`, `docs/DESIGN.md` §3.1). |
 | `Name (cast)` / `(castbar)` | A cast whose damage lands later under another entry. |
 | `Name N` | The Nth occurrence, for mitigation planning, e.g. `Latent Defect 3`, `Ultima 6`. |
 | `... Enrage` | Hard or soft enrage. |
