@@ -12,14 +12,17 @@ namespace MitCue.Core.Reminders;
 /// <remarks>
 /// <para>
 /// Building (docs/DESIGN.md §5.1): one <see cref="Reminder"/> per item of every entry whose
-/// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). All items of
-/// an entry share its press time, hit + offset; without an explicit offset the default comes from
-/// the entry's timing action, i.e. the first item action the catalog resolves (for an either-or
-/// item: its first resolvable option). Each item's use window comes from its own timing action.
+/// mechanic exists in the fight (other entries are reported in <see cref="Problems"/>). The items of
+/// an entry are pressed at its press time, hit + offset, or the automatic press time without an
+/// explicit offset (an item may wait for a series floor or a later hit of its own); each item has its
+/// own use window and NOW cue floor (<see cref="TimingRules.ForEntry"/>). Reminders are listed by press
+/// time, then plan order, then item order, except that an item pressed last (Passage of Arms) comes
+/// after the other items of its entry.
 /// </para>
 /// <para>
 /// States (§5.2) only move forward on <see cref="Update"/>: Pending → Upcoming → Due → Missed (or
-/// Passed for notes and optional entries); <see cref="OnOwnAction"/> marks Done and
+/// Passed for notes and optional entries). Due starts at press − due lead, never before
+/// <see cref="Reminder.DueNotBefore"/>. <see cref="OnOwnAction"/> marks Done and
 /// <see cref="OnTimelineJump"/> marks Skipped, or Due for phase-end reminders at the transition that
 /// ends their phase. Only a backward jump of more than 5 s or <see cref="Reset"/> moves reminders back
 /// to Pending.
@@ -171,8 +174,8 @@ public sealed class ReminderScheduler
     /// target) keep their outcome but are no longer listed by <see cref="Update"/>, because their
     /// finished row belongs to the timeline before the rewind. A phase-end reminder made due by a
     /// transition keeps its moved latest, unless the jump goes back before its due time
-    /// (to &lt; press − due lead): then it gets its planned window back, and the next transition can make it
-    /// due again.
+    /// (to &lt; press − due lead, or before <see cref="Reminder.DueNotBefore"/>): then it gets its planned window back, and
+    /// the next transition can make it due again.
     /// Smaller backward corrections change nothing.
     /// </para>
     /// </remarks>
@@ -207,7 +210,7 @@ public sealed class ReminderScheduler
                 var r = track.Reminder;
 
                 // Back before its due time: the transition that made it due has to happen again.
-                if (r.PhaseEndDueAt != null && toTime < r.PressAt - this.Options.DueLead)
+                if (r.PhaseEndDueAt != null && toTime < this.DueAt(r))
                     track.RestorePlannedWindow();
 
                 if (r.State == ReminderState.Done || r.Latest < toTime)
@@ -218,7 +221,7 @@ public sealed class ReminderScheduler
                     continue;
                 }
 
-                if (r.State == ReminderState.Due && toTime >= r.PressAt - this.Options.DueLead)
+                if (r.State == ReminderState.Due && toTime >= this.DueAt(r))
                     track.RestartReadiness(); // still due: keep it (and its sound) as is
                 else if (r.State != ReminderState.Pending)
                     track.Rearm();
@@ -343,53 +346,32 @@ public sealed class ReminderScheduler
             if (entry.Do is not { Count: > 0 } items)
                 continue;
 
-            var hit = mechanic.HitAt(entry.HitIndex ?? 0);
-
-            // Items of one entry share the press time; without an explicit offset it follows the
-            // first item whose action the catalog knows.
-            var timing = new ActionInfo?[items.Count];
-            ActionInfo? entryTiming = null;
-            for (var i = 0; i < items.Count; i++)
-            {
-                timing[i] = items[i] is { } item ? FirstResolvable(item, actions) : null;
-                entryTiming ??= timing[i];
-            }
-            var pressAt = hit + (entry.Offset ?? TimingRules.DefaultOffset(entryTiming, fight.SyncLevel));
-
+            // Each item has its own press time, use window and NOW cue floor (TimingRules.ForEntry).
+            var timing = TimingRules.ForEntry(entry, mechanic, fight, actions, options);
             for (var i = 0; i < items.Count; i++)
             {
                 if (items[i] is not { } item)
                     continue;
-                var (earliest, latest) = TimingRules.UseWindow(timing[i], fight.SyncLevel, hit, pressAt, options);
                 var reminder = new Reminder
                 {
                     Entry = entry,
                     Item = item,
                     ItemIndex = i,
                     Mechanic = mechanic,
-                    Hit = hit,
-                    PressAt = pressAt,
-                    Earliest = earliest,
-                    Latest = latest,
+                    Hit = timing.Hit,
+                    PressAt = timing.Items[i].PressAt,
+                    Earliest = timing.Items[i].Earliest,
+                    Latest = timing.Items[i].Latest,
+                    DueNotBefore = timing.Items[i].DueNotBefore,
                 };
-                built.Add(new Track(reminder, entryIndex));
+                built.Add(new Track(reminder, entryIndex, TimingRules.IsPressedLast(timing.Items[i].Action)));
             }
         }
 
-        // (press time, entry order, item index) is a total order, so the unstable sort is deterministic.
+        // (press time, entry order, an item pressed last after the others, item index) is a total order, so the
+        // unstable sort is deterministic.
         built.Sort(CompareTracks);
         return built.ToArray();
-    }
-
-    /// <summary>The timing action of an item: its action, or the first option of an either-or item the catalog resolves.</summary>
-    private static ActionInfo? FirstResolvable(PlanItem item, IActionCatalog actions)
-    {
-        foreach (var id in item.ActionIds())
-        {
-            if (actions.Get(id) is { } action)
-                return action;
-        }
-        return null;
     }
 
     private static string DescribeUnknownMechanic(FightDefinition fight, PlanEntry entry, int entryIndex)
@@ -405,6 +387,9 @@ public sealed class ReminderScheduler
         if (c != 0)
             return c;
         c = a.EntryIndex.CompareTo(b.EntryIndex);
+        if (c != 0)
+            return c;
+        c = a.PressedLast.CompareTo(b.PressedLast);
         return c != 0 ? c : a.Reminder.ItemIndex.CompareTo(b.Reminder.ItemIndex);
     }
 
@@ -440,6 +425,9 @@ public sealed class ReminderScheduler
         var late = wait - Math.Max(pressAt - t, 0);
         return late > ReadyInThreshold ? late : null;
     }
+
+    /// <summary>When the reminder turns due: press − due lead, but not before <see cref="Reminder.DueNotBefore"/>.</summary>
+    private double DueAt(Reminder r) => TimingRules.DueAt(r.PressAt, r.DueNotBefore, this.Options);
 
     /// <summary>
     /// Where the use window starts: the earlier of <see cref="Reminder.Earliest"/> and the moment the
@@ -513,10 +501,10 @@ public sealed class ReminderScheduler
             return;
         }
 
-        // Due from press − due lead on, or already (a phase transition makes phase-end reminders due at once and
-        // leaves the announcement to this update). Announced once until the reminder goes back to Pending.
+        // Due from press − due lead on (never before DueNotBefore), or already (a phase transition makes phase-end reminders
+        // due at once and leaves the announcement to this update). Announced once until the reminder goes back to Pending.
         var becameDue = false;
-        if (t >= r.PressAt - options.DueLead || r.State == ReminderState.Due)
+        if (t >= this.DueAt(r) || r.State == ReminderState.Due)
         {
             r.State = ReminderState.Due;
             becameDue = !track.DueRaised;
@@ -577,10 +565,11 @@ public sealed class ReminderScheduler
     /// <summary>A reminder plus the scheduler's private bookkeeping for it.</summary>
     private sealed class Track
     {
-        public Track(Reminder reminder, int entryIndex)
+        public Track(Reminder reminder, int entryIndex, bool pressedLast)
         {
             this.Reminder = reminder;
             this.EntryIndex = entryIndex;
+            this.PressedLast = pressedLast;
             this.ActionIds = reminder.ActionIds;
             this.PlannedLatest = reminder.Latest;
             this.Deadline = reminder.Latest;
@@ -590,6 +579,13 @@ public sealed class ReminderScheduler
 
         /// <summary>Position of the entry in the plan (tie-breaker for equal press times).</summary>
         public int EntryIndex { get; }
+
+        /// <summary>
+        /// The item is pressed last (<see cref="TimingRules.IsPressedLast"/>: Passage of Arms, a channel any other
+        /// action ends): listed after the other items of its entry pressed at the same time, wherever the cell lists
+        /// it.
+        /// </summary>
+        public bool PressedLast { get; }
 
         /// <summary>The end of the use window as built (<see cref="Reminder.Latest"/> before a phase transition moved it).</summary>
         public double PlannedLatest { get; }

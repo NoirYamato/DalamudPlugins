@@ -71,7 +71,7 @@ public class AliasDictionaryTests
             {
                 foreach (var expansion in Aliases.Lookup(key, job).Where(e => !e.NoteOnly))
                 {
-                    foreach (var name in expansion.Actions.Concat(expansion.Targeted))
+                    foreach (var name in expansion.ActionNames)
                     {
                         foreach (var level in SyncLevels)
                         {
@@ -152,10 +152,57 @@ public class AliasDictionaryTests
         Assert.Equal(["Tempera Coat", "Tempera Grassa"], tempera.Actions);
     }
 
+    [Fact]
+    public void OptionNames_AreOneItemThatEitherActionDoes()
+    {
+        // LPDU TEA "defensive Cards": the Play II and Play III cards of the current draw.
+        var cards = Assert.Single(Aliases.Lookup("defensive Cards", Job.AST));
+        Assert.Equal(["the Arrow|the Bole", "the Spire|the Ewer"], cards.Actions);
+        Assert.Equal(["the Arrow", "the Bole", "the Spire", "the Ewer"], cards.ActionNames);
+        Assert.Equal(["the Arrow", "the Bole"], AliasExpansion.OptionsOf(" the Arrow | the Bole |"));
+        Assert.Empty(Aliases.Lookup("defensive cards", Job.WHM)); // the options decide which jobs it is for
+
+        const string yaml = """
+            schema: mitcue-aliases/1
+            aliases:
+              cards: {actions: ["the Arrow|the Bowl"]}
+              mixed: {actions: ["the Arrow|Temperance"]}
+            """;
+        var problems = AliasDictionary.Load(yaml, Catalog).Validate(Catalog);
+        Assert.Contains(problems, p => p.StartsWith("alias 'cards'", StringComparison.Ordinal) && p.Contains("unknown action 'the Bowl'", StringComparison.Ordinal));
+        Assert.Contains(problems, p => p.StartsWith("alias 'mixed'", StringComparison.Ordinal) && p.Contains("no job can use all", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("seraph1", Job.SCH, true, new[] { "Summon Seraph", "Consolation" })]
+    [InlineData("Seraph 1", Job.SCH, true, new[] { "Summon Seraph", "Consolation" })]
+    [InlineData("Seraph2", Job.SCH, false, new[] { "Consolation" })]
+    [InlineData("ZoeEukProg", Job.SGE, true, new[] { "Zoe", "Eukrasian Prognosis" })]
+    [InlineData("Zoe EukProg", Job.SGE, true, new[] { "Zoe", "Eukrasian Prognosis" })]
+    [InlineData("ZoeEProg", Job.SGE, true, new[] { "Zoe", "Eukrasian Prognosis" })]
+    [InlineData("EukProg", Job.SGE, false, new[] { "Eukrasian Prognosis" })]
+    [InlineData("Euk Prog", Job.SGE, false, new[] { "Eukrasian Prognosis" })]
+    [InlineData("EukDiag", Job.SGE, false, new[] { "Eukrasian Diagnosis" })]
+    [InlineData("Euk Diag", Job.SGE, false, new[] { "Eukrasian Diagnosis" })]
+    [InlineData("Reci", Job.SCH, false, new[] { "Recitation" })]
+    [InlineData("Whisper", Job.SCH, false, new[] { "Whispering Dawn" })]
+    [InlineData("Bless", Job.SCH, false, new[] { "Fey Blessing" })]
+    [InlineData("Neutral", Job.AST, false, new[] { "Neutral Sect" })]
+    [InlineData("DM", Job.DRK, false, new[] { "Dark Missionary" })]
+    public void TeaShorthands(string token, Job job, bool sequence, string[] actions)
+    {
+        var e = Assert.Single(Aliases.Lookup(token, job));
+        Assert.Equal(actions, e.Actions);
+        Assert.Equal(sequence, e.Sequence);
+    }
+
     [Theory]
     [InlineData("everything")]
     [InlineData("Kitchen Sink")]
     [InlineData("personals")]
+    [InlineData("Use Personals")]
+    [InlineData("All CD's")]
+    [InlineData("all cooldowns")]
     [InlineData("melee lb3")]
     public void NoteOnlyPhrases_ApplyToEveryJobAndCarryANote(string token)
     {

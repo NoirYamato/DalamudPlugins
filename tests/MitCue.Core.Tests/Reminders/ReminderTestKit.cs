@@ -21,7 +21,7 @@ internal static class Kit
     public static readonly ActionInfo MedicaII = Act(133, "Medica II", ActionKind.Regen, duration: 15, jobs: [Job.WHM]);                // −4.5 s
     public static readonly ActionInfo Rampart = Act(7531, "Rampart", ActionKind.TankMit, duration: 20, jobs: [Job.PLD, Job.WAR, Job.DRK, Job.GNB]); // −6 s
     public static readonly ActionInfo HallowedGround = Act(30, "Hallowed Ground", ActionKind.Invuln, duration: 10, jobs: [Job.PLD]);  // −2 s
-    public static readonly ActionInfo Swiftcast = Act(7561, "Swiftcast", ActionKind.Buff, duration: 10, jobs: [Job.WHM, Job.SCH, Job.AST, Job.SGE]); // −3 s
+    public static readonly ActionInfo Swiftcast = Act(7561, "Swiftcast", ActionKind.Buff, duration: 10, jobs: [Job.WHM, Job.SCH, Job.AST, Job.SGE], instantNextCast: true); // −3 s
 
     // Pre-placed heals (actions.yaml "when: before") and a healer LB ("when: after"), as in the real catalog.
     public static readonly ActionInfo Bell = Act(25862, "Liturgy of the Bell", ActionKind.Heal, duration: 20, jobs: [Job.WHM], when: UseTiming.Before);     // −6 s
@@ -47,11 +47,22 @@ internal static class Kit
 
     public static readonly ActionInfo PulseOfLife = Act(208, "Pulse of Life", ActionKind.LimitBreak, jobs: [Job.WHM], when: UseTiming.After);           // +2 s
 
+    /// <summary>A buff with a lead of its own and a barrier from the 1.5 s Helios cast after it, as in the real catalog.</summary>
+    public static readonly ActionInfo NeutralSect = Act(                                                                                                  // −4.5 s (lead)
+        16559,
+        "Neutral Sect",
+        ActionKind.Buff,
+        duration: 20,
+        jobs: [Job.AST],
+        when: UseTiming.Before,
+        lead: 4.5,
+        barrierCast: 1.5);
+
     /// <summary>An action the test catalog does not know (timed like a note, still tracked as an action).</summary>
     public static readonly ActionInfo Unlisted = Act(999_999, "Unlisted", ActionKind.PartyMit, duration: 30);
 
     public static IReadOnlyList<ActionInfo> Catalogued { get; } =
-        [Temperance, Tetragrammaton, DivineBenison, Adloquium, MedicaII, Rampart, HallowedGround, Swiftcast, Bell, Excogitation, EarthlyStar, Horoscope, PulseOfLife];
+        [Temperance, Tetragrammaton, DivineBenison, Adloquium, MedicaII, Rampart, HallowedGround, Swiftcast, Bell, Excogitation, EarthlyStar, Horoscope, PulseOfLife, NeutralSect];
 
     public static ActionInfo Act(
         uint id,
@@ -62,7 +73,9 @@ internal static class Kit
         Job[]? jobs = null,
         UseTiming when = UseTiming.Default,
         double? lead = null,
-        ActionEffect[]? effects = null) => new()
+        ActionEffect[]? effects = null,
+        double? barrierCast = null,
+        bool instantNextCast = false) => new()
     {
         Id = id,
         Name = name,
@@ -72,6 +85,8 @@ internal static class Kit
         DurationByLevel = duration is { } d ? new Dictionary<int, double> { [1] = d } : new Dictionary<int, double>(),
         When = when,
         Lead = lead,
+        BarrierCast = barrierCast,
+        InstantNextCast = instantNextCast,
         Effects = effects ?? [],
     };
 
@@ -178,6 +193,13 @@ internal static class Kit
         Mech("p2.raidwide", 250),
         MechOfKind("p2.enrage", 350, MechanicKind.Enrage),
         Mech("p3.raidwide", 450));
+
+    /// <summary><see cref="TimingRules.ForEntry"/> of an entry of <paramref name="fight"/> (default: <see cref="TestFight"/>) with the test catalog.</summary>
+    public static EntryTiming Timing(PlanEntry entry, FightDefinition? fight = null)
+    {
+        fight ??= TestFight();
+        return TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, new FakeCatalog(Catalogued));
+    }
 
     /// <summary>A scheduler for <see cref="TestFight"/> with default options and the test catalog.</summary>
     public static ReminderScheduler Scheduler(params PlanEntry[] entries) => Scheduler(TestFight(), new ReminderOptions(), entries);

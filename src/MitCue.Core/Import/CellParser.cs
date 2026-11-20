@@ -12,6 +12,14 @@ public sealed class CellParserOptions
     /// Carry the Clear's "Grey = optional" (#808080).
     /// </summary>
     public Func<string, bool> IsOptionalColor { get; init; } = SheetColors.IsGrey;
+
+    /// <summary>
+    /// "X/Y" between two words means "and", like "X + Y" ("Soil/Reci/Deploy/Whisper": four tokens), instead of either/or.
+    /// The importer decides it per document (<see cref="SlashReading"/>). A "/" between slots, jobs, target or mechanic
+    /// words ("MT/OT", "WAR/DRK", "Tank/Healer", "MT/Co-tank", "Stack/Spread"), between two single letters ("N/A"), before
+    /// a digit ("R1/2"), after "w" ("w/"), in "and/or" or inside brackets never joins.
+    /// </summary>
+    public bool SlashJoins { get; init; }
 }
 
 /// <summary>
@@ -23,7 +31,8 @@ public sealed class CellParserOptions
 /// <list type="bullet">
 /// <item><c> / </c> (a slash with whitespace on a side), <c>;</c> and <c>|</c> separate independent <b>items</b>, each possibly with its
 /// own time: "Temp (1:18) / Bell (right after the 1st stack, ~1:22) / Plenary* (1:31)". An item that is only a time
-/// joins the item before it ("Kera 0:28 / 0:37").</item>
+/// joins the item before it ("Kera 0:28 / 0:37"). A slash with a single letter or digit on each side is one word, spaced
+/// or not ("N / A", like "N/A").</item>
 /// <item>Arrows separate the <b>steps</b> of a sequence: "Protraction + Recit → Adlo → Deploy (1:07)". That is any
 /// arrow character (→ ⇒ ⟶ ➔ ⇨ ➝ ⟹ …, the Unicode arrow blocks), "»", "-&gt;", "=&gt;", "--&gt;", "—&gt;", "~&gt;" and a
 /// bare "&gt;" or "&gt;&gt;" (but not "&gt;50%").</item>
@@ -34,9 +43,14 @@ public sealed class CellParserOptions
 /// <item>Tokens of one item that carry different times of their own become separate items, one per time
 /// ("Soil (0:12)\nDeploy (0:17)", "0:12 Soil\n0:17 Deploy"): a token without a time goes with the timed token on its
 /// line whose time covers it ("Kera + Soil (0:12)", "0:12 Soil + Kera"). Sequences keep their steps.</item>
-/// <item>Inside a token: "X/Y" between letters is an either/or (<see cref="ParsedToken.Alternatives"/>); parentheticals
-/// are times, targets or hints; bare times (<c>1:18</c>, <c>~1:22</c>, <c>at 0:40</c>, <c>2:44–2:46</c>) are times;
-/// <c>*</c> marks a footnote and <c>⏱</c> "when ready"; the words after the head are <see cref="ParsedToken.Trailing"/>.</item>
+/// <item>Inside a token: "X/Y" between words is an either/or (<see cref="ParsedToken.Alternatives"/>), or two tokens
+/// when slashes join (<see cref="CellParserOptions.SlashJoins"/>); parentheticals are times, targets or hints; bare times
+/// (<c>1:18</c>, <c>~1:22</c>, <c>at 0:40</c>, <c>2:44–2:46</c>) are times; <c>*</c> marks a footnote and <c>⏱</c> "when
+/// ready"; the words after the head are <see cref="ParsedToken.Trailing"/>.</item>
+/// <item>A cell that is one pair of brackets around words ("(Shake)", "(Minne/Mantra)") is its inside with every token
+/// optional (<see cref="ParsedCell.Bracketed"/>); a time ("(1:18)") or a target ("(MT)") alone stays what it is. A cell
+/// that points up ("(^on LL)", "^ if MCH") is a remark about the cell above it (<see cref="ParsedCell.Above"/>) and has
+/// no items.</item>
 /// </list>
 /// Formatting: text colours are kept per token (<see cref="ParsedToken.Runs"/>, <see cref="ParsedToken.Fg"/>); a grey
 /// head makes the token optional. No word of the cell is dropped: every letter/digit run ends up in a token's phrase,
@@ -82,7 +96,7 @@ public sealed partial class CellParser
     private static readonly HashSet<string> TargetNouns = new(StringComparer.OrdinalIgnoreCase)
     {
         "tank", "tanks", "healer", "healers", "co-healer", "cohealer", "player", "players", "partner", "buddy", "self",
-        "yourself", "me", "you", "melee", "ranged", "caster", "party", "person", "target",
+        "yourself", "me", "you", "melee", "ranged", "range", "ranges", "caster", "casters", "party", "person", "target",
     };
 
     private static readonly HashSet<string> TargetIntro = new(StringComparer.OrdinalIgnoreCase) { "on", "to", "onto", "for" };
@@ -135,13 +149,14 @@ public sealed partial class CellParser
 
     /// <summary>
     /// True for a word the parser reads as part of a hint rather than an action: a connector ("after", "if", "use"), a
-    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), a count ("×2") or a number ("4", "1st").
+    /// mechanic or target word ("Proteans", "Co-Tank", "tank"), a slot ("R1"), words joined by "/" that name no action
+    /// ("MT/Co-tank", "Stack/Spread", <see cref="IsHintList"/>), a count ("×2") or a number ("4", "1st").
     /// </summary>
     internal static bool IsHintWord(string word)
     {
         var w = word.Trim('.', ',', ':', ';', '!', '?', '"', '\'', '(', ')', '[', ']');
         return w.Length > 0 && (Connectors.Contains(w) || Continuations.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w)
-            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
+            || TargetNouns.Contains(w) || TargetLeadIns.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || NumberWord().IsMatch(w) || CountWord().IsMatch(w));
     }
 
     /// <summary>Parses plain text (no formatting).</summary>
@@ -154,7 +169,105 @@ public sealed partial class CellParser
         var text = cell.Text ?? string.Empty;
         if (string.IsNullOrWhiteSpace(text))
             return new ParsedCell { Text = text, Src = src, Items = [] };
+        if (CaretRemark(text) is { } remark)
+            return new ParsedCell { Text = text, Src = src, Items = [], Above = remark };
+
+        // "(Shake)", "(Minne/Mantra)": the inside, every token optional. The brackets are blanked, so that positions
+        // (and the formatting runs) stay as they are.
+        if (WholeBrackets(text) is var (open, close) && NamesSomething(text[(open + 1)..close]))
+        {
+            var chars = text.ToCharArray();
+            chars[open] = ' ';
+            chars[close] = ' ';
+            return new Run(this, cell, new string(chars), src, bracketed: true).Parse() with { Text = text, Bracketed = true };
+        }
+
         return new Run(this, cell, text, src).Parse();
+    }
+
+    /// <summary>
+    /// The remark of a cell that points up at the cell above it: "(^on LL)" → "on LL", "^ if MCH" → "if MCH", "↑" → "".
+    /// Null when the text (inside one pair of brackets around all of it, if any) does not start with "^" or "↑".
+    /// </summary>
+    internal static string? CaretRemark(string? text)
+    {
+        var t = (text ?? string.Empty).Trim();
+        if (WholeBrackets(t) is var (open, close))
+            t = t[(open + 1)..close].Trim();
+        return t.Length > 0 && t[0] is '^' or '↑' ? t.TrimStart('^', '↑', ' ', '\t').Trim() : null;
+    }
+
+    /// <summary>
+    /// The positions of a pair of brackets, "( … )" or "[ … ]", that encloses the whole (trimmed) text, or null: "(Shake)"
+    /// is one, "(Shake) (Veil)" is two pairs, and "(Shake" is none.
+    /// </summary>
+    internal static (int Open, int Close)? WholeBrackets(string text)
+    {
+        var open = 0;
+        while (open < text.Length && char.IsWhiteSpace(text[open]))
+            open++;
+        var close = text.Length - 1;
+        while (close > open && char.IsWhiteSpace(text[close]))
+            close--;
+        if (close <= open + 1 || !((text[open] == '(' && text[close] == ')') || (text[open] == '[' && text[close] == ']')))
+            return null;
+        var depth = 0;
+        for (var i = open; i <= close; i++)
+        {
+            if (text[i] == text[open])
+                depth++;
+            else if (text[i] == text[close] && --depth == 0 && i < close)
+                return null; // "(Shake) (Veil)": the first pair closes before the end
+        }
+
+        return depth == 0 ? (open, close) : null;
+    }
+
+    /// <summary>Bracketed text that names something besides times and a target: "Shake", "Party Mit" (not "1:18" or "MT").</summary>
+    private static bool NamesSomething(string inside)
+    {
+        foreach (var tm in ParsedTime.FindAll(inside).OrderByDescending(x => x.Index))
+            inside = inside.Remove(tm.Index, tm.Length).Insert(tm.Index, " ");
+        var rest = Regex.Replace(inside, @"\s+", " ").Trim();
+        return rest.Any(char.IsLetter) && !IsTargetText(rest);
+    }
+
+    private static bool IsTargetNoun(string w) =>
+        TargetWords.Contains(w) || TargetNouns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w);
+
+    /// <summary>A word that names a player: a slot, a target word or noun, or a job ("MT", "Co-tank", "tank", "WAR").</summary>
+    private static bool NamesAPlayer(string w) => SlotWord().IsMatch(w) || TargetWords.Contains(w) || TargetNouns.Contains(w)
+        || (w.Length == 3 && w.All(char.IsAsciiLetter) && Jobs.TryParse(w, out _));
+
+    /// <summary>Slots and tank target words joined by "/", either of them ("MT/Co-tank", "Off-tank/MT", "MT/OT").</summary>
+    private static bool IsPlayerList(string w) => w.Contains('/') && w.Split('/').All(p => SlotWord().IsMatch(p) || TargetWords.Contains(p));
+
+    /// <summary>
+    /// Words joined by "/" that each name no action: slots, jobs, target or mechanic words ("Stack/Spread", "MT/TB",
+    /// "MT/Co-tank", "WAR/DRK"). After an action they are its remark, in either reading of "/" ("Kera Stack/Spread":
+    /// Kerachole, and "Stack/Spread" its remark); only slots and tank target words become its target
+    /// (<see cref="IsPlayerList"/>).
+    /// </summary>
+    private static bool IsHintList(string w) => w.Contains('/') && w.Split('/').All(p => p.Length > 0 && (NamesAPlayer(p) || MechanicWords.Contains(p)));
+
+    /// <summary>
+    /// A parenthetical naming a player: one or two words that are slots or target words ("(MT)", "(Co-Tank)", "(Tank)",
+    /// "(Ranged)", "(co tank)"), or a lead-in and a target noun ("(your 3rd/4th-in-line player)", "(on the Bladedance tank)").
+    /// </summary>
+    private static bool IsTargetText(string text)
+    {
+        var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.Trim('.', ',', ':', '!', '?')).ToList();
+        if (words.Count == 0)
+            return false;
+        if (words.Count <= 2 && words.All(w => TargetWords.Contains(w) || TargetNouns.Contains(w) || SlotWord().IsMatch(w) || w.Equals("co", StringComparison.OrdinalIgnoreCase)))
+            return true;
+        return TargetLeadIns.Contains(words[0]) && words.Skip(1).Any(w => w.Split('-', '/').Any(IsTargetNoun) || IsTargetNoun(w));
+    }
+
+    private static string StripIntro(string text)
+    {
+        var space = text.IndexOf(' ');
+        return space > 0 && TargetIntro.Contains(text[..space]) ? text[(space + 1)..].Trim() : text;
     }
 
     private readonly record struct Lex(LexKind Kind, int Start, int End);
@@ -227,15 +340,22 @@ public sealed partial class CellParser
         private readonly bool[] bold;
         private readonly bool[] strike;
         private readonly bool guillemets;
+        private readonly bool bracketed;
         private readonly List<Lex> lexemes = [];
         private readonly List<ImportDiagnostic> diagnostics = [];
         private int[]? lineOf;
 
-        public Run(CellParser owner, SheetCell cell, string text, string? src)
+        /// <param name="owner">The parser (its options).</param>
+        /// <param name="cell">The cell (its formatting).</param>
+        /// <param name="text">The text to parse: the cell's, or its inside when the whole cell is in brackets.</param>
+        /// <param name="src">The cell reference.</param>
+        /// <param name="bracketed">The whole cell was in brackets: every token is optional.</param>
+        public Run(CellParser owner, SheetCell cell, string text, string? src, bool bracketed = false)
         {
             this.owner = owner;
             this.s = text;
             this.src = src;
+            this.bracketed = bracketed;
             (this.fg, this.bold, this.strike) = CharFormats(cell, text);
             this.guillemets = text.Contains('«'); // «quoted» text: "»" closes a quote, it is not an arrow
         }
@@ -311,7 +431,72 @@ public sealed partial class CellParser
                 items.Add(new ParsedItem { Index = items.Count, Text = this.s[itemStart..itemEnd], Start = itemStart, Steps = parsedSteps, Src = this.src });
             }
 
-            return new ParsedCell { Text = this.s, Src = this.src, Items = items, Diagnostics = this.diagnostics };
+            return new ParsedCell
+            {
+                Text = this.s,
+                Src = this.src,
+                Items = items,
+                Diagnostics = this.diagnostics,
+                Joins = this.CountJoins(),
+                SlashJoins = this.lexemes.Count(l => l.Kind == LexKind.JoinSep && this.s[l.Start] == '/'),
+            };
+        }
+
+        /// <summary>
+        /// Separators that join parts with words (<see cref="ParsedCell.Joins"/>): every token, step and item separator
+        /// except a "/" (between words, or right after a bracket), when words with letters come before and after it.
+        /// </summary>
+        private int CountJoins()
+        {
+            // Every separator, in order, with whether it joins in writing; a whitespace gap only where it splits tokens.
+            var separators = new List<(int Index, bool Joins)>();
+            var stepStart = 0;
+            for (var k = 0; k <= this.lexemes.Count; k++)
+            {
+                if (k < this.lexemes.Count && this.lexemes[k].Kind is not (LexKind.ItemSep or LexKind.SeqSep))
+                    continue;
+                var step = this.lexemes.GetRange(stepStart, k - stepStart);
+                for (var i = 0; i < step.Count; i++)
+                {
+                    if (step[i].Kind == LexKind.JoinSep)
+                        separators.Add((stepStart + i, this.s[step[i].Start] != '/'));
+                    else if (step[i].Kind == LexKind.Gap && this.GapSeparates(step, i))
+                        separators.Add((stepStart + i, true));
+                }
+
+                if (k < this.lexemes.Count)
+                    separators.Add((k, this.lexemes[k].Kind == LexKind.SeqSep || this.Text(this.lexemes[k]).Trim() != "/" || char.IsWhiteSpace(this.s[this.lexemes[k].Start])));
+                stepStart = k + 1;
+            }
+
+            var joins = 0;
+            for (var n = 0; n < separators.Count; n++)
+            {
+                var before = n > 0 ? separators[n - 1].Index + 1 : 0;
+                var after = n + 1 < separators.Count ? separators[n + 1].Index : this.lexemes.Count;
+                if (separators[n].Joins && this.HasLetters(before, separators[n].Index) && this.HasLetters(separators[n].Index + 1, after))
+                    joins++;
+            }
+
+            return joins;
+        }
+
+        /// <summary>A word lexeme with a letter among <c>lexemes[from..to)</c>.</summary>
+        private bool HasLetters(int from, int to)
+        {
+            for (var k = from; k < to; k++)
+            {
+                var l = this.lexemes[k];
+                if (l.Kind != LexKind.Word)
+                    continue;
+                for (var i = l.Start; i < l.End; i++)
+                {
+                    if (char.IsLetter(this.s[i]))
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -465,6 +650,12 @@ public sealed partial class CellParser
                         j++;
                     }
 
+                    if (j < n && s[j] == '/' && this.SpacedAbbreviation(j) is > 0 and var spaced)
+                    {
+                        i = spaced; // "N / A"
+                        continue;
+                    }
+
                     if (j < n && s[j] == '/' && (j + 1 >= n || char.IsWhiteSpace(s[j + 1])))
                     {
                         var k = j + 1;
@@ -477,6 +668,12 @@ public sealed partial class CellParser
 
                     this.Add(lineBreak || j - i >= 3 ? LexKind.Gap : LexKind.Space, i, j);
                     i = j;
+                    continue;
+                }
+
+                if (c == '/' && this.SpacedAbbreviation(i) is > 0 and var wordEnd)
+                {
+                    i = wordEnd; // "N/ A"
                     continue;
                 }
 
@@ -510,6 +707,11 @@ public sealed partial class CellParser
                         i = end;
                         continue;
                     }
+
+                    case '/' when this.owner.options.SlashJoins && this.IsJoinSlash(i):
+                        this.Add(LexKind.JoinSep, i, i + 1); // "Soil/Succor" when slashes mean "and"
+                        i++;
+                        continue;
 
                     case '/' when i == 0 || this.LastKind is LexKind.Paren or LexKind.Marker || i + 1 >= n || char.IsWhiteSpace(s[i + 1]):
                     case ';' or '|':
@@ -577,7 +779,71 @@ public sealed partial class CellParser
 
         private LexKind? LastKind => this.lexemes.Count == 0 ? null : this.lexemes[^1].Kind;
 
+        /// <summary>
+        /// "N / A" (or "N/ A", "N /A"): the "/" at <paramref name="slash"/> has spaces (not a line break) on a side and a single
+        /// letter or digit on each, the one before it at the end of the last word. Like "N/A" (<see cref="IsAbbreviation"/>)
+        /// it is one word, not two items and not a separator that joins words (<see cref="ParsedCell.Joins"/>): the word
+        /// before it is extended over it and the word after it. Returns where the lexer goes on, 0 when the "/" is no such
+        /// abbreviation.
+        /// </summary>
+        private int SpacedAbbreviation(int slash)
+        {
+            var s = this.s;
+            var a = slash;
+            while (a > 0 && IsSpace(s[a - 1]))
+                a--;
+            var b = slash + 1;
+            while (b < s.Length && IsSpace(s[b]))
+                b++;
+            if ((a == slash && b == slash + 1) || this.lexemes.Count == 0 || this.lexemes[^1] is not { Kind: LexKind.Word } before || before.End != a
+                || !char.IsLetterOrDigit(s[a - 1]) || (a >= 2 && char.IsLetterOrDigit(s[a - 2]))
+                || b >= s.Length || !char.IsLetterOrDigit(s[b]) || (b + 1 < s.Length && char.IsLetterOrDigit(s[b + 1])))
+                return 0;
+            var end = b + 1;
+            while (end < s.Length && !this.EndsWord(end, before.Start))
+                end++;
+            this.lexemes[^1] = before with { End = end };
+            return end;
+
+            static bool IsSpace(char c) => c is not ('\n' or '\r') && char.IsWhiteSpace(c);
+        }
+
         private void Add(LexKind kind, int start, int end) => this.lexemes.Add(new Lex(kind, start, end));
+
+        /// <summary>
+        /// A "/" that joins two tokens when slashes mean "and" (<see cref="CellParserOptions.SlashJoins"/>): a letter follows
+        /// it, a letter, digit or closing bracket precedes it ("Seraph1/Soil", "Excog(OT)/Soil"), and the words around it
+        /// (with their hyphens: "Co-tank") are not both slots, jobs, target or mechanic words ("MT/OT", "WAR/DRK",
+        /// "Tank/Healer", "MT/Co-tank", "Stack/Spread"), nor single letters ("N/A", <see cref="IsAbbreviation"/>), nor "w/"
+        /// (with) or "and/or".
+        /// </summary>
+        private bool IsJoinSlash(int j)
+        {
+            var s = this.s;
+            if (j <= 0 || j + 1 >= s.Length || s[j] != '/' || !char.IsLetter(s[j + 1]))
+                return false;
+            if (s[j - 1] is ')' or ']')
+                return true;
+            if (!char.IsLetterOrDigit(s[j - 1]))
+                return false;
+
+            // The words around it, hyphens inside them included, and their parts next to the "/" ("Spread-Lo/Soil": "Lo").
+            var a = j;
+            while (a > 0 && (char.IsLetterOrDigit(s[a - 1]) || (s[a - 1] == '-' && a < j && a >= 2 && char.IsLetterOrDigit(s[a - 2]))))
+                a--;
+            var b = j + 1;
+            while (b < s.Length && (char.IsLetterOrDigit(s[b]) || (s[b] == '-' && b > j + 1 && b + 1 < s.Length && char.IsLetterOrDigit(s[b + 1]))))
+                b++;
+            var left = s[a..j];
+            var right = s[(j + 1)..b];
+            var leftPart = left[(left.LastIndexOf('-') + 1)..];
+            var rightPart = right.Split('-')[0];
+            return !leftPart.Equals("w", StringComparison.OrdinalIgnoreCase) && !IsAndOr(s, j) && !IsAbbreviation(s, j)
+                && !(NamesNoAction(left, leftPart) && NamesNoAction(right, rightPart));
+
+            static bool NamesNoAction(string word, string part) =>
+                NamesAPlayer(word) || NamesAPlayer(part) || MechanicWords.Contains(word) || MechanicWords.Contains(part);
+        }
 
         private bool EndsWord(int j, int wordStart)
         {
@@ -591,7 +857,9 @@ public sealed partial class CellParser
                 case '-' or '=' or '–' or '—' or '~' or '>':
                     return IsAsciiArrow(this.s, j, out _);
                 case '/':
-                    // "Kera/Soil" stays one word; "Soil/ Kera" and a final "/" end it, except "w/" (with).
+                    // "Kera/Soil" stays one word (unless slashes join); "Soil/ Kera" and a final "/" end it, except "w/" (with).
+                    if (this.owner.options.SlashJoins && this.IsJoinSlash(j))
+                        return true;
                     var atEnd = j + 1 >= this.s.Length || char.IsWhiteSpace(this.s[j + 1]);
                     return atEnd && !(j - wordStart == 1 && char.ToLowerInvariant(this.s[wordStart]) == 'w');
                 default:
@@ -866,7 +1134,7 @@ public sealed partial class CellParser
             for (var i = 1; i < words.Count; i++)
             {
                 var w = words[i].Clean;
-                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || CountWord().IsMatch(w)
+                if (Connectors.Contains(w) || MechanicWords.Contains(w) || TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsHintList(w) || CountWord().IsMatch(w)
                     || (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < words.Count && words[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase)))
                 {
                     split = i;
@@ -891,7 +1159,7 @@ public sealed partial class CellParser
 
             var flagText = string.Join(' ', hints.Prepend(trailing ?? string.Empty));
             var whenReady = t.WhenReady || WhenReadyText().IsMatch(flagText);
-            var optional = t.Optional || hints.Any(h => OptionalText().IsMatch(h)) || (trailing is not null && OptionalText().IsMatch(trailing));
+            var optional = this.bracketed || t.Optional || hints.Any(h => OptionalText().IsMatch(h)) || (trailing is not null && OptionalText().IsMatch(trailing));
 
             // Formatting over the head (or the whole phrase / token when there is no head).
             var spans = headWords.Count > 0 ? headWords.Select(w => (w.Start, w.End)).ToList()
@@ -945,7 +1213,7 @@ public sealed partial class CellParser
             return runs;
         }
 
-        /// <summary>"to R1/2", "on MT", "to 4", "Co-Tank", "co tank": the first target in the trailing words.</summary>
+        /// <summary>"to R1/2", "on MT", "to 4", "Co-Tank", "co tank", "MT/Co-tank": the first target in the trailing words.</summary>
         private static ParsedTarget? TrailingTarget(List<Word> trail)
         {
             for (var i = 0; i < trail.Count; i++)
@@ -973,7 +1241,7 @@ public sealed partial class CellParser
                     continue;
                 }
 
-                if (TargetWords.Contains(w) || SlotWord().IsMatch(w))
+                if (TargetWords.Contains(w) || SlotWord().IsMatch(w) || IsPlayerList(w))
                     return new ParsedTarget(trail[i].Text, trail[i].Text);
                 if (w.Equals("co", StringComparison.OrdinalIgnoreCase) && i + 1 < trail.Count && trail[i + 1].Clean.Equals("tank", StringComparison.OrdinalIgnoreCase))
                     return new ParsedTarget(trail[i].Text + " " + trail[i + 1].Text, trail[i].Text + " " + trail[i + 1].Text);
@@ -982,27 +1250,11 @@ public sealed partial class CellParser
             return null;
         }
 
-        private static bool IsTargetNoun(string w) =>
-            TargetWords.Contains(w) || TargetNouns.Contains(w) || SlotWord().IsMatch(w) || NumberWord().IsMatch(w);
-
-        /// <summary>A parenthetical naming a player: "(MT)", "(your 3rd/4th-in-line player)", "(on the Bladedance tank)".</summary>
-        private static bool IsTargetText(string text)
-        {
-            var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(w => w.Trim('.', ',', ':', '!', '?')).ToList();
-            if (words.Count == 0)
-                return false;
-            if (words.Count <= 2 && words.All(w => TargetWords.Contains(w) || SlotWord().IsMatch(w) || w.Equals("co", StringComparison.OrdinalIgnoreCase) || w.Equals("tank", StringComparison.OrdinalIgnoreCase)))
-                return true;
-            return TargetLeadIns.Contains(words[0]) && words.Skip(1).Any(w => w.Split('-', '/').Any(IsTargetNoun) || IsTargetNoun(w));
-        }
-
-        private static string StripIntro(string text)
-        {
-            var space = text.IndexOf(' ');
-            return space > 0 && TargetIntro.Contains(text[..space]) ? text[(space + 1)..].Trim() : text;
-        }
-
-        /// <summary>"Kera/Soil" → [Kera, Soil]; "Kera or Soil" → [Kera, Soil]; a "/" next to a digit does not split.</summary>
+        /// <summary>
+        /// "Kera/Soil" → [Kera, Soil]; "Seraph1/Soil" → [Seraph1, Soil]; "Kera or Soil" and "Kera and/or Soil" → [Kera, Soil].
+        /// A "/" before a digit ("R1/2", "3rd/4th"), between two slots ("R1/R2") or between two single letters ("N/A",
+        /// <see cref="IsAbbreviation"/>) does not split.
+        /// </summary>
         private static IReadOnlyList<string> SplitAlternatives(string head)
         {
             if (head.Length == 0)
@@ -1011,8 +1263,9 @@ public sealed partial class CellParser
             var start = 0;
             for (var i = 0; i < head.Length; i++)
             {
-                if (head[i] == '/' && i > 0 && i + 1 < head.Length && char.IsLetter(head[i - 1]) && char.IsLetter(head[i + 1])
-                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w'))
+                if (head[i] == '/' && i > 0 && i + 1 < head.Length && char.IsLetterOrDigit(head[i - 1]) && char.IsLetter(head[i + 1])
+                    && !(i == 1 && char.ToLowerInvariant(head[0]) == 'w') && (char.IsLetter(head[i - 1]) || !SlotPair(head, i)) && !IsAndOr(head, i)
+                    && !IsAbbreviation(head, i))
                 {
                     parts.Add(head[start..i]);
                     start = i + 1;
@@ -1022,9 +1275,33 @@ public sealed partial class CellParser
             parts.Add(head[start..]);
             var result = new List<string>();
             foreach (var p in parts)
-                result.AddRange(Regex.Split(p, @"\s+or\s+", RegexOptions.IgnoreCase));
+                result.AddRange(Regex.Split(p, @"\s+(?:and/)?or\s+", RegexOptions.IgnoreCase));
             result = result.Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
             return result.Count == 0 ? [head] : result;
+        }
+
+        /// <summary>
+        /// The "/" at <paramref name="i"/> has a single letter or digit on each side ("N/A", "b/c"): an abbreviation, not two
+        /// actions (no action is named by one letter), so it neither joins tokens nor splits an either/or.
+        /// </summary>
+        private static bool IsAbbreviation(string s, int i) =>
+            (i < 2 || !char.IsLetterOrDigit(s[i - 2])) && (i + 2 >= s.Length || !char.IsLetterOrDigit(s[i + 2]));
+
+        /// <summary>The "/" at <paramref name="i"/> is the one of "and/or".</summary>
+        private static bool IsAndOr(string s, int i) =>
+            i >= 3 && i + 3 <= s.Length && s[(i - 3)..i].Equals("and", StringComparison.OrdinalIgnoreCase) && s.Substring(i + 1, 2).Equals("or", StringComparison.OrdinalIgnoreCase)
+            && (i == 3 || !char.IsLetterOrDigit(s[i - 4])) && (i + 3 == s.Length || !char.IsLetterOrDigit(s[i + 3]));
+
+        /// <summary>The words around the "/" at <paramref name="i"/> are both slots ("R1/R2", "H1/OT").</summary>
+        private static bool SlotPair(string head, int i)
+        {
+            var a = i - 1;
+            while (a > 0 && char.IsLetterOrDigit(head[a - 1]))
+                a--;
+            var b = i + 1;
+            while (b < head.Length && char.IsLetterOrDigit(head[b]))
+                b++;
+            return SlotWord().IsMatch(head[a..i]) && SlotWord().IsMatch(head[(i + 1)..b]);
         }
 
         /// <summary>Effective text colour, bold and strike of every character (runs override the cell format).</summary>

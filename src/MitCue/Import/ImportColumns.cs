@@ -9,10 +9,15 @@ namespace MitCue.Import;
 /// <param name="Save">True when <paramref name="Mapping"/> is saved with the plan because it is not the job's own column (the job's column would leave out some of the player's calls).</param>
 /// <param name="Kept">True when the plan being replaced already has a column choice for this job; it is kept.</param>
 /// <param name="Mine">Entries the overlay will show the player.</param>
+/// <param name="Seat">
+/// Of <paramref name="Mine"/>, the calls of the player's job and seat: not the notes for everyone
+/// (<see cref="PlanSelection.ForEveryone"/>), which every player gets. With none, the imported columns are not the player's,
+/// and the plan is not made their active plan by default.
+/// </param>
 /// <param name="Missed">Entries of the player's columns that <paramref name="Mapping"/> leaves out: a kept choice can, and so can the job's column when no other choice has every call without showing another column's (a job's general column next to several of its tank-pair columns).</param>
 /// <param name="Columns">The player's columns (<see cref="ColumnSuggestion.IntendedColumns"/>), by key.</param>
 /// <param name="MissedIn">The columns of the <paramref name="Missed"/> entries, by key.</param>
-internal sealed record ColumnChoice(PlayerMapping Mapping, bool Save, bool Kept, int Mine, int Missed, IReadOnlyList<string> Columns, IReadOnlyList<string> MissedIn);
+internal sealed record ColumnChoice(PlayerMapping Mapping, bool Save, bool Kept, int Mine, int Seat, int Missed, IReadOnlyList<string> Columns, IReadOnlyList<string> MissedIn);
 
 /// <summary>
 /// Works out which entries of an imported plan the overlay will show the player, exactly as the runtime selects them
@@ -44,7 +49,7 @@ internal static class ImportColumns
     {
         var column = PlanStore.ColumnMapping(plan, job, defaultSlot, party);
         if (job == Job.None)
-            return new ColumnChoice(kept ?? column, false, kept != null, 0, 0, [], []);
+            return new ColumnChoice(kept ?? column, false, kept != null, 0, 0, 0, [], []);
 
         // The player's calls: those of their column (the kept one when it is one of theirs, else the job's), of the
         // job-less columns of their slot and of the job's other columns that are not a team composition; the job's columns
@@ -70,7 +75,7 @@ internal static class ImportColumns
             var shown = ColumnSuggestion.Selected(plan, Context(mapping, job, level, defaultSlot));
             var missed = intended.Where(e => !shown.Contains(e)).ToList();
             var missedIn = missed.Select(ColumnSuggestion.ColumnKey).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            return new ColumnChoice(mapping, save, isKept, shown.Count, missed.Count, keys, missedIn);
+            return new ColumnChoice(mapping, save, isKept, shown.Count, shown.Count(e => !PlanSelection.ForEveryone(e)), missed.Count, keys, missedIn);
         }
     }
 

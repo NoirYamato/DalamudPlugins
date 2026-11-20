@@ -16,8 +16,10 @@ namespace MitCue.Core.Import;
 /// by content (mostly times → time; text left of the assignees → mechanic label); a row without label and time whose
 /// assignee cells carry the header's fill instead of the column's data fill (LPDU writes notes in white on black under
 /// its tables) is a note, otherwise long sentences and "*" footnotes are notes and short text is a label-less data row.
-/// A header row repeated further down with other players (stacked tables) re-maps the player columns below it.
-/// Everything uncertain is reported in <see cref="TabLayout.Diagnostics"/>.
+/// A header row repeated further down with other players (stacked tables) re-maps the player columns below it; a phase
+/// title written over the player columns (a cell with a header row below it, or a merged banner that reads as a title)
+/// starts its phase. An unlabelled column of prose beside the label column holds the rows' notes. Everything uncertain is
+/// reported in <see cref="TabLayout.Diagnostics"/>.
 /// </remarks>
 public sealed partial class LayoutDetector
 {
@@ -73,6 +75,13 @@ public sealed partial class LayoutDetector
 
     [GeneratedRegex(@"[\p{L}\p{N}:%#']+")]
     private static partial Regex HeaderWordRegex();
+
+    [GeneratedRegex(@"[\p{L}\p{N}]+")]
+    private static partial Regex TitleWordRegex();
+
+    // A timing hint in a section's parentheses (PhaseSection.ZeroHint): "timer from pull", "from phase start; …".
+    [GeneratedRegex(@"^\s*(?:timer\s+)?from\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex TimingHintRegex();
 
     [GeneratedRegex(@"(?:^|\s)=(?:\s|$)|\b(?:key|legend)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex LegendRegex();
@@ -228,6 +237,9 @@ public sealed partial class LayoutDetector
     private static IEnumerable<string> HeaderWords(string text) =>
         HeaderWordRegex().Matches(text).Select(m => m.Value.Trim(':')).Where(w => w.Length > 0);
 
+    // The words of a phase title: runs of letters and digits ("Omega-M/F" → Omega, M, F).
+    private static List<string> TitleWords(string text) => TitleWordRegex().Matches(text).Select(m => m.Value).ToList();
+
     private static bool IsNotesHeader(string h) => HeaderWords(h).Any(NotesWords.Contains);
 
     private static bool IsTimeHeader(string h) => HeaderWords(h).Any(TimeWords.Contains);
@@ -295,6 +307,7 @@ public sealed partial class LayoutDetector
         private int? mech;
         private int? time;
         private int? phaseCol;
+        private MechanicResolver? mechanics;
 
         public TabScan(LayoutDetector owner, SheetTab tab)
         {
@@ -516,7 +529,18 @@ public sealed partial class LayoutDetector
             }
 
             foreach (var (c, _) in mechanicCandidates.Where(x => roles[x.Col] == ColumnRole.Unknown))
+            {
+                // Remarks beside the label ("the one after MT invuln" next to "Fluid Swing 3"): prose, like an unlabelled
+                // column right of the players, is the rows' notes.
+                if (this.ColumnValues(c, headerEnd + 1).Average(WordCount) >= 4)
+                {
+                    roles[c] = ColumnRole.Notes;
+                    this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(c)} has no header; its text reads like remarks and is kept as the rows' notes.", this.tab.Ref(headerRow, c));
+                    continue;
+                }
+
                 this.Diag(DiagnosticSeverity.Info, "unlabelled-column", $"Column {ColumnName(c)} has no header and is not the label column; it is not imported.", this.tab.Ref(headerRow, c));
+            }
 
             // Only the first label and time columns are read (two tables side by side are not supported).
             this.ReportSecondColumns(roles, ColumnRole.Mechanic, "multiple-label-columns", "mechanic label", headerRow);
@@ -622,6 +646,34 @@ public sealed partial class LayoutDetector
                 {
                     current = this.Section(pn, PhaseSource.PhaseColumn, r, null, null, pt, this.tab.Ref(r, pc), current);
                     this.sections.Add(current);
+                }
+
+                // A phase title over the player columns ("P2: Brute Justice / Cruise Chaser" merged across D:L above a repeated
+                // header): the row's only text, with no label or time, names the current or a later phase, and has a header row
+                // below it before the next row with a label or time, or is a banner (merged across columns) that reads as a
+                // title, its part in parentheses too (ReadsAsTitle), or a banner of a later phase whose name reads as a title
+                // and whose next labelled row confirms that phase, whatever its part in parentheses holds (NextLabelStarts:
+                // "P3: Alexander Prime (Inception, Wormhole, J Waves)" above Inception). A merged remark that starts with a
+                // phase ("P1: MT invulns the second Wave Cannon, OT takes boss after", "P1 (MT invulns …)") stays a note; a
+                // title that is not the fight's for its phase is reported (IsFightsTitle), so that a remark in it, or a short
+                // remark taken for one, is not lost unseen.
+                if (assignments.Count > 0 && label is null && timeText is null && texts.Count == 1
+                    && TryParseSection(texts[0].Text, out var tn, out var tname, out var thint)
+                    && (tn == current?.Number || this.StartsLaterPhase(tn, current))
+                    && (this.HeaderFollows(r, block) || (this.IsBanner(r, texts[0].Column)
+                        && (this.ReadsAsTitle(tn, tname, thint) || (tn != current?.Number && this.IsTitle(tn, tname) && this.NextLabelStarts(r, tn, current))))))
+                {
+                    var titled = tname is not null || thint is not null;
+                    if (tn != current?.Number)
+                    {
+                        current = this.Section(tn, titled ? PhaseSource.SectionRow : PhaseSource.LabelRow, r, tname, thint, texts[0].Text, texts[0].Src, current);
+                        this.sections.Add(current);
+                    }
+
+                    if (!this.IsFightsTitle(tn, tname, thint))
+                        this.Diag(DiagnosticSeverity.Info, "phase-title", $"Row {r + 1} ('{Quote(texts[0].Text)}') over the player columns is read as the title of P{tn}, not as a note.", texts[0].Src);
+                    rows.Add(new RowLayout { Index = r, Kind = titled ? RowKind.Section : RowKind.PhaseLabel, Phase = current, Notes = notesJoined, Texts = texts, Src = texts[0].Src });
+                    continue;
                 }
 
                 // Section and label rows: a phase marker with no assignment in the row.
@@ -754,6 +806,85 @@ public sealed partial class LayoutDetector
             (current is null || number > current.Number)
             && (this.namePhases.Count == 0 || this.namePhases.Contains(number))
             && (this.owner.Fight is not { } fight || number <= fight.Phases.Count);
+
+        /// <summary>The cell is the first cell of a merge that spans two or more columns (a title banner).</summary>
+        private bool IsBanner(int r, int c) => this.tab.MergeAt(r, c) is { } m && m.R0 == r && m.C0 == c && m.C1 > m.C0;
+
+        /// <summary>
+        /// A phase section's name reads as a title: none ("P2"), the fight's name for the phase (<see cref="IsPhaseName"/>),
+        /// or a short one (at most four words, no sentence punctuation: "Brute Justice / Cruise Chaser"); not a remark ("MT
+        /// invulns the second Wave Cannon, OT takes boss after").
+        /// </summary>
+        private bool IsTitle(int number, string? name) =>
+            name is null || this.IsPhaseName(number, name) || (TitleWords(name).Count <= 4 && name.IndexOfAny([',', ';', '.', '!', '?']) < 0);
+
+        /// <summary>
+        /// A phase section reads as a title: its name (<see cref="IsTitle"/>) and its part in parentheses, unless that is a
+        /// timing hint ("P2 — Omega-M/F (from phase start)", "P2 (Omega-M/F)"; not "P1 (MT invulns the second Wave Cannon, OT
+        /// takes boss after)").
+        /// </summary>
+        private bool ReadsAsTitle(int number, string? name, string? hint) =>
+            this.IsTitle(number, name) && (hint is null || TimingHintRegex().IsMatch(hint) || this.IsTitle(number, hint));
+
+        /// <summary>
+        /// The next row with a label below row <paramref name="r"/> is a mechanic of phase <paramref name="number"/> (its
+        /// label, simplified, a prefix of it, or a near miss the row is read as: "Inceptoin") and none of the
+        /// <paramref name="current"/> phase: a banner of that phase there starts it ("P3: Alexander Prime (Inception,
+        /// Wormhole, J Waves)" above Inception), while the same text above a mechanic of the current phase, or one that both
+        /// phases have (TEA's "JKick", or its near miss "JKik"), stays a note.
+        /// </summary>
+        private bool NextLabelStarts(int r, int number, PhaseSection? current)
+        {
+            if (this.owner.Fight is not { } fight || this.mech is not { } m)
+                return false;
+            for (var next = r + 1; next < this.nRows; next++)
+            {
+                if (this.tab.IsRowHidden(next) || this.Txt(next, m) is not { } label)
+                    continue;
+                var mechanics = this.mechanics ??= new MechanicResolver(fight);
+                return mechanics.Candidates(label, this.owner.PhaseId(number)).Match is MechanicMatch.Exact or MechanicMatch.Simplified or MechanicMatch.Prefix or MechanicMatch.Fuzzy
+                    && (current is null || mechanics.Candidates(label, current.Id).Match is MechanicMatch.None or MechanicMatch.OtherPhase);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// A phase section is the fight's title for its phase: its name and its part in parentheses, unless that is a timing
+        /// hint, are none or the fight's name for the phase (<see cref="IsPhaseName"/>). Another title over the player columns
+        /// is reported (<c>phase-title</c>): "P2 (tanks swap)" may be a remark.
+        /// </summary>
+        private bool IsFightsTitle(int number, string? name, string? hint) =>
+            (name is null || this.IsPhaseName(number, name)) && (hint is null || TimingHintRegex().IsMatch(hint) || this.IsPhaseName(number, hint));
+
+        /// <summary>
+        /// The name is the fight's for the phase: each of its words but "and", "the", "of" and "vs" is a word of the fight's
+        /// phase name ("Brute Justice and Cruise Chaser" for TEA's "P2: Cruise Chaser + Brute Justice (Limit Cut …)").
+        /// </summary>
+        private bool IsPhaseName(int number, string name)
+        {
+            if (this.owner.Fight is not { } fight || number < 1 || number > fight.Phases.Count)
+                return false;
+            var known = TitleWords(fight.Phases[number - 1].Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var words = TitleWords(name).Where(w => w.ToLowerInvariant() is not ("and" or "the" or "of" or "vs")).ToList();
+            return words.Count > 0 && words.All(known.Contains);
+        }
+
+        /// <summary>A header row (<see cref="IsHeaderLike"/>) comes below row <paramref name="r"/> before the next row with a label or time.</summary>
+        private bool HeaderFollows(int r, Block block)
+        {
+            for (var next = r + 1; next < this.nRows; next++)
+            {
+                if (this.tab.IsRowHidden(next))
+                    continue;
+                if (this.IsHeaderLike(next, block))
+                    return true;
+                if ((this.mech is { } m && this.Txt(next, m) is not null) || (this.time is { } t && this.Txt(next, t) is not null))
+                    return false;
+            }
+
+            return false;
+        }
 
         /// <summary>A row whose cells name players like a header row (outside the label, time and phase columns).</summary>
         private bool IsHeaderLike(int r, Block block)

@@ -6,7 +6,7 @@ namespace MitCue.Core.Tests.Import;
 /// <summary>The same plan from every reader (fixture JSON, xlsx), and plans that survive YAML and JSON.</summary>
 public class ImportRoundTripTests
 {
-    public static TheoryData<int> Plans => new() { 0, 1, 2, 3 };
+    public static TheoryData<int> Plans => new() { 0, 1, 2, 3, 4 };
 
     [Theory]
     [MemberData(nameof(Plans))]
@@ -15,7 +15,7 @@ public class ImportRoundTripTests
         var bundled = PlanImports.SheetImports[index];
         var json = PlanImports.Import(bundled);
 
-        // Excel cannot store '/' in tab names ("P1/P2" → "P1P2"): pass the original names, as the plugin does.
+        // Excel cannot store '/' in tab names ("P1/P2" → "P1P2", "LL/BJCC" → "LLBJCC"): pass the original names, as the plugin does.
         var title = Fixtures.Doc(bundled.Sheet).Title;
         var names = Fixtures.Doc(bundled.Sheet).Tabs.OrderBy(t => t.Index).Select(t => t.Name).ToList();
         using var stream = File.OpenRead(Fixtures.Xlsx(bundled.Sheet));

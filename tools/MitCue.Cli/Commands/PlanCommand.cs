@@ -15,7 +15,8 @@ internal static class PlanCommand
         Details = """
             The plan file may be YAML, JSON or a share code ("-" reads standard input). Times are when the reminder says
             to press (the hit plus the offset), relative to the start of the mechanic's phase; offsets are seconds from
-            the hit, marked * when the plan has no time and the default for the action is used (docs/DESIGN.md §5.1).
+            the hit, marked * when the plan has no time and the automatic press time is used (docs/DESIGN.md §5.1: the
+            actions' defaults, adjusted for the entry's other actions and for the mechanic).
             Flags: optional (never counted as missed), when ready (press when off cooldown), phase end (due at the phase
             transition), seq n/m (press in order), ★ = how lethal the source says the mechanic is.
             """,
@@ -74,7 +75,7 @@ internal static class PlanCommand
         if (items.Any(r => r.Entry.Offset == null))
         {
             ctx.Out.WriteLine();
-            ctx.Out.WriteLine("* no time in the plan: the default press time for the action is used.");
+            ctx.Out.WriteLine("* no time in the plan: the automatic press time is used.");
         }
 
         if (scheduler.Problems.Count > 0)

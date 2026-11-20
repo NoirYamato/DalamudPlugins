@@ -31,8 +31,16 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 - Phase ids: the fight's N-th phase id when a `FightDefinition` is given, else `pN`.
 - Phase sources: tab name (`P3`, `P1/P2`, `P1P2`), the header cell of the label (or time) column (`P1 `), section rows
   (`P2 — Omega-M/F  (from phase start)`, `Phase Two`), bare label rows (`P2`), a `Phase` column (`P2` or `2`), a
-  phase title above the header, a marker in front of a row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and
-  labels like `P5 Delta` (or a header like `P1 Healers`) that move the phase forward (reported as `guessed-phase`).
+  phase title above the header, a phase title over the player columns that has a header row below it (TEA's
+  `P2: Brute Justice / Cruise Chaser`) or is a merged banner that reads as a title (the fight's name for the phase, or
+  at most four words without `,` `;` `.` `!` `?`; its part in parentheses too, unless it is a timing hint such as
+  `(from phase start)`), or a merged banner of a later phase whose name reads as a title and whose next labelled row is
+  read as a mechanic of that phase (a near miss too: `Inceptoin`) and not as one of the current phase, whatever its part
+  in parentheses holds (`P3: Alexander Prime (Inception, Wormhole, J Waves)` above Inception), a marker in front of a
+  row's label (`P2 - Solar Ray`: `Label` is `Solar Ray`), and labels like `P5 Delta` (or a header like `P1 Healers`)
+  that move the phase forward (reported as `guessed-phase`). A merged remark that starts with a phase (`P1: MT invulns
+  the second Wave Cannon, OT takes boss after`, `P1 (MT invulns …)`) stays a note; a title over the player columns whose
+  name, or part in parentheses other than a timing hint, is not the fight's is reported (`phase-title`).
 - `RowKind.Data` rows include mechanic rows with nothing assigned (keep them for mechanic order) and assignment
   rows without a label (LPDU `General Tank Mit til P5` row 3; reported as `missing-mechanic-label`).
 - `AssigneeCell.Spread`: a merged cell spanning several assignee columns applies to each of them.
@@ -40,13 +48,16 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
   below it: their `AssigneeCell.Column` is one of `RepeatedHeaderColumns` (`header-changed`). A row whose label is
   not a header but whose cells name players ("Tether partner | OT | MT") stays a data row (`header-like-row`).
 - `AssigneeHeader.Role` is `Role.None` for a ranged slot alone (`R1`, `R2`, `D3`, `D4`): physical ranged or caster.
+  `Phys Range` (a physical word before `Range`) is a physical ranged role column like `Caster`; a whole header
+  `Extras`, `Other`, `Misc` or `Utility` is `AssigneeKind.Anyone`, a column of calls for whoever can press them.
+- An unlabelled column of prose (4 or more words on average) beside the label column holds the rows' `Notes`.
 - `PlanTabs` leaves out hidden tabs (`hidden-tab`); look tabs the user names up in `Tabs`.
 - Time column cells that all read `h:mm:00` (`1:21:00`, Sheets' display of `1:21` typed into a time-formatted cell)
   are read as m:ss (`time-as-hms`); row times of an hour or more are reported (`implausible-time`).
 - Diagnostic codes: `not-a-plan`, `unknown-column`, `unlabelled-column`, `ignored-column`, `duplicate-assignee`,
   `multiple-label-columns`, `multiple-time-columns`, `no-mechanic-column`, `missing-mechanic-label`,
   `unparsed-time`, `time-as-hms`, `implausible-time`, `no-phase`, `phase-not-in-tab-name`, `phase-not-found`,
-  `phase-order`, `unknown-phase`, `guessed-phase`, `header-changed`, `header-like-row`, `note-in-table`,
+  `phase-order`, `unknown-phase`, `guessed-phase`, `phase-title`, `header-changed`, `header-like-row`, `note-in-table`,
   `hidden-content`, `hidden-tab`, `merged-rows`.
 
 ## Cells (`CellParser.cs`, `ParsedCell.cs`, `ParsedTime.cs`)
@@ -55,13 +66,19 @@ name, `ZeroHint`, source), `Rows` (`RowLayout` for every row: `Kind`, `Phase`, `
 `ParsedItem.Steps` (arrow-separated sequence: `→`, `->`, `=>`, `—>`, `>`, `»`, `⇨`, …) → `ParsedStep.Tokens` (`+`, `,`,
 line breaks, wide gaps: pressed together). Tokens with different times of their own become separate items
 (`Soil (0:12)\nDeploy (0:17)`, `0:12 Soil\n0:17 Deploy`); sequences keep their steps. `ParsedCell.Diagnostics` holds
-`unclosed-bracket` warnings (an unclosed `(` ends at the next separator, arrow or line break).
+`unclosed-bracket` warnings (an unclosed `(` ends at the next separator, arrow or line break). With
+`CellParserOptions.SlashJoins` a `/` between words joins tokens like `+` (not between slots, jobs, target or mechanic
+words, hyphens included: `MT/Co-tank`, `Stack/Spread`; not in `and/or`, before a digit, or inside brackets);
+`ParsedCell.Joins` counts the other separators between words. A cell that is one pair of brackets around words
+(`(Shake)`) is its inside with every token optional (`Bracketed`); a cell that points up (`(^on LL)`) has no items and
+its remark in `Above`.
 
-`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`), `Trailing` (`after 1st Hit`, `Co-Tank`,
-`to R1/2`, `if P4 skip`), `Target`, `Hints` (parentheticals), `Time` (`ParsedTime`: seconds, range end, list,
-approx flag, source text), `Optional` (grey), `WhenReady` (`⏱`, "on CD"), `Footnote` (`*`), `JobPrefix`
-(`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`. Steps and items aggregate
-`Time`/`Target`; items aggregate `Optional`/`WhenReady`/`Footnote`.
+`ParsedToken`: `Head` (action-name guess), `Alternatives` (`Kera/Soil`, `Seraph1/Soil`, `Kera or Soil`, `Kera and/or
+Soil`; not `R1/R2`), `Trailing` (`after 1st Hit`, `Co-Tank`, `to R1/2`, `MT/Co-tank`, `if P4 skip`), `Target` (slots
+and tank target words joined by `/` are one: `MT/Co-tank`), `Hints` (parentheticals), `Time` (`ParsedTime`: seconds,
+range end, list, approx flag, source text), `Optional` (grey, or the cell in brackets), `WhenReady` (`⏱`, "on CD"),
+`Footnote` (`*`), `JobPrefix` (`PLD Wings`), `Fg`/`Bold`/`Runs` (per-token formatting), `Text`/`Start`/`Src`.
+Steps and items aggregate `Time`/`Target`; items aggregate `Optional`/`WhenReady`/`Footnote`.
 
 ## Recipe for the back half
 
@@ -80,7 +97,7 @@ foreach (var cell in row.Assignments)            // cell.Assignee: Key, Slot, Jo
         // Timing (DESIGN.md §6 step 7, §5.1). An item without its own time never takes row.Time:
         //   item.Time and row.Time → offset = item.Time − (the row's matching hit, one of row.Time.All) + δ
         //   item.Time only         → offset = (phase zero + item.Time) − hit
-        //   no item.Time           → leave the offset automatic (§5.1 defaults from the action kind)
+        //   no item.Time           → leave the offset automatic (§5.1: TimingRules.ForEntry, as the scheduler times it)
         // A sequence's item.Time is its last step's; per-step times are step.Time ("Recit (2:44) → Adlo (2:50)").
         foreach (var step in item.Steps)
         foreach (var token in step.Tokens)
@@ -100,13 +117,16 @@ after is a connector/target, or a time on the same line ("Soil      0:12"). "and
 # Import — back half
 
 Steps 4–7 (`docs/DESIGN.md` §6; step 8, the review, is the plugin's import window): `new PlanImporter().Import(document,
-options)` → `ImportResult` (`Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`). Check any plan (imported, hand-written,
-LLM) with `PlanValidator.Validate(plan, fight, actions)`.
+options)` → `ImportResult`: `Plan`, `Diagnostics`, `PhaseZeros`, `PhaseSpread`, the document's own readings that the
+plugin's AI prompt states for the sheet it includes (`DocumentSlashes`: "/" between one job's actions, also when
+`ImportOptions.Slashes` overrides it; `SeraphNumbered`: a plain "Seraph" means "Seraph1"), and for the import window
+`Rows` (each row's mechanic) and `AnyoneColumns` ("Extras"). Check any plan (imported, hand-written, LLM) with
+`PlanValidator.Validate(plan, fight, actions)`.
 
 ```
 DocumentLayout ─► rows ─► MechanicResolver (alias in phase; repeated labels by time or row order)
                      └─► RowTiming.Align (row times ↔ hits, + δ) ─► phase zero fit (median; preset fallback)
-assignee cells ─► CellParser ─► ActionResolver (per candidate job) + HintParser ─► entries ─► time order, ids e001…
+assignee cells ─► CellParser ─► ActionResolver (per candidate job) + HintParser ─► entries ─► press order, ids e001…
 ```
 
 | File | Role |
@@ -133,8 +153,12 @@ Rules worth knowing:
   the note.
 - **Items.** Inline text speaks for its token, parentheses after an item's last token for the whole item: "Kera after
   1st Hit", "Short CD to R1", "Neutralsect if P4 skip" make their token its own entry (same anchor), while "Recit + Adlo
-  (just before P3 ends)" is one entry. A target in parentheses only goes to actions used on a player. A condition ("if P4
-  skip", "no skip", "(if needed)") makes the entry optional. Part words after an action ("Succor Proteans + Soil +
+  (just before P3 ends)" is one entry. A target in parentheses only goes to actions used on a player; elsewhere it
+  stays in the note like any other parenthetical ("Asylum (melee)", "Kera (party)": where to place it, "Earthly Star
+  (melee)" in a White Mage's column, "Feint (melee)" under "Extras": the note "Feint" with "melee"). Without a written
+  target, actions used on a player take one from the row's notes, else "tank" on a tankbuster; the item's other actions
+  then get an entry of their own ("EukDiag/Kerachole" on Double Rocket Punch). A condition ("if P4 skip", "no skip",
+  "(if needed)") makes the entry optional. Part words after an action ("Succor Proteans + Soil +
   Spreadlo Stack") name groups of the mechanic's hits when the item names as many parts as the hits form groups (gaps at
   least twice the smallest): Spreadlo is timed for the Wild Charge. A target naming players by order on a multi-hit row
   ("your 3rd/4th-in-line player" on Program Loop) anchors to the last such hit, pressed before it. Later step times of a
@@ -161,7 +185,138 @@ Rules worth knowing:
   unless a hint applies (`after 1st Hit` → that hit +0.5 s; `after <mechanic>` → its last hit +0.5 s; phase-end phrases →
   that phase's enrage/end mechanic with `at_phase_end`). Hint text stays in `note`. Presses after a phase's last hit get
   `after-phase-end` for review. Times that cannot be placed (no row time, no phase zero) give one automatic entry and one
-  `untimed` warning.
+  `untimed` warning. Automatic times are the scheduler's (`TimingRules.ForEntry`: the actions' defaults, a cell's several
+  actions and their own leads, a mechanic's hits and the fight file's `press`, `heal_lead` and `series`); the importer
+  writes no offset for them, unless a step after the cells presses one later (`still-active`, `recast-fit`). The plan
+  lists its entries in that press order (ties in sheet order), also when `still-active` changed an entry's action or a
+  press moved.
+- **Slashes.** "X/Y" between two actions of one job is either one (`TBN/Oblation`), unless the document never joins
+  actions another way (`+`, `,`, `&`, `;`, `|`, arrows, ` / `, line breaks, gaps of three or more spaces) and lists
+  several actions of one job with `/` in two or more cells, three or more in one (`Soil/Reci/Deploy/Whisper`): then all
+  of them, lexed like `+`. Every plan tab counts, whatever is imported; `ImportOptions.Slashes` overrides it, and the
+  `slash-reading` info says which and why (`ImportResult.DocumentSlashes` is the document's own reading). "All of
+  them" never joins at a `/` between slots, jobs, target or mechanic words (`MT/Co-tank`, `Kera after Stack/Spread`) or in
+  `and/or`. In both readings, a `/` between two single letters is one word, spaced or not (`N/A`, and `N / A`, which
+  joins nothing), slots and tank target words joined by `/` after an action are one target, either of them (`Benison
+  MT/Co-tank`, `Rampart MT/OT`), other words that each name a player or a part of a mechanic (slots, jobs, target words
+  such as `tank` or `melee`, mechanic words such as `Stack`, `TB` or `Tower`) joined by `/` after an action are its
+  remark (`Kera Stack/Spread`: Kerachole, noted "Stack/Spread"; `Rampart MT/TB`), and `and/or` is either one (`Soil
+  and/or Expedient`). Any other word after a `/` is read like an action: "all of them" makes it a call of its own, a
+  note when it names none (`Kera Left/Right`: Kerachole and the note "Right", noted "Kera Left", the call's action
+  words and its remark, as a cell of several calls is), "either one" an alternative (`Kera Left/Right`: Kerachole,
+  noted "Left"; "Right" is left out; `Kera Left/Right + Holos`: noted "Kera Left"). An alternative that means nothing
+  is an `unresolved-token` warning; an either/or with a choice of several actions (`Spread-Lo/Soil`) gives one optional
+  entry per choice (`either-or-split`).
+- **Seraph.** A sheet that numbers its Seraph calls (`Seraph1`: Summon Seraph → Consolation, `Seraph2`: the second
+  Consolation) means the same by a plain `Seraph` (LPDU's TEA: `Succor/Soil/Seraph` at J Wave 5, `Seraph/Fey Illum` at
+  J Wave 7): it is read like `Seraph1`, and a second one while Seraph is out is the other Consolation (`still-active`).
+  Otherwise a plain `Seraph` is Summon Seraph alone (Carry the Clear writes its Consolations apart). Every plan tab
+  counts, whatever is imported; the `seraph-reading` info names a numbered call and an imported plain one, and
+  `ImportResult.SeraphNumbered` says that the document numbers its Seraph calls.
+- **Columns for anyone** ("Extras"): a call is an entry for the jobs whose own action it names (`PLD Wings`,
+  `Dismantle`, `(Minne/Mantra)`), with no assignee; a note-only call is one entry for everyone; an action several jobs
+  share (`Feint`, `Party Mit`) is a note for everyone (`anyone-role-action`). A cell is read call by call: the calls that
+  name a job's own action keep their jobs' entries, the others are one entry for everyone (`Dismantle + Feint`: a
+  Machinist's Dismantle and the note "Feint"; `PLD Wings + Use Personals`: a Paladin's Passage of Arms and the note
+  "Use Personals"). The cell's remark in parentheses or below a caret stays on every entry it splits into (`Dismantle +
+  Feint (on BJ)`: the Dismantle is on BJ too); a call with words of its own keeps them, and takes from the last call's
+  parentheses only a timing or condition and what a caret below the cell says (`Dismantle (on BJ) + Feint (on CC)`: the
+  Dismantle is on BJ only; `Dismantle (on BJ) + Feint (late)`: late too). The column is imported whatever columns are
+  chosen, is not in `plan.assignees`, and is listed in `ImportResult.AnyoneColumns`.
+- **Cells that point up** (`(^on LL)`, `(^ if MCH)`) are read as a parenthetical of the nearest cell above in the same
+  column and section, after each of its items, so that it speaks for all of the cell (`Soil / Expedient` with `^ late`
+  below it: both late; `(Party Mit)` with `(^ if MCH)`: `(Party Mit (if MCH))`) (`caret-note` info, a warning when
+  nothing is above); a parenthetical that names the token's own per-job actions limits the jobs (`Party Mit (DM/HoL)`:
+  DRK and GNB, `named-actions`); one or two target words in brackets (`(Range)`) are a target; `(Late)` on an entry
+  pressed before its hit presses it just before it, so that its longest cast, or the GCD a follow-up needs first, ends
+  1 s before the hit (`Reprisal (Late)` −1 s, `Succor (Late)` −3 s, `Eukrasian Prognosis (Late)` −2 s after
+  Eukrasia's 1 s), but never an item earlier than without it (`Reprisal (Late)` on TOP's Wave Cannon stays 0.5 s
+  before the first protean, so that it lasts through the Wild Charge, and so does `Rampart + Reprisal (Late)`, whose
+  Rampart keeps its own −6 s).
+- **Notes over several columns** that name actions and speak to no other player ("A tip for Soil/Kera timing …") are
+  about using those actions: the detail of the entries in their columns and section that press one of them (all their
+  columns' entries when none does). A note that speaks to players by role, slot or job ("Tanks: Rampart the first tower
+  set, then OT provokes …", "Healers: …, WHM covers the rest") is for its columns' players: the detail of all their
+  entries, as a note in each column. A role or slot word that says where or for whom to press speaks to no one ("on the
+  melee", "under the tanks", "on melee and ranged", "on the MT/OT", "under the tanks/healers", "on the co-tank", "the
+  tank buster", "the OT's buster": a `/`, `&` or `+` between such words lists them as "or" does), unless a colon follows
+  it and no place word but "for" or "to" places it: then it heads the note, as in "Tanks: …" ("For the tanks: …", "Tip
+  for melee: …", "To the melee: …", "For the MT and OT: …"; "Soil on the melee: …" and "WHM on the tank: …" place the
+  actions). Nor does the job whose own action the note names ("SCH: … press Soil …"). A word that names
+  actions of several jobs does not say whose it is: "WAR Rampart the first tower set, then PLD provokes …" speaks to
+  the PLD (Rampart is every tank's, as "Invuln" names one action of each). A merged note reads the same whichever of
+  its columns are imported: imported alone, the Scholar column gets the Soil/Kera tip on its Soil entries, the Tank 1
+  column none (the columns not imported name Soil and Kera; a `note-row` info says so).
+- **After the cells.** An action used on the party, an area or oneself (Temperance, Sacred Soil, Rampart), with one
+  charge at the sync level and a recast longer than its effect, that the same player (column, slot and job) plans again
+  from another row less than its duration after the earlier press, item press to item press, is its follow-up (Summon
+  Seraph → Consolation) or a note "Temperance (still active)" (`still-active`), when the earlier press still serves the
+  later call as the reminders time both (`TimingRules.ForEntry`), each at the press of its own item, used on that item's
+  NOW cue (the default due lead; an item may be pressed later than its entry: an instant Sacred Soil beside a Succor on
+  a later hit of a series waits for the hit before it). A note says that the earlier effect covers the later hit: it
+  outlasts that hit by 1 s (`EarliestCoveringUse`), lasting as long as the reminders count it covering one
+  (`CoverageDuration`: a `when: before` action's longest effect, Neutral Sect's 30 s barrier). A follow-up needs the
+  action only when it is used, its own effect covering the hit: it is pressed after the earlier press, within
+  `check`'s follow-up window, the action's longest effect (Seraph's 22 s for a Consolation at Whirlwind 2, 20.9 s after
+  Water 2; not a Consolation pressed 4.5 s before its hit after a `Seraph (Late)` 2 s earlier). An earlier press
+  without a time in the sheet that falls short is pressed later so that it serves both (TEA's Hidden Mines Temperance
+  −3.5 s, through Water 2), no later than `(Late)` would press it, never after the lead of a `when: before` action that
+  is no heal (Neutral Sect −4.5 s, Passage of Arms −2 s), never so that another of its items is pressed earlier than
+  without it (the offset is every item's press: a Reprisal that waits for a later hit keeps its press), and never so
+  that a seat that sees it loses what the recast fit keeps for it (below: a Passage of Arms of another call stays the
+  last press before its hit, a follow-up stays in its trigger's window); otherwise both stay presses (a `still-active`
+  info, which says what a later press would break), and `check` reports the recast. After each round of the recast fit, a
+  call after a press the fit moved that this press now serves as it is is read as still active too (TEA's `Asylum
+  (Late)` at Double Rocket Punch, 18.8 s after the Gavel Asylum that the fit presses 1.5 s before its hit), its info in
+  place of the one that kept it a press, unless a later call was read as still active from that call's own press: the
+  moved press need not last through that one, so both stay presses, with an info that says so, and `check` reports the
+  recast (the same sheet with `Asylum` again at Super Jump, 1.1 s after the Double Rocket Punch press and after the
+  Gavel Asylum ends). An optional earlier press (in brackets, with a condition, one choice of an either/or) may
+  not happen, so it keeps no buff up. A limit break written for one role in columns of different slots at one mechanic
+  is optional, noted "or Tank 2" (`shared-limit-break`), whichever of those columns are imported: a tank who imports
+  only their own column gets it optional too.
+- **Recast fit**, last (`recast-fit` info). An entry without a time in the sheet that is pressed before its hit while
+  one of its actions has no charge yet, as `check` replays the plan (`RecastReplay`: recasts and charges at the sync
+  level, one charge recharging at a time, recast groups, recasts under 3 s left out; each item at its own press time,
+  later than its entry's for an item that waits for a series floor, a later hit of its own or, in a sequence the
+  importer times, the step before it, or that comes last (Passage of Arms), and the info gives the gap
+  between the two items' presses) for any seat (every job, in each
+  slot of its role and in none, with the column the plugin chooses without a party and with any party that changes it:
+  the jobs of a team-composition column, `WAR/PLD WAR` next to a Paladin, and every two-job party), is pressed when
+  that action is ready again plus the default due lead (1.5 s), so that its NOW cue comes then, rounded up to 0.1 s:
+  TEA's Gavel Asylum, 85.8 s after the Asylum pressed after Photon (recast 90 s), 1.5 s before its hit instead of
+  7.2 s. Never later than `(Late)` would press it (1 s before the hit, minus the entry's longest cast or the GCD a
+  follow-up needs first: a Sage's Eukrasian Prognosis stays 2 s before the hit at the latest), nor than an action's
+  own lead before the hit allows (Neutral Sect 4.5 s, Earthly Star 10 s, Passage of Arms 2 s), so that it still does
+  its job: then just after the action is ready (the J Wave 7 Plenary, 1 s before its wave, which still turns due only
+  after the wave before it); when the action is ready only after that, the press stays and `check` reports the recast.
+  It stays too when the move would press another item of the entry earlier than without it, since the offset is every
+  item's press: an item that waits for a later hit or a series floor of its own, or Passage of Arms after the others
+  (`Rampart + Reprisal` on TOP's Wave Cannon 2 keeps the Reprisal 0.5 s before the first protean, for the Wild Charge),
+  and when a seat that sees the entry needs it where it is (the move is every seat's): a follow-up of the seat, the
+  entry's own or one whose trigger the entry presses, would leave a window after its trigger that it is in now, the
+  trigger's longest effect counted from its press as `check` counts it or from its NOW cue as `still-active` reads it
+  (a Consolation more than 22 s after the Summon Seraph before it, or after a Seraph summoned on its NOW cue, finds
+  Seraph gone; one before its Summon Seraph finds none yet). Nor is it pressed at or after a Passage of Arms of
+  another call (another cell's, or one a spaced ` / ` splits off) that a seat sees with it and that is not before it
+  now, before that one's hit, whichever hit the entry is for (TEA's Hand of Pain 4 hits 0.1 s before Protean 2): once
+  nothing else moves (that Passage of Arms may wait for its own recast first), it is pressed 0.1 s before the Passage
+  of Arms, the move being every seat's (LPDU TEA's `PLD Wings` in Extras beside Tank 1's Reprisal: 2.1 s before the
+  hit at the latest, for every MT, a Warrior too), if its action is ready by then; else it stays. Only firm presses
+  keep an action on recast: not an optional entry (in brackets, with a condition, one choice of an either/or), an
+  either/or item or a note ("Temperance (still active)"); an optional call itself still waits ("CU (if up)"). A press
+  with a time in the sheet counts but never moves; an offset the importer wrote (`still-active`'s) may move. A
+  when-ready call ("on CD") is left to the runtime: it keeps its press and counts, since its reminder already waits
+  for the action in game (LPDU TOP's P5 party mitigation on cooldown, which a move would only push into the Blind
+  Faith calls). A sequence moves for its first step only (`check` times each step at its item's press, the entry's
+  unless it waits for a series floor, a later hit of its own or the step before it; in game the later steps follow),
+  and only when its later steps are instant oGCDs woven in right after it (`Kerachole → Holos`): a later GCD or cast
+  (`Zoe → Eukrasian Prognosis`, `Recitation → Succor`) would land after the hit, so such a sequence keeps its press.
+  An entry several seats see takes the latest press any of them needs; the earliest press without a charge moves
+  first, then the plan is replayed again, until nothing moves. A press that moved is replayed at its press time, as
+  `check` replays every press: in a chain of moves each NOW cue still comes when the action is ready for a player who
+  presses at the press times (each link keeps its due lead). After each round, `still-active` looks again at the calls
+  after the presses moved so far (above).
 - **Presets.** `ImportOptions.CalibrationKey`, else a preset whose words all occur in the document title.
 - **Tank-pair tabs** ("WAR/DRK" with columns WAR and DRK) are variants: when their column names collide with other tabs',
   they are keyed "&lt;tab&gt; &lt;column&gt;" ("WAR/DRK WAR").

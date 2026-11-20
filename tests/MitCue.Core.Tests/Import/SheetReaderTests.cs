@@ -79,6 +79,7 @@ public class SheetReaderTests
             ["ALOO", "P1/P2", "P3", "P4", "P5", "P6", "General Tank Mit til P5", "WAR/DRK", "WAR/GNB", "WAR/PLD", "DRK/GNB", "DRK/PLD", "GNB/PLD"],
             Fixtures.Lpdu.Tabs.Select(t => t.Name));
         Assert.Equal(["TOP – White Mage", "TOP – Scholar", "TOP – WHM + SCH"], Fixtures.CarryTheClear.Tabs.Select(t => t.Name));
+        Assert.Equal(["LL/BJCC", "Alex Prime/PA"], Fixtures.LpduTea.Tabs.Select(t => t.Name));
         Assert.Equal("LPDU TOP Mitigation Sheet", Fixtures.Lpdu.Title);
         Assert.NotNull(Fixtures.Lpdu.Tab("p1/p2"));
     }
@@ -106,7 +107,7 @@ public class SheetReaderTests
 
     // ---- xlsx (Google export) vs JSON fixtures --------------------------------------------------
 
-    public static TheoryData<string> SheetKeys => ["lpdu", "carry-the-clear"];
+    public static TheoryData<string> SheetKeys => ["lpdu", "carry-the-clear", "lpdu-tea"];
 
     [Theory]
     [MemberData(nameof(SheetKeys))]
@@ -296,7 +297,7 @@ public class SheetReaderTests
     [Fact]
     public void FromDelimited_RoundTripsEveryFixtureTabThroughTheGoogleClipboard()
     {
-        var grids = Fixtures.Both.SelectMany(d => d.Doc.Tabs)
+        var grids = Fixtures.All.SelectMany(d => d.Doc.Tabs)
             .Select(t => t.Rows.Select(r => r.Select(c => c.Text ?? string.Empty).ToList()).ToList())
             .ToList();
         grids.Add([["\"quoted\" start", "multi\nline \"q\"", "tab\tinside"], ["", "★★ Plenary* (1:31) ⏱", "a\"\"b"], ["\"Kera\" on MT", "\"x\"", "end"]]);

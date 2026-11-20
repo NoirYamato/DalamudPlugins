@@ -24,6 +24,7 @@ public class FightLoaderTests
             hit: 250.5
             entry: "Later"
             kind: raidwide
+            press: after
             comment: ignored
           - id: p1.multi
             name: Multi
@@ -32,6 +33,7 @@ public class FightLoaderTests
             entry: "Multi 1"
             kind: multihit
             aliases: ["Multi", "MH"]
+            series: true
           - id: p1.check
             phase: p1
             hit: 30
@@ -42,8 +44,10 @@ public class FightLoaderTests
             kind: marker
           - id: p2.buster
             hits: [210.2, 213.4]
+            sub_hits: [211.0, 212.2]
             kind: tank_buster
             aliases: Buster
+            heal_lead: 3.5
         calibration:
           carry_the_clear: { p1: 0.0, p2: 202.0 }
           lpdu: { p1: 0.5, p2: ~ }
@@ -101,6 +105,10 @@ public class FightLoaderTests
         Assert.Equal([250.5], later.Hits); // hits default to [hit]
         Assert.Equal(MechanicKind.Raidwide, later.Kind);
         Assert.Empty(later.Aliases);
+        Assert.True(later.PressAfter);
+        Assert.False(multi.PressAfter); // by default calls keep their own side of the hit
+        Assert.True(multi.Series);
+        Assert.False(later.Series);
 
         var check = fight.GetMechanic("p1.check")!;
         Assert.Equal(MechanicKind.LbCheck, check.Kind);
@@ -116,6 +124,12 @@ public class FightLoaderTests
         Assert.Equal("p2", buster.Phase);
         Assert.Equal(MechanicKind.Tankbuster, buster.Kind);
         Assert.Equal(["Buster"], buster.Aliases);
+        Assert.Equal(3.5, buster.HealLead);
+        Assert.Null(later.HealLead); // heals after the hit by default
+        Assert.Equal([211.0, 212.2], buster.SubHits); // damage times without a timeline entry: not hits
+        Assert.Equal([210.2, 213.4], buster.Hits);
+        Assert.Equal(213.4, buster.HitAt(1));
+        Assert.Empty(multi.SubHits);
     }
 
     [Fact]
@@ -186,6 +200,19 @@ public class FightLoaderTests
     [InlineData("name: Test Fight (Ultimate)", "title: Test Fight", "test", "'name' is missing")]
     [InlineData("p2: 202.0", "p2: soon", "carry_the_clear", "p2")]
     [InlineData("lpdu: { p1: 0.5, p2: ~ }", "lpdu: [0.5]", "lpdu", "calibration")]
+    [InlineData("press: after", "press: before", "p2.later", "press")]
+    [InlineData("heal_lead: 3.5", "heal_lead: 0", "p2.buster", "heal_lead")]
+    [InlineData("heal_lead: 3.5", "heal_lead: -2", "p2.buster", "positive")]
+    [InlineData("heal_lead: 3.5", "heal_lead: soon", "p2.buster", "'heal_lead'")]
+    [InlineData("heal_lead: 3.5", "heal_lead: 3.5\n    press: after", "p2.buster", "contradict")]
+    [InlineData("series: true", "series: maybe", "p1.multi", "'series'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [210.2, 212.2]", "p2.buster", "after 'hit'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [209.0, 212.2]", "p2.buster", "after 'hit'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [212.2, 211.0]", "p2.buster", "time order")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, 211.0]", "p2.buster", "time order")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, 213.4]", "p2.buster", "one of 'hits'")]
+    [InlineData("sub_hits: [211.0, 212.2]", "sub_hits: [211.0, soon]", "p2.buster", "'sub_hits'")]
+    [InlineData("kind: raidwide\n    press: after", "kind: raidwide\n    press: after\n    series: true", "p2.later", "two hits")]
     public void Load_ReportsTheOffendingItemAndField(string find, string replace, string item, string field)
     {
         Assert.Contains(find, Sample, StringComparison.Ordinal);

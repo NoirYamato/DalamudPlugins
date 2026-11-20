@@ -66,7 +66,10 @@ internal sealed class OverlayModel
     /// <summary>True when the overlay should be drawn.</summary>
     public bool Visible { get; private set; }
 
-    /// <summary>Rows ordered by press time (at most MaxRows).</summary>
+    /// <summary>
+    /// Rows ordered by press time (at most MaxRows); rows pressed at the same time keep the scheduler's order, own rows
+    /// first.
+    /// </summary>
     public List<OverlayRow> Rows { get; } = new(16);
 
     /// <summary>Own active reminders (Due/Upcoming) that did not fit in <c>MaxRows</c>; shown as "+N more".</summary>
@@ -173,8 +176,10 @@ internal sealed class OverlayModel
         var track = config.TrackDoneMissed;
         var max = Math.Max(1, config.MaxRows);
 
-        // Active rows (Due/Upcoming) always win over finished ones, and own rows over other assignees' rows,
-        // so a burst of just-finished reminders can never push the next call out of a small overlay.
+        // Within each list active rows (Due/Upcoming) win over finished ones, and own rows come first: other
+        // assignees' rows get the room the player's rows leave. So a burst of just-finished reminders never pushes the
+        // player's next call out of a small overlay, while a finished row of the player's can take an active row's place
+        // among theirs.
         var own = Select(session.Visible, track, max, this.ownPick, out var ownHiddenActive);
         var others = Select(session.VisibleOthers, track, max - own.Count, this.otherPick, out _);
         this.MoreCount = ownHiddenActive;
@@ -200,61 +205,55 @@ internal sealed class OverlayModel
     }
 
     /// <summary>
-    /// Picks at most <paramref name="slots"/> rows: every active (Upcoming/Due) row first, earliest press time
-    /// first, then the most recently finished rows that are still listed; returned in press-time order.
+    /// Picks at most <paramref name="slots"/> rows: every active (Upcoming/Due) row first, earliest press time first, then
+    /// the finished rows that are still listed, latest press time first. They are returned in the order of
+    /// <paramref name="list"/>, the scheduler's: press time, plan order, an item pressed last (Passage of Arms, a channel
+    /// any other action ends) after the other items of its entry, item order. A player who presses down the overlay then
+    /// keeps the channel, whatever order the cell lists its calls in.
     /// </summary>
+    /// <param name="list">The session's reminders to display, in the scheduler's order.</param>
     /// <param name="hiddenActive">Active rows that did not fit.</param>
     private static List<Reminder> Select(IReadOnlyList<Reminder> list, bool trackDoneMissed, int slots, List<Reminder> pick, out int hiddenActive)
     {
         pick.Clear();
-        hiddenActive = 0;
-        if (slots <= 0)
-        {
-            for (var k = 0; k < list.Count; k++)
-            {
-                if (list[k].State is ReminderState.Upcoming or ReminderState.Due)
-                    hiddenActive++;
-            }
-
-            return pick;
-        }
-
+        var active = 0;
         var finished = 0;
         for (var k = 0; k < list.Count; k++)
         {
             var r = list[k];
             if (r.State is ReminderState.Upcoming or ReminderState.Due)
+                active++;
+            else if (IsShown(r, trackDoneMissed))
+                finished++;
+        }
+
+        // The first active rows that fit, then the last finished rows in the room left.
+        var room = Math.Max(slots, 0);
+        var takeActive = Math.Min(active, room);
+        var skipFinished = finished - Math.Min(finished, room - takeActive);
+        hiddenActive = active - takeActive;
+
+        // One pass in list order, without a re-sort: rows pressed at the same time keep the scheduler's order.
+        for (var k = 0; k < list.Count; k++)
+        {
+            var r = list[k];
+            if (r.State is ReminderState.Upcoming or ReminderState.Due)
             {
-                if (pick.Count < slots)
+                if (takeActive > 0)
+                {
                     pick.Add(r);
-                else
-                    hiddenActive++;
+                    takeActive--;
+                }
             }
             else if (IsShown(r, trackDoneMissed))
             {
-                finished++;
-            }
-        }
-
-        var room = slots - pick.Count;
-        if (room > 0 && finished > 0)
-        {
-            // Most recently finished first (FinishedAt, then press time), only as many as fit.
-            var start = pick.Count;
-            for (var k = list.Count - 1; k >= 0 && pick.Count - start < room; k--)
-            {
-                var r = list[k];
-                if (r.State is not (ReminderState.Upcoming or ReminderState.Due) && IsShown(r, trackDoneMissed))
+                if (skipFinished > 0)
+                    skipFinished--;
+                else
                     pick.Add(r);
             }
         }
 
-        // Back to press-time order (stable on ties: item order within an entry).
-        pick.Sort(static (a, b) =>
-        {
-            var c = a.PressAt.CompareTo(b.PressAt);
-            return c != 0 ? c : a.ItemIndex.CompareTo(b.ItemIndex);
-        });
         return pick;
     }
 

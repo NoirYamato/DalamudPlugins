@@ -95,7 +95,7 @@ internal sealed partial class ImportWindow
         model.Plan.Name = string.IsNullOrWhiteSpace(model.Plan.Name) ? name : model.Plan.Name;
         this.replaceId = DefaultReplacement(this.plugin.Plans, model.Plan);
         var job = this.plugin.Frame.Job;
-        this.setActive = job != Job.None && this.ColumnChoiceFor(model).Mine > 0;
+        this.setActive = job != Job.None && this.ColumnChoiceFor(model).Seat > 0; // notes for everyone alone are no call of the player's
         this.step = Step.Review;
     }
 
@@ -409,7 +409,7 @@ internal sealed partial class ImportWindow
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip(
-                (automatic ? "Automatic timing for this action. " : string.Empty) +
+                (automatic ? "Automatic timing for this entry. " : string.Empty) +
                 "Seconds from the hit (negative = before). Drag, or Ctrl+click to type.\nRight-click: automatic timing or 0 s." +
                 (l.Press is { } press ? $"\nPress at {FormatClock(press)} on the fight timeline." : string.Empty));
         }
@@ -583,6 +583,9 @@ internal sealed partial class ImportWindow
                     }
                 }
             }
+
+            if (l.LaterItems.Length > 0)
+                ImGui.TextUnformatted("Pressed later: " + l.LaterItems);
         }
         else
         {
@@ -770,6 +773,17 @@ internal sealed partial class ImportWindow
 
         var autoOffset = model.AutoOffset(row);
         var hit = mechanic?.HitAt(entry.HitIndex ?? 0);
+
+        // Items pressed later than the entry (TimingRules.ForEntry): a series floor or a later hit of their own, or last.
+        var laterItems = string.Empty;
+        if (hit is { } at && model.ItemPressTimes(row) is { } presses)
+        {
+            var press = at + (entry.Offset ?? autoOffset);
+            laterItems = string.Join("; ", entry.Do.Select((item, i) => (Item: item, At: presses[i]))
+                .Where(x => x.At > press + 0.005)
+                .GroupBy(x => Math.Round(x.At, 2))
+                .Select(g => $"{string.Join(", ", g.Select(x => ReminderText.ItemName(x.Item, gameData)))} at {FormatClock(g.Key)} ({FormatOffset(g.Key - at)})"));
+        }
         var labels = new RowLabels
         {
             Version = row.Version,
@@ -788,6 +802,7 @@ internal sealed partial class ImportWindow
             ProblemsLong = string.Join("\n", issues.Select(i => $"{i.Severity}: {i.Message}{(i.FromImporter ? " (import)" : string.Empty)}")),
             AutoOffset = autoOffset,
             Press = hit is { } h ? h + (entry.Offset ?? autoOffset) : null,
+            LaterItems = laterItems,
             Search = string.Join(
                 '\n',
                 mechanicText,
@@ -838,6 +853,9 @@ internal sealed partial class ImportWindow
         public double AutoOffset { get; init; }
 
         public double? Press { get; init; }
+
+        /// <summary>The items pressed later than the entry, with their press times ("" when none is).</summary>
+        public string LaterItems { get; init; } = string.Empty;
 
         public string Search { get; init; } = string.Empty;
     }

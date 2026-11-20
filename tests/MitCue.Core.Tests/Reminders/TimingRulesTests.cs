@@ -119,6 +119,23 @@ public class TimingRulesTests
     }
 
     [Fact]
+    public void EarliestCoveringUse_TheEffectOutlastsTheHitByOneSecond_TheUseWindowStartsThere()
+    {
+        Assert.Equal(81, TimingRules.EarliestCoveringUse(100, 20), Kit.Tolerance);   // used at 81, a 20 s effect lasts to 101
+        Assert.Equal(TimingRules.EarliestCoveringUse(100, 20), TimingRules.UseWindow(Kit.Temperance, 90, 100, 94, Defaults).Earliest, Kit.Tolerance);
+    }
+
+    [Fact]
+    public void DueAt_IsTheDueLeadBeforeThePress_ButNotBeforeItsFloor()
+    {
+        Assert.Equal(98.5, TimingRules.DueAt(100, null, Defaults), Kit.Tolerance);
+        Assert.Equal(98.5, TimingRules.DueAt(100, 97, Defaults), Kit.Tolerance);
+        Assert.Equal(99.2, TimingRules.DueAt(100, 99.2, Defaults), Kit.Tolerance);   // a later hit of a series
+        Assert.Equal(97, TimingRules.DueAt(100, null, new ReminderOptions { DueLead = 3 }), Kit.Tolerance);
+        Assert.Throws<ArgumentNullException>(() => TimingRules.DueAt(100, null, null!));
+    }
+
+    [Fact]
     public void UseWindow_ShortEffect_EarliestIsNeverAfterThePressTime()
     {
         var (earliest, _) = TimingRules.UseWindow(Kit.Act(1, "X", ActionKind.Buff, duration: 2), 90, 100, 97, Defaults);
@@ -369,6 +386,8 @@ public class TimingRulesTests
     [InlineData("Earthly Star", -10, 81, 99.7)]
     [InlineData("Horoscope", -3, 71, 99.7)]
     [InlineData("Macrocosmos", -4.5, 86, 99.7)]
+    [InlineData("Neutral Sect", -4.5, 71, 99.7)]        // its barrier (after a Helios) lasts 30 s
+    [InlineData("Passage of Arms", -2, 83, 99.7)]       // a channel: pressed last; on time from 17 s before (18 s)
     [InlineData("Tetragrammaton", 1, 91, 106)]          // a heal without "when": after the damage
     [InlineData("Healing Wind", 2, 92, 107)]            // healer LB1 ("when: after")
     [InlineData("Pulse of Life", 2, 92, 107)]
@@ -381,6 +400,27 @@ public class TimingRulesTests
         var window = TimingRules.UseWindow(action, 90, 100, pressAt, Defaults);
         Assert.Equal(earliest, window.Earliest, Kit.Tolerance);
         Assert.Equal(latest, window.Latest, Kit.Tolerance);
+    }
+
+    /// <summary>Neutral Sect's barrier comes with the Aspected Helios (Helios Conjunction at 100) cast after it: never later.</summary>
+    [Theory]
+    [InlineData(80, "Aspected Helios")]
+    [InlineData(90, "Aspected Helios")]
+    [InlineData(100, "Helios Conjunction")]
+    public void RealCatalog_NeutralSectIsPressedNoLaterThanTheHeliosItEnables(int level, string helios) =>
+        Assert.True(TimingRules.DefaultOffset(RepoFiles.Action("Neutral Sect"), level) <= TimingRules.DefaultOffset(RepoFiles.Action(helios), level));
+
+    /// <summary>Passage of Arms is a channel any other action ends: the Paladin's Reprisal and Divine Veil for the same hit come first.</summary>
+    [Theory]
+    [InlineData(80)]
+    [InlineData(90)]
+    [InlineData(100)]
+    public void RealCatalog_PassageOfArmsIsPressedAfterThePaladinsOtherMitigation(int level)
+    {
+        var wings = TimingRules.DefaultOffset(RepoFiles.Action("Passage of Arms"), level);
+        Assert.Equal(-2, wings, Kit.Tolerance);
+        Assert.True(wings > TimingRules.DefaultOffset(RepoFiles.Action("Reprisal"), level));
+        Assert.True(wings > TimingRules.DefaultOffset(RepoFiles.Action("Divine Veil"), level));
     }
 
     [Fact]

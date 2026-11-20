@@ -27,8 +27,14 @@ internal enum TokenKind
 /// <summary>One either/or alternative of a token, resolved for a job.</summary>
 internal sealed record ResolvedAlternative
 {
-    /// <summary>The actions, at the sync level (upgrades applied), in order.</summary>
+    /// <summary>The actions, at the sync level (upgrades applied), in order (every option of <see cref="Groups"/>).</summary>
     public required IReadOnlyList<ActionInfo> Actions { get; init; }
+
+    /// <summary>
+    /// One plan item per group when the alias lists options ("the Arrow|the Bole", "the Spire|the Ewer"): a group of
+    /// several actions is done by any of them. Null when every action is an item of its own.
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<ActionInfo>>? Groups { get; init; }
 
     /// <summary>The actions are pressed in this order (an alias with <c>sequence: true</c>, e.g. "Spreadlo").</summary>
     public bool Sequence { get; init; }
@@ -38,6 +44,9 @@ internal sealed record ResolvedAlternative
 
     /// <summary>The alias key or action name that matched.</summary>
     public required string Matched { get; init; }
+
+    /// <summary>The token's either/or alternative as written ("Spread-Lo" in "Spread-Lo/Soil"), when resolved from a token.</summary>
+    public string? Text { get; init; }
 
     /// <summary>Matched by spelling distance (a typo); <see cref="Matched"/> is what it was taken for.</summary>
     public bool Fuzzy { get; init; }
@@ -70,6 +79,13 @@ internal sealed record TokenResolution
 
     /// <summary>The alias key or action name that matched (for messages).</summary>
     public string? Matched { get; init; }
+
+    /// <summary>
+    /// For <see cref="TokenKind.Actions"/>: either/or alternatives that mean nothing (no alias, action name or close
+    /// spelling: "EukProg" in "EukProg/Kerachole" before it had an alias). Another job's action, an action missing at the
+    /// level and a note phrase do not count: "Kera/Soil" names one action per healer.
+    /// </summary>
+    public IReadOnlyList<string> UnresolvedAlternatives { get; init; } = [];
 }
 
 /// <summary>
@@ -96,6 +112,12 @@ internal sealed class ActionResolver
 
     public IActionCatalog Actions => this.actions;
 
+    /// <summary>
+    /// Alias keys that the document means as another key (normalized): a sheet that numbers its Seraph calls means
+    /// "Seraph1" by a plain "Seraph" ("seraph" → "seraph1"). Set by the importer for the document; empty by default.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> ReadAs { get; set; } = new Dictionary<string, string>(StringComparer.Ordinal);
+
     /// <summary>Resolves a token for a job. Each either/or alternative is tried with the token's trailing text.</summary>
     public TokenResolution Resolve(ParsedToken token, Job job)
     {
@@ -104,7 +126,11 @@ internal sealed class ActionResolver
             return TokenResolution.EmptyToken;
 
         var targeted = token.Target is not null;
-        var results = alternatives.Select(a => this.ResolvePhrase(token.WithTrailing(a), job, targeted, allowJobPrefix: true, ImportText.NormalizedWords(a).Length)).ToList();
+        var results = alternatives
+            .Select(a => this.ResolvePhrase(token.WithTrailing(a), job, targeted, allowJobPrefix: true, ImportText.NormalizedWords(a).Length) is var r && r.Kind == TokenKind.Actions
+                ? r with { Alternatives = r.Alternatives.Select(x => x with { Text = a }).ToList() }
+                : r)
+            .ToList();
         var resolved = results.Where(r => r.Kind == TokenKind.Actions).ToList();
         var first = resolved.FirstOrDefault() ?? results.FirstOrDefault(r => r.Kind != TokenKind.Unresolved) ?? results[0];
         var notAvailable = results.SelectMany(r => r.NotAvailable).Distinct().ToList();
@@ -117,6 +143,7 @@ internal sealed class ActionResolver
                 Rest = first.Rest,
                 Matched = first.Matched,
                 NotAvailable = notAvailable,
+                UnresolvedAlternatives = alternatives.Where((_, i) => results[i].Kind == TokenKind.Unresolved).ToList(),
             };
         }
 
@@ -154,8 +181,9 @@ internal sealed class ActionResolver
         if (this.aliases.MatchLongest(phrase, job) is { } match)
         {
             var keyWords = match.Key.Split(' ').Length;
-            if (match.Expansions.Count > 0)
-                return this.FromExpansion(match.Expansions[0], match.Key, ImportText.SkipNormalizedWords(phrase, keyWords), job, targeted);
+            var expansions = this.ExpansionsOf(match.Key, match.Expansions, job);
+            if (expansions.Count > 0)
+                return this.FromExpansion(expansions[0], match.Key, ImportText.SkipNormalizedWords(phrase, keyWords), job, targeted);
             if (keyWords >= headWords)
                 otherJobAlias = match;
         }
@@ -204,7 +232,7 @@ internal sealed class ActionResolver
             var rest = ImportText.SkipNormalizedWords(phrase, close.Words);
             if (close.IsAlias)
             {
-                var expansions = this.aliases.Lookup(close.Key, job);
+                var expansions = this.ExpansionsOf(close.Key, this.aliases.Lookup(close.Key, job), job);
                 if (expansions.Count > 0)
                 {
                     var r = this.FromExpansion(expansions[0], close.Key, rest, job, targeted);
@@ -220,20 +248,33 @@ internal sealed class ActionResolver
         return new TokenResolution { Kind = TokenKind.Unresolved, Matched = null, Rest = null };
     }
 
+    /// <summary>The expansions of a matched alias key for the job, or those of the key the document means by it (<see cref="ReadAs"/>).</summary>
+    private IReadOnlyList<AliasExpansion> ExpansionsOf(string key, IReadOnlyList<AliasExpansion> expansions, Job job) =>
+        this.ReadAs.TryGetValue(key, out var other) ? this.aliases.Lookup(other, job) : expansions;
+
     private TokenResolution FromExpansion(AliasExpansion e, string key, string? rest, Job job, bool targeted)
     {
         if (e.NoteOnly)
             return new TokenResolution { Kind = TokenKind.NoteOnly, Matched = key, Rest = rest };
 
+        // A name may list options ("the Arrow|the Bole"): one item that any of them does.
         var names = targeted && e.Targeted.Count > 0 ? e.Targeted : e.Actions;
-        var found = new List<ActionInfo>();
+        var groups = new List<List<ActionInfo>>();
         foreach (var name in names)
         {
-            if (this.actions.FindByName(name, job) is { } action && action.UsableBy(job))
-                found.Add(action);
+            var options = AliasExpansion.OptionsOf(name).Select(n => this.actions.FindByName(n, job)).OfType<ActionInfo>().Where(a => a.UsableBy(job)).ToList();
+            if (options.Count > 0)
+                groups.Add(options);
         }
 
-        return this.FromActions(found, e.Sequence, key, rest, fuzzy: null);
+        var result = this.FromActions(groups.SelectMany(g => g).ToList(), e.Sequence, key, rest, fuzzy: null);
+        if (result.Kind != TokenKind.Actions || groups.All(g => g.Count == 1))
+            return result;
+        var atLevel = groups
+            .Select(g => (IReadOnlyList<ActionInfo>)g.Select(a => this.actions.ResolveAt(a, this.level)).Where(a => a.AvailableAt(this.level)).Distinct().ToList())
+            .Where(g => g.Count > 0)
+            .ToList();
+        return result with { Alternatives = result.Alternatives.Select(a => a with { Groups = atLevel }).ToList() };
     }
 
     private TokenResolution FromActions(IReadOnlyList<ActionInfo> named, bool sequence, string matched, string? rest, string? fuzzy)
@@ -280,7 +321,7 @@ internal sealed class ActionResolver
         {
             if (e.Job is { } j && j != Job.None)
                 return j;
-            foreach (var name in e.Actions)
+            foreach (var name in e.Actions.SelectMany(AliasExpansion.OptionsOf))
             {
                 if (this.actions.FindByName(name) is { Jobs.Count: > 0 } action)
                     return action.Jobs[0];

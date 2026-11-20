@@ -30,13 +30,23 @@ internal sealed record HintTiming
     /// <summary>The hint is only a mechanic name (the cell names another mechanic of the phase than its row).</summary>
     public bool Reanchored { get; init; }
 
+    /// <summary>
+    /// A parenthetical that is only "late" or "later" ("Reprisal (Late)"): an entry pressed before its hit is pressed just
+    /// before it (<see cref="PlanImporter.LateOffset"/>, minus a cast or the GCD a follow-up needs first), so that it also
+    /// covers a hit that follows soon after.
+    /// </summary>
+    public bool Late { get; init; }
+
     /// <summary>Groups tokens of one item that share their timing.</summary>
-    public (string? Anchor, int? Hit, bool Last, bool After, bool PhaseEnd) Key => (this.Anchor?.Id, this.HitIndex, this.LastHit, this.After, this.AtPhaseEnd);
+    public (string? Anchor, int? Hit, bool Last, bool After, bool PhaseEnd, bool Late) Key => (this.Anchor?.Id, this.HitIndex, this.LastHit, this.After, this.AtPhaseEnd, this.Late);
 
     public bool IsNone => this.Key == None.Key;
 }
 
-/// <summary>Reads timing hints: "after 1st Hit", "after &lt;mechanic&gt;", "just before P3 ends", "as P1 dies", "if MCH", a bare mechanic name.</summary>
+/// <summary>
+/// Reads timing hints: "after 1st Hit", "after &lt;mechanic&gt;", "just before P3 ends", "as P1 dies", "if MCH", "(Late)",
+/// a bare mechanic name.
+/// </summary>
 internal static partial class HintParser
 {
     private static readonly HashSet<string> HitNouns = new(StringComparer.OrdinalIgnoreCase)
@@ -75,6 +85,10 @@ internal static partial class HintParser
 
     [GeneratedRegex(@"^\d{1,2}(?:st|nd|rd|th)$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex OrdinalNumber();
+
+    // A parenthetical that is only "late" or "later" ("(Late)", "(later!)").
+    [GeneratedRegex(@"^\s*late(?:r)?\s*[.!]*\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex LateWords();
 
     /// <summary>A hit noun ("Proteans", "stack", "towers") or an ordinal ("1st", "second", "last").</summary>
     internal static bool IsHintWord(string word) =>
@@ -146,6 +160,9 @@ internal static partial class HintParser
             }
         }
 
+        // "(Late)" alone: pressed just before the hit; the other hints still apply.
+        var late = hints.Any(h => LateWords().IsMatch(h));
+
         // 1. The end of a phase.
         foreach (var t in texts)
         {
@@ -202,6 +219,6 @@ internal static partial class HintParser
                 return new HintTiming { Anchor = named, Reanchored = true, JobCondition = condition };
         }
 
-        return condition is null ? HintTiming.None : new HintTiming { JobCondition = condition };
+        return condition is null && !late ? HintTiming.None : new HintTiming { JobCondition = condition, Late = late };
     }
 }

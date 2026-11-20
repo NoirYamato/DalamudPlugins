@@ -98,7 +98,7 @@ public partial class FightDataTests(ITestOutputHelper output)
         {
             if (!RepoFiles.Data.Exists("timelines/" + fight.TimelineFile))
                 continue; // reported by EveryFight_HasItsTimeline
-            var entries = TimelineEntries(RepoFiles.Data.ReadText("timelines/" + fight.TimelineFile));
+            var entries = TimelineEntries(TimelineText(fight));
             foreach (var m in fight.Mechanics.Where(m => m.Entry != null))
             {
                 checkedCount++;
@@ -110,6 +110,31 @@ public partial class FightDataTests(ITestOutputHelper output)
             }
         }
         output.WriteLine($"{checkedCount} mechanic entries checked");
+        Assert.Empty(problems);
+    }
+
+    /// <summary>The fight's cactbot timeline with its <c>timeline_additions</c> appended, as <see cref="FightLibrary.LoadTimeline"/> loads it.</summary>
+    private static string TimelineText(FightDefinition fight)
+    {
+        var text = RepoFiles.Data.ReadText("timelines/" + fight.TimelineFile);
+        return string.IsNullOrWhiteSpace(fight.TimelineAdditions) ? text : text.TrimEnd() + "\n" + fight.TimelineAdditions;
+    }
+
+    [Fact]
+    public void EveryHit_IsTheTimeOfATimelineEntry()
+    {
+        var problems = new List<string>();
+        foreach (var (path, fight) in Fights)
+        {
+            if (!RepoFiles.Data.Exists("timelines/" + fight.TimelineFile))
+                continue;
+            var times = TimelineEntries(TimelineText(fight)).Select(e => e.Time).ToList();
+            foreach (var m in fight.Mechanics)
+            {
+                foreach (var h in m.Hits.Where(h => !times.Any(t => Math.Abs(t - h) <= EntryTolerance)))
+                    problems.Add($"{path}: {m.Id} hit {h.ToString(CultureInfo.InvariantCulture)} is not the time of a timeline entry");
+            }
+        }
         Assert.Empty(problems);
     }
 
@@ -125,6 +150,44 @@ public partial class FightDataTests(ITestOutputHelper output)
                 Assert.True(m.Hits.Zip(m.Hits.Skip(1)).All(p => p.First <= p.Second), $"{path}: {m.Id} hits are not in time order");
             }
             Assert.True(fight.Mechanics.Zip(fight.Mechanics.Skip(1)).All(p => p.First.Hit <= p.Second.Hit), $"{path}: mechanics are not sorted by hit");
+        }
+    }
+
+    /// <summary>
+    /// Sub hits are damage times after the mechanic's first hit that are no timeline entries (only coverage counts them): in
+    /// time order, none of them a hit.
+    /// </summary>
+    [Fact]
+    public void SubHits_AreAfterTheFirstHit_InTimeOrder_AndNoHits()
+    {
+        var withSubHits = 0;
+        foreach (var (path, fight) in Fights)
+        {
+            foreach (var m in fight.Mechanics.Where(m => m.SubHits.Count > 0))
+            {
+                withSubHits++;
+                Assert.True(m.SubHits[0] > m.Hit, $"{path}: {m.Id} sub hit {m.SubHits[0]} is not after its hit {m.Hit}");
+                Assert.True(m.SubHits.Zip(m.SubHits.Skip(1)).All(p => p.First < p.Second), $"{path}: {m.Id} sub hits are not in time order");
+                Assert.DoesNotContain(m.SubHits, m.Hits.Contains);
+            }
+        }
+
+        Assert.True(withSubHits >= 2, "TOP's Diffuse Wave Cannon Kyrios and TEA's first Splash have sub hits");
+    }
+
+    /// <summary>The timing fields (press, heal_lead, series, sub_hits) time the calls planned on a mechanic against its damage: never on a marker.</summary>
+    [Fact]
+    public void TimingFields_AreOnlyOnDamage()
+    {
+        foreach (var (path, fight) in Fights)
+        {
+            foreach (var m in fight.Mechanics.Where(m => m.Kind == MechanicKind.Marker))
+            {
+                Assert.False(m.PressAfter, $"{path}: {m.Id} is a marker with press: after");
+                Assert.Null(m.HealLead);
+                Assert.False(m.Series, $"{path}: {m.Id} is a marker with series: true");
+                Assert.Empty(m.SubHits);
+            }
         }
     }
 

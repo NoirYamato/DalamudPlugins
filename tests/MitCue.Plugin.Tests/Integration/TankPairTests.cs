@@ -13,7 +13,7 @@ namespace MitCue.PluginTests.Integration;
 public class TankPairTests
 {
     /// <summary>LPDU's job-less "MT" calls: eight Reprisals and three Ramparts.</summary>
-    private static readonly string[] MtCalls = ["e027", "e044", "e083", "e089", "e115", "e121", "e145", "e172", "e216", "e245", "e279"];
+    private static readonly string[] MtCalls = ["e018", "e044", "e083", "e089", "e115", "e121", "e146", "e172", "e216", "e244", "e278"];
 
     private static FrameContext Frame(Job job, double now, params Job[] party)
     {

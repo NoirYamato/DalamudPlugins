@@ -164,6 +164,13 @@ public static class PlanSelection
         plan.Entries.Where(e => Applies(e, me));
 
     /// <summary>
+    /// True for a note for everyone: an entry that names no job, slot or column ("Use Personals" under LPDU TEA's
+    /// "Extras"). Every player of the plan gets it (<see cref="Applies"/>), so it says nothing about whether the plan has
+    /// calls for a job or seat: the plugin does not count it when it chooses a plan or column for the player.
+    /// </summary>
+    public static bool ForEveryone(PlanEntry e) => e.Who is not { } who || (who.Job is null && who.Slot is null && who.Assignee is null);
+
+    /// <summary>
     /// True when the entry is the player's. With a column chosen (<see cref="PlayerContext.AssigneeKey"/>), an entry of
     /// another column is the player's only when it names their slot, for their job, or for whoever plays the slot (no
     /// job) when the slot is one of their role (<see cref="Slots.Fits"/>): the slot is the player's seat whichever column

@@ -156,6 +156,10 @@ internal sealed class DataValidator(IDataSource data)
                 item.Problems.Add($"{m.Id} has no hits");
             else if (m.Hits[0] != m.Hit || !m.Hits.Zip(m.Hits.Skip(1)).All(p => p.First <= p.Second))
                 item.Problems.Add($"{m.Id}: hits must be in time order and start with hit {Inv(m.Hit)}");
+            if (m.SubHits.Count > 0 && (m.SubHits[0] <= m.Hit || !m.SubHits.Zip(m.SubHits.Skip(1)).All(p => p.First < p.Second) || m.SubHits.Any(m.Hits.Contains)))
+                item.Problems.Add($"{m.Id}: sub_hits must be after hit {Inv(m.Hit)}, in time order and none of the hits");
+            if (m.Kind == MechanicKind.Marker && TimingFields(m) is { Count: > 0 } fields)
+                item.Problems.Add($"{m.Id} is a marker with {string.Join(" and ", fields)}: timing fields time the calls planned on a mechanic against its damage, and a marker has none");
         }
 
         foreach (var (sheet, zeros) in fight.Calibration)
@@ -172,11 +176,16 @@ internal sealed class DataValidator(IDataSource data)
             return;
         }
 
+        // The fight's timeline_additions are part of the timeline the plugin plays (FightLibrary.LoadTimeline).
+        var entries = timeline.Entries.ToList();
+        if (!string.IsNullOrWhiteSpace(fight.TimelineAdditions))
+            entries.AddRange(TimelineParser.Parse(fight.TimelineAdditions, fight.Key + " timeline_additions").Entries);
+
         var checkedEntries = 0;
         foreach (var m in fight.Mechanics.Where(m => m.Entry != null))
         {
             checkedEntries++;
-            var named = timeline.Entries.Where(e => e.Name == m.Entry).ToList();
+            var named = entries.Where(e => e.Name == m.Entry).ToList();
             if (named.Any(e => Math.Abs(e.Time - m.Hit) <= EntryTolerance))
                 continue;
             item.Problems.Add(named.Count > 0
@@ -185,6 +194,24 @@ internal sealed class DataValidator(IDataSource data)
         }
 
         item.Summary += $"; {checkedEntries} entries checked against {fight.TimelineFile}";
+    }
+
+    /// <summary>
+    /// The fight file fields of a mechanic that change the automatic press times of the calls planned on it (sub_hits:
+    /// through multi-hit coverage).
+    /// </summary>
+    private static List<string> TimingFields(Mechanic m)
+    {
+        var fields = new List<string>();
+        if (m.PressAfter)
+            fields.Add("press: after");
+        if (m.HealLead is { } lead)
+            fields.Add("heal_lead: " + Inv(lead));
+        if (m.Series)
+            fields.Add("series: true");
+        if (m.SubHits.Count > 0)
+            fields.Add("sub_hits");
+        return fields;
     }
 
     private CheckedSection CheckActions()
@@ -352,7 +379,7 @@ internal sealed class DataValidator(IDataSource data)
                 applies |= expansions.Count > 0;
                 foreach (var expansion in expansions.Where(e => !e.NoteOnly))
                 {
-                    foreach (var name in expansion.Actions.Concat(expansion.Targeted))
+                    foreach (var name in expansion.ActionNames)
                     {
                         foreach (var level in SyncLevels)
                         {

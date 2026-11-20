@@ -16,8 +16,14 @@ public enum AssigneeKind
     /// <summary>A slot and a job: "H2 SCH", "SCH (H2)", "H1 WHM/AST".</summary>
     SlotAndJob,
 
-    /// <summary>A free name ending in a role word: "CM LB Tank", "Shield Healer", "Tanks".</summary>
+    /// <summary>A free name ending in a role word: "CM LB Tank", "Shield Healer", "Tanks", "Caster", "Phys Range".</summary>
     Custom,
+
+    /// <summary>
+    /// No player: a column of calls for whoever can press them ("Extras", "Other", "Utility"). Each call is for the jobs
+    /// whose own action it names ("PLD Wings", "Dismantle"); the column is no seat and has no role, slot or job.
+    /// </summary>
+    Anyone,
 }
 
 /// <summary>
@@ -77,13 +83,22 @@ public sealed partial record AssigneeHeader
         ["dps"] = Role.None,
     };
 
+    // The word before "Range" that makes it the physical ranged role ("Phys Range"); "Time Range" is no player.
+    private static readonly HashSet<string> PhysicalWords = new(StringComparer.OrdinalIgnoreCase) { "phys", "phys.", "physical", "p", "p." };
+
+    // Whole headers of a column that holds no player.
+    private static readonly HashSet<string> AnyoneHeaders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "extra", "extras", "other", "others", "misc", "misc.", "miscellaneous", "utility", "utilities",
+    };
+
     /// <summary>The plan model's assignee for this column.</summary>
     public Assignee ToAssignee() => new() { Key = this.Key, Slot = this.Slot, Job = this.Job };
 
     /// <summary>
     /// Parses a column header strictly: the whole text must be a slot, a job (abbreviation or English name), a slot
     /// with job(s), a slot phrase ("Main Tank", "Healer 2", "Healer #2"), a slot phrase with job(s) ("Healer 2 (SCH)") or a
-    /// short name ending in a role word ("CM LB Tank").
+    /// short name ending in a role word ("CM LB Tank", "Phys Range"), or a column of calls for anyone ("Extras").
     /// Anything else (titles like "TOP — White Mage", statistics like "Top WHMs (of 36)", plan text) is rejected.
     /// </summary>
     public static bool TryParse(string? header, [NotNullWhen(true)] out AssigneeHeader? result)
@@ -172,15 +187,31 @@ public sealed partial record AssigneeHeader
             return true;
         }
 
-        // 3. A short name ending in a role word: "CM LB Tank", "CM Rep Tank", "Shield Healer", "Tanks".
+        // 3. A short name ending in a role word: "CM LB Tank", "CM Rep Tank", "Shield Healer", "Tanks", "Caster"; "Range"
+        //    only after a word that says physical ("Phys Range"), so "Time Range" is no player.
         var words = text.Split(' ');
-        if (words.Length <= 4 && RoleWords.TryGetValue(words[^1], out var role) && words.All(w => w.All(c => char.IsLetter(c) || c is '-' or '\'' or '.')))
+        if (words.Length <= 4 && words.All(w => w.All(c => char.IsLetter(c) || c is '-' or '\'' or '.')) && RoleOfName(words) is { } role)
         {
             result = new AssigneeHeader { Key = key, Kind = AssigneeKind.Custom, Role = role };
             return true;
         }
 
+        // 4. No player: "Extras", "Other", "Utility".
+        if (AnyoneHeaders.Contains(text))
+        {
+            result = new AssigneeHeader { Key = key, Kind = AssigneeKind.Anyone, Role = Role.None };
+            return true;
+        }
+
         return false;
+    }
+
+    /// <summary>The role a name's last word gives ("CM LB Tank" → tank), or physical ranged for "Range" after a word that says physical ("Phys Range").</summary>
+    private static Role? RoleOfName(string[] words)
+    {
+        if (RoleWords.TryGetValue(words[^1], out var role))
+            return role;
+        return words.Length >= 2 && words[^1].Equals("range", StringComparison.OrdinalIgnoreCase) && PhysicalWords.Contains(words[^2]) ? Role.PhysicalRanged : null;
     }
 
     /// <summary>

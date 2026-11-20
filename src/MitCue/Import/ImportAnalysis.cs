@@ -33,6 +33,12 @@ internal sealed class TabStats
     public Dictionary<string, int> EntriesByColumn { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Entries per column for anyone ("Extras", <see cref="AssigneeKind.Anyone"/>), by header: calls for the jobs whose
+    /// actions they name, imported whichever columns are chosen, so they are no column to choose.
+    /// </summary>
+    public Dictionary<string, int> AnyoneEntries { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     /// The columns named in the tab's header row ("MT", "H2 SCH", "White Mage"), read from the cells without the
     /// importer: they choose the default tabs when the trial import is not available.
     /// </summary>
@@ -43,16 +49,19 @@ internal sealed class TabStats
 /// The result of a trial import of every tab and column (before the user chooses): entries per tab and per column, and
 /// the default choices — the tabs with the player's column, without tabs that repeat an already chosen tab (Carry the
 /// Clear has a WHM tab, a SCH tab and a combined tab), and the player's own columns. Without a trial import (the
-/// importer is not available) the columns named in each tab's header row choose the tabs.
+/// importer is not available) the columns named in each tab's header row choose the tabs. The calls of a column for
+/// anyone ("Extras") are counted apart: they are imported whichever columns are chosen.
 /// </summary>
 internal sealed class ImportAnalysis
 {
-    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason)
+    private ImportAnalysis(IReadOnlyList<TabStats> tabs, IReadOnlyList<Assignee> assignees, bool available, string? reason, SlashReading? documentSlashes = null, bool seraphNumbered = false)
     {
         this.Tabs = tabs;
         this.Assignees = assignees;
         this.Available = available;
         this.Reason = reason;
+        this.DocumentSlashes = documentSlashes;
+        this.SeraphNumbered = seraphNumbered;
     }
 
     /// <summary>Every tab of the document, in order.</summary>
@@ -67,17 +76,43 @@ internal sealed class ImportAnalysis
     /// <summary>Why the trial import did not run (user-facing), when <see cref="Available"/> is false.</summary>
     public string? Reason { get; }
 
+    /// <summary>
+    /// What "/" between two actions of one job means in the sheet alone (<see cref="ImportResult.DocumentSlashes"/>): the
+    /// automatic reading of every import of it, whichever tabs and columns. Null without a trial import.
+    /// </summary>
+    public SlashReading? DocumentSlashes { get; }
+
+    /// <summary>
+    /// True when the sheet numbers its Seraph calls, so that the importer reads a plain "Seraph" as "Seraph1", Summon
+    /// Seraph then Consolation (<see cref="ImportResult.SeraphNumbered"/>), whichever tabs and columns. False without a
+    /// trial import.
+    /// </summary>
+    public bool SeraphNumbered { get; }
+
     /// <summary>Statistics from a trial import result.</summary>
     public static ImportAnalysis FromResult(SheetDocument document, ImportResult result)
     {
         var tabs = BaseStats(document);
         var byName = tabs.ToDictionary(t => t.Name, StringComparer.OrdinalIgnoreCase);
+        var anyone = (result.AnyoneColumns ?? []).Where(c => c != null)
+            .GroupBy(c => (Tab: c.Tab.ToUpperInvariant(), c.Column))
+            .ToDictionary(g => g.Key, g => g.First().Header);
         foreach (var entry in result.Plan.Entries)
         {
             if (entry == null || CellRef.TryParse(entry.Src) is not { } src || !byName.TryGetValue(src.Tab, out var tab))
                 continue;
 
             tab.Entries++;
+            tab.CallKeys.Add(entry.Mechanic + "|" + CallOwner(entry));
+
+            // A call of a column for anyone ("Extras") has no assignee: it is imported whichever columns are chosen, so its
+            // jobs ("PLD", "MCH") are no columns to choose.
+            if (string.IsNullOrWhiteSpace(entry.Who?.Assignee) && anyone.TryGetValue((src.Tab.ToUpperInvariant(), src.Column), out var header))
+            {
+                tab.AnyoneEntries[header] = tab.AnyoneEntries.GetValueOrDefault(header) + 1;
+                continue;
+            }
+
             var column = ColumnKey(entry);
             if (column.Length > 0)
             {
@@ -85,8 +120,6 @@ internal sealed class ImportAnalysis
                     tab.Columns.Add(column);
                 tab.EntriesByColumn[column] = tab.EntriesByColumn.GetValueOrDefault(column) + 1;
             }
-
-            tab.CallKeys.Add(entry.Mechanic + "|" + CallOwner(entry));
         }
 
         var assignees = result.Plan.Assignees.Where(a => a != null && !string.IsNullOrWhiteSpace(a.Key)).ToList();
@@ -98,7 +131,7 @@ internal sealed class ImportAnalysis
                 assignees.Add(new Assignee { Key = key });
         }
 
-        return new ImportAnalysis(tabs, assignees, true, null);
+        return new ImportAnalysis(tabs, assignees, true, null, result.DocumentSlashes, result.SeraphNumbered);
     }
 
     /// <summary>Statistics without a trial import (the importer is not available).</summary>
@@ -127,6 +160,17 @@ internal sealed class ImportAnalysis
     /// <summary>Entries of a column in the given tabs.</summary>
     public int EntriesOf(string columnKey, IReadOnlyCollection<string> tabNames) =>
         this.Tabs.Where(t => tabNames.Contains(t.Name, StringComparer.OrdinalIgnoreCase)).Sum(t => t.EntriesByColumn.GetValueOrDefault(columnKey));
+
+    /// <summary>
+    /// The columns for anyone ("Extras") in the given tabs, by header, with their entries: always imported, whichever
+    /// columns are chosen (<see cref="TabStats.AnyoneEntries"/>).
+    /// </summary>
+    public List<(string Header, int Entries)> AnyoneColumnsIn(IReadOnlyCollection<string> tabNames) =>
+        this.Tabs.Where(t => tabNames.Contains(t.Name, StringComparer.OrdinalIgnoreCase))
+            .SelectMany(t => t.AnyoneEntries)
+            .GroupBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (g.First().Key, g.Sum(kv => kv.Value)))
+            .ToList();
 
     /// <summary>
     /// Default tab choice: tabs with entries for the player's columns (or with any entries when the player has no

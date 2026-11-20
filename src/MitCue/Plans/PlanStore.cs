@@ -77,13 +77,24 @@ internal sealed class PlanStore
         ["top/SCH"] = "1f75e1e8-7321-566c-ae86-8568019fe914", // plans/top-lpdu.yaml: LPDU TOP Mitigation
     };
 
+    /// <summary>
+    /// The bundled plans a configuration of version 1 (MitCue up to 0.1.0.6) did not have (<see cref="MigrateFromVersion1"/>):
+    /// LPDU's TEA plan, the first bundled TEA plan.
+    /// </summary>
+    private static readonly IReadOnlySet<string> BundledSinceVersion2 = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7", // plans/tea-lpdu.yaml: LPDU TEA Heal/Mit
+    };
+
     private readonly DirectoryInfo configDirectory;
     private readonly Configuration config;
     private readonly Action saveConfig;
     private readonly ErrorReporter errors;
     private readonly List<StoredPlan> plans = [];
-    private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping)> suggestions = [];
+    private readonly HashSet<string> bundledIds = new(StringComparer.OrdinalIgnoreCase); // also those a user copy replaces
+    private readonly Dictionary<(string PlanId, Job Job, string? Slot, ulong Party), (MitPlan Plan, PlayerMapping Mapping, UnknownSeat? Seat)> suggestions = [];
     private int suggestionsRevision = -1;
+    private bool userPlansUnread; // the last load could not list the plans folder or read a plan file (MigrateFromVersion1 waits)
 
     /// <summary>Creates the store; nothing is read until <see cref="EnsureLoaded"/>.</summary>
     public PlanStore(DirectoryInfo configDirectory, Configuration config, Action saveConfig, ErrorReporter errors)
@@ -126,17 +137,22 @@ internal sealed class PlanStore
             this.Reload();
     }
 
-    /// <summary>Re-reads bundled and user plans.</summary>
+    /// <summary>
+    /// Re-reads bundled and user plans (a configuration of an older version is brought up to date by the first load that
+    /// reads every plan file: <see cref="MigrateFromVersion1"/>).
+    /// </summary>
     public void Reload()
     {
         this.Loaded = true;
         this.Revision++;
         this.plans.Clear();
+        this.bundledIds.Clear();
         this.errors.ClearPrefix("plans.load");
 
         this.LoadBundled();
         this.LoadUser();
         this.SortPlans();
+        this.MigrateFromVersion1();
     }
 
     /// <summary>The plan with this id, or null.</summary>
@@ -301,7 +317,9 @@ internal sealed class PlanStore
     /// <summary>
     /// How many calls of a plan the overlay shows as <paramref name="job"/>: those of the saved or suggested column
     /// (<see cref="MappingFor"/>) in the configured slot. A role sheet (columns by slot only, LPDU's job-less "M1") has
-    /// calls for every job of the configured slot, although no column names the job (<see cref="JobsOf"/>).
+    /// calls for every job of the configured slot, although no column names the job (<see cref="JobsOf"/>). Notes for
+    /// everyone (<see cref="PlanSelection.ForEveryone"/>: LPDU TEA's "Use Personals") are not counted: the overlay shows
+    /// them, but they are no call of the job's, so a plan with only those has no calls for it.
     /// </summary>
     public int CallsFor(MitPlan plan, Job job)
     {
@@ -309,12 +327,13 @@ internal sealed class PlanStore
             return 0;
         var mapping = this.MappingFor(plan, job);
         var me = new PlayerContext(job, 0, mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, job), mapping.AssigneeKey);
-        return plan.Entries.Count(e => e != null && PlanSelection.Applies(e, me));
+        return plan.Entries.Count(e => e != null && !PlanSelection.ForEveryone(e) && PlanSelection.Applies(e, me));
     }
 
     /// <summary>
     /// The slots of <paramref name="job"/>'s role (<see cref="Slots.Fits"/>) in which the overlay would show calls of the
     /// plan, with the saved or suggested column for that slot: where "My usual party slot" has to be for a role sheet.
+    /// Notes for everyone are no call of a slot (<see cref="CallsFor"/>).
     /// </summary>
     private List<string> SlotsWithCallsFor(MitPlan plan, Job job)
     {
@@ -323,7 +342,7 @@ internal sealed class PlanStore
         {
             var mapping = this.SavedMapping(plan, job) ?? SuggestedMapping(plan, job, slot);
             var me = new PlayerContext(job, 0, mapping.Slot ?? slot, mapping.AssigneeKey);
-            if (plan.Entries.Exists(e => e != null && PlanSelection.Applies(e, me)))
+            if (plan.Entries.Exists(e => e != null && !PlanSelection.ForEveryone(e) && PlanSelection.Applies(e, me)))
                 slots.Add(slot);
         }
 
@@ -421,15 +440,22 @@ internal sealed class PlanStore
 
     /// <summary>
     /// The active plan for a fight and job: the user's choice when set, otherwise (<paramref name="automatic"/> = true)
-    /// the bundled plan meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan with a column
-    /// or entries for the job, else the first of the user's own plans for it. Null when there is none or the user chose
-    /// "no plan".
+    /// the bundled plan meant for the job (<see cref="BundledDefaults"/>), else the first other bundled plan by name with a
+    /// column or entries for the job, else the first of the user's own plans for it. Null when there is none or the user
+    /// chose "no plan". The share code of a bundled plan (a user plan with its id: <see cref="Save"/>) takes that plan's
+    /// place in this order too, so importing LPDU TEA's own share code keeps it the automatic plan, whatever other plans the
+    /// player has for the fight.
     /// </summary>
     /// <remarks>
     /// A plan the user imports (or receives as a share code) replaces a bundled plan only when they choose it: the import
     /// window's "Make it my active plan" and the share-code import's checkbox do that, and so does the Plans tab. So a
-    /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. Where no bundled plan
-    /// covers the job (TEA and DMU ship none), the user's own plan is the automatic one.
+    /// White Mage who imports the co-healer's LPDU share code to look at it keeps NoirMit - WHM. TEA's only bundled plan
+    /// (LPDU's TEA sheet) is the automatic one of every job it names, with no <see cref="BundledDefaults"/> entry. Where no
+    /// bundled plan covers the job (DMU ships none; LPDU's TEA sheet names no melee job but the Monk, as the calls of
+    /// its melee seats are job-less), the user's own plan is the automatic one. While the settings are still at version 1
+    /// (<see cref="MigrateFromVersion1"/> waits for a plan file it could not read), a job keeps the plan version 1 gave it
+    /// automatically, so LPDU TEA takes no own plan's place before the migration has pinned it; a job version 1 gave none
+    /// gets this order's plan.
     /// </remarks>
     public StoredPlan? ActivePlanFor(string fightKey, Job job, out bool automatic)
     {
@@ -446,16 +472,68 @@ internal sealed class PlanStore
         }
 
         automatic = true;
+        if (this.config.Version < 2 && this.Version1Plan(fightKey, job) is { } before)
+            return before;
         var candidates = this.ForFight(fightKey).Where(p => JobsOf(p.Plan).Contains(job)).ToList();
 
-        // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job.
+        // By id: a share code of a bundled plan replaces it in the list (same id) and stays the plan meant for the job, and
+        // in the bundled plans' place (user plans are listed first, so it is sorted in among them by name).
         if (BundledDefaults.TryGetValue(key, out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
             return recommended;
-        return candidates.FirstOrDefault(p => p.Origin == PlanOrigin.Bundled) ?? candidates.FirstOrDefault();
+        return candidates.Where(p => this.bundledIds.Contains(p.Id)).OrderBy(p => p.DisplayName, StringComparer.CurrentCultureIgnoreCase).FirstOrDefault()
+               ?? candidates.FirstOrDefault();
     }
 
     /// <summary>The active plan for a fight and job (see <see cref="ActivePlanFor(string, Job, out bool)"/>).</summary>
     public StoredPlan? ActivePlanFor(string fightKey, Job job) => this.ActivePlanFor(fightKey, job, out _);
+
+    /// <summary>
+    /// Settings version 1 to 2, once, on the first load that reads every plan file: where a fight and job now get another
+    /// plan automatically than with version 1, the plan they had is chosen for them, so an update never changes a player's
+    /// plan unasked. Version 1 had no bundled TEA plan (<see cref="BundledSinceVersion2"/>): the player's own TEA plan (the
+    /// first by name that names the job) was the job's automatic plan, also after a share-code import with the box unticked
+    /// or a plan file put in the plans folder, and LPDU TEA would now take its place. Version 1 also ranked the share code
+    /// of a bundled plan among the player's own plans (<see cref="ActivePlanFor(string, Job, out bool)"/>). Choices made in
+    /// /mitcue > Plans, "no plan" included, stay, and so do the automatic plans that are the same as before (TOP's
+    /// bundled plans).
+    /// </summary>
+    /// <remarks>
+    /// A plan file that could not be read (another program holds it, its cloud folder is offline) may hold the plan a job
+    /// had, or the one it chose: the migration then waits, with no pins, the settings at version 1 and nothing saved, and
+    /// the next load (the next start, "Reload plans") tries again. Until then each job keeps the plan version 1 gave it
+    /// (<see cref="ActivePlanFor(string, Job, out bool)"/>). A file that reads but does not parse is no plan in any version
+    /// and does not hold it up.
+    /// </remarks>
+    private void MigrateFromVersion1()
+    {
+        if (this.config.Version >= 2 || this.userPlansUnread)
+            return;
+
+        this.config.Version = 2; // ActivePlanFor gives version 2's automatic plans from here on
+        foreach (var fight in this.plans.Select(p => p.Plan.Fight).Distinct(StringComparer.OrdinalIgnoreCase).ToList())
+        {
+            foreach (var job in this.ForFight(fight).SelectMany(p => JobsOf(p.Plan)).Distinct().ToList())
+            {
+                var before = this.Version1Plan(fight, job);
+                var now = this.ActivePlanFor(fight, job, out var automatic);
+                if (automatic && before != null && !string.Equals(before.Id, now?.Id, StringComparison.OrdinalIgnoreCase))
+                    this.config.ActivePlans[ActiveKey(fight, job)] = before.Id;
+            }
+        }
+
+        this.SaveConfig();
+    }
+
+    /// <summary>The plan a fight and job got automatically with settings version 1 (<see cref="MigrateFromVersion1"/>).</summary>
+    private StoredPlan? Version1Plan(string fightKey, Job job)
+    {
+        var candidates = this.ForFight(fightKey)
+            .Where(p => JobsOf(p.Plan).Contains(job) && !(p.Origin == PlanOrigin.Bundled && BundledSinceVersion2.Contains(p.Id)))
+            .ToList();
+        if (BundledDefaults.TryGetValue(ActiveKey(fightKey, job), out var defaultId) && candidates.FirstOrDefault(p => string.Equals(p.Id, defaultId, StringComparison.OrdinalIgnoreCase)) is { } recommended)
+            return recommended;
+        return candidates.FirstOrDefault(p => p.Origin == PlanOrigin.Bundled) ?? candidates.FirstOrDefault();
+    }
 
     /// <summary>Sets the active plan: an id, <c>""</c> for "no plan", or null for automatic.</summary>
     public void SetActive(string fightKey, Job job, string? planId)
@@ -493,9 +571,50 @@ internal sealed class PlanStore
     {
         if (this.SavedMapping(plan, job) is { } saved)
             return saved;
+        var suggestion = this.Suggested(plan, job, party).Mapping;
+        return new PlayerMapping { AssigneeKey = suggestion.AssigneeKey, Slot = suggestion.Slot, IsSuggestion = true };
+    }
 
-        // The suggestion reads every entry of the plan a few times and the Plans tab asks for it every frame: cache it
-        // until the plans change (stored plans are replaced, not edited in place), the configured slot or the party does.
+    /// <summary>
+    /// The player's slot in a plan when the automatic column choice (<see cref="MappingFor"/>) has to guess it or cannot
+    /// give one (<see cref="ColumnSuggestion.SeatUnknown"/>: LPDU TEA's tanks and Monk without a usual slot); null when it
+    /// is known, and when the player chose their column for the plan and job.
+    /// </summary>
+    public UnknownSeat? UnknownSeatFor(MitPlan plan, Job job, IReadOnlyCollection<Job>? party = null) =>
+        this.SavedMapping(plan, job) != null ? null : this.Suggested(plan, job, party).Seat;
+
+    /// <summary>
+    /// What to tell a player whose slot in a plan is a guess or not known (<see cref="UnknownSeatFor"/>), or null: the slot
+    /// guessed, or that the slot's calls are not shown, and how to give the slot. "My usual party slot" gives it in every
+    /// plan; when the usual slot is one of another role (the player's main's), changing it would take that role's slot
+    /// calls away, so the slot's column under "My column" is named instead, as for a share code
+    /// (<see cref="ImportShareCode(string, Job, bool, out MitPlan?, out string)"/>), where that column has the job's calls
+    /// too (the plan has no column for the job).
+    /// </summary>
+    public string? SeatHint(MitPlan plan, Job job, IReadOnlyCollection<Job>? party = null)
+    {
+        if (this.UnknownSeatFor(plan, job, party) is not { } seat)
+            return null;
+
+        // The slots to choose from (the others than the one guessed) and their columns: LPDU TEA's "Tank 2".
+        var slots = seat.Slots.Where(s => s != seat.Guess).ToList();
+        var columns = slots.Select(slot => plan.Assignees.FirstOrDefault(a => (a.Job is null or Job.None) && Slots.TryNormalize(a.Slot, out var s) && s == slot)?.Key).ToList();
+        var byColumn = columns.TrueForAll(c => c != null) && ColumnSuggestion.JobColumn(plan, job, this.config.DefaultSlot, party) == null;
+        const string UsualSlot = "set \"My usual party slot\" in /mitcue > General";
+        var column = $"choose {string.Join(" or ", columns.Select(c => $"\"{c}\""))} under \"My column\" in /mitcue > Plans";
+        var how = !byColumn ? UsualSlot : this.config.DefaultSlot == null ? $"{UsualSlot}, or {column}" : column;
+        return seat.Guess != null
+            ? $"Your slot is a guess: {seat.Guess} (the plan has {job} calls in {string.Join(" and ", seat.Slots)}). If you play {string.Join(" or ", slots)}, {how}."
+            : $"Your slot ({string.Join(" or ", seat.Slots)}) is not known, so its calls are not shown: {how}.";
+    }
+
+    /// <summary>
+    /// The automatic column choice and its unknown slot for a plan and job, cached: they read every entry of the plan a few
+    /// times and the Plans tab asks for them every frame. Kept until the plans change (stored plans are replaced, not edited
+    /// in place), the configured slot or the party does.
+    /// </summary>
+    private (MitPlan Plan, PlayerMapping Mapping, UnknownSeat? Seat) Suggested(MitPlan plan, Job job, IReadOnlyCollection<Job>? party)
+    {
         if (this.suggestionsRevision != this.Revision)
         {
             this.suggestions.Clear();
@@ -505,11 +624,11 @@ internal sealed class PlanStore
         var key = (plan.Id, job, this.config.DefaultSlot, party is { Count: > 0 } ? PartyJobs.Mask(party) : 0UL);
         if (!this.suggestions.TryGetValue(key, out var suggestion) || !ReferenceEquals(suggestion.Plan, plan))
         {
-            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot, party));
+            suggestion = (plan, SuggestedMapping(plan, job, this.config.DefaultSlot, party), ColumnSuggestion.SeatUnknown(plan, job, this.config.DefaultSlot, party));
             this.suggestions[key] = suggestion;
         }
 
-        return new PlayerMapping { AssigneeKey = suggestion.Mapping.AssigneeKey, Slot = suggestion.Mapping.Slot, IsSuggestion = true };
+        return suggestion;
     }
 
     /// <summary>
@@ -697,6 +816,7 @@ internal sealed class PlanStore
             {
                 var plan = PlanSerializer.FromYaml(source.ReadText(path));
                 Normalize(plan);
+                this.bundledIds.Add(plan.Id);
                 if (this.Get(plan.Id) == null)
                     this.plans.Add(new StoredPlan(plan, PlanOrigin.Bundled, path));
             }
@@ -709,6 +829,7 @@ internal sealed class PlanStore
 
     private void LoadUser()
     {
+        this.userPlansUnread = false;
         string[] files;
         try
         {
@@ -716,6 +837,7 @@ internal sealed class PlanStore
         }
         catch (Exception ex)
         {
+            this.userPlansUnread = true;
             this.errors.Report("plans.load.user", "Listing saved plans", ex);
             return;
         }
@@ -723,9 +845,12 @@ internal sealed class PlanStore
         Array.Sort(files, StringComparer.Ordinal);
         foreach (var file in files)
         {
+            var read = false;
             try
             {
-                var plan = PlanSerializer.FromJson(File.ReadAllText(file));
+                var json = File.ReadAllText(file);
+                read = true;
+                var plan = PlanSerializer.FromJson(json);
                 Normalize(plan);
 
                 // A user plan overrides a bundled plan with the same id; duplicate user ids keep the first file.
@@ -743,6 +868,8 @@ internal sealed class PlanStore
             }
             catch (Exception ex)
             {
+                if (!read)
+                    this.userPlansUnread = true; // not read (locked, offline): it may hold a plan, unlike a file that does not parse
                 this.errors.Report("plans.load.user." + Path.GetFileName(file), $"Reading saved plan {Path.GetFileName(file)}", ex);
             }
         }

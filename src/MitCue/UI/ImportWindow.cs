@@ -7,6 +7,7 @@ using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using MitCue.Core;
+using MitCue.Core.Actions;
 using MitCue.Core.Fights;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
@@ -21,7 +22,8 @@ namespace MitCue.UI;
 /// The import window (DESIGN §6, milestone 4), step by step:
 /// 1. Source: a Google Sheets/Docs link (downloaded on "Fetch"), cells pasted from Google Sheets, or plan YAML pasted back
 ///    from an AI chat (with a "Copy AI prompt" button for that route);
-/// 2. Options: fight, tabs, columns, plan name, calibration preset (defaults from a trial import);
+/// 2. Options: fight, tabs, columns, plan name, calibration preset, what "/" between actions means (defaults from a
+///    trial import);
 /// 3. Review: every entry with its mechanic, timing, actions, who, flags, problems and source cell; mechanic, offset,
 ///    flags and what to press can be edited (a fixed note can be remembered as a personal alias) and entries deleted;
 /// 4. Save: stored with <see cref="PlanStore.Save"/>, optionally made the active plan for the current job, with the
@@ -88,6 +90,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
     private string planName = string.Empty;
     private bool planNameTouched;
     private string calibrationKey = string.Empty;
+    private SlashReading slashes = SlashReading.Auto;
     private string? defaultTabsBasis;
 
     // Save step.
@@ -609,6 +612,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         var fight = data.FightForTerritory(this.plugin.Frame.Territory) ?? data.GetFight(this.fightKey) ?? data.GetFight("top") ?? data.FightList.FirstOrDefault();
         this.fightKey = fight?.Key ?? string.Empty;
         this.calibrationKey = fight != null ? ImportPipeline.GuessCalibration(fight, loaded.Document.Title) ?? string.Empty : string.Empty;
+        this.slashes = SlashReading.Auto;
         foreach (var tab in loaded.Document.Tabs)
             this.selectedTabs.Add(tab.Name);
 
@@ -785,6 +789,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
             sourceText = SheetText.ForPrompt(this.source.Document, tabs);
         }
 
+        // With the sheet's text, the reading of "/" and of a plain "Seraph" MitCue's importer uses for it, so the AI reads the
+        // sheet the same way.
+        var (slashes, slashesChosen) = sourceText != null ? PromptSlashes(this.slashes, this.analysis) : (null, false);
         var prompt = LlmPrompt.Build(new LlmPromptInput
         {
             Fight = fight,
@@ -796,6 +803,9 @@ internal sealed partial class ImportWindow : Window, IDisposable
             PlanName = this.source != null ? DefaultPlanName(this.source, null) : null,
             Slot = this.plugin.Config.DefaultSlot,
             DataNote = notes.Count > 0 ? string.Join(' ', notes) : null,
+            Slashes = slashes,
+            SlashesChosen = slashesChosen,
+            SeraphNumbered = sourceText != null && PromptSeraph(this.analysis),
         });
 
         ImGui.SetClipboardText(prompt);
@@ -807,6 +817,22 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (notes.Count > 0)
             this.promptMessage += " Some data was missing: " + string.Join(' ', notes);
     }
+
+    /// <summary>
+    /// What MitCue's importer reads "/" between two actions of one job as in the loaded sheet, for the AI prompt
+    /// (<see cref="LlmPromptInput.Slashes"/>): the Options step's Slashes choice, else the sheet's own reading from the
+    /// trial import (every tab counts, so it is the same for the tabs in the prompt); null when neither is known (the trial
+    /// import has not run, or could not).
+    /// </summary>
+    internal static (SlashReading? Reading, bool Chosen) PromptSlashes(SlashReading choice, ImportAnalysis? analysis) =>
+        choice != SlashReading.Auto ? (choice, true) : (analysis is { Available: true } ? analysis.DocumentSlashes : null, false);
+
+    /// <summary>
+    /// Whether the AI prompt says that a plain "Seraph" means "Seraph1" in the loaded sheet
+    /// (<see cref="LlmPromptInput.SeraphNumbered"/>): the trial import found that the sheet numbers its Seraph calls (every
+    /// tab counts, so it holds for the tabs in the prompt); false when it did not, or did not run.
+    /// </summary>
+    internal static bool PromptSeraph(ImportAnalysis? analysis) => analysis is { Available: true, SeraphNumbered: true };
 
     private void StartParseYaml()
     {
@@ -905,7 +931,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             this.StartAnalysis(src, fight, key);
 
         ImGui.Spacing();
-        var bottom = ImGui.GetFrameHeightWithSpacing() * 4 + Scale(16);
+        var bottom = ImGui.GetFrameHeightWithSpacing() * 5 + Scale(16);
         using (var lists = ImRaii.Child("##optionLists", new Vector2(-1, -bottom), false))
         {
             if (lists)
@@ -945,6 +971,22 @@ internal sealed partial class ImportWindow : Window, IDisposable
             "Sheets write times from the pull or from each phase's start. MitCue fits each phase's start from the rows it recognises; " +
             "for known sheets (e.g. carry_the_clear) measured start times are used when the fit is not possible. Leave it on automatic unless the review shows odd times.");
 
+        using (ImRaii.Disabled(this.jobs.Busy))
+        {
+            ImGui.SetNextItemWidth(Scale(260));
+            using var combo = ImRaii.Combo("Slashes", SlashLabel(this.slashes));
+            if (combo)
+            {
+                foreach (var reading in new[] { SlashReading.Auto, SlashReading.Either, SlashReading.All })
+                {
+                    if (ImGui.Selectable(SlashLabel(reading), this.slashes == reading))
+                        this.slashes = reading;
+                }
+            }
+        }
+
+        HelpMarker(SlashesHelp);
+
         var (canImport, why) = this.CanImport(data);
         using (ImRaii.Disabled(!canImport || this.jobs.Busy))
         {
@@ -977,6 +1019,26 @@ internal sealed partial class ImportWindow : Window, IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The Slashes choice's help: the importer's automatic reading exactly (PlanImporter's "slash-reading" diagnostic says
+    /// the same with the cells it counted).
+    /// </summary>
+    internal const string SlashesHelp =
+        "What \"X/Y\" between two actions of one job means. Automatic: all of them when no cell joins actions another way " +
+        "(\"+\", \",\", \"&\", \";\", \"|\", an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+        "and at least two cells list several actions of one job with \"/\", one of them three or more (Soil/Reci/Deploy/Whisper); " +
+        "else either one (TBN/Oblation next to \"Living Dead + ...\"). " +
+        "The cells of every tab count, whichever tabs and columns you import. The review's notes about the whole import say " +
+        "which reading was used.";
+
+    /// <summary>The Slashes choice as the combo shows it.</summary>
+    internal static string SlashLabel(SlashReading reading) => reading switch
+    {
+        SlashReading.Either => "either one (TBN/Oblation)",
+        SlashReading.All => "all of them (Soil/Succor)",
+        _ => "(automatic)",
+    };
 
     private (bool Ok, string Why) CanImport(Data.CoreData data)
     {
@@ -1090,7 +1152,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
         }
 
         var columns = a.ColumnsIn(this.selectedTabs);
-        if (columns.Count == 0)
+        var anyone = a.AnyoneColumnsIn(this.selectedTabs);
+        if (columns.Count == 0 && anyone.Count == 0)
         {
             ImGui.TextDisabled("No columns with calls in the chosen tabs.");
             return;
@@ -1119,6 +1182,10 @@ internal sealed partial class ImportWindow : Window, IDisposable
                 ImGui.TextColored(ColorOk, job != Job.None ? $"(you: {job})" : "(your slot)");
             }
         }
+
+        // A column for anyone ("Extras") is no player's: its calls are for the jobs they name, always imported.
+        foreach (var (header, entries) in anyone)
+            ImGui.TextDisabled($"Always imported: {header} - {Plural(entries, "call")} for the jobs they name");
     }
 
     private static string AssigneeLabel(Assignee a)
@@ -1144,15 +1211,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
             return;
         }
 
-        var options = new ImportOptions
-        {
-            Fight = fight,
-            Actions = data.Actions,
-            Aliases = data.Aliases,
-            SourceUrl = src.Url,
-            CalibrationKey = this.calibrationKey.Length > 0 ? this.calibrationKey : null,
-            ImportedDate = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-        };
+        var options = OptionsFor(fight, data.Actions, data.Aliases, src.Url, this.calibrationKey, this.slashes, DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
         this.jobs.RunSync(
             AnalysisLabel,
             _ => ImportPipeline.Analyze(src.Document, options),
@@ -1215,18 +1274,7 @@ internal sealed partial class ImportWindow : Window, IDisposable
         var columns = this.analysis is { Available: true } a && a.ColumnsIn(this.selectedTabs).Count > 0 ? this.ChosenColumns() : null;
         var name = this.planName.Trim().Length > 0 ? this.planName.Trim() : DefaultPlanName(src, null);
         var date = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-        var options = new ImportOptions
-        {
-            Fight = fight,
-            Actions = data.Actions,
-            Aliases = data.Aliases!,
-            PlanName = name,
-            SourceUrl = src.Url,
-            CalibrationKey = this.calibrationKey.Length > 0 ? this.calibrationKey : null,
-            Tabs = tabs,
-            Assignees = columns,
-            ImportedDate = date,
-        };
+        var options = OptionsFor(fight, data.Actions, data.Aliases!, src.Url, this.calibrationKey, this.slashes, date, name, tabs, columns);
 
         var choices = this.OptionsKey();
         this.SetStatus(string.Empty, false);
@@ -1269,14 +1317,46 @@ internal sealed partial class ImportWindow : Window, IDisposable
             ex => this.SetStatus(ImportPipeline.Explain(ex, "The sheet importer"), true));
     }
 
+    /// <summary>
+    /// The importer's options for the Options step's choices. The trial import (every tab and column, no plan name) and the
+    /// real import (the chosen tabs and columns) read the sheet alike: same fight, data, calibration preset and slashes.
+    /// </summary>
+    internal static ImportOptions OptionsFor(
+        FightDefinition fight,
+        IActionCatalog actions,
+        AliasDictionary aliases,
+        string? url,
+        string calibrationKey,
+        SlashReading slashes,
+        string date,
+        string? planName = null,
+        IReadOnlyList<string>? tabs = null,
+        IReadOnlyList<string>? columns = null) => new()
+    {
+        Fight = fight,
+        Actions = actions,
+        Aliases = aliases,
+        PlanName = planName,
+        SourceUrl = url,
+        CalibrationKey = calibrationKey.Length > 0 ? calibrationKey : null,
+        Slashes = slashes,
+        Tabs = tabs,
+        Assignees = columns,
+        ImportedDate = date,
+    };
+
     /// <summary>The Options step's choices as one string, to tell whether they changed while an import ran.</summary>
-    private string OptionsKey() => string.Join(
+    private string OptionsKey() => OptionsKey(this.fightKey, this.calibrationKey, this.slashes, this.planName, this.selectedTabs, this.ChosenColumns());
+
+    /// <summary>The Options step's choices as one string (tabs and columns in any order).</summary>
+    internal static string OptionsKey(string fightKey, string calibrationKey, SlashReading slashes, string planName, IEnumerable<string> tabs, IEnumerable<string> columns) => string.Join(
         '\u0001',
-        this.fightKey,
-        this.calibrationKey,
-        this.planName,
-        string.Join('\u0002', this.selectedTabs.Order(StringComparer.OrdinalIgnoreCase)),
-        string.Join('\u0002', this.ChosenColumns().Order(StringComparer.OrdinalIgnoreCase)));
+        fightKey,
+        calibrationKey,
+        slashes.ToString(),
+        planName,
+        string.Join('\u0002', tabs.Order(StringComparer.OrdinalIgnoreCase)),
+        string.Join('\u0002', columns.Order(StringComparer.OrdinalIgnoreCase)));
 
     private bool DrawFightCombo(string label, ref string key)
     {
@@ -1322,7 +1402,8 @@ internal sealed partial class ImportWindow : Window, IDisposable
         {
             // Counted the way the overlay selects them, with the column choice the plan is saved with.
             var choice = this.ColumnChoiceFor(model);
-            ImGui.TextColored(choice.Mine > 0 ? ColorOk : ColorWarning, $"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}" + (choice.Mine == 0 ? ": check the columns you imported." : "."));
+            var (applies, warning) = AppliesLine(choice, job);
+            ImGui.TextColored(warning ? ColorWarning : ColorOk, applies);
             if (choice.Save)
             {
                 ImGui.TextDisabled(
@@ -1398,6 +1479,16 @@ internal sealed partial class ImportWindow : Window, IDisposable
         if (this.saveMessage.Length > 0)
             ImGui.TextColoredWrapped(ColorError, this.saveMessage);
     }
+
+    /// <summary>
+    /// The Save step's line about the entries the overlay will show the player, and whether it is a warning: it is when
+    /// none of them is a call of the player's (<see cref="ColumnChoice.Seat"/>), as the imported columns are then not
+    /// theirs. Notes for everyone ("Use Personals") are shown to every player of the plan, so they alone are no such call.
+    /// </summary>
+    internal static (string Text, bool Warning) AppliesLine(ColumnChoice choice, Job job) =>
+        choice.Seat > 0 ? ($"{Plural(choice.Mine, "entry applies", "entries apply")} to you as {job}.", false)
+        : choice.Mine > 0 ? ($"Only {Plural(choice.Mine, "note for everyone applies", "notes for everyone apply")} to you as {job}: check the columns you imported.", true)
+        : ($"{Plural(0, "entry applies", "entries apply")} to you as {job}: check the columns you imported.", true);
 
     /// <summary>
     /// The column choice the plan gets for the player's job and the entries the overlay will then show, for the party

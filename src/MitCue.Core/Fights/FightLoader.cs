@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using MitCue.Core.Data;
 using MitCue.Core.Timelines;
@@ -19,6 +20,10 @@ namespace MitCue.Core.Fights;
 /// in time order and the first of them is <c>hit</c>. Mechanics are returned sorted by hit time (ties keep file order).
 /// </para>
 /// <para>
+/// Optional per mechanic <c>sub_hits</c> (<see cref="Mechanic.SubHits"/>): later damage times that are no timeline entries,
+/// which only multi-hit coverage counts; each after <c>hit</c>, in time order, and none of them one of <c>hits</c>.
+/// </para>
+/// <para>
 /// Optional sheet presets: <c>calibration</c> (sheet key → phase id → timeline seconds of sheet 0:00) and
 /// <c>row_offsets</c> (sheet key → mechanic id → seconds from the mechanic's first hit to the event the sheet's row time
 /// marks, see <see cref="FightDefinition.RowOffsets"/>; the mechanic ids must exist).
@@ -27,6 +32,13 @@ namespace MitCue.Core.Fights;
 /// Optional <c>timeline_additions</c>: cactbot timeline sync lines appended to the timeline when it is loaded
 /// (<see cref="FightDefinition.TimelineAdditions"/>); every line must be an entry with a sync and no label jump (no label
 /// or hideall statements: they would change the cactbot file's).
+/// </para>
+/// <para>
+/// Optional per mechanic, for the automatic press times of calls planned there without a time
+/// (<see cref="Reminders.TimingRules.ForEntry"/>): <c>press: after</c> (<see cref="Mechanic.PressAfter"/>: pressed after
+/// the hit, like heals), <c>heal_lead</c> (<see cref="Mechanic.HealLead"/>: seconds before the hit for heals; positive,
+/// and not with <c>press: after</c>) and <c>series: true</c> (<see cref="Mechanic.Series"/>: a call for a later hit is
+/// pressed after the hit before it; at least two hits).
 /// </para>
 /// </remarks>
 public static class FightLoader
@@ -161,6 +173,7 @@ public static class FightLoader
             lines[id] = node.Start.Line;
 
             var (hit, hits) = ReadHits(node, m);
+            var subHits = ReadSubHits(node, m, hit, hits);
 
             var phase = YamlNodes.GetString(node, "phase", m)?.Trim();
             if (string.IsNullOrEmpty(phase))
@@ -181,6 +194,18 @@ public static class FightLoader
             if (YamlNodes.GetString(node, "kind", m) is { } kindText && !TryParseKind(kindText, out kind))
                 throw new FormatException($"{m}: unknown kind '{kindText}' (expected {KindNames}).");
 
+            var press = YamlNodes.GetString(node, "press", m)?.Trim();
+            if (press is not null && !string.Equals(press, "after", StringComparison.OrdinalIgnoreCase))
+                throw new FormatException($"{m}: unknown press '{press}' (expected after: calls without a time are pressed after the hit).");
+            var healLead = YamlNodes.GetDouble(node, "heal_lead", m);
+            if (healLead is { } lead && lead <= 0)
+                throw new FormatException($"{m}: 'heal_lead' must be a positive number of seconds before the hit, not {lead.ToString(CultureInfo.InvariantCulture)}.");
+            if (healLead is not null && press is not null)
+                throw new FormatException($"{m}: 'heal_lead' and 'press: after' contradict each other (heals before the hit, every call after it).");
+            var series = YamlNodes.GetBool(node, "series", m) ?? false;
+            if (series && hits.Count < 2)
+                throw new FormatException($"{m}: 'series' needs at least two hits (a call for a later hit is pressed after the hit before it).");
+
             var entry = YamlNodes.GetString(node, "entry", m);
             var name = YamlNodes.GetString(node, "name", m)?.Trim();
             mechanics.Add(new Mechanic
@@ -190,9 +215,13 @@ public static class FightLoader
                 Phase = phase,
                 Hit = hit,
                 Hits = hits,
+                SubHits = subHits,
                 Entry = string.IsNullOrEmpty(entry) ? null : entry,
                 Kind = kind,
                 Aliases = YamlNodes.GetStringList(node, "aliases", m),
+                PressAfter = press is not null,
+                HealLead = healLead,
+                Series = series,
             });
         }
         return mechanics;
@@ -224,6 +253,28 @@ public static class FightLoader
                 : $"{context}: 'hit' ({first}) is not one of 'hits' ([{string.Join(", ", hits)}]).");
         }
         return (hits[0], hits);
+    }
+
+    /// <summary>
+    /// The optional <c>sub_hits</c> (<see cref="Mechanic.SubHits"/>): each after <paramref name="hit"/>, in time order, and
+    /// none of them one of <paramref name="hits"/> (a damage time with a timeline entry is a hit).
+    /// </summary>
+    private static IReadOnlyList<double> ReadSubHits(YamlMappingNode node, string context, double hit, IReadOnlyList<double> hits)
+    {
+        const double tolerance = 1e-6;
+        var subHits = YamlNodes.GetDoubleList(node, "sub_hits", context);
+        for (var i = 0; i < subHits.Count; i++)
+        {
+            var time = subHits[i].ToString(CultureInfo.InvariantCulture);
+            if (subHits[i] <= hit + tolerance)
+                throw new FormatException($"{context}: 'sub_hits' are damage times after 'hit' ({hit.ToString(CultureInfo.InvariantCulture)}), not {time}.");
+            if (i > 0 && subHits[i] <= subHits[i - 1] + tolerance)
+                throw new FormatException($"{context}: 'sub_hits' must be in time order ({subHits[i - 1].ToString(CultureInfo.InvariantCulture)} comes before {time}).");
+            if (hits.Any(h => Math.Abs(h - subHits[i]) <= tolerance))
+                throw new FormatException($"{context}: 'sub_hits' has {time}, one of 'hits' (a damage time with a timeline entry is a hit).");
+        }
+
+        return subHits;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>> ReadCalibration(YamlMappingNode root, string context)

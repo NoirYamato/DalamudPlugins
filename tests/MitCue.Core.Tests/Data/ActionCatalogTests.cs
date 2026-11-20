@@ -176,6 +176,22 @@ public class ActionCatalogTests
         Assert.Equal(10, star.Lead);
         Assert.Contains(star.FollowUps, f => f.Id == 8324 && f.Name == "Stellar Detonation");
 
+        var neutral = A("Neutral Sect"); // a buff pressed in time for the Aspected Helios that puts up its barrier
+        Assert.Equal((ActionKind.Buff, UseTiming.Before, 4.5), (neutral.Kind, neutral.When, neutral.Lead!.Value));
+        Assert.Equal(A("Aspected Helios").CastTime, neutral.BarrierCast);     // the GCD that puts up the barrier, to 96
+        Assert.Equal(A("Helios Conjunction").CastTime, neutral.BarrierCast);  // and from 96 (level 100)
+        Assert.Null(A("Collective Unconscious").BarrierCast);
+        var wings = A("Passage of Arms");  // a channel any action ends: pressed last
+        Assert.Equal((ActionKind.PartyMit, UseTiming.Before, 2.0), (wings.Kind, wings.When, wings.Lead!.Value));
+        Assert.Equal(["Lightspeed", "Swiftcast"], Catalog.All.Where(a => a.InstantNextCast).Select(a => a.Name));  // the next spell is instant
+        Assert.True(A("Aspected Helios").CastTime <= 2.5 && A("Helios Conjunction").CastTime <= 2.5);  // Lightspeed's −2.5 s: instant
+
+        // The GCD the game locks after Eukrasia: 1 s (combat logs), not the Action sheet's 2.5 s; the Eukrasian actions 1.5 s.
+        var eukrasia = A("Eukrasia");
+        Assert.Equal((true, 58, 1.0), (eukrasia.IsGcd, eukrasia.CooldownGroup, eukrasia.RecastAt(90)));
+        Assert.Equal(eukrasia.Id, A("Eukrasian Prognosis").FollowUpOf);
+        Assert.Equal(1.5, A("Eukrasian Prognosis").RecastAt(90));
+
         var caress = A("Divine Caress");
         Assert.Equal(3881u, caress.RequiresStatus);
         Assert.Equal(16536u, caress.FollowUpOf);
@@ -527,6 +543,9 @@ public class ActionCatalogTests
     [InlineData("recast: 60", "recast: sixty", "sixty")]
     [InlineData("schema: mitcue-actions/1", "schema: mitcue-actions/2", "mitcue-actions/2")]
     [InlineData("jobs: [PLD, WAR]", "jobs: [PLD, WAR", "YAML")]
+    [InlineData("icon: 806", "icon: 806\n    lead: 0", "'lead' must be a positive number")]
+    [InlineData("icon: 806", "icon: 806\n    barrier_cast: -1.5", "'barrier_cast' must be a positive number")]
+    [InlineData("icon: 806", "icon: 806\n    barrier_cast: .nan", "'barrier_cast' must be a positive number")]
     public void Load_ReportsWhatIsWrong(string find, string replace, string expectedInMessage)
     {
         var yaml = MinimalFile.Replace(find, replace, StringComparison.Ordinal);

@@ -173,6 +173,23 @@ public enum DiagnosticSeverity
 /// <param name="Src">Source cell reference, if any.</param>
 public sealed record ImportDiagnostic(DiagnosticSeverity Severity, string Code, string Message, string? Src = null);
 
+/// <summary>What "X/Y" between two actions of one job means in a sheet ("TBN/Oblation", "Soil/Succor").</summary>
+public enum SlashReading
+{
+    /// <summary>
+    /// Decided from the document: "and" when no assignment cell joins actions any other way ("+", ",", "&amp;", ";", "|",
+    /// arrows, a spaced " / ", line breaks, gaps of three or more spaces) and slashes list several actions of one job, else
+    /// either one.
+    /// </summary>
+    Auto,
+
+    /// <summary>Either one, done when any of them is used: LPDU TOP's "TBN/Oblation", next to "Living Dead + …".</summary>
+    Either,
+
+    /// <summary>All of them, like "+": LPDU TEA's "Soil/Reci/Deploy/Whisper".</summary>
+    All,
+}
+
 public sealed class ImportOptions
 {
     public required FightDefinition Fight { get; init; }
@@ -195,8 +212,14 @@ public sealed class ImportOptions
     /// <summary>Only import these tabs (null = every tab that looks like a plan table).</summary>
     public IReadOnlyList<string>? Tabs { get; init; }
 
-    /// <summary>Only import these assignee columns (null = all).</summary>
+    /// <summary>
+    /// Only import these assignee columns (null = all). A column that is no player ("Extras",
+    /// <see cref="AssigneeKind.Anyone"/>) is imported whichever columns are chosen.
+    /// </summary>
     public IReadOnlyList<string>? Assignees { get; init; }
+
+    /// <summary>What "X/Y" between two actions of one job means (default: decided from the document, see the "slash-reading" diagnostic).</summary>
+    public SlashReading Slashes { get; init; } = SlashReading.Auto;
 
     /// <summary>ISO date to stamp on the plan (tests pass a fixed value).</summary>
     public string? ImportedDate { get; init; }
@@ -226,9 +249,35 @@ public sealed class ImportResult
     /// <summary>Largest absolute residual of the fit per phase (seconds).</summary>
     public IReadOnlyDictionary<string, double> PhaseSpread { get; init; } = new Dictionary<string, double>();
 
+    /// <summary>
+    /// What "/" between two actions of one job means in the document alone (<see cref="SlashReading.All"/> or
+    /// <see cref="SlashReading.Either"/>): the automatic reading (<see cref="SlashReading.Auto"/>), also when
+    /// <see cref="ImportOptions.Slashes"/> chose the other one. The "slash-reading" diagnostic says which was used.
+    /// </summary>
+    public SlashReading DocumentSlashes { get; init; } = SlashReading.Either;
+
+    /// <summary>
+    /// True when the document numbers its Seraph calls ("Seraph1": Summon Seraph and its first Consolation, "Seraph2": the
+    /// second), so that a plain "Seraph" in it means "Seraph1" too, as the importer reads it (the "seraph-reading"
+    /// diagnostic). Every plan tab counts, whichever tabs and columns are imported.
+    /// </summary>
+    public bool SeraphNumbered { get; init; }
+
     /// <summary>Every mechanic row of the imported tabs (with or without assignments) and the mechanic it was matched to, for review.</summary>
     public IReadOnlyList<ImportedRow> Rows { get; init; } = [];
+
+    /// <summary>
+    /// The imported tabs' columns that are no player ("Extras", <see cref="AssigneeKind.Anyone"/>): their calls are entries
+    /// for the jobs whose actions they name, with no assignee, and they are imported whichever columns are chosen.
+    /// </summary>
+    public IReadOnlyList<AnyoneColumn> AnyoneColumns { get; init; } = [];
 }
+
+/// <summary>A column of calls for whoever can press them ("Extras"; <see cref="AssigneeKind.Anyone"/>).</summary>
+/// <param name="Tab">Tab name.</param>
+/// <param name="Column">0-based column index.</param>
+/// <param name="Header">The header text ("Extras").</param>
+public sealed record AnyoneColumn(string Tab, int Column, string Header);
 
 /// <summary>A mechanic row of an imported tab and what the importer made of it.</summary>
 /// <param name="Tab">Tab name.</param>

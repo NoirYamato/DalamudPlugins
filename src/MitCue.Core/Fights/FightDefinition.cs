@@ -46,12 +46,42 @@ public sealed class Mechanic
     /// <summary>All damage times when multi-hit (contains <see cref="Hit"/>).</summary>
     public IReadOnlyList<double> Hits { get; init; } = [];
 
+    /// <summary>
+    /// Fight file <c>sub_hits</c>: later damage times of the mechanic that are no timeline entries (cactbot shows TOP's
+    /// Diffuse Wave Cannon Kyrios, five cleaves over 8 s, as one entry), after <see cref="Hit"/>, in time order. They have no
+    /// hit index (plans and the importer anchor on <see cref="Hits"/> only): multi-hit coverage counts them as later hits
+    /// that mitigation for the whole mechanic must last through (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public IReadOnlyList<double> SubHits { get; init; } = [];
+
     /// <summary>cactbot entry name at <see cref="Hit"/> (validated against the timeline in tests).</summary>
     public string? Entry { get; init; }
 
     public MechanicKind Kind { get; init; } = MechanicKind.Other;
 
     public IReadOnlyList<string> Aliases { get; init; } = [];
+
+    /// <summary>
+    /// Fight file <c>press: after</c>: calls planned here without a time are pressed after the hit, like heals. For a hit
+    /// that makes mitigation pressed before it pointless (TEA's Photon sets every player to 1 HP): the calls are the
+    /// heal-up (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public bool PressAfter { get; init; }
+
+    /// <summary>
+    /// Fight file <c>heal_lead</c>: seconds before the hit for heals planned here without a time (heals normally go out
+    /// after the damage), or null. For a hit the heals must top the targets up for (TEA's Double Rocket Punch, 8 s after the
+    /// second Photon leaves both tanks at 1 HP).
+    /// </summary>
+    public double? HealLead { get; init; }
+
+    /// <summary>
+    /// Fight file <c>series: true</c>: the hits are one raidwide repeated a few seconds apart (TEA's J Waves, 3 s apart and
+    /// stronger each time). A call planned without a time for a later hit of the series, on this mechanic or on a mechanic
+    /// whose hit is that hit (p3.j_wave_5), is pressed, and turns due, only after the hit before it: a shield put up
+    /// earlier is spent on that hit, and mitigation started earlier ends before the last hits it should cover.
+    /// </summary>
+    public bool Series { get; init; }
 
     /// <summary>Hit time of the n-th hit (0-based), falling back to the last/first available hit.</summary>
     public double HitAt(int index)

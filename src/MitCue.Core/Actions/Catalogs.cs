@@ -254,7 +254,7 @@ public sealed class AliasDictionary
                         problems.Add($"{label}: names no actions.");
 
                     var resolved = new List<ActionInfo>();
-                    foreach (var name in e.Actions.Concat(e.Targeted))
+                    foreach (var name in e.ActionNames)
                     {
                         var action = catalog.FindByName(name, e.Job);
                         if (action == null)
@@ -332,7 +332,7 @@ public sealed class AliasDictionary
             return only == job;
         if (this.actions == null)
             return true;
-        foreach (var name in e.Actions.Concat(e.Targeted))
+        foreach (var name in e.ActionNames)
         {
             // Unknown names do not exclude the expansion: the resolver reports them.
             if (this.actions.FindByName(name, job) is { } action && !action.UsableBy(job))

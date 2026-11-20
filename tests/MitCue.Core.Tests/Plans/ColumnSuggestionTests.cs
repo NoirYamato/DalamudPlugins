@@ -12,7 +12,7 @@ namespace MitCue.Core.Tests.Plans;
 public class ColumnSuggestionTests
 {
     /// <summary>LPDU's job-less "MT" calls: eight Reprisals and three Ramparts, for whoever tanks in MT.</summary>
-    internal static readonly string[] LpduMtCalls = ["e027", "e044", "e083", "e089", "e115", "e121", "e145", "e172", "e216", "e245", "e279"];
+    internal static readonly string[] LpduMtCalls = ["e018", "e044", "e083", "e089", "e115", "e121", "e146", "e172", "e216", "e244", "e278"];
 
     private static readonly Lazy<MitPlan> LazyLpdu = new(() => PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(RepoFiles.Root, "plans", "top-lpdu.yaml"))));
 
@@ -29,7 +29,12 @@ public class ColumnSuggestionTests
         return new PlanImporter().Import(reordered, PlanImports.Options("Carry the Clear", null, PlanImports.CtcUrl, "carry_the_clear")).Plan;
     });
 
+    private static readonly Lazy<MitPlan> LazyLpduTea = new(() => PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(RepoFiles.Root, "plans", "tea-lpdu.yaml"))));
+
     private static MitPlan Lpdu => LazyLpdu.Value;
+
+    /// <summary>LPDU's TEA plan: seats for the tanks ("Tank 1" = MT, "Tank 2" = OT) and melee ("Melee 1", "Melee 2").</summary>
+    private static MitPlan LpduTea => LazyLpduTea.Value;
 
     private static List<PlanEntry> Selection(MitPlan plan, Job job, string? slot, IReadOnlyCollection<Job>? party = null)
     {
@@ -387,6 +392,76 @@ public class ColumnSuggestionTests
         Assert.Equal(new ColumnPick("WAR/DRK WAR", null), ColumnSuggestion.Suggest(Lpdu, Job.WAR, null));
         Assert.Equal(new ColumnPick(null, null), ColumnSuggestion.Suggest(Lpdu, Job.SAM, null));
         Assert.Equal(new ColumnPick(null, null), ColumnSuggestion.Suggest(Lpdu, Job.None, null));
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, null, null)]
+    [InlineData(Job.PLD, null, null)]
+    [InlineData(Job.DRK, "H1", null)] // a usual slot of another role is none
+    [InlineData(Job.GNB, null, new[] { Job.WAR, Job.GNB, Job.WHM, Job.SCH })]
+    [InlineData(Job.DRK, null, new[] { Job.DRK, Job.GNB, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM })]
+    public void OnLpduTeaATankWithoutASlotIsGuessedToBeMt(Job job, string? slot, Job[]? party)
+    {
+        // Review findings B02/C11: every tank job has calls in "Tank 1" (MT) and "Tank 2" (OT), and the party cannot tell
+        // the tanks apart, so a tank without a slot follows Tank 1: two of them both get the MT's calls, nobody Tank 2's.
+        // The choice stays; it is a guess, which the plugin tells the player.
+        Assert.Equal(new ColumnPick(null, "MT"), ColumnSuggestion.Suggest(LpduTea, job, slot, party));
+        AssertSeat(ColumnSuggestion.SeatUnknown(LpduTea, job, slot, party), "MT", "MT", "OT");
+    }
+
+    [Theory]
+    [InlineData(Job.WAR, "MT")]
+    [InlineData(Job.DRK, "OT")]
+    [InlineData(Job.MNK, "M1")]
+    [InlineData(Job.SCH, null)] // the healers' columns are the job's
+    [InlineData(Job.WHM, "MT")]
+    [InlineData(Job.BRD, null)] // "Phys Range" and "Caster" have calls per job, and no slot
+    [InlineData(Job.BLM, null)]
+    public void OnLpduTeaTheSeatIsKnownWithASlotOrAColumnOfTheJob(Job job, string? slot) =>
+        Assert.Null(ColumnSuggestion.SeatUnknown(LpduTea, job, slot));
+
+    [Theory]
+    [InlineData(Job.MNK, null)]
+    [InlineData(Job.MNK, "H1")]
+    [InlineData(Job.NIN, "MT")]
+    public void OnLpduTeaAMeleeWithoutAMeleeSlotGetsNoneOfTheSeatsCalls(Job job, string? slot)
+    {
+        // Review finding D11: the Monk's own calls (Mantra) name no slot, so the "Melee 1" and "Melee 2" Feints are not shown.
+        Assert.Equal(new ColumnPick(null, null), ColumnSuggestion.Suggest(LpduTea, job, slot));
+        AssertSeat(ColumnSuggestion.SeatUnknown(LpduTea, job, slot), null, "M1", "M2");
+        Assert.DoesNotContain(Selection(LpduTea, job, slot), e => e.Who.Slot != null);
+    }
+
+    [Theory]
+    [InlineData(Job.RDM, null, "R1", new[] { "R1", "R2" })]
+    [InlineData(Job.RDM, new[] { Job.PCT, Job.RDM, Job.SAM }, "R1", new[] { "R1", "R2" })] // both have calls in R1 and R2
+    [InlineData(Job.RDM, new[] { Job.BRD, Job.RDM, Job.SAM }, null, null)]               // the Bard's calls are all in R1: R2
+    [InlineData(Job.PCT, new[] { Job.BLM, Job.PCT, Job.SAM }, null, null)]               // the Black Mage's all in R2: R1
+    [InlineData(Job.BRD, null, null, null)]                                               // its calls are all in R1
+    public void OnLpduARangedSeatIsAGuessUnlessThePartySettlesIt(Job job, Job[]? party, string? guess, string[]? slots)
+    {
+        var seat = ColumnSuggestion.SeatUnknown(Lpdu, job, null, party);
+        if (slots == null)
+            Assert.Null(seat);
+        else
+            AssertSeat(seat, guess, slots);
+    }
+
+    [Fact]
+    public void OnLpduATankWithoutASlotGetsNoneOfTheSlotsCalls()
+    {
+        // The pair column has the Warrior's calls, but the job-less MT and OT calls (Reprisals, Ramparts) need the slot.
+        AssertSeat(ColumnSuggestion.SeatUnknown(Lpdu, Job.WAR, null), null, "MT", "OT");
+        Assert.Null(ColumnSuggestion.SeatUnknown(Lpdu, Job.WAR, "OT"));
+        Assert.Null(ColumnSuggestion.SeatUnknown(Lpdu, Job.SCH, null)); // "H2 SCH" gives H2
+        Assert.Null(ColumnSuggestion.SeatUnknown(Lpdu, Job.None, null));
+    }
+
+    private static void AssertSeat(UnknownSeat? seat, string? guess, params string[] slots)
+    {
+        Assert.NotNull(seat);
+        Assert.Equal(guess, seat.Guess);
+        Assert.Equal(slots, seat.Slots);
     }
 
     [Fact]

@@ -206,17 +206,28 @@ internal static class ImportPipeline
 
     /// <summary>
     /// A warning when one paste holds the header rows of several tabs (the next tab pasted below the first): the rows
-    /// above the last header row would not be read against their own columns.
+    /// above the last header row would not be read against their own columns. A header row that repeats the one before it
+    /// (LPDU's TEA tabs: a table per phase, each under the same header) is no other tab's: the rows below it are read
+    /// against the same columns.
     /// </summary>
     internal static string? SeveralTabsWarning(SheetTab tab)
     {
-        var headers = ImportAnalysis.PlanHeaderRows(tab);
+        var all = ImportAnalysis.PlanHeaderRows(tab);
+        var headers = all.Where((r, i) => i == 0 || !SameHeader(tab.Rows[r], tab.Rows[all[i - 1]])).ToList();
         if (headers.Count < 2)
             return null;
         var rows = string.Join(", ", headers.Select(r => (r + 1).ToString(CultureInfo.InvariantCulture)));
         return $"The pasted cells have {headers.Count.ToString(CultureInfo.InvariantCulture)} header rows (rows {rows}): it looks like more than one tab was pasted at once. " +
                "Paste one tab at a time: \"Read the cells\" for the first tab, then \"Add as another tab\" for each of the others.";
     }
+
+    /// <summary>Whether two header rows name the same columns in the same places.</summary>
+    private static bool SameHeader(IReadOnlyList<SheetCell> a, IReadOnlyList<SheetCell> b) => HeaderCells(a).SequenceEqual(HeaderCells(b));
+
+    private static IEnumerable<(int Column, string Key)> HeaderCells(IReadOnlyList<SheetCell> row) =>
+        row.Select((cell, c) => (Column: c, Header: ImportAnalysis.HeaderColumn(cell.Text)))
+            .Where(x => x.Header is not null)
+            .Select(x => (x.Column, x.Header!.Key.ToUpperInvariant()));
 
     private static IReadOnlyList<SheetTab> PastedTabs(LoadedSource? source) => source is { Kind: "paste" } ? source.Document.Tabs : [];
 

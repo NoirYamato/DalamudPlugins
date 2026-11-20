@@ -1,13 +1,14 @@
 using MitCue.Core.Data;
 using MitCue.Core.Import;
 using MitCue.Core.Plans;
+using MitCue.Core.Reminders;
 using MitCue.Core.Tests.Data;
 
 namespace MitCue.Core.Tests.Import;
 
 /// <summary>
 /// The plans shipped in plans/ (embedded in MitCue.Core and bundled with the plugin) are the importer's output for the
-/// sheet fixtures, they load, and they are valid for TOP at level 90.
+/// sheet fixtures, they load, and they are valid for their fight at its sync level (TOP 90, TEA 80).
 /// </summary>
 /// <remarks>
 /// After a change to the importer, the knowledge base or the fixtures, regenerate them with
@@ -15,7 +16,7 @@ namespace MitCue.Core.Tests.Import;
 /// </remarks>
 public class PlanFilesTests
 {
-    private static readonly string[] FileNames = ["top-noirmit-whm.yaml", "top-ctc-sch.yaml", "top-lpdu.yaml"];
+    private static readonly string[] FileNames = ["top-noirmit-whm.yaml", "top-ctc-sch.yaml", "top-lpdu.yaml", "tea-lpdu.yaml"];
 
     public static TheoryData<string> Files
     {
@@ -54,19 +55,22 @@ public class PlanFilesTests
     public void PlanFile_LoadsAndIsValid(string file)
     {
         var plan = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(PlansDir, file)));
-        Assert.Equal("top", plan.Fight);
+        var fight = PlanImports.Bundled.Single(b => b.File == file).Options.Fight;
+        Assert.Equal(fight.Key, plan.Fight);
+        Assert.StartsWith(fight.Key + "-", file, StringComparison.Ordinal);
         Assert.NotEmpty(plan.Entries);
-        Assert.Empty(PlanValidator.Validate(plan, PlanImports.Top, RepoFiles.Actions));
+        Assert.Empty(PlanValidator.Validate(plan, fight, RepoFiles.Actions));
 
-        // The validation as spelled out: every mechanic exists, every action exists and the entry's job can use it at 90.
+        // The validation as spelled out: every mechanic exists, every action exists and the entry's job can use it at the
+        // fight's sync level.
         foreach (var entry in plan.Entries)
         {
-            Assert.NotNull(PlanImports.Top.GetMechanic(entry.Mechanic));
+            Assert.NotNull(fight.GetMechanic(entry.Mechanic));
             foreach (var id in entry.Do.SelectMany(i => i.ActionIds()))
             {
                 var action = RepoFiles.Actions.Get(id);
                 Assert.NotNull(action);
-                Assert.True(action.AvailableAt(90), $"{entry.Id}: {action.Name} at 90");
+                Assert.True(action.AvailableAt(fight.SyncLevel), $"{entry.Id}: {action.Name} at {fight.SyncLevel}");
                 if (entry.Who.Job is { } job)
                     Assert.True(action.UsableBy(job), $"{entry.Id}: {action.Name} is not a {job} action");
             }
@@ -82,6 +86,27 @@ public class PlanFilesTests
         Assert.Equal(FileNames.Order(StringComparer.Ordinal), Directory.GetFiles(PlansDir).Select(f => Path.GetFileName(f)!).Order(StringComparer.Ordinal));
     }
 
+    /// <summary>
+    /// The importer orders a plan's entries by the press time the scheduler gives them (<see cref="TimingRules.ForEntry"/>),
+    /// also those whose action a later step replaced ("Temperance (still active)", a second Seraph as Consolation), so the
+    /// plan file reads in the order of the reminders.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Files))]
+    public void PlanFile_EntriesAreInTheirPressOrder(string file)
+    {
+        var bundled = PlanImports.Bundled.Single(b => b.File == file);
+        var fight = bundled.Options.Fight;
+        var plan = PlanSerializer.FromYaml(File.ReadAllText(Path.Combine(PlansDir, file)));
+        var previous = double.NegativeInfinity;
+        foreach (var entry in plan.Entries)
+        {
+            var press = TimingRules.ForEntry(entry, fight.GetMechanic(entry.Mechanic)!, fight, RepoFiles.Actions).PressAt;
+            Assert.True(Math.Round(press, 3) >= Math.Round(previous, 3), $"{file} {entry.Id} ({entry.Src}) is pressed at {press:0.###}, before the entry above it ({previous:0.###})");
+            previous = press;
+        }
+    }
+
     [Fact]
     public void PlanFiles_HaveDistinctStableIds()
     {
@@ -91,5 +116,6 @@ public class PlanFilesTests
 
         // The White Mage plan kept its 0.1.0.1 id through its rename, so saved choices and PlanStore.BundledDefaults find it.
         Assert.Equal(PlanImports.NoirMitWhmId, ids[0]);
+        Assert.Equal(PlanImports.LpduTeaId, ids[3]); // fixed too: a rename of the TEA plan keeps players' choices
     }
 }

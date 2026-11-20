@@ -11,7 +11,7 @@ namespace MitCue.Core.Tests.Import;
 /// <param name="Options">Import options (fixed date, so the content is deterministic).</param>
 internal sealed record BundledPlan(string? File, string Sheet, ImportOptions Options);
 
-/// <summary>The TOP fight, the knowledge base and the imports of the example sheets that the importer tests share.</summary>
+/// <summary>The TOP and TEA fights, the knowledge base and the imports of the example sheets that the importer tests share.</summary>
 internal static class PlanImports
 {
     public const string Date = "2026-11-11";
@@ -20,7 +20,11 @@ internal static class PlanImports
 
     public const string LpduUrl = "https://docs.google.com/spreadsheets/d/1Dlnye-i7SZ0ZZ7TY7r8SKMu3nMj_PZI45zy2QqDzuCU/edit";
 
+    public const string LpduTeaUrl = "https://docs.google.com/spreadsheets/d/1D2AriiqGwEMWV-u_wGPRdeDCOKVO2xYQ_ms70RrJlwM/edit";
+
     private static readonly Lazy<FightDefinition> LazyTop = new(() => FightLoader.Load(RepoFiles.Data.ReadText("fights/top.yaml"), "fights/top.yaml"));
+
+    private static readonly Lazy<FightDefinition> LazyTea = new(() => FightLoader.Load(RepoFiles.Data.ReadText("fights/tea.yaml"), "fights/tea.yaml"));
 
     /// <summary>
     /// The id of "NoirMit - WHM". The importer derives a plan's id from its name, so the plan keeps the id it was first
@@ -45,21 +49,36 @@ internal static class PlanImports
 
     private static readonly Lazy<BundledPlan> LpduPlan = new(() => new("top-lpdu.yaml", "lpdu", Options("LPDU TOP Mitigation", null, LpduUrl, null)));
 
+    /// <summary>
+    /// The id of "LPDU TEA Heal/Mit": the name-based id its first import got (fight, name, URL and tabs), fixed so a later
+    /// rename keeps players' saved plan and column choices.
+    /// </summary>
+    public const string LpduTeaId = "a5c2ab3b-a8c7-53e7-8a49-74e85a0777d7";
+
+    // Both tabs ('LL/BJCC' = P1 and P2, 'Alex Prime/PA' = P3 and P4). The automatic TEA plan of every job it has calls for
+    // (no PlanStore.BundledDefaults entry: it is the only bundled TEA plan).
+    private static readonly Lazy<BundledPlan> LpduTeaPlan = new(() =>
+        new("tea-lpdu.yaml", "lpdu-tea", Options("LPDU TEA Heal/Mit", null, LpduTeaUrl, null, LpduTeaId, Tea)));
+
     private static readonly Lazy<ImportResult> LazyWhm = new(() => Import(WhmPlan.Value));
     private static readonly Lazy<ImportResult> LazySch = new(() => Import(SchPlan.Value));
     private static readonly Lazy<ImportResult> LazyWhmSch = new(() => Import(WhmSchPlan.Value));
     private static readonly Lazy<ImportResult> LazyLpdu = new(() => Import(LpduPlan.Value));
+    private static readonly Lazy<ImportResult> LazyLpduTea = new(() => Import(LpduTeaPlan.Value));
 
     public static FightDefinition Top => LazyTop.Value;
 
+    /// <summary>The Epic of Alexander (Ultimate), synced to level 80.</summary>
+    public static FightDefinition Tea => LazyTea.Value;
+
     /// <summary>The plans in plans/ and how they are made (regenerate with MITCUE_UPDATE_PLANS=1, see <see cref="PlanFilesTests"/>).</summary>
-    public static IReadOnlyList<BundledPlan> Bundled => [WhmPlan.Value, SchPlan.Value, LpduPlan.Value];
+    public static IReadOnlyList<BundledPlan> Bundled => [WhmPlan.Value, SchPlan.Value, LpduPlan.Value, LpduTeaPlan.Value];
 
     /// <summary>
-    /// Every sheet import the importer tests use, by index: the White Mage tab, the combined tab (not shipped), LPDU and
-    /// the Scholar tab.
+    /// Every sheet import the importer tests use, by index: the White Mage tab, the combined tab (not shipped), LPDU,
+    /// the Scholar tab and LPDU's TEA sheet.
     /// </summary>
-    public static IReadOnlyList<BundledPlan> SheetImports => [WhmPlan.Value, WhmSchPlan.Value, LpduPlan.Value, SchPlan.Value];
+    public static IReadOnlyList<BundledPlan> SheetImports => [WhmPlan.Value, WhmSchPlan.Value, LpduPlan.Value, SchPlan.Value, LpduTeaPlan.Value];
 
     /// <summary>Carry the Clear, tab 'TOP – White Mage' (shipped as "NoirMit - WHM").</summary>
     public static ImportResult Whm => LazyWhm.Value;
@@ -73,10 +92,14 @@ internal static class PlanImports
     /// <summary>LPDU, every plan tab (the five phase tabs, 'General Tank Mit til P5' and the six tank-pair tabs).</summary>
     public static ImportResult Lpdu => LazyLpdu.Value;
 
-    public static ImportOptions Options(string? name, IReadOnlyList<string>? tabs, string? url, string? calibration, string? planId = null) => new()
+    /// <summary>LPDU's TEA sheet, both tabs (shipped as "LPDU TEA Heal/Mit").</summary>
+    public static ImportResult LpduTea => LazyLpduTea.Value;
+
+    /// <summary>Import options with a fixed date; the fight is TOP unless given.</summary>
+    public static ImportOptions Options(string? name, IReadOnlyList<string>? tabs, string? url, string? calibration, string? planId = null, FightDefinition? fight = null) => new()
     {
         PlanId = planId,
-        Fight = Top,
+        Fight = fight ?? Top,
         Actions = RepoFiles.Actions,
         Aliases = RepoFiles.Aliases,
         PlanName = name,

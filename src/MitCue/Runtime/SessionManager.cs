@@ -27,6 +27,7 @@ internal sealed class SessionManager
     private readonly ErrorReporter errors;
     private readonly IChatGui chat;
     private readonly Action requestSound;
+    private readonly HashSet<(string PlanId, Job Job)> seatHinted = [];
     private ContextKey lastContext;
     private bool invalidated = true;
     private string? shapeKey;
@@ -242,8 +243,11 @@ internal sealed class SessionManager
         }
 
         // Without a saved choice, the column of the team composition the party plays (LPDU's tank pairs). The usual party
-        // slot is the player's slot only on a job of its role (a melee player's M1 is not their slot on a tank).
-        var mapping = this.plans.MappingFor(plan.Plan, ctx.Job, PartyJobs.Of(ctx.PartyJobMask));
+        // slot is the player's slot only on a job of its role (a melee player's M1 is not their slot on a tank). Without
+        // it the slot can be a guess or unknown (LPDU TEA's tanks, its Monk): the status and chat say so (PlanStore.SeatHint).
+        var partyJobs = PartyJobs.Of(ctx.PartyJobMask);
+        var mapping = this.plans.MappingFor(plan.Plan, ctx.Job, partyJobs);
+        var seatHint = this.plans.SeatHint(plan.Plan, ctx.Job, partyJobs);
         var slot = mapping.Slot ?? Slots.ForJob(this.config.DefaultSlot, ctx.Job);
         var level = ctx.Level > 0 ? Math.Min(ctx.Level, fight.SyncLevel) : fight.SyncLevel;
 
@@ -260,7 +264,8 @@ internal sealed class SessionManager
             slot ?? "*",
             this.config.ShowOtherAssignees,
             party,
-            ctx.ClientIsEnglish);
+            ctx.ClientIsEnglish,
+            seatHint);
         return new Shape(key, null)
         {
             Fight = fight,
@@ -270,6 +275,7 @@ internal sealed class SessionManager
             Slot = slot,
             Level = level,
             PartyJobMask = party,
+            SeatHint = seatHint,
         };
     }
 
@@ -331,11 +337,34 @@ internal sealed class SessionManager
                 : $"{stored.DisplayName}: none of its {plan.Entries.Count} entries match {ctx.Job}" +
                   (mapping.AssigneeKey != null ? $" / column \"{mapping.AssigneeKey}\"" : string.Empty) +
                   ". Check \"My column\" in /mitcue > Plans.";
+            if (shape.SeatHint is { } hint)
+            {
+                this.Status += " " + hint;
+                this.PrintSeatHint(fight, stored, ctx.Job, hint);
+            }
         }
         catch (Exception ex)
         {
             this.errors.Report("session.build", "Starting the reminder session", ex);
             this.Status = "Could not start reminders: " + ErrorReporter.Describe(ex);
+        }
+    }
+
+    /// <summary>
+    /// Tells the player in chat, once per plan and job, that their slot is a guess or not known: the status is seen only
+    /// in /mitcue, and following the wrong seat's calls (an off-tank pressing the main tank's Reprisals) is easy to miss.
+    /// </summary>
+    private void PrintSeatHint(FightDefinition fight, StoredPlan stored, Job job, string hint)
+    {
+        if (!this.seatHinted.Add((stored.Id, job)))
+            return;
+        try
+        {
+            this.chat.Print($"{fight.Key.ToUpperInvariant()}, \"{stored.DisplayName}\" as {job}: {hint}", "MitCue");
+        }
+        catch (Exception ex)
+        {
+            this.errors.Report("session.seatchat", "Printing the slot hint", ex);
         }
     }
 
@@ -399,5 +428,7 @@ internal sealed class SessionManager
         public int Level { get; init; }
 
         public ulong PartyJobMask { get; init; }
+
+        public string? SeatHint { get; init; }
     }
 }

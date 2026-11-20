@@ -220,6 +220,35 @@ public class PartnerSelectionTests
     }
 
     [Fact]
+    public void ARoleColumnOfJobsWithoutAColumnOfTheirOwnIsThoseJobsSeat()
+    {
+        // Review finding C14: LPDU TEA's "Phys Range" and "Caster" hold a call per job, and those jobs have no column of their
+        // own, so their own overlay shows them without a choice. They were left out of the other DPS's rows unless the player
+        // picked their own role column ("Phys Range"); a melee player, whose seat is "Melee 1", never saw them.
+        var plan = Kit.Plan(
+            [
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "M1 Feint", job: null, slot: "M1", assignee: "Melee 1"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "BRD Troubadour", job: Job.BRD, assignee: "Phys Range"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "MCH Tactician", job: Job.MCH, assignee: "Phys Range"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "BLM Addle", job: Job.BLM, assignee: "Caster"),
+                Kit.Entry("p1.raid", -5, Kit.Reprisal, "RDM Addle", job: Job.RDM, assignee: "Caster"),
+            ],
+            new Assignee { Key = "Melee 1", Slot = "M1" },
+            new Assignee { Key = "Phys Range" },
+            new Assignee { Key = "Caster" });
+        Job[] party = [Job.PLD, Job.WAR, Job.WHM, Job.SCH, Job.MNK, Job.DRG, Job.BRD, Job.BLM];
+
+        Assert.Equal(["M1 Feint", "BLM Addle"], Names(PartnerSelection.For(plan, new PlayerContext(Job.BRD, 80, "R1"), party)));
+        Assert.Equal(["M1 Feint", "BLM Addle"], Names(PartnerSelection.For(plan, new PlayerContext(Job.BRD, 80, "R1", "Phys Range"), party)));
+        Assert.Equal(["M1 Feint", "BRD Troubadour", "BLM Addle"], Names(PartnerSelection.For(plan, new PlayerContext(Job.DRG, 80, "M2"), party)));
+        Assert.Equal(["BRD Troubadour", "BLM Addle"], Names(PartnerSelection.For(plan, new PlayerContext(Job.MNK, 80, "M1", "Melee 1"), party)));
+        Assert.Equal(["M1 Feint", "MCH Tactician"], Names(PartnerSelection.For(plan, new PlayerContext(Job.RDM, 80, "R2"), [Job.RDM, Job.MCH, Job.SAM])));
+
+        // The party unknown (solo, a preview without a party): every job's, as for LPDU TOP's R1 and R2.
+        Assert.Equal(["M1 Feint", "MCH Tactician", "BLM Addle", "RDM Addle"], Names(PartnerSelection.For(plan, new PlayerContext(Job.BRD, 80, "R1"))));
+    }
+
+    [Fact]
     public void APartnerJobWithCallsInTwoSlotsIsNotInASlotThePartyGivesAnotherJob()
     {
         // Review round 5: LPDU has Red Mage calls in R1 and R2; next to a Bard (all of whose calls are in R1) the Red Mage is

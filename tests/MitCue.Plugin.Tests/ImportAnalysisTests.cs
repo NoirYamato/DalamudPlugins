@@ -109,6 +109,67 @@ public class ImportAnalysisTests
     }
 
     [Fact]
+    public void ColumnsForAnyone_AreNoColumnsToChoose_ButCountedAsAlwaysImported()
+    {
+        // Like LPDU TEA: "Tank 1" and an "Extras" column whose calls are for the jobs they name (no assignee).
+        var tab = Tab("LL/BJCC", ["P1", "Tank 1", "Extras"], ["Cascade", "Reprisal", "PLD Wings"], ["Splashes", null, "Dismantle"], ["Fate Calibration Beta", null, "Use Personals"]);
+        var doc = new SheetDocument { Title = "[LPDU] TEA Heal/Mit", Tabs = [tab] };
+        var plan = new MitPlan { Assignees = [new Assignee { Key = "Tank 1", Slot = "MT" }] };
+        plan.Entries.Add(Make(tab, 1, 1, "p1.cascade_1", "Tank 1", null, "MT"));
+        plan.Entries.Add(new PlanEntry { Id = "a", Mechanic = "p1.cascade_1", Who = new WhoSpec { Job = Job.PLD }, Do = [PlanItem.ForNote("x")], Src = tab.Ref(1, 2) });
+        plan.Entries.Add(new PlanEntry { Id = "b", Mechanic = "p1.splash_1", Who = new WhoSpec { Job = Job.MCH }, Do = [PlanItem.ForNote("x")], Src = tab.Ref(2, 2) });
+        plan.Entries.Add(new PlanEntry { Id = "c", Mechanic = "p4.fate_beta", Who = new WhoSpec(), Do = [PlanItem.ForNote("x")], Src = tab.Ref(3, 2) });
+        var result = new ImportResult { Plan = plan, AnyoneColumns = [new AnyoneColumn("LL/BJCC", 2, "Extras")] };
+
+        var analysis = ImportAnalysis.FromResult(doc, result);
+
+        // No "PLD" or "MCH" checkbox that the import would ignore: only the player's column is a choice.
+        Assert.Equal(["Tank 1"], analysis.Assignees.Select(a => a.Key));
+        Assert.Equal(["Tank 1"], analysis.ColumnsIn(["LL/BJCC"]).Select(a => a.Key));
+        Assert.Equal([("Extras", 3)], analysis.AnyoneColumnsIn(["LL/BJCC"]));
+        Assert.Empty(analysis.AnyoneColumnsIn(["Other tab"]));
+        Assert.Equal(4, analysis.Tabs[0].Entries);
+        Assert.Equal(["Tank 1"], analysis.DefaultColumns(["LL/BJCC"], Job.PLD, "MT"));
+    }
+
+    [Fact]
+    public void ColumnsForAnyone_InARealTrialImport()
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var tab = Tab("P1", ["P1", "MT", "H1 WHM", "Extras"], ["Program Loop", "Rep", "Temperance", "PLD Wings"], ["Pantokrator", null, "Asylum", "Dismantle"]);
+        var doc = new SheetDocument { Title = "Test sheet", Tabs = [tab] };
+
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight("top")!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+
+        Assert.True(analysis.Available, analysis.Reason);
+        Assert.Equal(["MT", "H1 WHM"], analysis.Assignees.Select(a => a.Key));
+        Assert.Equal([("Extras", 2)], analysis.AnyoneColumnsIn(["P1"]));
+    }
+
+    [Fact]
+    public void ColumnsForAnyone_InTheRealTeaSheet()
+    {
+        // LPDU's TEA sheet (its CSV export): ten player columns to choose from in each tab, and the "Extras" calls for the
+        // jobs they name, always imported.
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = FixtureSheets.LpduTea();
+
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight("tea")!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+
+        Assert.True(analysis.Available, analysis.Reason);
+        string[] columns = ["Tank 1", "Tank 2", "Scholar", "Sage", "White Mage", "Astrologian", "Melee 1", "Melee 2", "Phys Range", "Caster"];
+        Assert.Equal(columns, analysis.ColumnsIn(["LLBJCC"]).Select(a => a.Key));
+        Assert.Equal(columns, analysis.ColumnsIn(["Alex PrimePA"]).Select(a => a.Key));
+        Assert.Equal([("Extras", 7)], analysis.AnyoneColumnsIn(["LLBJCC"]));
+        Assert.Equal([("Extras", 10)], analysis.AnyoneColumnsIn(["Alex PrimePA"]));
+        Assert.Equal(255, analysis.Tabs.Sum(t => t.Entries));
+        Assert.Equal(["Tank 2"], analysis.DefaultColumns(["LLBJCC", "Alex PrimePA"], Job.PLD, "OT"));
+        Assert.Equal(["White Mage"], analysis.DefaultColumns(["LLBJCC", "Alex PrimePA"], Job.WHM, "H1"));
+    }
+
+    [Fact]
     public void AWhiteMageGetsTheWhiteMageTabOnly()
     {
         var (doc, result) = CarryTheClear();

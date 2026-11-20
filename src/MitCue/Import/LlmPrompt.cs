@@ -3,6 +3,7 @@ using System.Text;
 using MitCue.Core;
 using MitCue.Core.Actions;
 using MitCue.Core.Fights;
+using MitCue.Core.Import;
 
 namespace MitCue.Import;
 
@@ -55,6 +56,25 @@ internal sealed class LlmPromptInput
 
     /// <summary>A note shown when the action or alias list could not be built (e.g. data that failed to load).</summary>
     public string? DataNote { get; init; }
+
+    /// <summary>
+    /// What MitCue's importer reads "/" between two actions of one job as in the plan text (<see cref="SourceText"/>):
+    /// <see cref="SlashReading.All"/> or <see cref="SlashReading.Either"/>, the sheet's own reading
+    /// (<see cref="ImportAnalysis.DocumentSlashes"/>) or the player's choice in the import options
+    /// (<see cref="SlashesChosen"/>). Null when it is not known: the prompt then gives only the rule.
+    /// </summary>
+    public SlashReading? Slashes { get; init; }
+
+    /// <summary>True when <see cref="Slashes"/> is the player's choice in the import options, not the sheet's own reading.</summary>
+    public bool SlashesChosen { get; init; }
+
+    /// <summary>
+    /// True when the plan text (<see cref="SourceText"/>) numbers its Seraph calls ("Seraph1", "Seraph2"), so that MitCue's
+    /// importer reads a plain "Seraph" in it as "Seraph1" too: Summon Seraph, then Consolation; one while that Seraph is
+    /// still out as "Seraph2", the other Consolation (<see cref="ImportAnalysis.SeraphNumbered"/>). False when it does not,
+    /// or when that is not known.
+    /// </summary>
+    public bool SeraphNumbered { get; init; }
 }
 
 /// <summary>
@@ -116,14 +136,15 @@ internal static class LlmPrompt
         AppendExample(sb, input, jobs);
 
         sb.Append("## Rules\n\n");
-        var rules = new[]
+        var slashRule = SlashRule(input);
+        var rules = new List<string>
         {
             "One entry per mechanic, column and press time. Split a cell into separate entries when its parts have their own times (\"Temp (1:18) / Bell (~1:22)\" is two entries); keep actions pressed together (\"A + B\") in one entry; \"A -> B -> C\" is one entry with `seq: true`.",
             "`mechanic` must be an id from the Mechanics list. Match the row's mechanic label against the names and the \"also called\" names, within the right phase: the same name can occur in several phases, and rows are in fight order. Times in the source help to find the right one.",
             "If a row matches no mechanic, anchor it to the nearest earlier mechanic of the same phase and say so in `note`.",
             "Every action item is `{ action: <id>, name: <name> }` with an id from the Actions list that the entry's job can use. Shorthand is explained under Aliases. Never invent ids.",
             "Text that is not one of the listed actions (\"Everything\", \"Kitchen sink\", a call for another job, a vague \"party mit\") becomes `{ note: \"...\" }`.",
-            "\"X/Y\" without spaces is usually an either-or across jobs (\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action. Alternatives for the same job become `any: [...]`.",
+            slashRule,
             "Timing: sheet times count from the pull or from the start of a phase, NOT on the timeline used in the Mechanics list. Compute `offset` only from the source itself: offset = (time written for the action) - (time of the mechanic's row), in seconds, negative = before the hit. Example: row \"1:21 Pantokrator\", call \"Temp (1:18)\" -> `offset: -3`.",
             "When a row lists several times (\"1:21 / 1:27 / 1:33\"), they are the mechanic's hits in order: offsets are relative to the first one, or set `hit_index` (0-based) and make the offset relative to that hit. A call without its own time gets no `offset` (MitCue then picks a sensible time for the action); \"before the 3rd hit\" without a time is `hit_index: 2` without `offset`.",
             "`who`: the column's job and/or party slot (MT, OT, H1, H2, M1, M2, R1, R2) and `assignee` = the column header text exactly. List every converted column once under `assignees`.",
@@ -135,7 +156,9 @@ internal static class LlmPrompt
             "Several tabs can repeat the same calls (one tab per job plus a combined tab, or a summary tab), often worded differently: convert each call once. When two tabs give the same job's call for the same mechanic, keep the one from the tab that belongs to that job.",
             "Do not add entries the source does not have; do not leave out calls of the requested jobs (a call repeated in another tab counts once).",
         };
-        for (var i = 0; i < rules.Length; i++)
+        if (input.SeraphNumbered && (jobs.Count == 0 || jobs.Contains(Job.SCH)))
+            rules.Insert(rules.IndexOf(slashRule) + 1, SeraphRule);
+        for (var i = 0; i < rules.Count; i++)
             sb.Append(ci, $"{i + 1}. {rules[i]}\n");
         sb.Append('\n');
 
@@ -157,6 +180,40 @@ internal static class LlmPrompt
 
         return sb.ToString();
     }
+
+    /// <summary>
+    /// The rule for "X/Y": between actions of different jobs, a call for each job; between actions of one job, what the
+    /// importer decides per document (PlanImporter's automatic reading, <see cref="SlashReading.Auto"/>): all of them when
+    /// no cell joins actions another way and at least two cells list several actions of one job with "/", one of them three
+    /// or more, else either one. With the plan text and its reading known (<see cref="LlmPromptInput.Slashes"/>), it says
+    /// which reading MitCue's importer used for it, so the answer reads the sheet the same way.
+    /// </summary>
+    private static string SlashRule(LlmPromptInput input)
+    {
+        var rule = "\"X/Y\" between actions of different jobs is a call for each job (\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action. " +
+                   "Between actions of one job, \"/\" means the same in the whole sheet: all of them (one entry with every action, as for \"A + B\") when no cell joins actions another way " +
+                   "(\"+\", \",\", \"&\", \";\", a \"|\" inside a cell, an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+                   "and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); " +
+                   "otherwise either one (`any: [...]`), as \"TBN/Oblation\" next to \"Living Dead + ...\".";
+        if (input.Slashes is not { } reading || reading == SlashReading.Auto)
+            return rule;
+        var meaning = reading == SlashReading.All ? "all of them" : "either one";
+        return rule + (input.SlashesChosen
+            ? $" For the plan below, the player chose in MitCue's import options to read \"/\" between actions of one job as {meaning}: do the same."
+            : $" For the plan below, MitCue's importer reads \"/\" between actions of one job as {meaning}, by this rule: do the same.");
+    }
+
+    /// <summary>
+    /// The rule for a plain "Seraph" in a sheet that numbers its Seraph calls (<see cref="LlmPromptInput.SeraphNumbered"/>):
+    /// it means "Seraph1", as PlanImporter reads it per document, while the alias list gives the summon alone (Carry the
+    /// Clear writes its Consolations apart); and one while the Seraph summoned before is still out means "Seraph2", as
+    /// the importer reads a party buff planned again while it lasts (its follow-up: LPDU TEA's "Seraph/Fey Illum" at J
+    /// Wave 7).
+    /// </summary>
+    private const string SeraphRule =
+        "This sheet numbers its Seraph calls (\"Seraph1\" = Summon Seraph -> Consolation, \"Seraph2\" = the second Consolation): a plain \"Seraph\" in it means \"Seraph1\" too, " +
+        "Summon Seraph then Consolation (`seq: true`); but a plain \"Seraph\" while the Seraph summoned by the one before is still out (it stays 22 s) means \"Seraph2\", the other Consolation " +
+        "(\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination). MitCue's importer reads them so: do the same.";
 
     /// <summary>
     /// The YAML inside an AI answer: the ```yaml block (or the first fenced block that looks like a plan), else the text
@@ -398,7 +455,7 @@ internal static class LlmPrompt
             if (alias.NoteOnly)
                 sb.Append("a note, not an action").Append(alias.Note is { Length: > 0 } n ? " (" + n + ")" : string.Empty);
             else
-                sb.Append(string.Join(alias.Sequence ? " -> " : " + ", alias.Actions));
+                sb.Append(string.Join(alias.Sequence ? " -> " : " + ", alias.Actions.Select(OptionsText)));
             if (alias.Job is { } job)
                 sb.Append(" (").Append(job).Append(')');
             if (!alias.NoteOnly && alias.Note is { Length: > 0 } note && note.Length <= 160)
@@ -410,6 +467,10 @@ internal static class LlmPrompt
             sb.Append(input.DataNote).Append('\n');
         sb.Append('\n');
     }
+
+    /// <summary>An alias's action name, its options spelled out: "the Arrow|the Bole" → "(the Arrow or the Bole)".</summary>
+    private static string OptionsText(string name) =>
+        AliasExpansion.OptionsOf(name) is { Count: > 1 } options ? "(" + string.Join(" or ", options) + ")" : name;
 
     private static string Quote(string text) => "\"" + text.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
 

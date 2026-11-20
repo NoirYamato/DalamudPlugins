@@ -103,6 +103,41 @@ public class ValidateCommandTests : IDisposable
     }
 
     [Fact]
+    public void TimingFieldsOnAMarker_AreAProblem()
+    {
+        // press: after times the calls planned on a mechanic against its hit; a marker (the pull) deals no damage.
+        var data = this.CopyData();
+        Replace(Path.Combine(data, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"Pull\"", "    entry: \"--sync--\"\n    kind: marker\n    press: after\n    aliases:\n      - \"Pull\"");
+
+        var r = this.kit.Run("validate", "--data", data);
+        Assert.Equal(1, r.ExitCode);
+        Assert.Matches(@"FAIL\s+fights/tea\.yaml: .*\(1 problem\)", r.Out);
+        Assert.Contains("problem: p1.pull is a marker with press: after: timing fields time the calls planned on a mechanic against its damage, and a marker has none", r.Out);
+
+        var lead = this.CopyData("lead");
+        Replace(Path.Combine(lead, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    heal_lead: 2\n    aliases:\n      - \"P4 Start\"");
+        Assert.Contains("problem: p4.start is a marker with heal_lead: 2:", this.kit.Run("validate", "--data", lead).Out);
+
+        var sub = this.CopyData("sub");
+        Replace(Path.Combine(sub, "fights", "tea.yaml"), "    entry: \"--sync--\"\n    kind: marker\n    aliases:\n      - \"P4 Start\"", "    entry: \"--sync--\"\n    kind: marker\n    sub_hits: [901.0]\n    aliases:\n      - \"P4 Start\"");
+        Assert.Contains("problem: p4.start is a marker with sub_hits:", this.kit.Run("validate", "--data", sub).Out);
+    }
+
+    [Fact]
+    public void SubHitsBeforeTheHit_AreAProblem()
+    {
+        // Sub hits are later damage times than the hit (TEA's first Splash: the five after 81.1), in time order.
+        var data = this.CopyData();
+        Replace(Path.Combine(data, "fights", "tea.yaml"), "sub_hits: [82.2, 83.3, 84.4, 85.5, 86.6]", "sub_hits: [80.0, 83.3]");
+
+        var r = this.kit.Run("validate", "--data", data);
+        Assert.Equal(1, r.ExitCode);
+        Assert.Matches(@"FAIL\s+fights/tea\.yaml \(1 problem\)", r.Out);
+        Assert.Contains("p1.splash_1", r.Out);
+        Assert.Contains("'sub_hits' are damage times after 'hit' (81.1), not 80.", r.Out);
+    }
+
+    [Fact]
     public void PlansNextToTheData_AreChecked()
     {
         var data = this.CopyData();

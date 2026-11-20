@@ -42,8 +42,13 @@ public sealed class Configuration : IPluginConfiguration
     /// <summary>Party slots the user can pick as "my slot".</summary>
     public static readonly IReadOnlyList<string> SlotChoices = ["MT", "OT", "H1", "H2", "M1", "M2", "R1", "R2"];
 
-    /// <inheritdoc/>
-    public int Version { get; set; } = 1;
+    /// <summary>
+    /// The settings' version: 2 since the first MitCue with a bundled TEA plan (a new configuration gets it). A configuration
+    /// of version 1 (MitCue up to 0.1.0.6) keeps the plan each fight and job had automatically: the plan store chooses it
+    /// for the job, where that is no longer the automatic one, on its first load that reads every plan file
+    /// (<c>PlanStore.MigrateFromVersion1</c>).
+    /// </summary>
+    public int Version { get; set; } = 2;
 
     // ---- Timing -------------------------------------------------------------------------
 

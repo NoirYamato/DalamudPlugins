@@ -1,7 +1,11 @@
+using System.Globalization;
 using MitCue.Core;
 using MitCue.Core.Actions;
+using MitCue.Core.Import;
 using MitCue.Core.Plans;
 using MitCue.Import;
+using MitCue.PluginTests.Support;
+using MitCue.UI;
 
 namespace MitCue.PluginTests;
 
@@ -108,6 +112,15 @@ public class LlmPromptTests
     }
 
     [Fact]
+    public void AliasOptions_AreSpelledOut()
+    {
+        // aliases.yaml "defensive cards": an action name may list options ("the Arrow|the Bole"), one item done by either.
+        var prompt = LlmPrompt.Build(Input(aliases: [new PromptAlias("defensive cards", Job.AST, ["the Arrow|the Bole", "the Spire|the Ewer"])]));
+
+        Assert.Contains("defensive cards = (the Arrow or the Bole) + (the Spire or the Ewer) (AST)", prompt);
+    }
+
+    [Fact]
     public void TheExampleUsesRealIdsOfTheFight()
     {
         var prompt = LlmPrompt.Build(Input());
@@ -130,6 +143,150 @@ public class LlmPromptTests
 
         var without = LlmPrompt.Build(Input());
         Assert.EndsWith(LlmPrompt.PastePlaceholder + "\n", without);
+    }
+
+    /// <summary>The prompt's "X/Y" rule, the line that starts with its number.</summary>
+    private static string SlashRuleLine(string prompt) =>
+        prompt.Split('\n').Single(l => l.Contains("\"X/Y\" between actions of different jobs", StringComparison.Ordinal));
+
+    [Fact]
+    public void TheSlashRuleIsDecidedPerDocument()
+    {
+        // The prompt said that "X/Y" between actions of one job is either/or (`any: [...]`), but the importer reads it per
+        // document (PlanImporter.ChooseSlashReading): LPDU TEA's "Soil/Reci/Deploy/Whisper" is all four actions. It names every
+        // separator the importer counts (review finding F15), "|" as one inside a cell: " | " separates the plan text's cells.
+        var rule = SlashRuleLine(LlmPrompt.Build(Input()));
+
+        Assert.Contains("(\"Kera/Soil\" = Kerachole for Sage, Sacred Soil for Scholar): give each job its own entry with its own action.", rule, StringComparison.Ordinal);
+        Assert.Contains("Between actions of one job, \"/\" means the same in the whole sheet: all of them (one entry with every action, as for \"A + B\")", rule, StringComparison.Ordinal);
+        Assert.Contains(
+            "when no cell joins actions another way " +
+            "(\"+\", \",\", \"&\", \";\", a \"|\" inside a cell, an arrow, a spaced \" / \", a line break or a gap of three or more spaces) " +
+            "and at least two cells list several actions of one job with \"/\", one of them three or more (\"Soil/Reci/Deploy/Whisper\"); otherwise either one (`any: [...]`)",
+            rule,
+            StringComparison.Ordinal);
+        Assert.DoesNotContain("For the plan below", rule, StringComparison.Ordinal); // no sheet loaded: the rule alone
+        Assert.DoesNotContain("Alternatives for the same job become", rule, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(SlashReading.All, false, "For the plan below, MitCue's importer reads \"/\" between actions of one job as all of them, by this rule: do the same.")]
+    [InlineData(SlashReading.Either, false, "For the plan below, MitCue's importer reads \"/\" between actions of one job as either one, by this rule: do the same.")]
+    [InlineData(SlashReading.All, true, "For the plan below, the player chose in MitCue's import options to read \"/\" between actions of one job as all of them: do the same.")]
+    [InlineData(SlashReading.Either, true, "For the plan below, the player chose in MitCue's import options to read \"/\" between actions of one job as either one: do the same.")]
+    public void WithALoadedSheetTheRuleSaysWhichReadingTheImporterUsed(SlashReading reading, bool chosen, string sentence)
+    {
+        var input = Input("Source: Plan\n### Tab \"P1\"\nR2 | A: Pantokrator | E: Soil/Reci/Deploy/Whisper\n");
+        var prompt = LlmPrompt.Build(new LlmPromptInput
+        {
+            Fight = input.Fight,
+            Jobs = input.Jobs,
+            Actions = input.Actions,
+            SourceText = input.SourceText,
+            Slashes = reading,
+            SlashesChosen = chosen,
+        });
+
+        Assert.EndsWith(" " + sentence, SlashRuleLine(prompt), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tea", SlashReading.All)]    // LPDU TEA: "Soil/Reci/Deploy/Whisper", nothing joined another way
+    [InlineData("top", SlashReading.Either)] // LPDU TOP: "TBN/Oblation" next to "Living Dead + ..."
+    public void TheImportWindowPassesTheSheetsOwnReadingOrThePlayersChoice(string fight, SlashReading expected)
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = fight == "tea" ? FixtureSheets.LpduTea() : FixtureSheets.Lpdu();
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        Assert.True(analysis.Available, analysis.Reason);
+
+        Assert.Equal(expected, analysis.DocumentSlashes);
+        Assert.Equal(((SlashReading?)expected, false), ImportWindow.PromptSlashes(SlashReading.Auto, analysis));
+        var other = expected == SlashReading.All ? SlashReading.Either : SlashReading.All;
+        Assert.Equal(((SlashReading?)other, true), ImportWindow.PromptSlashes(other, analysis)); // the Options step's choice
+
+        // The trial import chose the other reading: the sheet's own one is still known.
+        var chosen = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11", Slashes = other });
+        Assert.Equal(expected, chosen.DocumentSlashes);
+    }
+
+    /// <summary>The prompt's rule for a plain "Seraph", when it has one.</summary>
+    private static string? SeraphRuleLine(string prompt) =>
+        prompt.Split('\n').SingleOrDefault(l => l.Contains("numbers its Seraph calls", StringComparison.Ordinal));
+
+    [Fact]
+    public void WithALoadedSheetThatNumbersItsSeraphCalls_APlainSeraphIsSeraph1()
+    {
+        // LPDU TEA writes "Seraph1" and "Seraph2", and a plain "Seraph" at J Wave 5 and 7: MitCue's importer reads that as
+        // "Seraph1" (PlanImporter.ChooseSeraphReading), while the alias list says Summon Seraph alone.
+        var input = Input("Source: Plan\n### Tab \"Alex Prime/PA\"\nR21 | B: Jwaves (4) | E: Succor/Soil/Seraph\n");
+        LlmPromptInput With(bool numbered, params Job[] jobs) =>
+            new() { Fight = input.Fight, Jobs = jobs, Actions = input.Actions, SourceText = input.SourceText, SeraphNumbered = numbered };
+
+        var prompt = LlmPrompt.Build(With(true, Job.WHM, Job.SCH));
+        var rule = SeraphRuleLine(prompt);
+        Assert.NotNull(rule);
+
+        // The rule right after the "X/Y" one, numbered as the next.
+        var lines = prompt.Split('\n').ToList();
+        var slashRule = SlashRuleLine(prompt);
+        Assert.Equal(lines.IndexOf(slashRule) + 1, lines.IndexOf(rule));
+        Assert.StartsWith((int.Parse(slashRule[..slashRule.IndexOf('.', StringComparison.Ordinal)], CultureInfo.InvariantCulture) + 1) + ". ", rule, StringComparison.Ordinal);
+        Assert.EndsWith(
+            "This sheet numbers its Seraph calls (\"Seraph1\" = Summon Seraph -> Consolation, \"Seraph2\" = the second Consolation): a plain \"Seraph\" in it means \"Seraph1\" too, Summon Seraph then Consolation (`seq: true`); " +
+            "but a plain \"Seraph\" while the Seraph summoned by the one before is still out (it stays 22 s) means \"Seraph2\", the other Consolation (\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination). " +
+            "MitCue's importer reads them so: do the same.",
+            rule,
+            StringComparison.Ordinal);
+
+        Assert.Null(SeraphRuleLine(LlmPrompt.Build(With(false, Job.WHM, Job.SCH)))); // a sheet that does not
+        Assert.Null(SeraphRuleLine(LlmPrompt.Build(With(true, Job.WHM))));           // no Scholar calls to convert
+    }
+
+    [Fact]
+    public void TheSeraphRulesExample_IsHowTheImporterReadsTheSheet()
+    {
+        // LPDU TEA 'Alex Prime/PA'!E21 "Succor/Soil/Seraph" at J Wave 5 summons Seraph and uses Consolation; E23 "Seraph/Fey
+        // Illum" at J Wave 7, while that Seraph (22 s) is still out, is the other Consolation (PlanImporter's still-active
+        // reading), not a second Summon Seraph: as the rule tells the AI. (The CSV export names the tab "Alex PrimePA".)
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var result = new PlanImporter().Import(FixtureSheets.LpduTea(), new ImportOptions { Fight = data.GetFight("tea")!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        List<string?> Names(string src) => Assert.Single(result.Plan.Entries, e => e.Src == src).Do.Select(i => i.Name).ToList();
+
+        Assert.True(result.SeraphNumbered);
+        Assert.Equal(["Succor", "Sacred Soil", "Summon Seraph", "Consolation"], Names("'Alex PrimePA'!E21"));
+        Assert.Equal(["Consolation", "Fey Illumination"], Names("'Alex PrimePA'!E23"));
+        var prompt = LlmPrompt.Build(new LlmPromptInput { Fight = data.GetFight("tea")!, Jobs = [Job.SCH], Actions = LlmPrompt.ActionsFor(data.Actions, [Job.SCH], 80), SourceText = "R21 | E: Succor/Soil/Seraph\n", SeraphNumbered = true });
+        Assert.Contains("(\"Seraph/Fey Illum\" two waves after \"Succor/Soil/Seraph\": Consolation and Fey Illumination)", SeraphRuleLine(prompt), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("tea", true)]  // LPDU TEA: "Soil/Illum/Seraph1", "Seraph2/Succor"
+    [InlineData("top", false)] // LPDU TOP: no numbered Seraph call
+    public void TheImportWindowPassesTheSheetsSeraphReading(string fight, bool numbered)
+    {
+        var data = new MitCue.Data.CoreData(Kit.Errors(), () => []);
+        data.EnsureLoaded();
+        var doc = fight == "tea" ? FixtureSheets.LpduTea() : FixtureSheets.Lpdu();
+        var analysis = ImportPipeline.Analyze(doc, new ImportOptions { Fight = data.GetFight(fight)!, Actions = data.Actions, Aliases = data.Aliases!, ImportedDate = "2026-11-11" });
+        Assert.True(analysis.Available, analysis.Reason);
+
+        Assert.Equal(numbered, analysis.SeraphNumbered);
+        Assert.Equal(numbered, ImportWindow.PromptSeraph(analysis));
+        Assert.False(ImportWindow.PromptSeraph(ImportAnalysis.Unavailable(new SheetDocument { Title = "x", Tabs = [] }, "no importer")));
+        Assert.False(ImportWindow.PromptSeraph(null));
+    }
+
+    [Fact]
+    public void WithoutATrialImportTheReadingIsNotKnown()
+    {
+        var unavailable = ImportAnalysis.Unavailable(new SheetDocument { Title = "x", Tabs = [] }, "no importer");
+
+        Assert.Equal(((SlashReading?)null, false), ImportWindow.PromptSlashes(SlashReading.Auto, unavailable));
+        Assert.Equal(((SlashReading?)null, false), ImportWindow.PromptSlashes(SlashReading.Auto, null));
+        Assert.Equal(((SlashReading?)SlashReading.Either, true), ImportWindow.PromptSlashes(SlashReading.Either, null));
     }
 
     [Fact]

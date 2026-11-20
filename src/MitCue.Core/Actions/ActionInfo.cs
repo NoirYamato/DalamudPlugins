@@ -42,7 +42,10 @@ public enum UseTiming
     /// <summary>The kind's default: heals after the hit, everything else before it (docs/research/actions.md §6).</summary>
     Default,
 
-    /// <summary>Pressed before the damage even though it heals (pre-placed heals: Liturgy of the Bell, Earthly Star, Excogitation, Horoscope, Macrocosmos).</summary>
+    /// <summary>
+    /// Pressed before the damage even though it heals (pre-placed heals: Liturgy of the Bell, Earthly Star, Excogitation,
+    /// Horoscope, Macrocosmos), or with a <see cref="ActionInfo.Lead"/> of its own (Neutral Sect, Passage of Arms).
+    /// </summary>
     Before,
 
     /// <summary>Pressed after the damage (healer limit breaks).</summary>
@@ -137,8 +140,31 @@ public sealed class ActionInfo
     /// <summary>Press before or after the damage, when it differs from the kind's default.</summary>
     public UseTiming When { get; init; } = UseTiming.Default;
 
-    /// <summary>Minimum seconds between the press and the damage (Earthly Star: 10, the star must mature), or null.</summary>
+    /// <summary>
+    /// For a <see cref="UseTiming.Before"/> action: seconds between the press and the damage (Earthly Star: 10, the star must
+    /// mature; Neutral Sect: 4.5, time to cast the Aspected Helios that puts up its barrier; Passage of Arms: 2, a channel
+    /// any other action ends, so it is pressed last), or null. Mitigation, whose effect starts on the press, with a lead of
+    /// its own is pressed last: with the last item of its entry, due no earlier than any other
+    /// (<see cref="Reminders.TimingRules.ForEntry"/>), and listed after them
+    /// (<see cref="Reminders.ReminderScheduler"/>).
+    /// </summary>
     public double? Lead { get; init; }
+
+    /// <summary>
+    /// For an action whose barrier comes from a cast after it (actions.yaml <c>barrier_cast</c>, positive): that cast in
+    /// seconds (Neutral Sect: the Aspected Helios or Helios Conjunction, 1.5 s), or null. A later hit of a series is
+    /// pressed that much before the hit before it + 0.3 s, as a cast shield is, so that the barrier lands after it
+    /// (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public double? BarrierCast { get; init; }
+
+    /// <summary>
+    /// True for an action that makes the next spell instant (actions.yaml <c>instant_next_cast</c>: Swiftcast; Lightspeed,
+    /// whose −2.5 s makes every Astrologian spell but Ascend instant for 15 s). On a later hit of a series, an entry that
+    /// lists it waits for the hit before it + 0.3 s with its shields and barrier casts too, since the instant spell's effect
+    /// lands on its press (<see cref="Reminders.TimingRules.ForEntry"/>).
+    /// </summary>
+    public bool InstantNextCast { get; init; }
 
     /// <summary>Limit break tier (1, 2 or 3) for limit breaks, else null.</summary>
     public int? LimitBreakTier { get; init; }
@@ -297,7 +323,11 @@ public static class ActionCatalogExtensions
 /// <summary>One possible meaning of a shorthand token (from data/actions/aliases.yaml or user corrections).</summary>
 public sealed class AliasExpansion
 {
-    /// <summary>Action names (resolved through <see cref="IActionCatalog"/>), in order.</summary>
+    /// <summary>
+    /// Action names (resolved through <see cref="IActionCatalog"/>), in order. A name may list options separated by "|"
+    /// ("the Arrow|the Bole"): one item that is done by any of them, such as the card an Astrologian drew
+    /// (<see cref="OptionsOf"/>).
+    /// </summary>
     public IReadOnlyList<string> Actions { get; init; } = [];
 
     /// <summary>Only applies to this job (null = any job that has the actions).</summary>
@@ -320,6 +350,13 @@ public sealed class AliasExpansion
 
     /// <summary>True for user-defined aliases (persisted by the plugin, highest priority).</summary>
     public bool IsUser { get; init; }
+
+    /// <summary>Every action name of <see cref="Actions"/> and <see cref="Targeted"/>, options split ("the Arrow|the Bole" gives both).</summary>
+    public IEnumerable<string> ActionNames => this.Actions.Concat(this.Targeted).SelectMany(OptionsOf);
+
+    /// <summary>The options of one name: "the Arrow|the Bole" → [the Arrow, the Bole]; "Kerachole" → [Kerachole].</summary>
+    public static IReadOnlyList<string> OptionsOf(string name) =>
+        (name ?? string.Empty).Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     public override string ToString()
     {

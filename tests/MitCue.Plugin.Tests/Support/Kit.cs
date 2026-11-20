@@ -1,5 +1,6 @@
 using Dalamud.Plugin.Services;
 using MitCue.Core;
+using MitCue.Core.Actions;
 using MitCue.Core.Events;
 using MitCue.Core.Fights;
 using MitCue.Core.Plans;
@@ -20,6 +21,7 @@ internal static class Kit
     public const uint Consolation = 16546;
     public const uint SacredSoil = 188;
     public const uint Reprisal = 7535;
+    public const uint PassageOfArms = 7385;
 
     /// <summary>This test run's temporary folders (plan stores, recordings), deleted when the run ends.</summary>
     private static readonly string TempRoot = Path.Combine(Path.GetTempPath(), "mitcue-plugin-tests", Guid.NewGuid().ToString("N"));
@@ -90,19 +92,23 @@ internal static class Kit
     };
 
     /// <summary>A session over <paramref name="own"/> entries, driven by <paramref name="engine"/>.</summary>
+    /// <param name="actions">The action catalog (default: none, so every item is timed like an unknown action).</param>
+    /// <param name="job">The player's job.</param>
     public static EncounterSession Session(
         FightDefinition fight,
         IReadOnlyList<PlanEntry> own,
-        ISyncEngine engine)
+        ISyncEngine engine,
+        IActionCatalog? actions = null,
+        Job job = Job.WHM)
     {
         return new EncounterSession(new SessionSetup
         {
             Fight = fight,
             Timeline = EmptyTimeline,
             Plan = Plan(own),
-            Me = new PlayerContext(Job.WHM, 90),
+            Me = new PlayerContext(job, 90),
             OwnEntries = own,
-            Actions = EmptyActionCatalog.Instance,
+            Actions = actions ?? EmptyActionCatalog.Instance,
             Options = new ReminderOptions(),
             SyncOptions = SyncMatchOptions.Default,
             Engine = (_, _) => engine,
