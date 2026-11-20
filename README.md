@@ -103,8 +103,8 @@ MitCue shows reminder-only mitigation cues: during the fight, a small window tel
 to press next, synced to the boss from your raid's mitigation plan. It never presses, queues or targets anything,
 and only reads what your game already shows you. It comes with three plans for The Omega Protocol (Ultimate):
 NoirMit - WHM for the White Mage (made from Carry the Clear's White Mage tab), Carry the Clear - SCH for the Scholar
-(its Scholar tab) and LPDU (every job). It also follows The Epic of Alexander (Ultimate) and Dancing Mad (Ultimate)
-with a plan you import.
+(its Scholar tab) and LPDU (every job), and with LPDU TEA Heal/Mit for The Epic of Alexander (Ultimate) (every job).
+It also follows Dancing Mad (Ultimate) with a plan you import.
 
 ### Install
 
@@ -116,7 +116,8 @@ with a plan you import.
 1. Type `/mitcue` to open its settings, and in **General** set **My usual party slot** (H1, H2, ...).
 2. In the **Plans** tab, check the **Active plan** and **My column** in the row for your fight and job. In TOP a
    White Mage gets NoirMit - WHM and a Scholar gets LPDU without choosing anything; a Scholar who follows Carry the
-   Clear chooses *Carry the Clear - SCH* under **Active plan**. To use your raid's own plan,
+   Clear chooses *Carry the Clear - SCH* under **Active plan**. In TEA every job gets LPDU TEA Heal/Mit (tanks and
+   melee by their usual party slot), unless MitCue already used a TEA plan of your own. To use your raid's own plan,
    click **Import from sheet...** to bring it in from its Google Sheets link, or paste a share code you were sent
    and tick **Make an imported share code my active plan as …** before **Import share code** (or choose the plan
    under **Active plan** afterwards).
