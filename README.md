@@ -202,7 +202,9 @@ Plan entries without a time get an automatic press time (details in [docs/DESIGN
     that starts with mitigation or a regen waits for the wave, its Succor too (*Soil → Succor*, *Whisper →
     Succor*), and so does one with *Swiftcast* or *Lightspeed*, which make the next spell instant (*Lightspeed +
     Neutral Sect*). In a sequence (`→`), the steps after one that waits for the wave wait too (*Seraph →
-    Consolation → Succor*, *Intersection → Neutral Sect*). Neutral Sect turns NOW 1.2 s before the wave, so that
+    Consolation → Succor*, *Intersection → Neutral Sect*); in a sheet that numbers its Seraph calls, such as
+    LPDU's, a plain *Seraph* is *Summon Seraph → Consolation*, so *Seraph/Succor/Soil* on J Wave 5 waits for the
+    wave with all its actions. Neutral Sect turns NOW 1.2 s before the wave, so that
     its Helios lands just after it; *Play II*, *Play III* or *Minor Arcana* beside it waits for the wave, and so
     does *the Arrow* with the *Play II* it comes from.
 - **From your earlier calls:** when a sheet is imported (from a link or pasted cells; not a plan pasted on the

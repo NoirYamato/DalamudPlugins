@@ -462,8 +462,10 @@ Then, in this order:
    timing action's effect takes to land after the press: a shield's cast, or the cast of
    the GCD that puts up its barrier (`barrier_cast`, §3.3: Neutral Sect's 1.5 s Helios),
    so that the shield or barrier lands then; nor does the reminder turn due earlier
-   (§5.2). A cell that lists an action that makes the next spell instant
-   (`instant_next_cast`, §3.3: Swiftcast, Lightspeed) counts no cast: "Swiftcast/Succor"
+   (§5.2). A call that lists an action that makes the next spell instant
+   (`instant_next_cast`, §3.3: Swiftcast, Lightspeed) counts no cast, in that call only (a
+   spaced ` / ` splits off another call: in "Lightspeed / Neutral Sect" Neutral Sect stays
+   at 718.7): "Swiftcast/Succor"
    on J Wave 5 is pressed and due at 720.2, both items, so that the instant Succor is not
    spent on wave 4, and so is "Lightspeed + Neutral Sect", either way round and as a
    sequence, since its Helios is instant: pressed at 718.7, as Neutral Sect alone is, its
@@ -482,8 +484,8 @@ Then, in this order:
    have no effect the wave before could spend: they keep the entry's floor and come with
    the cast they change or go with ("Reci → Succor", "Emergency Tactics/Succor", "Stack
    middle → Succor": both items at 718.4, due at 718.2). Not so a trigger of follow-ups
-   (`follow_ups`: Summon Seraph, also Seraphism, Eukrasia, Minor Arcana, Play II and
-   Play III), as they can be used only for a while after it: it keeps its own floor, so
+   (a buff or other action with `follow_ups`: Summon Seraph, also Seraphism, Eukrasia,
+   Minor Arcana, Play II and Play III), as they can be used only for a while after it: it keeps its own floor, so
    that its window still reaches them, in the entry (the Summon Seraph of
    "Succor/Soil/Seraph" with its Consolation) or a later one (the Summon Seraph of
    "Seraph + Succor" at 720.2, the Succor at 718.4: Seraph's 22 s still reach a
