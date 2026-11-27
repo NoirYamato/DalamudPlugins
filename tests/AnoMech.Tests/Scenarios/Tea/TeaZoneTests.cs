@@ -1,7 +1,12 @@
 using System.Globalization;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
+using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
+using AnoMech.Scenarios.Tea.I1LimitCut;
+using AnoMech.Scenarios.Tea.P1LimitCut;
+using AnoMech.Scenarios.Tea.P1LivingLiquid;
+using AnoMech.Scenarios.Tea.P3Wormhole;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Tests.NegativeRun;
 
@@ -80,6 +85,22 @@ public class TeaZoneTests
 
         Assert.That(run.Deaths.Select(death => (death.Role, death.ActionId)), Is.EqualTo(new[] { (MeleeDpsA, (uint?)TheEnvironment) }), run.ToString);
         Assert.That(run.Deaths[0].Cause, Does.Contain(TeaZone.WentPastTheRim));
+    }
+
+    // Upstream's I1 Limit Cut stays off the menu beside NoirMech's own, whose clock and spots the user's pulls tuned; its
+    // files and tests stay, the tests running it outside the catalog. The phases read P1, then P3.
+    [Test]
+    public void TheMenuListsTheLivingLiquidAndLimitCutThenWormholeAndNotUpstreamsI1LimitCut()
+    {
+        var tea = ScenarioCatalog.Create().Scenarios.Where(scenario => scenario.Phase.Zone == TeaZone.Instance).ToList();
+
+        Assert.That(tea.Select(scenario => (scenario.GetType(), scenario.Phase)), Is.EqualTo(new (Type, IPhase)[]
+        {
+            (typeof(TeaP1LivingLiquidScenario), TeaZone.P1),
+            (typeof(TeaP1LimitCutScenario), TeaZone.P1),
+            (typeof(TeaP3WormholeScenario), TeaZone.P3),
+        }));
+        Assert.That(ScenarioCatalog.Create().Scenarios, Has.None.TypeOf<TeaI1LimitCutScenario>());
     }
 
     private static float Float(string value) => float.Parse(value, CultureInfo.InvariantCulture);
