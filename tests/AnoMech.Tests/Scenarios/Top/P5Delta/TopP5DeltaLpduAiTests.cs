@@ -61,6 +61,19 @@ public class TopP5DeltaLpduAiTests
     [TearDown]
     public void PutBackWhatWasInstalled() => DalamudServices.Install(nameof(Plugin.Multiplayer), leftInstalled!);
 
+    // LpduStrat and NaStrat index this list, as upstream's TopP5DeltaScenarioTests does.
+    [Test]
+    public void TheEuLpduStratComesFirstSoItIsTheDefaultThenUpstreamsStandardAndTuuflessUnderNa()
+    {
+        var strats = ScenarioCatalog.Create().Scenarios.OfType<TopP5DeltaScenario>().Single().AiStrats;
+        Assert.That(strats.Select(s => (s.GetType(), s.Name, s.Group)), Is.EqualTo(new (Type, string, string?)[]
+        {
+            (typeof(TopP5DeltaLpduAi), "[LPDU] Light PF", "EU"),
+            (typeof(TopP5DeltaAi), "Standard", "NA"),
+            (typeof(TopP5DeltaTuuflessAi), "Tuufless (Elemental)", "NA"),
+        }));
+    }
+
     public enum Request { Nothing, BlueOuterSeat, BlueInnerSeat, BeyondDefenceYes, GreenOuterSeat, GreenInnerSeat, AnyBands }
 
     // Rolls are written blue slots 0-3 then green 4-7, each colour's inner pair first; so is the line-up.
