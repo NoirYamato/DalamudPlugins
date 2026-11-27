@@ -3,12 +3,14 @@
 # NoirMech
 
 NoirMech is a fork of [AnoMech](https://github.com/anomek/AnoMech). `AGENTS.md` above is upstream's guide and
-stays byte-identical to upstream; this file adds only what NoirMech changes. `git diff v0.5.1.0` shows every
-NoirMech change:
+stays byte-identical to upstream; this file adds only what NoirMech changes. NoirMech stands on upstream's
+unreleased `master` at `bd24935`, merged ahead of a release (see Repos), so `git diff bd24935` shows every NoirMech
+change:
 - the rename (below);
 - TOP P2 Party Synergy: the EU `[LPDU] BPOG/GOPB` strat (`TopP2PartySynergyLpduAi`), listed first in
   `AiStrats` so EU and it are the default pick (upstream's NA strat is index 1), `Group => "NA"` on upstream's
-  strat, and no Spotlight in solo runs (a solo stack target stood alone and died). Its eye-spread spots are
+  strat, and no Spotlight in solo runs (upstream's `Run_Spotlight` takes `solo` and returns at once; a solo stack
+  target stood alone and died). Its eye-spread spots are
   Alninio's: on Remote Glitch the corners stand on the diagonal shurikens (45° and 135° from the eye) and the
   middle rows 15° either side of the side shuriken, all 19.4y out; on Mid Glitch the corners are 35° off the
   eye line at the rim and the middle rows sit halfway between waymarks;
@@ -22,7 +24,7 @@ NoirMech change:
 - TOP P5 Delta (below):
   - the EU `[LPDU] Light PF` strat (`TopP5DeltaLpduAi`), listed first in `AiStrats` so EU and it are the default
     pick; upstream's strat is index 1 and gains `Group => "NA"`, the automarkers and a turn by the eye's `Turn` in
-    `AdjustEyePosition`;
+    `AdjustEyePosition`, all of which upstream's Tuufless strat, its subclass at index 2, inherits;
   - `TopP5DeltaCloseJobs.cs` (below), called once each from upstream's `SeatTethers` and `Validate`;
   - small edits to upstream's Delta State, overrides, settings window and scenario and to
     `Multiplayer/Protocol.cs`: the Automarkers setting, the State's forced-band flags and their replay fields, the
@@ -36,8 +38,10 @@ NoirMech change:
 - TOP P6 (below), in upstream's `TopZone.P6` phase:
   - the P6 Gauntlet (`Scenarios/Top/P6Gauntlet/`), all of P6 as one scenario with an `[LPDU] Light PF` strat. It
     takes the place of every P6 entry in `ScenarioCatalog`, upstream's Exasquares/WC2 included: upstream's
-    `P6WaveCannon2/` files are as v0.5.1.0 has them, off the menu, and their tests still run because
+    `P6WaveCannon2/` files are as bd24935 has them, off the menu, and their tests still run because
     `tests/AnoMech.Tests/Support/ScenarioRun.cs` constructs a scenario the catalog lacks;
+  - in upstream's `TopActions.WaveCannonProtean`, `delayToEffectResult` on the lasers' Magic Vulnerability Up, so a
+    laser of the next set still finds it (below);
   - `TopP6Constants.cs` and `TopP6Actions.cs` (P6 ids and actions, kept out of upstream's `TopConstants.cs` and
     `TopActions.cs`), `TopP6Mechanics.cs` (Alpha Omega and the attacks it plays), `TopP6LimitBreaks.cs` (a run's
     limit breaks and their gauge), `TopP6LpduAi.cs` (strat pieces) and `TopP6UnlimitedWaveCannonRows.cs` (settings
@@ -56,22 +60,27 @@ NoirMech change:
     `PacketRecorder`, `PeerNatives`, `FakeBattleChara` and `FakeCharacter`;
   - a test harness for timelines no catalog scenario plays: `tests/AnoMech.Tests/Support/TimelineRun.cs` and
     `tests/AnoMech.Tests/Scenarios/Fakes/TimelineScenario.cs`;
-- TEA P1 (below), the first family NoirMech adds: `Scenarios/Tea/` with `TeaZone` and its `P1` phase,
-  `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback presses, cleanses,
-  Provokes, invulnerability and hits on an enemy), `TeaP1Mechanics.cs` (the Living Liquid, the Liquid Hand, the
-  tornadoes and the attacks they play), `TeaP1JagdDolls.cs` (the pull's four dolls), and two scenarios, each with an
-  `[LPDU] Light PF` strat: `P1LivingLiquid/`, the fight from the pull to the kill (the strat's pull is in
-  `TeaP1LivingLiquidLpduAi.Pull.cs`), and `P1LimitCut/`, the intermission; in upstream's `ScenarioCatalog.cs`, a
-  `using` and one entry for each;
-- the core of upstream's unreleased `30e27cc`, the player's own presses as events, backported line for line so the
-  release that carries it merges clean: `Core/Native/Interfaces/PlayerAction.cs`, `IUserActions.Acted`, its four
-  `Acted` lines in `UserActions.cs` and `FakeUserActions.Act`. Its multiplayer half and its `ActionRow`/`GameData`
-  `IsPlayerAction` change are left out;
-- upstream's unreleased `89aa318` and `e0c03f0`, backported line for line so the release that carries them merges
-  clean: Black Hole's bots grab each new set of tethers once their client shows it (`UmadP3BlackHoleAi.cs`), and a
-  status keeps its source once its applier despawns (`Multiplayer/PacketRecorder.cs` and `PacketReplay.cs`). The
-  13 Dancing Mad P3 Black Hole multiplayer tests (`PeerParityTests`, `LinkInterruptionTests`) fail without
-  `e0c03f0`, as on upstream's v0.5.1.0; `89aa318` alone fixes none of them;
+- TEA P1 (below): in upstream's `TeaZone.cs`, NoirMech's `P1` phase (Fair Skies, BGM 706) beside upstream's `I1`
+  and `P3`, its EU waymark preset ahead of upstream's PF Trines, and its reason for a death past the rim
+  (`WentPastTheRim`); `TeaP1Constants.cs`, `TeaP1Actions.cs`, `TeaP1Presses.cs` (the human's own anti-knockback
+  presses, cleanses, Provokes, invulnerability and hits on an enemy), `TeaP1Mechanics.cs` (the Living Liquid, the
+  Liquid Hand, the tornadoes and the attacks they play), `TeaP1JagdDolls.cs` (the pull's four dolls), and two
+  scenarios, each with an `[LPDU] Light PF` strat: `P1LivingLiquid/`, the fight from the pull to the kill (the
+  strat's pull is in `TeaP1LivingLiquidLpduAi.Pull.cs`, and the scenario's `OnStatusLost` hears a Throttle the
+  engine takes off), and `P1LimitCut/`, the intermission. In upstream's `ScenarioCatalog.cs` TEA comes last: these
+  two, then upstream's P3 Wormhole; upstream's I1 Limit Cut is left off the menu, its files and tests kept (they run
+  through the catalog-less `ScenarioRun`);
+- TEA P3 Wormhole (below): the EU `[LPDU] Light PF` strat (`TeaP3WormholeLpduAi`), listed first in upstream's
+  `AiStrats` so EU and it are the default pick; upstream's NAUR strat is index 1 and gains `Group => "NA"`, and
+  upstream's `TeaP3WormholeScenarioTests` pass `NaStrat = 1`;
+- edits the merge of `bd24935` made in upstream's files (Merging): `ZoneControl.cs`'s unload safety stop,
+  `ScenarioSession.cs`'s two chat lines and `MainWindow.cs`'s title name `Plugin.DisplayName`; the main window's
+  Pause, Retry and paused title re-ported onto upstream's rebuilt run controls; and in multiplayer,
+  `SpawnNpcPacket` (`GamePackets.cs`, `PacketRecorder.cs`, `PacketReplay.cs`) carries the spawn's `AnimationState`,
+  which upstream's `af36202` gave `EnemySpawnConfig` and the native spawn but not the packet, so a peer spawned
+  Dancing Mad P3 Limit Cut's Kefka and clones and the UWU primals of Ultimate Predation and Suppression in their
+  default state (21 `PeerParityTests` cases failed on bd24935 itself). In upstream's `ProtocolTests` the peer types
+  drop `peerDispelled`, whose message bd24935 deleted (`RelayWire.PeerMessageTypes` still lists it, harmlessly);
 - the Automarkers setting (`Scenarios/Automarkers.cs`, On/Off, default On): a party-setup option rather than a
   roll, which the P3 Intermission, P3 Monitors and both P5 Delta strats read to place signs;
 - the pull-log reports (below): two [Explicit] tests in `tests/AnoMech.Tests/Reports/`, one for TOP and one for TEA,
@@ -115,10 +124,17 @@ and a Dalamud config separate from AnoMech's. `Plugin.DisplayName` holds the use
 - `RootNamespace`, every namespace, the solution, project and folder names (`publish.ps1` builds
   `AnoMech\AnoMech.csproj`), and both `InternalsVisibleTo` entries;
 - the relay protocol (`X-AnoMech-*` headers, `RelayWire.Version`, capability names, `anomech-probe://`,
-  `ANOMECH_RELAY_*`), so NoirMech players can use AnoMech relays;
-- log file names and the `# AnoMech build=` header the log rotation parses, ImGui `###AnoMech*` ids, and the
-  `.github/workflows/*` (upstream's: `pr-build.yml` runs, harmlessly, on every push to the plugin repo; the
-  release workflows can't run there).
+  `ANOMECH_RELAY_*`), so NoirMech players can use AnoMech relays, and upstream's relay pieces:
+  `MultiplayerUi.RelayReadmeUrl` (its relay host's README) and `DefaultRelay` (upstream's public server, which the
+  user kept as NoirMech's default; a saved custom relay must be picked again under "Custom server");
+- log file names and the `# AnoMech build=` header the log rotation parses, the other log headers (the event log's,
+  the damage debug dump's), the `[AnoMechWatch]` log tag, the damage debug texture's name, ImGui `###AnoMech*` and
+  `##AnoMech*` ids (`##AnoMechFailureBanner` among them), and the `.github/workflows/*` (upstream's: `pr-build.yml`
+  runs, harmlessly, on every push to the plugin repo; the release workflows can't run there).
+
+`PluginDisplayNameTests` reads every string literal in `AnoMech/` and fails on one that names AnoMech outside these
+kinds (`AnoMechPresence.cs`, about AnoMech itself, aside), so a merge that brings new text naming AnoMech fails until
+it is renamed or kept on purpose.
 
 NoirMech must not run alongside AnoMech: they install the same hooks and share ImGui window ids. While AnoMech is
 loaded NoirMech still loads and hooks, but refuses every zone-in and start and leaves a stay already up (see AnoMech
@@ -127,7 +143,10 @@ alongside).
 ## Repos, branches, releases
 - Upstream is `anomek/AnoMech`. Merge only its **release tags** into `noirmech-stable`; its `master` holds
   unreleased work. Take upstream's side of engine conflicts and re-port NoirMech's changes on top (see the
-  `Merge AnoMech v0.5.0.0` commit).
+  `Merge AnoMech v0.5.0.0` commit). One recorded exception: at the user's request (2026-11-26), `master` at
+  `bd24935`, 74 commits past v0.5.1.0, was merged ahead of a release to ship upstream's TEA Wormhole in 0.5.1.15
+  (`Merge AnoMech master at bd24935 ahead of its release`). The next upstream tag that contains bd24935 merges as
+  usual and brings only the commits after it.
 - `noirmech-stable` lives on `NoirYamato/DalamudPlugins` as its own branch. The private fork
   `NoirYamato/AnoMech` holds `master` and old PR branches only; never push `noirmech-stable` there.
 - Both are public through the plugin repo, so commits use the GitHub noreply address
@@ -153,56 +172,45 @@ alongside).
   Run it plainly: `cmd /c start /wait` hands back `start`'s exit code, 0, so a refusal there reads as a pass.
 
 ## Merging AnoMech's next release
-`powershell -ExecutionPolicy Bypass -File tools\upstream-check.ps1 [-Ref <tag>]` (default `upstream/master`)
-previews a merge without making one: the files that would conflict, and NoirMech's own lines (changed or added
-since the last merged release) that use a declaration the ref deletes. It greps, so also build and test a trial
-merge in a throwaway detached worktree. Against `upstream/master` at `1646a70` (36 commits past v0.5.1.0) it finds
-six conflicts and no such use: P3 and P4 keep their own 9020 helper id (`TopP3Constants.OmegaHelper`,
-`TopP4Constants.OmegaHelper`) and Hello World checks its regressions' ends itself. A trial merge of it, its
-conflicts resolved as below but for `MainWindow.cs` (master's side), builds once `TimelineRun.cs` is fixed, and its
-P2, P3, P4, P5, P6 and pause tests pass. At the merge:
-- `ScenarioSession.cs` and `SimWorld.cs`: keep both sides, the pause's members and halt methods beside master's
-  `Issues`, `Ended` and `SimEvents`.
-- `LocalPlayerInputHooks.cs`: keep the `ActionsBlocked` return first, ahead of master's `GetAdjustedActionId` line.
-- `MainWindow.cs`: master rebuilds the title (`Title(failed)`, set every frame), the Stop buttons and the status
-  line (`RunStatus`, where a frozen run reads Failed) round its failure banner. Re-port the Pause button, the
-  title-bar icon, `PausedTitle` (ahead of `Title(failed)`) and a Paused label for the user pause onto it; master's
-  Failed covers NoirMech's Frozen.
-- The rename: master adds user-facing text that names AnoMech, `TitleText` in `MainWindow.cs`, the `[AnoMech]
-  Mechanic failed` and `[AnoMech] Run failed` chat lines in `ScenarioSession.cs` and the safety stop's reason in
-  `ZoneControl.cs` (`AnoMech was unloaded during a run`). Write `Plugin.DisplayName` there, as the rename does.
-- `TopP2PartySynergyScenario.cs`: master casts every helper action from the zone's pool; take its side of both
-  conflicts and put the solo skip into its `Run_Spotlight` (no Spotlight when `solo`), which
-  `TopP2PartySynergySoloTests` checks. Resolve the conflicts, not the file: `AiStrats` (LPDU first) merges clean,
-  and master's whole file would put its NA strat back at index 0, which the LPDU and NA strat tests catch.
-- `tests/AnoMech.Tests/Support/ScenarioRun.cs`: keep NoirMech's catalog-less construction
-  (`SingleOrDefault(...) ?? Activator.CreateInstance`), `RunUntilStopped` and `probe.Stopped` beside master's
-  four-argument `PartyMemberKilled`, `MechanicFailed`, `HelperPoolExhausted` and `SessionStatus.CompletedFailed`.
-- `tests/AnoMech.Tests/Support/TimelineRun.cs` merges clean but won't build: subscribe with master's four-argument
-  `Game.PartyMemberKilled` and fill its `Death.StatusId`. Its loop already ends on master's
-  `SessionStatus.CompletedFailed`, which comes after `Frozen`.
-- Helpers: master's TOP `DutyInitData` spawns `HelperPool(9020, 36)` at every run's start, and
-  `SimEnemy.CastFromHelper` casts from it.
-  - P6: `TopP6AlphaOmega` spawns its own 36 (`SpawnedHelperPool`), so a Gauntlet run would hold 72. Make its
-    `CastFromHelper` body `Enemy?.CastFromHelper(...)` (`HelperCast`'s signature), drop the pool field,
-    `helpers.Spawn()` and `BusyHelperPeak`, and rebuild `TopP6HelperBudgetTests` on master's `HelperPoolExhausted`,
-    which master's `ScenarioRun` already fails a run on. `SpawnedHelperPool` and its tests stay: TEA's two
-    scenarios each spawn one (below). `HelperCast` stays for `ExaflareLane` and `BaitedPuddles`.
-  - P3 and P4 spawn their own 9020 helpers beside the pool (Intermission 10, Hello World 12, Monitors 14, Blue
-    Screen 19) and play the same with it. Casting through `omega.CastFromHelper(action, target, at: ...)` instead
-    would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off the
-    tower helpers); that is optional.
-  - TEA: master's `IZone` asks for a `DutyInitData` (the entrance barrier, which gains a rotation, a `HelperPool`,
-    a `MapEffectSnapshot` and the `Rsv` and `Rsf` strings) where v0.5.1.0's asks for an `EntranceBarrier`, so
-    `TeaZone` won't build until it has one. `tools\upstream-check.ps1` doesn't report that (a changed member, not
-    a deleted name), and no trial merge has been built with TEA in it. Upstream generates each zone's from a replay
-    (`tools/replay_export_duty_init.py`); with none of 887 at hand TEA's is written by hand: the barrier as now,
-    `HelperPool(9020, 17)` (Living Liquid keeps 11 busy at once, Limit Cut 2) and the rest empty (UNVERIFIED).
-    Limit Cut can then cast its Hawk Blasters through Cruise Chaser's `CastFromHelper(action, target, at: ...)` and
-    `TeaP1LivingLiquid.CastFromHelper` become `Liquid?.CastFromHelper(...)`, each dropping its `SpawnedHelperPool`,
-    which then has no user left; that is optional.
-- Master's `SimTether` ends itself when an end dies (`TetherEnded`), without the scenario asking: Hello World's
-  ghost tethers then go with a death, as its regressions already do.
+`powershell -ExecutionPolicy Bypass -File tools\upstream-check.ps1 [-Ref <tag>] [-Base <commit>]` (default
+`upstream/master`) previews a merge without making one: the files that would conflict, and NoirMech's own lines
+(changed or added since the AnoMech commit last merged) that use a declaration the ref deletes. Its base defaults to
+the merge base of HEAD and the ref, `bd24935` for any ref that contains it (`-Base bd24935` says so outright); the
+newest tag HEAD contains, v0.5.1.0, would count upstream's 74 commits up to bd24935 as NoirMech's lines. It greps,
+so also build and test a trial merge in a throwaway detached worktree.
+- Conflicts come wherever upstream edits, after bd24935, the NoirMech lines in its files (the list above). The
+  bd24935 merge settled its twelve so, the record for the next:
+  - `Game.cs`: upstream's `TickZoneLoad` first, then NoirMech's fall check (`!UserPaused`);
+  - `ScenarioSession.cs` and `SimWorld.cs`: both sides, the pause's members and halt methods beside upstream's
+    `Issues`, `Ended` and `SimEvents`;
+  - `LocalPlayerInputHooks.cs`: the `ActionsBlocked` return first, ahead of upstream's `GetAdjustedActionId` line;
+  - `MainWindow.cs`: upstream's run controls, title (`Title(failed)`, set every frame) and status (`RunStatus`), with
+    NoirMech's Pause beside the solo Stop, Retry after the start buttons, `PausedTitle` over upstream's title and a
+    Paused status; upstream's Failed covers NoirMech's Frozen;
+  - `TopP2PartySynergyScenario.cs`: upstream's side of both hunks, with the solo skip in its `Run_Spotlight`.
+    Resolve the conflicts, not the file: `AiStrats` (LPDU first) merges clean, and upstream's whole file would put
+    its NA strat back at index 0;
+  - `TopP5DeltaAi.cs`: upstream's `virtual` `Name` and NoirMech's `Group => "NA"`; `TopP5DeltaScenario.cs`: LPDU,
+    Standard, Tuufless;
+  - `ScenarioCatalog.cs`: TEA last, without upstream's I1 Limit Cut; `TeaZone.cs`, which both sides added:
+    upstream's file with NoirMech's P1 phase, EU preset first and rim reason;
+  - `README.md`: NoirMech's blocks with upstream's credits; `ScenarioRun.cs`: NoirMech's catalog-less construction,
+    `RunUntilStopped` and `probe.Stopped` beside upstream's four-argument `PartyMemberKilled`, `MechanicFailed`,
+    `HelperPoolExhausted` and `CompletedFailed`.
+- What merged clean but needed NoirMech's hand, each in its section: `TimelineRun.cs` (upstream's four-argument
+  `PartyMemberKilled`, and a run fails on `HelperPoolExhausted`), the P6 Gauntlet's limit breaks on upstream's
+  `JobActions` and its helpers on TOP's zone pool, the lasers' vulnerability, Drill on a run that ends failed without
+  a freeze, Retry ending the speed buffs, the TEA report's barrier and map-effect findings, the lint's `Known`, a
+  Throttle the engine's Esuna takes off, and the multiplayer spawn's animation state.
+- Still optional: P3 and P4 spawn their own 9020 helpers beside TOP's zone pool (Intermission 10, Hello World 12,
+  Monitors 14, Blue Screen 19) and play the same with it; casting through `omega.CastFromHelper(action, target,
+  at: ...)` would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off
+  the tower helpers). TEA P1's own `SpawnedHelperPool`s (Living Liquid 17, Limit Cut 3) stand beside the zone's 17:
+  `TeaP1LivingLiquid.CastFromHelper` can become `Liquid?.CastFromHelper(...)` and the Hawk Blasters Cruise Chaser's,
+  which leaves `SpawnedHelperPool` no user. That stops being optional once P2, with a pool of its own, lands.
+- `LinkInterruptionTests`: upstream's `d1554f5` marks the whole fixture `[Ignore("Too slow")]`. NoirMech keeps the
+  skip, so no gate runs the dropped-link coverage of every multiplayer message, NoirMech's P5 Delta replay fields
+  and the Wormhole strats' included; `[Explicit("Too slow")]` and a bucket of its own would bring it back.
 
 ## Build and test
 - .NET 10 SDK. `dotnet build` from the repo root gives `AnoMech/bin/x64/Debug/NoirMech.dll`; load it through
@@ -230,12 +238,17 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
     shard takes what its buckets match that no earlier shard took and the shard holding the rest takes everything
     else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket
     times or split a bucket; keep `[Explicit]` tests out of every bucket, since a filter that selects one can run
-    it.
-  - `-Preset full` (the default) runs everything at the run settings' seeds: 12 minutes here with the defaults,
-    the PC's CPU load staying under a quarter, against about 37 for a plain `dotnet test` and 28 for one capped
-    process. `-Preset quick` drops the `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed, about 3
-    minutes; `-Phase P3` runs one TOP phase's `TopP3*` classes and the catalog-wide tests' cases for its
-    scenarios, with `-Preset quick` too if wanted; `-SunnySeeds 2000` makes any of them a soak.
+    it. The catalog's sunny days are split by family (`catalog-top`, `catalog-dancing`, `catalog-black-hole`,
+    `catalog-fru`, `catalog-tea`, `catalog-other`); `catalog-fru`'s, `catalog-tea`'s and `catalog-other`'s times
+    were scaled from a quick run after the bd24935 merge, and every bucket's want refreshing from the first full
+    run's summary since. Upstream's ignored `LinkInterruptionTests` (Merging) have no bucket: they fall to the rest,
+    skipped, and the Wormhole human suite runs there too.
+  - `-Preset full` (the default) runs everything at the run settings' seeds: 12 minutes here with the defaults
+    before the bd24935 merge, the PC's CPU load staying under a quarter, against about 37 for a plain `dotnet test`
+    and 28 for one capped process. `-Preset quick` drops the `*HumanTests` suites and runs 4 sunny-day seeds and 1
+    pause seed, about 3 minutes then, and about 8 with `-Shards 2` since; `-Phase P3` runs one TOP phase's `TopP3*`
+    classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick` too if wanted; `-SunnySeeds
+    2000` makes any of them a soak.
 - A green full run of a clean tree writes `green <HEAD> full` to `TestResults\green-stamp.txt` (gitignored), which
   `publish.ps1` requires. A full run deletes it first, and one with uncommitted changes, `-NoBuild` or
   `-SunnySeeds`, or one HEAD moved under, writes none.
@@ -245,9 +258,13 @@ P2, P3, P4, P5, P6 and pause tests pass. At the merge:
   each trace. A `Move` with an `arrivalTime` measures its bots' departures from where they stand as it fires, and
   the deferred `MoveTo` can't be cancelled, so the lint fails when a bot's deferred departure lands at or after
   that bot's next move, or when a deferred move is planned while its bot still walks from the one before (the 10s
-  Party Synergy flex), naming both sites. `Known` holds upstream's FRU P3 Apocalypse walk at 36.05, which two
-  bots finish up to 0.19s after the 37.0 deadline move plans their departures, inside `AiManager`'s 0.25s margin;
-  an entry fails the test once it's no longer found.
+  Party Synergy flex), naming both sites. `Known` holds two of upstream's strats, left as they are: FRU P3
+  Apocalypse's walk at 36.05, which two bots finish up to 0.19s after the 37.0 deadline move plans their
+  departures, inside `AiManager`'s 0.25s margin; and FRU P2 Light Rampant [JP · Mana], whose 33.85 move sends every
+  bot to the banish spot its 32.9 move sent some to, with the same 37.1 deadline, so a departure still deferred goes
+  to the same spot in time. An entry fails the test once it's no longer found.
+- `TimelineRun` fails a run on `HelperPoolExhausted`, as `ScenarioRun` does, so a timeline test on a zone's pool
+  can't drop a cast unseen.
 
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Several test processes
   at normal priority on every CPU have frozen the development PC: run them through `tools\test.ps1`, or one
@@ -318,7 +335,9 @@ anywhere, since they hold other players' names.
     the map effects since the last pull), which is where the Liquid's spot before the pull, the helpers and the
     entrance barrier are read from; a combatant of the pull before can linger there, so the report takes what joined
     with the pull's own Living Liquid. The plugin's own runs are left out by asking for a cast or an ability of the
-    fight's own actors: a fairy's ids sit among the enemies'.
+    fight's own actors: a fairy's ids sit among the enemies'. The barrier's and the map effects' findings read
+    upstream's zone files by path (`TeaReplayData.cs`, `TeaConstants.ArenaStates`), since `TeaSource` holds
+    NoirMech's: each pull's resets are held against the seven slots every run sets as it starts.
   - A boss's own spot and facing on a cast, an ability or a move line are the server's. "Closest" and "farthest"
     among players are told apart no finer than a yalm, and a player's bearing from a boss a few yalms away turns by
     ten degrees for a yalm of error. A player just raised (Transcendent) is left out of kill rules as one under a
@@ -371,7 +390,9 @@ build.
 
 ## Pause
 `/noirmech pause|resume|toggle`, the main-window Pause/Resume button and the title-bar icon toggle
-`Game.UserPaused` through `Game.Pause`/`Resume`/`TogglePause` (all via `Framework.Run`).
+`Game.UserPaused` through `Game.Pause`/`Resume`/`TogglePause` (all via `Framework.Run`). The button sits beside
+upstream's solo Stop and hides with it through the death freeze, where upstream's Leave shows; while paused the title
+reads PAUSED (`PausedTitle`, over upstream's `Title(failed)`) and upstream's status line Paused.
 - Refused with a chat line (`Game.PauseRefusal`) when there is no run, in a multiplayer session (only `Local`
   runs pause), or during the death freeze (`Paused`). Redundant requests do nothing.
 - While halted (`IsHalted` = user pause or death freeze) the scheduler, children and `IScenario.Tick` don't
@@ -379,7 +400,8 @@ build.
   cast time back every frame (near the end it holds 0.45s short so the omen stays drawn), statuses are resent so
   their timers stand still, bots and NPCs get one settle move to where the sim stopped them, and
   `ActorFreeze` stops the animations of every enemy and doppel (never the local player). Both halts hold the
-  scene; only the user pause also locks the player.
+  scene; only the user pause also locks the player. A halted run gets no `SimWorld.Tick`, so upstream's sim events
+  (`IWorldEventListener`) queue nothing new and reach the scenario after the resume.
 - The player can walk but not act (`ILocalPlayerInput.ActionsBlocked` in the UseAction detours); auto-attacks
   stop. `UserActions` skips handler timers except those with `RunsWhilePaused` (`CastInterruptHandler`). On
   resume the player's activity is sampled before any event runs; standing outside the arena ring kills on the
@@ -409,12 +431,15 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
 - Retry puts the run's settings back before it starts, so a conflict in the live settings refuses it only when they
   are the run's own (`StartRefusal`'s `checkSettings`). `Retry` asks `StartRefusal` again once `Replay()` has put them
   back, so a conflict they don't fix (the P6 Gauntlet's module check) still refuses before anything zones in, and
-  leaves the run's settings in place. It starts through `EnterAndStart` as Start does, zoning in from the inn and
+  leaves the run's settings in place. It ends Sprint, Peloton and Smudge (`ZoneControl.EndSpeedBuffs`) before its
+  start gate, as upstream's Start does, starts through `EnterAndStart` as Start does, zoning in from the inn and
   waiting out a settle, and the window first selects the retried scenario.
 - Drill (beside Auto-restart, in every build; forced off in a session): a run in which anyone died plays its roll
   again 3 s after it freezes (`RollReplay.FreezeHoldSeconds`), so the player sees the frozen scene, or, when godmode
-  kept everyone up, as soon as it ends; a clean run moves on to a fresh roll. Deaths switch Auto-restart off but not
-  Drill, and with Drill on Drill makes the restart. A run stopped before it froze isn't played again.
+  kept everyone up, as soon as it ends; a run upstream's `SimWorld.Fail` failed without a freeze plays again 3 s
+  after it ends (`CompletedFailed`, which raises no `RunFinished`, and `DrillReplays` counts it); a clean run moves on
+  to a fresh roll. Deaths switch Auto-restart off but not Drill, and with Drill on Drill makes the restart. A run
+  stopped before it froze isn't played again.
 - The freeze is polled: `Rolls.Tick` runs after `Game.Tick` in `Plugin.OnFrameworkUpdate` and counts the hold on the
   frame's own seconds, since the sim's clock stands still through the freeze. Drill ticked on during a freeze replays
   3 s after the tick. Whatever ends or replaces the frozen run within the 3 s drops the replay (Stop or Reset, Start,
@@ -517,7 +542,8 @@ radius, the void zone's radius and spawn args) are marked UNVERIFIED there; tune
   about 10.5y apart and break its tether. So it takes its rots 1.3y inside its stacks, toward each other, and
   stands 7.9y apart until its pop. No source gives that spot (UNVERIFIED), and it reaches the rot only while
   `RotContactRadius` (1.5y, UNVERIFIED) stays over 1.3y. A bot walks to a pass's spot exactly, without the 0.3y
-  jitter, so it stays within the rot's reach.
+  jitter, so it stays within the rot's reach. Upstream's `SimTether` ends itself when an end dies (`TetherEnded`), so
+  a tether goes with a death, as Hello World's regressions already do.
 - Its bots (`TopP3HelloWorldLpduAi` with the `TopP3HelloWorldTraffic` planner) rest only on LPDU strat spots and
   that remote pass. Every spot is placed from the set's layout, so they play both rings alike; only the loose
   spread before the first towers and the Monitors line-up stand fixed in the arena. They plan each walk round
@@ -559,6 +585,8 @@ UNVERIFIED there and in the scenario.
 
 ## TOP P5 Delta
 Upstream's `Scenarios/Top/P5Delta/` with NoirMech's EU strat in front; tests pass upstream's as `NaStrat = 1`.
+Upstream's Tuufless strat (`TopP5DeltaTuuflessAi`, a subclass of its Standard) is third and inherits Standard's NA
+group, the automarkers and the eye's turn; `TopP5DeltaLpduAiTests` holds the order.
 - Inner pairs: in each colour the only tether pair holding a healer lines up inner. A tie (both pairs or
   neither) keeps the roll's inner pair, so the bots' pick is random and a human follows them. A seat that forced
   an inner or outer band in a colour (Close/Far Inner/Outer; Beyond Defence = Yes counts as Close Inner) hands
@@ -675,10 +703,10 @@ multiplayer.
 - `TopP6AlphaOmega` (`TopP6Mechanics.cs`) is the phase's one Alpha Omega and plays every attack; Cosmo Memory's
   statuses and the gauge come once. The Cosmo Arrow 2 part is upstream's Exasquares/WC2 rebuilt from its
   `CosmoArrow` and `WaveCannon` steps.
-- `TopP6AlphaOmega` spawns a pool of 36 invisible 9020 helpers; every helper cast goes through its `CastFromHelper`.
-  Once upstream's zone owns a helper pool and `SimEnemy.CastFromHelper`, that method's body becomes
-  `Enemy?.CastFromHelper(...)` and the pool field and `helpers.Spawn()` go. Keep the 9020 id in `TopP6Constants` and
-  stay within 36 busy helpers (`TopP6HelperBudgetTests`, the whole Gauntlet included).
+- Every helper cast goes through `TopP6AlphaOmega.CastFromHelper`, which casts through Alpha Omega's
+  `SimEnemy.CastFromHelper` from TOP's zone pool (upstream's `HelperPool(9020, 36)`, spawned at every TOP run's
+  start), each cast shown under Alpha Omega's name and linked to him. `TopP6HelperBudgetTests` holds every part and
+  the whole Gauntlet to no `HelperPoolExhausted`, which `ScenarioRun` and `TimelineRun` fail a run on.
 - Start from (default: the whole phase) picks the first part. A later start spawns Alpha Omega, puts the party, the
   human too, on the autos' spots, leaves Cosmo Memory's statuses as the run so far would (Spark of Dynamis on the
   seats whose limit break the plan pressed before, Brilliant Dynamis on the rest, both from the first frame, with the
@@ -724,6 +752,11 @@ multiplayer.
     0x47 as the cast starts and the resolve as it lands, aimed at Alpha Omega when the limit break takes a target. A
     press waits while another limit break casts or the gauge isn't full and gives up once its mechanic has gone off.
     A bot stands still through its cast; the lock after it isn't played.
+  - A bot's resolve goes once: with "Resolve your own actions" on, `PartyLimitBreakCast` hands it to upstream's
+    `JobActions.ApplyEffects`, which sends the resolve and plays a tank LB3's status; with it off, which every
+    headless run the debug driver walks has, it sends the resolve itself and `TopP6LimitBreaks` puts the tank LB3's
+    status (upstream's 8 s) on the party, as it does for the run's press for the player's seat. The player's seat is
+    sent nothing, since `ApplyEffects` can't play the effects without sending that client the resolve.
 - The checks count whoever pressed; only the melee rule is the human's alone. The tank, mark and Cosmo Meteor hit
   checks are dealt through `Verdicts`, the adds' and Run: ****mi*'s enrages through `SimParty.WipeAllPlayers` and the
   melee rule through `SimPlayer.Die`; godmode reports each player once per hit, and when a waiting press found the
@@ -848,15 +881,25 @@ multiplayer.
   `FullyQualifiedName~ScenarioCatalogTests&Name~Gauntlet`.
 
 ## TEA P1
-`Scenarios/Tea/`: `TeaZone` (The Epic of Alexander, territory 887, one EU waymark preset) with a `P1` phase,
-`P1LivingLiquid/`, the phase's fight from the pull to the kill (next section), and
+`Scenarios/Tea/`: upstream's `TeaZone` (The Epic of Alexander, territory 887) with NoirMech's `P1` phase beside
+upstream's `I1` and `P3`, `P1LivingLiquid/`, the phase's fight from the pull to the kill (next section), and
 `P1LimitCut/`, the intermission that ends the phase, which the rest of this section is about. Ids and tunables are in
-`TeaP1Constants.cs`. Both scenarios were retuned to the pull-log report (above): what it could not settle keeps an
-UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bounds the pulls leave it.
-- The arena has no wall, and whoever goes past its rim (r 20) dies at once: `TeaZone.Run` asks the world for the
-  boundary, with the reason. Its weather is left to the territory and its entrance barrier's ids are read from the
-  layout, both UNVERIFIED. The phase's BGM is 706; the fight changes to 723 with J Kick, which ends the run here, so
-  that isn't played.
+`TeaP1Constants.cs`, beside upstream's `TeaConstants.cs`: NoirMech's nested classes are all `P1`-prefixed and its
+fields always qualified, so the two don't collide. Both scenarios were retuned to the pull-log report (above): what
+it could not settle keeps an UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bounds the
+pulls leave it.
+- The arena has no wall, and whoever goes past its rim (r 20, the zone's `TeaConstants.Geometry.ArenaRadius`, which
+  `P1Geometry.ArenaRadius` names) dies at once: `TeaZone.Run` asks the world for the boundary, with NoirMech's reason
+  (`WentPastTheRim`) in every phase; upstream's own TEA tests read the environment's action alone.
+- The zone's duty data is upstream's (`TeaReplayData`): the entrance barrier (EObj 2000182 at (0, 15)), 17
+  invisible 9020 helpers and the arena's slots as the zone loads; every run sets the arena's eight objects and its
+  seven slots (`TeaConstants.ArenaStates`) as it starts, beside P1's own helpers. Two waymark presets: NoirMech's
+  "EU" first, so it is the default and kept setups don't move, then upstream's "PF Trines", the same layout within
+  a yalm.
+- P1 plays Fair Skies (`TeaConstants.Weather.FairSkies`, 2), the fight's weather until J Kick: a phase that sets none
+  keeps the stay's last run's, so a stay that played Wormhole (Beyond Time) would have kept that into P1, since a
+  start in the same zone starts in place. The phase's BGM is 706; the fight changes to 723 with J Kick, which ends
+  the run here, so that isn't played.
 - Limit Cut starts 8 s before the first Hawk Blaster, the party in the middle and no boss up, and ends after J Kick;
   Brute Justice and Cruise Chaser turning targetable isn't played. Party-only: no solo, no multiplayer.
   - The numbers show from 5.95, the first two together and each later one 0.045 s on.
@@ -877,8 +920,8 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bound
   - J Kick at 34.05 hurts nobody. Brute Justice casts it himself in the fight, landing at (-6, 0); he isn't drawn
     here, so an unseen helper under his name casts it from there.
 - Rolls: the numbers (a permutation of the party) and the first pair's axis, one of four. The settings pin the
-  axis and the player's number; Automarkers is Off by default here, unlike TOP's, and On has the strat put Attack
-  1-8 on numbers 1-8 at 6.3.
+  axis and the player's number. TEA has no automarkers: the user removed Limit Cut's (the setting, the State's field
+  and the strat's signs), and a setup kept with the old setting still loads, its value skipped.
 - A number for another seat needs a host's session, which the scenario doesn't support: a local run shows only
   "Your number". The per-seat rows, `HasPerPlayerSettings` and the one-seat-per-number conflict are there for that
   day and are reached only by tests (`PerRole.ForceSeats`).
@@ -893,10 +936,9 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bound
   15 s: `TeaP1Presses` hears the press through `IUserActions.Acted`, with "Resolve your own actions" on or off, and
   times it on the run's clock, so the rule holds the same either way: upstream's `JobActions` shows Arm's Length's and
   Surecast's statuses (1209, 160) with the module on or off, but Inner Strength (2663) only with it on, and the rule
-  never reads them. It doesn't ask the job: only a warrior's
-  client can report Inner Release. A press comes with its button's own id, so Inner Release is heard as 7389 and
-  as 38, the Berserk a button may have been placed as; once a release brings upstream's `283e864`, which reports
-  the id a button is adjusted to, 38 no longer comes and its arm does nothing.
+  never reads them. It doesn't ask the job: only a warrior's client can report Inner Release. Since the merge,
+  upstream's `283e864` reports a press as the id its button is adjusted to, so Inner Release comes as 7389 alone:
+  the arm for 38, the Berserk a button may have been placed as, does nothing now, and is left for P2 to drop.
 - In godmode a player past the rim isn't killed, and the engine's boundary reports it again on every tick it stays
   there (upstream's behaviour, left as it is).
 - One scenario instance plays every run of a session. `Run` clears what the last run left on it and replaces the
@@ -1000,7 +1042,8 @@ share.
     Strike falls in these two parts; the pull has five.
   - Its 17 invisible 9020 helpers, the fight's own count, are a `SpawnedHelperPool`, every helper cast going through
     `CastFromHelper`; the most busy at once is 11, in Cascade 2, and 3 in the pull
-    (`TeaP1LivingLiquidHelperBudgetTests`).
+    (`TeaP1LivingLiquidHelperBudgetTests`). They stand beside the zone's own 17, which P1 doesn't cast from yet
+    (Merging).
   - The bosses, and a Protean 1 start's tornadoes, are spawned in `Run` itself, ahead of the strat's `Run`: the
     strat's first move reads where the Liquid stands, and events of one time fire in the order they were added.
 - The tornadoes (`TeaP1Tornadoes`, `TeaP1TornadoLayout`): three Liquid Rages 15 y out on three quarters, each with
@@ -1310,7 +1353,9 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu, Iaijutsu, Tsubame-gaeshi, Masterful Blitz, Continuation,
     Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's Higanbana
     tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field) pressed with a
-    doll targeted. Once a release brings upstream's `283e864` those ids no longer come. The fight's doll also
+    doll targeted. Since the merge brought upstream's `283e864` those ids no longer come: Raiton (2267) and
+    Higanbana (7489) arrive as themselves and pass on their own rows, but a Doton or an Elixir Field pressed with a
+    doll targeted no longer counts; the ids are left for P2 to drop. The fight's doll also
     tethers on an auto-attack now and then, and so does the run's: with "Resolve your own actions" on, upstream's
     `AutoAttackHandler` reports each of the player's swings through `IUserActions.Acted` (Attack 7, Shot 8, whose rows
     pass the filter), so a swing that lands on a doll first tethers it. With the module off no swing is heard, and a
@@ -1488,3 +1533,26 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
   moment after it appears; a weaponskill and a hard cast on a doll are heard and tether it, and a cooldown pressed
   with one targeted does not; the doll's bar falling and the chat line; Provoke moving the Hand two thirds of a
   second after the press, and the invulnerability with the module on and off.
+
+## TEA P3 Wormhole
+Upstream's `Scenarios/Tea/P3Wormhole/`, "Wormhole", in upstream's `TeaZone.P3` phase (Beyond Time, BGM 725 from
+115.2 s): from 1 s before Alexander Prime's Wormhole Formation through the Enumerations, with upstream's Limit Cut
+numbers, Cruise Chaser's warps and knockbacks an Arm's Length or Surecast status stops (`ai.Kbi` for bots).
+Multiplayer, no solo. NoirMech ships it as upstream has it but for the strats; NoirMech's later P3 parts are to go on
+the same phase.
+- Two strats. `TeaP3WormholeLpduAi`, EU `[LPDU] Light PF`, is first, so it is the default; upstream's NAUR
+  (`TeaP3WormholeAi`) is index 1 with `Group => "NA"`, and upstream's `TeaP3WormholeScenarioTests` pass
+  `NaStrat = 1`. The index goes to multiplayer peers, so both sides need the same build.
+- The LPDU strat is NAUR's moves and spots, which match LPDU's Onyxia everywhere but the Enumerations, with the
+  Enumerations taken by LPDU's priority: marked M1 or R1 east beside the tanks, marked M2 or R2 west beside the
+  healers, and of two marked on one side the melee goes to the other; the unmarked DPS wait north as NAUR has them.
+  At 46.0 the east ring is (4.4, -0.3) with the tanks at (5.2, 0.5) and (5.2, -1.1), the west (-5.2, -0.3) with the
+  healers at (-6.0, 0.5) and (-6.0, -1.1), the unmarked at (0, -6) and (-0.8, -7.4). NAUR sends a lone marked melee
+  east, so the two part only when M1 and R1, or M2 and R1, are marked: there a human playing LPDU's priority among
+  NAUR's bots shares a ring with the other marked, and the Enumerations kill.
+- Upstream's I1 Limit Cut (phase I1, strat "1256") stays off the menu: NoirMech's P1 Limit Cut plays the same
+  intermission on its own clock, and listing both would only confuse. Its files and tests stay.
+- Change bot movement only with `TeaP3WormholeLpduAiTests` (the order, the priority on every marked pair and layout,
+  every seat frame by frame against NAUR's, bots alone on every pair, layout and seat) and
+  `TeaP3WormholeLpduHumanTests` (a human taking its spot by LPDU's priority on every pair, seat, layout and reaction
+  time loses nobody) green. The gate has no bucket of its own for either; they run in the rest.
