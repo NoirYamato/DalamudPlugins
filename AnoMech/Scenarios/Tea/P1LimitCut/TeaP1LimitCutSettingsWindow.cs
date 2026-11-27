@@ -29,7 +29,6 @@ public sealed class TeaP1LimitCutSettingsWindow
             if (ImGui.Combo("##tealcfirstblasters", ref first, FirstBlasterLabels, FirstBlasterLabels.Length))
                 Overrides.FirstBlasters = first == 0 ? null : (TeaP1FirstBlasters)(first - 1);
 
-            Overrides.Automarkers = AutomarkersRow.Draw(Overrides.Automarkers);
             if (solo) DrawNumber();
             SettingsGrid.End();
         }

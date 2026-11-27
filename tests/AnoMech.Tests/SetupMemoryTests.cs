@@ -3,6 +3,7 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
+using AnoMech.Scenarios.Tea.P1LimitCut;
 using AnoMech.Scenarios.Top.P5Delta;
 using AnoMech.Scenarios.Top.P6Gauntlet;
 
@@ -249,6 +250,36 @@ public class SetupMemoryTests
             Assert.That(memory.Find(shown)!.Strat, Is.EqualTo("[LPDU] Light PF"));
             Assert.That(memory.Find(shown)!.Region, Is.EqualTo("EU"));
             Assert.That(memory.Find(neverShown), Is.Null);
+        });
+    }
+
+    // TEA Limit Cut's settings as a build that offered Automarkers kept them, On among them: TEA has none now, and the
+    // rest of the setup comes back.
+    [Test]
+    public void ALimitCutSetupKeptWithItsAutomarkersComesBackWithoutThem()
+    {
+        var kept = new TeaP1LimitCutScenario();
+        var memory = new SetupMemory();
+        memory.Scenarios[kept.FullName()] = new ScenarioSetup
+        {
+            Region = "EU",
+            Strat = "[LPDU] Light PF",
+            Settings = "{\"FirstBlasters\":2,\"Automarkers\":0,\"Number\":{\"Mine\":3,\"Seats\":[null,null,null,null,null,null,5,null],\"AnySet\":true}}",
+        };
+        memory.Save(path);
+
+        var restarted = new TeaP1LimitCutScenario();
+        var loaded = SetupMemory.Load(path).Find(restarted)!;
+        loaded.RestoreSettings(restarted);
+
+        var back = (TeaP1LimitCutStateOverrides)restarted.SettingsOverrides;
+        Assert.Multiple(() =>
+        {
+            Assert.That(loaded.StratIndex(restarted, "EU"), Is.Zero);
+            Assert.That(back.FirstBlasters, Is.EqualTo(TeaP1FirstBlasters.NorthSouth));
+            Assert.That(back.Number.Mine, Is.EqualTo(3));
+            Assert.That(back.Number[PartyRole.PhysRangedDps], Is.EqualTo(5));
+            Assert.That(ScenarioSettingsSync.Serialize(back), Does.Not.Contain("Automarkers"));
         });
     }
 

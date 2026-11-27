@@ -21,7 +21,6 @@ public sealed class TeaP1LimitCutState
     // Numbers[k] holds number k + 1.
     public IReadOnlyList<PartyRole> Numbers { get; }
     public TeaP1FirstBlasters FirstBlasters { get; }
-    public Automarkers Automarkers { get; }
     public float CruiseChaserLandsBehind { get; }
 
     // Degrees clockwise from north of the first pair's blaster in the west-to-north-east half.
@@ -51,7 +50,6 @@ public sealed class TeaP1LimitCutState
         var numbers = RollNumbers(party.PlayerRole, overrides);
         FirstBlasters = overrides.FirstBlasters ?? axis;
         Numbers = overrides.Numbers ?? numbers;
-        Automarkers = overrides.Automarkers;
         CruiseChaserLandsBehind = overrides.CruiseChaserLandsBehind ?? P1Geometry.CruiseChaserLandsBehind;
     }
 

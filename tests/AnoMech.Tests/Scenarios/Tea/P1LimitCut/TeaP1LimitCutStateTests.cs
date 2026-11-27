@@ -197,16 +197,14 @@ public class TeaP1LimitCutStateTests
         Assert.That(Roll(1, new TeaP1LimitCutStateOverrides { CruiseChaserLandsBehind = 4.5f }).CruiseChaserLandsBehind, Is.EqualTo(4.5f));
     }
 
-    // Unlike the TOP scenarios that offer it.
+    // TEA has no automarkers, unlike the TOP scenarios that offer them.
     [Test]
-    public void AutomarkersDefaultToOff()
+    public void TheSettingsOfferNoAutomarkers()
     {
         var overrides = new TeaP1LimitCutStateOverrides();
 
-        Assert.That(overrides.Automarkers, Is.EqualTo(Automarkers.Off));
-        Assert.That(Roll(1, overrides).Automarkers, Is.EqualTo(Automarkers.Off));
-        Assert.That(ScenarioSettingsSummary.Describe(overrides), Has.Member("Automarkers: Off"));
-        Assert.That(Roll(1, new TeaP1LimitCutStateOverrides { Automarkers = Automarkers.On }).Automarkers, Is.EqualTo(Automarkers.On));
+        Assert.That(ScenarioSettingsSummary.Describe(overrides).Where(line => line.Contains("Automarkers")), Is.Empty);
+        Assert.That(ScenarioSettingsSync.Serialize(overrides), Does.Not.Contain("Automarkers"));
     }
 
     // ScenarioSettingsSync is also how a setup is kept across restarts.
@@ -216,7 +214,6 @@ public class TeaP1LimitCutStateTests
         var host = new TeaP1LimitCutStateOverrides
         {
             FirstBlasters = NortheastSouthwest,
-            Automarkers = Automarkers.On,
             Numbers = PerRole.All,
             CruiseChaserLandsBehind = 4.5f,
         };
@@ -229,7 +226,6 @@ public class TeaP1LimitCutStateTests
         Assert.Multiple(() =>
         {
             Assert.That(peer.FirstBlasters, Is.EqualTo(NortheastSouthwest));
-            Assert.That(peer.Automarkers, Is.EqualTo(Automarkers.On));
             Assert.That(peer.Number.Mine, Is.EqualTo(7));
             Assert.That(peer.Number[ShieldHealer], Is.EqualTo(2));
             Assert.That(peer.Numbers, Is.Null);

@@ -1,5 +1,4 @@
 using AnoMech.Scenarios;
-using AnoMech.Scenarios.Tea.P1LimitCut;
 using AnoMech.Scenarios.Top.P3Intermission;
 using AnoMech.Scenarios.Top.P3Monitors;
 using AnoMech.Scenarios.Top.P5Delta;
@@ -7,8 +6,8 @@ using AnoMech.Scenarios.Top.P5Delta;
 namespace AnoMech.Tests;
 
 // The shared setting reaches peers through ScenarioSettingsSync (also how a peer keeps and restores its own
-// settings) and the lobby through ScenarioSettingsSummary, in every scenario that offers it. It is On unless set in
-// the TOP scenarios and Off in TEA's.
+// settings) and the lobby through ScenarioSettingsSummary, in every scenario that offers it, all of them TOP's: it is
+// On unless set. TEA has none.
 public class AutomarkersTests
 {
     private static IEnumerable<TestCaseData> Overrides()
@@ -16,7 +15,6 @@ public class AutomarkersTests
         yield return new TestCaseData((Func<object>)(() => new TopP3IntermissionStateOverrides()), Automarkers.On).SetName("{m}(P3 Intermission)");
         yield return new TestCaseData((Func<object>)(() => new TopP3MonitorsStateOverrides()), Automarkers.On).SetName("{m}(P3 Monitors)");
         yield return new TestCaseData((Func<object>)(() => new TopP5DeltaStateOverrides()), Automarkers.On).SetName("{m}(P5 Delta)");
-        yield return new TestCaseData((Func<object>)(() => new TeaP1LimitCutStateOverrides()), Automarkers.Off).SetName("{m}(TEA Limit Cut)");
     }
 
     [TestCaseSource(nameof(Overrides))]

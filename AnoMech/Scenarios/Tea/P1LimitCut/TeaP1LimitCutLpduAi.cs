@@ -1,10 +1,8 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
-using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using static AnoMech.Core.Game.Party.PartyRole;
 
@@ -37,9 +35,6 @@ public class TeaP1LimitCutLpduAi : IScenarioAi<TeaP1LimitCutState>
     private static readonly PartyRole[] ClockwiseFromNorthInTheMiddle =
         [MainTank, MeleeDpsB, ShieldHealer, CasterDps, OffTank, PhysRangedDps, RegenHealer, MeleeDpsA];
 
-    private static readonly Sign[] AttackSigns =
-        [Sign.Attack1, Sign.Attack2, Sign.Attack3, Sign.Attack4, Sign.Attack5, Sign.Attack6, Sign.Attack7, Sign.Attack8];
-
     private TeaP1LimitCutState state = null!;
     private SimWorld world = null!;
 
@@ -49,8 +44,6 @@ public class TeaP1LimitCutLpduAi : IScenarioAi<TeaP1LimitCutState>
         world = w;
         var ai = new AiManager(world);
         ai.Move(0.5f, () => EveryoneInTheMiddle(WaitRadius));
-        if (state.Automarkers == Automarkers.On)
-            ai.Automarker(6.3f, AttackSignsOnTheNumbers);
         ai.Move(8.1f, BothGroupsRunOutWellBehindTheirFirstBlaster);
         ai.Move(10.3f, () => BothGroupsFollowTheBlastersTheirFirstPairInsideTheirSecondOutside(1));
         ai.Move(12.5f, OneAndTwoSprintOnToTheirHitSpot, sprint: true);
@@ -79,9 +72,6 @@ public class TeaP1LimitCutLpduAi : IScenarioAi<TeaP1LimitCutState>
     private static IAiMove EveryoneInTheMiddle(float radius)
         => AiMove.Create(ClockwiseFromNorthInTheMiddle.Select((_, i) => (Vector2?)OnRing(DegreesBetweenSpots * i, radius)).ToArray())
                  .Assignments(ClockwiseFromNorthInTheMiddle);
-
-    private Dictionary<PartyRole, Sign> AttackSignsOnTheNumbers()
-        => state.Numbers.Select((role, k) => (role, Sign: AttackSigns[k])).ToDictionary(n => n.role, n => n.Sign);
 
     private IAiMove BothGroupsRunOutWellBehindTheirFirstBlaster()
         => ByNumber(n => n % 2 == 0 && n <= 4

@@ -1,8 +1,6 @@
-using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
-using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea.P1LimitCut;
@@ -60,12 +58,11 @@ public class TeaP1LimitCutLpduAiTests
     private const float JustAfterAHit = 0.08f;
 
     internal static void Pin(TeaP1LimitCutStateOverrides overrides, IReadOnlyList<PartyRole> numbers, TeaP1FirstBlasters axis,
-                             float? landsBehind = null, Automarkers markers = Automarkers.Off)
+                             float? landsBehind = null)
     {
         overrides.Numbers = numbers;
         overrides.FirstBlasters = axis;
         overrides.CruiseChaserLandsBehind = landsBehind;
-        overrides.Automarkers = markers;
     }
 
     internal static Vector2 Flat(Vector3 position) => new(position.X, position.Z);
@@ -270,45 +267,14 @@ public class TeaP1LimitCutLpduAiTests
         }
     }
 
+    // TEA has no automarkers: the numbers over the heads are the fight's own.
     [Test]
-    public void AutomarkersPutAttackOneToEightOnTheNumbersOnceAllEightShow()
+    public void TheStratSignsNobody()
     {
-        var marks = Marks(Automarkers.On);
+        var signed = SignedInAWholeRun(out var run);
 
-        Assert.That(marks.Keys, Is.EquivalentTo(PerRole.All));
-        Assert.Multiple(() =>
-        {
-            Sign[] signs = [Sign.Attack1, Sign.Attack2, Sign.Attack3, Sign.Attack4, Sign.Attack5, Sign.Attack6, Sign.Attack7, Sign.Attack8];
-            for (var number = 1; number <= 8; number++)
-            {
-                var (sign, at) = marks[ExampleNumbers[number - 1]];
-                Assert.That(sign, Is.EqualTo(signs[number - 1]), $"#{number}'s sign");
-                Assert.That(at, Is.EqualTo(6.3f).Within(0.05f), $"#{number}'s mark time");
-            }
-        });
-    }
-
-    [Test]
-    public void AutomarkersAreOffUnlessAskedFor()
-    {
-        Assert.That(new TeaP1LimitCutStateOverrides().Automarkers, Is.EqualTo(Automarkers.Off));
-        Assert.That(Marks(null), Is.Empty);
-    }
-
-    [Test]
-    public void AutomarkersOnAndOffPutEveryoneOnTheSameSpots()
-    {
-        float[] hits = [.. AlphaSwordsAt, .. SuperBlasstyChargesAt];
-        foreach (var seed in Enumerable.Range(0, 5).Select(_ => Random.Shared.Next()))
-        {
-            var on = Play(ExampleNumbers, TeaP1FirstBlasters.NorthSouth, MainTank, seed, hits, out var withSigns, Automarkers.On);
-            var off = Play(ExampleNumbers, TeaP1FirstBlasters.NorthSouth, MainTank, seed, hits, out var without);
-            Assert.That(withSigns.Passed && without.Passed, () => $"{withSigns}{Environment.NewLine}{without}");
-            foreach (var at in hits)
-                foreach (var role in PerRole.All)
-                    Assert.That(Vector2.Distance(on[at][role].Position2, off[at][role].Position2), Is.LessThan(0.01f),
-                                $"{role} at {at}s: {on[at][role].Position2} with automarkers, {off[at][role].Position2} without (seed {seed})");
-        }
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(signed, Is.Empty);
     }
 
     [Test]
@@ -323,13 +289,13 @@ public class TeaP1LimitCutLpduAiTests
 
     // Everyone's placement on the frame the clock passes each of `times`.
     private static Dictionary<float, Dictionary<PartyRole, Placement>> Play(PartyRole[] numbers, TeaP1FirstBlasters axis, PartyRole player, int seed,
-                                                                            float[] times, out ScenarioRun run, Automarkers markers = Automarkers.Off)
+                                                                            float[] times, out ScenarioRun run)
     {
         var seen = new Dictionary<float, Dictionary<PartyRole, Placement>>();
         run = ScenarioRun.Execute(typeof(TeaP1LimitCutScenario), LpduStrat, seed, new ScenarioRunOptions
         {
             PlayerRole = player,
-            Overrides = o => Pin((TeaP1LimitCutStateOverrides)o, numbers, axis, markers: markers),
+            Overrides = o => Pin((TeaP1LimitCutStateOverrides)o, numbers, axis),
             Probe = p =>
             {
                 foreach (var at in times)
@@ -339,33 +305,17 @@ public class TeaP1LimitCutLpduAiTests
         return seen;
     }
 
-    // The sign each member was marked with, and when; rows with no target are the clears. Null leaves the setting
-    // as the scenario has it.
-    private static Dictionary<PartyRole, (Sign Sign, float At)> Marks(Automarkers? markers)
+    // Whom a sign was placed on in a whole run, by entity id; rows with no target are the clears.
+    private static List<string> SignedInAWholeRun(out ScenarioRun run)
     {
-        var marks = new Dictionary<PartyRole, (Sign, float)>();
-        var run = ScenarioRun.Execute(typeof(TeaP1LimitCutScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
+        IReadOnlyList<Dictionary<string, string>>? rows = null;
+        run = ScenarioRun.Execute(typeof(TeaP1LimitCutScenario), LpduStrat, Random.Shared.Next(), new ScenarioRunOptions
         {
             PlayerRole = MainTank,
-            StopAt = 7.5f,
-            Overrides = o =>
-            {
-                var overrides = (TeaP1LimitCutStateOverrides)o;
-                overrides.Numbers = ExampleNumbers;
-                if (markers is { } asked) overrides.Automarkers = asked;
-            },
-            Probe = p =>
-            {
-                if (!p.Crossed(7.4f)) return;
-                var roleById = PerRole.All.ToDictionary(r => p.Member(r)!.GameObjectId.ObjectId.ToString("X8"), r => r);
-                foreach (var row in p.Fake.Timeline.Rows.Where(r => r["kind"] == "ac_target" && r["id"] == "0x1F6" && r["target"] != ""))
-                    marks[roleById[row["target"]]] = ((Sign)Convert.ToUInt32(row["p"].Split(',')[0], 16),
-                                                     float.Parse(row["t"], CultureInfo.InvariantCulture));
-            },
+            Overrides = o => ((TeaP1LimitCutStateOverrides)o).Numbers = ExampleNumbers,
+            Probe = p => rows ??= p.Fake.Timeline.Rows,
         });
-
-        Assert.That(run.Passed, run.ToString);
-        return marks;
+        return rows!.Where(r => r["kind"] == "ac_target" && r["id"] == "0x1F6" && r["target"] != "").Select(r => r["target"]).ToList();
     }
 
     private static float OffTheLine(Vector2 at, Vector2 from, Vector2 to)

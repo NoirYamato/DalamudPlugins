@@ -10,8 +10,6 @@ public sealed class TeaP1LimitCutStateOverrides
 {
     public TeaP1FirstBlasters? FirstBlasters { get; set; }
 
-    public Automarkers Automarkers { get; set; } = Automarkers.Off;
-
     // 1..8. Two seats can't hold the same number; the later one keeps the roll.
     public PerRoleSetting<int> Number { get; set; } = new();
 
