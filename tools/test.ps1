@@ -74,13 +74,14 @@ $Buckets = @(
     @{ Name = 'tea-p1-pull-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidPullLpduHumanTests'); Seconds = 109; Human = $true }
     @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 97; Human = $true }
     @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 61 }
-    @{ Name = 'link-interruption'; Terms = @('FullyQualifiedName~LinkInterruptionTests'); Seconds = 89 }
     @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 58 }
     @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 25 }
     @{ Name = 'catalog-black-hole'; Terms = @("$Catalog&Name~Dancing&Name~Black"); Seconds = 15; Seeds = 'SunnySeeds' }
     @{ Name = 'catalog-dancing'; Terms = @("$Catalog&Name~Dancing&Name!~Black"); Seconds = 21; Seeds = 'SunnySeeds' }
     @{ Name = 'catalog-top'; Terms = @("$Catalog&Name~Protocol"); Seconds = 26; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Replay"); Seconds = 18; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-fru'; Terms = @("$Catalog&Name~Futures&Name!~Replay"); Seconds = 18; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-tea'; Terms = @("$Catalog&Name~Alexander&Name!~Replay"); Seconds = 5; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Futures&Name!~Alexander&Name!~Replay"); Seconds = 4; Seeds = 'SunnySeeds' }
     @{ Name = 'pause'; Terms = @('FullyQualifiedName~GamePauseTests'); Seconds = 16; Seeds = 'PauseSeeds' }
     @{ Name = 'rest'; Terms = @(); Seconds = 145; QuickSeconds = 133 }
 )
