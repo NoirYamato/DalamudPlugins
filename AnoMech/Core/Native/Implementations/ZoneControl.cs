@@ -848,7 +848,7 @@ public sealed unsafe partial class ZoneControl : IZoneControl
         // Plugin.DisposeAsync leaves the stay and waits out the lift first, so only an unload
         // that couldn't wait gets here. The inn reload finishes over the next second and then
         // sends its post-load packets, which an unload has no frames left to hold back.
-        if (IsActive && !gameClosing) Die("AnoMech was unloaded during a run");
+        if (IsActive && !gameClosing) Die($"{Plugin.DisplayName} was unloaded during a run");
 
         // The 1s lift after a Revert may still be pending, position re-assert included.
         if (guardArmed && !gameClosing)
