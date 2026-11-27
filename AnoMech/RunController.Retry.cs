@@ -47,6 +47,7 @@ internal sealed partial class RunController
         {
             if (why != null) Game.Print($"Retry refused: {why}.");
         }
+        ZoneControl.EndSpeedBuffs();
         if (ZoneControl.StartBlockedReason(out var settling) != null && settling != null)
         {
             startWait.Hold(settling, () => game.EnterAndStart(p, SessionMode.Local, Refused));
