@@ -23,7 +23,8 @@ public class TeaP3WormholeLpduAiTests
     internal const float EnumerationMove = 46.0f;
     internal const float JustBeforeTheEnumerations = 50.4f;
     internal const float EnumerationRadius = 5f;
-    // A bot stops within a frame's walk of its spot, so two that walked in from different places stand up to two apart.
+    // A bot lands on its spot; the debug-driven player's seat stops up to a frame's walk short of it, since its arrival
+    // only stops the steering.
     private const float OnItsSpot = 0.15f;
     private const float Identical = 1e-4f;
 
@@ -131,7 +132,7 @@ public class TeaP3WormholeLpduAiTests
                 foreach (var role in PerRole.All)
                 {
                     var naursSeat = traded.Contains(role) ? traded.Single(other => other != role) : role;
-                    Assert.That(Vector2.Distance(lpduAt[role], naurAt[naursSeat]), Is.LessThan(traded.Contains(role) ? 2 * OnItsSpot : Identical),
+                    Assert.That(Vector2.Distance(lpduAt[role], naurAt[naursSeat]), Is.LessThan(traded.Contains(role) ? OnItsSpot : Identical),
                         $"{why}: LPDU's {Label(role)} at {lpduAt[role]}, NAUR's {Label(naursSeat)} at {naurAt[naursSeat]}");
                 }
             });
