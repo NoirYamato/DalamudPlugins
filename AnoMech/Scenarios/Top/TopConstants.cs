@@ -66,7 +66,6 @@ public static class TopConstants
         public const uint OmegaF = 15713;         // P2 variant
         public const uint OmegaMClone = 15714;        // P2 Omega-M
         public const uint OmegaFClone = 15715;        // P2 Omega-F
-        public const uint OmegaHelper = 9020;         // 0x233C — generic invisible helper used by all phases
         public const uint BeetleHelper = 15724;       // 0x3D6C — beetle / sigma helper visual
         public const uint FinalHelper = 14669;        // 0x394D — wave cannon spinner / ultimate visual
         public const uint RightArmUnit = 15719;       // 0x3D67 — Hyper Pulse caster
@@ -113,6 +112,14 @@ public static class TopConstants
         public const uint RocketPunch = 7696;
         public const uint RearPowerUnit = 7639;
         public const uint AlphaOmega = 12256;
+    }
+
+    public static class BattleTalkId
+    {
+        public const uint PartyMemberGeneration = 35803;
+        public const uint UnknownAugmentation = 35817;
+        public const uint AmplificationInconsistent = 35818;
+        public const uint BeginHypothesis = 35819;
     }
 
     public static class EObjId

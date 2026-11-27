@@ -21,6 +21,7 @@ public sealed class PracticeLoop
         game.RunStarted += OnRunStarted;
         game.RunFinished += OnRunFinished;
         game.PartyMemberKilled += OnPartyMemberKilled;
+        game.MechanicFailed += _ => EndStreak();
     }
 
     private void OnRunStarted(RunScenarioParams p, bool local)
@@ -42,7 +43,9 @@ public sealed class PracticeLoop
             game.StartScenario(p);
     }
 
-    private void OnPartyMemberKilled(PartyRole role, string cause, uint? actionId)
+    private void OnPartyMemberKilled(PartyRole role, string cause, uint? actionId, ushort? statusId) => EndStreak();
+
+    private void EndStreak()
     {
         Streak = 0;
         AutoRestart = false;

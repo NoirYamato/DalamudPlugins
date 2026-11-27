@@ -12,9 +12,11 @@ public sealed class EnemyActionContext
 {
     // Never removed from, so it enumerates in insertion order.
     private readonly Dictionary<SimCharacter, TargetOutcome> outcomes = [];
-    private readonly List<System.Action> afterResolve = [];
     private readonly List<(SimStatus Status, float RevealAt)> hiddenStatuses = [];
     private readonly List<(SimCharacter, ushort)> impactRemovals = [];
+
+    // Surecast, Arm's Length, Inner Strength.
+    internal static readonly ushort[] KnockbackImmunityStatuses = [160, 1209, 2663];
 
     internal EnemyActionContext(EnemyAction action, SimCharacter caster, SimCharacter? target, Placement origin, SimParty party, float releaseDelay)
     {
@@ -61,9 +63,10 @@ public sealed class EnemyActionContext
 
     // Decided now; moves the character after `delay` (null = TimingSpec.DamageDelay), unless it died
     // meanwhile. knockbackRow goes into the ActionEffect; null for a push with no Knockback sheet
-    // row. The first push wins.
-    public void Knockback(SimCharacter who, float distance, float speed, float? delay = null, uint? knockbackRow = null)
+    // row. The first push wins. Unless ignoresKbi, a knockback immunity status stops it.
+    public void Knockback(SimCharacter who, float distance, float speed, float? delay = null, uint? knockbackRow = null, bool ignoresKbi = true)
     {
+        if (!ignoresKbi && Array.Exists(KnockbackImmunityStatuses, who.HasStatus)) return;
         var row = knockbackRow is { } id ? Natives.Data.Knockback(id) : null;
         var from = row switch
         {
@@ -86,21 +89,17 @@ public sealed class EnemyActionContext
     {
         var revealAt = delayToEffectResult ? MathF.Max(Action.Timing.DamageDelay, releaseDelay) : releaseDelay;
         var delay = duration > 0f ? revealAt : 0f;
-        if (who.AddStatus(statusId, duration + delay, stacks, broadcastAddEvent: false, hidden: revealAt > 0f) is not { Slot: >= 0 } status) return;
+        if (who.AddStatus(statusId, duration + delay, stacks, overrideStacks: false, sourceObject: default, broadcastAddEvent: false, hidden: revealAt > 0f,
+                appliedBy: (Action, Caster)) is not { Slot: >= 0 } status) return;
         status.ShownAsFrom(Caster);
-        Outcome(who).StatusGains.Add((statusId, entryParam));
+        if (!SimOnlyStatus.Is(statusId)) Outcome(who).StatusGains.Add((statusId, entryParam));
         if (status.Hidden) hiddenStatuses.Add((status, revealAt));
     }
 
     // Taken off at TimingSpec.DamageDelay, unless the character died meanwhile.
     public void RemoveStatusAtImpact(SimCharacter who, ushort statusId) => impactRemovals.Add((who, statusId));
 
-    // Runs once every effect has applied and the deaths due now have been dealt, so a follow-up
-    // cast can't claim this action's kills.
-    public void AfterResolve(System.Action run) => afterResolve.Add(run);
-
     internal IReadOnlyCollection<TargetOutcome> Outcomes => outcomes.Values;
-    internal IReadOnlyList<System.Action> AfterResolveActions => afterResolve;
     internal IReadOnlyList<(SimStatus Status, float RevealAt)> HiddenStatuses => hiddenStatuses;
     internal IReadOnlyList<(SimCharacter Who, ushort StatusId)> ImpactRemovals => impactRemovals;
 

@@ -4,6 +4,7 @@ using System.Linq;
 using Dalamud.Game.Text;
 using System.Numerics;
 using AnoMech.Core;
+using AnoMech.Core.EnemyActions;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Geometry;
 using AnoMech.Core.Game.Party;
@@ -88,7 +89,7 @@ public sealed class SimWorld : ISimObject, IDisposable
 
     private SimTether CreateTether(ITetherEnd from, ITetherEnd to, ushort tetherId, float duration, ushort debuffStatusId)
     {
-        var tether = new SimTether(from, to, new TetherContext(Party.Find, tetherId, Rng), debuffStatusId, duration);
+        var tether = new SimTether(from, to, new TetherContext(Party.Find, tetherId, Rng), debuffStatusId, duration, SimEvents);
         children.Add(tether);
         return tether;
     }
@@ -100,6 +101,28 @@ public sealed class SimWorld : ISimObject, IDisposable
         if (enemy != null) children.Add(enemy);
         return enemy;
     }
+
+    // The zone's helpers, spawned at the start of every run as retail spawns them at every pull's.
+    internal void SpawnHelperPool(HelperPool pool)
+    {
+        var config = new EnemySpawnConfig(BNpcBaseId: pool.BNpcBaseId, Level: 1, EnemyList: EnemyListMode.Never,
+            Visibility: SpawnVisibility.InvisibleHelper);
+        var helpers = Enumerable.Range(0, pool.Count).Select(_ => SpawnEnemy(config)).OfType<SimEnemy>().ToList();
+        children.SetSingleton(new SimHelperPool(helpers));
+    }
+
+    // A pooled cast dropped because every helper was still busy: the zone's pool is too small for
+    // what the scenario casts at once.
+    public event Action<uint>? HelperPoolExhausted;
+
+    internal void CastFromHelper(SimEnemy parent, EnemyAction action, CastTarget target, Placement at, byte animationVariation)
+    {
+        if (children.Singleton<SimHelperPool>()?.Cast(parent, action, target, at, animationVariation) == true) return;
+        Plugin.Log.Warning($"Helper pool exhausted: {Natives.Data.ActionName(action.ActionId)} ({action.ActionId}) for {parent.DisplayName} dropped.");
+        HelperPoolExhausted?.Invoke(action.ActionId);
+    }
+
+    internal void HelperCastCancelled(SimEnemy helper) => children.Singleton<SimHelperPool>()?.Unlink(helper);
 
     // Allocates an EventObject actor in EventObjectManager's 40-slot pool and
     // wires it to the given EObj sheet row. Mirror of SpawnEnemy for the EObj
@@ -156,6 +179,10 @@ public sealed class SimWorld : ISimObject, IDisposable
     public void PlayBgm(ushort bgmId, float secondsIn = 0f)
         => children.SetSingleton(new SimBgm()).Play(bgmId, secondsIn);
 
+    // The fight's own change of track (IBgm.Switch); nothing while music is suppressed. Each client
+    // plays its own music, so it belongs in RunInstanceEvents.
+    public void SwitchBgm(ushort bgmId) => children.Singleton<SimBgm>()?.Switch(bgmId);
+
     // True when `local` (scenario-local) is outside the active arena fence; false
     // when the current scenario enforces no boundary.
     public bool IsOutsideArena(Vector3 local)
@@ -170,22 +197,15 @@ public sealed class SimWorld : ISimObject, IDisposable
         Plugin.ChatGui.Print(new XivChatEntry { Type = XivChatType.SystemMessage, Message = $"[{Plugin.DisplayName}] {text}" });
         Announced?.Invoke(text);
     }
-    
 
-    private readonly List<(ushort StatusId, Action<SimCharacter> Handler)> deathRules = [];
+    // The run failed without anyone dying, e.g. a puzzle retail only punishes minutes later. Play
+    // the mechanic out as retail does; `freeze` when the scenario can't go on from here, which
+    // freezes the run 5s later as a death does.
+    public event Action<string, bool>? Failed;
 
-    // For the rest of the run, `handler` runs whenever a party member holding `statusId` goes down,
-    // e.g. a debuff that detonates on its holder's corpse. A death godmode spares doesn't count.
-    public void OnDeathWithStatus(ushort statusId, Action<SimCharacter> handler)
-        => deathRules.Add((statusId, handler));
+    public void Fail(string reason, bool freeze = false) => Failed?.Invoke(reason, freeze);
 
-    // Takes the statuses held before death, since going down wipes them.
-    internal void RunDeathRules(SimCharacter member, IReadOnlyList<SimStatus> heldStatuses)
-    {
-        foreach (var (statusId, handler) in deathRules.ToList())
-            if (heldStatuses.Any(s => s.StatusId == statusId))
-                handler(member);
-    }
+    internal SimEvents SimEvents { get; } = new();
 
     // A one-shot VFX sheet row at a scenario-local point, e.g. FRU's Return marker (1013) under each
     // player. Shown on this client only.
@@ -209,6 +229,7 @@ public sealed class SimWorld : ISimObject, IDisposable
         Party.Tick(deltaSeconds);
         children.Update(deltaSeconds);
         enemyList.Tick(children.OfType<SimEnemy>(), deltaSeconds);
+        SimEvents.Dispatch();
     }
 
     // A halted run (the user's pause, the freeze after a death) gets no Tick, so nothing moves,
@@ -241,13 +262,13 @@ public sealed class SimWorld : ISimObject, IDisposable
     private HashSet<uint> SimActorIds()
         => Characters().Where(c => c is not SimPlayer && c.EntityId != 0).Select(c => c.EntityId).ToHashSet();
 
-    // The run's teardown; the party stays.
+    // The run's teardown; the party stays. The listener goes first, so the teardown raises nothing.
     public void Despawn()
     {
+        SimEvents.Clear();
         children.Despawn();
         enemyList.Clear();
         Obstacles.Clear();
-        deathRules.Clear();
         NpcKnockbackStopRadius = null;
         Party.EndRun();
     }

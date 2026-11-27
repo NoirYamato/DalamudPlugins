@@ -6,6 +6,7 @@ using AnoMech.Core;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
+using AnoMech.Core.UserActions;
 
 namespace AnoMech.Scenarios.Top.P3HelloWorld;
 
@@ -272,7 +273,7 @@ internal sealed partial class TopP3HelloWorldTraffic(SimWorld world, IReadOnlyLi
             void Walk()
             {
                 if (versions[role] != version) return;
-                if (first && speed > RunSpeed) (member as ISimPartyMember)?.UseSprint(route.Arrival - depart + 1f);
+                if (first && speed > RunSpeed) (member as ISimPartyMember)?.UseAction(JobActions.Sprint);
                 member.MoveTo(new Vector3(to.X, 0f, to.Y), speed);
             }
             if (depart <= now) Walk();

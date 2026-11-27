@@ -49,19 +49,26 @@ internal static class PacketActor
 [JsonDerivedType(typeof(DirectorUpdatePacket), "director")]
 [JsonDerivedType(typeof(DirectorDataPacket), "directorData")]
 [JsonDerivedType(typeof(CommencePacket), "commence")]
+[JsonDerivedType(typeof(BattleTalkPacket), "battleTalk")]
 [JsonDerivedType(typeof(HatersPacket), "haters")]
 [JsonDerivedType(typeof(WeatherPacket), "weather")]
 [JsonDerivedType(typeof(AfflictionsPacket), "afflictions")]
-public abstract record GamePacket;
+public abstract record GamePacket
+{
+    // The seat whose own client showed this already, its player's own action: that client skips it.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PartyRole? ShownBy { get; init; }
+}
 
 // Positions and rotations are world space, as the natives take them.
 public sealed record SpawnNpcPacket(
     uint Actor, uint BNpcBaseId, uint NameId, byte Level, bool Targetable, EnemyListMode EnemyList, SpawnVisibility Visibility,
     uint ModelCharaId, byte? InitialModeAttributeFlags, uint? DisplayFlags, bool Engaged, uint LayoutId, bool IsHostile,
-    float X, float Y, float Z, float Rotation) : GamePacket;
+    float X, float Y, float Z, float Rotation, byte ModelState, byte ModelScale, NpcAppearance? Appearance, List<SpawnStatus>? Statuses)
+    : GamePacket;
 
 public sealed record SpawnObjPacket(
-    uint Actor, uint EObjId, sbyte ObjectIndex, byte TargetableStatus, bool Hidden, uint EntityId, uint LayoutId, uint EventId,
+    uint Actor, uint EObjId, byte TargetableStatus, bool Hidden, uint EntityId, uint LayoutId, uint EventId,
     uint Owner, uint GimmickId, float Radius, ushort FateId, byte EventState, uint Arg2, ushort TimelineState,
     float X, float Y, float Z, float Rotation) : GamePacket;
 
@@ -106,6 +113,8 @@ public sealed record DirectorUpdatePacket(uint Category, uint Arg1, uint Arg2, u
 public sealed record DirectorDataPacket(byte Sequence, byte Unknown, byte[] Data) : GamePacket;
 
 public sealed record CommencePacket : GamePacket;
+
+public sealed record BattleTalkPacket(uint SpeakerNameId, uint TextId, uint DurationMs, uint Speaker) : GamePacket;
 
 public sealed record HatersPacket(List<HaterPacket> Haters) : GamePacket;
 

@@ -37,22 +37,19 @@ public sealed class SimParty : ISimObject
 
     public LimitBreakGauge LimitBreak { get; }
 
-    // The bot in `role` casts its job's limit break at the level the gauge allows, emptying it.
-    // False if the slot is not a live bot (humans press their own), no bar is filled, or the job
-    // has none at that level.
-    public bool UseLimitBreak(PartyRole role)
+    // The bot in `role` uses its job's limit break at the level the gauge allows. Skipped for a
+    // slot that is not a bot (humans press their own), with no bar filled, or while mitigation is
+    // not required: the limit break is mitigation, and nothing would check it.
+    public void UseLimitBreak(PartyRole role)
     {
-        if (Get(role) is not SimPartyNpc bot) return false;
-        var level = LimitBreak.FilledBars;
-        if (level == 0)
+        if (Get(role) is not SimPartyNpc bot || !Mitigation.Required) return;
+        var actionId = LimitBreakHandler.ActionId(bot.ClassJob, LimitBreak.FilledBars);
+        if (actionId == 0)
         {
-            DiagnosticLog.Info($"[SimParty] {role} limit break skipped: no bar is filled.");
-            return false;
+            DiagnosticLog.Info($"[SimParty] {role} limit break skipped: no limit break at {LimitBreak.FilledBars} bars.");
+            return;
         }
-        var actionId = bot.UseLimitBreak(level);
-        if (actionId == 0) return false;
-        LimitBreakHandler.Resolve(this, bot, actionId);
-        return true;
+        bot.UseAction(actionId);
     }
 
     public SimCharacter? Get(int roleId)
@@ -108,20 +105,22 @@ public sealed class SimParty : ISimObject
                 SetSlot(role, member);
             }
         }
+        foreach (var member in slots)
+            if (member is not null) member.SimEvents = world.SimEvents;
     }
 
     private SimWorld? world;
     private readonly Dictionary<SimCharacter, EnemyActionHandler> actionHandlers = new();
 
     // A member using an action as an enemy does: its ActionEffect, area hits, damage and deaths.
-    public EnemyActionCast Act(SimCharacter member, EnemyAction action, CastTarget target = default)
+    public void Act(SimCharacter member, EnemyAction action, CastTarget target = default)
     {
         if (!actionHandlers.TryGetValue(member, out var handler))
         {
             var w = world ?? throw new InvalidOperationException("SimParty.Act before the party was seated.");
             actionHandlers[member] = handler = new EnemyActionHandler(member, member.Casting, w);
         }
-        return handler.Start(action, target, 0);
+        handler.Start(action, target, 0);
     }
 
     internal void ForEachActive(Action<SimCharacter> action)
@@ -135,10 +134,13 @@ public sealed class SimParty : ISimObject
     public void WipeAllPlayers(uint actionId, string? explanation = null)
         => ForEachActive(m => { if (m.IsAlive()) m.Die(actionId, explanation); });
 
-    // Slots nothing real presses buttons for: a bot, or the local player under DebugBotControl
-    // (which drives movement only).
+    // The seats people play: this client's own, and the other players' puppets.
+    internal IEnumerable<SimCharacter> Players() => AllMembers().Where(m => m is SimPlayer or SimNetworkPuppet);
+
+    // Slots nothing real presses buttons for: a bot, the local player under DebugBotControl (which
+    // drives movement only), or a remote seat a bot plays on its own client.
     public bool IsBotDriven(SimCharacter member)
-        => (!ReferenceEquals(member, Player) || DebugBotControl.Enabled) && member is not SimNetworkPuppet;
+        => member is SimNetworkPuppet puppet ? puppet.BotDriven : !ReferenceEquals(member, Player) || DebugBotControl.Enabled;
 
     internal IEnumerable<SimCharacter> ActiveMembers()
     {

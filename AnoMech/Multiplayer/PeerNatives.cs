@@ -7,7 +7,6 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
-using AnoMech.Core.UserActions;
 using FFXIVClientStructs.FFXIV.Client.Game.Character;
 using FFXIVClientStructs.FFXIV.Client.Game.Object;
 
@@ -24,7 +23,7 @@ internal enum PeerSeat
     // Another player's seat: a bot's, plus the steering from that player's poses (RemoteMotion).
     Remote,
     // Our own player: its movement, falls and the client's own presses are ours; its state (HP,
-    // life, statuses the run puts on it) is the host's.
+    // life, statuses, and the casts and actions the run plays on it) is the host's.
     LocalPlayer,
 }
 
@@ -44,6 +43,13 @@ internal sealed class PeerNatives
 
     public PeerProxy LocalPlayer { get; }
 
+    // A status this client's own sim gave an actor, with its duration: on a peer only our own
+    // presses give any.
+    public event Action<PeerProxy, ushort, ushort, float>? StatusGained;
+
+    private void OnStatusGained(PeerProxy proxy, ushort statusId, ushort stacks, float duration)
+        => StatusGained?.Invoke(proxy, statusId, stacks, duration);
+
     // From the first run on the arena (map effects, director, weather, enemy list) is the host's;
     // the zone-in and its first phase are each client's own.
     public bool HostOwnsArena { get; set; }
@@ -60,7 +66,7 @@ internal sealed class PeerNatives
         RealHaters = Natives.HaterList;
         RealZone = Natives.Zone;
         RealConditions = Natives.PlayerConditions;
-        LocalPlayer = new PeerProxy(RealCharas.LocalPlayer, PeerSeat.LocalPlayer);
+        LocalPlayer = new PeerProxy(RealCharas.LocalPlayer, PeerSeat.LocalPlayer, OnStatusGained);
     }
 
     public static PeerNatives Install()
@@ -120,7 +126,7 @@ internal sealed class PeerNatives
             if (natives.adoptingCharacter is { } adopted)
             {
                 entityId = adopted.EntityId;
-                return new PeerProxy(adopted.Chara, PeerSeat.Silent);
+                return new PeerProxy(adopted.Chara, PeerSeat.Silent, natives.OnStatusGained);
             }
             entityId = 0;
             DiagnosticLog.Warn($"[Multiplayer] Peer: refused a local spawn of BNpcBase {config.BNpcBaseId} -- the host spawns every NPC.");
@@ -128,7 +134,7 @@ internal sealed class PeerNatives
         }
 
         public IBattleCharaProxy? SpawnDoppel(PartyMemberPreset preset, byte level, Placement placement, out uint entityId)
-            => natives.RealCharas.SpawnDoppel(preset, level, placement, out entityId) is { } chara ? new PeerProxy(chara, PeerSeat.Bot) : null;
+            => natives.RealCharas.SpawnDoppel(preset, level, placement, out entityId) is { } chara ? new PeerProxy(chara, PeerSeat.Bot, natives.OnStatusGained) : null;
 
         public bool IsInCharacterManager(uint entityId) => natives.RealCharas.IsInCharacterManager(entityId);
 
@@ -152,7 +158,6 @@ internal sealed class PeerNatives
         public void Despawn() { }
     }
 
-    // Taken as applied, so the caller's retry doesn't keep it.
     private sealed class PeerMapEffects(PeerNatives natives) : IMapEffects
     {
         public bool Loaded
@@ -184,6 +189,9 @@ internal sealed class PeerNatives
         {
             if (!natives.HostOwnsArena) natives.RealDirector.Commence();
         }
+
+        public bool BattleTalk(uint speakerNameId, uint textId, uint durationMs, uint speakerEntityId)
+            => natives.HostOwnsArena || natives.RealDirector.BattleTalk(speakerNameId, textId, durationMs, speakerEntityId);
     }
 
     private sealed class PeerHaterList(PeerNatives natives) : IHaterList
@@ -200,7 +208,9 @@ internal sealed class PeerNatives
 
         public bool IsInInn() => Real.IsInInn();
         public string? StartBlockedReason(out string? settling) => Real.StartBlockedReason(out settling);
+        public void EndSpeedBuffs() => Real.EndSpeedBuffs();
         public bool IsActive => Real.IsActive;
+        public bool IsReady(bool mapEffects) => Real.IsReady(mapEffects);
         public void TickGuard() => Real.TickGuard();
         public bool Enter(uint territoryId, Vector3 playerSpawn) => Real.Enter(territoryId, playerSpawn);
         public void Revert() => Real.Revert();
@@ -237,16 +247,11 @@ internal sealed class PeerNatives
 
 // An actor's native as this client's own sim reaches it on a peer (see PeerSeat). Reads always go
 // through: the sim reads what its client shows.
-internal sealed class PeerProxy(IBattleCharaProxy inner, PeerSeat seat) : IBattleCharaProxy
+internal sealed class PeerProxy(IBattleCharaProxy inner, PeerSeat seat, Action<PeerProxy, ushort, ushort, float> statusGained) : IBattleCharaProxy
 {
     private const int StatusSlots = 60;
-    private const uint ZoneInCategory = 0xC8;
     private const uint GainEffectCategory = 0x14;
     private const uint LoseEffectCategory = 0x15;
-
-    // Our player's own: cast bars and their cancel, status announcements and the limit break
-    // ActorControls of its own presses, its movement, forced moves and falls.
-    private static readonly HashSet<uint> OwnPlayerCategories = [0x0F, 0x14, 0x15, 0x47, 0x48, 0xC8, 0xDC, 0xDF, 0xE1, 0xED, 0xF1, 0x107];
 
     public IBattleCharaProxy Inner => inner;
     public PeerSeat Seat { get; set; } = seat;
@@ -294,24 +299,24 @@ internal sealed class PeerProxy(IBattleCharaProxy inner, PeerSeat seat) : IBattl
 
     public void NpcKnockback(Vector3 position, float rotation, float durationSeconds) { }
 
-    public void ReceiveActorCast(ActorCastData cast)
-    {
-        if (Seat == PeerSeat.LocalPlayer) inner.ReceiveActorCast(cast);
-    }
+    // Our player's own presses reach the client without coming through here.
+    public void ReceiveActorCast(ActorCastData cast) { }
 
-    public uint ReceiveActionEffect(ActionEffectData effect)
-        => Seat == PeerSeat.LocalPlayer ? inner.ReceiveActionEffect(effect) : 0;
+    public uint ReceiveActionEffect(ActionEffectData effect) => 0;
 
     public void ReceiveEffectResult(uint globalSequence, byte targetIndex, uint health) { }
 
     public void ActorControl(uint category, uint arg1 = 0, uint arg2 = 0, uint arg3 = 0, uint arg4 = 0, uint arg5 = 0, uint arg6 = 0, uint arg7 = 0, uint arg8 = 0)
     {
-        var passes = Seat switch
+        // The gain follows the status list that carries the new status, in the same flush.
+        if (category == GainEffectCategory)
+            statusGained(this, (ushort)arg1, (ushort)arg2, Array.Find(ownStatuses, s => s.StatusId == arg1).RemainingTime);
+        var passes = PacketRules.Controls.TryGetValue(category, out var rule) && Seat switch
         {
-            PeerSeat.Bot or PeerSeat.Remote => category == ZoneInCategory,
+            PeerSeat.Bot or PeerSeat.Remote => rule.Delivery == Delivery.ZoneIn,
             // A status reported to the host is the host's to show (see WriteStatuses), and to announce.
-            PeerSeat.LocalPlayer => OwnPlayerCategories.Contains(category)
-                                    && !(category is GainEffectCategory or LoseEffectCategory && HostReport.IsReported((ushort)arg1)),
+            PeerSeat.LocalPlayer => rule.OwnPlayer
+                                    && !(category is GainEffectCategory or LoseEffectCategory && ReportedStatuses.Contains((ushort)arg1)),
             _ => false,
         };
         if (passes) inner.ActorControl(category, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8);
@@ -340,12 +345,12 @@ internal sealed class PeerProxy(IBattleCharaProxy inner, PeerSeat seat) : IBattl
     private StatusSlot[] ownStatuses = new StatusSlot[StatusSlots];
     private byte hostShield;
 
-    // From our own sim: only what our presses put on us, since every status the run puts on us
-    // is on the host's copy of the seat.
+    // From our own sim: only what our presses put on the actor, since every status the run puts
+    // on it is on the host's copy.
     public void ReceiveStatusList(IReadOnlyList<StatusSlot> statuses, uint health, uint mana, byte shield)
     {
-        if (Seat != PeerSeat.LocalPlayer) return;
         ownStatuses = Fill(statuses);
+        if (Seat != PeerSeat.LocalPlayer) return;
         WriteStatuses(inner.Health, inner.Mana, Math.Max(hostShield, shield));
     }
 
@@ -367,7 +372,7 @@ internal sealed class PeerProxy(IBattleCharaProxy inner, PeerSeat seat) : IBattl
         for (var i = 0; i < ownStatuses.Length; i++)
         {
             var own = ownStatuses[i];
-            if (own.StatusId == 0 || HostReport.IsReported(own.StatusId)) continue;
+            if (own.StatusId == 0 || ReportedStatuses.Contains(own.StatusId)) continue;
             if (Array.Exists(combined, s => s.StatusId == own.StatusId)) continue;
             var slot = combined[i].StatusId == 0 ? i : Array.FindIndex(combined, s => s.StatusId == 0);
             if (slot >= 0) combined[slot] = own;

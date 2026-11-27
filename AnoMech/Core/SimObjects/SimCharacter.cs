@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using AnoMech.Core.EnemyActions;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Motion;
 using AnoMech.Core.Native.Interfaces;
@@ -50,7 +51,7 @@ public abstract class SimCharacter : ISimObject, IPositioned
         statusList.Update(deltaSeconds);
         FlushStatusList();
         Casting.Tick(deltaSeconds);
-        Motion.Tick(deltaSeconds, new MotionGates(this.IsAlive(), MovementLocked, AnimationLock));
+        Motion.Tick(deltaSeconds, new MotionGates(this.IsAlive(), MovementLocked, AnimationLock, SpeedFactor()));
         confusedChaseHold = MathF.Max(0f, confusedChaseHold - deltaSeconds);
     }
 
@@ -82,8 +83,17 @@ public abstract class SimCharacter : ISimObject, IPositioned
 
     public virtual void Despawn()
     {
-        statusList.Despawn();
+        EndStatuses(null);
         Motion.Clear();
+    }
+
+    // Set by whoever seats or spawns the character in a world.
+    internal SimEvents? SimEvents { get; set; }
+
+    private void EndStatuses(StatusLossReason? reason)
+    {
+        foreach (var status in statusList) status.End(reason);
+        statusList.Clear();
     }
 
     // -------------------------
@@ -209,10 +219,16 @@ public abstract class SimCharacter : ISimObject, IPositioned
     // gain flytext to the caller, e.g. an ActionEffect's status entry. hidden keeps a new status out
     // of the status list until SimStatus.Reveal; refreshing one the client already shows ignores it.
     public SimStatus? AddStatus(ushort statusId, float duration = 0f, int stacks = 1, bool overrideStacks = false, GameObjectId sourceObject = default, bool broadcastAddEvent = true, bool hidden = false)
+        => AddStatus(statusId, duration, stacks, overrideStacks, sourceObject, broadcastAddEvent, hidden, appliedBy: null);
+
+    // appliedBy: the action whose effect applies it, for StatusAdded.
+    internal SimStatus? AddStatus(ushort statusId, float duration, int stacks, bool overrideStacks, GameObjectId sourceObject, bool broadcastAddEvent,
+        bool hidden, (EnemyAction Action, SimCharacter Caster)? appliedBy)
     {
         Core.DiagnosticLog.Info($"[SimCharacter] AddStatus: {DiagnosticName} gets status {statusId} (duration={duration:F1}, stacks={stacks}, overrideStacks={overrideStacks}, source=0x{sourceObject.ObjectId:X}).");
         if (FindStatus(statusId, sourceObject) is {} status)
         {
+            var previous = status.Stacks;
             // overrideStacks: stacks is the absolute target; otherwise it's a
             // relative delta (negative consumes stacks).
             int delta = overrideStacks ? stacks - status.Stacks : stacks;
@@ -226,19 +242,30 @@ public abstract class SimCharacter : ISimObject, IPositioned
                 return null;
             }
             if (status.Slot >= 0 && !status.Hidden) statusListChanged = true;
+            // Consuming a stack or holding an override where it is applies nothing.
+            if (overrideStacks ? status.Stacks > previous : stacks > 0) RaiseStatusAdded(status, previous, appliedBy);
             return status;
         }
 
         // No existing status: a non-positive request has nothing to remove.
         if (stacks <= 0) return null;
-        return SpawnStatus(statusId, duration, (ushort)stacks, sourceObject, broadcastAddEvent, hidden);
+        var added = SpawnStatus(statusId, duration, (ushort)stacks, sourceObject, broadcastAddEvent, hidden);
+        RaiseStatusAdded(added, 0, appliedBy);
+        return added;
     }
+
+    private void RaiseStatusAdded(SimStatus status, ushort previousStacks, (EnemyAction Action, SimCharacter Caster)? appliedBy)
+        => SimEvents?.Raise(new StatusAdded(this, status.StatusId, status.Stacks, previousStacks, appliedBy?.Action, appliedBy?.Caster));
 
     // For logging: the party role when available, else the type name.
     private string DiagnosticName => (this as ISimPartyMember)?.Role.ToString() ?? GetType().Name;
 
     public SimStatus AddStatusParam(ushort statusId, int param, float duration = 0f)
-        => SpawnStatus(statusId, duration, (ushort)param, default, broadcastAddEvent: true, hidden: false);
+    {
+        var added = SpawnStatus(statusId, duration, (ushort)param, default, broadcastAddEvent: true, hidden: false);
+        RaiseStatusAdded(added, 0, appliedBy: null);
+        return added;
+    }
 
     // One the spawn packet already carried: tracked like any other, with nothing sent for it.
     internal void AdoptSpawnStatus(ushort statusId, ushort param)
@@ -325,6 +352,8 @@ public abstract class SimCharacter : ISimObject, IPositioned
 
     public IReadOnlyList<SimStatus> ActiveStatuses => statusList.Where(s => s.IsActive).ToList();
 
+    private float SpeedFactor() => MovementSpeed.Factor(statusList);
+
     // A status's Lock* flags don't stop anyone client-side: the local player only through the
     // server's conditions (SimPlayer), doppels not at all, so the sheet is read here.
     public bool MovementLocked => AnyActiveStatusRow(row => row.LockMovement || row.LockControl);
@@ -376,7 +405,7 @@ public abstract class SimCharacter : ISimObject, IPositioned
     {
         ActorControl.PlayDeathAnimation();
         ActorControl.SetMode(CharacterModes.Dead);
-        statusList.Despawn();
+        EndStatuses(StatusLossReason.Died);
         SendStatusList(0, 0);
     }
 
@@ -391,7 +420,7 @@ public abstract class SimCharacter : ISimObject, IPositioned
     // A party member outlives the run: back on its feet at full HP, with nothing the run put on it.
     internal virtual void ClearRunState()
     {
-        statusList.Despawn();
+        EndStatuses(null);
         if (ActorControl.Confused) ActorControl.SetConfused(false);
         confusedChaseHold = 0f;
         Motion.Clear();

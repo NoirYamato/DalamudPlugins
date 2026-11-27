@@ -75,7 +75,9 @@ public record struct EnemySpawnConfig(
     IReadOnlyList<SpawnStatus>? Statuses = null,
     byte ModelState = 0,
     // ModelScale row; retail sends 0 for most BNpcs.
-    byte ModelScale = 0);
+    byte ModelScale = 0,
+    // What SetAnimationState sets, already in place at spawn: 4 bits per slot.
+    byte AnimationState = 0);
 
 public readonly record struct SpawnStatus(ushort StatusId, ushort Param = 0);
 
@@ -96,6 +98,7 @@ public sealed class SimEnemy : SimNpc
     // they go out and what the action does.
     private readonly EnemyActionHandler actions;
     private readonly EventScheduler events;
+    private readonly SimWorld world;
 
     // The server's own ceiling: bosses turn at most ~145° per ~0.3s movement tick.
     private const float BossTurnSpeed = MathF.PI * 8f / 3f;
@@ -160,6 +163,8 @@ public sealed class SimEnemy : SimNpc
         EnemyListMode = enemyListMode;
         actions = new EnemyActionHandler(this, Casting, world);
         events = world.Events;
+        this.world = world;
+        SimEvents = world.SimEvents;
     }
 
     // Spawns the BattleChara through the engine's own NpcSpawn handler (see
@@ -200,7 +205,7 @@ public sealed class SimEnemy : SimNpc
             ActorControl.SetInCombat(true);
         }
         DiagnosticLog.Info($"[SimEnemy.SpawnFromPacket] {DisplayName} (goid 0x{GameObjectId.ObjectId:X}) created by the engine after {PacketSpawnFrames} frames: {DescribeDrawState()} "
-            + $"Targetable=0x{targetableBefore:X}->0x{chara.TargetableStatus:X} name=\"{chara.Name}\" pos {chara.Position}.");
+            + $"Targetable=0x{targetableBefore:X}->0x{chara.TargetableStatus:X} name=\"{chara.Name}\" pos {chara.Position} hitbox={chara.HitboxRadius:F2}.");
     }
 
     /// <summary>
@@ -253,9 +258,6 @@ public sealed class SimEnemy : SimNpc
             }
         }
     }
-
-    // AnimLock (8) is the mode the client holds an actor in while an action animation plays.
-    public void SetMode(CharacterModes mode, byte param = 0) => ActorControl.SetMode(mode, param);
 
     private void TickPacketSpawnCheckpoints()
     {
@@ -315,18 +317,42 @@ public sealed class SimEnemy : SimNpc
 
     // A purely visual cast: just the action's bar and animation, hitting no one. For an action that
     // has effects or needs more configuration, define an EnemyAction and use the overload taking it.
-    public EnemyActionCast Cast(uint actionId, CastTarget target = default, float animationLock = 0.6f, byte animationVariation = 0) =>
+    public void Cast(uint actionId, CastTarget target = default, float animationLock = 0.6f, byte animationVariation = 0) =>
         actions.Start(new EnemyAction(actionId) { Cast = new() { AnimationLock = animationLock } }, target, animationVariation);
 
     // An action with effects (area, damage, statuses, ...) or configuration beyond the sheet's; a
     // purely visual one needs no EnemyAction, use Cast(actionId).
-    public EnemyActionCast Cast(EnemyAction action, CastTarget target = default, byte animationVariation = 0) =>
+    public void Cast(EnemyAction action, CastTarget target = default, byte animationVariation = 0) =>
         actions.Start(action, target, animationVariation);
 
+    // The BNpcName row its pooled helpers are shown under where retail follows a form it took rather
+    // than its spawn name (TOP's Omega-M in its Omega-F form); null = its spawn NameId.
+    public uint? HelperName { get; set; }
+
+    // The action cast by one of the zone's pooled helpers acting for this enemy, standing at `at`
+    // (this enemy's placement by default). A dead or despawned enemy still casts, unlinked.
+    public void CastFromHelper(EnemyAction action, CastTarget target = default, Placement? at = null, byte animationVariation = 0) =>
+        world.CastFromHelper(this, action, target, at ?? this.Placement(), animationVariation);
+
+    public void CastFromHelper(uint actionId, CastTarget target = default, Placement? at = null, float animationLock = 0.6f) =>
+        CastFromHelper(new EnemyAction(actionId) { Cast = new() { AnimationLock = animationLock } }, target, at);
+
+    // A line (InstanceContentTextData textId) this enemy says. Retail names the speaker after the
+    // form it is in, which can differ from its spawn NameId (TOP's Omega in its Omega-F form):
+    // shownAs is that BNpcName.
+    public void BattleTalk(uint textId, uint durationMs, uint? shownAs = null) =>
+        world.Map.BattleTalk(shownAs ?? SpawnConfig.NameId, textId, durationMs, EntityId);
+
     // Interrupts the cast still on its bar: neither its effect nor its mechanics go out.
-    public void CancelCast(CastCancelReason reason) => actions.CancelCast(reason);
+    public void CancelCast(CastCancelReason reason)
+    {
+        if (actions.CancelCast(reason)) world.HelperCastCancelled(this);
+    }
 
     public override bool AnimationLock => Casting.IsBusy || actions.AwaitingRelease;
+
+    // Seconds until AnimationLock ends; infinite while the bar is up or the ActionEffect pending.
+    internal float BusyFor => Casting.IsCasting || actions.AwaitingRelease ? float.PositiveInfinity : Casting.RemainingAnimationLock;
 
     // Stays turned toward the target, holding still while casting or animation-locked; null releases it.
     public void KeepFacing(SimCharacter? target) => motion.KeepFacing(target);

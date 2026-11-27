@@ -101,7 +101,7 @@ internal static class TimelineRun
         string? failure = null;
         try
         {
-            game.PartyMemberKilled += (role, cause, actionId) => deaths.Add(new Death(role, cause, actionId, game.World.Events.Elapsed,
+            game.PartyMemberKilled += (role, cause, actionId, statusId) => deaths.Add(new Death(role, cause, actionId, statusId, game.World.Events.Elapsed,
                 WorldSnapshot.Describe(game.World, [], game.World.Party.Get(role), includeHidden: true)));
             var scenario = new TimelineScenario(options.Phase, timeline, options.Tick);
             game.ZoneIn(scenario.Phase.Zone, SessionMode.Local);

@@ -45,12 +45,16 @@ public class UcobConstants
         public const uint BahamutPrime = 0x1FE8;
         // The fight's generic invisible caster (x42 in the instance): AOE source for
         // everything the boss doesn't cast from its own body.
-        public const uint Helper = 0x18D6;
     }
 
     public class BNpcNameId
     {
         public const uint BahamutPrime = 3210;
+    }
+
+    public class BNpcLayoutId
+    {
+        public const uint BahamutPrime = 0x6BDC32;
     }
 
     public class StatusId

@@ -1,5 +1,7 @@
 using AnoMech.Core.Native.Implementations.Pointers;
 using FFXIVClientStructs.FFXIV.Client.Game.Event;
+using FFXIVClientStructs.FFXIV.Client.Game.InstanceContent;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.Network;
 using FFXIVClientStructs.FFXIV.Client.System.String;
@@ -10,8 +12,16 @@ namespace AnoMech.Core.Native.Implementations.Interop;
 
 internal static unsafe class InstanceContentDirectorHelper
 {
-    // Returns false when the zone/director isn't ready yet (async load still in
-    // flight) so MapController can retry instead of silently losing the call.
+    // The map-effect handlers drop a packet silently while the active director's vfunc 3 returns
+    // false; null until both directors are up and it returns true.
+    public static ContentDirector* ReadyContentDirector(EventFramework* framework)
+    {
+        if (framework == null || framework->GetInstanceContentDirector() == null) return null;
+        var module = framework->DirectorModule.ActiveContentDirector;
+        if (module == null || ((delegate* unmanaged<ContentDirector*, byte>)(*(nint**)module)[3])(module) == 0) return null;
+        return module;
+    }
+
     public static bool ProcessDirectorUpdate(uint category, uint arg1 = 0, uint arg2 = 0, uint arg3 = 0, uint arg4 = 0, uint arg5 = 0, uint arg6 = 0)
     {
         // Outside a sim this resolves the director of whatever instance the player is really
@@ -49,6 +59,28 @@ internal static unsafe class InstanceContentDirectorHelper
     // ActorControlSelf: p1 director id, p2 variable, p3..p8 its values.
     private const uint DirectorUpdateCategory = 0x6D;
     private const uint NoTarget = 0xE0000000;
+
+    // A line the handler can't show counts as taken: there's nothing a caller could do about it.
+    public static bool BattleTalk(uint speakerNameId, uint textId, uint durationMs, uint speakerEntityId)
+    {
+        if (Plugin.Game?.World.Map.IsInInstance != true)
+        {
+            Plugin.Log.Debug("[EventFrameworkHelper.BattleTalk] no sim in progress -- ignoring.");
+            return false;
+        }
+
+        var eventFramework = EventFramework.Instance();
+        var director = eventFramework == null ? null : eventFramework->GetInstanceContentDirector();
+        if (director == null) return false;
+
+        if (PacketDispatcherPointers.HandleBattleTalkPacket is not { } handle)
+        {
+            DiagnosticLog.Warn($"[EventFrameworkHelper.BattleTalk] signature not found -- text {textId} not shown.");
+            return true;
+        }
+        handle(eventFramework, director->GetEventId(), speakerEntityId, (byte)ObjectKind.BattleNpc, speakerNameId, textId, durationMs, 0, 0, null, 0);
+        return true;
+    }
 
     // 0 when no director is loaded.
     public static uint DirectorEventId()

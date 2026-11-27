@@ -6,7 +6,9 @@ using AnoMech.Core.EnemyActions;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using static AnoMech.Scenarios.Fru.FruConstants;
 using static AnoMech.Scenarios.Fru.P4CrystallizeTime.FruP4CrystallizeTimeState;
 using Actions = AnoMech.Scenarios.Fru.FruActions;
@@ -19,7 +21,7 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
     public IPhase Phase => FruZone.P4;
 
     public IReadOnlyList<IScenarioAi> AiStrats => strats;
-    private readonly IReadOnlyList<IScenarioAi> strats = [new FruP4CrystallizeTimeAi()];
+    private readonly IReadOnlyList<IScenarioAi> strats = [new FruP4CrystallizeTimeAi(), new FruP4CrystallizeTimeJpAi()];
 
     public void DrawSettings() => settingsWindow.Draw();
     public object SettingsOverrides => settingsWindow.Overrides;
@@ -36,18 +38,22 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
     // first catch.
     private const byte DragonSpawnScale = 8;
     private const uint DragonShrunkState = 4;
+    // It takes every one of these and breaks on any other hit.
+    private static readonly uint[] FragmentSurvives =
+    [
+        ActionId.CrystallizeTimeOracle, ActionId.Maelstrom, ActionId.TidalLightFirst, ActionId.TidalLightRest, ActionId.Quietus,
+        ActionId.HallowedWingsKnockback,
+    ];
 
     private SimWorld world = null!;
     private FruP4CrystallizeTimeState state = null!;
     private IScenarioAi<FruP4CrystallizeTimeState>? ai;
-    private SimEnemy? usurper, oracle, fragment, edgeHelper;
+    private SimEnemy? usurper, oracle, fragment;
     private readonly SimEnemy?[] hourglasses = new SimEnemy?[6];
     private readonly SimEnemy?[] dragons = new SimEnemy?[2];
     private readonly int[] dragonCatches = new int[2];
     private readonly float[] dragonReadyAt = new float[2];
     private readonly PartyRole?[] lastCatcher = new PartyRole?[2];
-    private readonly SimEnemy?[] helpers = new SimEnemy?[8];
-    private readonly SimEnemy?[] tidalHelpers = new SimEnemy?[8];
     private readonly List<SimTether> speedTethers = [];
     private readonly Dictionary<PartyRole, (float DroppedAt, SimEventObject? Visual)> puddles = new();
     private readonly Dictionary<PartyRole, Vector3> returns = new();
@@ -76,8 +82,8 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         world.Events.Add(1f, () => oracle?.Cast(Actions.CrystallizeTimeOracle));
         world.Events.Add(6f, () => OracleBattleTalk(0xF));
         world.Events.Add(DebuffsAt, AssignDebuffs);
-        world.Events.Add(11.8f, () => usurper?.AddStatus(StatusId.UsurperReturnWaiting, 28.8f - 11.8f, sourceObject: tidalHelpers[0]?.GameObjectId ?? default));
-        world.Events.Add(11.8f, () => usurper?.AddStatus(StatusId.UsurperReturnWaiting, 34.8f - 11.8f, sourceObject: tidalHelpers[1]?.GameObjectId ?? default));
+        world.Events.Add(11.8f, () => usurper?.AddStatus(StatusId.UsurperReturnWaiting, 28.8f - 11.8f, sourceObject: WaveReturnSource(second: false)));
+        world.Events.Add(11.8f, () => usurper?.AddStatus(StatusId.UsurperReturnWaiting, 34.8f - 11.8f, sourceObject: WaveReturnSource(second: true)));
         world.Events.Add(11.8f, () => SetHourglassScenery(MapEffect.RelativityHourglassShow, 0, 1, 2, 3, 4, 5));
         world.Events.Add(12f, SpawnHourglasses);
         world.Events.Add(12f, EdgeOfOblivion);
@@ -95,7 +101,7 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         world.Events.Add(21.9f, () => SetHourglassScenery(MapEffect.RelativityHourglassDraining, state.HourglassPair(1)));
         world.Events.Add(23.8f, () => SetHourglassScenery(MapEffect.RelativityHourglassDraining, state.HourglassPair(2)));
         world.Events.Add(23.8f, () => oracle?.PlayActionTimeline(TimelineId.OracleHide));
-        world.Events.Add(23.9f, () => CastOnHolders(CrystallizeDebuff.BlueWater, Actions.DarkWater, 6f));
+        world.Events.Add(23.9f, () => CastOnHolders(CrystallizeDebuff.BlueWater, Actions.DarkWater));
         world.Events.Add(25.8f, () => usurper?.SetPosition(Vector3.Zero));
         world.Events.Add(25.8f, () => usurper?.PlayActionTimeline(ActionTimelineId.WarpEnd));
         world.Events.Add(25.9f, Fireworks);
@@ -103,16 +109,15 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         world.Events.Add(28f, () => TurnToward(usurper, state.WaveOrigin(false, 0)));
         world.Events.Add(28f, () => usurper?.Cast(ActionId.Unnamed, animationLock: 1.1f));
         world.Events.Add(28.7f, () => MoveFacingTravel(usurper, state.WaveOrigin(false, 0)));
-        world.Events.Add(RedIceCleanseBy, () => CheckCleansed(CrystallizeDebuff.RedIce));
-        world.Events.Add(28.8f, () => usurper?.AddStatus(StatusId.UsurperReturn, 56.8f - 28.8f, sourceObject: tidalHelpers[0]?.GameObjectId ?? default));
-        world.Events.Add(28.8f, () => CastOnHolders(CrystallizeDebuff.BlueDarkness, Actions.UnholyDarkness, 6f));
+        world.Events.Add(28.8f, () => usurper?.AddStatus(StatusId.UsurperReturn, 56.8f - 28.8f, sourceObject: WaveReturnSource(second: false)));
+        world.Events.Add(28.8f, () => CastOnHolders(CrystallizeDebuff.BlueDarkness, Actions.UnholyDarkness));
         world.Events.Add(29.2f, () => usurper?.SetRotation(WaveRotation(second: false)));
         world.Events.Add(29.2f, () => world.PlaceGroundVfx(VfxId.TidalLightOrigin, state.WaveOrigin(false, 0)));
         world.Events.Add(29.3f, () => TidalLight(second: false));
         world.Events.Add(31.95f, () => Maelstrom(2));
         world.Events.Add(34.4f, () => TurnToward(usurper, state.WaveOrigin(true, 0)));
         world.Events.Add(34.4f, () => usurper?.Cast(ActionId.Unnamed, animationLock: 1.1f));
-        world.Events.Add(34.8f, () => usurper?.AddStatus(StatusId.UsurperReturn, 51.8f - 34.8f, sourceObject: tidalHelpers[1]?.GameObjectId ?? default));
+        world.Events.Add(34.8f, () => usurper?.AddStatus(StatusId.UsurperReturn, 51.8f - 34.8f, sourceObject: WaveReturnSource(second: true)));
         world.Events.Add(35.1f, () => MoveFacingTravel(usurper, state.WaveOrigin(true, 0)));
         world.Events.Add(35.6f, () => usurper?.SetRotation(WaveRotation(second: true)));
         world.Events.Add(35.6f, () => world.PlaceGroundVfx(VfxId.TidalLightOrigin, state.WaveOrigin(true, 0)));
@@ -128,14 +133,15 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         world.Events.Add(47.4f, () => usurper?.SetRotation(0f));
         world.Events.Add(47.5f, () => usurper?.Cast(ActionId.HallowedWingsCast, animationLock: 1.4f));
         world.Events.Add(48.5f, SpiritTaker);
-        world.Events.Add(CleanseBy, () => Enum.GetValues<CrystallizeDebuff>().ToList().ForEach(CheckCleansed));
         world.Events.Add(StunAt, () => world.Party.ActiveMembers().ToList().ForEach(m => m.AddStatus(StatusId.Stun, StunEndsAt - StunAt)));
         world.Events.Add(52.8f, Rewind);
         world.Events.Add(53.6f, () => PositionUsurperForWaves(second: false));
         world.Events.Add(53.7f, () => usurper?.Cast(Actions.HallowedWingsKnockback));
         world.Events.Add(56.3f, () => usurper?.Cast(Actions.HallowedWingsSwap));
+        world.Events.Add(56.6f, VanishHungryHeads);
         world.Events.Add(58.1f, () => PositionUsurperForWaves(second: true));
         world.Events.Add(58.3f, () => usurper?.Cast(Actions.HallowedWingsKnockback));
+        world.Events.Add(60.7f, PunishHungryHeads);
         world.Events.Add(62.5f, () => world.Map.SetWeather(WeatherId.Oracle, 0f));
         world.Events.Add(62.5f, () => world.Map.AddEffect(MapEffect.ThawFloor, MapEffect.OracleStage));
         world.Events.Add(62.5f, () => SetHourglassScenery(MapEffect.HourglassHide, 0, 1, 2, 3, 4, 5));
@@ -195,9 +201,6 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
             0x4020B, LayoutId.VisionOfGaia, 0x1F);
         SpawnVision(BNpcBaseId.VisionOfRyne, BNpcNameId.Ryne, Appearance.VisionOfRyne, new Placement(new Vector3(0.71f, 0, -16), -0.84f),
             0x4020A, LayoutId.VisionOfRyne, 0x05);
-        for (var i = 0; i < helpers.Length; i++) helpers[i] = SpawnHelper(i < 6 ? BNpcNameId.Oracle : BNpcNameId.DrachenWanderer);
-        for (var i = 0; i < tidalHelpers.Length; i++) tidalHelpers[i] = SpawnHelper(BNpcNameId.Usurper);
-        edgeHelper = SpawnHelper(BNpcNameId.FragmentOfFate);
     }
 
     // Spawned as they stand once shown: retail's DisplayFlags less the hidden-until-shown bit, and
@@ -224,17 +227,11 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
     private void EdgeOfOblivion()
     {
         fragment?.Cast(Actions.EdgeOfOblivion);
-        edgeHelper?.SetPosition(new Placement(FragmentPosition, 0f));
-        edgeHelper?.Cast(Actions.EdgeOfOblivionAnimation);
+        fragment?.CastFromHelper(Actions.EdgeOfOblivionAnimation);
     }
 
-    private SimEnemy? SpawnHelper(uint nameId) => world.SpawnEnemy(new EnemySpawnConfig(
-        BNpcBaseId: BNpcBaseId.Helper,
-        NameId: nameId,
-        Level: 1,
-        EnemyList: EnemyListMode.Never,
-        Visibility: SpawnVisibility.InvisibleHelper,
-        Placement: new Placement(Vector3.Zero, MathF.PI)));
+    // Retail's two instances come from two of its helpers; any two distinct sources keep them apart.
+    private GameObjectId WaveReturnSource(bool second) => second ? usurper?.GameObjectId ?? default : default;
 
     // TODO: retail also shows an actor-bound clock (VFX 1001, d1049_stlp_b0k1) over each player
     // until their Return is saved; there's no way to attach a VFX sheet row to an actor.
@@ -245,8 +242,7 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
             if (world.Party.Get(role) is not { } member || !member.IsAlive()) continue;
             var debuff = state.Debuff(role);
             var cleanseBy = debuff == CrystallizeDebuff.RedIce ? RedIceCleanseBy : CleanseBy;
-            // A moment past the check, so the check sees an uncleansed one.
-            member.AddStatus(IsRed(debuff) ? StatusId.Wyrmclaw : StatusId.Wyrmfang, cleanseBy - DebuffsAt + 0.1f);
+            member.AddStatus(IsRed(debuff) ? StatusId.Wyrmclaw : StatusId.Wyrmfang, cleanseBy - DebuffsAt);
             var (spell, at) = debuff switch
             {
                 CrystallizeDebuff.RedAero => (StatusId.DarkAeroWaiting, 25.9f),
@@ -288,9 +284,8 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
 
     private void SpeedUpAndSlowDownHourglasses()
     {
-        var helper = 0;
-        foreach (var i in state.HourglassPair(0)) helpers[helper++]?.Cast(Actions.Quicken, hourglasses[i]);
-        foreach (var i in state.HourglassPair(2)) helpers[helper++]?.Cast(Actions.Slow, hourglasses[i]);
+        foreach (var i in state.HourglassPair(0)) oracle?.CastFromHelper(Actions.Quicken, hourglasses[i]);
+        foreach (var i in state.HourglassPair(2)) oracle?.CastFromHelper(Actions.Slow, hourglasses[i]);
     }
 
     private void Maelstrom(int wave)
@@ -304,55 +299,32 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         foreach (var hourglass in hourglasses) hourglass?.Despawn();
     }
 
-    // Wipes when an attack about to land at `position` reaches the Fragment of Fate. Only for
-    // attacks placed on players: the Fragment survives every scripted hit (Maelstrom, Tidal Light,
-    // raidwides) but not a single one more.
-    private bool BreaksFragment(Vector3 position, float radius, uint actionId, float innerRadius = 0f)
+    private void BreakFragmentOnAvoidableHit(ActionResolved resolved)
     {
-        var distance = Vector3.Distance(position, FragmentPosition);
-        if (distance > radius || distance < innerRadius) return false;
-        world.Party.WipeAllPlayers(actionId, "the Fragment of Fate was hit");
-        return true;
+        if (fragment is null || !resolved.NpcHits.Contains(fragment) || FragmentSurvives.Contains(resolved.Action.ActionId)) return;
+        world.Fail($"{Natives.Data.ActionName(resolved.Action.ActionId)} hit the Fragment of Fate");
     }
 
-    private static void CastAt(SimEnemy? helper, EnemyAction action, SimCharacter? target)
+    private void CastOnHolders(CrystallizeDebuff debuff, EnemyAction action)
     {
-        if (target is null) return;
-        helper?.SetPosition(target.Position);
-        helper?.Cast(action, target);
-    }
-
-    private static void CastAt(SimEnemy? helper, uint actionId, float animationLock, SimCharacter? target)
-    {
-        if (target is null) return;
-        helper?.SetPosition(target.Position);
-        helper?.Cast(actionId, target, animationLock);
-    }
-
-    private void CastOnHolders(CrystallizeDebuff debuff, EnemyAction action, float radius, float innerRadius = 0f, int firstHelper = 0)
-    {
-        var helper = firstHelper;
         foreach (var role in state.Holders(debuff))
-        {
-            if (world.Party.Get(role) is not { } holder || !holder.IsAlive()) continue;
-            if (BreaksFragment(holder.Position, radius, action.ActionId, innerRadius)) return;
-            helpers[helper++]?.Cast(action, holder);
-        }
+            if (world.Party.Get(role) is { } holder && holder.IsAlive())
+                oracle?.CastFromHelper(action, holder);
     }
 
     private void Fireworks()
     {
-        CastOnHolders(CrystallizeDebuff.RedAero, Actions.DarkAero, 15f, firstHelper: 0);
-        CastOnHolders(CrystallizeDebuff.BlueEruption, Actions.DarkEruption, 6f, firstHelper: 2);
-        CastOnHolders(CrystallizeDebuff.RedIce, Actions.DarkBlizzard, 12f, innerRadius: 3f, firstHelper: 3);
-        CastOnHolders(CrystallizeDebuff.BlueIce, Actions.DarkBlizzard, 12f, innerRadius: 3f, firstHelper: 5);
+        CastOnHolders(CrystallizeDebuff.RedAero, Actions.DarkAero);
+        CastOnHolders(CrystallizeDebuff.BlueEruption, Actions.DarkEruption);
+        CastOnHolders(CrystallizeDebuff.RedIce, Actions.DarkBlizzard);
+        CastOnHolders(CrystallizeDebuff.BlueIce, Actions.DarkBlizzard);
     }
 
-    private void CheckCleansed(CrystallizeDebuff debuff)
+    // Retail kills its holder alone, with no action.
+    private static void KillUncleansed(StatusLost lost)
     {
-        foreach (var role in state.Holders(debuff))
-            if (world.Party.Get(role) is { } member && (member.HasStatus(StatusId.Wyrmclaw) || member.HasStatus(StatusId.Wyrmfang)))
-                member.Die(ActionId.JoylessDragonsong, "Wyrmclaw / Wyrmfang not cleansed");
+        if (lost is { StatusId: StatusId.Wyrmclaw or StatusId.Wyrmfang, Reason: StatusLossReason.Expired })
+            lost.Holder.DieOfStatus(lost.StatusId, "not cleansed");
     }
 
     private void PositionUsurperForWaves(bool second)
@@ -380,35 +352,24 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         boss.SetPosition(new Placement(to, MathF.Atan2(travel.X, travel.Z)));
     }
 
-    // Four strips 10y deep, 2s apart, each its own helper's cast.
+    // Four strips 10y deep, 2s apart.
     private void TidalLight(bool second)
     {
         usurper?.Cast(ActionId.TidalLightCast, animationLock: 2.1f);
         var direction = state.WaveDirection(second);
         for (var step = 0; step < 4; step++)
         {
-            var helper = tidalHelpers[(second ? 4 : 0) + step];
             var strip = new Placement(state.WaveOrigin(second, step), MathF.Atan2(direction.X, direction.Z));
-            if (step == 0) CastFrom(helper, strip, Actions.TidalLightFirst);
-            else world.Events.Add(1.1f + 2f * step, () => CastFrom(helper, strip, Actions.TidalLightRest));
+            if (step == 0) usurper?.CastFromHelper(Actions.TidalLightFirst, at: strip);
+            else world.Events.Add(1.1f + 2f * step, () => usurper?.CastFromHelper(Actions.TidalLightRest, at: strip));
         }
-    }
-
-    private static void CastFrom(SimEnemy? helper, Placement at, EnemyAction action)
-    {
-        helper?.SetPosition(at);
-        helper?.Cast(action);
     }
 
     private void Quietus()
     {
-        var helper = 0;
         foreach (var role in state.Quietus)
-        {
-            if (world.Party.Get(role) is not { } carrier) continue;
-            helpers[helper]?.SetPosition(carrier.Position);
-            helpers[helper++]?.Cast(Actions.Quietus);
-        }
+            if (world.Party.Get(role) is { } carrier)
+                oracle?.CastFromHelper(Actions.Quietus, at: carrier.Placement());
     }
 
     private void SaveReturns()
@@ -425,7 +386,6 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
     private void SpiritTaker()
     {
         if (oracle is not { } boss || world.Party.Get(state.SpiritTakerTarget) is not { } target || !target.IsAlive()) return;
-        if (BreaksFragment(target.Position, 5f, ActionId.SpiritTaker)) return;
         TurnToward(boss, target.Position);
         boss.Cast(Actions.SpiritTaker, target);
         var landing = target.Position;
@@ -441,10 +401,10 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
 
     private void AkhMorn()
     {
-        if (world.Party.Get(PartyRole.MainTank) is { } mainTank && mainTank.IsAlive() && !BreaksFragment(mainTank.Position, 4f, ActionId.AkhMornUsurperHit))
-            CastAt(tidalHelpers[0], Actions.AkhMornUsurperHit, mainTank);
-        if (world.Party.Get(PartyRole.OffTank) is { } offTank && offTank.IsAlive() && !BreaksFragment(offTank.Position, 4f, ActionId.AkhMornOracleHit))
-            CastAt(helpers[1], Actions.AkhMornOracleHit, offTank);
+        if (world.Party.Get(PartyRole.MainTank) is { } mainTank && mainTank.IsAlive())
+            usurper?.CastFromHelper(Actions.AkhMornUsurperHit, mainTank, at: mainTank.Placement());
+        if (world.Party.Get(PartyRole.OffTank) is { } offTank && offTank.IsAlive())
+            oracle?.CastFromHelper(Actions.AkhMornOracleHit, offTank, at: offTank.Placement());
     }
 
     private void SpawnDragons()
@@ -462,6 +422,9 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         }
     }
 
+    public void OnActionResolved(ActionResolved resolved) => BreakFragmentOnAvoidableHit(resolved);
+    public void OnStatusLost(StatusLost lost) => KillUncleansed(lost);
+
     public void Tick(float delta, float elapsed)
     {
         if (elapsed >= DragonsMoveAt)
@@ -472,17 +435,10 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
 
     // A head flies its half circle, catching the first player it touches without stopping, and
     // vanishes after its second catch. Whoever it just caught has to step out of it before it can
-    // catch again. A head that reaches the south still hungry wipes the party.
+    // catch again. A head that reaches the south still hungry catches no one more.
     private void TickDragon(int side, float elapsed)
     {
-        if (dragons[side] is not { } head || dragonCatches[side] >= 2) return;
-        if (elapsed >= DragonsReachSouthAt)
-        {
-            dragonCatches[side] = 2;
-            // UNVERIFIED: no pull lets a head get this far, so the action the wipe shows is a guess.
-            world.Party.WipeAllPlayers(ActionId.LongingOfTheLost, "a dragon head reached the south with a catch left");
-            return;
-        }
+        if (dragons[side] is not { } head || dragonCatches[side] >= 2 || elapsed >= DragonsReachSouthAt) return;
         var position = head.Position;
         head.MoveTo(DragonPosition(side, elapsed + 0.5f), DragonSpeed);
         var contact = dragonCatches[side] == 0 ? DragonInitialContactRadius : DragonContactRadius;
@@ -497,15 +453,33 @@ public sealed class FruP4CrystallizeTimeScenario : IScenario
         if (target is not ISimPartyMember caught) return;
         lastCatcher[side] = caught.Role;
         dragonReadyAt[side] = elapsed + DragonHitCooldown;
-        if (BreaksFragment(position, 12f, ActionId.LongingOfTheLost)) return;
-        helpers[6 + side]?.SetPosition(new Placement(position, head.Rotation));
-        helpers[6 + side]?.Cast(Actions.LongingOfTheLost, target);
+        head.CastFromHelper(Actions.LongingOfTheLost, target, at: new Placement(position, head.Rotation));
         var puddleIndex = PuddleArg2Base + (uint)(dragonCatches[side] * 2 + (side == 0 ? 1 : 0));
         world.Events.Add(PuddleDelay, () => DropPuddle(caught.Role, position, elapsed + PuddleDelay, puddleIndex));
         if (dragonCatches[side] == 0) head.Activate(DragonShrunkState);
         if (++dragonCatches[side] < 2) return;
         head.Cast(ActionId.DrachenWandererDisappear, animationLock: 4.1f);
         world.Events.Add(4.2f, head.Despawn);
+    }
+
+    private bool IsHungry(int side) => dragons[side] is not null && dragonCatches[side] < 2;
+
+    // UNVERIFIED: where a hungry head goes after the south; retail shows it only as it vanishes, back
+    // in the north.
+    private void VanishHungryHeads()
+    {
+        for (var side = 0; side < 2; side++)
+            if (IsHungry(side) && dragons[side] is { } head)
+            {
+                head.Cast(ActionId.DrachenWandererDisappear, animationLock: 4.1f);
+                world.Events.Add(4.2f, head.Despawn);
+            }
+    }
+
+    private void PunishHungryHeads()
+    {
+        var hungry = IsHungry(0) ? dragons[0] : IsHungry(1) ? dragons[1] : null;
+        hungry?.CastFromHelper(Actions.JoylessDragonsong, at: new Placement(Vector3.Zero, 0f));
     }
 
     private void DropPuddle(PartyRole catcher, Vector3 position, float elapsed, uint arg2Index)

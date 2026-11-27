@@ -47,10 +47,6 @@ public static class FruConstants
     // ContentDirectorManagedSG 181. Packet flags: low16 = state, high16 = timeline mask.
     public static class MapEffect
     {
-        public const byte SlotCount = 54;
-        public const uint Show = 0x00010001;
-        public const uint Hide = 0x00040004;
-
         public const byte P2Platform = 23;
         // The P3/P4 stage controller.
         public const byte OracleStage = 40;
@@ -104,7 +100,6 @@ public static class FruConstants
 
     public static class BNpcBaseId
     {
-        public const uint Helper = 9020;
         public const uint UsurperP2 = 17823;
         public const uint FrozenMirror = 17824;
         public const uint HolyLight = 17826;
@@ -331,6 +326,7 @@ public static class FruConstants
         public const ushort Levitation = 1390;
         public const ushort Incurable = 2398;
         public const ushort Lightsteeped = 2257;
+        public const ushort Bleeding = 3078;
         public const ushort RefulgentChain = 2253;
         public const ushort RefulgentFate = 2255;
         public const ushort ChainsOfEverlastingLight = 4157;

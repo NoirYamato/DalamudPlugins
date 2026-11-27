@@ -19,7 +19,6 @@ internal sealed class FakeGame
 
     private readonly FakeRsvFunctions rsv = new();
     private readonly DataminingGameData data;
-    private readonly FakeActionTimelinePreload timelinePreload = new();
     private readonly FakeLayoutFunctions layout = new();
     private readonly FakeInstanceContentDirector director;
     private readonly FakeRsfFunctions rsf = new();
@@ -59,7 +58,6 @@ internal sealed class FakeGame
         Natives.EventObjects = EventObjects;
         Natives.PlayerInput = PlayerInput;
         Natives.UserActions = UserActions;
-        Natives.TimelinePreload = timelinePreload;
         Natives.Zone = Zone;
         Natives.MapEffects = MapEffects;
         Natives.Layout = layout;

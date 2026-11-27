@@ -6,6 +6,7 @@ using AnoMech.Core.Game.Ai;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Core.UserActions;
 using static AnoMech.Scenarios.Top.TopConstants;
 
 namespace AnoMech.Scenarios.Top.P5Omega;
@@ -375,7 +376,7 @@ public sealed class TopP5OmegaLpduAi : IScenarioAi<TopP5OmegaState>
         var now = world.Events.Elapsed;
         if (sprint && sprintingUntil.GetValueOrDefault(role) <= now)
         {
-            (member as ISimPartyMember)?.UseSprint(SprintLasts);
+            (member as ISimPartyMember)?.UseAction(JobActions.Sprint);
             sprintingUntil[role] = now + SprintLasts;
         }
         member.MoveTo(new Vector3(to.X, 0f, to.Y), sprintingUntil.GetValueOrDefault(role) > now ? AiManager.SprintSpeed : RunSpeed);

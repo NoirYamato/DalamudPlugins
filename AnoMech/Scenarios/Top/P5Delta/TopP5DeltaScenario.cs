@@ -27,7 +27,7 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
     public IReadOnlyList<string> SettingsConflicts => settingsWindow.Overrides.Validate().Problems;
     private readonly TopP5DeltaSettingsWindow settingsWindow = new();
 
-    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaLpduAi(), new TopP5DeltaAi()];
+    public IReadOnlyList<IScenarioAi> AiStrats => [new TopP5DeltaLpduAi(), new TopP5DeltaAi(), new TopP5DeltaTuuflessAi()];
 
 
     private TopP5DeltaState state = null!;
@@ -49,15 +49,9 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
     private List<SimEnemy?>? rocketPunches;
     private List<Vector3>? punchSpots;
     private List<SimEnemy?>? armUnits;
-    private List<SimTether> tethersShort = [];
-    private List<SimTether> tethersLong = [];
     private HelloWorld? nearSolver;
     private HelloWorld? farSolver;
-    private readonly Dictionary<SimCharacter, SimEnemy?> tetherHelpers = [];
-    private List<SimEnemy?> monitorHelpers = [];
-    private SimEnemy? nearHelloHelper;
-    private SimEnemy? farHelloHelper;
-    private HelloWorldHolderDeaths holderDeaths = null!;
+    private HelloWorldFailures helloWorldFailures = null!;
 
     public void Run(SimWorld worldParam, int? selectedAi)
     {
@@ -66,14 +60,14 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         state = new TopP5DeltaState(world.Rng, settingsWindow.Overrides, party.PlayerRole);
         LastState = state;
         lastBroadcastBeyondDefenseTarget = null;
-        holderDeaths = new HelloWorldHolderDeaths(world);
+        helloWorldFailures = new HelloWorldFailures(world, () => omega);
         if (selectedAi is { } idx && idx < AiStrats.Count)
             ((IScenarioAi<TopP5DeltaState>)AiStrats[idx]).Run(state, world);
 
         world.Events.Add(0.1f, SpawnOmega);
+        world.Events.Add(1.9f, () => omega?.BattleTalk(BattleTalkId.UnknownAugmentation, 6000));
         world.Events.Add(2f, () => omega?.Cast(Actions.RunMiDeltaVersion));
         world.Events.Add(2.1f, SpawnDeltaAdds);
-        world.Events.Add(2.1f, SpawnHelpers);
         // Delta arena transition animation (index 0x07) — real game fires these
         // at +8/+24/+27/+42s relative to the Run: mi cast. Cast is at t=2f here.
         world.Events.Add(10f, EyeSpawn);
@@ -85,10 +79,10 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         world.Events.Add(10.1f, SpawnOpticalUnit);
         world.Events.Add(10.2f, RevealDeltaAdds);
         world.Events.Add(10f, () => omega?.SetTargetable(false));
-        world.Events.Add(17.3f, () => beetle?.Cast(ActionId.PeripheralSynthesis));
+        world.Events.Add(17.3f, () => beetle?.Cast(ActionId.PeripheralSynthesis, animationLock: 3.1f));
         world.Events.Add(18.25f, SpawnRocketPunches);
         world.Events.Add(19.05f, () => rocketPunches?.ForEach(punch => punch?.ActorControl.PopIn()));
-        world.Events.Add(20.3f, () =>finalHelper?.Cast(ActionId.ArchivePeripheral));
+        world.Events.Add(20.3f, () =>finalHelper?.Cast(ActionId.ArchivePeripheral, animationLock: 3.1f));
         world.Events.Add(23.5f, SpawnArmUnits);               // Archive Peripheral fires t=20.30s
         world.Events.Add(25.3f, MarkArmUnitRotations);        // +1s after arm spawn
         world.Events.Add(25.5f, () => armUnits?.ForEach(unit => unit?.SetVisibleInEnemyList(true)));
@@ -116,7 +110,6 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         world.Events.Add(44.1f, () => omega?.PlayActionTimeline(ActionTimelineId.WarpStart));
         world.Events.Add(43.5f, () => finalHelper?.PlayActionTimeline(ActionTimelineId.WarpStart));
         world.Events.Add(45.5f, () => finalHelper?.Despawn());  // despawn signal t=43.591s
-        world.Events.Add(47.5f, () => CheckTethersExpired(tethersShort));             // tethers applied t=30.2, 18s life → expire 48.2
         world.Events.Add(54f, OmegaFaceNorth);
         world.Events.Add(54.1f, () => DropHelloPuddle(state.NearWorldRole, true));
         world.Events.Add(54.1f, () => DropHelloPuddle(state.FarWorldRole, false));
@@ -128,30 +121,31 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         world.Events.Add(56.6f, () => beetle?.PlayActionTimeline(ActionTimelineId.WarpStart));
         world.Events.Add(58.6f, () => beetle?.Despawn());
         world.Events.Add(58.2f, () => omega?.SetTargetable(true));
-        world.Events.Add(65.1f, () => CheckTethersExpired(tethersLong));             // tethers expire t=30.2+36=66.2
+        // Keeps the run open past the long tethers' expiry (66.2); the session ends once Events runs dry.
+        world.Events.Add(67f, () => { });
     }
     
+    public void OnTetherEnded(TetherEnded ended) => ResolveHwTether(ended);
+    public void OnActionResolved(ActionResolved resolved) => helloWorldFailures.OnActionResolved(resolved);
+    public void OnStatusLost(StatusLost lost) => helloWorldFailures.OnStatusLost(lost);
+    public void OnStatusAdded(StatusAdded added) => helloWorldFailures.OnStatusAdded(added);
+
     public void Tick(float delta, float elapsed)
     {
-        TickTethers(tethersLong, tether => tether.StretchLt(Geometry.HwTetherBreakDistance));
-        TickTethers(tethersShort, tether => tether.StretchGt(Geometry.HwTetherBreakDistance));
     }
 
-
-    private void TickTethers(List<SimTether> tethers, Predicate<SimTether> breakCondition)
+    // UNVERIFIED for Expired: no pull lets a tether run out; every fail follows a holder's death.
+    // A prep tether runs out into its real one, so only a death fails it.
+    private void ResolveHwTether(TetherEnded ended)
     {
-        var dead = tethers.Where(SimTether.IsAnyDead).ToList();
-        dead.ForEach(OnTetherFailed);
-        dead.ForEach(tether => tethers.Remove(tether));
-               
-        
-        var broken = tethers.Where(breakCondition.Invoke).ToList();
-        broken.ForEach(OnTetherBroken);
-        broken.ForEach(tether =>
+        var tetherId = ended.Tether.TetherId;
+        if (tetherId is TetherId.HWPrepRemote or TetherId.HWPrepLocal)
         {
-            var a= tethers.Remove(tether);
-            Plugin.Log.Info($"Removed {a} tether");
-        });
+            if (ended.Reason == TetherEndReason.EndDied) ExplodeHwTether(ended.Tether, Actions.HwTetherFail);
+            return;
+        }
+        if (tetherId is not (TetherId.HWRemote or TetherId.HWLocal)) return;
+        ExplodeHwTether(ended.Tether, ended.Reason == TetherEndReason.Stretched ? Actions.HwTetherBreak : Actions.HwTetherFail);
     }
 
 
@@ -164,7 +158,8 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
             Targetable: true,
             InitialModeAttributeFlags: 0x10,
             LayoutId: BNpcLayoutId.OmegaMDynamis,
-            Placement: new Placement(Vector3.Zero, MathF.PI)));
+            Placement: new Placement(Vector3.Zero, MathF.PI),
+            Statuses: [new SpawnStatus(StatusId.OmegaM)]));
     }
 
     private void SpawnDeltaAdds()
@@ -269,70 +264,28 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         var targets = new SimCharacter[8];
         for (int i = 0; i < 8; i++) targets[i] = party.Get(state.TetherOrder[i])!;
 
-        tethersShort =
-        [
-            world.Tether(targets[0], targets[1], TetherId.HWRemote, 18f, StatusId.HWRemoteTether),
-            world.Tether(targets[2], targets[3], TetherId.HWRemote, 18f, StatusId.HWRemoteTether)
-        ];
-        tethersLong =
-        [
-            world.Tether(targets[4], targets[5], TetherId.HWLocal,  36f, StatusId.HWLocalTether),
-            world.Tether(targets[6], targets[7], TetherId.HWLocal,  36f, StatusId.HWLocalTether)
-        ];
+        world.Tether(targets[0], targets[1], TetherId.HWRemote, 18f, StatusId.HWRemoteTether)
+            .BreaksWhen(t => t.StretchGt(Geometry.HwTetherBreakDistance));
+        world.Tether(targets[2], targets[3], TetherId.HWRemote, 18f, StatusId.HWRemoteTether)
+            .BreaksWhen(t => t.StretchGt(Geometry.HwTetherBreakDistance));
+        world.Tether(targets[4], targets[5], TetherId.HWLocal,  36f, StatusId.HWLocalTether)
+            .BreaksWhen(t => t.StretchLt(Geometry.HwTetherBreakDistance));
+        world.Tether(targets[6], targets[7], TetherId.HWLocal,  36f, StatusId.HWLocalTether)
+            .BreaksWhen(t => t.StretchLt(Geometry.HwTetherBreakDistance));
     }
 
-    private void OnTetherBroken(SimTether tether)
+    private void ExplodeHwTether(SimTether tether, EnemyAction explosion)
     {
-        if (tether.Resolved) return;
-        if (tether.A is not { } a || tether.B is not { } b) return;
-        Plugin.Log.Info($"Tether broken {tether.TetherId}");
-        tether.Resolved = true;
-        SpawnHwTetherHelper(a, Actions.HwTetherBreak);
-        SpawnHwTetherHelper(b, Actions.HwTetherBreak);
         tether.Despawn();
-    }
-
-    private void OnTetherFailed(SimTether tether)
-    {
-        if (tether.Resolved) return;
         if (tether.A is not { } a || tether.B is not { } b) return;
-        Plugin.Log.Info($"Tether failed {tether.TetherId}");
-        tether.Resolved = true;
-        SpawnHwTetherHelper(a, Actions.HwTetherFail);
-        SpawnHwTetherHelper(b, Actions.HwTetherFail);
-        tether.Despawn();
-    }
-
-    // Casts on a helper spawned the same frame play no animation, so every helper exists well
-    // before its cast and is moved onto the spot when it fires.
-    private void SpawnHelpers()
-    {
-        foreach (var member in party.AllMembers())
-            tetherHelpers[member] = SpawnHelper();
-        monitorHelpers = Enumerable.Range(0, 4).Select(_ => SpawnHelper()).ToList();
-        nearHelloHelper = SpawnHelper();
-        farHelloHelper = SpawnHelper();
-        holderDeaths.SpawnHelpers();
-    }
-
-    private SimEnemy? SpawnHelper()
-        => world.SpawnEnemy(new EnemySpawnConfig(
-            BNpcBaseId: BNpcBaseId.OmegaHelper, Visibility: SpawnVisibility.InvisibleHelper,
-            Targetable: false,
-            EnemyList: EnemyListMode.Never,
-            Placement: new Placement(Vector3.Zero, 0f)));
-
-    private void SpawnHwTetherHelper(SimCharacter member, EnemyAction action)
-    {
-        if (tetherHelpers.GetValueOrDefault(member) is not { } helper) return;
-        helper.SetPosition(member.Position);
-        helper.Cast(action);
+        omega?.CastFromHelper(explosion, at: new Placement(a.Position, 0f));
+        omega?.CastFromHelper(explosion, at: new Placement(b.Position, 0f));
     }
 
     private void StartMonitors()
     {
-        omega?.Cast(ActionId.BeyondDefense);
-        finalHelper?.Cast(state.OmegaMonitorSide.DeltaOversampledWaveCannonActionId);
+        omega?.Cast(ActionId.BeyondDefense, animationLock: 0.2f);
+        finalHelper?.Cast(state.OmegaMonitorSide.DeltaOversampledWaveCannonActionId, animationLock: 3.1f);
 
         var playerMonitor = party.Get(state.TetherOrder[state.PlayerMonitorIndex])!;
         playerMonitor.AddStatus(state.PlayerMonitorSide.MonitorDebuffId);
@@ -437,12 +390,8 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         targets.AddRange(MonitorTargets(playerMonitor.Placement(), state.PlayerMonitorSide, exclude: playerMonitor));
         playerMonitor.RemoveStatus(state.PlayerMonitorSide.MonitorDebuffId);
 
-        foreach (var (member, monitorHelper) in targets.Zip(monitorHelpers))
-        {
-            if (monitorHelper is null) continue;
-            monitorHelper.SetPosition(member.Position);
-            monitorHelper.Cast(Actions.OversampledWaveCannon, member);
-        }
+        foreach (var member in targets.Take(4))
+            finalHelper?.CastFromHelper(Actions.OversampledWaveCannon, member, at: new Placement(member.Position, 0f));
     }
 
     private IReadOnlyList<SimCharacter> MonitorTargets(Placement src, Side side, SimCharacter? exclude)
@@ -472,28 +421,18 @@ public sealed class TopP5DeltaScenario : IMultiplayerReplayable
         omega?.SetRotation(MathF.PI);
     }
 
-    private void CheckTethersExpired(List<SimTether> tethers)
-    {
-        foreach (var t in tethers)
-            if (!t.Resolved) OnTetherFailed(t);
-    }
-
     private void DropHelloPuddle(PartyRole role, bool near)
     {
         if (near)
-            nearSolver = new HelloWorld(world.Party, role, true);
+            nearSolver = helloWorldFailures.Chain(role, true);
         else
-            farSolver = new HelloWorld(world.Party, role, false);
+            farSolver = helloWorldFailures.Chain(role, false);
         HopHelloPuddle(near);
     }
 
     private void HopHelloPuddle(bool near)
     {
-        var solver = near ? nearSolver : farSolver;
-        var helper = near ? nearHelloHelper : farHelloHelper;
-        if (solver is null) return;
-        solver.SetPosition(helper);
-        solver.CastSpell(helper);
+        (near ? nearSolver : farSolver)?.CastSpell(omega);
     }
 
     // Delta arena transition animation (index 0x07).

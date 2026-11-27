@@ -21,9 +21,6 @@ namespace AnoMech.Scenarios.Umad.P5Celestriad;
 // second active tower. Sets 0 and 2 (the 1st and 3rd soaks) each get a single Catastrophic
 // Choice cast while their towers are lit. A set's towers go off about 0.6s after that cast
 // lands, and the Choice's Quake or Tornado 0.2-0.3s after the towers.
-//
-// Retail fires each set's towers from 4 helpers moved onto them when the set lights, alternating
-// two groups: one for sets 0 and 2, another for set 1.
 public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
 {
     public string Name => "Celestriad";
@@ -47,11 +44,8 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
     private SimWorld world = null!;
     private SimParty party = null!;
     private SimEnemy? kefka;
-    private SimEnemy? choiceHelper;
     // Aligned with state.AllTowers: active-tower selections use those indices.
     private readonly List<SimEventObject?> towers = [];
-    // Per set, aligned with state.SetActiveTowers[set].
-    private readonly List<SimEnemy?>[] towerHelpers = [[], [], []];
 
     public void Run(SimWorld worldParam, int? selectedAi)
     {
@@ -60,26 +54,22 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
         state = new UmadP5CelestriadState(world.Rng, party, settingsWindow.Overrides);
         LastState = state;
         towers.Clear();
-        foreach (var helpers in towerHelpers) helpers.Clear();
 
         if (selectedAi is { } idx && idx < AiStrats.Count)
             ((IScenarioAi<UmadP5CelestriadState>)AiStrats[idx]).Run(state, world);
 
         world.Events.Add(0f, SpawnKefka);
-        world.Events.Add(0f, SpawnChoiceHelper);
+        world.Events.Add(0.93f, () => PlayKefkaLine(0x27));
         world.Events.Add(1.0f, () => kefka?.Cast(ActionId.Celestriad, animationLock: 3.1f));
         world.Events.Add(6.1f, ApplyDebuffs);
         world.Events.Add(6.22f, SpawnAllTowers);
-        world.Events.Add(9.05f, () => SpawnTowerHelpers(0));
         world.Events.Add(9.05f, () => LightTowers(0));
         world.Events.Add(10.17f, () => LaunchChoice(0));
         world.Events.Add(15.06f, () => SpendTowers(0));
         world.Events.Add(15.06f, () => ResolveTowers(0));
-        world.Events.Add(15.06f, () => SpawnTowerHelpers(1));
         world.Events.Add(15.06f, () => LightTowers(1));
         world.Events.Add(15.26f, () => ResolveChoice(0));
         world.Events.Add(21.01f, () => SpendTowers(1));
-        world.Events.Add(21.01f, () => MoveTowerHelpers(from: 0, to: 2));
         world.Events.Add(21.01f, () => LightTowers(2));
         world.Events.Add(21.11f, () => ResolveTowers(1));
         world.Events.Add(22.30f, () => LaunchChoice(2));
@@ -87,6 +77,14 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
         world.Events.Add(27.10f, () => ResolveTowers(2));
         world.Events.Add(27.39f, () => ResolveChoice(2));
         world.Events.Add(29.44f, DespawnAll);
+    }
+
+    // UNVERIFIED delay: no pull leaves a Celestriad tower unsoaked.
+    public void OnActionResolved(ActionResolved resolved)
+    {
+        Towers.ResolveTower(world, resolved, ActionId.CelestriadFireIII, UmadActions.StardustFireIII, minSoakers: 1);
+        Towers.ResolveTower(world, resolved, ActionId.CelestriadBlizzardIII, UmadActions.StardustBlizzardIII, minSoakers: 1);
+        Towers.ResolveTower(world, resolved, ActionId.CelestriadThunderIII, UmadActions.StardustThunderIII, minSoakers: 1);
     }
 
     public void Tick(float delta, float elapsed) { }
@@ -100,12 +98,8 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
             Targetable: true,
             EnemyList: EnemyListMode.Always,
             Visibility: SpawnVisibility.Visible,
+            LayoutId: BNpcLayoutId.KefkaP5,
             Placement: new Placement(Vector3.Zero, MathF.PI)));
-    }
-
-    private void SpawnChoiceHelper()
-    {
-        choiceHelper = SpawnHelper(new Placement(Vector3.Zero, MathF.PI));
     }
 
     // Silent: no cast or animation on the player when the initial debuff lands, just the status.
@@ -127,7 +121,7 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
     private void ResolveChoice(int set)
     {
         if (state.AeroVariant[set] is { } choice)
-            choiceHelper?.Cast(choice.Resolution);
+            kefka?.CastFromHelper(choice.Resolution, at: new Placement(Vector3.Zero, MathF.PI));
     }
 
     private void SpawnAllTowers()
@@ -159,56 +153,19 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
             towers[towerIndex]?.PlayBeat(EObjState.CelestriadTowerSpent, EObjState.CelestriadTowerSpentMask);
     }
 
-    private void SpawnTowerHelpers(int set)
-    {
-        foreach (var towerIndex in state.SetActiveTowers[set])
-            towerHelpers[set].Add(SpawnHelper(new Placement(state.AllTowers[towerIndex].Position, 0f)));
-    }
-
-    // A helper already standing on one of the new set's towers stays there.
-    private void MoveTowerHelpers(int from, int to)
-    {
-        var targets = state.SetActiveTowers[to];
-        var assigned = new SimEnemy?[targets.Count];
-        var filled = new bool[targets.Count];
-        var free = new Queue<SimEnemy?>();
-        for (var i = 0; i < towerHelpers[from].Count; i++)
-        {
-            var stay = targets.ToList().IndexOf(state.SetActiveTowers[from][i]);
-            if (stay >= 0) (assigned[stay], filled[stay]) = (towerHelpers[from][i], true);
-            else free.Enqueue(towerHelpers[from][i]);
-        }
-        for (var i = 0; i < targets.Count; i++)
-        {
-            if (filled[i] || !free.TryDequeue(out var helper)) continue;
-            assigned[i] = helper;
-            helper?.SetPosition(new Placement(state.AllTowers[targets[i]].Position, 0f));
-        }
-        towerHelpers[to].AddRange(assigned);
-    }
-
     private void ResolveTowers(int set)
     {
-        for (var i = 0; i < towerHelpers[set].Count; i++)
-            towerHelpers[set][i]?.Cast(state.AllTowers[state.SetActiveTowers[set][i]].Element.Tower);
+        foreach (var towerIndex in state.SetActiveTowers[set])
+        {
+            var tower = state.AllTowers[towerIndex];
+            kefka?.CastFromHelper(tower.Element.Tower, at: new Placement(tower.Position, 0f));
+        }
     }
-
-    private SimEnemy? SpawnHelper(Placement placement) => world.SpawnEnemy(new EnemySpawnConfig(
-        BNpcBaseId: BNpcBaseId.KefkaHelper,
-        NameId: BNpcNameId.Kefka,
-        Level: 1,
-        Targetable: false,
-        EnemyList: EnemyListMode.Never,
-        Visibility: SpawnVisibility.InvisibleHelper,
-        Placement: placement));
 
     private void DespawnAll()
     {
         foreach (var tower in towers) tower?.Despawn();
         towers.Clear();
-        foreach (var helper in towerHelpers.SelectMany(h => h).Distinct()) helper?.Despawn();
-        foreach (var helpers in towerHelpers) helpers.Clear();
-        choiceHelper?.Despawn();
         kefka?.Despawn();
     }
 
@@ -233,5 +190,11 @@ public sealed class UmadP5CelestriadScenario : IMultiplayerReplayable
         if (shadowState == null) return null;
         ((IScenarioAi<UmadP5CelestriadState>)AiStrats[aiIndex]).Run(shadowState, replayWorld);
         return shadowState;
+    }
+
+    // The battle talk names its speaker by entity id.
+    private void PlayKefkaLine(uint line)
+    {
+        if (kefka is { } boss) world.Map.DirectorUpdate(0x80000027U, line, 0x2U, BNpcNameId.Kefka, boss.EntityId);
     }
 }

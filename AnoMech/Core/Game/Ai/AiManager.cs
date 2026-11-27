@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.Native.Interfaces;
+using AnoMech.Core.UserActions;
 
 namespace AnoMech.Core.Game.Ai;
 
@@ -34,8 +35,9 @@ public sealed class AiManager
     /// <summary>Schedule bots movement</summary> 
     /// <param name="arrivalTime">If not empty, this is expected arrival time for bots. They will sprint if there is not enough time to walk, and they will leave as late as possible otherwise</param>
     /// <param name="sprint">Ignored if arrivalTime is set. Sprint towards target instead of walking</param>
+    /// <param name="facing">Rotation the bots turn to on arrival</param>
     public void Move(float time, Func<IAiMove> positions, float jitter = DefaultJitter, float? arrivalTime = null, bool sprint = false,
-        [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+        float? facing = null, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
     {
         world.Events.Add(time, () =>
         {
@@ -54,11 +56,11 @@ public sealed class AiManager
                     : (sprint, 0f);
                 var speed = sprinting ? SprintSpeed : RunSpeed;
 
-                if (sprinting) partyMember?.UseSprint(dist / SprintSpeed + 1f);
+                if (sprinting) partyMember?.UseAction(JobActions.Sprint);
                 // `for`: the spot before the jitter, which each client rolls on its own stream.
                 AnoMech.Core.DiagnosticLog.Info($"[AiManager] Move@{time:F1}: {role} ({member.Position.X:F1},{member.Position.Z:F1}) -> ({target.X:F1},{target.Z:F1}) for ({local.X:F2},{local.Y:F2}) {dist:F1}y{(sprinting ? " sprinting" : "")}{(delay > 0f ? $", leaving in {delay:F2}s" : "")}.");
-                if (delay > 0f) world.Events.Add(delay, () => member.MoveTo(target, speed: speed), file, line);
-                else member.MoveTo(target, speed: speed);
+                if (delay > 0f) world.Events.Add(delay, () => member.MoveTo(target, speed, facing), file, line);
+                else member.MoveTo(target, speed, facing);
             }
         }, file, line);
     }
@@ -68,6 +70,17 @@ public sealed class AiManager
     {
         var slack = available - dist / RunSpeed;
         return slack >= 0f ? (false, slack) : (true, 0f);
+    }
+
+    // Arm's Length or Surecast, whichever each one's job has. No roles = the whole party.
+    public void Kbi(float time, IReadOnlyCollection<PartyRole>? roles = null, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)
+    {
+        world.Events.Add(time, () =>
+        {
+            foreach (var role in roles ?? Enum.GetValues<PartyRole>())
+                if (world.Party.Get(role) is ISimPartyMember member)
+                    member.UseAction(Natives.Data.CanUse(member.ClassJob, JobActions.ArmsLength) ? JobActions.ArmsLength : JobActions.Surecast);
+        }, file, line);
     }
 
     public void Automarker(float time, Func<Dictionary<PartyRole, Sign>> mapping, [CallerFilePath] string file = "", [CallerLineNumber] int line = 0)

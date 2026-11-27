@@ -14,22 +14,15 @@ public static class FruActions
     private static readonly VulnSpec VulnToMagic = VulnerableTo(StatusId.MagicVulnerabilityUp);
     private static readonly VulnSpec VulnToMagicFire = VulnToMagic.VulnerableTo(StatusId.FireResistanceDownII);
 
-    // UNVERIFIED: no pull lets a fifth stack land, so its timing is the sheet's instant default.
     public static readonly EnemyAction Lightsteep = new(ActionId.Lightsteep)
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.67f },
         DeathExplanation = "a fifth Lightsteeped stack exploded",
     };
 
-    // Declared after Lightsteep: static fields initialize in order.
-    private static readonly IEnemyActionEffect[] AddLightsteeped = LightsteepedStack(36f, delayToEffectResult: true);
-
-    private static IEnemyActionEffect[] LightsteepedStack(float duration, bool delayToEffectResult) =>
-    [
-        ApplyStatus(StatusId.Lightsteeped, duration, delayToEffectResult),
-        FollowUp(Lightsteep, ctx => ctx.Hits.Any(h => !ctx.IsKilled(h) && h.FindStatus(StatusId.Lightsteeped)?.Stacks >= 5)),
-    ];
+    private static readonly IEnemyActionEffect AddLightsteeped = ApplyStatus(StatusId.Lightsteeped, 36f, delayToEffectResult: true);
 
     // -- P2 Diamond Dust --
 
@@ -52,7 +45,6 @@ public static class FruActions
         Cast = new() { AnimationLock = 2.1f },
         Area = new() { Size = 4f },
         Effects = [Damage(Lethal)],
-        // UNVERIFIED: no recorded hit; Axe Kick's.
         Timing = new() { DamageDelay = 1.09f },
     };
 
@@ -75,18 +67,21 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     public static readonly EnemyAction FrigidNeedleCircle = new(ActionId.FrigidNeedleCircle)
     {
         Cast = new() { AnimationLock = 1.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     public static readonly EnemyAction FrigidNeedleCross = new(ActionId.FrigidNeedleCross)
     {
         Cast = new() { AnimationLock = 1.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     public static readonly EnemyAction HeavenlyStrike = new(ActionId.HeavenlyStrike)
@@ -107,29 +102,31 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Gaze(lookAway: true)],
-        Timing = new() { DamageDelay = 0.4f },
+        Timing = new() { DamageDelay = 0.49f },
     };
 
     // The range-30 halves hit everything but the 90° behind the Mirror; the range-40 halves hit
     // only that 90°.
-    private static EnemyAction TwinFront(uint actionId, float animationLock) => new(actionId)
+    private static EnemyAction TwinFront(uint actionId, float animationLock, float damageDelay) => new(actionId)
     {
         Cast = new() { AnimationLock = animationLock },
         Area = new() { Size = 3f * MathF.PI / 4f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = damageDelay },
     };
 
-    private static EnemyAction TwinBack(uint actionId, float animationLock) => new(actionId)
+    private static EnemyAction TwinBack(uint actionId, float animationLock, float damageDelay) => new(actionId)
     {
         Cast = new() { AnimationLock = animationLock },
         Area = new() { Size = MathF.PI / 4f, Rotation = MathF.PI },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = damageDelay },
     };
 
-    public static readonly EnemyAction TwinStillnessFirst = TwinFront(ActionId.TwinStillnessFirst, 2.1f);
-    public static readonly EnemyAction TwinStillnessSecond = TwinBack(ActionId.TwinStillnessSecond, 3.1f);
-    public static readonly EnemyAction TwinSilenceFirst = TwinBack(ActionId.TwinSilenceFirst, 2.1f);
-    public static readonly EnemyAction TwinSilenceSecond = TwinFront(ActionId.TwinSilenceSecond, 3.1f);
+    public static readonly EnemyAction TwinStillnessFirst = TwinFront(ActionId.TwinStillnessFirst, 2.1f, 1.1f);
+    public static readonly EnemyAction TwinStillnessSecond = TwinBack(ActionId.TwinStillnessSecond, 3.1f, 0.9f);
+    public static readonly EnemyAction TwinSilenceFirst = TwinBack(ActionId.TwinSilenceFirst, 2.1f, 1.1f);
+    public static readonly EnemyAction TwinSilenceSecond = TwinFront(ActionId.TwinSilenceSecond, 3.1f, 0.81f);
 
     // -- P2 Light Rampant --
 
@@ -143,13 +140,13 @@ public static class FruActions
     public static readonly EnemyAction BrightHunger = new(ActionId.BrightHunger)
     {
         Cast = new() { AnimationLock = 2.1f },
-        Effects = [Damage(), .. AddLightsteeped],
+        Effects = [Damage(), AddLightsteeped],
         Timing = new() { DamageDelay = 0.65f },
     };
 
     public static readonly EnemyAction BrightHungerCenter = BrightHunger with
     {
-        Effects = [Damage(split: Stack(4)), .. AddLightsteeped],
+        Effects = [Damage(split: Stack(4)), AddLightsteeped],
     };
 
     public static readonly EnemyAction LuminousHammer = new(ActionId.LuminousHammer)
@@ -162,7 +159,7 @@ public static class FruActions
     public static readonly EnemyAction PowerfulLight = new(ActionId.PowerfulLight)
     {
         Cast = new() { AnimationLock = 2.1f, FaceTarget = false },
-        Effects = [Damage(split: Stack(4)), .. AddLightsteeped],
+        Effects = [Damage(split: Stack(4)), AddLightsteeped],
         Timing = new() { DamageDelay = 0.65f },
     };
 
@@ -170,6 +167,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.79f },
     };
 
     // Retail hits hard and leaves Damage Down rather than killing outright.
@@ -185,8 +183,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
-        // UNVERIFIED: no recorded hit; Refulgent Fate's.
-        Timing = new() { DamageDelay = 0.66f },
+        Timing = new() { DamageDelay = 0.63f },
         DeathExplanation = "a tower went unsoaked",
     };
 
@@ -207,7 +204,7 @@ public static class FruActions
     public static readonly EnemyAction HouseOfLight = new(ActionId.HouseOfLight)
     {
         Cast = new() { AnimationLock = 2.1f },
-        Effects = [Damage(VulnToMagic), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f), .. AddLightsteeped],
+        Effects = [Damage(VulnToMagic), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f), AddLightsteeped],
         Timing = new() { DamageDelay = 0.64f },
     };
 
@@ -237,6 +234,7 @@ public static class FruActions
         Cast = new() { AnimationLock = 1.1f, FaceTarget = false },
         Area = new() { Size = 3f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.62f },
     };
 
     public static readonly EnemyAction UnholyDarkness = new(ActionId.UnholyDarkness)
@@ -282,6 +280,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 1.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.62f },
     };
 
     public static readonly EnemyAction ShellCrusher = new(ActionId.ShellCrusher)
@@ -295,7 +294,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
-        Timing = new() { DamageDelay = 0.57f },
+        Timing = new() { DamageDelay = 0.63f },
     };
 
     public static readonly EnemyAction SpiritTaker = new(ActionId.SpiritTaker)
@@ -328,16 +327,11 @@ public static class FruActions
 
     // -- P4 --
 
-    public static readonly EnemyAction AkhRhaiCast = new(ActionId.AkhRhaiCast)
-    {
-        Cast = new() { AnimationLock = 3.1f },
-        Effects = [Damage(Lethal)],
-    };
-
     public static readonly EnemyAction AkhRhai = new(ActionId.AkhRhai)
     {
         Cast = new() { AnimationLock = 0.6f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.18f },
     };
 
     public static readonly EnemyAction DarklitDragonsong = new(ActionId.DarklitDragonsong)
@@ -350,19 +344,20 @@ public static class FruActions
     public static readonly EnemyAction PathOfLight = new(ActionId.PathOfLight)
     {
         Cast = new() { AnimationLock = 2.1f },
-        Effects = [Damage(), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f), .. LightsteepedStack(12f, delayToEffectResult: true)],
+        Effects = [Damage(), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f), ApplyStatus(StatusId.Lightsteeped, 12f, delayToEffectResult: true)],
         Timing = new() { DamageDelay = 0.67f },
     };
 
     public static readonly EnemyAction BrightHungerDarklit = BrightHunger with
     {
-        Effects = [Damage(split: Stack(2)), .. AddLightsteeped],
+        Effects = [Damage(split: Stack(2)), AddLightsteeped],
     };
 
     private static EnemyAction HallowedWings(uint actionId) => new(actionId)
     {
         Cast = new() { AnimationLock = 3.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 1.77f },
     };
 
     public static readonly EnemyAction HallowedWingsLeft = HallowedWings(ActionId.HallowedWingsLeft);
@@ -379,7 +374,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.8f },
         Effects = [Damage(VulnerableTo(StatusId.PhysicalVulnerabilityUp, requiredMitigation: 1f), TankBuster)],
-        Timing = new() { DamageDelay = 1.3f },
+        Timing = new() { DamageDelay = 1.30f },
     };
 
     public static readonly EnemyAction AkhMornUsurperHit = new(ActionId.AkhMornUsurperHit)
@@ -429,6 +424,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 1.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     // Only a Wyrmclaw holder survives the blast, and it takes the Wyrmclaw off.
@@ -437,6 +433,14 @@ public static class FruActions
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(ProtectedBy(StatusId.Wyrmclaw), Lethal), RemoveStatus(StatusId.Wyrmclaw, atImpact: true)],
         Timing = new() { DamageDelay = 0.62f },
+    };
+
+    public static readonly EnemyAction JoylessDragonsong = new(ActionId.JoylessDragonsong)
+    {
+        Cast = new() { AnimationLock = 2.1f },
+        Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.8f },
+        DeathExplanation = "a dragon head kept a catch",
     };
 
     // Hits its holder too; only the others are pushed, away from the holder.
@@ -451,12 +455,14 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     public static readonly EnemyAction TidalLightRest = new(ActionId.TidalLightRest)
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.93f },
     };
 
     public static readonly EnemyAction Quietus = new(ActionId.Quietus)
@@ -486,7 +492,7 @@ public static class FruActions
                     ApplyStatus(StatusId.MagicVulnerabilityUp, 6f, delayToEffectResult: true)
             ),
             OnBehindFront(4, Damage()),
-            Knockback(KnockbackId.HallowedWings, 1.36f)
+            Knockback(KnockbackId.HallowedWings, 1.36f, ignoresKbi: false)
         ],
         Timing = new() { DamageDelay = 1.8f },
     };
@@ -520,10 +526,14 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
-        Timing = new() { DamageDelay = 0.71f },
+        Timing = new() { DamageDelay = 0.63f },
     };
 
-    public static readonly EnemyAction PathOfDarknessRest = PathOfLightRest with { ActionId = ActionId.PathOfDarknessRest };
+    public static readonly EnemyAction PathOfDarknessRest = PathOfLightRest with
+    {
+        ActionId = ActionId.PathOfDarknessRest,
+        Timing = new() { DamageDelay = 0.62f },
+    };
 
     // Both stacks land on one tick: whoever stands in both dies to the second.
     public static readonly EnemyAction AkhMornPandoraLeft = new(ActionId.AkhMornPandoraLeft)
@@ -553,7 +563,7 @@ public static class FruActions
     {
         ActionId = ActionId.WingsCleaveDark,
         Cast = new() { AnimationLock = 3.6f, Rotation = -MathF.PI / 3f },
-        Timing = new() { DamageDelay = 0.74f },
+        Timing = new() { DamageDelay = 0.8f },
     };
 
     public static readonly EnemyAction WingsBusterLight = new(ActionId.WingsBusterLight)
@@ -580,7 +590,8 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
-        DeathExplanation = "tower not soaked by exactly two",
+        DeathExplanation = "tower soaked by fewer than two",
+        Timing = new() { DamageDelay = 0.67f },
     };
 
     // A line stack; only its front bait takes the resistance down. A second hit of the same colour
@@ -604,6 +615,7 @@ public static class FruActions
     {
         Cast = new() { AnimationLock = 2.1f },
         Effects = [Damage(Lethal)],
+        Timing = new() { DamageDelay = 0.54f },
     };
 
     public static readonly EnemyAction CruelPathOfDarknessEcho = CruelPathOfLightEcho with { ActionId = ActionId.CruelPathOfDarknessEcho };

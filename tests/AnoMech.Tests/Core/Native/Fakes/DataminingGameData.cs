@@ -13,6 +13,7 @@ internal sealed class DataminingGameData(FakeRsvFunctions rsv) : IGameData
     private static readonly Lazy<Sheet> BNpcBases = Load("BNpcBase");
     private static readonly Lazy<Sheet> BNpcNames = Load("BNpcName");
     private static readonly Lazy<Sheet> ClassJobs = Load("ClassJob");
+    private static readonly Lazy<Sheet> ClassJobCategories = Load("ClassJobCategory");
     private static readonly Lazy<Sheet> Knockbacks = Load("Knockback");
     private static readonly Lazy<Sheet> ModelCharas = Load("ModelChara");
     private static readonly Lazy<Sheet> ModelSkeletons = Load("ModelSkeleton");
@@ -38,8 +39,15 @@ internal sealed class DataminingGameData(FakeRsvFunctions rsv) : IGameData
             row.Bool("CanTargetSelf"),
             row.Bool("CanTargetParty"),
             row.SByte("AttackType"),
-            row.Bool("TargetArea"));
+            row.Bool("TargetArea"),
+            row.Bool("IsPlayerAction"),
+            row.Byte("ClassJobLevel"),
+            row.UInt("ClassJobCategory"));
     }
+
+    // Every action a player presses outside PvP.
+    public static IEnumerable<uint> PlayerActionIds()
+        => Actions.Value.Ids.Where(id => Actions.Value.Row(id) is { } row && row.Bool("IsPlayerAction") && !row.Bool("IsPvP"));
 
     public KnockbackRow? Knockback(uint knockbackId)
         => Knockbacks.Value.Row(knockbackId) is { } row
@@ -68,7 +76,8 @@ internal sealed class DataminingGameData(FakeRsvFunctions rsv) : IGameData
 
     public StatusRow? Status(ushort statusId)
         => Statuses.Value.Row(statusId) is { } row
-            ? new StatusRow(statusId, Resolve(row.Text("Name")) ?? "", row.Bool("LockMovement"), row.Bool("LockActions"), row.Bool("LockControl"), row.Byte("MaxStacks"))
+            ? new StatusRow(statusId, Resolve(row.Text("Name")) ?? "", row.Bool("LockMovement"), row.Bool("LockActions"), row.Bool("LockControl"), row.Byte("MaxStacks"),
+                row.Byte("ParamEffect"), row.Bool("CanDispel"))
             : null;
 
     public TerritoryTypeRow? TerritoryType(uint territoryId)
@@ -80,6 +89,12 @@ internal sealed class DataminingGameData(FakeRsvFunctions rsv) : IGameData
         => ContentFinderConditions.Value.Row(contentFinderConditionId) is { } row
             ? new ContentFinderConditionRow(contentFinderConditionId, row.Byte("ClassJobLevelSync"))
             : null;
+
+    // A column per ClassJob, named by its Abbreviation.
+    public bool ClassJobCategoryIncludes(uint classJobCategoryId, byte classJob)
+        => ClassJobCategories.Value.Row(classJobCategoryId) is { } category
+           && ClassJobs.Value.Row(classJob) is { } job
+           && category.Bool(job.Text("Abbreviation"));
 
     public string? BNpcName(uint nameId) => NonEmpty(Resolve(BNpcNames.Value.Row(nameId)?.Text("Singular")));
 
@@ -185,6 +200,8 @@ internal sealed class DataminingGameData(FakeRsvFunctions rsv) : IGameData
                     return ReadRecord(text, ref pos);
                 }))
                 : null;
+
+        public IEnumerable<uint> Ids => rows.Keys;
 
         public int Column(string column)
             => columns.TryGetValue(column, out var index) ? index : throw new KeyNotFoundException($"{name}.csv has no column '{column}'.");

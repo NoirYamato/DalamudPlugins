@@ -1,7 +1,7 @@
 using System;
-using System.Collections.Generic;
-using AnoMech.Core.Game.Party;
+using System.Linq;
 using AnoMech.Core.Native.Implementations;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 
 namespace AnoMech.Core.UserActions;
@@ -57,21 +57,27 @@ internal sealed class StatusEffect(ushort statusId, float duration, int stacks =
     {
         ctx.Caster.RemoveStatus(statusId);
         ctx.Caster.AddStatusParam(statusId, stacks, duration);
-        if (ctx.Caster is ISimPartyMember member) HostReport.RoleStatus([member.Role], statusId, duration, stacks);
     }
 }
 
-// A peer runs no scenario logic: the host decides who lives, from the statuses on its own copy
-// of each character. Only mitigation, the one kind of status the host acts on, and Sprint, which
-// every other client shows, are sent.
-internal static class HostReport
+// Leaf: remove the first dispellable status (Status sheet CanDispel) from each friendly recipient.
+// The status is picked at the press and comes off 1.11s later, as the game's does.
+internal sealed class DispelEffect : IActionEffect
 {
-    public static bool IsReported(ushort statusId) => Mitigation.ByStatusId.ContainsKey(statusId) || statusId == SprintHandler.SprintStatusId;
+    private const float Delay = 1.11f;
 
-    public static void RoleStatus(IReadOnlyList<PartyRole> roles, ushort statusId, float duration, int stacks)
+    public void Apply(ActionContext ctx)
     {
-        if (IsReported(statusId))
-            Plugin.Multiplayer?.ReportAppliedRoleStatus(roles, statusId, duration, (ushort)stacks);
+        foreach (var member in ActionTargets.Friendly(ctx))
+            Dispel(member);
+    }
+
+    public static void Dispel(SimCharacter member)
+    {
+        if (member.ActiveStatuses.FirstOrDefault(s => Natives.Data.Status(s.StatusId) is { CanDispel: true }) is not { } status) return;
+        void Remove() => member.RemoveStatus(status.StatusId, status.SourceObject);
+        if (Plugin.Game is { } game) game.Events.Add(Delay, Remove);
+        else Remove();
     }
 }
 
@@ -80,14 +86,11 @@ internal sealed class TargetStatusEffect(ushort statusId, float duration, int st
 {
     public void Apply(ActionContext ctx)
     {
-        var roles = new List<PartyRole>();
         foreach (var member in ActionTargets.Friendly(ctx))
         {
             member.RemoveStatus(statusId);
             member.AddStatusParam(statusId, stacks, duration);
-            if (member is ISimPartyMember slot) roles.Add(slot.Role);
         }
-        HostReport.RoleStatus(roles, statusId, duration, stacks);
     }
 }
 
@@ -96,13 +99,11 @@ internal sealed class EnemyStatusEffect(ushort statusId, float duration, int sta
 {
     public void Apply(ActionContext ctx)
     {
-        var enemies = ActionTargets.Hostile(ctx);
-        foreach (var enemy in enemies)
+        foreach (var enemy in ActionTargets.Hostile(ctx))
         {
             enemy.RemoveStatus(statusId);
             enemy.AddStatusParam(statusId, stacks, duration);
         }
-        Plugin.Multiplayer?.ReportAppliedEnemyStatus(enemies, statusId, duration);
     }
 }
 
@@ -112,6 +113,17 @@ internal sealed class ComboEffect(IActionEffect[] inner) : IActionEffect
     public void Apply(ActionContext ctx)
     {
         if (!ctx.CasterIsPlayer || !PlayerCombo.IsActiveContinuation(ctx.ActionId)) return;
+        foreach (var e in inner) e.Apply(ctx);
+    }
+}
+
+// Wrapper: apply the inner effects only once the player's level reaches the action they unlock. A
+// trait's Ready status granted below it would turn a button into an action the player can't use yet.
+internal sealed class UnlocksEffect(uint actionId, IActionEffect[] inner) : IActionEffect
+{
+    public void Apply(ActionContext ctx)
+    {
+        if (ctx.CasterIsPlayer && Plugin.ObjectTable.LocalPlayer?.Level < Natives.Data.Action(actionId)?.ClassJobLevel) return;
         foreach (var e in inner) e.Apply(ctx);
     }
 }

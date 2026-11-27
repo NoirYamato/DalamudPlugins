@@ -110,6 +110,13 @@ public sealed unsafe class LocalPlayerInputHooks : ILocalPlayerInput
     private readonly Hook<ActionManager.Delegates.UseAction> useActionHook;
     private readonly Hook<ActionManager.Delegates.UseActionLocation> useActionLocationHook;
     private readonly Hook<Hotbar.Delegates.CancelCast> cancelCastHook;
+    private readonly Hook<ActionManager.Delegates.GetAdjustedActionId> adjustedActionIdHook;
+    private readonly Hook<ActionManager.Delegates.GetAdjustedCastTime> adjustedCastTimeHook;
+    private readonly Hook<ActionManager.Delegates.GetActionStatus> actionStatusHook;
+
+    public Func<uint, uint?>? AdjustActionId { get; set; }
+    public Func<ActionType, uint, int?>? AdjustCastTime { get; set; }
+    public Func<ActionType, uint, bool, uint?>? AdjustActionStatus { get; set; }
 
     public LocalPlayerInputHooks(IGameInteropProvider hook)
     {
@@ -123,12 +130,21 @@ public sealed unsafe class LocalPlayerInputHooks : ILocalPlayerInput
             ActionManager.Addresses.UseActionLocation.Value, UseActionLocationDetour);
         cancelCastHook = hook.HookFromAddress<Hotbar.Delegates.CancelCast>(
             Hotbar.Addresses.CancelCast.Value, CancelCastDetour);
+        adjustedActionIdHook = hook.HookFromAddress<ActionManager.Delegates.GetAdjustedActionId>(
+            ActionManager.Addresses.GetAdjustedActionId.Value, AdjustedActionIdDetour);
+        adjustedCastTimeHook = hook.HookFromAddress<ActionManager.Delegates.GetAdjustedCastTime>(
+            ActionManager.Addresses.GetAdjustedCastTime.Value, AdjustedCastTimeDetour);
+        actionStatusHook = hook.HookFromAddress<ActionManager.Delegates.GetActionStatus>(
+            ActionManager.Addresses.GetActionStatus.Value, ActionStatusDetour);
 
         rmiWalkHook.Enable();
         updateHook.Enable();
         useActionHook.Enable();
         useActionLocationHook.Enable();
         cancelCastHook.Enable();
+        adjustedActionIdHook.Enable();
+        adjustedCastTimeHook.Enable();
+        actionStatusHook.Enable();
     }
 
     public void Dispose()
@@ -138,6 +154,54 @@ public sealed unsafe class LocalPlayerInputHooks : ILocalPlayerInput
         useActionHook?.Dispose();
         useActionLocationHook?.Dispose();
         cancelCastHook?.Dispose();
+        adjustedActionIdHook?.Dispose();
+        adjustedCastTimeHook?.Dispose();
+        actionStatusHook?.Dispose();
+    }
+
+    // The three below run every frame for every hotbar slot: an override that throws must not take the
+    // game down.
+    private uint AdjustedActionIdDetour(ActionManager* self, uint actionId)
+    {
+        var native = adjustedActionIdHook.Original(self, actionId);
+        try
+        {
+            return AdjustActionId?.Invoke(actionId) ?? native;
+        }
+        catch (Exception e)
+        {
+            Plugin.Log.Error($"[LocalPlayerInputHooks] AdjustActionId: {e.Message}");
+            return native;
+        }
+    }
+
+    private int AdjustedCastTimeDetour(ActionType actionType, uint actionId, bool applyProcs, ActionManager.CastTimeProc* outOptProc)
+    {
+        var native = adjustedCastTimeHook.Original(actionType, actionId, applyProcs, outOptProc);
+        try
+        {
+            return AdjustCastTime?.Invoke(actionType, actionId) ?? native;
+        }
+        catch (Exception e)
+        {
+            Plugin.Log.Error($"[LocalPlayerInputHooks] AdjustCastTime: {e.Message}");
+            return native;
+        }
+    }
+
+    private uint ActionStatusDetour(ActionManager* self, ActionType actionType, uint actionId, ulong targetId, bool checkRecastActive, bool checkCastingActive, uint* outOptExtraInfo)
+    {
+        var native = actionStatusHook.Original(self, actionType, actionId, targetId, checkRecastActive, checkCastingActive, outOptExtraInfo);
+        if (native == 0) return native;
+        try
+        {
+            return AdjustActionStatus?.Invoke(actionType, actionId, checkRecastActive) ?? native;
+        }
+        catch (Exception e)
+        {
+            Plugin.Log.Error($"[LocalPlayerInputHooks] AdjustActionStatus: {e.Message}");
+            return native;
+        }
     }
 
     // The player asked to cancel their cast; latch it and let the original run (its
@@ -192,23 +256,34 @@ public sealed unsafe class LocalPlayerInputHooks : ILocalPlayerInput
     {
         if (ActionsBlocked) return false;
         RecordRecentAction(actionId, actionType);
+        // The hotbar presses the button's own id; what runs is what the button is adjusted to, which
+        // the action itself can change (enchanted melee spending the mana its swap depends on).
+        var ran = actionType == ActionType.Action ? self->GetAdjustedActionId(actionId) : actionId;
+        var sequence = self->LastUsedActionSequence;
         var result = useActionHook.Original(self, actionType, actionId, targetId, extraParam, mode, comboRouteId, outOptAreaTargeted);
         if (result)
         {
             actionUsedSincePoll = true;
-            ActionExecuted?.Invoke(actionType, actionId, targetId);
+            // A press during the GCD succeeds by queueing; it runs later, through here again. Reporting
+            // it now would apply its effects before it runs and can leave it unusable when it does.
+            if (!Queued(self, actionId, ran, sequence)) ActionExecuted?.Invoke(actionType, ran, targetId);
         }
         return result;
     }
 
+    private static bool Queued(ActionManager* self, uint actionId, uint ran, uint sequence)
+        => self->ActionQueued && (self->QueuedActionId == actionId || self->QueuedActionId == ran)
+           && self->LastUsedActionSequence == sequence;
+
     private bool UseActionLocationDetour(ActionManager* self, ActionType actionType, uint actionId, ulong targetId, Vector3* location, uint extraParam, byte a7)
     {
         if (ActionsBlocked) return false;
+        var ran = actionType == ActionType.Action ? self->GetAdjustedActionId(actionId) : actionId;
         var result = useActionLocationHook.Original(self, actionType, actionId, targetId, location, extraParam, a7);
         if (result)
         {
             actionUsedSincePoll = true;
-            ActionExecuted?.Invoke(actionType, actionId, targetId);
+            ActionExecuted?.Invoke(actionType, ran, targetId);
         }
         return result;
     }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AnoMech.Core.Native.Implementations;
 using AnoMech.Core.Native.Implementations.Pointers;
 using AnoMech.Core.Native.Interfaces;
@@ -20,12 +21,11 @@ public sealed unsafe class UserActions : IUserActions
     // cast, and not at all if the cast is interrupted (a spell resolves when its cast bar finishes, not
     // when it starts). In order: ResetHandler first so every other handler's OnScenarioStart lands on
     // the reset; CastTimeHandler before JobActionHandler, which clears the statuses it checks; and
-    // JobActionHandler and the state handlers before ComboHandler so their combo-gated logic reads the
+    // JobActionHandler and the state handlers before ActionEffectHandler so their combo-gated logic reads the
     // pre-advance combo state.
     private readonly List<IUserActionHandler> handlers =
     [
         new ResetHandler(),
-        new SprintHandler(),
         new CastTimeHandler(),
         new JobActionHandler(),
         new LimitBreakHandler(),
@@ -38,7 +38,8 @@ public sealed unsafe class UserActions : IUserActions
         new DancerStateHandler(),
         new ViperStateHandler(),
         new NinjaStateHandler(),
-        new ComboHandler(),
+        new BardStateHandler(),
+        new ActionEffectHandler(),
         new TimedGaugeHandler(),
         new CastInterruptHandler(),
         new AutoAttackHandler(),
@@ -74,6 +75,12 @@ public sealed unsafe class UserActions : IUserActions
     {
         this.hooks = hooks;
         hooks.ActionExecuted += OnActionExecuted;
+        hooks.AdjustActionId = AdjustActionId;
+        hooks.AdjustCastTime = AdjustCastTime;
+        hooks.AdjustActionStatus = AdjustActionStatus;
+        // The server shows a swing to the party as it would any action.
+        foreach (var autoAttacks in handlers.OfType<AutoAttackHandler>())
+            autoAttacks.Swung += (actionId, targetId) => Acted?.Invoke(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, actionId, targetId));
     }
 
     private bool Runs(IUserActionHandler handler) => Enabled || handler.RunsWhenDisabled;
@@ -92,7 +99,13 @@ public sealed unsafe class UserActions : IUserActions
     // Called by Game when the sim zone first loads (a true session start, not a restart within
     // an already-loaded zone). Snapshots unconditionally, so the restore stays correct even if the
     // module is enabled/disabled part-way through the session.
-    public void OnSessionStart() => gaugeSnapshot = JobGaugeEdit.Capture();
+    public void OnSessionStart()
+    {
+        // The lift rewinds the sequence to here, so a number the last session processed comes again.
+        var am = ActionManager.Instance();
+        if (am != null) processedSeq = am->LastUsedActionSequence;
+        gaugeSnapshot = JobGaugeEdit.Capture();
+    }
 
     // Called by Game when the player leaves the sim zone.
     public void OnSessionEnd()
@@ -174,5 +187,36 @@ public sealed unsafe class UserActions : IUserActions
         pendingMax = 0;
     }
 
-    public void Dispose() => hooks.ActionExecuted -= OnActionExecuted;
+    public void Dispose()
+    {
+        hooks.ActionExecuted -= OnActionExecuted;
+        hooks.AdjustActionId = null;
+        hooks.AdjustCastTime = null;
+        hooks.AdjustActionStatus = null;
+    }
+
+    // Each takes the first handler's answer, and none outside the sim.
+    private uint? AdjustActionId(uint actionId)
+    {
+        if (!SimActive) return null;
+        foreach (var handler in handlers)
+            if (Runs(handler) && handler.AdjustActionId(actionId) is { } adjusted) return adjusted;
+        return null;
+    }
+
+    private int? AdjustCastTime(ActionType actionType, uint actionId)
+    {
+        if (!SimActive) return null;
+        foreach (var handler in handlers)
+            if (Runs(handler) && handler.AdjustCastTime(actionType, actionId) is { } adjusted) return adjusted;
+        return null;
+    }
+
+    private uint? AdjustActionStatus(ActionType actionType, uint actionId, bool checkRecast)
+    {
+        if (!SimActive) return null;
+        foreach (var handler in handlers)
+            if (Runs(handler) && handler.AdjustActionStatus(actionType, actionId, checkRecast) is { } adjusted) return adjusted;
+        return null;
+    }
 }

@@ -34,17 +34,22 @@ public sealed class Game : IDisposable
         : null;
 
     public SessionStatus Status => run?.Status ?? (instance is null ? SessionStatus.Offline : SessionStatus.InZone);
+    // The current run, else the one that ended last, so its result outlives a Stop.
+    public ScenarioSession? LastRun => run ?? endedRun;
     
     // The params as the run was asked for, so a null Seed drew a fresh one. bool: a local run, not a
     // multiplayer one.
     public event Action<RunScenarioParams, bool>? RunStarted;
     public event Action<bool>? RunFinished;
-    public event Action<PartyRole, string, uint?>? PartyMemberKilled;
+    public event Action<string>? MechanicFailed;
+    // statusId names the status that killed, for a death no action dealt (DieOfStatus).
+    public event Action<PartyRole, string, uint?, ushort?>? PartyMemberKilled;
     // Back in the inn: a Leave, or the native zone going away under the stay.
     public event Action? InstanceExited;
 
     private InstanceSession? instance;
     private ScenarioSession? run;
+    private ScenarioSession? endedRun;
 
     public Game()
     {
@@ -52,17 +57,26 @@ public sealed class Game : IDisposable
     }
 
 
+    // Resolves once the zone has finished loading, so everything after it can talk to the zone
+    // directly; a zone still loading after ZoneLoadTimeoutSeconds is left again.
     public void ZoneIn(IZone zone, SessionMode mode, Action<string?>? resolved = null)
-        => Deferred(() => ZoneInNow(zone, mode), resolved);
+        => Deferred(() => ZoneInNow(zone, mode), refusal =>
+        {
+            if (refusal != null || instance!.IsReady) resolved?.Invoke(refusal);
+            else zoneLoad = (resolved, 0f);
+        });
 
     public void StartScenario(RunScenarioParams p, Action<string?>? resolved = null)
         => Deferred(() => StartScenarioNow(p), resolved);
 
+    private const float ZoneLoadTimeoutSeconds = 15f;
+    private (Action<string?>? Resolved, float Waited)? zoneLoad;
+
     private static readonly TimeSpan ZoneInStartDelay = TimeSpan.FromSeconds(2);
 
     // Zones in first unless already staying in the run's zone in `mode`; a stay entered in another
-    // mode refuses the run rather than playing it there. A fresh zone-in prepares the run at once
-    // and waits ZoneInStartDelay before it starts.
+    // mode refuses the run rather than playing it there. A fresh zone-in prepares the run once the
+    // zone has loaded and waits ZoneInStartDelay before it starts.
     public void EnterAndStart(RunScenarioParams p, SessionMode mode, Action<string?>? resolved = null)
     {
         var zone = p.Scenario.Phase.Zone;
@@ -94,6 +108,7 @@ public sealed class Game : IDisposable
         => Deferred(() =>
         {
             if (instance is null || instance.Zone != p.Scenario.Phase.Zone) return $"not in {p.Scenario.Phase.Zone.Name}";
+            if (zoneLoad is not null) return $"{p.Scenario.Phase.Zone.Name} is still loading";
             PrepareRunNow(p);
             return null;
         }, resolved);
@@ -118,11 +133,14 @@ public sealed class Game : IDisposable
     {
         // Leaving always finalizes its own log segment.
         DiagnosticLog.RotateNow();
-        Plugin.Framework.Run(() =>
-        {
-            EndRun();
-            ExitInstance();
-        });
+        Plugin.Framework.Run(LeaveNow);
+    }
+
+    // Framework thread only.
+    public void LeaveNow()
+    {
+        EndRun();
+        ExitInstance();
     }
 
     public void Pause() => Plugin.Framework.Run(() => SetUserPaused(true));
@@ -154,6 +172,7 @@ public sealed class Game : IDisposable
             return $"already in {instance.Zone.Name}";
         }
         instance = InstanceSession.Enter(World, zone, mode, out var refusal);
+        if (refusal is not null) Plugin.Log.Warning($"InstanceSession: not entering {zone.Name} -- {refusal}.");
         return refusal;
     }
 
@@ -165,11 +184,13 @@ public sealed class Game : IDisposable
             Plugin.Log.Warning($"Game: refusing to start {p.Scenario.Name} -- not in a zone.");
             return "not in a zone";
         }
+        if (zoneLoad is not null) return $"{instance.Zone.Name} is still loading";
         if (ScenarioSession.Create(World, instance, p, out var refusal) is not { } next) return refusal;
 
         EndRun();
         run = next;
         run.Finished += OnRunFinished;
+        run.MechanicFailed += OnMechanicFailed;
         run.Start();
         RunStarted?.Invoke(asked ?? p, instance.Mode == SessionMode.Local);
         return null;
@@ -182,7 +203,9 @@ public sealed class Game : IDisposable
             // The party outlives the run, so nothing of the halt may stay on it.
             ReleaseHolds();
             run = null;
+            endedRun = ending;
             ending.Finished -= OnRunFinished;
+            ending.MechanicFailed -= OnMechanicFailed;
             ending.End();
         }
     }
@@ -193,6 +216,32 @@ public sealed class Game : IDisposable
         instance.Exit();
         instance = null;
         InstanceExited?.Invoke();
+        if (zoneLoad is { } load)
+        {
+            zoneLoad = null;
+            load.Resolved?.Invoke("left the zone before it finished loading");
+        }
+    }
+
+    private void TickZoneLoad(float deltaSeconds)
+    {
+        if (zoneLoad is not { } load || instance is null) return;
+        if (instance.IsReady)
+        {
+            zoneLoad = null;
+            Plugin.Log.Information($"Game: {instance.Zone.Name} finished loading after {load.Waited:F1}s.");
+            load.Resolved?.Invoke(null);
+            return;
+        }
+        if (load.Waited + deltaSeconds < ZoneLoadTimeoutSeconds)
+        {
+            zoneLoad = (load.Resolved, load.Waited + deltaSeconds);
+            return;
+        }
+        zoneLoad = null;
+        Plugin.Log.Warning($"Game: {instance.Zone.Name} didn't finish loading within {ZoneLoadTimeoutSeconds:F0}s; leaving.");
+        LeaveNow();
+        load.Resolved?.Invoke("the zone didn't finish loading");
     }
     
     public void Tick(float deltaSeconds)
@@ -205,6 +254,7 @@ public sealed class Game : IDisposable
             ExitInstance();
         }
         instance?.Tick(deltaSeconds);
+        TickZoneLoad(deltaSeconds);
         // Nothing kills during a pause: a fall is only caught.
         if (instance?.CatchFall() == true && run is not null && !UserPaused)
             World.Party.Player?.Die(SimCharacterDeathExtensions.Environment, "Fell off the arena");
@@ -243,7 +293,7 @@ public sealed class Game : IDisposable
     // Reports the death even in godmode, so the user learns what would have killed them; only the
     // actual kill is skipped. Returns false if nothing died (already dead or godmode), so callers
     // gate their own on-death logic on it.
-    public bool Kill(ISimPartyMember target, string cause, uint? actionId = null)
+    public bool Kill(ISimPartyMember target, string cause, uint? actionId = null, ushort? statusId = null)
     {
         if (target == null) return false;
         if (target.Dead) return false;
@@ -258,12 +308,9 @@ public sealed class Game : IDisposable
             // TODO: don't kill player but indicate damage was fatal
             return false;
         }
-        var character = target as SimCharacter;
-        var heldStatuses = character?.ActiveStatuses ?? [];
         target.OnKilled(byEnvironment: actionId == SimCharacterDeathExtensions.Environment);
-        PartyMemberKilled?.Invoke(target.Role, cause, actionId);
+        PartyMemberKilled?.Invoke(target.Role, cause, actionId, statusId);
         run?.OnKilled();
-        if (character != null) World.RunDeathRules(character, heldStatuses);
         return true;
     }
 
@@ -281,6 +328,7 @@ public sealed class Game : IDisposable
     }
     
     private void OnRunFinished(bool clean) => RunFinished?.Invoke(clean);
+    private void OnMechanicFailed(string reason) => MechanicFailed?.Invoke(reason);
     
 
     private static string DescribeName(ISimPartyMember target) => target switch
