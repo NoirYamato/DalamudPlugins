@@ -41,8 +41,17 @@ public static class TopP6Constants
         // Brilliant Dynamis becomes it once its holder's limit break has given the gauge back; it gives nothing back.
         public const ushort SparkOfDynamis = 3448;
 
-        // Last Bastion, Land Waker, Dark Force, Gunmetal Soul: a tank's limit break 3 on everyone it reaches.
-        public static readonly IReadOnlyList<ushort> TankLimitBreak3 = [196, 863, 864, 1931];
+        // Each tank's limit break 3 (Last Bastion, Land Waker, Dark Force, Gunmetal Soul) and the status it puts on
+        // everyone it reaches, as upstream's JobActions has them.
+        public static readonly IReadOnlyDictionary<uint, ushort> TankLimitBreak3Of = new Dictionary<uint, ushort>
+        {
+            [199] = 196,
+            [4240] = 863,
+            [4241] = 864,
+            [17105] = 1931,
+        };
+
+        public static readonly IReadOnlyList<ushort> TankLimitBreak3 = [.. TankLimitBreak3Of.Values];
     }
 
     public static class P6LockonId
@@ -122,6 +131,7 @@ public static class TopP6Constants
         // UNVERIFIED: a tank's limit break 3 counts for a hit only if it went up this long before the hit decides, and only
         // while its status lasts: 8 s in upstream's JobActions, also UNVERIFIED, where the game's tooltip says 12 s.
         public const float TankLimitBreak3TakesHold = 1.0f;
+        public const float TankLimitBreak3Lasts = 8.0f;
 
         // UNVERIFIED: Magic Number's mark lands this long after the hit's ActionEffect, and lasts this long.
         public const float MagicNumberMarkAfterTheHit = 1.3f;

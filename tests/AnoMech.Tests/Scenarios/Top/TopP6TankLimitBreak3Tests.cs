@@ -22,11 +22,14 @@ public class TopP6TankLimitBreak3Tests
     [SetUp]
     public void InstallGame() => FakeGame.Install();
 
-    [TestCase(4.9f)]
-    [TestCase(6.5f)]
-    public void ABotsTankLimitBreak3InTimeCarriesEveryone(float pressAt)
+    [TestCase(4.9f, false)]
+    [TestCase(6.5f, false)]
+    [TestCase(4.9f, true)]
+    [TestCase(6.5f, true)]
+    public void ABotsTankLimitBreak3InTimeCarriesEveryone(float pressAt, bool resolveYourOwnActions)
     {
-        var run = CosmoMemory((world, limitBreaks) => world.Events.Add(pressAt, () => limitBreaks.Press(MainTank, Job(MainTank))));
+        var run = CosmoMemory((world, limitBreaks) => world.Events.Add(pressAt, () => limitBreaks.Press(MainTank, Job(MainTank))),
+            new TimelineRunOptions { PlayerRole = OffTank, UserActionsEnabled = resolveYourOwnActions });
 
         Assert.That(run.Passed, run.ToString);
     }
@@ -51,16 +54,20 @@ public class TopP6TankLimitBreak3Tests
         Assert.That(run.Deaths.Select(d => (d.ActionId, d.Cause)).Distinct(), Is.EqualTo(new[] { ((uint?)ActionId.CosmoMemory, CosmoMemoryKills) }));
     }
 
-    // The human main tank's own press, in time or a moment too late.
-    [TestCase(4.9f, true)]
-    [TestCase(7.1f, false)]
-    public void AHumanTanksPressCountsTheSame(float pressAt, bool lives)
+    // The human main tank's own press, in time or a moment too late, resolved once: with "Resolve your own actions" on by
+    // its client's module, with it off by the run, which puts its status on.
+    [TestCase(4.9f, true, true)]
+    [TestCase(7.1f, false, true)]
+    [TestCase(4.9f, true, false)]
+    [TestCase(7.1f, false, false)]
+    public void AHumanTanksPressCountsTheSame(float pressAt, bool lives, bool resolveYourOwnActions)
     {
         var run = CosmoMemory((world, _) => TopP6HumanLimitBreak.Press(world, pressAt, LimitBreakHandler.ActionId(Job(MainTank), 3)),
-            new TimelineRunOptions { HumanPlayer = true, UserActionsEnabled = true });
+            new TimelineRunOptions { HumanPlayer = true, UserActionsEnabled = resolveYourOwnActions });
 
         Assert.That(run.Passed, Is.EqualTo(lives), run.ToString);
         if (!lives) Assert.That(run.Deaths[0].Cause, Does.Contain("takes hold too late"));
+        Assert.That(run.Rows.Count(r => r["kind"] is "ac" or "ac_self" && r["id"] == "0x48"), Is.EqualTo(8), "its resolve, once to every member");
     }
 
     [Test]

@@ -362,10 +362,27 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
         press.ResolvedAt = at;
         press.ResolvedFrom = user is null ? null : AimFrom(user, press.TargetId);
+        if (press.Kind == TopP6LimitBreakKind.Tank) CoverTheParty(press, user);
         SendGauge(force: true);
         DiagnosticLog.Info($"[TopP6LimitBreaks] {press.Seat} {(press.ByHuman ? "(human) " : "")}resolved {Natives.Data.ActionName(press.ActionId)} ({press.ActionId}); the gauge holds {units / (float)UnitsPerBar:F2} bars.");
         Resolved?.Invoke(press);
         StartWaitingPresses();
+    }
+
+    // JobActions puts a tank's limit break 3 status on the party only with "Resolve your own actions" on, for a bot's press
+    // and for the human's own, and never for the run's press for the player's seat (PartyLimitBreakCast). The run puts it
+    // on itself then: on every living member, since the action reaches 50 y.
+    private void CoverTheParty(TopP6LimitBreakPress press, SimCharacter? user)
+    {
+        var coveredByJobActions = Natives.UserActions.Enabled && (press.ByHuman || user is not SimPlayer);
+        if (!coveredByJobActions && P6StatusId.TankLimitBreak3Of.TryGetValue(press.ActionId, out var status))
+            foreach (var member in Party.ActiveMembers())
+            {
+                member.RemoveStatus(status);
+                member.AddStatusParam(status, 0, P6Duration.TankLimitBreak3Lasts);
+            }
+        foreach (var member in Party.AllMembers().Where(m => P6StatusId.TankLimitBreak3.Any(m.HasStatus)))
+            tankLimitBreak3Since.TryAdd(member, Now);
     }
 
     private Placement AimFrom(SimCharacter user, ulong targetId)
@@ -471,9 +488,6 @@ public sealed class TopP6LimitBreaks : IDisposable
         }
         SendGauge(force: true);
         PartyLimitBreakCast.Resolve(Party, user, press.ActionId, target);
-        if (press.Kind == TopP6LimitBreakKind.Tank)
-            foreach (var member in Party.AllMembers().Where(m => P6StatusId.TankLimitBreak3.Any(m.HasStatus)))
-                tankLimitBreak3Since.TryAdd(member, Now);
         Settle(press, user, Now);
     }
 

@@ -8,10 +8,12 @@ namespace AnoMech.Tests;
 
 // The human pressing a limit break as their client does: the cast bar's start (none for an instant one), then its
 // resolve or interruption, each through IUserActions.Acted; and, as it resolves, what the client's own module does next:
-// the action's JobActions effects (a tank's limit break 3 statuses) and the resolve that empties the HUD gauge. A dead
-// player presses nothing, and a cast its player dies in is interrupted. While another seat's limit break casts, the
-// client greys the player's out: a press then goes nowhere, and the test says so in its output. A ground-targeted one
-// goes down at `groundPoint` (scenario-local), or without one on its target, as a <t> macro puts it.
+// JobActions.ApplyEffects, which with "Resolve your own actions" on sends the resolve that empties the HUD gauge and
+// plays the action's effects (a tank's limit break 3 statuses). With it off ApplyEffects plays nothing: the resolve is
+// sent here, and the run (TopP6LimitBreaks) puts the statuses on itself. A dead player presses nothing, and a cast its
+// player dies in is interrupted. While another seat's limit break casts, the client greys the player's out: a press then
+// goes nowhere, and the test says so in its output. A ground-targeted one goes down at `groundPoint` (scenario-local), or
+// without one on its target, as a <t> macro puts it.
 internal static class TopP6HumanLimitBreak
 {
     public static void Press(SimWorld world, float at, uint actionId, Func<SimCharacter?>? target = null, float? interruptedAfter = null,
@@ -61,7 +63,7 @@ internal static class TopP6HumanLimitBreak
         userActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, actionId, targetId));
         if (world.Party.Player is not { } player) return;
         JobActions.ApplyEffects(player, actionId, targetId, new Random(1));
-        LimitBreakHandler.Resolve(world.Party, player, actionId);
+        if (!userActions.Enabled) LimitBreakHandler.Resolve(world.Party, player, actionId);
     }
 }
 

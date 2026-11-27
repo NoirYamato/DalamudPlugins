@@ -131,10 +131,29 @@ public class TopP6BotLimitBreakTests
         Assert.That(covered, Has.Count.EqualTo(8).And.All.True, "Land Waker on everyone");
     }
 
-    // The bot-driven local player's seat: the press takes effect, but the client, which plays its own actions, is sent
-    // nothing.
+    // A tank's covers everyone and resolves once to every member: JobActions sends that resolve and puts on its status with
+    // "Resolve your own actions" on, and with it off the press sends the resolve and the run puts the status on.
     [Test]
-    public void ForTheBotDrivenPlayerSeatItOnlyTakesEffect()
+    public void ATanksCoversEveryoneAndResolvesOnce([Values] bool resolveYourOwnActions)
+    {
+        var covered = new List<bool>();
+        var run = TopP6LimitBreakRun.Execute((world, _, limitBreaks) =>
+        {
+            world.Events.Add(0.5f, () => limitBreaks.SetGauge(3f));
+            world.Events.Add(1f, () => limitBreaks.Press(MainTank, Job(MainTank)));
+            world.Events.Add(1.5f, () => covered.AddRange(Enum.GetValues<PartyRole>().Select(r => world.Party.Get(r)!.HasStatus(863))));
+        }, Options with { UserActionsEnabled = resolveYourOwnActions });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(covered, Has.Count.EqualTo(8).And.All.True, "Land Waker on everyone");
+        Assert.That(ActorControls(run, "0x48").Select(Time).ToList(), Has.Count.EqualTo(8).And.All.EqualTo(1f).Within(TimelineRun.FrameLate),
+                    "its resolve, once to every member");
+    }
+
+    // The bot-driven local player's seat: the press takes effect, but the client, which plays its own actions, is sent
+    // nothing, so the run puts its status on.
+    [Test]
+    public void ForTheBotDrivenPlayerSeatItOnlyTakesEffect([Values] bool resolveYourOwnActions)
     {
         var after = (Gauge: -1f, Covered: false);
         var run = TopP6LimitBreakRun.Execute((world, _, limitBreaks) =>
@@ -142,7 +161,7 @@ public class TopP6BotLimitBreakTests
             world.Events.Add(0.5f, () => limitBreaks.SetGauge(3f));
             world.Events.Add(1f, () => limitBreaks.Press(MainTank, Job(MainTank)));
             world.Events.Add(1.5f, () => after = (limitBreaks.Gauge, world.Party.Get(OffTank)!.HasStatus(863)));
-        }, Options with { PlayerRole = MainTank });
+        }, Options with { PlayerRole = MainTank, UserActionsEnabled = resolveYourOwnActions });
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(after, Is.EqualTo((0f, true)));

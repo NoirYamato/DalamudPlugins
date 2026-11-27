@@ -19,12 +19,12 @@ public class PartyLimitBreakCastTests
     public void InstallGame() => FakeGame.Install();
 
     // Its cast ActorControl to every member and its cast bar at its target as it starts; its ActionEffect at the target and
-    // the resolve ActorControl to every member as it resolves.
+    // the resolve ActorControl to every member as it resolves, once, whether JobActions sends it or the cast does.
     [Test]
-    public void ThePartySeesItsCastAndItsResolve()
+    public void ThePartySeesItsCastAndItsResolve([Values] bool resolveYourOwnActions)
     {
         var mainTank = "";
-        var run = Cast(MeleeDpsA, world => mainTank = world.Party.Get(MainTank)!.EntityId.ToString("X8"));
+        var run = Cast(MeleeDpsA, world => mainTank = world.Party.Get(MainTank)!.EntityId.ToString("X8"), resolveYourOwnActions);
         var casts = run.Sent("cast", LimitBreak3(MeleeDpsA));
         var effects = run.Sent("ability", LimitBreak3(MeleeDpsA));
 
@@ -51,9 +51,10 @@ public class PartyLimitBreakCastTests
         Assert.That(Vector2.Distance(new Vector2(cast.Position.X, cast.Position.Z), new Vector2(4f, -6f)), Is.LessThan(0.01f));
     }
 
-    // As it resolves it takes its JobActions effects: the main tank's Land Waker covers everyone.
+    // As it resolves, with "Resolve your own actions" on, it takes its JobActions effects: the main tank's Land Waker covers
+    // everyone. With it off JobActions plays nothing, so it takes none, and the resolve goes out all the same.
     [Test]
-    public void ItTakesItsEffectsAsItResolves()
+    public void ItTakesItsEffectsAsItResolvesOnlyWithResolveYourOwnActionsOn([Values] bool resolveYourOwnActions)
     {
         var covered = new Dictionary<float, int>();
         var run = TimelineRun.Execute(world =>
@@ -61,17 +62,19 @@ public class PartyLimitBreakCastTests
             world.Events.Add(StartsAt, () => PartyLimitBreakCast.Resolve(world.Party, world.Party.Get(MainTank)!, LimitBreak3(MainTank), world.Party.Get(MainTank)!));
             foreach (var at in new[] { StartsAt - 0.1f, StartsAt + 0.1f })
                 world.Events.Add(at, () => covered[at] = Enum.GetValues<PartyRole>().Count(r => world.Party.Get(r)!.HasStatus(LandWaker)));
-        }, new TimelineRunOptions { PlayerRole = OffTank });
+        }, new TimelineRunOptions { PlayerRole = OffTank, UserActionsEnabled = resolveYourOwnActions });
 
         Assert.That(run.Passed, run.ToString);
-        Assert.That(covered, Is.EqualTo(new Dictionary<float, int> { [StartsAt - 0.1f] = 0, [StartsAt + 0.1f] = 8 }));
+        Assert.That(covered, Is.EqualTo(new Dictionary<float, int> { [StartsAt - 0.1f] = 0, [StartsAt + 0.1f] = resolveYourOwnActions ? 8 : 0 }));
         Assert.That(run.Sent("ability", LimitBreak3(MainTank)), Has.Count.EqualTo(1));
+        Assert.That(ActorControls(run, "0x48"), Has.Count.EqualTo(8), "its resolve, once to every member");
     }
 
     // The local player's own client plays its actions: for the player's seat nothing is sent, no cast, no bar, no
-    // ActionEffect and no resolve, but its effects are taken: the off-tank's Last Bastion covers everyone.
+    // ActionEffect and no resolve, and no effect is taken, since JobActions plays one only with that resolve: the
+    // off-tank's Last Bastion is left to the caller.
     [Test]
-    public void ForThePlayersSeatItOnlyTakesItsEffects()
+    public void ForThePlayersSeatItSendsAndTakesNothing([Values] bool resolveYourOwnActions)
     {
         var covered = -1;
         var run = TimelineRun.Execute(world =>
@@ -87,12 +90,12 @@ public class PartyLimitBreakCastTests
                 PartyLimitBreakCast.Resolve(world.Party, player, LimitBreak3(OffTank), player);
             });
             world.Events.Add(ResolvesAt + 0.1f, () => covered = Enum.GetValues<PartyRole>().Count(r => world.Party.Get(r)!.HasStatus(LastBastion)));
-        }, new TimelineRunOptions { PlayerRole = OffTank });
+        }, new TimelineRunOptions { PlayerRole = OffTank, UserActionsEnabled = resolveYourOwnActions });
 
         Assert.That(run.Passed, run.ToString);
         Assert.Multiple(() =>
         {
-            Assert.That(covered, Is.EqualTo(8), "Last Bastion on everyone");
+            Assert.That(covered, Is.EqualTo(0), "no Last Bastion");
             Assert.That(ActorControls(run, "0x47").Concat(ActorControls(run, "0x48")), Is.Empty, "no ActorControls");
             Assert.That(run.Sent("cast", LimitBreak3(OffTank)).Concat(run.Sent("ability", LimitBreak3(OffTank))), Is.Empty, "no bar, no ActionEffect");
         });
@@ -119,7 +122,7 @@ public class PartyLimitBreakCastTests
     private const ushort LandWaker = 863, LastBastion = 196;
 
     // Started at 1.0 for `seat` at the main tank, resolved at 5.5; `before` runs just before it starts.
-    private static TimelineRunResult Cast(PartyRole seat, Action<SimWorld>? before = null)
+    private static TimelineRunResult Cast(PartyRole seat, Action<SimWorld>? before = null, bool resolveYourOwnActions = false)
         => TimelineRun.Execute(world =>
         {
             world.Events.Add(StartsAt, () =>
@@ -128,7 +131,7 @@ public class PartyLimitBreakCastTests
                 PartyLimitBreakCast.Start(world.Party, world.Party.Get(seat)!, LimitBreak3(seat), world.Party.Get(MainTank)!, CastSeconds);
             });
             world.Events.Add(ResolvesAt, () => PartyLimitBreakCast.Resolve(world.Party, world.Party.Get(seat)!, LimitBreak3(seat), world.Party.Get(MainTank)!));
-        }, new TimelineRunOptions { PlayerRole = OffTank });
+        }, new TimelineRunOptions { PlayerRole = OffTank, UserActionsEnabled = resolveYourOwnActions });
 
     private static List<Dictionary<string, string>> ActorControls(TimelineRunResult run, string category)
         => run.Rows.Where(r => r["kind"] is "ac" or "ac_self" && r["id"] == category).ToList();
