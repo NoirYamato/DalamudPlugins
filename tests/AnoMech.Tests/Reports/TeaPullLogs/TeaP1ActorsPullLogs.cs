@@ -1,4 +1,5 @@
 using System.Numerics;
+using AnoMech.Scenarios.Tea;
 using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
 namespace AnoMech.Tests;
@@ -11,6 +12,14 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
 
     // How the zone holds the rim.
     private const string RimInTheZone = "world.EnforceArenaBoundary(";
+
+    // Upstream's TEA files: the zone's duty data, from its replays, and the arena's slots every run sets.
+    private const string ReplayData = "AnoMech/Scenarios/Tea/TeaReplayData.cs";
+    private const string ZoneConstants = "AnoMech/Scenarios/Tea/TeaConstants.cs";
+
+    // What TeaZone.Run sets at every run's start, one MapEffect a slot, written as a reset's are below.
+    private static string ArenaAtEveryStart
+        => string.Join(", ", TeaConstants.ArenaStates.Select((state, i) => $"slot {i + 1} {((uint)state << 16) | state:X8}"));
     private const bool TheSimsRimKills = true;
     private static string RimInTheSim => $"no wall: whoever stands beyond {P1Geometry.ArenaRadius} y dies";
 
@@ -111,7 +120,7 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
                 barrierPulls++;
             }
         if (pull.MapEffectsAtReset.Count > 0)
-            mapEffects.Add(string.Join(", ", pull.MapEffectsAtReset.OrderBy(m => m.Slot).Select(m => $"slot {m.Slot} {m.Flags:X8}")));
+            mapEffects.Add(string.Join(", ", pull.MapEffectsAtReset.OrderBy(m => m.Slot).Select(m => $"slot {m.Slot} {m.Flags:X8}").Distinct()));
         mapEffectsInAPull.AddRange(pull.MapEffects.Select(m => $"{pull.Name} at {Spread.F(pull.Clock(m.Time))} s: slot {m.Slot} {m.Flags:X8}"));
     }
 
@@ -337,15 +346,20 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             SimSource.Line(TeaSource.LimitCut, "private static readonly Vector3 BruteJusticeLandsAt ="), "Cruise Chaser hidden until he first lands; Brute Justice not drawn",
             parked.Count == 0 ? "neither stands in a pull" : Tally(parked), LogFinding.Unplayed(parked.Count));
 
+        var barrier = TeaReplayData.DutyInitData.EntranceBarrier;
+        var barrierSpot = TeaPull.Spot(new Vector2(barrier.Position.X, barrier.Position.Z));
         yield return new LogFinding(Section, "The entrance barrier's object and spot",
-            SimSource.Line(TeaSource.Zone, "public EntranceBarrier EntranceBarrier =>"), $"event object {TeaLogIds.EntranceBarrier} at (0.00, 15.00)",
+            SimSource.Line(ReplayData, "new EntranceBarrier("), $"event object {barrier.EObjId} at {barrierSpot}",
             barriers.Count == 0 ? "no such object stands before a pull" : $"object {TeaLogIds.EntranceBarrier} stands at {Tally(barriers)} before {barrierPulls} pulls",
-            barriers.Count == 0 ? Verdict.NotInTheseLogs : barriers.All(b => b == "(0.00, 15.00)") ? Verdict.Matches : Verdict.Differs);
+            barriers.Count == 0 ? Verdict.NotInTheseLogs
+            : barrier.EObjId == TeaLogIds.EntranceBarrier && barriers.All(b => b == barrierSpot) ? Verdict.Matches : Verdict.Differs);
 
-        yield return new LogFinding(Section, "Map effects", SimSource.Line(TeaSource.Zone, "public sealed class TeaZone : IZone"), "none set",
+        var resets = string.Join("; ", mapEffects.GroupBy(m => m).OrderByDescending(g => g.Count()).Select(g => $"[{g.Key}] x{g.Count()}"));
+        yield return new LogFinding(Section, "The arena's map effects at each reset",
+            SimSource.Line(ZoneConstants, "ushort[] ArenaStates ="), $"set at every run's start: {ArenaAtEveryStart}",
             mapEffects.Count == 0 ? $"none sent before or during the {pulls} pulls"
-                : $"sent at each reset before a pull: {Tally(mapEffects)}; {mapEffectsInAPull.Count} sent during a pull",
-            LogFinding.Unplayed(mapEffects.Count))
+                : $"sent at the reset before {mapEffects.Count} pulls: {resets}; {mapEffectsInAPull.Count} sent during a pull",
+            mapEffects.Count == 0 ? Verdict.NotInTheseLogs : mapEffects.All(m => m == ArenaAtEveryStart) ? Verdict.Matches : Verdict.Differs)
         {
             Details = mapEffectsInAPull,
         };

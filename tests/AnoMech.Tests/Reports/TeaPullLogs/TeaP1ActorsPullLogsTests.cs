@@ -59,6 +59,49 @@ public class TeaP1ActorsPullLogsTests
         });
     }
 
+    // The server sets each of the arena's seven slots on its own at a reset, as every run of the sim does at its start: a
+    // reset with slot 3 at state 4 instead of 1 differs. A slot logged twice at one state is one state.
+    [Test]
+    public void EachResetsArenaSlotsAreHeldAgainstWhatEveryRunSets()
+    {
+        static string[] Reset(uint slot3) =>
+        [
+            LiquidStands(),
+            .. new uint[] { 0x00010001, 0x00040004, slot3, 0x00040004, 0x00040004, 0x00040004, 0x00040004 }
+                .Select((flags, i) => MapEffect(-10, flags, (uint)(i + 1))),
+            MapEffect(-9, 0x00040004, 7),
+        ];
+        var asEveryRunSets = Findings(new TeaP1ActorsPullLogs(), Of([], Reset(0x00010001)), Of([], Reset(0x00010001))).Named("The arena's map effects");
+        var slot3Differs = Findings(new TeaP1ActorsPullLogs(), Of([], Reset(0x00010001)), Of([], Reset(0x00040004))).Named("The arena's map effects");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(asEveryRunSets.Sim, Is.EqualTo("set at every run's start: slot 1 00010001, slot 2 00040004, slot 3 00010001, slot 4 00040004, "
+                                                       + "slot 5 00040004, slot 6 00040004, slot 7 00040004"));
+            Assert.That(asEveryRunSets.Verdict, Is.EqualTo(Verdict.Matches), asEveryRunSets.Measured);
+            Assert.That(slot3Differs.Verdict, Is.EqualTo(Verdict.Differs), slot3Differs.Measured);
+            Assert.That(slot3Differs.Measured, Does.Contain("slot 3 00040004"));
+        });
+    }
+
+    // The barrier's object standing on the replay's spot as a pull opens, 15 y south of the centre, or a yalm off it.
+    [TestCase("115.0000", true)]
+    [TestCase("116.0000", false)]
+    public void TheEntranceBarrierIsHeldAgainstTheReplaysSpot(string y, bool onTheSpot)
+    {
+        var barrier = Findings(new TeaP1ActorsPullLogs(), Of([],
+        [
+            LiquidStands(),
+            Memory(-10, "Add", 0x40000060, ("BNpcID", Hex(TeaLogIds.EntranceBarrier)), ("PosX", "100.0000"), ("PosY", y)),
+        ])).Named("The entrance barrier");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(barrier.Sim, Is.EqualTo($"event object {TeaLogIds.EntranceBarrier} at (0.00, 15.00)"));
+            Assert.That(barrier.Verdict, Is.EqualTo(onTheSpot ? Verdict.Matches : Verdict.Differs), barrier.Measured);
+        });
+    }
+
     [Test]
     public void TheNextTrackComesWithJKickAndTheFirstIsSetAgainOnlyBeforeAPull()
     {
