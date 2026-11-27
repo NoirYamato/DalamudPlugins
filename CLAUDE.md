@@ -252,6 +252,11 @@ so also build and test a trial merge in a throwaway detached worktree.
   `-SunnySeeds`, or one HEAD moved under, writes none.
 - `test.runsettings` sets the seeds: `SunnySeeds` (40) for each catalog strat's sunny day and `PauseSeeds` (5) for
   `GamePauseTests`' sweep of every catalog strat with pauses; override either as above.
+- Every run of the gate leaves out `$LeftOut`: upstream's FRU P3 Ultimate Relativity [NA] sunny day and its pause
+  sweep. The strat loses a bot to Sinbound Meltdown at 28.62 in about 1 seed in 400, on upstream's code alone too, and
+  both tests draw fresh seeds, so a full gate failed on it about 1 run in 10. A plain `dotnet test` still runs them;
+  its lint stays in. Drop the entry once upstream fixes the strat; NoirMech doesn't fix upstream's FRU strats (an FRU
+  sim of its own, if one is made, would play LPDU's).
 - `StratLintTests` runs every catalog strat on 3 fixed seeds (`LintSeeds`) and reads `AiManager`'s move lines in
   each trace. A `Move` with an `arrivalTime` measures its bots' departures from where they stand as it fires, and
   the deferred `MoveTo` can't be cancelled, so the lint fails when a bot's deferred departure lands at or after
