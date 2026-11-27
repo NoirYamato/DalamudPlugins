@@ -326,7 +326,7 @@ public static class TopActions
     {
         Cast = new() { AnimationLock = 1.1f },
         Timing = new() { DamageDelay = 0.64f },
-        Effects = [Damage(MagicVulns), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f)],
+        Effects = [Damage(MagicVulns), ApplyStatus(StatusId.MagicVulnerabilityUp, 1.96f, delayToEffectResult: true)],
     };
 
     public static readonly EnemyAction WaveCannonWildCharge = new(ActionId.WaveCannonWildCharge)

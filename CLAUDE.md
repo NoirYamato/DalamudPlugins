@@ -816,8 +816,13 @@ multiplayer.
   and the tank mitigation a buster and Wild Charge's front need. In `TopP6LimitBreaks`: the client's current-target
   stand-in, and that the client fills its own cast's ground point, within the sheet's 25y plus a yalm. In the State,
   the actions and the mechanics: the odds of every roll but the flares' and the meteor stack's (the sources call those
-  random), upstream's laser vulnerability (2.5s) and Wild Charge rules, and that the bait, Flash Gale, Cosmo Dive, the
-  spreads, the flares and the stack kill as they do.
+  random), upstream's Wild Charge rules, and that the bait, Flash Gale, Cosmo Dive, the spreads, the flares and the
+  stack kill as they do.
+- A laser's Magic Vulnerability Up is upstream's 1.96 s, shown with the laser's damage 0.64 s after it hits
+  (`delayToEffectResult` in upstream's `TopActions.WaveCannonProtean`, NoirMech's one edit there), so it runs 2.6 s from
+  the hit and a laser of the next set, 2.0 s on, kills a player the first set hit. Applied at the hit, as upstream's
+  line has it, it ran out 0.04 s before the next set: `ALaserTargetInTheNextSetsLineDies` and upstream's own two Wave
+  Cannon 2 cases (`FirstProteanTargetInSecondProteanDies`, `SecondProteanTargetHitByFirstProteanDies`) hold it.
 - No source fixes these strat values, so they are UNVERIFIED (the user's picks):
   - autos: MT inside north (0, -5), the party inside south (0, 6), OT outside east (14.5, 0), after Cosmo Dive 2
     (16, 0) or (-16, 0);

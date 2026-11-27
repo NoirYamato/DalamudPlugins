@@ -76,9 +76,10 @@ public static class TopP6Actions
 
     // -- Wave Cannon --
     // Upstream's lasers and Wild Charge, hits and rules unchanged, with what kills said in the fight's words, but for Wild
-    // Charge's front two: a human tank there on a tank's job also needs P6Rules.WildChargeFrontMitigation. UNVERIFIED in
-    // P6: the lasers' 2.5 s vulnerability, and that Wild Charge kills everyone in its line when fewer than 8 share it and a
-    // non-tank among the two nearest Alpha Omega.
+    // Charge's front two: a human tank there on a tank's job also needs P6Rules.WildChargeFrontMitigation. A laser's
+    // vulnerability shows with its damage and runs 1.96 s from there, so a laser of the next set, 2 s on, still finds it.
+    // UNVERIFIED in P6: that Wild Charge kills everyone in its line when fewer than 8 share it and a non-tank among the
+    // two nearest Alpha Omega.
     public static readonly EnemyAction WaveCannonLaser = TopActions.WaveCannonProtean with
     {
         DeathExplanation = "Hit by two Wave Cannon lasers: each fires from Alpha Omega down a line through its target and leaves a vulnerability",
