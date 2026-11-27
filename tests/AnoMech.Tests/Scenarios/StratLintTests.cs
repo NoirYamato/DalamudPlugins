@@ -27,6 +27,13 @@ public partial class StratLintTests
     {
         ["Futures Rewritten — P3 Apocalypse [NA priority / static spreads / OT bait]"] =
             ["planned while walking: FruP3ApocalypseAi.cs Move@36.0 -> FruP3ApocalypseAi.cs Move@37.0"],
+        // The 33.85 move sends every bot to the banish spot the 32.9 one sent the bots without two stacks to, with the same
+        // deadline: a 32.9 departure still deferred, or a walk still on its way, heads where the later move sends it.
+        ["Futures Rewritten — P2 Light Rampant [JP · Mana]"] =
+        [
+            "leaves after its next move: FruP2LightRampantJpAi.cs Move@32.9 -> FruP2LightRampantJpAi.cs Move@33.8",
+            "planned while walking: FruP2LightRampantJpAi.cs Move@32.9 -> FruP2LightRampantJpAi.cs Move@33.8",
+        ],
     };
 
     private static IEnumerable<TestCaseData> ScenarioStrats()
