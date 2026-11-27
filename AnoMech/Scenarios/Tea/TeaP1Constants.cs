@@ -149,7 +149,8 @@ public static class TeaP1Constants
 
     public static class P1Geometry
     {
-        public const float ArenaRadius = 20f;                       // no wall: whoever goes past it dies
+        // The zone's own, which TeaZone enforces: no wall, whoever goes past it dies.
+        public const float ArenaRadius = TeaConstants.Geometry.ArenaRadius;
         public const float HawkBlasterRadius = 14f;                 // on the cardinals and the diagonals alike
         public const float CruiseChaserLandsBehind = 3f;            // UNVERIFIED; between about 2 and 4 y
         public const float AlphaSwordHalfAngle = MathF.PI / 4f;     // not on the sheet
