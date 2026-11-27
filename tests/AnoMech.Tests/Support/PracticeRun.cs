@@ -2,13 +2,15 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.SimObjects;
 using AnoMech.Core.UserActions;
+using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
 
 namespace AnoMech.Tests;
 
 // Runs one after another on one fake game with PracticeLoop watching, for what spans runs: the streak, Auto-restart,
 // Retry, Drill and the seat rotation. Every run plays `timeline` on a stand-in scenario; Started holds each run's seed,
-// the seat it gave the player and the strat and waymarks it was started with, in start order.
+// the seat it gave the player and the strat and waymarks it was started with, in start order. The stand-in plays TOP P6
+// unless a test gives it another phase.
 internal sealed class PracticeRun : IDisposable
 {
     public FakeGame Fake { get; }
@@ -19,7 +21,7 @@ internal sealed class PracticeRun : IDisposable
     public List<(int Seed, PartyRole Seat, int? Strat, int Waymark)> Started { get; } = [];
 
     public PracticeRun(Action<SimWorld> timeline, object? overrides = null, JobId job = JobId.Warrior,
-        Func<IReadOnlyList<string>>? conflicts = null)
+        Func<IReadOnlyList<string>>? conflicts = null, IPhase? phase = null)
     {
         Fake = FakeGame.Install();
         Fake.BattleCharas.Player.ClassJob = (byte)job;
@@ -33,7 +35,7 @@ internal sealed class PracticeRun : IDisposable
         Practice = new PracticeLoop(Game);
         DalamudServices.Install(nameof(Plugin.Practice), Practice);
         Game.RunStarted += (p, _) => Started.Add((Game.World.Rng.Seed, Game.World.Party.PlayerRole, p.SelectedAi, p.SelectedWaymark));
-        Scenario = new TimelineScenario(TopZone.P6, timeline, overrides: overrides, conflicts: conflicts);
+        Scenario = new TimelineScenario(phase ?? TopZone.P6, timeline, overrides: overrides, conflicts: conflicts);
     }
 
     // A local run of the stand-in, every seat filled. No seat leaves the player's to their job, no seed draws a fresh one.

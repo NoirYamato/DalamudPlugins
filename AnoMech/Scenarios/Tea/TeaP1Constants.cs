@@ -11,7 +11,8 @@ namespace AnoMech.Scenarios.Tea;
 public static class TeaP1Constants
 {
     public const byte Level = 80;
-    public static readonly byte? Weather = null;                    // UNVERIFIED: the zone's own until the phase's is known
+    // Upstream's replays' weather. Set, since a phase that sets none keeps a stay's last run's, Wormhole's Beyond Time.
+    public static readonly byte? Weather = TeaConstants.Weather.FairSkies;
     public const ushort Bgm = 706;                                  // the next phase's track, 723, takes over with J Kick
 
     public static IReadOnlyList<Waymark> EuWaymarks =>

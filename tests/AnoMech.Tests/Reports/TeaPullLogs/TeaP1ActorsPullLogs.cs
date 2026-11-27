@@ -364,8 +364,8 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
             Details = mapEffectsInAPull,
         };
 
-        yield return new LogFinding(Section, "The phase's weather", SimSource.Line(TeaSource.Constants, "byte? Weather ="), "left to the territory",
-            "ACT logs no weather", Verdict.NotInTheseLogs);
+        yield return new LogFinding(Section, "The phase's weather", SimSource.Line(TeaSource.Constants, "byte? Weather ="),
+            Weather is { } weather ? $"weather {weather} from a run's start" : "left to the territory", "ACT logs no weather", Verdict.NotInTheseLogs);
         var tracks = music.Select(m => m[(m.IndexOf("track ", StringComparison.Ordinal) + 6)..].Split(' ', ',')[0]).ToList();
         yield return new LogFinding(Section, "The phase's track: each change of music the duty sends",
             SimSource.Line(TeaSource.Constants, "ushort Bgm ="), $"{Bgm} from a run's start, at the fight's own clock into the track",
