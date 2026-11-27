@@ -104,8 +104,8 @@ public class TeaP1LimitCutKnockbackTests
         Assert.That(Vector2.Distance(landed, stage.HitSpot(1)), Is.LessThan(0.05f), $"landed at {landed}");
     }
 
-    // Arm's Length and Surecast last 6 s and a warrior's Inner Strength 15, whether its button reports Inner Release
-    // or the Berserk that became it; the charge lands at 16.9.
+    // Arm's Length and Surecast last 6 s and a warrior's Inner Strength 15; the charge lands at 16.9. A button placed as
+    // Berserk reports Inner Release at level 80, so the Berserk cases hold the arm left over for P2 to drop.
     [TestCase(P1PlayerActionId.ArmsLength, 11.1f, false)]
     [TestCase(P1PlayerActionId.ArmsLength, 10.7f, true)]
     [TestCase(P1PlayerActionId.Surecast, 11.1f, false)]

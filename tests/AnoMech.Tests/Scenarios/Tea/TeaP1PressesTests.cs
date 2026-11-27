@@ -416,8 +416,8 @@ public class TeaP1PressesTests
         Assert.That(covered, Is.EqualTo(new[] { false, true, true, false }));
     }
 
-    // A press comes with its button's own id: a button placed as Berserk reports Berserk at level 80, where it is
-    // Inner Release.
+    // A press comes as the id its button is adjusted to, so a button placed as Berserk reports Inner Release at level
+    // 80; the Berserk case holds the arm left over for P2 to drop.
     [TestCase(P1PlayerActionId.InnerRelease)]
     [TestCase(P1PlayerActionId.Berserk)]
     public void AWarriorsInnerReleaseCoversItForFifteenSeconds(uint press)

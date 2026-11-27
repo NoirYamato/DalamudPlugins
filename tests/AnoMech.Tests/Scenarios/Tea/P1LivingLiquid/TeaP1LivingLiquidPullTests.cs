@@ -666,8 +666,9 @@ public class TeaP1LivingLiquidPullTests
 
     // The human M1 presses one button with its doll targeted at 34.3. Only an action that is aimed at one target other
     // than its user is a hit, be it a weaponskill, a spell or an ability such as Provoke: a press comes with the
-    // client's target whatever the button. A button that turns into an attack on the target comes with its own id,
-    // whose row is aimed at its user, and is a hit too.
+    // client's target whatever the button. A button that turns into an attack on the target comes as the attack it
+    // became; the cases of its own id, whose row is aimed at its user, hold BecomeAHitOnTheTarget, which no press
+    // reaches and P2 drops.
     [TestCase(31u, true, TestName = "{m}(Heavy Swing)")]
     [TestCase(16u, true, TestName = "{m}(Shield Bash)")]
     [TestCase(7533u, true, TestName = "{m}(Provoke)")]

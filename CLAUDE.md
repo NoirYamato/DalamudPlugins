@@ -1353,18 +1353,16 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     weaponskills and spells. A press comes with the client's target whatever the button, so a cooldown, a heal, an
     invulnerability or a ground-targeted button pressed with a doll targeted is none. Thunderclap and its like,
     which can land on a party member or an enemy, count, on the taking that the client refuses a party-only button
-    aimed at an enemy before it is heard (UNVERIFIED). A button that turns into another action comes with its own
-    id, whose row is aimed at its user, so ten of them are let through by id
-    (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu, Iaijutsu, Tsubame-gaeshi, Masterful Blitz, Continuation,
-    Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's Higanbana
-    tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field) pressed with a
-    doll targeted. Since the merge brought upstream's `283e864` those ids no longer come: Raiton (2267) and
-    Higanbana (7489) arrive as themselves and pass on their own rows, but a Doton or an Elixir Field pressed with a
-    doll targeted no longer counts; the ids are left for P2 to drop. The fight's doll also
-    tethers on an auto-attack now and then, and so does the run's: with "Resolve your own actions" on, upstream's
-    `AutoAttackHandler` reports each of the player's swings through `IUserActions.Acted` (Attack 7, Shot 8, whose rows
-    pass the filter), so a swing that lands on a doll first tethers it. With the module off no swing is heard, and a
-    doll waits for the first action.
+    aimed at an enemy before it is heard (UNVERIFIED). Ten buttons that turn into another action have rows aimed at
+    their user, and their own ids are let through as hits (`P1PlayerActionId.BecomeAHitOnTheTarget`: Ninjutsu,
+    Iaijutsu, Tsubame-gaeshi, Masterful Blitz, Continuation, Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living
+    Muse), for presses that came with the button's own id. Since the merge brought upstream's `283e864` a press comes
+    as the action its button became, so those ids no longer come: Raiton (2267) and Higanbana (7489) arrive as
+    themselves and pass on their own rows, but a Doton or an Elixir Field pressed with a doll targeted no longer
+    counts; the ids are left for P2 to drop. The fight's doll also tethers on an auto-attack now and then, and so
+    does the run's: with "Resolve your own actions" on, upstream's `AutoAttackHandler` reports each of the player's
+    swings through `IUserActions.Acted` (Attack 7, Shot 8, whose rows pass the filter), so a swing that lands on a
+    doll first tethers it. With the module off no swing is heard, and a doll waits for the first action.
   - No damage is played, so a doll's health is scripted: whole until its tether shows, a quarter 4 s later
     (`DollUnderAQuarterAfter`, UNVERIFIED: the party's doing), then down to a tenth, where it stays; no doll dies.
     The bar is sent in twentieths through the status list (UNVERIFIED that the client's follows), and a human's own

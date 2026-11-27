@@ -178,10 +178,11 @@ public sealed class TeaP1Presses : IDisposable
         Struck?.Invoke(strike);
     }
 
-    // A press comes with its button's own id, so a warrior's Inner Release can come as Berserk. Only a healer's
-    // client can report Esuna, only a bard's the Warden's Paean and only a tank's Provoke or its invulnerability, so
-    // neither the job nor the seat is asked. A press comes aimed at the client's target whatever the button is, so a
-    // cooldown pressed with an enemy targeted is told from a hit on it by what its action can be aimed at.
+    // A press comes as the id its button is adjusted to, so a button placed as Berserk reports Inner Release from level
+    // 70, and the arm for Berserk is left over; P2 drops it. Only a healer's client can report Esuna, only a bard's the
+    // Warden's Paean and only a tank's Provoke or its invulnerability, so neither the job nor the seat is asked. A press
+    // comes aimed at the client's target whatever the button is, so a cooldown pressed with an enemy targeted is told
+    // from a hit on it by what its action can be aimed at.
     private void Hear(PlayerAction action)
     {
         if (!ReferenceEquals(world.Rng, itsRuns))
@@ -229,9 +230,10 @@ public sealed class TeaP1Presses : IDisposable
     // not. The fight's enemies also count an auto-attack, and the client's swings come as Attack and Shot, whose rows
     // pass here.
     //
-    // A button that turns into another action comes with its own id, and its own row is aimed at its user (Ninjutsu
-    // for Raiton, Iaijutsu for Higanbana): those are let through by id, so one that became something laid round its
-    // user, pressed with a doll targeted, counts as a hit too.
+    // A button that turns into another action comes as the action it became, so Raiton and Higanbana pass on their
+    // own rows, and one that became something laid round its user (Doton, Elixir Field) is no hit, a doll targeted or
+    // not. BecomeAHitOnTheTarget lets through the buttons' own ids, whose rows are aimed at their user (Ninjutsu,
+    // Iaijutsu); no press comes with them, and P2 drops the set.
     private static bool IsAimedAtOneTarget(uint actionId)
         => P1PlayerActionId.BecomeAHitOnTheTarget.Contains(actionId) || Natives.Data.Action(actionId) is { CanTargetSelf: false, TargetArea: false };
 
