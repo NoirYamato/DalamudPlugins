@@ -292,7 +292,7 @@ internal sealed class TeaP1DollsPullLogs : ITeaPullLogMeasures
 
         var (tethers, afterItsHit) = (new Spread(tetherAfterTargetable), new Spread(tetherAfterItsHit));
         yield return new LogFinding(Section, "Whom a doll tethers", SimSource.Line(TeaSource.Dolls, "doll.Holder = strike.By;"),
-            $"the first player whose action aimed at it alone is heard (a weaponskill, a spell or an ability), {P1Duration.DollTethersAfterItsFirstHit} s after the press; an auto-attack is not heard",
+            $"the first player whose action aimed at it alone is heard (a weaponskill, a spell or an ability, and the player's own auto-attack while \"Resolve your own actions\" is on), {P1Duration.DollTethersAfterItsFirstHit} s after the press",
             dollTethers == 0 ? "no doll's tether"
                 : $"{tethersToTheFirstToActOnIt} of {dollTethers} tethers go to the first player whose action hit the doll, {tethers.Describe(" s")} after the dolls "
                   + "turn targetable"
