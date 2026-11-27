@@ -13,7 +13,7 @@ internal sealed class TeaP1ActorsPullLogs : ITeaPullLogMeasures
     // How the zone holds the rim.
     private const string RimInTheZone = "world.EnforceArenaBoundary(";
 
-    // Upstream's TEA files: the zone's duty data, from its replays, and the arena's slots every run sets.
+    // Upstream's TEA files: the zone's duty data and the arena's slots every run sets.
     private const string ReplayData = "AnoMech/Scenarios/Tea/TeaReplayData.cs";
     private const string ZoneConstants = "AnoMech/Scenarios/Tea/TeaConstants.cs";
 
