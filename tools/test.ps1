@@ -55,35 +55,36 @@ $KeepRuns = 10
 $HelloWorldHumans = 'FullyQualifiedName~TopP3HelloWorldLpduHumanTests'
 $Catalog = 'FullyQualifiedName~ScenarioCatalogTests'
 $Buckets = @(
-    @{ Name = 'hello-sprinting'; Terms = @("$HelloWorldHumans&Name~Sprinting"); Seconds = 179; Human = $true; Phase = 'P3' }
-    @{ Name = 'hello-early'; Terms = @("$HelloWorldHumans&Name~Early"); Seconds = 179; Human = $true; Phase = 'P3' }
-    @{ Name = 'hello-lanes'; Terms = @("$HelloWorldHumans&Name~Lanes"); Seconds = 178; Human = $true; Phase = 'P3' }
-    @{ Name = 'hello-straight'; Terms = @("$HelloWorldHumans&Name~Straight"); Seconds = 142; Human = $true; Phase = 'P3' }
-    @{ Name = 'hello-curving'; Terms = @("$HelloWorldHumans&Name~Curving"); Seconds = 135; Human = $true; Phase = 'P3' }
-    @{ Name = 'hello-stretching'; Terms = @("$HelloWorldHumans&Name~Stretching"); Seconds = 132; Human = $true; Phase = 'P3' }
-    @{ Name = 'p3-intermission-human'; Terms = @('FullyQualifiedName~TopP3IntermissionLpduHumanTests'); Seconds = 62; Human = $true; Phase = 'P3' }
-    @{ Name = 'p4-human'; Terms = @('FullyQualifiedName~TopP4BlueScreenLpduHumanTests'); Seconds = 53; Human = $true; Phase = 'P4' }
-    @{ Name = 'p5-delta-human'; Terms = @('FullyQualifiedName~TopP5DeltaLpduHumanTests'); Seconds = 127; Human = $true; Phase = 'P5' }
-    @{ Name = 'p5-delta-margin'; Terms = @('FullyQualifiedName~TopP5DeltaLpduMarginTests'); Seconds = 119; Phase = 'P5' }
-    @{ Name = 'p5-omega-human'; Terms = @('FullyQualifiedName~TopP5OmegaLpduHumanTests'); Seconds = 89; Human = $true; Phase = 'P5' }
-    @{ Name = 'p5-omega-margin'; Terms = @('FullyQualifiedName~TopP5OmegaLpduMarginTests'); Seconds = 43; Phase = 'P5' }
-    @{ Name = 'p6-human'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~HumanTests'); Seconds = 182; Human = $true; Phase = 'P6' }
-    @{ Name = 'p6-margin'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~MarginTests'); Seconds = 43; Phase = 'P6' }
-    @{ Name = 'tea-p1-human'; Terms = @('FullyQualifiedName~TeaP1LimitCutLpduHumanTests'); Seconds = 187; Human = $true }
-    @{ Name = 'tea-p1-protean-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidProtean1LpduHumanTests'); Seconds = 55; Human = $true }
-    @{ Name = 'tea-p1-pull-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidPullLpduHumanTests'); Seconds = 109; Human = $true }
-    @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 97; Human = $true }
-    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 61 }
-    @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 58 }
-    @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 25 }
-    @{ Name = 'catalog-black-hole'; Terms = @("$Catalog&Name~Dancing&Name~Black"); Seconds = 15; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-dancing'; Terms = @("$Catalog&Name~Dancing&Name!~Black"); Seconds = 21; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-top'; Terms = @("$Catalog&Name~Protocol"); Seconds = 26; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-fru'; Terms = @("$Catalog&Name~Futures&Name!~Replay"); Seconds = 18; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-tea'; Terms = @("$Catalog&Name~Alexander&Name!~Replay"); Seconds = 5; Seeds = 'SunnySeeds' }
-    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Futures&Name!~Alexander&Name!~Replay"); Seconds = 4; Seeds = 'SunnySeeds' }
-    @{ Name = 'pause'; Terms = @('FullyQualifiedName~GamePauseTests'); Seconds = 16; Seeds = 'PauseSeeds' }
-    @{ Name = 'rest'; Terms = @(); Seconds = 145; QuickSeconds = 133 }
+    @{ Name = 'hello-sprinting'; Terms = @("$HelloWorldHumans&Name~Sprinting"); Seconds = 245; Human = $true; Phase = 'P3' }
+    @{ Name = 'hello-early'; Terms = @("$HelloWorldHumans&Name~Early"); Seconds = 247; Human = $true; Phase = 'P3' }
+    @{ Name = 'hello-lanes'; Terms = @("$HelloWorldHumans&Name~Lanes"); Seconds = 250; Human = $true; Phase = 'P3' }
+    @{ Name = 'hello-straight'; Terms = @("$HelloWorldHumans&Name~Straight"); Seconds = 248; Human = $true; Phase = 'P3' }
+    @{ Name = 'hello-curving'; Terms = @("$HelloWorldHumans&Name~Curving"); Seconds = 247; Human = $true; Phase = 'P3' }
+    @{ Name = 'hello-stretching'; Terms = @("$HelloWorldHumans&Name~Stretching"); Seconds = 246; Human = $true; Phase = 'P3' }
+    @{ Name = 'p3-intermission-human'; Terms = @('FullyQualifiedName~TopP3IntermissionLpduHumanTests'); Seconds = 102; Human = $true; Phase = 'P3' }
+    @{ Name = 'p4-human'; Terms = @('FullyQualifiedName~TopP4BlueScreenLpduHumanTests'); Seconds = 80; Human = $true; Phase = 'P4' }
+    @{ Name = 'p5-delta-human'; Terms = @('FullyQualifiedName~TopP5DeltaLpduHumanTests'); Seconds = 168; Human = $true; Phase = 'P5' }
+    @{ Name = 'p5-delta-margin'; Terms = @('FullyQualifiedName~TopP5DeltaLpduMarginTests'); Seconds = 141; Phase = 'P5' }
+    @{ Name = 'p5-omega-human'; Terms = @('FullyQualifiedName~TopP5OmegaLpduHumanTests'); Seconds = 124; Human = $true; Phase = 'P5' }
+    @{ Name = 'p5-omega-margin'; Terms = @('FullyQualifiedName~TopP5OmegaLpduMarginTests'); Seconds = 59; Phase = 'P5' }
+    @{ Name = 'p6-human'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~HumanTests'); Seconds = 177; Human = $true; Phase = 'P6' }
+    @{ Name = 'p6-margin'; Terms = @('FullyQualifiedName~TopP6Gauntlet&FullyQualifiedName~MarginTests'); Seconds = 40; Phase = 'P6' }
+    @{ Name = 'tea-p1-human'; Terms = @('FullyQualifiedName~TeaP1LimitCutLpduHumanTests'); Seconds = 391; Human = $true }
+    @{ Name = 'tea-p1-protean-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidProtean1LpduHumanTests'); Seconds = 89; Human = $true }
+    @{ Name = 'tea-p1-pull-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidPullLpduHumanTests'); Seconds = 179; Human = $true }
+    @{ Name = 'tea-p1-cascade-human'; Terms = @('FullyQualifiedName~TeaP1LivingLiquidCascade2LpduHumanTests'); Seconds = 163; Human = $true }
+    @{ Name = 'tea-p1-liquid'; Terms = @('FullyQualifiedName~TeaP1LivingLiquid&FullyQualifiedName!~HumanTests'); Seconds = 95 }
+    @{ Name = 'tea-p3-wormhole-human'; Terms = @('FullyQualifiedName~TeaP3WormholeLpduHumanTests'); Seconds = 12; Human = $true }
+    @{ Name = 'debug-bot-replay'; Terms = @('FullyQualifiedName~DebugBotReplayTests'); Seconds = 67 }
+    @{ Name = 'peer-parity'; Terms = @('FullyQualifiedName~PeerParityTests'); Seconds = 35 }
+    @{ Name = 'catalog-black-hole'; Terms = @("$Catalog&Name~Dancing&Name~Black"); Seconds = 24; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-dancing'; Terms = @("$Catalog&Name~Dancing&Name!~Black"); Seconds = 50; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-top'; Terms = @("$Catalog&Name~Protocol"); Seconds = 53; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-fru'; Terms = @("$Catalog&Name~Futures&Name!~Replay"); Seconds = 35; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-tea'; Terms = @("$Catalog&Name~Alexander&Name!~Replay"); Seconds = 9; Seeds = 'SunnySeeds' }
+    @{ Name = 'catalog-other'; Terms = @("$Catalog&Name!~Dancing&Name!~Protocol&Name!~Futures&Name!~Alexander&Name!~Replay"); Seconds = 8; Seeds = 'SunnySeeds' }
+    @{ Name = 'pause'; Terms = @('FullyQualifiedName~GamePauseTests'); Seconds = 29; Seeds = 'PauseSeeds' }
+    @{ Name = 'rest'; Terms = @(); Seconds = 218; QuickSeconds = 202 }
 )
 
 # Heavy human suites: every seat scripted through every roll.

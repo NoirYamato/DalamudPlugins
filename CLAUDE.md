@@ -239,16 +239,14 @@ so also build and test a trial merge in a throwaway detached worktree.
     else, so every test runs once, a new one included. When the shards' times drift apart, refresh the bucket
     times or split a bucket; keep `[Explicit]` tests out of every bucket, since a filter that selects one can run
     it. The catalog's sunny days are split by family (`catalog-top`, `catalog-dancing`, `catalog-black-hole`,
-    `catalog-fru`, `catalog-tea`, `catalog-other`); `catalog-fru`'s, `catalog-tea`'s and `catalog-other`'s times
-    were scaled from a quick run after the bd24935 merge, and every bucket's want refreshing from the first full
-    run's summary since. Upstream's ignored `LinkInterruptionTests` (Merging) have no bucket: they fall to the rest,
-    skipped, and the Wormhole human suite runs there too.
-  - `-Preset full` (the default) runs everything at the run settings' seeds: 12 minutes here with the defaults
-    before the bd24935 merge, the PC's CPU load staying under a quarter, against about 37 for a plain `dotnet test`
-    and 28 for one capped process. `-Preset quick` drops the `*HumanTests` suites and runs 4 sunny-day seeds and 1
-    pause seed, about 3 minutes then, and about 8 with `-Shards 2` since; `-Phase P3` runs one TOP phase's `TopP3*`
-    classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick` too if wanted; `-SunnySeeds
-    2000` makes any of them a soak.
+    `catalog-fru`, `catalog-tea`, `catalog-other`), and the Wormhole human suite has a bucket of its own
+    (`tea-p3-wormhole-human`). Every bucket's time is from a full run with `-Shards 2` after the bd24935 merge.
+    Upstream's ignored `LinkInterruptionTests` (Merging) have no bucket: they fall to the rest, skipped.
+  - `-Preset full` (the default) runs everything at the run settings' seeds: about 32 minutes with `-Shards 2`, the
+    tests' own times summing to about 64, and the PC's CPU load staying under a quarter. `-Preset quick` drops the
+    `*HumanTests` suites and runs 4 sunny-day seeds and 1 pause seed, about 6 minutes with `-Shards 2`; `-Phase P3`
+    runs one TOP phase's `TopP3*` classes and the catalog-wide tests' cases for its scenarios, with `-Preset quick`
+    too if wanted; `-SunnySeeds 2000` makes any of them a soak.
 - A green full run of a clean tree writes `green <HEAD> full` to `TestResults\green-stamp.txt` (gitignored), which
   `publish.ps1` requires. A full run deletes it first, and one with uncommitted changes, `-NoBuild` or
   `-SunnySeeds`, or one HEAD moved under, writes none.
@@ -1561,5 +1559,5 @@ the same phase.
   `TeaP3WormholeLpduHumanTests` (a human in every DPS seat, from the Enumeration markers on, taking its spot by LPDU's
   priority on every pair, layout and reaction time loses nobody) green. No human test plays a tank or a healer seat,
   or any seat before the markers: the tanks' and healers' spots and every move before 46.0 are NAUR's, held only by
-  the frame-by-frame comparison and the bots-alone sweep. The gate has no bucket of its own for either; they run in
-  the rest.
+  the frame-by-frame comparison and the bots-alone sweep. The human suite is the gate's `tea-p3-wormhole-human`
+  bucket; the strat's other tests run in the rest.
