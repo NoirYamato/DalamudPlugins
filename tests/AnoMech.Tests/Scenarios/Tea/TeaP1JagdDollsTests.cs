@@ -3,8 +3,10 @@ using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Tea.TeaP1Constants;
 
@@ -214,6 +216,38 @@ public class TeaP1JagdDollsTests
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That((tetheredAt, hit), Is.EqualTo(((float?)null, true)));
+    }
+
+    // The client's own swing, which "Resolve your own actions" plays and reports as the player's Attack or Shot, lands on
+    // a doll at 1.5 with the player, in the main tank's seat, 2 y from it: the doll tethers the player 0.6 s later, as the
+    // fight's dolls tether whoever's auto-attack lands first.
+    [TestCase(AutoAttackHandler.AttackActionId)]
+    [TestCase(AutoAttackHandler.ShotActionId)]
+    public void AnAutoAttackOnADollTethersItToThePlayer(uint swing)
+    {
+        float? tetheredAt = null;
+        var heldByThePlayer = false;
+        var run = Dolls((world, fight, _) =>
+        {
+            fight.JagdDollsAppear(1f);
+            fight.JagdDollsTurnTargetable(1.1f);
+            world.Events.Add(1.3f, () =>
+            {
+                var spot = fight.Dolls.All[0].Spot;
+                TimelineRun.Place(world, MainTank, spot.X + 2f, spot.Z);
+            });
+            world.Events.Add(1.5f, () => ((FakeUserActions)Natives.UserActions).Act(
+                new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, swing, (ulong)fight.Dolls.All[0].Enemy.GameObjectId)));
+            world.Events.Add(3f, () =>
+            {
+                tetheredAt = fight.Dolls.All[0].TetheredAt;
+                heldByThePlayer = ReferenceEquals(fight.Dolls.All[0].Holder, world.Party.Player) && fight.Dolls.All[0].Tether is not null;
+            });
+        });
+
+        Assert.That(run.Passed, run.ToString);
+        Assert.That(heldByThePlayer, Is.True);
+        Assert.That(tetheredAt, Is.EqualTo(1.5f + P1Duration.DollTethersAfterItsFirstHit).Within(TimelineRun.FrameLate));
     }
 
     [Test]

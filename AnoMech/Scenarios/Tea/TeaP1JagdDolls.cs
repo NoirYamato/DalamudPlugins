@@ -71,7 +71,8 @@ public sealed class TeaP1JagdDoll
 // quarter, and killing everyone before.
 //
 // No damage is played, so a doll's health is scripted from its tether and no doll dies. The fight's doll also tethers
-// whoever's auto-attack lands on it first; the run hears no auto-attack, so here a doll waits for an action.
+// whoever's auto-attack lands on it first, and so does this one with the player's actions resolved, the only time the
+// client's swings are played and heard.
 // UNVERIFIED: that a doll nobody has hit is never fed (seen only in a doll's first 0.75 s); that one can be fed from
 // its first hit, before its tether shows, and is fed the moment a boss stands inside the line (the one doll seen fed
 // before a tether had the Living Liquid 3.9 y from it for 1.9 s first); that a doll fed with a quarter of its health

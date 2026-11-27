@@ -135,8 +135,11 @@ public class TeaP1PressesTests
     // -- A hit on an enemy --
     // A press comes aimed at the client's target whatever the button is, so what is a hit is read off what the action
     // can be aimed at: one target, and neither its user nor the ground. One that can also land on a party member, as a
-    // monk's Thunderclap can, is a hit on the enemy it is pressed at.
+    // monk's Thunderclap can, is a hit on the enemy it is pressed at. An auto-attack is one too: the client's swings come
+    // as Attack or Shot.
 
+    [TestCase(7u, "attack", true)]
+    [TestCase(8u, "Shot", true)]
     [TestCase(31u, "Heavy Swing", true)]
     [TestCase(16u, "Shield Bash", true)]
     [TestCase(9u, "Fast Blade", true)]

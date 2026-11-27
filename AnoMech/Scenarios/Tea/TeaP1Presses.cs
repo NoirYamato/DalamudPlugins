@@ -18,7 +18,7 @@ public sealed record TeaP1Cleanse(SimCharacter By, SimCharacter Target, float At
 public sealed record TeaP1Provoke(SimCharacter By, ulong TargetId, float At, bool ByHuman);
 
 // One action aimed at an enemy, the one that carries `TargetId`, and at nothing else: a weaponskill, a spell or an
-// ability with one target other than its user. No auto-attack is heard.
+// ability with one target other than its user, or an auto-attack, heard only while the player's actions are resolved.
 public sealed record TeaP1Strike(SimCharacter By, ulong TargetId, float At, bool ByHuman);
 
 // The human's own presses a TEA P1 run reads, heard through IUserActions.Acted whether or not the player's actions
@@ -225,7 +225,8 @@ public sealed class TeaP1Presses : IDisposable
     // member or on an enemy (a monk's Thunderclap), and the sheet's columns here do not say which can land on an
     // enemy. UNVERIFIED: that the client refuses one that cannot before it is heard, that every such action aimed at
     // an enemy counts as a hit on it, and that one which only clips it, laid on the ground or round its user, does
-    // not. The fight's enemies also count an auto-attack; none is heard here.
+    // not. The fight's enemies also count an auto-attack, and the client's swings come as Attack and Shot, whose rows
+    // pass here.
     //
     // A button that turns into another action comes with its own id, and its own row is aimed at its user (Ninjutsu
     // for Raiton, Iaijutsu for Higanbana): those are let through by id, so one that became something laid round its
