@@ -60,7 +60,8 @@ public sealed class TeaP1Presses : IDisposable
         heard.Clear();
     }
 
-    // The sim shows none of the statuses, so each press is timed on the run's clock.
+    // Timed from the press on the run's clock, so the rule holds the same with the player's actions resolved or not: the
+    // engine shows Arm's Length's and Surecast's statuses either way, but Inner Strength only while they are resolved.
     public bool AntiKnockbackUp(SimCharacter member)
         => ReferenceEquals(member, world.Party.Player) && world.Events.Elapsed < antiKnockbackUntil;
 

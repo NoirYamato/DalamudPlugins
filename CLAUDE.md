@@ -891,7 +891,9 @@ UNVERIFIED mark there, in `TeaP1Actions.cs` and in the scenarios, with the bound
   immune and hold their spots, a headless run's debug-driven player among them. A human is thrown unless its own
   Arm's Length or Surecast was pressed in the 6 s before, or a warrior's Inner Release, whose Inner Strength holds
   15 s: `TeaP1Presses` hears the press through `IUserActions.Acted`, with "Resolve your own actions" on or off, and
-  times it on the run's clock, since the sim shows none of the statuses. It doesn't ask the job: only a warrior's
+  times it on the run's clock, so the rule holds the same either way: upstream's `JobActions` shows Arm's Length's and
+  Surecast's statuses (1209, 160) with the module on or off, but Inner Strength (2663) only with it on, and the rule
+  never reads them. It doesn't ask the job: only a warrior's
   client can report Inner Release. A press comes with its button's own id, so Inner Release is heard as 7389 and
   as 38, the Berserk a button may have been placed as; once a release brings upstream's `283e864`, which reports
   the id a button is adjusted to, 38 no longer comes and its arm does nothing.
