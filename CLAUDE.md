@@ -1309,8 +1309,10 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     Serpent's Tail, Twinfang, Twinblood, Astral Flow, Living Muse): a ninja's Raiton or a samurai's Higanbana
     tethers a doll, and so does one that became something laid round its user (Doton, Elixir Field) pressed with a
     doll targeted. Once a release brings upstream's `283e864` those ids no longer come. The fight's doll also
-    tethers on an auto-attack now and then; the run hears no auto-attack, so a doll waits for the first action: a
-    known gap, and hearing them needs an event from upstream's `AutoAttackHandler`.
+    tethers on an auto-attack now and then, and so does the run's: with "Resolve your own actions" on, upstream's
+    `AutoAttackHandler` reports each of the player's swings through `IUserActions.Acted` (Attack 7, Shot 8, whose rows
+    pass the filter), so a swing that lands on a doll first tethers it. With the module off no swing is heard, and a
+    doll waits for the first action.
   - No damage is played, so a doll's health is scripted: whole until its tether shows, a quarter 4 s later
     (`DollUnderAQuarterAfter`, UNVERIFIED: the party's doing), then down to a tenth, where it stays; no doll dies.
     The bar is sent in twentieths through the status list (UNVERIFIED that the client's follows), and a human's own
@@ -1357,8 +1359,8 @@ in the scenario, whose lines take no `start` since nothing comes before it, `Tea
     seat's hit tethers a doll, and nothing in a tank's or a healer's part feeds one: on its way to the main tank at
     the rim it is fed to the Liquid whole, on its way to the off tank on the flank it is fed whole or stops beside
     it for a second Exhaust, and beside H2 far south-east it is a second Exhaust.
-  - A damage dealer: its doll's quarter, hit it first with a weaponskill or a spell, stand where only its Exhaust
-    reaches, keep it more than 5 y from both bosses until it is under a quarter, then draw it through a boss from
+  - A damage dealer: its doll's quarter, hit it first (an auto-attack counts while "Resolve your own actions" is on,
+    so keep the other dolls untargeted), stand where only its Exhaust reaches, keep it more than 5 y from both bosses until it is under a quarter, then draw it through a boss from
     the far side, clear of the water. M1 is also told to hit by 38 s: on every layout the tanks lead the bosses to
     the middle past the south-west doll's spot from 42.5, which feeds a hit doll there, and its health falls by
     the script, so a first hit from about 39.0 wipes the run at 44.7. The bosses pass no other doll's spot. A ranged

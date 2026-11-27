@@ -1058,9 +1058,9 @@ public class TeaP1LivingLiquidPullLpduHumanTests
 
     // -- A damage dealer: its hit --
 
-    // Its doll is under a quarter 4 s after its tether shows. A melee that hits 2 or 3 s late, as one who opens on its
-    // doll with auto-attacks does (no auto-attack tethers one here), still has it ready before the bosses leave the
-    // rim; a ranged's is not wanted before the second Exhaust.
+    // Its doll is under a quarter 4 s after its tether shows. A melee that hits 2 or 3 s late, as one does that opens on
+    // its doll with auto-attacks while Resolve your own actions is off, when no swing is heard, still has it ready
+    // before the bosses leave the rim; a ranged's is not wanted before the second Exhaust.
     [Test]
     public void ADamageDealerWhoHitsItsDollLateStillFeedsIt([Values(MeleeDpsA, MeleeDpsB, PhysRangedDps, CasterDps)] PartyRole seat, [Values(2f, 3f)] float hitsLate)
     {

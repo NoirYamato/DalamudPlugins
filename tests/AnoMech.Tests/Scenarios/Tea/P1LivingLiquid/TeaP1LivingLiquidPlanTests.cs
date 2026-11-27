@@ -273,7 +273,8 @@ public class TeaP1LivingLiquidPlanTests
         Assert.Multiple(() =>
         {
             Assert.That(lines, Has.Count.EqualTo(2));
-            Assert.That(lines[0], Does.StartWith($"Your Jagd Doll: the one {quarter} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell, since no auto-attack is heard here")
+            Assert.That(lines[0], Does.StartWith($"Your Jagd Doll: the one {quarter} of the middle with the open quarter north. Hit it first: a doll goes to whoever's attack "
+                                                 + "lands on it first, an auto-attack too while Resolve your own actions is on, so keep the other dolls untargeted")
                 .And.Contain("each reaches 8.8 y, and two at once kill")
                 .And.Contain("Keep it more than 5 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone")
                 .And.Contain("stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle"));

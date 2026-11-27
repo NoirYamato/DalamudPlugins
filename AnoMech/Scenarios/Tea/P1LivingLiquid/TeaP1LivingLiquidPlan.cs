@@ -179,8 +179,9 @@ public sealed class TeaP1LivingLiquidPlan
                 TeaP1Quarter.Southwest => "south-west",
                 _ => "north-west",
             };
-            yield return $"Your Jagd Doll: the one {where} of the middle with the open quarter north. Hit it first, with a weaponskill or a spell, since no auto-attack is heard here, "
-                         + "and stand where only its Exhaust reaches you: each reaches 8.8 y, and two at once kill. "
+            yield return $"Your Jagd Doll: the one {where} of the middle with the open quarter north. Hit it first: a doll goes to whoever's attack lands on it first, "
+                         + "an auto-attack too while Resolve your own actions is on, so keep the other dolls untargeted. "
+                         + "Stand where only its Exhaust reaches you: each reaches 8.8 y, and two at once kill. "
                          + (HumanSeat == MeleeDpsA ? "Hit it by 38 s: from 42 s the tanks lead the bosses past it to the middle, which feeds it. " : "")
                          + "Keep it more than 5 y from both bosses until it is under a quarter of its health: above a quarter, feeding it kills everyone. "
                          + "Then draw it through a boss: stand on the boss's far side from it, clear of the tornadoes' water, or feed it once the bosses are on the middle";
