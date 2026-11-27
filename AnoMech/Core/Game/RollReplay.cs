@@ -93,11 +93,12 @@ public sealed class RollReplay
 
     // Each frame, after Game's, with the frame's own seconds, since the sim's clock stands still through the freeze. With
     // Drill on, a frozen run, or one that ended failed without freezing (a mechanic failed and the run played on, which
-    // raises no RunFinished), plays its roll again once it has stood so FreezeHoldSeconds, counted from then or from Drill
-    // ticked on meanwhile; a run that is stopped or replaced, or Drill ticked off, drops the count.
+    // raises no RunFinished), plays its roll again once it has stood so FreezeHoldSeconds, counted from then, from Drill
+    // ticked on meanwhile or from a resume. A run that is stopped or replaced, Drill ticked off, or the user's pause,
+    // which an ended run still takes, drops the count, so nothing restarts a paused run.
     public void Tick(float deltaSeconds)
     {
-        if (!Drill || !localRun || repeatAsked || !(game.Paused || game.Status == SessionStatus.CompletedFailed))
+        if (!Drill || !localRun || repeatAsked || game.UserPaused || !(game.Paused || game.Status == SessionStatus.CompletedFailed))
         {
             heldFor = null;
             return;

@@ -62,7 +62,7 @@ public unsafe partial class MainWindow
             ImGui.SetTooltip(mpActive
                 ? MpDisabledReason
                 : $"After a run in which anyone died or a mechanic failed, play the same roll again {RollReplay.FreezeHoldSeconds:0} s "
-                  + "after it freezes or ends; after a clean run, a fresh one.\n"
+                  + "after it freezes or ends (or after your resume, if you pause the ended run); after a clean run, a fresh one.\n"
                   + "A death or a failed mechanic doesn't turn this off, and a replayed roll doesn't extend the streak.");
     }
 }

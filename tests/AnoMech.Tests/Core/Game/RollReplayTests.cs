@@ -212,6 +212,33 @@ public class RollReplayTests
         Assert.That(run.Game.Paused, Is.False);
     }
 
+    // Such a run can still be paused, unlike a frozen one, and Drill waits the pause out: the roll plays again
+    // FreezeHoldSeconds after the resume, however long the hold had run before the pause.
+    [Test]
+    public void DrillWaitsOutAPauseOfARunThatEndedFailed()
+    {
+        using var run = new PracticeRun(PracticeRun.MechanicFails);
+        run.Practice.Rolls.Drill = true;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Status == SessionStatus.CompletedFailed);
+        run.For(RollReplay.FreezeHoldSeconds - 1f);
+
+        run.Game.Pause();
+        run.For(2 * RollReplay.FreezeHoldSeconds);
+        Assert.That(run.Game.UserPaused);
+        Assert.That(run.Chat.Lines, Has.Some.StartsWith($"[{Plugin.DisplayName}] Paused at "));
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+
+        run.Game.Resume();
+        run.For(RollReplay.FreezeHoldSeconds - 0.1f);
+        Assert.That(run.Game.UserPaused, Is.False);
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+
+        run.Until(() => run.Started.Count == 2, maxSeconds: 0.2f);
+        Assert.That(run.Started[1], Is.EqualTo(run.Started[0]));
+        Assert.That(run.Practice.Rolls.Replaying);
+    }
+
     // Without Drill such a run stands ended, and Auto-restart, which the failure turned off, starts nothing either.
     [Test]
     public void WithoutDrillARunThatFailedWithoutFreezingStandsEnded()

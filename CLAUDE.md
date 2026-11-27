@@ -391,10 +391,12 @@ build.
 ## Pause
 `/noirmech pause|resume|toggle`, the main-window Pause/Resume button and the title-bar icon toggle
 `Game.UserPaused` through `Game.Pause`/`Resume`/`TogglePause` (all via `Framework.Run`). The button sits beside
-upstream's solo Stop and hides with it through the death freeze, where upstream's Leave shows; while paused the title
-reads PAUSED (`PausedTitle`, over upstream's `Title(failed)`) and upstream's status line Paused.
+upstream's solo Stop and hides with it once the run is no longer live (frozen or ended), where upstream's Leave
+shows; while paused the title reads PAUSED (`PausedTitle`, over upstream's `Title(failed)`) and upstream's status
+line Paused.
 - Refused with a chat line (`Game.PauseRefusal`) when there is no run, in a multiplayer session (only `Local`
-  runs pause), or during the death freeze (`Paused`). Redundant requests do nothing.
+  runs pause), or during the death freeze (`Paused`). Redundant requests do nothing. A run that has ended still
+  pauses, from the title-bar icon or the command, and Drill waits the pause out (Retry and Drill).
 - While halted (`IsHalted` = user pause or death freeze) the scheduler, children and `IScenario.Tick` don't
   run. In Local runs `SimWorld.BeginHalt`/`HoldHalted`/`EndHalt` hold the scene: `SimCast` writes the native
   cast time back every frame (near the end it holds 0.45s short so the omen stays drawn), statuses are resent so
@@ -443,7 +445,9 @@ start to it, and its end while Drill is on. `MainWindow.RunControls.cs` draws bo
 - The freeze is polled: `Rolls.Tick` runs after `Game.Tick` in `Plugin.OnFrameworkUpdate` and counts the hold on the
   frame's own seconds, since the sim's clock stands still through the freeze. Drill ticked on during a freeze replays
   3 s after the tick. Whatever ends or replaces the frozen run within the 3 s drops the replay (Stop or Reset, Start,
-  Retry, Leave, the zone going away), and so does ticking Drill off; Pause is refused through the freeze.
+  Retry, Leave, the zone going away), and so does ticking Drill off; Pause is refused through the freeze. A run that
+  ended failed still takes the user's pause (the title-bar icon or the command), which drops the count too: its roll
+  plays again 3 s after the resume, so nothing restarts a paused run (a halted run raises no `RunFinished` either).
 - A replayed roll (Retry, or Drill's repeat) doesn't add to the streak; a death still resets it.
 - `PracticeLoopTests` and `RollReplayTests` play runs back to back on a `TimelineScenario`
   (`tests/AnoMech.Tests/Support/PracticeRun.cs`), Drill in a host's stay included; `RunControllerRetryTests` covers
