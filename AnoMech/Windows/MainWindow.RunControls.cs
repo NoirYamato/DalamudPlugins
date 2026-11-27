@@ -61,8 +61,8 @@ public unsafe partial class MainWindow
         if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
             ImGui.SetTooltip(mpActive
                 ? MpDisabledReason
-                : $"After a run in which anyone died, play the same roll again {RollReplay.FreezeHoldSeconds:0} s after it freezes; "
-                  + "after a clean run, a fresh one.\n"
-                  + "A death doesn't turn this off, and a replayed roll doesn't extend the streak.");
+                : $"After a run in which anyone died or a mechanic failed, play the same roll again {RollReplay.FreezeHoldSeconds:0} s "
+                  + "after it freezes or ends; after a clean run, a fresh one.\n"
+                  + "A death or a failed mechanic doesn't turn this off, and a replayed roll doesn't extend the streak.");
     }
 }

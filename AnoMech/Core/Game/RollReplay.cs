@@ -15,7 +15,8 @@ public sealed class RollReplay
 {
     public const string MultiplayerRefusal = "Retry is not available in multiplayer.";
 
-    // How long Drill leaves a frozen run's scene up before it plays the roll again.
+    // How long Drill leaves a frozen run's scene up, or a run that ended failed without freezing, before it plays the roll
+    // again.
     public const float FreezeHoldSeconds = 3f;
 
     private readonly Game game;
@@ -23,7 +24,7 @@ public sealed class RollReplay
     private readonly Dictionary<RunScenarioParams, PlayedRun> pending = new(ReferenceEqualityComparer.Instance);
     private bool localRun;
     private bool repeatAsked;
-    // How long Drill has watched the run on now stand frozen; null while it isn't watching one.
+    // How long Drill has watched the run on now stand frozen, or ended failed; null while it isn't watching one.
     private float? heldFor;
 
     public RollReplay(Game game) => this.game = game;
@@ -34,13 +35,15 @@ public sealed class RollReplay
     // The run on now plays an earlier run's roll.
     public bool Replaying { get; private set; }
 
-    // A run in which anyone died plays its roll again: FreezeHoldSeconds after it freezes, or once it ends when godmode
-    // kept everyone up. A clean run moves on to a fresh roll.
+    // A run in which anyone died or a mechanic failed plays its roll again: FreezeHoldSeconds after it freezes, or after it
+    // ends when it failed without freezing, or once it ends when godmode kept everyone up. A clean run moves on to a fresh
+    // roll.
     public bool Drill { get; set; }
 
-    // Drill will play the roll of the run on now again: someone in it died, or godmode reported a death.
+    // Drill will play the roll of the run on now again: someone in it died or a mechanic failed, or godmode reported a death.
     public bool DrillReplays => Drill && localRun
-        && game.Status is SessionStatus.Failed or SessionStatus.Frozen or SessionStatus.RunningWithMistake or SessionStatus.CompletedWithMistake;
+        && game.Status is SessionStatus.Failed or SessionStatus.Frozen or SessionStatus.CompletedFailed
+            or SessionStatus.RunningWithMistake or SessionStatus.CompletedWithMistake;
 
     // Null when Retry can play the last local run's roll again.
     public string? RetryRefusal =>
@@ -89,11 +92,12 @@ public sealed class RollReplay
     }
 
     // Each frame, after Game's, with the frame's own seconds, since the sim's clock stands still through the freeze. With
-    // Drill on, a frozen run plays its roll again once it has stood frozen FreezeHoldSeconds, counted from the freeze or
-    // from Drill ticked on during it; a run that ends or is replaced, or Drill ticked off, drops the count.
+    // Drill on, a frozen run, or one that ended failed without freezing (a mechanic failed and the run played on, which
+    // raises no RunFinished), plays its roll again once it has stood so FreezeHoldSeconds, counted from then or from Drill
+    // ticked on meanwhile; a run that is stopped or replaced, or Drill ticked off, drops the count.
     public void Tick(float deltaSeconds)
     {
-        if (!Drill || !localRun || repeatAsked || !game.Paused)
+        if (!Drill || !localRun || repeatAsked || !(game.Paused || game.Status == SessionStatus.CompletedFailed))
         {
             heldFor = null;
             return;

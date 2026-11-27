@@ -188,6 +188,45 @@ public class RollReplayTests
         HoldsTheFreezeThenPlaysTheRollAgain(run, runs: 1);
     }
 
+    // A mechanic that fails without a freeze leaves the run playing to its end, failed, with no RunFinished: the ended run
+    // stands FreezeHoldSeconds, as a frozen one does, before its roll plays again, and a replay that fails again likewise.
+    [Test]
+    public void DrillPlaysARunThatFailedWithoutFreezingAgainOnceItHasStoodEnded()
+    {
+        using var run = new PracticeRun(PracticeRun.MechanicFails);
+        run.Practice.Rolls.Drill = true;
+        run.StartInZone(run.Params());
+
+        foreach (var runs in new[] { 1, 2 })
+        {
+            run.Until(() => run.Started.Count == runs && run.Game.Status == SessionStatus.CompletedFailed);
+            run.For(RollReplay.FreezeHoldSeconds - 0.1f);
+            Assert.That(run.Started, Has.Count.EqualTo(runs));
+            Assert.That(run.Game.Status, Is.EqualTo(SessionStatus.CompletedFailed));
+
+            run.Until(() => run.Started.Count == runs + 1, maxSeconds: 0.2f);
+
+            Assert.That(run.Started[runs], Is.EqualTo(run.Started[0]));
+            Assert.That(run.Practice.Rolls.Replaying);
+        }
+        Assert.That(run.Game.Paused, Is.False);
+    }
+
+    // Without Drill such a run stands ended, and Auto-restart, which the failure turned off, starts nothing either.
+    [Test]
+    public void WithoutDrillARunThatFailedWithoutFreezingStandsEnded()
+    {
+        using var run = new PracticeRun(PracticeRun.MechanicFails);
+        run.Practice.AutoRestart = true;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Game.Status == SessionStatus.CompletedFailed);
+
+        run.For(2 * RollReplay.FreezeHoldSeconds);
+
+        Assert.That(run.Started, Has.Count.EqualTo(1));
+        Assert.That(run.Practice.AutoRestart, Is.False);
+    }
+
     // A replay that dies again is held the full FreezeHoldSeconds from its own freeze before the roll plays a third time.
     [Test]
     public void DrillHoldsAReplaysFreezeInFull()
@@ -326,6 +365,26 @@ public class RollReplayTests
         run.Until(() => run.Game.Status == SessionStatus.Failed);
 
         Assert.That(beforeTheDeath, Is.False);
+        Assert.That(run.Practice.Rolls.DrillReplays, Is.EqualTo(drill));
+    }
+
+    // So it reads once a mechanic failed with nobody dead, while the run plays on and once it has ended failed.
+    [TestCase(true)]
+    [TestCase(false)]
+    public void DrillSaysTheRollPlaysAgainOnceAMechanicFailed(bool drill)
+    {
+        using var run = new PracticeRun(PracticeRun.MechanicFails);
+        run.Practice.Rolls.Drill = drill;
+        run.StartInZone(run.Params());
+        run.Until(() => run.Started.Count == 1);
+        var beforeTheFailure = run.Practice.Rolls.DrillReplays;
+
+        run.Until(() => run.Game.Status == SessionStatus.Failed);
+        var playingOn = run.Practice.Rolls.DrillReplays;
+        run.Until(() => run.Game.Status == SessionStatus.CompletedFailed);
+
+        Assert.That(beforeTheFailure, Is.False);
+        Assert.That(playingOn, Is.EqualTo(drill));
         Assert.That(run.Practice.Rolls.DrillReplays, Is.EqualTo(drill));
     }
 }

@@ -77,4 +77,7 @@ internal sealed class PracticeRun : IDisposable
     // The player dies at 1s; the run freezes 5s later.
     public static void PlayerDies(SimWorld world)
         => world.Events.Add(1f, () => world.Party.Player?.Die(SimCharacterDeathExtensions.Environment, "a test death"));
+
+    // A mechanic fails at 1s with nobody dead and no freeze: the run plays on and ends failed about a second later.
+    public static void MechanicFails(SimWorld world) => world.Events.Add(1f, () => world.Fail("a test failure"));
 }
