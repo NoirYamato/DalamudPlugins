@@ -48,9 +48,10 @@ public class TeaZoneTests
         Assert.That(presets[1].Markers, Is.EqualTo(TeaConstants.PfTrinesWaymarks));
     }
 
-    // From the zone-in: the entrance barrier on the south edge, the zone's 17 invisible helpers and the arena's slots as
-    // the zone loads; from the run's start, the arena's eight objects and its seven slots set one by one. All as the
-    // zone's duty data has them, in a run of NoirMech's P1.
+    // From the zone-in, the entrance barrier on the south edge; as the stay's first run starts, the arena's slots in the
+    // zone-in's snapshot, the zone's 17 invisible helpers, which every run spawns as it starts and takes down as it ends,
+    // and the arena's eight objects and its seven slots set one by one. All as the zone's duty data has them, in a run of
+    // NoirMech's P1.
     [Test]
     public void ARunOfP1StandsOnUpstreamsDutyData()
     {

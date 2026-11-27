@@ -896,11 +896,12 @@ pulls leave it.
 - The arena has no wall, and whoever goes past its rim (r 20, the zone's `TeaConstants.Geometry.ArenaRadius`, which
   `P1Geometry.ArenaRadius` names) dies at once: `TeaZone.Run` asks the world for the boundary, with NoirMech's reason
   (`WentPastTheRim`) in every phase; upstream's own TEA tests read the environment's action alone.
-- The zone's duty data is upstream's (`TeaReplayData`): the entrance barrier (EObj 2000182 at (0, 15)), 17
-  invisible 9020 helpers and the arena's slots as the zone loads; every run sets the arena's eight objects and its
-  seven slots (`TeaConstants.ArenaStates`) as it starts, beside P1's own helpers. Two waymark presets: NoirMech's
-  "EU" first, so it is the default and kept setups don't move, then upstream's "PF Trines", the same layout within
-  a yalm.
+- The zone's duty data is upstream's (`TeaReplayData`): the entrance barrier (EObj 2000182 at (0, 15)) as the zone
+  loads; the arena's slots in one snapshot as the zone loads and again as each later run starts; and 17 invisible 9020
+  helpers at every run's start (`ScenarioSession.Start`), torn down with the run, beside P1's own. Every run also sets
+  the arena's eight objects and its seven slots one by one (`TeaConstants.ArenaStates`) as it starts. Two waymark
+  presets: NoirMech's "EU" first, so it is the default and kept setups don't move, then upstream's "PF Trines", the
+  same layout within about a yalm.
 - P1 plays Fair Skies (`TeaConstants.Weather.FairSkies`, 2), the fight's weather until J Kick: a phase that sets none
   keeps the stay's last run's, so a stay that played Wormhole (Beyond Time) would have kept that into P1, since a
   start in the same zone starts in place. The phase's BGM is 706; the fight changes to 723 with J Kick, which ends
