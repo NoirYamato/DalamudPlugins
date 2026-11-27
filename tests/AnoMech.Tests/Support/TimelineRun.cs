@@ -37,12 +37,13 @@ internal sealed record TimelineRunOptions
 internal sealed record SentAction(float Time, string Kind, string Actor, uint ActionId, Vector3 Position, float Rotation, string Target,
     IReadOnlyList<string> Hits);
 
-// Who died, and every packet-shaped call the sim made on the fakes (SimTimeline's rows, world coordinates).
+// Who died, which mechanics failed, and every packet-shaped call the sim made on the fakes (SimTimeline's rows, world
+// coordinates).
 internal sealed record TimelineRunResult(
-    IReadOnlyList<Death> Deaths, string? Failure, IReadOnlyList<string> Warnings,
+    IReadOnlyList<Death> Deaths, IReadOnlyList<MechanicFailure> MechanicFailures, string? Failure, IReadOnlyList<string> Warnings,
     IReadOnlyList<Dictionary<string, string>> Rows, IReadOnlyList<string> Chat, float Elapsed, Vector3 Origin)
 {
-    public bool Passed => Failure is null && Deaths.Count == 0;
+    public bool Passed => Failure is null && Deaths.Count == 0 && MechanicFailures.Count == 0;
 
     // "cast" rows are bars starting, "ability" rows ActionEffects; in time order.
     public IReadOnlyList<SentAction> Sent(string kind, params uint[] actionIds)
@@ -65,6 +66,7 @@ internal sealed record TimelineRunResult(
         var lines = new List<string> { $"timeline run (t={Elapsed:F2}):" };
         if (Failure is not null) lines.Add($"  {Failure}");
         lines.AddRange(Deaths.Select(d => $"  {d.Role} died at t={d.Time:F2}: {d.Cause}"));
+        lines.AddRange(MechanicFailures.Select(f => $"  mechanic failed at t={f.Time:F2}: {f.Reason}"));
         lines.AddRange(Warnings.Distinct().Select(w => $"  warning: {w}"));
         return string.Join(Environment.NewLine, lines);
     }
@@ -72,8 +74,9 @@ internal sealed record TimelineRunResult(
 
 // A headless run of a timeline the test writes on a stand-in scenario (TimelineScenario), for engine and family pieces
 // no catalog scenario plays on their own. Every seat is filled; nobody moves unless the timeline moves them. The run
-// ends as a scenario's does: once its events run dry, or a death freezes it. It fails, as ScenarioRun does, on a cast
-// the zone's helper pool had no free helper for.
+// ends as a scenario's does: once its events run dry, or as it freezes, after a death or a mechanic failed with a
+// freeze. It fails, as ScenarioRun does, on a death, on a mechanic SimWorld.Fail failed and on a cast the zone's helper
+// pool had no free helper for.
 internal static class TimelineRun
 {
     // How late a row can be stamped: an event fires on the first frame at or after its time, a cast's ActionEffect is
@@ -100,11 +103,13 @@ internal static class TimelineRun
         game = new Game { GodMode = options.GodMode };
         DalamudServices.Install(nameof(Plugin.Game), game);
         var deaths = new List<Death>();
+        var mechanicFailures = new List<MechanicFailure>();
         string? failure = null;
         try
         {
             game.PartyMemberKilled += (role, cause, actionId, statusId) => deaths.Add(new Death(role, cause, actionId, statusId, game.World.Events.Elapsed,
                 WorldSnapshot.Describe(game.World, [], game.World.Party.Get(role), includeHidden: true)));
+            game.MechanicFailed += reason => mechanicFailures.Add(new MechanicFailure(reason, game.World.Events.Elapsed));
             game.World.HelperPoolExhausted += actionId => failure ??=
                 $"helper pool exhausted at t={game.World.Events.Elapsed:F2}: {Natives.Data.ActionName(actionId)} ({actionId}) dropped";
             var scenario = new TimelineScenario(options.Phase, timeline, options.Tick);
@@ -130,7 +135,7 @@ internal static class TimelineRun
         {
             failure = $"threw at t={game.World.Events.Elapsed:F2}: {e}";
         }
-        var result = new TimelineRunResult(deaths, failure, log.Warnings.ToList(), fake.Timeline.Rows.ToList(), chat.Lines.ToList(),
+        var result = new TimelineRunResult(deaths, mechanicFailures, failure, log.Warnings.ToList(), fake.Timeline.Rows.ToList(), chat.Lines.ToList(),
             game.World.Events.Elapsed, options.Phase.Zone.Origin);
         DebugBotControl.Enabled = false;
         game.Dispose();

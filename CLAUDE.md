@@ -198,10 +198,10 @@ so also build and test a trial merge in a throwaway detached worktree.
     `RunUntilStopped` and `probe.Stopped` beside upstream's four-argument `PartyMemberKilled`, `MechanicFailed`,
     `HelperPoolExhausted` and `CompletedFailed`.
 - What merged clean but needed NoirMech's hand, each in its section: `TimelineRun.cs` (upstream's four-argument
-  `PartyMemberKilled`, and a run fails on `HelperPoolExhausted`), the P6 Gauntlet's limit breaks on upstream's
-  `JobActions` and its helpers on TOP's zone pool, the lasers' vulnerability, Drill on a run that ends failed without
-  a freeze, Retry ending the speed buffs, the TEA report's barrier and map-effect findings, the lint's `Known`, a
-  Throttle the engine's Esuna takes off, and the multiplayer spawn's animation state.
+  `PartyMemberKilled`, and a run fails on `HelperPoolExhausted` and `MechanicFailed`), the P6 Gauntlet's limit
+  breaks on upstream's `JobActions` and its helpers on TOP's zone pool, the lasers' vulnerability, Drill on a run that
+  ends failed without a freeze, Retry ending the speed buffs, the TEA report's barrier and map-effect findings, the
+  lint's `Known`, a Throttle the engine's Esuna takes off, and the multiplayer spawn's animation state.
 - Still optional: P3 and P4 spawn their own 9020 helpers beside TOP's zone pool (Intermission 10, Hello World 12,
   Monitors 14, Blue Screen 19) and play the same with it; casting through `omega.CastFromHelper(action, target,
   at: ...)` would drop them (Hello World would then keep its towers' placements itself, which its resolve reads off
@@ -263,8 +263,9 @@ so also build and test a trial merge in a throwaway detached worktree.
   departures, inside `AiManager`'s 0.25s margin; and FRU P2 Light Rampant [JP · Mana], whose 33.85 move sends every
   bot to the banish spot its 32.9 move sent some to, with the same 37.1 deadline, so a departure still deferred goes
   to the same spot in time. An entry fails the test once it's no longer found.
-- `TimelineRun` fails a run on `HelperPoolExhausted`, as `ScenarioRun` does, so a timeline test on a zone's pool
-  can't drop a cast unseen.
+- `TimelineRun` fails a run on `HelperPoolExhausted` and on a mechanic upstream's `SimWorld.Fail` failed (its
+  `MechanicFailures`), as `ScenarioRun` does, so a timeline test on a zone's pool can't drop a cast unseen and one on
+  a piece that fails a mechanic without a death can't pass (`TimelineRunTests`).
 
 - Heavy runs (a 2000-seed soak, the P3 Hello World human tests) take 5-15 minutes each. Several test processes
   at normal priority on every CPU have frozen the development PC: run them through `tools\test.ps1`, or one
