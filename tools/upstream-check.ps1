@@ -6,7 +6,7 @@
 .DESCRIPTION
     Nothing is merged and no branch moves: git merge-tree does the trial merge in memory.
 
-    NoirMech's lines are the ones changed or added since the AnoMech release last merged (Base), in tracked and
+    NoirMech's lines are the ones changed or added since the AnoMech commit last merged (Base), in tracked and
     untracked .cs files alike, so a line upstream wrote is never reported. A deletion is a public, internal or
     protected declaration (or an interface member) the ref removed whose name its .cs files no longer mention.
     Where NoirMech declares the same name itself, only uses through the deleted one's type are reported.
@@ -18,7 +18,8 @@
     The AnoMech ref to preview: a release tag, or upstream/master for unreleased work.
 
 .PARAMETER Base
-    The AnoMech release this branch last merged. By default the newest v* tag HEAD contains.
+    The AnoMech commit this branch last merged. By default the merge base of HEAD and Ref, which is that commit for
+    any ref that contains it: a release tag, or the unreleased commit NoirMech merged ahead of one.
 
 .PARAMETER All
     Lists every deletion, used or not.
@@ -109,7 +110,7 @@ function Get-Code([string]$line) {
     return $code
 }
 
-if (-not $Base) { $Base = (Invoke-Git describe --tags --abbrev=0 --match 'v*' HEAD) }
+if (-not $Base) { $Base = (Invoke-Git rev-parse --short (Invoke-Git merge-base HEAD $Ref)) }
 $head = (Invoke-Git rev-parse --short HEAD)
 $refCommit = (Invoke-Git rev-parse --short "$Ref^{commit}")
 Write-Output "NoirMech at $head (AnoMech base $Base) against $Ref ($refCommit)"
