@@ -1558,5 +1558,8 @@ the same phase.
   intermission on its own clock, and listing both would only confuse. Its files and tests stay.
 - Change bot movement only with `TeaP3WormholeLpduAiTests` (the order, the priority on every marked pair and layout,
   every seat frame by frame against NAUR's, bots alone on every pair, layout and seat) and
-  `TeaP3WormholeLpduHumanTests` (a human taking its spot by LPDU's priority on every pair, seat, layout and reaction
-  time loses nobody) green. The gate has no bucket of its own for either; they run in the rest.
+  `TeaP3WormholeLpduHumanTests` (a human in every DPS seat, from the Enumeration markers on, taking its spot by LPDU's
+  priority on every pair, layout and reaction time loses nobody) green. No human test plays a tank or a healer seat,
+  or any seat before the markers: the tanks' and healers' spots and every move before 46.0 are NAUR's, held only by
+  the frame-by-frame comparison and the bots-alone sweep. The gate has no bucket of its own for either; they run in
+  the rest.

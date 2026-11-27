@@ -18,9 +18,12 @@ namespace AnoMech.Tests;
 // west beside the healers, the melee of two marked on one side to the other ring, an unmarked DPS north where NAUR has
 // it.
 //
-// Among LPDU's bots nobody dies, whatever the pair, the seat, the layout and the reaction time. Among NAUR's, which send
-// a lone marked melee east, the human and the other marked DPS share a ring wherever the two priorities part: M1 and R1
-// marked, or M2 and R1, with the human one of them.
+// Among LPDU's bots nobody dies, whatever the pair, the DPS seat, the layout and the reaction time. Among NAUR's, which
+// send a lone marked melee east, the human and the other marked DPS share a ring wherever the two priorities part: M1
+// and R1 marked, or M2 and R1, with the human one of them.
+//
+// Only the DPS seats are played, and only from the markers on: the tanks' and healers' spots and every move before 46.0
+// are NAUR's, which TeaP3WormholeLpduAiTests holds frame by frame.
 public class TeaP3WormholeLpduHumanTests
 {
     private static readonly float[] ReactionTimes = [0f, 0.5f, 1f];
