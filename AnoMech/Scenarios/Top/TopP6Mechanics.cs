@@ -21,7 +21,8 @@ namespace AnoMech.Scenarios.Top;
 //     alphaOmega.CosmoMemory(1.9f, limitBreaks);
 //     alphaOmega.Autos(12.0f);
 //
-// Every helper cast goes through CastFromHelper. A mistake kills on the spot, with the reason, as the hit lands.
+// Every helper cast goes through CastFromHelper, onto the zone's helper pool. A mistake kills on the spot, with the
+// reason, as the hit lands.
 public sealed class TopP6AlphaOmega(SimWorld world)
 {
     internal const string FlashGaleOnANonTank =
@@ -55,15 +56,6 @@ public sealed class TopP6AlphaOmega(SimWorld world)
 
     private static readonly Placement FacingNorth = new(Vector3.Zero, -MathF.PI);
 
-    private readonly SpawnedHelperPool helpers = new(world, new EnemySpawnConfig(
-        BNpcBaseId: P6BNpcBaseId.Helper,
-        NameId: BNpcNameId.AlphaOmega,
-        Level: 1,
-        Targetable: false,
-        EnemyList: EnemyListMode.Never,
-        Visibility: SpawnVisibility.InvisibleHelper,
-        Placement: new Placement(Vector3.Zero, 0f)), P6Rules.HelperPool);
-
     public SimEnemy? Enemy { get; private set; }
 
     public Vector3 Position => Enemy?.Position ?? Vector3.Zero;
@@ -74,9 +66,6 @@ public sealed class TopP6AlphaOmega(SimWorld world)
         var radians = degrees * MathF.PI / 180f;
         return new Vector3(MathF.Sin(radians), 0f, -MathF.Cos(radians)) * radius;
     }
-
-    // The most helpers this run has kept busy at once; never more than P6Rules.HelperPool.
-    public int BusyHelperPeak => helpers.PeakBusy;
 
     // At t 0: a cast on an actor spawned in its own frame plays no animation.
     public void Spawn()
@@ -90,13 +79,12 @@ public sealed class TopP6AlphaOmega(SimWorld world)
             Visibility: SpawnVisibility.Visible,
             LayoutId: BNpcLayoutId.AlphaOmega,
             Placement: FacingNorth));
-        helpers.Spawn();
     }
 
     public void Cast(EnemyAction action, CastTarget target = default) => Enemy?.Cast(action, target);
 
     public void CastFromHelper(EnemyAction action, CastTarget target = default, Placement? at = null, byte animationVariation = 0)
-        => helpers.Cast(action, target, at ?? Enemy?.Placement() ?? FacingNorth, animationVariation);
+        => Enemy?.CastFromHelper(action, target, at, animationVariation);
 
     // What Cosmo Memory's hit leaves, for a run that starts after it: Code: ****mi* on Alpha Omega, and Brilliant
     // Dynamis on everyone but the `sparked` seats, whose limit break has spent it already: they carry Spark of Dynamis.

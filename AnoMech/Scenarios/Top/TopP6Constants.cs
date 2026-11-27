@@ -9,7 +9,6 @@ public static class TopP6Constants
 {
     public static class P6BNpcBaseId
     {
-        public const uint Helper = 9020;                            // the invisible helper that casts for Alpha Omega
         public const uint CosmoMeteor = 15726;                      // hitbox 3; two
         public const uint CosmoComet = 15727;                       // hitbox 1; six
     }
@@ -165,8 +164,5 @@ public static class TopP6Constants
         // enough for a buster only then, and never for Wild Charge.
         public const float CosmoDiveBusterMitigation = 0.38f;
         public const float WildChargeFrontMitigation = 0.45f;
-
-        // The helper pool TOP's zone spawns once helpers belong to the zone: a P6 run may never keep more busy.
-        public const int HelperPool = 36;
     }
 }

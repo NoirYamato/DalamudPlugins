@@ -7,10 +7,10 @@ using static AnoMech.Scenarios.Top.TopP6Constants;
 
 namespace AnoMech.Tests;
 
-// Each part, on its own clock, never keeps more helpers busy at once than the zone's pool will hold
-// (P6Rules.HelperPool), so no cast is ever dropped. Godmode, everyone at the centre, so every part plays to its end.
-// The busiest moment is Unlimited Wave Cannon's: two puddle sets of eight, the exaflares' 12 s casts and their later
-// explosions. The whole Gauntlet shares one pool across its parts.
+// Each part, on its own clock, never asks the zone's helper pool for more helpers at once than it holds, so no cast is
+// ever dropped: a run fails on the pool's HelperPoolExhausted. Godmode, everyone at the centre, so every part plays to
+// its end. The busiest moment is Unlimited Wave Cannon's: two puddle sets of eight, the exaflares' 12 s casts and their
+// later explosions. The whole Gauntlet shares the one pool across its parts.
 public class TopP6HelperBudgetTests
 {
     private static readonly float[] Steps = [1.1f, 1.0f];
@@ -73,7 +73,6 @@ public class TopP6HelperBudgetTests
     [Test]
     public void TheWholeGauntlet([ValueSource(nameof(Points))] int first, [Values] bool clockwise, [ValueSource(nameof(Steps))] float step)
     {
-        TopP6AlphaOmega? alphaOmega = null;
         var run = ScenarioRun.Execute(typeof(TopP6GauntletScenario), 0, Random.Shared.Next(), new ScenarioRunOptions
         {
             GodMode = true,
@@ -86,27 +85,31 @@ public class TopP6HelperBudgetTests
                 overrides.Arrow1InFirst = clockwise;
                 overrides.Arrow2InFirst = !clockwise;
             },
-            Probe = p => alphaOmega ??= p.Game.Catalog.Scenarios.OfType<TopP6GauntletScenario>().Single().AlphaOmega,
         });
-        TestContext.Out.WriteLine($"busiest: {alphaOmega!.BusyHelperPeak} helpers at once");
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(run.Warnings, Has.None.Contains("dropped"));
-        Assert.That(alphaOmega.BusyHelperPeak, Is.LessThan(P6Rules.HelperPool));
+    }
+
+    // A cast the pool has no free helper for drops, and the run fails on it.
+    [Test]
+    public void ACastThePoolCannotHoldFailsTheRun()
+    {
+        var run = TopP6LimitBreakRun.Execute((world, alphaOmega, _) => world.Events.Add(1f, () =>
+        {
+            for (var i = 0; i <= TopReplayData.DutyInitData.HelperPool.Count; i++)
+                alphaOmega.CastFromHelper(TopP6Actions.FlashGale, world.Party.Get(PartyRole.MainTank)!);
+        }), new TimelineRunOptions { GodMode = true });
+
+        Assert.That(run.Failure, Does.StartWith("helper pool exhausted at t=1.0"), run.ToString);
+        Assert.That(run.Warnings, Has.Some.Contains("dropped"));
     }
 
     private static void AssertWithinThePool(Action<TopP6AlphaOmega, TopP6LimitBreaks> part)
     {
-        TopP6AlphaOmega? alphaOmega = null;
-        var run = TopP6LimitBreakRun.Execute((_, boss, limitBreaks) =>
-        {
-            alphaOmega = boss;
-            part(boss, limitBreaks);
-        }, new TimelineRunOptions { GodMode = true });
-        TestContext.Out.WriteLine($"busiest: {alphaOmega!.BusyHelperPeak} helpers at once");
+        var run = TopP6LimitBreakRun.Execute((_, boss, limitBreaks) => part(boss, limitBreaks), new TimelineRunOptions { GodMode = true });
 
         Assert.That(run.Failure, Is.Null, run.ToString);
         Assert.That(run.Warnings, Has.None.Contains("dropped"));
-        Assert.That(alphaOmega.BusyHelperPeak, Is.LessThan(P6Rules.HelperPool));
     }
 }

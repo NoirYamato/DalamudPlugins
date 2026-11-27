@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Numerics;
 using AnoMech.Core.Game;
 using AnoMech.Core.Game.Party;
+using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Top;
@@ -71,7 +72,8 @@ internal sealed record TimelineRunResult(
 
 // A headless run of a timeline the test writes on a stand-in scenario (TimelineScenario), for engine and family pieces
 // no catalog scenario plays on their own. Every seat is filled; nobody moves unless the timeline moves them. The run
-// ends as a scenario's does: once its events run dry, or a death freezes it.
+// ends as a scenario's does: once its events run dry, or a death freezes it. It fails, as ScenarioRun does, on a cast
+// the zone's helper pool had no free helper for.
 internal static class TimelineRun
 {
     // How late a row can be stamped: an event fires on the first frame at or after its time, a cast's ActionEffect is
@@ -103,6 +105,8 @@ internal static class TimelineRun
         {
             game.PartyMemberKilled += (role, cause, actionId, statusId) => deaths.Add(new Death(role, cause, actionId, statusId, game.World.Events.Elapsed,
                 WorldSnapshot.Describe(game.World, [], game.World.Party.Get(role), includeHidden: true)));
+            game.World.HelperPoolExhausted += actionId => failure ??=
+                $"helper pool exhausted at t={game.World.Events.Elapsed:F2}: {Natives.Data.ActionName(actionId)} ({actionId}) dropped";
             var scenario = new TimelineScenario(options.Phase, timeline, options.Tick);
             game.ZoneIn(scenario.Phase.Zone, SessionMode.Local);
             game.StartScenario(new RunScenarioParams(scenario, new LocalPartyProvider { RoleOverride = options.PlayerRole }, null, 0, options.Seed));
