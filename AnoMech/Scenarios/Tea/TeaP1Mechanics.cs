@@ -603,6 +603,9 @@ public sealed class TeaP1LivingLiquid
     // Who carries Throttle now, by the run's own count.
     public IReadOnlyCollection<SimCharacter> Throttled => throttle.Carriers;
 
+    // From the scenario's own hook.
+    public void OnStatusLost(StatusLost lost) => throttle.Lost(lost);
+
     public bool IsThrottled(SimCharacter member) => throttle.Carriers.Contains(member);
 
     // -- The Liquid Hand's slam --
@@ -821,6 +824,14 @@ public sealed class TeaP1LivingLiquid
             else if (cleanse.ActionId == P1PlayerActionId.WardensPaean) barrierUntil[cleanse.Target] = cleanse.At + P1Duration.WardensPaeanBarrier;
         }
 
+        // A Throttle the sim took off counts as cleansed: with the player's actions resolved, the engine's own Esuna or
+        // Warden's Paean lifts it 1.11 s after the press, from the recipient it reads off the press, which need not be
+        // the one Hear was told of. One that ran out, or went with a death, doesn't count.
+        public void Lost(StatusLost lost)
+        {
+            if (lost is { StatusId: P1StatusId.Throttle, Reason: StatusLossReason.Removed }) carriers.Remove(lost.Holder);
+        }
+
         public void RunOut()
         {
             presses.CatchUp();
@@ -828,8 +839,8 @@ public sealed class TeaP1LivingLiquid
             foreach (var member in carriers.ToList()) RanOutOn(member);
         }
 
-        // Whoever is still counted dies, whatever became of the status itself: only a cleanse takes a seat off the
-        // count.
+        // Whoever is still counted dies, whatever became of the status itself: only a cleanse, the run's or the
+        // engine's, takes a seat off the count.
         private void RanOutOn(SimCharacter member)
         {
             if (carriers.Remove(member) && member.IsAlive()) member.Die(P1ActionId.LiquidGaol, ThrottleRanOut);

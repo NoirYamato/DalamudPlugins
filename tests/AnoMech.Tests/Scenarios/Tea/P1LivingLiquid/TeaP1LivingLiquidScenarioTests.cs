@@ -588,13 +588,14 @@ public class TeaP1LivingLiquidScenarioTests
         Assert.That(run.Passed, run.ToString);
     }
 
-    // What a long frame does: the status leaves a frame before its end, and nothing sees it go.
+    // What a long frame does: the status runs out a frame before its end, and nothing sees it go. A Throttle taken off
+    // counts as cleansed; one that runs out doesn't.
     [Test]
     public void AThrottleWhoseStatusLeftEarlyStillKills()
     {
         var run = new Stage { First = Cascade2, NotCleansed = [MeleeDpsA] }.Run(MainTank, probe: p =>
         {
-            if (p.Crossed(20.4f)) p.Member(MeleeDpsA)!.RemoveStatus(P1StatusId.Throttle);
+            if (p.Crossed(20.4f) && p.Member(MeleeDpsA)!.FindStatus(P1StatusId.Throttle) is { } throttle) throttle.Tick(throttle.RemainingTime + 1f);
         });
 
         TeaP1LimitCutScenarioTests.AssertFirstDeath(run, MeleeDpsA, P1ActionId.LiquidGaol, 20.5f, TeaP1LivingLiquid.ThrottleRanOut);

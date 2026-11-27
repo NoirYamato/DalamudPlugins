@@ -76,6 +76,8 @@ public sealed class TeaP1LivingLiquidScenario : IScenario
 
     public void Tick(float delta, float elapsed) => fight?.Tick();
 
+    public void OnStatusLost(StatusLost lost) => fight?.OnStatusLost(lost);
+
     // A part after the pull starts mid-fight, with the bosses where the tanks would have them: in the frame of the
     // tornadoes standing through Protean 1, which a run from Cascade 2 never shows.
     private void SpawnTheBosses(TeaP1TornadoLayout frame)

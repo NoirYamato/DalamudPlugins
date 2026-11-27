@@ -1,8 +1,11 @@
+using System.Reflection;
 using AnoMech.Core.Game.Party;
 using AnoMech.Core.Native.Interfaces;
 using AnoMech.Core.SimObjects;
+using AnoMech.Core.UserActions;
 using AnoMech.Scenarios;
 using AnoMech.Scenarios.Tea;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using static AnoMech.Core.Game.Party.PartyRole;
 using static AnoMech.Scenarios.Tea.P1LivingLiquid.TeaP1LivingLiquidPart;
@@ -160,6 +163,41 @@ public class TeaP1LivingLiquidThrottleTests
 
         Assert.That(run.Passed, run.ToString);
         Assert.That(counted, Is.False);
+    }
+
+    // With "Resolve your own actions" on the engine also cleanses, 1.11 s after the press, the recipient it reads off the
+    // press: a press aimed at the client's "current target" stand-in goes to the healer itself there (DispelEffect), and
+    // to the player's target here. H1 presses Esuna that way at 11.2 with the main tank targeted, the run taking the main
+    // tank's Throttle off and the engine H1's own, and at 13.7 one on the off tank. The stage's healers leave H1's on.
+    [Test]
+    public void AThrottleTheEngineTakesOffCountsAsCleansedWhereverThePressWasReadToGo()
+    {
+        const ulong CurrentTarget = 0xE0000000;
+        var leftInstalled = Plugin.TargetManager;
+        var targetManager = DispatchProxy.Create<ITargetManager, TopP6MeleeWindowTests.TargetStandIn>();
+        DalamudServices.Install(nameof(Plugin.TargetManager), targetManager);
+        try
+        {
+            var stage = new Stage { First = Cascade2, HumanUntil = 60f, PlayerCleansesItself = true, NotCleansed = [RegenHealer] };
+            var countedAfterTheEngine = new List<PartyRole>();
+            var run = Play(stage, RegenHealer, [(13.7f, OffTank)], stopAt: 22f, probe: p =>
+            {
+                if (p.Crossed(11.2f))
+                {
+                    ((TopP6MeleeWindowTests.TargetStandIn)(object)targetManager).Target = (ulong)p.Member(MainTank)!.GameObjectId;
+                    p.Fake.UserActions.Act(new PlayerAction(PlayerActionStep.Resolved, ActionType.Action, P1PlayerActionId.Esuna, CurrentTarget));
+                    DispelEffect.Dispel(p.Member(RegenHealer)!);
+                }
+                if (p.Crossed(12.5f)) countedAfterTheEngine.AddRange(TeaP1LivingLiquidScenarioTests.Throttled(p));
+            });
+
+            Assert.That(run.Passed, run.ToString);
+            Assert.That(countedAfterTheEngine, Does.Not.Contain(RegenHealer).And.Not.Contain(MainTank), "H1's own taken off by the engine, the main tank's by the run");
+        }
+        finally
+        {
+            DalamudServices.Install(nameof(Plugin.TargetManager), leftInstalled);
+        }
     }
 
     // R1 is a bard; the stage's healers leave its Throttle on.

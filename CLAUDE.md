@@ -1058,7 +1058,13 @@ share.
   carries it then dies. An Esuna or a Warden's Paean heard on a carrier as it resolves takes it off (`TeaP1Presses`
   reports the cleanse, with "Resolve your own actions" on or off; one aimed at no party member counts for the
   player). The piece keeps its own list of carriers: a status that runs out is gone before anything scheduled at its
-  end can see it, a frame early on a long frame. The order of the cleanses is nobody's rule. A cleanse on a seat that
+  end can see it, a frame early on a long frame. It drops a carrier whose Throttle the sim took off
+  (`StatusLossReason.Removed`, heard through the scenario's `OnStatusLost`): with the module on, upstream's
+  `JobActions` gives Esuna and the Warden's Paean their own `DispelEffect`, which lifts the recipient's first
+  dispellable status 1.11 s after the press, Throttle being the only one in P1, and reads the recipient off the press
+  itself, so a press aimed at the client's current-target stand-in goes to its caster there and to the player's target
+  in `TeaP1Presses`. Either cleanse counts, so a healer's own icon never goes while the run still counts it. The order
+  of the cleanses is nobody's rule. A cleanse on a seat that
   carries none takes nothing off, an Esuna pressed before Throttle lands included; the Warden's Paean then leaves its
   30 s barrier on that seat instead, and Throttle doesn't land on a seat one covers (`TeaP1Cleanse.ActionId` tells
   the two apart; UNVERIFIED that the barrier stops Throttle).
