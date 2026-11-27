@@ -12,6 +12,7 @@ namespace AnoMech.Scenarios.Tea.P3Wormhole;
 public sealed class TeaP3WormholeAi : IScenarioAi<TeaP3WormholeState>
 {
     public string Name => "NAUR";
+    public string? Group => "NA";
 
     private const float Exact = 0f;
     private const float NumberSpotsBy = 25.39f;

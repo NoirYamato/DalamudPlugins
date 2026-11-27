@@ -25,7 +25,7 @@ public sealed class TeaP3WormholeScenario : IMultiplayerReplayable
     public string Name => "Wormhole";
     public IPhase Phase => TeaZone.P3;
     public bool SupportsMultiplayer => true;
-    public IReadOnlyList<IScenarioAi> AiStrats => [new TeaP3WormholeAi()];
+    public IReadOnlyList<IScenarioAi> AiStrats => [new TeaP3WormholeLpduAi(), new TeaP3WormholeAi()];
     public void DrawSettings() => settingsWindow.Draw();
     public bool HasPerPlayerSettings => true;
     public void DrawPerPlayerSettings() => settingsWindow.DrawPerPlayer();

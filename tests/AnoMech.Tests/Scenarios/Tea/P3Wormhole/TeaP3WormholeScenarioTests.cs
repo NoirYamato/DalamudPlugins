@@ -15,6 +15,8 @@ namespace AnoMech.Tests;
 //   40.78  Incinerating Heat, the Enumerations at 50.44.
 public class TeaP3WormholeScenarioTests
 {
+    private const int NaStrat = 1;
+
     private static readonly PartyRole[] PinnedNumbers =
         [CasterDps, MeleeDpsB, RegenHealer, MainTank, OffTank, MeleeDpsA, PhysRangedDps, ShieldHealer];
 
@@ -28,7 +30,7 @@ public class TeaP3WormholeScenarioTests
     }
 
     private static NegativeRun<TeaP3WormholeScenario> Wormhole(PartyRole player)
-        => Negative<TeaP3WormholeScenario>(player).Overrides<TeaP3WormholeStateOverrides>(Pin);
+        => Negative<TeaP3WormholeScenario>(player, NaStrat).Overrides<TeaP3WormholeStateOverrides>(Pin);
 
     private static TeaP3WormholeState State(ScenarioProbe p)
         => p.Game.Catalog.Scenarios.OfType<TeaP3WormholeScenario>().Single().LastState!;
