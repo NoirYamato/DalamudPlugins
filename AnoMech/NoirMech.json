@@ -2,8 +2,8 @@
     "Author": "Anomek, Noir Yamato",
     "Name": "NoirMech",
     "MinimumDalamudVersion": "15.0.3.5",
-    "Punchline": "AnoMech with LPDU strats for TOP P2, P3, P4, P5 Delta, P5 Omega and P6, and a pause. Go to an inn and start practice.",
-    "Description": "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen, P5 Delta and P5 Omega, the P6 Gauntlet (all of P6 through the enrage, where you press your own limit breaks as LPDU assigns them), and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
+    "Punchline": "AnoMech with LPDU strats for TOP P2, P3, P4, P5 Delta, P5 Omega and P6, TEA P1 and TEA P3 Wormhole, and a pause. Go to an inn and start practice.",
+    "Description": "A modified version of AnoMech by Anomek (https://github.com/anomek/AnoMech) that adds EU LPDU strats for TOP P2 Party Synergy, TOP P3 Intermission, P3 Hello World, P3 Monitors, P4 Blue Screen, P5 Delta and P5 Omega, the P6 Gauntlet (all of P6 through the enrage, where you press your own limit breaks as LPDU assigns them), TEA P1 Living Liquid (from the pull to the kill), TEA P1 Limit Cut and TEA P3 Wormhole, and a pause for studying mechanics mid-run. Spawns fake party members and bosses client-side so you can practice raid mechanics without a full party. Disable AnoMech while using NoirMech. Source: https://github.com/NoirYamato/DalamudPlugins",
     "RepoUrl": "https://github.com/NoirYamato/DalamudPlugins",
     "IconUrl": "https://raw.githubusercontent.com/NoirYamato/DalamudPlugins/main/icons/noirmech.png",
     "Tags": [
@@ -16,6 +16,8 @@
         "ultimate",
         "practice",
         "simulator",
-        "lpdu"
+        "lpdu",
+        "tea",
+        "alexander"
     ]
 }
