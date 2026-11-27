@@ -98,6 +98,14 @@ All using default NA pf strats unless noted otherwise:
     - Ultimate Suppression _by [WorstAquaPlayer](https://github.com/WorstAquaPlayer)_
 - The Unending Coil of Bahamut (Ultimate) _by [RoarkGit](https://github.com/RoarkGit)_
     - Exaflares
+- The Epic of Alexander (Ultimate)
+    - P1 Living Liquid _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=898892004518371&preview=1), from the pull to the kill; start from any part
+    - P1 Limit Cut _EU_ [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=729899133478371&preview=1)
+    - P3 Wormhole
+      - EU (default)
+        - [\[LPDU\] Light PF](https://ff14.toolboxgaming.space/?id=829897075478371&preview=1): NAUR's moves, with LPDU's priority for the Enumerations
+      - NA
+        - NAUR
 
 ## Details
 
